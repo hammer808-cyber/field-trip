@@ -1,0 +1,30 @@
+# App Hosting Configuration for Field Trip (Beta)
+
+runtime: nodejs20
+
+# Environment Variables
+env:
+  - variable: VITE_BETA_INVITE_ONLY
+    value: "true"
+  - variable: VITE_FIREBASE_APP_CHECK_DEBUG
+    value: "false"
+
+# Secrets
+# Configure these in Firebase Console under App Hosting -> Secrets
+# or via CLI: firebase apphosting:secrets:set <secret-name>
+secrets:
+  - variable: GEMINI_API_KEY
+    secret: gemini_api_key
+  - variable: VITE_RECAPTCHA_SITE_KEY
+    secret: recaptcha_site_key
+
+# Build Settings
+build:
+  buildCommand: npm run build
+  outputDirectory: dist
+
+# Run Settings
+run:
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512

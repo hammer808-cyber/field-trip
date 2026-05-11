@@ -1,0 +1,147 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // -------------------------------------------------------------------------
+    // HELPERS
+    // -------------------------------------------------------------------------
+    
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isAdmin() { 
+      return isSignedIn() && 
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) || 
+         request.auth.token.email == 'hammer808@gmail.com'); 
+    }
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    
+    // -------------------------------------------------------------------------
+    // CATCH ALL DENY
+    // -------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // ADMINS
+    // -------------------------------------------------------------------------
+    match /admins/{userId} {
+      allow read: if isSignedIn();
+      allow write: if false; // Only manageable via console
+    }
+
+    // -------------------------------------------------------------------------
+    // USERS
+    // -------------------------------------------------------------------------
+    match /users/{userId} {
+      function isValidUser(data) {
+        return data.keys().hasAll(['id', 'email', 'name', 'points', 'soloCount']) &&
+               data.id == userId &&
+               data.email is string &&
+               data.name is string && data.name.size() > 0 &&
+               data.points is number &&
+               data.soloCount is number;
+      }
+
+      // Public profile fields read by others, private write by owner
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if (isOwner(userId) && (
+        // Allow updating specific safe fields
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['persona', 'personaName', 'personaQuizComplete', 'onboardingCompleted', 'rerollsAvailable', 'activeChallenge', 'lastSnitchDate', 'seenBadges', 'updatedAt', 'preferences'])
+      )) || isAdmin();
+      
+      // Admin update for points/ranking
+      allow update: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // USERNAMES (Uniqueness Registry)
+    // -------------------------------------------------------------------------
+    match /usernames/{username} {
+      allow read: if true;
+      allow create: if isSignedIn() && 
+                      request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // ENTRIES (Evidence submissions)
+    // -------------------------------------------------------------------------
+    match /entries/{entryId} {
+      function isValidEntry(data) {
+        return data.keys().hasAll(['userId', 'challengeId', 'proofImage', 'status', 'createdAt']) &&
+               data.userId == request.auth.uid &&
+               data.proofImage is string && 
+               data.proofImage.size() < 2048; // URL limit
+      }
+
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidEntry(request.resource.data);
+      allow update: if isAdmin(); // Only admins/system can update status/points
+      allow delete: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // CHALLENGES
+    // -------------------------------------------------------------------------
+    match /challenges/{challengeId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // ACCESS CODES
+    // -------------------------------------------------------------------------
+    match /accessCodes/{code} {
+      allow get: if true; // Needed for validation before signup
+      allow list: if isAdmin();
+      allow update: if isSignedIn(); // Allow incrementing currentUses during signup transaction
+      allow create, delete: if isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // CREWS / ARTIFACTS / BADGES
+    // -------------------------------------------------------------------------
+    match /crews/{crewId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /badgeProgress/{id} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    match /observations/{id} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if isAdmin();
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // -------------------------------------------------------------------------
+    // FIELD SIGNALS / APP CONFIG
+    // -------------------------------------------------------------------------
+    match /appConfig/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /test/connection {
+      allow read: if true;
+    }
+
+    match /fieldSignals/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /seasons/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

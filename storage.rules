@@ -1,0 +1,37 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Global Helper: Check if user is signed in
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Global Helper: Check if user is owner of the path
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Proofs: Users can upload their own proofs
+    match /proofs/{userId}/{filename} {
+      allow read: if isSignedIn(); // Other users can see proofs in the feed
+      allow create: if isOwner(userId) && 
+                      request.resource.size < 5 * 1024 * 1024 && // 5MB limit
+                      request.resource.contentType.matches('image/.*');
+      allow delete: if false; // No deletion for now (audit trail)
+    }
+
+    // Avatars: Users can upload their own avatars
+    match /avatars/{userId}/{filename} {
+      allow read: if true; // Publicly viewable
+      allow write: if isOwner(userId) &&
+                      request.resource.size < 2 * 1024 * 1024 && // 2MB limit
+                      request.resource.contentType.matches('image/.*');
+    }
+
+    // Fallback: Deny everything else
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

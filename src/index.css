@@ -1,0 +1,294 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Inter:wght@100..900&family=Kalam:wght@300;400;700&family=Newsreader:opsz,wght@6..72,200..800&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Anton&family=Outfit:wght@100..900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Newsreader", "Georgia", serif;
+  --font-accent: "Newsreader", serif;
+  --font-mono: "Courier Prime", "Courier New", monospace;
+  --font-display: "Anton", sans-serif;
+
+  --color-brand-green: #525e4c; /* Muted Olive */
+  --color-brand-orange: #c2410c; /* Burnt Orange */
+  --color-brand-mustard: #e0a92e; /* Mustard */
+  --color-brand-blue: #64748b; /* Dusty Blue */
+  
+  --color-paper: #faf9f6;
+  --color-paper-dark: #efeeeb;
+  --color-on-surface: #121212;
+  --color-on-surface-variant: #49454f;
+  --color-outline: #121212;
+  --color-outline-variant: #e5e5e5;
+  --color-error: #ba1a1a;
+
+  --animate-scan: scan 4s linear infinite;
+}
+
+body {
+  @apply bg-paper text-on-surface font-sans;
+  background-image: 
+    linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-attachment: fixed;
+  position: relative;
+}
+
+body::after {
+  content: "";
+  @apply fixed inset-0 pointer-events-none opacity-20;
+  background-image: url("https://www.transparenttextures.com/patterns/natural-paper.png");
+  z-index: 50;
+}
+
+/* Bureau Typography */
+.text-huge {
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 12vw, 8rem);
+  line-height: 0.85;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.micro-label {
+  @apply font-mono text-[9px] uppercase tracking-[0.25em] font-bold;
+}
+
+.bureau-header {
+  @apply border-b-2 border-on-surface pb-2 mb-4 flex justify-between items-end;
+}
+
+.bureau-subhead {
+  @apply font-serif italic text-xl opacity-60;
+}
+
+/* Card & Panel Styles */
+.notice-card {
+  @apply bg-white border-2 border-on-surface relative p-0 overflow-hidden transition-all;
+  box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+}
+
+.notice-card::before {
+  content: "";
+  @apply absolute top-0 left-0 w-full h-1 bg-on-surface opacity-10;
+}
+
+.notice-card:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 6px 6px 0px 0px rgba(0,0,0,1);
+}
+
+.bureau-panel {
+  @apply border border-on-surface bg-paper-dark p-4 font-mono text-sm leading-relaxed;
+}
+
+.bureau-btn {
+  @apply bg-on-surface text-paper px-6 py-2 font-display uppercase tracking-wider text-lg hover:bg-brand-orange transition-colors active:translate-y-px;
+}
+
+.bureau-btn-outline {
+  @apply border-2 border-on-surface px-6 py-2 font-display uppercase tracking-wider text-lg hover:bg-on-surface hover:text-paper transition-all active:translate-y-px;
+}
+
+.bureau-tag {
+  @apply px-2 py-0.5 bg-on-surface text-paper font-mono text-[10px] uppercase tracking-wider inline-block;
+}
+
+/* Evidence/Report UI */
+.evidence-frame {
+  @apply aspect-square bg-paper-dark border-2 border-on-surface overflow-hidden relative grayscale hover:grayscale-0 transition-all;
+}
+
+.evidence-label {
+  @apply absolute bottom-0 left-0 right-0 bg-on-surface text-paper p-1 text-[10px] font-mono uppercase flex justify-between items-center;
+}
+
+.report-filed-stamp {
+  @apply absolute top-4 right-4 border-4 border-brand-orange text-brand-orange px-4 py-1 font-display text-4xl rotate-12 opacity-40 pointer-events-none uppercase;
+}
+
+/* Grid Utilities */
+.bureau-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.file-tab {
+  @apply inline-block px-4 py-1 bg-on-surface text-paper font-display uppercase text-sm -mb-px relative z-10;
+  clip-path: polygon(0 0, 90% 0, 100% 100%, 0% 100%);
+}
+
+/* Animated Elements */
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+.bureau-flicker {
+  animation: flicker 0.1s infinite;
+}
+
+.scan-line {
+  @apply absolute inset-0 w-full h-1 bg-brand-orange/10 pointer-events-none;
+  animation: scan 4s linear infinite;
+}
+
+@keyframes scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+
+/* Skin Overrides remain for legacy support/seasonal swaps */
+.app-skin-baja-bratz {
+  --color-paper: #fff5e6;
+  --color-on-surface: #ff4d94;
+  --color-brand-green: #40e0d0;
+  --font-display: "Titan One", cursive;
+}
+
+/* Slippery Diamond Skin */
+.app-skin-slippery-diamond {
+  --color-paper: var(--color-diamond-dark);
+  --color-brand-green: var(--color-diamond-silver);
+  --color-brand-orange: var(--color-diamond-blue);
+  --color-on-surface: #ffffff;
+  --color-outline-variant: rgba(255, 255, 255, 0.1);
+  --color-secondary: var(--color-diamond-purple);
+}
+
+.app-skin-slippery-diamond body {
+  background: radial-gradient(circle at 50% 50%, #1a1a1a 0%, #000000 100%);
+  background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+.app-skin-slippery-diamond body::after {
+  background: 
+    radial-gradient(circle at 0% 0%, rgba(185, 226, 245, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 100% 100%, rgba(220, 208, 255, 0.1) 0%, transparent 50%);
+}
+
+.app-skin-slippery-diamond .text-huge {
+  background: linear-gradient(180deg, #ffffff 0%, #a0a0a0 50%, #ffffff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 10px rgba(255,255,255,0.3));
+  font-weight: 900;
+  letter-spacing: -0.05em;
+}
+
+.app-skin-slippery-diamond .card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+}
+
+.app-skin-slippery-diamond .btn-primary {
+  background: linear-gradient(135deg, #ffffff 0%, #c0c0c0 50%, #ffffff 100%);
+  color: #000;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border: none;
+  box-shadow: 0 0 20px rgba(255,255,255,0.2);
+}
+
+/* Summer Heatwave Skin */
+.app-skin-heatwave {
+  --color-paper: var(--color-heat-yellow);
+  --color-brand-green: var(--color-heat-pink);
+  --color-brand-orange: var(--color-heat-mango);
+  --color-on-surface: #502000;
+  --color-outline-variant: rgba(255, 255, 255, 0.3);
+}
+
+.app-skin-heatwave body {
+  background: linear-gradient(180deg, #ffd700 0%, #ff8c00 100%);
+  background-attachment: fixed;
+}
+
+.app-skin-heatwave body::after {
+  background: url("https://www.transparenttextures.com/patterns/cubes.png");
+  opacity: 0.05;
+}
+
+.app-skin-heatwave .text-huge {
+  font-family: var(--font-baja-display);
+  color: white;
+  text-shadow: 0 4px #ff007f, 0 8px #ff8c00;
+  letter-spacing: 0.02em;
+}
+
+.app-skin-heatwave .card {
+  background: rgba(255, 255, 255, 0.8);
+  border: 6px solid white;
+  border-radius: 3rem 1rem 3rem 1rem;
+  box-shadow: 10px 10px 0px rgba(255, 140, 0, 0.3);
+}
+
+.app-skin-heatwave .btn-primary {
+  background: #ff007f;
+  color: white;
+  border-radius: 50px;
+  border: 4px solid white;
+  box-shadow: 0 4px #ff8c00;
+  font-family: var(--font-display);
+  padding: 1rem 2rem;
+}
+
+.shimmer-text {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite linear;
+  -webkit-background-clip: text;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.liquid-chrome {
+  background: linear-gradient(135deg, 
+    #ffffff 0%, 
+    #a0a0a0 25%, 
+    #ffffff 50%, 
+    #808080 75%, 
+    #ffffff 100%
+  );
+  background-size: 400% 400%;
+  animation: liquid 5s ease infinite;
+}
+
+@keyframes liquid {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Frankie Mode Overrides */
+.frankie-active {
+  --color-paper: #ffffff;
+}
+
+.frankie-active * {
+  letter-spacing: normal !important;
+  text-transform: none !important;
+}
+
+.frankie-active .font-accent {
+  font-family: var(--font-sans) !important;
+}
+
+.frankie-active .font-serif {
+  font-family: var(--font-sans) !important;
+}
+
+.frankie-active .text-huge {
+  font-family: var(--font-sans) !important;
+  font-size: 2.5rem !important;
+  font-weight: 800 !important;
+}

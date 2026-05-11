@@ -1,0 +1,436 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "An authenticated user of the Field Trip application.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "points": { "type": "number" },
+        "soloCount": { "type": "number" },
+        "persona": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "lastSnitchDate": { "type": "string", "format": "date-time" },
+        "activeChallenge": { "type": "object" },
+        "seenBadges": { "type": "array", "items": { "type": "string" } },
+        "previousRank": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "points", "soloCount"]
+    },
+    "Entry": {
+      "title": "Entry",
+      "description": "A field report entry submitted by a user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "crewId": { "type": "string" },
+        "challengeId": { "type": "string" },
+        "challengeTitle": { "type": "string" },
+        "proofImage": { "type": "string" },
+        "note": { "type": "string" },
+        "status": { "type": "string", "enum": ["draft", "submitted", "checking", "auto_approved", "needs_review", "rejected", "resubmit_requested", "approved_by_admin"] },
+        "pointsAwarded": { "type": "number" },
+        "proofCheckId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "challengeId", "status", "createdAt"]
+    },
+    "Challenge": {
+      "title": "Challenge",
+      "description": "A refined mission definition.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "shortDescription": { "type": "string" },
+        "fullInstructions": { "type": "string" },
+        "category": { "type": "string" },
+        "difficulty": { "type": "number" },
+        "points": { "type": "number" },
+        "mode": { "type": "string" },
+        "proofMode": { "type": "string" },
+        "requiredProof": { "type": "array" },
+        "proofRequirements": { "type": "object" },
+        "status": { "type": "string" }
+      }
+    },
+    "ProofCheck": {
+      "title": "ProofCheck",
+      "description": "Verification results for a challenge submission.",
+      "type": "object",
+      "properties": {
+        "submissionId": { "type": "string" },
+        "challengeId": { "type": "string" },
+        "userId": { "type": "string" },
+        "crewId": { "type": "string" },
+        "imageAnalysis": { "type": "object" },
+        "confidenceScore": { "type": "number" },
+        "status": { "type": "string" },
+        "flagReasons": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "UserChallengeProgress": {
+      "title": "UserChallengeProgress",
+      "description": "Tracks an individual user's progress on a specific challenge.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "challengeId": { "type": "string" },
+        "status": { "type": "string" }
+      }
+    },
+    "CrewLore": {
+      "title": "CrewLore",
+      "description": "Persistent history and statistics for a crew.",
+      "type": "object",
+      "properties": {
+        "crewId": { "type": "string" },
+        "insideJokes": { "type": "array" },
+        "highlights": { "type": "object" }
+      }
+    },
+    "CrewDispatch": {
+      "title": "CrewDispatch",
+      "description": "Season-end recap for a crew.",
+      "type": "object",
+      "properties": {
+        "crewId": { "type": "string" },
+        "seasonId": { "type": "string" },
+        "finalRank": { "type": "number" }
+      }
+    },
+    "Skin": {
+      "title": "Skin",
+      "description": "A visual theme for the application.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "seasonId": { "type": "string" },
+        "status": { "type": "string", "enum": ["inactive", "preview", "active", "archived"] },
+        "isDefault": { "type": "boolean" },
+        "visualCalmSupported": { "type": "boolean" },
+        "themeTokens": { "type": "object" },
+        "assets": { "type": "object" },
+        "copyOverrides": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string" }
+      }
+    },
+    "Crew": {
+      "title": "Crew",
+      "description": "A competitive team.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Badge": {
+      "title": "Badge",
+      "description": "A collectible achievement.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "requiredFragments": { "type": "number" },
+        "unlockReward": { "type": "string" },
+        "badgeCategory": { "type": "string" },
+        "rarity": { "type": "string" },
+        "icon": { "type": "string" }
+      }
+    },
+    "BadgeProgress": {
+      "title": "BadgeProgress",
+      "description": "Tracks progress towards a specific badge for a user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "badgeId": { "type": "string" },
+        "fragmentCount": { "type": "number" },
+        "isUnlocked": { "type": "boolean" },
+        "unlockedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "BadgeFragment": {
+      "title": "BadgeFragment",
+      "description": "A fragment of a badge earned by a user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "badgeId": { "type": "string" },
+        "fragmentName": { "type": "string" },
+        "earnedFromChallengeId": { "type": "string" },
+        "earnedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "CrewArtifact": {
+      "title": "CrewArtifact",
+      "description": "A collectible object generated from crew activity.",
+      "type": "object",
+      "properties": {
+        "crewId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "artifactType": { "type": "string" },
+        "sourceEntryId": { "type": "string" },
+        "sourceChallengeId": { "type": "string" },
+        "earnedByUserId": { "type": "string" },
+        "earnedByUserName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "rarity": { "type": "string" },
+        "icon": { "type": "string" },
+        "flavorCaption": { "type": "string" }
+      }
+    },
+    "Observation": {
+      "title": "Observation",
+      "description": "A playful behavioral insight generated by the app.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "crewId": { "type": "string" },
+        "observationText": { "type": "string" },
+        "observationType": { "type": "string" },
+        "sourceMetric": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "visibility": { "type": "string" },
+        "isDismissed": { "type": "boolean" }
+      }
+    },
+    "ProofRequirement": {
+      "title": "ProofRequirement",
+      "description": "Defines what a challenge needs for valid proof.",
+      "type": "object",
+      "properties": {
+        "challengeId": { "type": "string" },
+        "requiredProofTypes": { "type": "array", "items": { "type": "string" } },
+        "minimumPhotoCount": { "type": "number" },
+        "requiresFieldNote": { "type": "boolean" },
+        "requiresLocationCheck": { "type": "boolean" },
+        "requiresTimeWindow": { "type": "boolean" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "requiresObjectDetection": { "type": "boolean" },
+        "objectKeywords": { "type": "array", "items": { "type": "string" } },
+        "manualReviewRequired": { "type": "boolean" }
+      }
+    },
+    "ProofReview": {
+      "title": "ProofReview",
+      "description": "A review of a submitted entry's proof.",
+      "type": "object",
+      "properties": {
+        "entryId": { "type": "string" },
+        "userId": { "type": "string" },
+        "challengeId": { "type": "string" },
+        "status": { "type": "string" },
+        "confidenceScore": { "type": "number" },
+        "missingRequirements": { "type": "array", "items": { "type": "string" } },
+        "reviewNotes": { "type": "string" },
+        "reviewedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Season": {
+      "title": "Season",
+      "description": "A game season with start/end dates and status.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["pre-season", "active", "ending", "closed"] },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "rules": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "ScoreEvent": {
+      "title": "ScoreEvent",
+      "description": "A granular record of points awarded.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "crewId": { "type": "string" },
+        "type": { "type": "string" },
+        "points": { "type": "number" },
+        "entryId": { "type": "string" },
+        "challengeId": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "AppConfig": {
+      "title": "AppConfig",
+      "description": "Global game configuration and feature flags.",
+      "type": "object",
+      "properties": {
+        "activeSeasonId": { "type": "string" },
+        "onboardingEntriesRequired": { "type": "number" },
+        "featureFlags": { "type": "object" }
+      }
+    },
+    "Report": {
+      "title": "Report",
+      "description": "User-submitted report about content or another user.",
+      "type": "object",
+      "properties": {
+        "reporterId": { "type": "string" },
+        "targetId": { "type": "string" },
+        "targetType": { "type": "string", "enum": ["entry", "user", "crew", "lore"] },
+        "reason": { "type": "string" },
+        "details": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "under_review", "resolved", "dismissed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Block": {
+      "title": "Block",
+      "description": "Record of one user blocking another.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "blockedUserId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "ModerationAudit": {
+      "title": "ModerationAudit",
+      "description": "History of moderation actions taken by admins.",
+      "type": "object",
+      "properties": {
+        "adminId": { "type": "string" },
+        "targetId": { "type": "string" },
+        "targetType": { "type": "string" },
+        "action": { "type": "string" },
+        "reason": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/appConfig/game": {
+      "schema": "AppConfig",
+      "description": "Global game configuration."
+    },
+    "/reports/{reportId}": {
+      "schema": "Report",
+      "description": "Content and user reports."
+    },
+    "/users/{userId}/blocks/{blockedUserId}": {
+      "schema": "Block",
+      "description": "User block list."
+    },
+    "/moderationAudit/{auditId}": {
+      "schema": "ModerationAudit",
+      "description": "Audit log of moderation actions."
+    },
+    "/seasons/{seasonId}": {
+      "schema": "Season",
+      "description": "Season definitions."
+    },
+    "/scoreEvents/{eventId}": {
+      "schema": "ScoreEvent",
+      "description": "Audit log of point transactions."
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Core user data."
+    },
+    "/users/{userId}/legalConsents/{consentId}": {
+      "schema": {
+        "title": "LegalConsent",
+        "description": "Record of user legal acceptance.",
+        "type": "object",
+        "properties": {
+          "accepted": { "type": "boolean" },
+          "acceptedAt": { "type": "string", "format": "date-time" },
+          "userId": { "type": "string" },
+          "termsVersion": { "type": "string" },
+          "privacyVersion": { "type": "string" },
+          "communityRulesVersion": { "type": "string" },
+          "safetyRulesVersion": { "type": "string" },
+          "isAdultConfirmed": { "type": "boolean" }
+        }
+      },
+      "description": "Legal consent records."
+    },
+    "/userPrefs/{userId}": {
+      "schema": "UserThemePreference",
+      "description": "User theme preferences."
+    },
+    "/entries/{entryId}": {
+      "schema": "Entry",
+      "description": "Submission reports."
+    },
+    "/challenges/{challengeId}": {
+      "schema": "Challenge",
+      "description": "Fixed mission definitions."
+    },
+    "/crews/{crewId}": {
+      "schema": "Crew",
+      "description": "Team definitions."
+    },
+    "/badgeProgress/{progressId}": {
+      "schema": "BadgeProgress",
+      "description": "User progress towards badges."
+    },
+    "/badgeFragments/{fragmentId}": {
+      "schema": "BadgeFragment",
+      "description": "Individual badge fragments earned."
+    },
+    "/crewArtifacts/{artifactId}": {
+      "schema": "CrewArtifact",
+      "description": "Collectible crew artifacts."
+    },
+    "/observations/{observationId}": {
+      "schema": "Observation",
+      "description": "Generated behavioral observations."
+    },
+    "/proofRequirements/{requirementId}": {
+      "schema": "ProofRequirement",
+      "description": "Evidence rules for challenges."
+    },
+    "/proofReviews/{reviewId}": {
+      "schema": "ProofReview",
+      "description": "Automatic and manual evidence reviews."
+    },
+    "/crewLore/{crewId}": {
+      "schema": "CrewLore",
+      "description": "Team history and lore."
+    },
+    "/crewDispatches/{dispatchId}": {
+      "schema": "CrewDispatch",
+      "description": "End-of-season reports."
+    },
+    "/userChallengeProgress/{progressId}": {
+      "schema": "UserChallengeProgress",
+      "description": "Tracking user task status."
+    },
+    "/proofChecks/{proofCheckId}": {
+      "schema": "ProofCheck",
+      "description": "Verification results for challenge submissions."
+    },
+    "/skins/{skinId}": {
+      "schema": "Skin",
+      "description": "Visual themes catalog."
+    },
+    "/appConfig/skinSettings": {
+      "schema": "SkinSettings",
+      "description": "Global theme configuration."
+    },
+    "/admins/{userId}": {
+      "schema": { "type": "object", "properties": { "role": { "type": "string" } } },
+      "description": "Admin access control list."
+    }
+  }
+}

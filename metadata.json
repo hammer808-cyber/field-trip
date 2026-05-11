@@ -1,0 +1,8 @@
+{
+  "name": "Field Trip",
+  "description": "An official civic adventure bureau providing authorized mandates for adult exploration. Transform standard outings into high-fidelity field reports through a structured system of dispatches, evidence securement, and dynamic gameplay modifiers via Field Signals.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": []
+}
