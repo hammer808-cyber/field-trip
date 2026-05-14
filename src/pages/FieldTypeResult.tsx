@@ -2,14 +2,14 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
-import { PERSONAS } from '../constants';
+import { FIELD_TYPES, MOCK_TRIPS } from '../constants';
 import { Sticker } from '../components/UI';
 import { cn } from '../lib/utils';
 import { Hibiscus, ChromeStar, GlossOverlay } from '../components/BajaBratzAssets';
 import { DiamondStar, Sparkle, SunFlare, GlossOverlay as DiamondGloss } from '../components/SkinAssets';
 
-export default function PersonaResult() {
-  const { persona, completeOnboarding } = useApp();
+export default function FieldTypeResult() {
+  const { fieldType, completeOnboarding } = useApp();
   const { skin, frankieMode } = useTheme();
   const navigate = useNavigate();
 
@@ -21,9 +21,11 @@ export default function PersonaResult() {
   const isBaja = skin === 'baja-bratz';
   const isDiamond = skin === 'slippery-diamond';
   const isHeat = skin === 'heatwave';
+  const isDefault = !isBaja && !isDiamond && !isHeat;
   
-  if (!persona) return null;
-  const data = PERSONAS[persona];
+  const activeType = fieldType || 'unclassified';
+  const data = FIELD_TYPES[activeType];
+  const firstTrip = MOCK_TRIPS.find(t => t.id === data.firstTripId);
 
   return (
     <div className={cn(
@@ -45,8 +47,13 @@ export default function PersonaResult() {
           isDiamond ? "liquid-chrome bg-clip-text text-transparent font-black" :
           isHeat ? "text-white font-display uppercase" :
           "text-on-surface font-display uppercase tracking-tighter font-black"
-        )}>{isBaja || isDiamond || isHeat ? 'Field Trip' : 'BUREAU_ADVENTURE'}</h1>
-        {!isBaja && !isDiamond && !isHeat && <div className="text-[10px] font-mono opacity-40">REF_8829_ACCRED</div>}
+        )}>{isBaja || isDiamond || isHeat ? 'Field Trip' : 'FIELD_CLASSIFICATION'}</h1>
+        {!isBaja && !isDiamond && !isHeat && (
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] font-mono font-bold text-brand-orange">PROTOCOL: [RESULT_ARCHIVE]</span>
+            <span className="text-[8px] font-mono opacity-40 uppercase">Classification complete.</span>
+          </div>
+        )}
       </header>
 
       {isBaja && !frankieMode && (
@@ -108,58 +115,94 @@ export default function PersonaResult() {
         </div>
 
         <div className="text-center space-y-4">
+          <p className={cn(
+            "micro-label uppercase tracking-widest opacity-60",
+            isDiamond ? "text-white" : "text-on-surface"
+          )}>Your Field Type is...</p>
           <h2 className={cn(
             "leading-none uppercase tracking-tighter",
             isBaja ? "text-5xl text-baja-pink font-display" : 
             isDiamond ? "text-5xl text-white font-sans font-black tracking-[-0.05em]" :
             isHeat ? "text-5xl text-heat-pink font-display italic" :
-            "text-huge text-5xl text-on-surface font-display"
+            "text-huge text-6xl text-on-surface font-display"
           )}>{data.name}</h2>
           <p className={cn(
-            "leading-relaxed",
-            isBaja ? "text-xl text-baja-pink font-serif italic" : 
-            isDiamond ? "text-xs text-white/60 font-mono uppercase tracking-[0.3em]" :
+            "leading-tight font-accent uppercase tracking-widest",
+            isBaja ? "text-baja-pink/60 font-serif italic" : 
+            isDiamond ? "text-xs text-white/40 font-mono uppercase tracking-[0.3em]" :
             isHeat ? "text-lg text-white font-display uppercase tracking-tight" :
-            "text-lg text-on-surface-variant font-serif italic"
+            "text-brand-orange"
           )}>
-            "{data.description}"
+            {data.shortTitle}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 w-full">
-          <div className={cn(
-            "p-6 shadow-xl space-y-3 relative overflow-hidden transition-all",
-            isBaja ? "bg-white border-2 border-baja-pink rounded-[2rem] rotate-1" : 
-            isDiamond ? "bg-white text-black rounded-none border-l-[8px] border-black" :
-            isHeat ? "bg-white text-heat-pink rounded-[2.5rem] -rotate-2 border-4 border-white" :
-            "notice-card rotate-1 shadow-md bg-paper border-4"
-          )}>
-            {isBaja && <GlossOverlay opacity={0.1} />}
-            <div className="bureau-tag bg-on-surface text-paper text-[10px] w-fit mb-2">BUREAU_CLEARANCE</div>
-            <h3 className={cn(
-              "text-3xl leading-tight font-black uppercase tracking-tighter",
-              isDiamond ? "font-sans uppercase" : isHeat ? "font-display uppercase italic" : "font-display text-on-surface"
-            )}>{data.perk}</h3>
-            <p className={cn(
-              "font-mono text-[10px] opacity-60 uppercase",
-              isDiamond ? "text-black" : isHeat ? "text-heat-pink font-display uppercase" : "text-on-surface/60"
-            )}>{data.perkDesc}</p>
-          </div>
+        <div className={cn(
+          "w-full p-8 space-y-6 relative border-4",
+          isBaja ? "bg-white border-baja-pink rounded-[2.5rem] rotate-1" :
+          isDiamond ? "bg-white/5 border-white/20 rounded-none backdrop-blur-sm" :
+          isHeat ? "bg-white border-white rounded-[3rem] -rotate-2" :
+          "bg-paper border-on-surface shadow-[10px_10px_0px_gray] rotate-1"
+        )}>
+           {!isBaja && !isDiamond && !isHeat && <div className="file-tab">FIELD_TYPE_CARD</div>}
+           <p className={cn("text-lg", isDiamond ? "font-mono text-white/80" : "font-serif italic text-on-surface/80 leading-relaxed")}>
+             "{data.description}"
+           </p>
 
-          <div className={cn(
-             "p-6 shadow-xl space-y-3 relative overflow-hidden transition-all",
-             isBaja ? "bg-baja-aqua text-white rounded-[2rem] -rotate-1 border-2 border-white" : 
-             isDiamond ? "bg-black text-white rounded-none border-l-[8px] border-white" :
-             isHeat ? "bg-heat-mango text-white rounded-[2.5rem] rotate-2 border-4 border-white" :
-             "notice-card -rotate-1 shadow-md bg-paper border-4 border-brand-orange/30"
-          )}>
-            <div className="bureau-tag bg-brand-orange text-white text-[10px] w-fit mb-2">OPERATIONAL_RISK</div>
-            <h3 className={cn(
-              "text-3xl leading-tight font-black uppercase tracking-tighter",
-              isDiamond ? "font-sans uppercase" : isHeat ? "font-display uppercase italic text-heat-pink" : "font-display text-brand-orange"
-            )}>{data.snag}</h3>
-            <p className="font-mono text-[10px] opacity-70 uppercase">{data.snagDesc}</p>
-          </div>
+           <div className="space-y-4 pt-4 border-t border-dashed border-on-surface/20">
+              <div className="flex justify-between items-start">
+                 <div className="space-y-1">
+                    <span className="micro-label opacity-40">PREFERRED_VIBE</span>
+                    <p className="text-sm font-bold uppercase tracking-tight">{data.vibe}</p>
+                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                 <div className="space-y-1">
+                    <span className="micro-label opacity-40">ACTIVE_PERK</span>
+                    <p className="text-xs font-bold text-success uppercase">{data.perk}</p>
+                 </div>
+                 <div className="space-y-1">
+                    <span className="micro-label opacity-40">KNOWN_SNAG</span>
+                    <p className="text-xs font-bold text-error uppercase">{data.snag}</p>
+                 </div>
+              </div>
+
+              <div className="pt-4 border-t border-dashed border-on-surface/10">
+                 <span className="micro-label opacity-40">FIRST_RECOMMENDED_TRIP</span>
+                 <p className={cn(
+                   "text-xl font-display uppercase mt-1",
+                   isBaja ? "text-baja-pink" : isHeat ? "text-heat-pink" : "text-brand-orange"
+                 )}>
+                   {firstTrip?.title || "SURVIVAL ORIENTATION"}
+                 </p>
+              </div>
+
+              <div className="pt-4 border-t border-dashed border-on-surface/10 space-y-2">
+                 <span className="micro-label opacity-40">RECOMMENDED_TAGS</span>
+                 <div className="flex flex-wrap gap-2">
+                    {data.recommendedTags.map(tag => (
+                      <span key={tag} className={cn(
+                        "px-2 py-0.5 text-[8px] font-mono border uppercase",
+                        isDiamond ? "border-white/20 text-white/60" : "border-on-surface/20 text-on-surface/60"
+                      )}>
+                        #{tag}
+                      </span>
+                    ))}
+                 </div>
+              </div>
+
+              <div className="absolute -bottom-10 -right-4 rotate-12 opacity-80 pointer-events-none">
+                 <div className={cn(
+                   "border-2 px-4 py-1 text-sm font-display uppercase tracking-widest",
+                   isBaja ? "border-baja-pink text-baja-pink bg-white" :
+                   isHeat ? "border-heat-pink text-heat-pink bg-white" :
+                   "border-on-surface/40 text-on-surface/40 bg-paper"
+                 )}>
+                   {data.stamp}
+                 </div>
+              </div>
+           </div>
         </div>
 
         <button 
@@ -172,13 +215,13 @@ export default function PersonaResult() {
             "bureau-btn text-2xl h-auto"
           )}
         >
-          {isBaja ? 'START THE BEACH VACAY' : isDiamond ? 'INITIATE DEPLOYMENT' : isHeat ? 'TAKE THE PLUNGE' : 'COMMENCE FIELD OPERATIONS'}
+          {isBaja ? 'START THE BEACH VACAY' : isDiamond ? 'INITIATE DEPLOYMENT' : isHeat ? 'TAKE THE PLUNGE' : 'START YOUR FIRST TRIP'}
         </button>
         <button onClick={() => navigate('/onboarding')} className={cn(
-          "text-xs underline opacity-40 hover:opacity-100 transition-opacity uppercase tracking-widest",
-          isDiamond ? "font-mono" : "font-display"
+          "text-xs underline opacity-40 hover:opacity-100 transition-opacity uppercase tracking-widest p-4",
+          isDiamond ? "font-mono text-white/40" : "text-on-surface"
         )}>
-          Re-evaluate identity protocols
+          {isBaja ? 'RE-CHOOSE ROLE' : 'Reclassify later'}
         </button>
       </div>
     </div>

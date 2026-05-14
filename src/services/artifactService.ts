@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { CrewArtifact, ArtifactType, ArtifactRarity } from '../types/artifacts';
+import { getServerDate } from './timeService';
 
 const COLLECTION = 'crewArtifacts';
 
@@ -46,7 +47,7 @@ export async function evaluateEntryForArtifacts(crewId: string, userId: string, 
   }
 
   // 2. The Parking Lot Incident: Late-night location entry
-  const hour = new Date().getHours();
+  const hour = getServerDate().getHours();
   if ((hour >= 23 || hour <= 3) && entry.proofImage) {
     artifactsToAward.push({
       title: 'The Parking Lot Incident',

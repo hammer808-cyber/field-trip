@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, AlertTriangle, CheckCircle, XCircle, Eye, User, FileText, ExternalLink } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle, XCircle, Eye, User, FileText, ExternalLink, Trophy, Zap } from 'lucide-react';
 import { subscribeToPendingReports, performModerationAction, updateReportStatus } from '../services/moderationService';
+import { finalizeVoteWinners } from '../services/voteService';
 import { Report } from '../types/game';
 import { Card, Sticker } from '../components/UI';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
 
 export default function AdminModerationPage() {
-  const { user, isAdmin } = useApp();
+  const { user, isAdmin, currentWeekNumber } = useApp();
   const [reports, setReports] = useState<Report[]>([]);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [actionReason, setActionReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFinalizingVotes, setIsFinalizingVotes] = useState(false);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -33,9 +35,23 @@ export default function AdminModerationPage() {
 
     await updateReportStatus(selectedReport.id, action === 'dismiss' ? 'dismissed' : 'resolved');
     
+    setIsSubmitting(true); // Keep spinner if any
     setIsSubmitting(false);
     setSelectedReport(null);
     setActionReason('');
+  };
+
+  const handleFinalizeVotes = async () => {
+    if (!window.confirm(`Force finalize vote winners for Week ${currentWeekNumber}? Points will be awarded.`)) return;
+    setIsFinalizingVotes(true);
+    try {
+      await finalizeVoteWinners(currentWeekNumber);
+      alert(`BUREAU_SUCCESS: Week ${currentWeekNumber} accolades distributed.`);
+    } catch (err) {
+      alert(`BUREAU_ERROR: Failed to distribute accolades.`);
+    } finally {
+      setIsFinalizingVotes(false);
+    }
   };
 
   if (!isAdmin) return <div className="p-20 text-center">ACCESS_DENIED. Admin clearance required.</div>;
@@ -48,9 +64,19 @@ export default function AdminModerationPage() {
             <Sticker color="orange">ADMIN_PANEL</Sticker>
             <h1 className="font-display text-4xl uppercase tracking-tighter">Internal Affairs</h1>
           </div>
-          <div className="text-right">
-            <p className="micro-label opacity-40">PENDING_REPORTS</p>
-            <p className="text-2xl font-display text-error">{reports.length}</p>
+          <div className="flex gap-4">
+            <button 
+              onClick={handleFinalizeVotes}
+              disabled={isFinalizingVotes}
+              className="px-4 py-2 bg-mustard text-black font-display uppercase tracking-widest text-xs flex items-center gap-2 hover:bg-on-surface hover:text-mustard transition-all border-2 border-on-surface"
+            >
+              <Trophy className={cn("w-4 h-4", isFinalizingVotes && "animate-bounce")} />
+              {isFinalizingVotes ? 'FINALIZING...' : 'FINALIZE_WEEK_VOTES'}
+            </button>
+            <div className="text-right">
+              <p className="micro-label opacity-40">PENDING_REPORTS</p>
+              <p className="text-2xl font-display text-error">{reports.length}</p>
+            </div>
           </div>
         </div>
       </div>

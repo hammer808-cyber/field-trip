@@ -141,5 +141,126 @@ export const BADGE_DEFINITIONS: Badge[] = [
     rarity: 'bureau-secret',
     icon: 'TrendingUp',
     fragmentFlavor: 'Compressed adrenaline'
+  },
+  {
+    id: 'lens-flare-expert',
+    title: 'LENS_FLARE_EXPERT',
+    description: 'Mastery over lighting and visual composition.',
+    requiredFragments: 3,
+    unlockReward: 'Prismatic Filter',
+    badgeCategory: 'Behavior',
+    rarity: 'rare',
+    icon: 'Sun',
+    fragmentFlavor: 'Refracted photons'
+  },
+  {
+    id: 'first-mission',
+    title: 'FIRST_PROTOCOL_INITIATED',
+    description: 'The first step into a larger, more interesting world.',
+    requiredFragments: 1,
+    unlockReward: 'New Recruit Title',
+    badgeCategory: 'Exploration',
+    rarity: 'common',
+    icon: 'Flag',
+    fragmentFlavor: 'Initial signal'
+  },
+  {
+    id: 'photo-veteran',
+    title: 'SHUTTER_MAESTRO',
+    description: 'Five distinct photo proofs logged and classified.',
+    requiredFragments: 5,
+    unlockReward: 'Gold Camera Icon',
+    badgeCategory: 'Behavior',
+    rarity: 'uncommon',
+    icon: 'Camera',
+    fragmentFlavor: 'Perfect exposures'
+  },
+  {
+    id: 'field-master',
+    title: 'FIELD_VETERAN',
+    description: 'Documentation of five major Field Challenges.',
+    requiredFragments: 5,
+    unlockReward: 'Senior Agent Status',
+    badgeCategory: 'Category',
+    rarity: 'rare',
+    icon: 'Shield',
+    fragmentFlavor: 'Bureau-approved data'
+  },
+  {
+    id: 'gourmet-goblin',
+    title: 'TASTE_BENDER',
+    description: 'Victory in a high-stakes food challenge.',
+    requiredFragments: 1,
+    unlockReward: 'Flavor Particle Effect',
+    badgeCategory: 'Category',
+    rarity: 'rare',
+    icon: 'Pizza',
+    fragmentFlavor: 'Lingering spices'
+  },
+  {
+    id: 'uncatchable',
+    title: 'THE_GHOST_PROTOCOL',
+    description: 'Surviving a Field Check without any data revisions.',
+    requiredFragments: 1,
+    unlockReward: 'Stealth Profile Border',
+    badgeCategory: 'Behavior',
+    rarity: 'rare',
+    icon: 'Ghost',
+    fragmentFlavor: 'Cleared logs'
+  },
+  {
+    id: 'auditor-honor',
+    title: 'BUREAU_AUDITOR',
+    description: 'Providing valid Field Checks on irregular data.',
+    requiredFragments: 3,
+    unlockReward: 'Auditor Badge Sticker',
+    badgeCategory: 'Social',
+    rarity: 'uncommon',
+    icon: 'Eye',
+    fragmentFlavor: 'Spotted anomalies'
+  },
+  {
+    id: 'chaos-bringer',
+    title: 'ENTROPY_ENGINE',
+    description: 'Completing three distinct Chaos Card modifiers.',
+    requiredFragments: 3,
+    unlockReward: 'Static UI Glitch',
+    badgeCategory: 'Behavior',
+    rarity: 'rare',
+    icon: 'Zap',
+    fragmentFlavor: 'Random variables'
+  },
+  {
+    id: 'survivor-spirit',
+    title: 'SABOTAGE_REJECTOR',
+    description: 'Completing a challenge despite active sabotage attempts.',
+    requiredFragments: 1,
+    unlockReward: 'Industrial Shield Lock',
+    badgeCategory: 'Behavior',
+    rarity: 'rare',
+    icon: 'ShieldAlert',
+    fragmentFlavor: 'Resilience nodes'
+  },
+  {
+    id: 'gallery-winner',
+    title: 'LENS_LAUREATE',
+    description: 'Winning the "Best Photo" vote for the week.',
+    requiredFragments: 1,
+    unlockReward: 'Prismatic Frame',
+    badgeCategory: 'Social',
+    rarity: 'rare',
+    icon: 'Image',
+    fragmentFlavor: 'Aesthetic consensus'
+  },
+  {
+    id: 'season-crown',
+    title: 'SUMMER_CROWN_LEGEND',
+    description: 'Completion of the final Season Challenge.',
+    requiredFragments: 1,
+    unlockReward: 'Golden Crown Avatar Frame',
+    badgeCategory: 'Exploration',
+    rarity: 'bureau-secret',
+    icon: 'Crown',
+    fragmentFlavor: 'Season finality'
   }
 ];

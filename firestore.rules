@@ -1,147 +1,212 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // -------------------------------------------------------------------------
-    // HELPERS
-    // -------------------------------------------------------------------------
-    
+
+    // =========================================================================
+    // 1. HELPERS & PILLARS
+    // =========================================================================
+
     function isSignedIn() { return request.auth != null; }
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
     function isAdmin() { 
-      return isSignedIn() && 
-        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) || 
-         request.auth.token.email == 'hammer808@gmail.com'); 
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) || 
+        request.auth.token.email == 'hammer808@gmail.com'
+      );
     }
-    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    function isApproved() {
+      return isSignedIn() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.accessStatus == 'approved' ||
+        isAdmin()
+      );
+    }
     
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
-    
-    // -------------------------------------------------------------------------
-    // CATCH ALL DENY
-    // -------------------------------------------------------------------------
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function requestTime() { return request.time; }
+
+    // =========================================================================
+    // 2. CATCH-ALL DENY (Pillar 0)
+    // =========================================================================
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // -------------------------------------------------------------------------
-    // ADMINS
-    // -------------------------------------------------------------------------
+    // =========================================================================
+    // 3. COLLECTIONS
+    // =========================================================================
+
+    // ADMIN ACCESS
     match /admins/{userId} {
       allow read: if isSignedIn();
-      allow write: if false; // Only manageable via console
+      allow write: if false;
     }
 
-    // -------------------------------------------------------------------------
-    // USERS
-    // -------------------------------------------------------------------------
-    match /users/{userId} {
-      function isValidUser(data) {
-        return data.keys().hasAll(['id', 'email', 'name', 'points', 'soloCount']) &&
-               data.id == userId &&
-               data.email is string &&
-               data.name is string && data.name.size() > 0 &&
-               data.points is number &&
-               data.soloCount is number;
-      }
-
-      // Public profile fields read by others, private write by owner
-      allow read: if isSignedIn();
-      allow create: if isOwner(userId) && isValidUser(request.resource.data);
-      allow update: if (isOwner(userId) && (
-        // Allow updating specific safe fields
-        request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['persona', 'personaName', 'personaQuizComplete', 'onboardingCompleted', 'rerollsAvailable', 'activeChallenge', 'lastSnitchDate', 'seenBadges', 'updatedAt', 'preferences'])
-      )) || isAdmin();
-      
-      // Admin update for points/ranking
-      allow update: if isAdmin();
-    }
-
-    // -------------------------------------------------------------------------
-    // USERNAMES (Uniqueness Registry)
-    // -------------------------------------------------------------------------
+    // USERNAMES (Unique Mapping)
     match /usernames/{username} {
-      allow read: if true;
-      allow create: if isSignedIn() && 
-                      request.resource.data.userId == request.auth.uid;
-      allow update, delete: if false;
-    }
-
-    // -------------------------------------------------------------------------
-    // ENTRIES (Evidence submissions)
-    // -------------------------------------------------------------------------
-    match /entries/{entryId} {
-      function isValidEntry(data) {
-        return data.keys().hasAll(['userId', 'challengeId', 'proofImage', 'status', 'createdAt']) &&
+      function isValidUsername(data) {
+        return data.keys().hasAll(['userId', 'createdAt']) &&
+               data.keys().size() == 2 &&
                data.userId == request.auth.uid &&
-               data.proofImage is string && 
-               data.proofImage.size() < 2048; // URL limit
+               data.createdAt == requestTime();
       }
-
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && isValidEntry(request.resource.data);
-      allow update: if isAdmin(); // Only admins/system can update status/points
-      allow delete: if isAdmin();
+      allow create: if isSignedIn() && isValidUsername(incoming()) && username.size() <= 32;
     }
 
-    // -------------------------------------------------------------------------
-    // CHALLENGES
-    // -------------------------------------------------------------------------
-    match /challenges/{challengeId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    // -------------------------------------------------------------------------
-    // ACCESS CODES
-    // -------------------------------------------------------------------------
+    // ACCESS CODES (Invite Codes)
     match /accessCodes/{code} {
-      allow get: if true; // Needed for validation before signup
-      allow list: if isAdmin();
-      allow update: if isSignedIn(); // Allow incrementing currentUses during signup transaction
+      // Not publicly readable (list), but getable if you know the code
+      allow get: if true; 
+      allow list: if false;
+      allow update: if isSignedIn() && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['currentUses', 'usedBy']) &&
+                    incoming().currentUses == existing().currentUses + 1 &&
+                    (existing().maxUses == 0 || existing().currentUses < existing().maxUses);
       allow create, delete: if isAdmin();
     }
 
-    // -------------------------------------------------------------------------
-    // CREWS / ARTIFACTS / BADGES
-    // -------------------------------------------------------------------------
-    match /crews/{crewId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
+    // USERS (Identity & RBAC)
+    match /users/{userId} {
+      function isValidUser(data) {
+        return data.keys().hasAll(['name', 'email', 'points', 'accessStatus', 'createdAt', 'updatedAt', 'avatar']) &&
+               data.name is string && data.name.size() <= 50 &&
+               data.email is string && data.email.size() <= 255 &&
+               data.points is number &&
+               data.accessStatus in ['pending', 'approved', 'banned'] &&
+               data.updatedAt == requestTime();
+      }
+
+      allow get: if isSignedIn();
+      allow list: if isApproved(); // Only approved users can see leaderboard/list
+      
+      allow create: if isOwner(userId) && isValidId(userId) && 
+                    isValidUser(incoming()) &&
+                    incoming().points == 0 &&
+                    incoming().accessStatus == 'pending' &&
+                    incoming().createdAt == requestTime();
+      
+      allow update: if (isOwner(userId) && (
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'photoURL', 'fieldType', 'fieldTypeName', 'fieldClassificationComplete', 
+          'onboardingCompleted', 'activeTrip', 'updatedAt', 'preferences', 'avatarUrl', 'avatar'
+        ]) &&
+        // Protect critical fields (Identity Integrity)
+        incoming().points == existing().points &&
+        incoming().accessStatus == existing().accessStatus &&
+        isValidUser(incoming())
+      )) || isAdmin();
     }
 
-    match /badgeProgress/{id} {
+    // ENTRIES (Submissions)
+    match /entries/{entryId} {
+      function isValidEntry(data) {
+        return data.keys().hasAll(['userId', 'status', 'createdAt']) &&
+               data.userId == request.auth.uid &&
+               data.status in ['submitted', 'available', 'approved', 'rejected'] &&
+               (data.fieldNote == null || data.fieldNote.size() <= 1000);
+      }
+
+      allow list: if isApproved();
+      allow get: if isApproved();
+      
+      allow create: if isApproved() && isValidId(entryId) && isValidEntry(incoming()) &&
+                    incoming().createdAt == requestTime() &&
+                    incoming().status == 'submitted';
+      
+      allow update: if (isOwner(existing().userId) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['proofImage', 'fieldNote', 'status', 'updatedAt']) &&
+        incoming().status == 'submitted' &&
+        isValidEntry(incoming())
+      )) || isAdmin();
+      
+      allow delete: if isAdmin();
+    }
+
+    // SCORE EVENTS (Admin Only Write)
+    match /scoreEvents/{eventId} {
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow write: if isAdmin();
     }
 
-    match /observations/{id} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow write: if isAdmin();
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-    }
-
-    // -------------------------------------------------------------------------
-    // FIELD SIGNALS / APP CONFIG
-    // -------------------------------------------------------------------------
-    match /appConfig/{id} {
-      allow read: if true;
+    // CHALLENGES
+    match /challenges/{id} {
+      allow read: if isApproved();
       allow write: if isAdmin();
     }
 
-    match /test/connection {
-      allow read: if true;
+    // FIELD CHECKS (User Reports)
+    match /fieldChecks/{checkId} {
+      function isValidFieldCheck(data) {
+        return data.keys().hasAll(['reporterId', 'targetId', 'status', 'createdAt']) &&
+               data.reporterId == request.auth.uid &&
+               data.status == 'open' &&
+               data.createdAt == requestTime();
+      }
+      allow read: if isApproved() && (resource.data.reporterId == request.auth.uid || isAdmin());
+      allow create: if isApproved() && isValidId(checkId) && isValidFieldCheck(incoming());
+      allow update: if isAdmin();
     }
 
-    match /fieldSignals/{id} {
-      allow read: if true;
+    // VOTES (Accolades)
+    match /votes/{voteId} {
+      function isValidVote(data) {
+        return data.keys().hasAll(['userId', 'entryId', 'weekNumber', 'category', 'createdAt']) &&
+               data.userId == request.auth.uid &&
+               data.createdAt == requestTime();
+      }
+      allow read: if isApproved();
+      // voteId: userId_week_category prevents duplicates
+      allow create: if isApproved() && 
+                    voteId == (request.auth.uid + "_w" + incoming().weekNumber + "_" + incoming().category) &&
+                    isValidVote(incoming()) &&
+                    get(/databases/$(database)/documents/entries/$(incoming().entryId)).data.userId != request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    // SABOTAGE EVENTS
+    match /activeSabotages/{id} {
+      allow read: if isApproved();
+      allow write: if isAdmin();
+    }
+
+    // LEADERBOARDS (Weekly Summaries)
+    match /weeklySummaries/{id} {
+      allow read: if isApproved();
+      allow write: if isAdmin();
+    }
+
+    // NOTIFICATIONS
+    match /notifications/{id} {
+      allow read, delete: if isOwner(resource.data.userId);
+      allow update: if isOwner(resource.data.userId) && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      allow create: if isAdmin();
+    }
+
+    // ADMIN LOGS
+    match /adminLogs/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    // STAMPS (Collectibles)
+    match /stamps/{id} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // CREWS & MEMBERS
+    match /crews/{id} {
+      allow read: if isApproved();
       allow write: if isAdmin();
     }
     
-    match /seasons/{id} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
+    // Catch-all fallbacks for other identified paths
+    match /appConfig/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /seasons/{id} { allow read: if true; allow write: if isAdmin(); }
+    match /badgeProgress/{id} { allow read: if isOwner(resource.data.userId) || isAdmin(); allow write: if isAdmin(); }
+    match /observations/{id} { allow read: if isOwner(resource.data.userId) || isAdmin(); allow write: if isAdmin(); }
+
   }
 }

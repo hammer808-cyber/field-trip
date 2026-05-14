@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { UserProfile } from './userService';
+import { getServerDate } from './timeService';
 
 export interface AccessCode {
   code: string;
@@ -31,6 +32,9 @@ export async function validateAccessCode(code: string): Promise<{ valid: boolean
     }
 
     const data = codeSnap.data() as AccessCode;
+    
+    // Safety check for empty or malformed codes
+    if (!data) return { valid: false, error: 'INVALID_ACCESS_CODE' };
 
     if (!data.active) {
       return { valid: false, error: 'ACCESS_CODE_INACTIVE. CONTACT_BUREAU.' };
@@ -40,13 +44,19 @@ export async function validateAccessCode(code: string): Promise<{ valid: boolean
       return { valid: false, error: 'ACCESS_CODE_EXPIRED. CAPACITY_REACHED.' };
     }
 
-    if (data.expiresAt && data.expiresAt.toDate() < new Date()) {
+    if (data.expiresAt && data.expiresAt.toDate() < getServerDate()) {
       return { valid: false, error: 'ACCESS_CODE_EXPIRED. TIME_LIMIT_EXCEEDED.' };
     }
 
     return { valid: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error validating access code:', error);
+    
+    // Specific check for offline error
+    if (error.message?.includes('offline') || error.code === 'unavailable') {
+      return { valid: false, error: 'CONNECTIVITY_ERROR. THE_BUREAU_IS_UNREACHABLE. CHECK_YOUR_CONNECTION.' };
+    }
+    
     return { valid: false, error: 'SYSTEM_ERROR. TRY_AGAIN.' };
   }
 }
@@ -87,14 +97,19 @@ export async function registerWithAccessCode(
       id: uid,
       name: username, // Use username as initial display name
       email: email,
-      persona: null,
-      personaName: null,
-      personaQuizComplete: false,
+      fieldType: null,
+      fieldTypeName: null,
+      fieldClassificationComplete: false,
+      productPersonaLens: 'frankie', // Default internal lens
       onboardingCompleted: false,
+      crewModeUnlocked: false,
+      crewModeSeen: false,
       points: 0,
-      soloCount: 0,
+      soloTripsCount: 0,
+      boldTripsCount: 0,
+      crewTripsCount: 0,
       rerollsAvailable: 3,
-      activeChallenge: null,
+      activeTrip: null,
       lastSnitchDate: null,
       betaAccessCodeUsed: accessCode.toUpperCase(),
       createdAt: serverTimestamp(),

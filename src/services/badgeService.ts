@@ -13,6 +13,7 @@ import {
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Badge, BADGE_DEFINITIONS, UserBadgeProgress } from '../types/badges';
 import { getUserRank, getTotalUserCount, updateProfile } from './userService';
+import { getServerDate } from './timeService';
 
 const PROGRESS_COLLECTION = 'badgeProgress';
 const FRAGMENT_COLLECTION = 'badgeFragments';
@@ -22,53 +23,59 @@ const FRAGMENT_COLLECTION = 'badgeFragments';
  */
 export async function evaluateEntryForBadges(userId: string, entry: any) {
   const badgeIdsToAward: string[] = [];
-  const now = new Date();
+  const now = getServerDate();
   const hour = now.getHours();
 
-  // 1. Night Owl: Complete challenges after 8 PM (20:00)
+  // 1. Night Owl
   if (hour >= 20 || hour <= 4) {
     badgeIdsToAward.push('night-owl');
   }
 
-  // 2. Food Goblin: Food categories
+  // 2. Photo Veteran: 5 Photos (Logic handled by fragments, just trigger on photo proof)
+  if (entry.proofImage) {
+    badgeIdsToAward.push('photo-veteran');
+  }
+
+  // 3. Field Master: Field Challenges
+  if (entry.challengeType === 'Field Challenge' || entry.type === 'Field Challenge') {
+    badgeIdsToAward.push('field-master');
+  }
+
+  // 4. Gourmet Goblin: Taste Test
+  if (entry.category?.toLowerCase().includes('taste') || entry.type === 'Taste Test') {
+    badgeIdsToAward.push('gourmet-goblin');
+  }
+
+  // 5. First Mission
+  badgeIdsToAward.push('first-mission');
+
+  // 6. Chaos Bringer
+  if (entry.chaosModifierApplied) {
+    badgeIdsToAward.push('chaos-bringer');
+  }
+
+  // 7. Survivor Spirit
+  if (entry.sabotageSurvived) {
+    badgeIdsToAward.push('survivor-spirit');
+  }
+
+  // 8. Season Crown
+  if (entry.challengeId === 'final-challenge' || entry.isFinalSeasonQuest) {
+    badgeIdsToAward.push('season-crown');
+  }
+
+  // Existing categories
   const category = entry.category?.toLowerCase() || '';
-  if (category.includes('food') || category.includes('drink') || category.includes('gastronomy')) {
-    badgeIdsToAward.push('food-goblin');
-  }
-
-  // 3. Main Character Sighting: Solo/Creative or specific tags
-  if (category.includes('solo') || category.includes('creative') || entry.challengeTitle?.toLowerCase().includes('portrait')) {
-    badgeIdsToAward.push('main-character');
-  }
-
-  // 4. Soft Criminal: Playful/Social
-  if (category.includes('social') || category.includes('playful')) {
+  if (category.includes('social') || entry.type === 'Social Spark') {
     badgeIdsToAward.push('soft-criminal');
   }
 
-  // 5. Grass Contact: Outdoor/Discovery
-  if (category.includes('discovery') || category.includes('outdoor')) {
+  if (category.includes('discovery') || entry.type === 'Explore the Map') {
     badgeIdsToAward.push('grass-contact');
   }
 
-  // 6. Receipt Gremlin: Receipt requirements
-  if (entry.hasReceipt || entry.note?.toLowerCase().includes('receipt') || entry.note?.toLowerCase().includes('menu')) {
-    badgeIdsToAward.push('receipt-gremlin');
-  }
-
-  // 7. Crew Witness: Crew entries
   if (entry.crewId) {
     badgeIdsToAward.push('crew-witness');
-  }
-
-  // 8. Chaos Archivist: Long field notes
-  if (entry.note && entry.note.length > 50) {
-    badgeIdsToAward.push('chaos-archivist');
-  }
-
-  // 9. Detour Magnet: Detour category
-  if (category === 'detour') {
-    badgeIdsToAward.push('detour-magnet');
   }
 
   // Award fragments for each identified badge

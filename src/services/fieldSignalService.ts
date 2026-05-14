@@ -9,11 +9,12 @@ import {
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { FieldSignal } from '../types/signals';
+import { getServerDate, getServerTime } from './timeService';
 
 const COLLECTION = 'fieldSignals';
 
 export function subscribeToActiveSignal(callback: (signal: FieldSignal | null) => void) {
-  const now = new Date();
+  const now = getServerDate();
   
   // Real-world query: Find signals where startDate <= now and endDate >= now and isActive == true
   // Firestore doesn't support inequality on two different fields easily without composite index + careful query design.
@@ -60,14 +61,14 @@ export const MOCK_SIGNALS: FieldSignal[] = [
     title: 'GHOST_PROTOCOL',
     description: 'The Bureau has detected unauthorized shadow activity. Low light yields high rewards.',
     signalType: 'bonus',
-    startDate: new Date(Date.now() - 3600000).toISOString(), // Started 1h ago
-    endDate: new Date(Date.now() + 86400000).toISOString(), // Ends in 24h
+    startDate: new Date(getServerTime() - 3600000).toISOString(), // Started 1h ago
+    endDate: new Date(getServerTime() + 86400000).toISOString(), // Ends in 24h
     pointModifier: 20,
     modifierType: 'flat',
     requiredCondition: 'time:night',
     affectedChallengeTypes: ['solo', 'creative'],
     isActive: true,
-    createdAt: new Date().toISOString(),
+    createdAt: getServerDate().toISOString(),
     flavorText: 'Evidence captured between 22:00 and 04:00 receives a static clearance bonus.',
     bonusRule: '+20 STD points for midnight entries.'
   },
@@ -76,14 +77,14 @@ export const MOCK_SIGNALS: FieldSignal[] = [
     title: 'SOLAR_FLARE',
     description: 'Atmospheric conditions are peaking. High contrast data is currently prioritized.',
     signalType: 'multiplier',
-    startDate: new Date(Date.now() + 86400000).toISOString(), // Starts tomorrow
-    endDate: new Date(Date.now() + 172800000).toISOString(),
+    startDate: new Date(getServerTime() + 86400000).toISOString(), // Starts tomorrow
+    endDate: new Date(getServerTime() + 172800000).toISOString(),
     pointModifier: 1.5,
     modifierType: 'multiplier',
     requiredCondition: 'type:photo',
     affectedChallengeTypes: ['discovery'],
     isActive: true,
-    createdAt: new Date().toISOString(),
+    createdAt: getServerDate().toISOString(),
     flavorText: 'All visual proof submissions are currently amplified by 1.5x.',
     bonusRule: '1.5x Multiplier on Discovery scans.'
   }

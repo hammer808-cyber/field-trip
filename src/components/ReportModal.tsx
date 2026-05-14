@@ -25,7 +25,7 @@ const REASONS = [
 ];
 
 export function ReportModal({ isOpen, onClose, targetId, targetType, targetName }: ReportModalProps) {
-  const { user } = useApp();
+  const { user, profile } = useApp();
   const [step, setStep] = useState<'reason' | 'details' | 'success'>('reason');
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const [details, setDetails] = useState('');
@@ -34,7 +34,7 @@ export function ReportModal({ isOpen, onClose, targetId, targetType, targetName 
   const handleSubmit = async () => {
     if (!user || !selectedReason) return;
     setIsSubmitting(true);
-    await createReport(user.uid, targetId, targetType, selectedReason, details);
+    await createReport(user.uid, profile?.name || user.displayName || 'Field Agent', targetId, targetType, selectedReason, details);
     setIsSubmitting(false);
     setStep('success');
   };

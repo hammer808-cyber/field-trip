@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, limit, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { ProofReview, ProofStatus } from '../types/proof';
 import { Entry } from '../constants';
-import { adminOverrideReview } from '../services/proofService';
+import { adminOverrideReview, evaluateProof } from '../services/proofService';
 import { Card, Sticker } from '../components/UI';
-import { Shield, Check, X, RefreshCw, AlertCircle, Info } from 'lucide-react';
+import { Shield, Check, X, RefreshCw, AlertCircle, Info, Database } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
@@ -13,7 +13,13 @@ import { useApp } from '../context/AppContext';
 export default function AdminProofReview() {
   const [reviews, setReviews] = useState<(ProofReview & { entry?: Entry })[]>([]);
   const [loading, setLoading] = useState(true);
-  const { profile } = useApp();
+  const [rerunningId, setRerunningId] = useState<string | null>(null);
+  const [storageStats, setStorageStats] = useState({
+    waitingPurge: 0,
+    purged: 0,
+    oldestUnpurged: null as string | null
+  });
+  const { profile, trips } = useApp();
   const { isAdmin } = useTheme();
 
   useEffect(() => {
@@ -25,19 +31,97 @@ export default function AdminProofReview() {
       limit(50)
     );
 
-    const unsubscribe = onSnapshot(q, async (snapshot) => {
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const reviewData = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ProofReview));
-      
-      // In a real app, we'd fetch entries in batch or use a join-like listener
-      // For now, we'll just show the reviews. 
-      // If entries are already in context, we could look them up.
-      
       setReviews(reviewData as any);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    // Stats Query
+    const statsUnsubscribe = onSnapshot(collection(db, 'entries'), (snapshot) => {
+      const allEntries = snapshot.docs.map(d => d.data() as Entry);
+      const rejected = allEntries.filter(e => e.status === 'rejected');
+      const waiting = rejected.filter(e => !e.imagePurged);
+      const purged = rejected.filter(e => e.imagePurged);
+      
+      const oldest = waiting?.length > 0 
+        ? [...waiting].sort((a, b) => (a.rejectedAt?.seconds || 0) - (b.rejectedAt?.seconds || 0))[0]?.rejectedAt 
+        : null;
+
+      setStorageStats({
+        waitingPurge: waiting?.length || 0,
+        purged: purged?.length || 0,
+        oldestUnpurged: oldest ? new Date(oldest.seconds * 1000).toLocaleDateString() : 'N/A'
+      });
+    });
+
+    return () => {
+      unsubscribe();
+      statsUnsubscribe();
+    };
   }, [isAdmin]);
+
+  const fetchImageAsBase64 = async (url: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error("Failed to fetch image for AI rerun:", error);
+      throw new Error("IMAGE_FETCH_FAILED");
+    }
+  };
+
+  const handleRerunAI = async (review: ProofReview) => {
+    if (rerunningId) return;
+    setRerunningId(review.id);
+
+    try {
+      // Find the entry for this review
+      const entrySnap = await getDocs(query(collection(db, 'entries'), where('id', '==', review.entryId), limit(1)));
+      if (entrySnap.empty) throw new Error("ENTRY_NOT_FOUND");
+      const entry = entrySnap.docs[0].data() as Entry;
+
+      if (!entry.proofImage) throw new Error("NO_IMAGE_IN_ENTRY");
+
+      // Log for admin
+      console.log(`[Admin] Initiating AI rerun for entry: ${review.entryId}`);
+      
+      // Look for challenge definition to get theAsk and title
+      const challenge = trips.find(t => t.id === review.challengeId);
+      if (!challenge) throw new Error("CHALLENGE_NOT_FOUND");
+
+      // Fetch the actual image from storage URL
+      const base64Image = await fetchImageAsBase64(entry.proofImage);
+
+      // Call evaluateProof with bypassCache to force a fresh AI analysis
+      await evaluateProof(
+        review.userId, 
+        review.challengeId, 
+        challenge.title, 
+        challenge.theAsk, 
+        { 
+          fieldNote: entry.fieldNote || (entry as any).note || '', 
+          id: entry.id,
+          selectedLevel: entry.selectedLevel as any
+        }, 
+        base64Image, 
+        { bypassCache: true }
+      );
+
+      alert(`BUREAU_UPLINK: Fresh AI analysis complete for entry ${review.entryId}.`);
+    } catch (error: any) {
+      console.error("AI Rerun error:", error);
+      alert(`BUREAU_ERROR: Failed to rerun analysis. ${error.message}`);
+    } finally {
+      setRerunningId(null);
+    }
+  };
 
   const handleAction = async (review: ProofReview, verdict: ProofStatus) => {
     try {
@@ -60,17 +144,41 @@ export default function AdminProofReview() {
     <div className="min-h-screen bg-surface p-6 pb-24">
       <header className="mb-8 flex items-center justify-between">
         <div>
-          <h1 className="font-display text-2xl uppercase tracking-tighter italic">Proof_Recon</h1>
-          <p className="micro-label opacity-40">Operational Field Audit System</p>
+          <h1 className="font-display text-2xl uppercase tracking-tighter italic">Control_Booth</h1>
+          <p className="micro-label opacity-40">Field Check & Entry Audit System</p>
         </div>
-        <Shield className="w-8 h-8 text-brand-orange" />
+        <div className="flex items-center gap-6">
+          <div className="hidden md:flex gap-6 border-r border-on-surface/10 pr-6">
+            <div className="text-right">
+              <p className="micro-label opacity-40 uppercase">Awaiting Purge</p>
+              <p className="font-mono text-sm font-bold text-error">{storageStats.waitingPurge}</p>
+            </div>
+            <div className="text-right">
+              <p className="micro-label opacity-40 uppercase">Storage Cleaned</p>
+              <p className="font-mono text-sm font-bold text-brand-green">{storageStats.purged}</p>
+            </div>
+            <div className="text-right">
+              <p className="micro-label opacity-40 uppercase">Oldest Unpurged</p>
+              <p className="font-mono text-[10px] text-on-surface/60">{storageStats.oldestUnpurged || 'N/A'}</p>
+            </div>
+          </div>
+          <Shield className="w-8 h-8 text-brand-orange" />
+        </div>
       </header>
+
+      {/* Storage Warning for Admin */}
+      <div className="mb-8 p-3 bg-brand-orange/5 border border-brand-orange/20 rounded flex items-center gap-3">
+        <Database className="w-4 h-4 text-brand-orange" />
+        <p className="text-[10px] font-mono text-on-surface/80">
+          <span className="font-bold text-brand-orange uppercase">Storage Policy:</span> Rejected entries are kept for 14 days, then the image proof is removed to protect beta storage limits.
+        </p>
+      </div>
 
       {loading ? (
         <div className="flex justify-center p-12">
           <RefreshCw className="w-8 h-8 animate-spin opacity-20" />
         </div>
-      ) : reviews.length === 0 ? (
+      ) : (reviews?.length || 0) === 0 ? (
         <Card className="p-12 text-center opacity-40 border-dashed">
           <p className="font-mono text-sm uppercase">No pending evidence for audit.</p>
         </Card>
@@ -83,6 +191,8 @@ export default function AdminProofReview() {
               onApprove={() => handleAction(r, 'approved')}
               onReject={() => handleAction(r, 'rejected')}
               onResubmit={() => handleAction(r, 'needsMoreProof')}
+              onRerunAI={() => handleRerunAI(r)}
+              isRerunning={rerunningId === r.id}
             />
           ))}
         </div>
@@ -96,11 +206,14 @@ interface ProofReviewCardProps {
   onApprove: () => Promise<void> | void;
   onReject: () => Promise<void> | void;
   onResubmit: () => Promise<void> | void;
+  onRerunAI: () => Promise<void> | void;
+  isRerunning?: boolean;
   key?: string | number;
 }
 
-function ProofReviewCard({ review, onApprove, onReject, onResubmit }: ProofReviewCardProps) {
+function ProofReviewCard({ review, onApprove, onReject, onResubmit, onRerunAI, isRerunning }: ProofReviewCardProps) {
   const [showAnalysis, setShowAnalysis] = useState(false);
+  const isCached = review.id.startsWith('cached_');
 
   return (
     <Card className="overflow-hidden border-2 border-on-surface/10 bg-paper">
@@ -111,9 +224,14 @@ function ProofReviewCard({ review, onApprove, onReject, onResubmit }: ProofRevie
             <header className="flex justify-between items-start">
               <div className="space-y-1">
                 <p className="micro-label opacity-40 uppercase mb-1">Target Mission: {review.challengeId}</p>
-                <h3 className="font-display text-xl uppercase tracking-tighter leading-none italic">
-                  Entry ID: {review.entryId}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-display text-xl uppercase tracking-tighter leading-none italic">
+                    Entry ID: {review.entryId}
+                  </h3>
+                  {isCached && (
+                    <Sticker color="blue" className="text-[7px]">CACHED_RESULT</Sticker>
+                  )}
+                </div>
               </div>
               <div className="flex flex-col gap-2 items-end">
                 <Sticker color={review.status === 'approved' ? "green" : review.status === 'rejected' ? "black" : "orange"} className="text-[8px]">
@@ -128,19 +246,29 @@ function ProofReviewCard({ review, onApprove, onReject, onResubmit }: ProofRevie
             <div className="p-4 bg-on-surface/5 border border-on-surface/10 space-y-3">
               <div className="flex items-center justify-between">
                 <p className="micro-label opacity-40 uppercase">Review Notes</p>
-                <button 
-                  onClick={() => setShowAnalysis(!showAnalysis)}
-                  className="p-1 hover:bg-on-surface/10 rounded transition-colors"
-                >
-                  <Info className="w-3 h-3" />
-                </button>
+                <div className="flex items-center gap-2">
+                   <button 
+                    onClick={onRerunAI}
+                    disabled={isRerunning}
+                    className="p-1 hover:bg-on-surface/10 rounded transition-colors text-brand-orange disabled:opacity-20"
+                    title="Rerun AI Analysis (Bypass Cache)"
+                  >
+                    <RefreshCw className={cn("w-3 h-3", isRerunning && "animate-spin")} />
+                  </button>
+                  <button 
+                    onClick={() => setShowAnalysis(!showAnalysis)}
+                    className="p-1 hover:bg-on-surface/10 rounded transition-colors"
+                  >
+                    <Info className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
               
               <p className="text-sm font-serif italic leading-relaxed">
                 {review.reviewNotes}
               </p>
 
-              {review.missingRequirements.length > 0 && (
+              {(review?.missingRequirements?.length || 0) > 0 && (
                 <div className="pt-3 border-t border-dashed border-on-surface/20 space-y-2">
                   <div className="space-y-1">
                     <p className="text-[10px] font-bold text-error uppercase">Missing Evidence</p>
@@ -182,7 +310,7 @@ function ProofReviewCard({ review, onApprove, onReject, onResubmit }: ProofRevie
               onClick={onApprove}
               className="flex items-center justify-center gap-2 p-3 bg-brand-orange text-white hover:scale-105 active:scale-95 transition-all text-[10px] font-mono uppercase tracking-widest shadow-[4px_4px_0px_black]"
             >
-              <Check className="w-4 h-4" /> VALIDATE
+              <Check className="w-4 h-4" /> FIELD_CHECK_PASS
             </button>
           </div>
         </div>

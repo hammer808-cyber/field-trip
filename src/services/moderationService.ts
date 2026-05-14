@@ -17,6 +17,7 @@ import { Report, ReportTargetType, ReportStatus, ModerationAudit } from '../type
 // 1. Reporting
 export async function createReport(
   reporterId: string, 
+  reporterName: string,
   targetId: string, 
   targetType: ReportTargetType, 
   reason: string, 
@@ -25,6 +26,7 @@ export async function createReport(
   try {
     const report: Omit<Report, 'id'> = {
       reporterId,
+      reporterName,
       targetId,
       targetType,
       reason,

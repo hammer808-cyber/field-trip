@@ -1,5 +1,5 @@
-import { GameState, isViewfinderLocked, canAccessCrewMode, canAccessSnitchMode, CONFIG } from '../logic/progression';
-import { PersonaId } from '../constants';
+import { GameState, isViewfinderLocked, canAccessCrewMode, canAccessFieldCheckMode, CONFIG } from '../logic/progression';
+import { FieldTypeId } from '../constants';
 
 const mockState = (overrides: Partial<GameState> = {}): GameState => ({
   userId: 'test-user',
@@ -7,7 +7,7 @@ const mockState = (overrides: Partial<GameState> = {}): GameState => ({
   points: 0,
   soloCount: 0,
   onboardingComplete: true,
-  persona: 'wild-card' as PersonaId,
+  fieldType: 'wild-card' as FieldTypeId,
   isAdmin: false,
   currentDate: new Date('2026-05-10T00:00:00Z'),
   ...overrides
@@ -32,11 +32,11 @@ console.assert(canAccessCrewMode(recruitState) === false, "FAILURE: Crew mode sh
 const veteranState = mockState({ soloCount: 3 });
 console.assert(canAccessCrewMode(veteranState) === true, "FAILURE: Crew mode should unlock after 3 solo missions");
 
-// 3. Snitch Mode Tests
+// 3. Field Check Mode Tests
 const lowPointsState = mockState({ points: 100 });
-console.assert(canAccessSnitchMode(lowPointsState) === false, "FAILURE: Snitch mode should require 250 points");
+console.assert(canAccessFieldCheckMode(lowPointsState) === false, "FAILURE: Field check mode should require 250 points");
 
-const highPointsState = mockState({ points: CONFIG.SNITCH_MODE_POINTS_REQUIRED });
-console.assert(canAccessSnitchMode(highPointsState) === true, "FAILURE: Snitch mode should unlock at thresholds");
+const highPointsState = mockState({ points: CONFIG.FIELD_CHECK_MODE_POINTS_REQUIRED });
+console.assert(canAccessFieldCheckMode(highPointsState) === true, "FAILURE: Field check mode should unlock at thresholds");
 
 console.log("SYSTEM_CALIBRATION_COMPLETE. ALL_TESTS_PASSED.");

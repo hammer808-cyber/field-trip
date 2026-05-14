@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { PersonaId } from '../constants';
+import { FieldTypeId } from '../constants';
 
 interface DevOverrides {
   date: string | null;
   points: number | null;
   soloCount: number | null;
-  persona: PersonaId | null;
+  fieldType: FieldTypeId | null;
   isAdmin: boolean | null;
   forceUnlocked: boolean;
 }
@@ -23,7 +23,7 @@ export function DevProvider({ children }: { children: ReactNode }) {
     date: null,
     points: null,
     soloCount: null,
-    persona: null,
+    fieldType: null,
     isAdmin: null,
     forceUnlocked: false,
   });

@@ -1,9 +1,9 @@
 export const MOCK_USERS = [
-  { id: 'u1', name: 'Explorer Jules', points: 1240, persona: 'static-breaker', crewId: 'c1' },
-  { id: 'u2', name: 'Quiet_Gnome', points: 890, persona: 'house-goblin', crewId: 'c1' },
-  { id: 'u3', name: 'ChaosActual', points: 2100, persona: 'wild-card', crewId: 'c2' },
-  { id: 'u4', name: 'RuleBender', points: 1550, persona: 'soft-criminal', crewId: 'c2' },
-  { id: 'u5', name: 'MainCharacter', points: 1800, persona: 'social-menace', crewId: 'c3' },
+  { id: 'u1', name: 'Explorer Jules', points: 1240, fieldType: 'static-breaker', crewId: 'c1', soloTripsCount: 12 },
+  { id: 'u2', name: 'Quiet_Gnome', points: 890, fieldType: 'house-goblin', crewId: 'c1', soloTripsCount: 8 },
+  { id: 'u3', name: 'ChaosActual', points: 2100, fieldType: 'wild-card', crewId: 'c2', soloTripsCount: 15 },
+  { id: 'u4', name: 'RuleBender', points: 1550, fieldType: 'soft-criminal', crewId: 'c2', soloTripsCount: 10 },
+  { id: 'u5', name: 'MainCharacter', points: 1800, fieldType: 'social-menace', crewId: 'c3', soloTripsCount: 14 },
 ];
 
 export const MOCK_CREWS = [

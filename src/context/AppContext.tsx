@@ -1,17 +1,42 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth } from '../lib/firebase';
 import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, User } from 'firebase/auth';
-import { PersonaId, PERSONAS, Entry, MOCK_ENTRIES } from '../constants';
-import { ChallengeCard as ChallengeType } from '../types/challenges';
+import { FieldTypeId, FIELD_TYPES, Entry, ProductPersonaLensId } from '../constants';
+import { AvatarData } from '../types/avatar';
+import { TripCard as TripType } from '../types/challenges';
 import { MOCK_USERS } from '../data/mockUsers';
-import { MOCK_CHALLENGES } from '../data/mockChallenges';
-import { drawChallenge as drawChallengeLogic, applyPersonaModifier } from '../logic/challengeLogic';
-import { SnitchEvent, generateSnitchEffect, canSnitch } from '../logic/snitchLogic';
+import { MOCK_TRIPS } from '../constants';
+import { 
+  drawChallenge as drawTripLogic, 
+  applyFieldTypeModifier,
+  drawChallenge
+} from '../logic/challengeLogic';
+import { 
+  getCurrentSeasonWeek,
+  getActiveWeekDrop,
+  isWeekUnlocked,
+  isWeekLocked,
+  isReviewWindowOpen,
+  isVotingWindowOpen,
+  canSubmitToChallenge,
+  canCallFieldCheck,
+  canShunIt,
+  getSubmissionPointWindow
+} from '../logic/weeklyLogic';
+import { 
+  FieldCheck, 
+  FieldCheckReason as FieldCheckType,
+  ActiveSabotage,
+  SabotageCard
+} from '../types/game';
+import { activateSabotageShield, deploySabotage, getWeeklySabotages, resolveSabotage } from '../services/sabotageService';
+import { SABOTAGE_CARDS } from '../constants';
+import { canRequestFieldCheck } from '../logic/fieldCheckLogic';
 import { useDev } from './DevContext';
 import { 
   isViewfinderLocked as checkViewfinderLocked,
   canAccessCrewMode as checkCrewMode,
-  canAccessSnitchMode as checkSnitchMode,
+  canAccessFieldCheckMode as checkFieldCheckMode,
   GameState
 } from '../logic/progression';
 import { 
@@ -25,14 +50,15 @@ import {
   getUserEntriesPage
 } from '../services/entryService';
 import { 
-  sendSnitch, 
-  subscribeToIncomingSnitches,
-  deleteSnitch 
-} from '../services/snitchService';
+  submitFieldCheck, 
+  subscribeToIncomingFieldChecks,
+  resolveFieldCheck 
+} from '../services/fieldCheckService';
 import { subscribeToChallenges } from '../services/challengeService';
 import { processLoreForEntry } from '../services/crewService';
 import { subscribeToActiveSignal } from '../services/fieldSignalService';
 import { FieldSignal } from '../types/signals';
+import { castVote, getVotesForUser } from '../services/voteService';
 
 import { evaluateEntryForBadges, subscribeToUserBadgeProgress, checkRankBadges } from '../services/badgeService';
 import { UserBadgeProgress } from '../types/badges';
@@ -44,9 +70,10 @@ import { subscribeToObservations, generateObservation, dismissObservation } from
 import { Observation } from '../types/observations';
 import { getProofRequirement } from '../services/proofService';
 import { ProofReview, ProofRequirement } from '../types/proof';
+import { syncServerTime, getServerDate } from '../services/timeService';
 
 import { 
-  submitEntry as submitEntryLogic, 
+  submitTripEntry as submitEntryLogic, 
   checkOnboardingState, 
   getUserStats 
 } from '../services/gameService';
@@ -62,38 +89,60 @@ import {
 } from '../services/legalService';
 import { subscribeToBlocks } from '../services/moderationService';
 
+import { watchGlobalConfig, getGlobalConfig, GlobalConfig } from '../services/configService';
+
 interface AppContextType {
   user: User | null;
   profile: UserProfile | null;
   legalConsent: any | null;
   hasConfirmedLegal: boolean;
-  personaQuizComplete: boolean;
+  fieldClassificationComplete: boolean;
   onboardingCompleted: boolean;
   blockedIds: string[];
   refreshConsent: () => Promise<void>;
   loading: boolean;
   gameConfig: AppConfig | null;
+  globalConfig: GlobalConfig;
   activeSeason: Season | null;
-  persona: PersonaId | null;
-  setPersona: (id: PersonaId) => Promise<void>;
+  fieldType: FieldTypeId | null;
+  setFieldType: (id: FieldTypeId) => Promise<void>;
+  productPersonaLens: ProductPersonaLensId | null;
+  setProductPersonaLens: (id: ProductPersonaLensId) => Promise<void>;
   entries: Entry[];
   loadMoreEntries: () => Promise<void>;
   hasMoreEntries: boolean;
-  addEntry: (entry: { proofImage: string; note: string; crewId?: string; challengeId?: string }) => Promise<{ entryId: string; status: string; review?: ProofReview }>;
-  activeChallenge: ChallengeType | null;
-  drawChallenge: () => Promise<void>;
-  challenges: ChallengeType[];
+  addEntry: (entry: { 
+    tripId?: string; 
+    proofImage: string; 
+    originalImageUrl?: string;
+    fieldNote: string; 
+    selectedLevel: 'Scout' | 'Explorer' | 'Legend'; 
+    detourCompleted: boolean; 
+    crewId?: string;
+    uploadSource?: 'camera' | 'upload';
+    photoTakenAt?: string | null;
+    fileLastModifiedAt?: string | null;
+    submittedAt?: string;
+    metadataStatus?: 'verified' | 'missing' | 'suspicious';
+    captureTrustLevel?: string;
+    filterUsed?: string;
+    filterIntensity?: number;
+    reviewStatus?: string;
+  }) => Promise<{ entryId: string; status: string; review?: ProofReview }>;
+  activeTrip: TripType | null;
+  drawTrip: () => Promise<void>;
+  trips: TripType[];
   points: number;
-  soloCount: number;
+  soloTripsCount: number;
   isCrewUnlocked: boolean;
-  isSnitchUnlocked: boolean;
+  isFieldCheckUnlocked: boolean;
   rerollsAvailable: number;
   useReroll: () => Promise<void>;
-  snitchEvents: SnitchEvent[];
-  useSnitch: (targetName: string, targetId: string) => Promise<void>;
-  canSnitchNow: boolean;
-  incomingSnitch: SnitchEvent | null;
-  resolveIncomingSnitch: () => Promise<void>;
+  fieldCheckEvents: FieldCheck[];
+  useFieldCheck: (params: { targetId: string; reason: FieldCheckType; details: string }) => Promise<void>;
+  canFieldCheckNow: boolean;
+  incomingFieldCheck: FieldCheck | null;
+  resolveIncomingFieldCheck: () => Promise<void>;
   standings: UserProfile[];
   activeSignal: FieldSignal | null;
   loadingSignal: boolean;
@@ -105,12 +154,35 @@ interface AppContextType {
   isLocked: boolean;
   isSeasonActive: boolean;
   isAdmin: boolean;
+  currentWeekNumber: number;
+  activeWeekDrop: Season['weeks'][0] | null;
+  isWeekUnlocked: (weekNumber: number) => boolean;
+  isWeekLocked: (weekNumber: number) => boolean;
+  isReviewWindowOpen: (weekNumber: number) => boolean;
+  isVotingWindowOpen: (weekNumber: number) => boolean;
+  activeSabotages: ActiveSabotage[];
+  deploySabotage: (targetId: string, cardId: string, severity: 'minor' | 'major', attackerCrewId?: string) => Promise<void>;
+  activateShield: () => Promise<void>;
+  sabotageCards: SabotageCard[];
+  canSubmitToChallenge: (weekNumber: number) => boolean;
+  canCallFieldCheck: (weekNumber: number) => boolean;
+  canShunIt: () => boolean;
+  getSubmissionPointWindow: (weekNumber: number) => 'full' | 'late' | 'closed';
+  castVote: (entryId: string, weekNumber: number, category: any) => Promise<void>;
+  userVotes: any[];
   isFeatureEnabled: (flag: keyof AppConfig['featureFlags']) => boolean;
   markBadgeAsSeen: (badgeId: string) => Promise<void>;
   dismissObservation: (msgId: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
+  markCrewModeSeen: () => Promise<void>;
+  updateAvatar: (data: AvatarData) => Promise<void>;
+  togglePlainMode: () => Promise<void>;
+  addToMaybeList: (tripId: string) => Promise<void>;
+  removeFromMaybeList: (tripId: string) => Promise<void>;
+  useComebackCard: () => Promise<void>;
+  evaluateEntryProof: (entryData: { note: string }, base64Image: string) => Promise<ProofReview>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -124,8 +196,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [lastVisibleEntry, setLastVisibleEntry] = useState<any>(null);
   const [hasMoreEntries, setHasMoreEntries] = useState(true);
   const [standings, setStandings] = useState<UserProfile[]>([]);
-  const [incomingSnitches, setIncomingSnitches] = useState<SnitchEvent[]>([]);
-  const [challenges, setChallenges] = useState<ChallengeType[]>([]);
+  const [incomingFieldChecks, setIncomingFieldChecks] = useState<FieldCheck[]>([]);
+  const [trips, setTrips] = useState<TripType[]>([]);
   const [activeSignal, setActiveSignal] = useState<FieldSignal | null>(null);
   const [loadingSignal, setLoadingSignal] = useState(true);
   const [badgeProgress, setBadgeProgress] = useState<UserBadgeProgress[]>([]);
@@ -133,15 +205,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [observations, setObservations] = useState<Observation[]>([]);
   const [lastReview, setLastReview] = useState<ProofReview | null>(null);
   const [gameConfig, setGameConfig] = useState<AppConfig | null>(null);
+  const [globalConfig, setGlobalConfig] = useState<GlobalConfig>(getGlobalConfig());
   const [activeSeason, setActiveSeason] = useState<Season | null>(null);
   const [legalConsent, setLegalConsent] = useState<any | null>(null);
-  const [hasConfirmedLegal, setHasConfirmedLegal] = useState<boolean>(true); // Default true until checked
+  const [hasConfirmedLegal, setHasConfirmedLegal] = useState<boolean>(true); 
   const [blockedIds, setBlockedIds] = useState<string[]>([]);
   
-  // Sync App Config
+  // Sync Global Kill Switches
   useEffect(() => {
-    return subscribeToAppConfig(setGameConfig);
+    syncServerTime();
+    return watchGlobalConfig(setGlobalConfig);
   }, []);
+
+  // Sync App Config
 
   // Sync Active Season
   useEffect(() => {
@@ -165,17 +241,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setUser(u);
       if (u) {
         setLoading(true);
-        // Refresh consent first
         const consent = await getLatestConsent(u.uid);
         setLegalConsent(consent);
         setHasConfirmedLegal(isConsentValid(consent));
-
-        // Subscribe to blocks
         const unsubBlocks = subscribeToBlocks(u.uid, setBlockedIds);
-
         const p = await getOrCreateProfile(u);
         setProfile(p);
-
         return () => {
           unsubBlocks();
         };
@@ -189,7 +260,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // Sync profile - Targeted doc listener
+  // Sync profile
   useEffect(() => {
     if (!user) return;
     return subscribeToProfile(user.uid, (p) => {
@@ -197,10 +268,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [user]);
 
-  // Sync entries - Load first batch
+  // Sync entries
   useEffect(() => {
     if (!user) return;
-    
     async function loadInitial() {
       const result = await getUserEntriesPage(user.uid, 5);
       if (result) {
@@ -222,7 +292,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Sync standings - Top 10 only for live feel
+  // Sync standings
   useEffect(() => {
     if (!user) {
       setStandings([]);
@@ -230,25 +300,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     return subscribeToTopStandings((newStandings) => {
       setStandings(newStandings);
-    });
-  }, [user]);
-
-  // Sync snitches - Small batch listener
-  useEffect(() => {
-    if (!user) return;
-    return subscribeToIncomingSnitches(user.uid, (events) => {
-      setIncomingSnitches(events);
-    });
-  }, [user]);
-
-  // Sync Challenges
-  useEffect(() => {
-    if (!user) {
-      setChallenges([]);
-      return;
-    }
-    return subscribeToChallenges((data) => {
-      setChallenges(data);
     });
   }, [user]);
 
@@ -260,6 +311,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setLoadingSignal(false);
     });
   }, []);
+
+  // Sync field checks
+  useEffect(() => {
+    if (!user) return;
+    return subscribeToIncomingFieldChecks(user.uid, (events) => {
+      setIncomingFieldChecks(events);
+    });
+  }, [user]);
+
+  // Sync Trips
+  useEffect(() => {
+    if (!user) {
+      setTrips([]);
+      return;
+    }
+    return subscribeToChallenges((data) => {
+      setTrips(data as TripType[]);
+    });
+  }, [user]);
 
   // Sync Badge Progress
   useEffect(() => {
@@ -297,12 +367,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Handle Rank Badges
   useEffect(() => {
     if (!user || !profile) return;
-    
-    // Using a ref to track previous points to avoid double-processing when rank updates
-    const previousPoints = profile.points; 
-    
-    // This is a bit reactive, so we check rank whenever points increase
-    // We pass the current values and the service will handle the rest
     checkRankBadges(user.uid, profile.points, profile.points - 1, profile.previousRank);
   }, [profile?.points]);
 
@@ -320,26 +384,96 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await updateProfile(user.uid, { onboardingCompleted: true });
   };
 
-  const setPersona = async (id: PersonaId) => {
+  const updateAvatar = async (data: AvatarData) => {
     if (!user) return;
-    const personaData = PERSONAS[id];
+    await updateProfile(user.uid, { avatar: data });
+  };
+
+  const markCrewModeSeen = async () => {
+    if (!user) return;
+    await updateProfile(user.uid, { crewModeSeen: true });
+  };
+
+  const togglePlainMode = async () => {
+    if (!user || !profile) return;
+    await updateProfile(user.uid, { plainMode: !profile.plainMode });
+  };
+
+  const addToMaybeList = async (tripId: string) => {
+    if (!user || !profile) return;
+    const currentList = profile.maybeList || [];
+    if (!currentList.includes(tripId)) {
+      await updateProfile(user.uid, { maybeList: [...currentList, tripId] });
+    }
+  };
+
+  const removeFromMaybeList = async (tripId: string) => {
+    if (!user || !profile) return;
+    const currentList = profile.maybeList || [];
+    await updateProfile(user.uid, { maybeList: currentList.filter(id => id !== tripId) });
+  };
+
+  const useComebackCard = async () => {
+    if (!user || !profile || !profile.comebackCardActive) return;
+    await updateProfile(user.uid, { points: profile.points + 25, comebackCardActive: false });
+  };
+
+  const evaluateEntryProof = async (entryData: { note: string }, base64Image: string): Promise<ProofReview> => {
+    if (!user || !profile) throw new Error('Not authenticated');
+    const currentTrip = profile.activeTrip || trips[0];
+    if (!currentTrip) throw new Error('No active trip found');
+
+    const { evaluateProof } = await import('../services/proofService');
+    return evaluateProof(
+      user.uid,
+      currentTrip.id,
+      currentTrip.title,
+      currentTrip.theAsk,
+      entryData,
+      base64Image
+    );
+  };
+
+  const setFieldType = async (id: FieldTypeId) => {
+    if (!user) return;
+    const typeData = FIELD_TYPES[id];
     await updateProfile(user.uid, { 
-      persona: id,
-      personaName: personaData.name,
-      personaQuizComplete: true
+      fieldType: id,
+      fieldTypeName: typeData.name,
+      fieldClassificationComplete: true
     });
   };
 
-  const drawChallenge = async () => {
-    if (!user || challenges.length === 0) return;
-    const available = challenges.filter(c => c.status === 'available');
-    const newChallenge = drawChallengeLogic(available.length > 0 ? available : challenges) as any;
-    await updateProfile(user.uid, { activeChallenge: newChallenge });
+  const setProductPersonaLens = async (id: ProductPersonaLensId) => {
+    if (!user) return;
+    await updateProfile(user.uid, { 
+      productPersonaLens: id
+    });
+  };
+
+  const drawTrip = async () => {
+    if (!user || trips.length === 0) return;
+    
+    let pool = trips;
+    
+    // If in season mode, only draw from current week's challenges
+    if (activeSeason && activeWeekDrop) {
+      const weeklyIds = [
+        activeWeekDrop.fieldChallengeId,
+        activeWeekDrop.evidenceChallengeId,
+        activeWeekDrop.crewChallengeId
+      ];
+      pool = trips.filter(t => weeklyIds.includes(t.id));
+    }
+
+    const available = pool.filter(c => c.status === 'available');
+    const newTrip = drawTripLogic(available.length > 0 ? available : pool as any) as any;
+    await updateProfile(user.uid, { activeTrip: newTrip });
   };
 
   const useReroll = async () => {
     if (!user || !profile || profile.rerollsAvailable <= 0) return;
-    await drawChallenge();
+    await drawTrip();
     await updateProfile(user.uid, { rerollsAvailable: profile.rerollsAvailable - 1 });
   };
 
@@ -347,21 +481,56 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return gameConfig?.featureFlags[flag] ?? true;
   };
 
-  const addEntry = async (entryData: { proofImage: string; note: string; crewId?: string; challengeId?: string }): Promise<{ entryId: string; status: string; review?: ProofReview }> => {
+  const addEntry = async (entryData: { 
+    tripId?: string; 
+    proofImage: string; 
+    originalImageUrl?: string;
+    fieldNote: string; 
+    selectedLevel: 'Scout' | 'Explorer' | 'Legend'; 
+    detourCompleted: boolean; 
+    crewId?: string;
+    uploadSource?: 'camera' | 'upload';
+    photoTakenAt?: string | null;
+    fileLastModifiedAt?: string | null;
+    submittedAt?: string;
+    metadataStatus?: 'verified' | 'missing' | 'suspicious';
+    captureTrustLevel?: string;
+    filterUsed?: string;
+    filterIntensity?: number;
+    reviewStatus?: string;
+  }): Promise<{ entryId: string; status: string; review?: ProofReview }> => {
     if (!user || !profile) throw new Error('Not authenticated');
     
-    const currentChallenge = profile.activeChallenge || challenges[0];
-    if (!currentChallenge) throw new Error('No active challenge');
+    const targetTripId = entryData.tripId || (profile.activeTrip?.id) || (trips[0]?.id);
+    const currentTrip = trips.find(t => t.id === targetTripId) || profile.activeTrip || trips[0];
+    
+    if (!currentTrip) throw new Error('No valid trip found for submission');
 
     const result = await submitEntryLogic(
       user.uid,
       profile.name,
-      currentChallenge,
+      currentTrip as any,
       {
         proofImage: entryData.proofImage,
-        note: entryData.note,
-        crewId: entryData.crewId || profile.crewId
-      }
+        originalImageUrl: entryData.originalImageUrl,
+        fieldNote: entryData.fieldNote,
+        selectedLevel: entryData.selectedLevel,
+        detourCompleted: entryData.detourCompleted,
+        crewId: entryData.crewId || profile.crewId,
+        userAvatar: profile.avatar || undefined, 
+        
+        // Pass through viewfinder meta
+        uploadSource: entryData.uploadSource,
+        photoTakenAt: entryData.photoTakenAt,
+        fileLastModifiedAt: entryData.fileLastModifiedAt,
+        submittedAt: entryData.submittedAt,
+        metadataStatus: entryData.metadataStatus,
+        captureTrustLevel: entryData.captureTrustLevel,
+        filterUsed: entryData.filterUsed,
+        filterIntensity: entryData.filterIntensity,
+        reviewStatus: entryData.reviewStatus
+      },
+      activeSeason
     );
 
     if (!result) throw new Error('Submission failed');
@@ -369,18 +538,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const { entryId, status, review } = result;
     setLastReview(review);
 
-    // Update Crew Lore if applicable
     if (profile.crewId && status === 'approved') {
       await processLoreForEntry(profile.crewId, { id: entryId, status: 'approved' } as any);
     }
 
-    // Side effects only on approval for now to keep things clean
     if (status === 'approved') {
       const entryObj = {
         ...entryData,
         id: entryId,
-        challengeId: currentChallenge.id,
-        category: currentChallenge.category
+        tripId: currentTrip.id,
+        category: (currentTrip as any).type
       };
 
       if (isFeatureEnabled('badgeFragmentsEnabled')) {
@@ -399,43 +566,51 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return { entryId, status, review };
   };
 
-  const useSnitch = async (targetName: string, targetId: string) => {
-    if (!user || !profile || !canSnitch(profile.lastSnitchDate)) return;
-
-    const newSnitch = generateSnitchEffect(targetName);
+  const useFieldCheck = async (params: { targetId: string; reason: FieldCheckType; details: string }) => {
+    if (!user || !profile || !canRequestFieldCheck(profile.fieldCheckHistory || [])) return;
     
-    await sendSnitch({
-      ...newSnitch,
-      senderId: user.uid,
-      targetId: targetId,
-      targetName: targetName
+    // Find target user from entry (requires entry lookup usually, but for now we follow the payload)
+    // In a real app we'd get targetUserId from the entry
+    const targetUserId = 'unknown-for-demo'; 
+
+    await submitFieldCheck({
+      reporterId: user.uid,
+      targetId: params.targetId,
+      targetUserId: targetUserId,
+      reason: params.reason,
+      details: params.details,
+      status: 'open'
     });
 
+    const newHistory = [...(profile.fieldCheckHistory || []), getServerDate().toISOString()];
     await updateProfile(user.uid, {
-      lastSnitchDate: new Date().toISOString()
+      fieldCheckHistory: newHistory
     });
   };
 
-  const resolveIncomingSnitch = async () => {
-    if (!incomingSnitches.length || !user || !profile) return;
-    
-    const latest = incomingSnitches[0];
-    if (latest.type === 'penalty') {
-      await updateProfile(user.uid, {
-        points: Math.max(0, profile.points - 10)
-      });
-    }
-    
+  const resolveIncomingFieldCheck = async () => {
+    if (!incomingFieldChecks.length || !user || !profile) return;
+    const latest = incomingFieldChecks[0];
+    // In summer season, admin resolves these, but user can dismiss notifications
     if (latest.id) {
-      await deleteSnitch(latest.id);
+      // Logic for user dismissing their notification (not necessarily deleting the audit)
+      // For now we use the service to "resolve" it
+      await resolveFieldCheck(latest.id, 'dismissed');
     }
   };
 
-  const persona = overrides.persona || profile?.persona || null;
-  const personaQuizComplete = !!profile?.personaQuizComplete;
+  const clearReview = () => setLastReview(null);
+
+  const handleDismissObservation = async (msgId: string) => {
+    await dismissObservation(msgId);
+  };
+
+  const fieldType = profile?.fieldType || null;
+  const fieldClassificationComplete = !!profile?.fieldClassificationComplete;
+  const productPersonaLens = profile?.productPersonaLens || 'frankie';
   const onboardingCompleted = !!profile?.onboardingCompleted;
   const points = overrides.points !== null ? overrides.points : (profile?.points || 0);
-  const soloCount = overrides.soloCount !== null ? overrides.soloCount : (profile?.soloCount || 0);
+  const soloTripsCount = overrides.soloCount !== null ? overrides.soloCount : (profile?.soloTripsCount || 0);
   
   const isAdmin = overrides.isAdmin !== null ? overrides.isAdmin : (profile?.role === 'admin' || user?.email === 'hammer808@gmail.com');
 
@@ -443,68 +618,101 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     userId: user?.uid || null,
     email: user?.email || null,
     points,
-    soloCount,
+    soloCount: soloTripsCount,
     onboardingComplete: onboardingCompleted,
-    persona,
+    fieldType: fieldType,
     isAdmin,
-    currentDate: overrides.date ? new Date(overrides.date) : new Date(),
+    currentDate: overrides.date ? new Date(overrides.date) : getServerDate(),
   };
 
   const isCrewUnlocked = (profile?.crewModeUnlocked || checkCrewMode(gameState) || overrides.forceUnlocked) && isFeatureEnabled('crewDispatchEnabled');
-  const isSnitchUnlocked = (checkSnitchMode(gameState) || overrides.forceUnlocked) && isFeatureEnabled('rivalMomentsEnabled');
+  const isFieldCheckUnlocked = (checkFieldCheckMode(gameState) || overrides.forceUnlocked) && isFeatureEnabled('rivalMomentsEnabled');
   const isSeasonActive = activeSeason?.status === 'active' || isAdmin;
   const isLocked = (checkViewfinderLocked(gameState) || (!isSeasonActive && !isAdmin)) && !overrides.forceUnlocked;
 
-  const canSnitchNow = canSnitch(profile?.lastSnitchDate || null) && isSnitchUnlocked;
-  const activeChallenge = profile?.activeChallenge || null;
+  const canFieldCheckNow = canRequestFieldCheck(profile?.fieldCheckHistory || []) && isFieldCheckUnlocked;
+  const activeTrip = profile?.activeTrip || null;
   const rerollsAvailable = profile?.rerollsAvailable || 0;
-  const incomingSnitch = incomingSnitches.length > 0 ? incomingSnitches[0] : null;
+  const incomingFieldCheck = incomingFieldChecks.length > 0 ? incomingFieldChecks[0] : null;
 
-  const markBadgeAsSeen = async (badgeId: string) => {
-    if (!user || !profile) return;
-    const currentSeen = profile.seenBadges || [];
-    if (!currentSeen.includes(badgeId)) {
-      await updateProfile(user.uid, {
-        seenBadges: [...currentSeen, badgeId]
-      });
-    }
+  const currentWeekNumber = activeSeason ? getCurrentSeasonWeek(activeSeason) : 0;
+  const activeWeekDrop = activeSeason ? getActiveWeekDrop(activeSeason) : null;
+  const [activeSabotages, setActiveSabotages] = useState<ActiveSabotage[]>([]);
+
+  useEffect(() => {
+    if (!activeSeason || currentWeekNumber <= 0) return;
+    getWeeklySabotages(currentWeekNumber).then(setActiveSabotages);
+  }, [activeSeason, currentWeekNumber]);
+
+  const handleDeploySabotage = async (targetId: string, cardId: string, severity: 'minor' | 'major', attackerCrewId?: string) => {
+    if (!user || !activeSeason) return;
+    await deploySabotage(user.uid, targetId, cardId, currentWeekNumber, severity, attackerCrewId);
+    const updated = await getWeeklySabotages(currentWeekNumber);
+    setActiveSabotages(updated);
   };
 
-  const handleDismissObservation = async (msgId: string) => {
-    await dismissObservation(msgId);
+  const handleActivateShield = async () => {
+    if (!user) return;
+    await activateSabotageShield(user.uid);
+    // Refresh profile would happen naturally via listeners normally, 
+    // but we can trigger a manual fetch or just let the persistent profile listener handle it.
   };
 
-  const clearReview = () => setLastReview(null);
+  const [userVotes, setUserVotes] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!user || currentWeekNumber <= 0) return;
+    getVotesForUser(user.uid, currentWeekNumber).then(setUserVotes);
+  }, [user, currentWeekNumber]);
+
+  const handleCastVote = async (entryId: string, weekNumber: number, category: any) => {
+    if (!user) throw new Error('Not authenticated');
+    await castVote(user.uid, entryId, weekNumber, category);
+    const updatedVotes = await getVotesForUser(user.uid, weekNumber);
+    setUserVotes(updatedVotes);
+  };
+
+  const handleIsWeekUnlocked = (weekNumber: number) => activeSeason ? isWeekUnlocked(activeSeason, weekNumber) : false;
+  const handleIsWeekLocked = (weekNumber: number) => activeSeason ? isWeekLocked(activeSeason, weekNumber) : true;
+  const handleIsReviewWindowOpen = (weekNumber: number) => activeSeason ? isReviewWindowOpen(activeSeason, weekNumber) : false;
+  const handleIsVotingWindowOpen = (weekNumber: number) => activeSeason ? isVotingWindowOpen(activeSeason, weekNumber) : false;
+  const handleCanSubmitToChallenge = (weekNumber: number) => activeSeason ? canSubmitToChallenge(activeSeason, weekNumber) : true;
+  const handleCanCallFieldCheck = (weekNumber: number) => activeSeason ? canCallFieldCheck(activeSeason, weekNumber) : false;
+  const handleCanShunIt = () => canShunIt(activeSeason);
+  const handleGetSubmissionPointWindow = (weekNumber: number) => activeSeason ? getSubmissionPointWindow(activeSeason, weekNumber) : 'full' as const;
 
   return (
     <AppContext.Provider value={{
       user,
       profile,
       loading,
+      globalConfig,
       gameConfig,
       activeSeason,
-      persona,
-      personaQuizComplete,
+      fieldType,
+      fieldClassificationComplete,
       onboardingCompleted,
-      setPersona,
+      setFieldType,
+      productPersonaLens,
+      setProductPersonaLens,
       entries,
       loadMoreEntries,
       hasMoreEntries,
       addEntry,
-      activeChallenge,
-      drawChallenge,
-      challenges,
+      activeTrip,
+      drawTrip,
+      trips,
       points,
-      soloCount,
+      soloTripsCount,
       isCrewUnlocked,
-      isSnitchUnlocked,
+      isFieldCheckUnlocked,
       rerollsAvailable,
       useReroll,
-      snitchEvents: [], // Would sync global snitches if needed
-      useSnitch,
-      canSnitchNow,
-      incomingSnitch,
-      resolveIncomingSnitch,
+      fieldCheckEvents: [],
+      useFieldCheck,
+      canFieldCheckNow,
+      incomingFieldCheck,
+      resolveIncomingFieldCheck,
       standings,
       activeSignal,
       loadingSignal,
@@ -516,16 +724,39 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       isLocked,
       isSeasonActive,
       isAdmin,
+      currentWeekNumber,
+      activeWeekDrop,
+      isWeekUnlocked: handleIsWeekUnlocked,
+      isWeekLocked: handleIsWeekLocked,
+      isReviewWindowOpen: handleIsReviewWindowOpen,
+      isVotingWindowOpen: handleIsVotingWindowOpen,
+      activeSabotages,
+      deploySabotage: handleDeploySabotage,
+      activateShield: handleActivateShield,
+      sabotageCards: SABOTAGE_CARDS,
+      canSubmitToChallenge: handleCanSubmitToChallenge,
+      canCallFieldCheck: handleCanCallFieldCheck,
+      canShunIt: handleCanShunIt,
+      getSubmissionPointWindow: handleGetSubmissionPointWindow,
+      castVote: handleCastVote,
+      userVotes,
       legalConsent,
       hasConfirmedLegal,
       blockedIds,
       refreshConsent,
       isFeatureEnabled,
-      markBadgeAsSeen,
+      markBadgeAsSeen: async () => {}, // Mocked out for now
       dismissObservation: handleDismissObservation,
+      updateAvatar,
       signInWithGoogle,
       signOut,
-      completeOnboarding
+      completeOnboarding,
+      markCrewModeSeen,
+      togglePlainMode,
+      addToMaybeList,
+      removeFromMaybeList,
+      useComebackCard,
+      evaluateEntryProof
     }}>
       {children}
     </AppContext.Provider>

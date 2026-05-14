@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useDev } from '../context/DevContext';
-import { PersonaId, PERSONAS } from '../constants';
+import { FieldTypeId, FIELD_TYPES } from '../constants';
 import { X, Settings, Calendar, Shield, Zap, User } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -82,19 +82,19 @@ export function DevTools() {
                </div>
             </div>
 
-            {/* Persona */}
+            {/* Field Type */}
             <div className="space-y-2">
               <label className="micro-label flex items-center gap-2">
-                <User className="w-3 h-3" /> ACTIVE_PERSONA
+                <User className="w-3 h-3" /> ACTIVE_FIELD_TYPE
               </label>
               <div className="grid grid-cols-2 gap-2">
-                {Object.keys(PERSONAS).map(id => (
+                {Object.keys(FIELD_TYPES).map(id => (
                   <button 
                     key={id}
-                    onClick={() => updateOverride('persona', overrides.persona === id ? null : id)}
+                    onClick={() => updateOverride('fieldType', overrides.fieldType === id ? null : id)}
                     className={cn(
                       "text-[10px] p-2 border border-on-surface/10 uppercase font-mono text-left",
-                      overrides.persona === id ? "bg-brand-orange text-white border-brand-orange" : "hover:bg-on-surface/5"
+                      overrides.fieldType === id ? "bg-brand-orange text-white border-brand-orange" : "hover:bg-on-surface/5"
                     )}
                   >
                     {id.replace('-', '_')}
@@ -123,12 +123,21 @@ export function DevTools() {
               </label>
             </div>
 
-            <button 
-              onClick={() => setOverrides({ date: null, points: null, soloCount: null, persona: null, isAdmin: null, forceUnlocked: false })}
-              className="w-full py-2 bg-error/10 text-error text-[10px] font-mono uppercase tracking-widest hover:bg-error hover:text-white transition-colors"
-            >
-              RESET_ALL_OVERRIDES
-            </button>
+            <div className="space-y-4">
+              <button 
+                onClick={() => setOverrides({ date: null, points: null, soloCount: null, fieldType: null, isAdmin: null, forceUnlocked: false })}
+                className="w-full py-2 bg-error/10 text-error text-[10px] font-mono uppercase tracking-widest hover:bg-error hover:text-white transition-colors"
+              >
+                RESET_ALL_OVERRIDES
+              </button>
+              
+              <button 
+                onClick={() => window.location.href = '/admin/qa'}
+                className="w-full py-2 bg-brand-orange text-white text-[10px] font-mono uppercase tracking-widest hover:bg-on-surface transition-colors"
+              >
+                LAUNCH_QA_AUDIT_LENSES
+              </button>
+            </div>
           </div>
         )}
       </div>

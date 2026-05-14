@@ -7,11 +7,17 @@ import { useState, useEffect } from 'react';
 import { Hibiscus, ChromeStar, GlossOverlay, BeachTag } from '../components/BajaBratzAssets';
 import { DiamondStar, Sparkle, SunFlare, PalmTree, BeachTag as HeatBeachTag, GlossOverlay as DiamondGloss } from '../components/SkinAssets';
 import { getGlobalEntriesPage } from '../services/entryService';
-import { Entry } from '../constants';
+import { FIELD_TYPES, Entry } from '../constants';
+import { AvatarPreview } from '../components/AvatarPreview';
+import { DEFAULT_AVATAR } from '../constants/avatarAssets';
+import { VotingHub } from '../components/VotingHub';
 
 export default function ZinePage() {
+  const { fieldType } = useApp();
   const { skin, frankieMode } = useTheme();
   const [likedEntries, setLikedEntries] = useState<Set<string>>(new Set());
+  
+  const fieldTypeData = FIELD_TYPES[fieldType || 'unclassified'];
 
   // Paginated feed state
   const [feedEntries, setFeedEntries] = useState<Entry[]>([]);
@@ -97,8 +103,8 @@ export default function ZinePage() {
             isDiamond ? "text-white font-mono uppercase tracking-[0.2em] font-black italic" :
             isHeat ? "text-white font-display uppercase tracking-tighter italic shadow-sm" :
             "text-on-surface"
-          )}>{isBaja ? 'The Feed' : isDiamond ? 'CENTRAL PRISM' : isHeat ? 'THE SPLASH' : 'Public Record'}</h2>
-          {!isBaja && !isDiamond && !isHeat && <p className="bureau-subhead">Visual documentation of field anomalies and operations.</p>}
+          )}>{isBaja ? 'The Feed' : isDiamond ? 'CENTRAL PRISM' : isHeat ? 'THE SPLASH' : 'Viewfinder'}</h2>
+          {!isBaja && !isDiamond && !isHeat && <p className="bureau-subhead">Visual documentation of field anomalies and entries.</p>}
         </div>
         <div className="max-w-md">
           <p className={cn(
@@ -116,12 +122,15 @@ export default function ZinePage() {
         </div>
       </header>
 
+      {/* Community Voting Hub */}
+      <VotingHub />
+
       <div className="columns-1 md:columns-2 lg:columns-3 gap-12 space-y-12 relative z-10">
         {feedEntries.length > 0 ? (
           <>
             {feedEntries.map((entry, idx) => (
-              <div key={entry.id} className="break-inside-avoid flex flex-col">
-                {!isBaja && !isDiamond && !isHeat && <div className="file-tab">REPORT_{entry.id.substring(0,6)}</div>}
+              <div key={entry.id || idx} className="break-inside-avoid flex flex-col">
+                {!isBaja && !isDiamond && !isHeat && <div className="file-tab">REPORT_{entry.id?.substring(0,6) || 'XXXXXX'}</div>}
                 <div className={cn(
                   "flex flex-col gap-6 p-6 border-2 transition-all group",
                   isBaja ? "bg-white border-baja-pink/20 hover:border-baja-pink rounded-[2.5rem] p-6 shadow-lg rotate-1" : 
@@ -147,7 +156,36 @@ export default function ZinePage() {
                     {!isBaja && !isDiamond && !isHeat && <div className="evidence-label uppercase">TRANSMISSION_CAPTURE</div>}
                   </div>
                   
-                  {/* ... rest of entry details ... */}
+                  {/* Entry Identity Column */}
+                  <div className="flex items-center gap-4 border-t border-on-surface/5 pt-4">
+                    <AvatarPreview 
+                      avatar={entry.userAvatar || DEFAULT_AVATAR} 
+                      size="sm" 
+                      className={cn(
+                        "rounded-full border",
+                        isBaja ? "border-baja-pink" : 
+                        isDiamond ? "border-white/20" :
+                        isHeat ? "border-heat-pink" :
+                        "border-on-surface/10"
+                      )} 
+                    />
+                    <div className="space-y-1">
+                      <p className={cn(
+                        "font-display text-sm uppercase tracking-tighter",
+                        isBaja ? "text-baja-pink" : isHeat ? "text-heat-pink" : "text-on-surface"
+                      )}>
+                        {entry.userName || 'ANON_AGENT'}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className="micro-label opacity-40">FIED_REPORT</span>
+                        <span className={cn(
+                          "w-1 h-1 rounded-full",
+                          isBaja ? "bg-baja-aqua" : "bg-brand-orange"
+                        )} />
+                        <span className="micro-label opacity-40">{entry.challengeTitle}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
@@ -165,7 +203,7 @@ export default function ZinePage() {
                 "text-lg max-w-sm mx-auto",
                 isDiamond ? "font-mono text-xs text-white/20 uppercase" : "font-serif text-on-surface opacity-40 italic"
             )}>
-              No transmissions have been verified for this cycle. Be the first to record history in the field.
+              {fieldTypeData?.emptyState || "No transmissions have been verified for this cycle. Be the first to record history in the field."}
             </p>
           </div>
         )}
@@ -190,10 +228,10 @@ export default function ZinePage() {
           isBaja ? "border-baja-pink" : isDiamond ? "border-white/20" : isHeat ? "border-white" : "border-on-surface"
       )}>
         <Sticker color="black" className="text-sm py-2">
-            {isDiamond ? 'PRISM_STABLE' : isHeat ? 'HEATWAVE_PEAK' : 'BUREAU_CERTIFIED_FEED'}
+            {isDiamond ? 'PRISM_STABLE' : isHeat ? 'HEATWAVE_PEAK' : 'VIEWFINDER_CERTIFIED_FEED'}
         </Sticker>
         <p className={cn("micro-label block", (isBaja || isDiamond || isHeat) ? "text-inherit opacity-40" : "opacity-40")}>
-            {isDiamond ? 'END OF TRANSMISSION' : 'END OF PUBLIC RECORD // VOLUME 11.2'}
+            {isDiamond ? 'END OF TRANSMISSION' : 'END OF VIEWFINDER RECORD // VOLUME 11.2'}
         </p>
       </footer>
     </div>

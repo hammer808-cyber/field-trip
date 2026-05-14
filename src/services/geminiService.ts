@@ -28,6 +28,8 @@ export async function analyzeSubmissionImage(
   } catch (error) {
     console.error("Gemini Analysis Fetch Error:", error);
     return {
+      labels: [],
+      flagged: false,
       contains_required_subject: false,
       visible_evidence: [],
       missing_evidence: ["NETWORK_COMM_FAILURE"],

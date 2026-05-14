@@ -17,32 +17,65 @@ import {
   getCountFromServer
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { PersonaId } from '../constants';
+import { FieldTypeId, ProductPersonaLensId } from '../constants';
+
+import { AvatarData } from '../types/avatar';
+import { DEFAULT_AVATAR } from '../constants/avatarAssets';
 
 export interface UserProfile {
   id: string;
   name: string;
   email: string;
   photoURL?: string;
-  persona: PersonaId | null;
-  personaName: string | null;
-  personaQuizComplete: boolean;
+  avatar?: AvatarData;
+  // SYSTEM 2: Player-Facing Field Type (Game Identity)
+  fieldType: FieldTypeId | null;
+  fieldTypeName: string | null;
+  fieldClassificationComplete: boolean;
+
+  // NEW QUIZ FIELDS
+  fieldTypeQuizCompleted?: boolean;
+  fieldTypeScores?: Record<string, number>;
+  fieldTypeAssignedAt?: any;
+  fieldTypeLastUpdatedAt?: any;
+
+  // SYSTEM 1: Internal ProductPersonaLens (QA/Design Lens)
+  // This is hidden from normal users and used for admin/dev logic.
+  productPersonaLens?: ProductPersonaLensId | null;
+
   onboardingCompleted: boolean;
+  crewModeUnlocked: boolean;
+  crewModeSeen: boolean;
   points: number;
-  soloCount: number;
+  soloTripsCount: number;
+  boldTripsCount: number;
+  crewTripsCount: number;
   rerollsAvailable: number;
-  activeChallenge: any | null;
+  activeTrip: any | null;
   lastSnitchDate: string | null;
   crewId?: string | null;
   seenBadges?: string[];
   previousRank?: number;
+  maybeList?: string[];
+  plainMode?: boolean;
+  comebackCardActive?: boolean;
+  receiptsMode?: boolean;
+  quietCrewMode?: boolean;
+  fieldCheckHistory?: string[];
+  sabotageShieldActive?: boolean;
+  sabotageShieldExpiresAt?: any;
+  activeSabotageId?: string | null;
+  hasActiveSabotage?: boolean;
   preferences?: {
     reduceCommentary?: boolean;
     notificationsEnabled?: boolean;
+    privateApprovedPhotos?: boolean;
   };
   createdAt?: any;
   updatedAt?: any;
   betaAccessCodeUsed?: string;
+  // DEPRECATED: Use fieldType instead. Maintained for migration.
+  persona?: FieldTypeId | null; 
 }
 
 const COLLECTION = 'users';
@@ -88,7 +121,18 @@ export async function getOrCreateProfile(user: any): Promise<UserProfile> {
     const userDoc = await getDoc(userRef);
     
     if (userDoc.exists()) {
-      return { id: userDoc.id, ...userDoc.data() } as UserProfile;
+      const data = userDoc.data();
+      // Migration: Map old 'persona' to 'fieldType' if needed
+      if ((data.persona || data.personaName) && !data.fieldType) {
+        return { 
+          id: userDoc.id, 
+          ...data,
+          fieldType: data.fieldType || data.persona || null,
+          fieldTypeName: data.fieldTypeName || data.personaName || null,
+          fieldClassificationComplete: data.fieldClassificationComplete || data.personaQuizComplete || false
+        } as UserProfile;
+      }
+      return { id: userDoc.id, ...data } as UserProfile;
     }
 
     const newProfile: UserProfile = {
@@ -96,14 +140,20 @@ export async function getOrCreateProfile(user: any): Promise<UserProfile> {
       name: user.displayName || 'Field Agent',
       email: user.email,
       photoURL: user.photoURL || '',
-      persona: null,
-      personaName: null,
-      personaQuizComplete: false,
+      fieldType: null,
+      fieldTypeName: null,
+      fieldClassificationComplete: false,
+      productPersonaLens: 'frankie', // Default lens for new users
+      avatar: DEFAULT_AVATAR,
       onboardingCompleted: false,
+      crewModeUnlocked: false,
+      crewModeSeen: false,
       points: 0,
-      soloCount: 0,
+      soloTripsCount: 0,
+      boldTripsCount: 0,
+      crewTripsCount: 0,
       rerollsAvailable: 3,
-      activeChallenge: null,
+      activeTrip: null,
       lastSnitchDate: null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
@@ -123,7 +173,19 @@ export async function getOrCreateProfile(user: any): Promise<UserProfile> {
 export function subscribeToProfile(uid: string, callback: (profile: UserProfile) => void) {
   return onSnapshot(doc(db, COLLECTION, uid), (snapshot) => {
     if (snapshot.exists()) {
-      callback({ id: snapshot.id, ...snapshot.data() } as UserProfile);
+      const data = snapshot.data();
+      // Migration: Map old 'persona' to 'fieldType' if needed
+      if ((data.persona || data.personaName) && !data.fieldType) {
+        callback({ 
+          id: snapshot.id, 
+          ...data,
+          fieldType: data.fieldType || data.persona || null,
+          fieldTypeName: data.fieldTypeName || data.personaName || null,
+          fieldClassificationComplete: data.fieldClassificationComplete || data.personaQuizComplete || false
+        } as UserProfile);
+      } else {
+        callback({ id: snapshot.id, ...data } as UserProfile);
+      }
     }
   }, (error) => {
     handleFirestoreError(error, OperationType.GET, `${COLLECTION}/${uid}`);

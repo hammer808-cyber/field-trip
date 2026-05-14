@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChallengeCard as ChallengeCardType } from '../types/challenges';
+import { TripCard as TripCardType } from '../types/challenges';
 import { cn } from '../lib/utils';
 import { 
   Zap, 
@@ -12,13 +12,13 @@ import {
   AlertTriangle,
   Sticker as StickerIcon,
   Search,
-  MessageSquare
+  Camera
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { Sticker } from './UI';
 
 interface Props {
-  challenge: ChallengeCardType;
+  challenge: TripCardType;
   onClick?: () => void;
   className?: string;
 }
@@ -30,18 +30,18 @@ export function ChallengeCard({ challenge, onClick, className }: Props) {
   const isDiamond = skin === 'slippery-diamond';
   const isHeat = skin === 'heatwave';
 
-  const categoryIcons: Record<string, any> = {
-    Social: Users,
-    Nature: StickerIcon,
-    Navigator: MapPin,
-    Stealth: Eye,
-    Chaos: Zap,
-    Onboarding: Search,
-    Bonus: SparklesIcon,
-    Detour: AlertTriangle
+  const typeIcons: Record<string, any> = {
+    'Leave the House': MapPin,
+    'Social Spark': Users,
+    'Explore the Map': Eye,
+    'Taste Test': Search,
+    'Proof Goblin': Camera,
+    'Crew Chaos': Zap,
+    'Onboarding': Search,
+    'Bonus': Zap
   };
 
-  const Icon = categoryIcons[challenge.category] || Zap;
+  const Icon = typeIcons[challenge.type] || Zap;
 
   const statusColors: Record<string, string> = {
     available: 'bg-on-surface text-paper',
@@ -74,7 +74,7 @@ export function ChallengeCard({ challenge, onClick, className }: Props) {
         isHeat ? "bg-heat-yellow text-heat-pink rounded-full border-2 border-heat-pink" :
         "bg-on-surface text-paper"
       )}>
-        {challenge.category}_OPS_{challenge.id.slice(-4).toUpperCase()}
+        {challenge.type.replace(/\s/g, '_').toUpperCase()}_OPS_{challenge.id.slice(-4).toUpperCase()}
       </div>
 
       <div className="p-6 pt-10 space-y-4 flex flex-col h-full">
@@ -88,7 +88,7 @@ export function ChallengeCard({ challenge, onClick, className }: Props) {
               {challenge.title}
             </h3>
             <p className="text-[10px] font-mono opacity-60 leading-tight uppercase">
-              {challenge.shortDescription}
+              {challenge.theAsk.slice(0, 60)}...
             </p>
           </div>
           <div className={cn(
@@ -107,13 +107,10 @@ export function ChallengeCard({ challenge, onClick, className }: Props) {
           <div className="flex-1 space-y-4">
             <div className="flex flex-wrap gap-2">
               <Sticker color={isBaja ? "orange" : isHeat ? "mustard" : "white"} className="text-[8px] py-1">
-                VALUE: {challenge.points}XP
+                VALUE: 10-35 XP
               </Sticker>
               <Sticker color="white" className="text-[8px] py-1">
-                DIFF_LVL: {challenge.difficulty}/5
-              </Sticker>
-              <Sticker color="white" className="text-[8px] py-1 flex items-center gap-1">
-                <Clock className="w-2 h-2" /> {challenge.estimatedTime}
+                DIFF: {challenge.levels.Legend.points}XP LEGEND
               </Sticker>
             </div>
             
@@ -158,17 +155,5 @@ export function ChallengeCard({ challenge, onClick, className }: Props) {
         <div className="absolute -bottom-1 -right-1 w-full h-full bg-on-surface -z-10" />
       )}
     </div>
-  );
-}
-
-function SparklesIcon(props: any) {
-  return (
-    <svg 
-      {...props} 
-      viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-    >
-      <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
-      <path d="M5 3v4" /><path d="M19 17v4" /><path d="M3 5h4" /><path d="M17 19h4" />
-    </svg>
   );
 }

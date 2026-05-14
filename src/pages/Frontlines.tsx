@@ -1,7 +1,7 @@
 import { useApp } from '../context/AppContext';
 import { auth } from '../lib/firebase';
 import { Card, Sticker } from '../components/UI';
-import { ShieldAlert, Timer, Trophy, Send, Sparkles, Waves, Sun, Flame, MoreHorizontal } from 'lucide-react';
+import { ShieldAlert, Timer, Trophy, Send, Sparkles, Waves, Sun, Flame, MoreHorizontal, Shield, MessageSquare } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { calculateLeaderboard } from '../logic/scoringLogic';
 import { isLeaderboardVisible } from '../logic/progression';
@@ -11,24 +11,47 @@ import { Hibiscus, ChromeStar, GlossOverlay } from '../components/BajaBratzAsset
 import { DiamondStar, Sparkle, SunFlare, GlossOverlay as DiamondGloss } from '../components/SkinAssets';
 import { getLeaderboardPage, UserProfile } from '../services/userService';
 import { subscribeToRecentScoreEvents } from '../services/activityService';
-import { ScoreEvent } from '../types/game';
+import { getWeeklySummary } from '../services/summaryService';
+import { ScoreEvent, WeeklySummary } from '../types/game';
 import { ContentMenu } from '../components/ContentMenu';
+import { FIELD_TYPES } from '../constants';
+import { AvatarPreview } from '../components/AvatarPreview';
+import { DEFAULT_AVATAR } from '../constants/avatarAssets';
+import { SabotageHub } from '../components/SabotageHub';
+import { getServerDate } from '../services/timeService';
 
 export default function FrontlinesPage() {
-  const { isSnitchUnlocked, isCrewUnlocked, points, useSnitch, canSnitchNow, snitchEvents, standings, soloCount, persona, user } = useApp();
-  const { crewRankings } = calculateLeaderboard();
+  const { 
+    isFieldCheckUnlocked, isCrewUnlocked, points, useFieldCheck, 
+    canFieldCheckNow, fieldCheckEvents, standings, soloCount, 
+    fieldType, user, profile, currentWeekNumber, canCallFieldCheck,
+    activeSeason
+  } = useApp();
+
+  const [weeklySummary, setWeeklySummary] = useState<WeeklySummary | null>(null);
+
+  useEffect(() => {
+    if (!user || !activeSeason?.id || !currentWeekNumber) return;
+    async function loadSummary() {
+       const summary = await getWeeklySummary(activeSeason!.id, currentWeekNumber);
+       setWeeklySummary(summary);
+    }
+    loadSummary();
+  }, [user, activeSeason?.id, currentWeekNumber]);
+
+  const leaderboard = calculateLeaderboard([]); // For now, empty or mock if needed
   
   const visible = isLeaderboardVisible({
     userId: user?.uid || null,
     email: user?.email || null,
     points,
     soloCount,
-    onboardingComplete: !!persona,
-    persona,
+    onboardingComplete: !!fieldType,
+    fieldType,
     isAdmin: false, // Will be checked in helper
-    currentDate: new Date(),
+    currentDate: getServerDate(),
   });
-  const [snitchSent, setSnitchSent] = useState(false);
+  const [fieldCheckSent, setFieldCheckSent] = useState(false);
   const { skin, frankieMode } = useTheme();
 
   // Paginated state for full board
@@ -73,15 +96,25 @@ export default function FrontlinesPage() {
     setLoadingBatch(false);
   };
 
-  const handleSnitch = (name: string, id: string) => {
-    useSnitch(name, id);
-    setSnitchSent(true);
-  };
-
-  const lastSnitch = snitchEvents[0];
+  const lastFieldCheck = fieldCheckEvents[0];
   const isBaja = skin === 'baja-bratz';
   const isDiamond = skin === 'slippery-diamond';
   const isHeat = skin === 'heatwave';
+
+  const isQuiet = profile?.quietCrewMode;
+
+  const crewRankings = weeklySummary ? Object.entries(weeklySummary.crewStats).map(([id, stats]: [string, any]) => ({
+    id,
+    name: stats.crewName,
+    score: stats.totalScore
+  })).sort((a, b) => b.score - a.score) : [];
+
+  const playerRankings = weeklySummary ? Object.entries(weeklySummary.playerStats).map(([id, stats]: [string, any]) => ({
+    id,
+    name: stats.userName,
+    points: stats.points,
+    fieldTypeName: stats.fieldTypeName 
+  })).sort((a, b) => b.points - a.points) : (fullBoard as any[]);
 
   return (
     <div className="pb-40 px-6 pt-12 space-y-16 max-w-4xl mx-auto overflow-hidden relative">
@@ -89,8 +122,8 @@ export default function FrontlinesPage() {
         <div className="flex flex-col items-center justify-center p-12 text-center space-y-8 bg-paper min-h-[60vh] border-2 border-dashed border-on-surface/10 rounded-3xl">
            <ShieldAlert className="w-16 h-16 opacity-10" />
            <div className="space-y-2">
-             <h2 className="font-display text-4xl uppercase tracking-tighter">LEADERBOARD_LOCKED</h2>
-             <p className="font-serif italic opacity-60">"The Bureau only declassifies high-standing agents. Reach 50 points to access the Frontlines."</p>
+             <h2 className="font-display text-4xl uppercase tracking-tighter">SCOREBOARD_LOCKED</h2>
+             <p className="font-serif italic opacity-60">"The Bureau only declassifies high-standing agents. Reach 50 points to access the Scoreboard."</p>
            </div>
            <div className="w-full max-w-xs h-2 bg-on-surface/5 rounded-full overflow-hidden">
              <div className="h-full bg-brand-orange transition-all duration-1000" style={{ width: `${(points / 50) * 100}%` }} />
@@ -137,9 +170,18 @@ export default function FrontlinesPage() {
             isHeat ? "text-white drop-shadow-[0_4px_#ff007f] font-display" :
             "text-on-surface"
           )}>
-            {isBaja ? 'High Tide' : isDiamond ? 'Diamond Rank' : isHeat ? 'Heat Rank' : 'Standings'}
+            {isBaja ? 'High Tide' : isDiamond ? 'Diamond Rank' : isHeat ? 'Heat Rank' : 'Scoreboard'}
           </h1>
-          {!isBaja && !isDiamond && !isHeat && <p className="bureau-subhead">Certified rankings for civic adventure personnel.</p>}
+          <div className="flex items-center gap-2 mt-1">
+            <span className="micro-label opacity-40 uppercase tracking-widest">WEEK {currentWeekNumber} // ACTIVE_SIGNAL</span>
+          </div>
+          {!isBaja && !isDiamond && !isHeat && <p className="bureau-subhead">Certified rankings for field personnel.</p>}
+          {isQuiet && (
+            <div className="flex items-center gap-2 text-brand-orange animate-pulse">
+               <Shield className="w-4 h-4" />
+               <span className="font-mono text-[10px] uppercase font-bold">Quiet Mode Active // Visuals Filtered</span>
+            </div>
+          )}
         </div>
         <div className="text-right">
           <p className="micro-label opacity-40">
@@ -187,15 +229,20 @@ export default function FrontlinesPage() {
               {isBaja ? 'BEACH BABES' : isDiamond ? 'MIRROR ENTITIES' : isHeat ? 'POOLSIDE SQUAD' : 'INDIVIDUAL AGENTS'}
             </h3>
             <div className="space-y-4">
-              {fullBoard.map((user, idx) => (
+              {playerRankings.map((user: any, idx) => (
                 <div key={user.id} className="flex items-center gap-6 group">
                   <span className={cn(
-                    "font-display text-4xl Transition-colors",
+                    "font-display text-4xl Transition-colors w-8",
                     isBaja ? "text-baja-pink/20 group-hover:text-baja-aqua" : 
                     isDiamond ? "text-white/10 group-hover:text-white" :
                     isHeat ? "text-white/20 group-hover:text-heat-pink" :
                     "text-on-surface/10 group-hover:text-on-surface"
                   )}>{(idx + 1).toString().padStart(2, '0')}</span>
+                  
+                  <div className="shrink-0">
+                    <AvatarPreview avatar={user.avatar || DEFAULT_AVATAR} size="sm" className="rounded-full shadow-sm" />
+                  </div>
+
                   <div className={cn(
                     "flex-grow border-b border-dashed pb-2 flex justify-between items-end transition-colors",
                     isBaja ? "border-baja-aqua/30" : 
@@ -217,7 +264,7 @@ export default function FrontlinesPage() {
                         isDiamond ? "text-white/30" :
                         isHeat ? "text-white font-display" : 
                         "text-on-surface opacity-40"
-                      )}>{user.persona?.replace('-', ' ')}</p>
+                      )}>{user.fieldTypeName || user.fieldType?.replace('-', ' ')}</p>
                     </div>
                     <p className={cn(
                       "font-display text-xl", 
@@ -242,12 +289,15 @@ export default function FrontlinesPage() {
               )}
               <div className="flex items-center gap-6 group pt-4">
                 <span className={cn(
-                  "font-display text-4xl", 
+                  "font-display text-4xl w-8", 
                   isBaja ? "text-baja-aqua" : 
                   isDiamond ? "text-white/50" :
                   isHeat ? "text-white" :
                   "text-brand-orange"
                 )}>--</span>
+                <div className="shrink-0">
+                  <AvatarPreview avatar={profile?.avatar || DEFAULT_AVATAR} size="sm" className="rounded-full border border-brand-orange/40 shadow-[0_0_10px_rgba(226,149,120,0.2)]" />
+                </div>
                 <div className={cn(
                   "flex-grow border-b-2 pb-2 flex justify-between items-end",
                   isBaja ? "border-baja-pink" : 
@@ -367,6 +417,31 @@ export default function FrontlinesPage() {
         </div>
       </section>
 
+      {/* Field Type Power Rankings (Mahsa Persona: Fairness/Recognition) */}
+      <section className="space-y-8">
+        <div className="flex items-center gap-4">
+          <h2 className="font-display text-2xl uppercase tracking-tighter text-on-surface">
+            Field Type Power Balance
+          </h2>
+          <div className="h-px flex-grow bg-on-surface/10" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {Object.entries(FIELD_TYPES).filter(([id]) => id !== 'unclassified').map(([id, type]) => {
+            const usersOfType = fullBoard.filter(u => u.fieldType === id);
+            const totalPoints = usersOfType.reduce((acc, u) => acc + u.points, 0);
+            const avgPoints = usersOfType.length > 0 ? Math.round(totalPoints / usersOfType.length) : 0;
+            
+            return (
+              <div key={id} className="p-4 border-2 border-on-surface/5 bg-on-surface/5 text-center space-y-1">
+                <p className="micro-label opacity-40">{type.name}</p>
+                <p className="font-display text-2xl text-brand-orange">{avgPoints}</p>
+                <p className="text-[8px] font-mono opacity-60">AVG_POINTS</p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       {/* Recent Activity Feed */}
       <section className="space-y-8">
         <div className="flex items-center gap-4">
@@ -380,14 +455,29 @@ export default function FrontlinesPage() {
         </div>
 
         <div className="space-y-4">
-          {visibleActivity.length === 0 ? (
+          {isQuiet ? (
+             <div className="bg-on-surface/5 p-12 text-center rounded-3xl border-2 border-dashed border-on-surface/10 space-y-4">
+               <MessageSquare className="w-12 h-12 mx-auto opacity-10" />
+               <p className="font-serif italic opacity-40">"The field is quiet. Real-time dispatches are hidden per your stealth protocol."</p>
+               <button 
+                onClick={async () => {
+                  if(!user || !profile) return;
+                  const { updateProfile } = await import('../services/userService');
+                  await updateProfile(user.uid, { quietCrewMode: false });
+                }}
+                className="micro-label text-brand-orange hover:underline"
+               >
+                 Authorize Social Uplink
+               </button>
+             </div>
+          ) : visibleActivity.length === 0 ? (
             <p className="text-[10px] uppercase font-mono opacity-40 text-center py-8 italic border-2 border-dashed border-on-surface/5">
               No recent field activity detected.
             </p>
           ) : (
             visibleActivity.map((event) => (
-              <div key={event.id} className="flex gap-4 items-start pb-4 border-b border-on-surface/5 last:border-0 group">
-                <div className="w-1.5 h-1.5 bg-brand-orange mt-2 shrink-0 group-hover:scale-150 transition-transform" />
+              <div key={event.id} className="flex gap-4 items-center pb-4 border-b border-on-surface/5 last:border-0 group">
+                <AvatarPreview avatar={(event as any).userAvatar || DEFAULT_AVATAR} size="xs" className="rounded-full shrink-0 border border-white/5" />
                 <div className="flex-grow space-y-1">
                   <div className="flex justify-between items-start">
                     <p className="text-[10px] font-mono">
@@ -414,19 +504,20 @@ export default function FrontlinesPage() {
         </div>
       </section>
 
-      {/* Snitch Power-up Section */}
-      <section className="space-y-8">
-        <div className="flex items-center gap-4">
-          <h3 className={cn(
-            "font-display text-2xl uppercase tracking-tighter",
-            isBaja && "text-baja-pink font-display uppercase font-normal tracking-wide"
-          )}>
-            {isBaja ? 'Petty Waves' : 'Counter-Intelligence'}
-          </h3>
-          {!isBaja && <div className={cn("h-px flex-grow bg-on-surface/10")} />}
-        </div>
+      {/* Counter-Intelligence Section */}
+      <section className="space-y-16">
+        <div className="space-y-8">
+          <div className="flex items-center gap-4">
+            <h3 className={cn(
+              "font-display text-2xl uppercase tracking-tighter",
+              isBaja && "text-baja-pink font-display uppercase font-normal tracking-wide"
+            )}>
+              {isBaja ? 'Petty Waves' : 'Counter-Intelligence'}
+            </h3>
+            {!isBaja && <div className={cn("h-px flex-grow bg-on-surface/10")} />}
+          </div>
 
-        {!isSnitchUnlocked ? (
+          {!isFieldCheckUnlocked ? (
           <div className={cn(
             "p-12 border-4 border-dashed text-center space-y-4",
             isBaja ? "bg-white/40 border-baja-aqua/50 rounded-3xl" : "bureau-panel border-dashed opacity-40"
@@ -436,12 +527,12 @@ export default function FrontlinesPage() {
                "font-display text-4xl uppercase tracking-tighter",
                isBaja ? "text-baja-pink font-display uppercase font-normal" : "text-on-surface"
              )}>
-               {isBaja ? 'Waves Too Low' : 'Citation Protocol Locked'}
+               {isBaja ? 'Waves Too Low' : 'Field Check Protocol Locked'}
              </h4>
              <p className={cn("font-serif italic max-w-sm mx-auto", isBaja ? "text-baja-pink/60" : "text-on-surface")}>
                {isBaja 
-                 ? "You need 5 beach entries to start making waves. Chill for now, babe." 
-                 : "Asset must file 5 valid reports to authorize violation reporting protocols."}
+                 ? "You need 250 points to start making waves. Chill for now, babe." 
+                 : "Asset must reach 250 points to authorize violation reporting protocols."}
              </p>
           </div>
         ) : (
@@ -467,54 +558,39 @@ export default function FrontlinesPage() {
                 
                 <div className="space-y-2">
                   <p className={cn("micro-label", isBaja ? "text-baja-aqua" : "text-on-surface opacity-40")}>
-                    {isBaja ? 'SURF RECLAMATION' : 'AUTHORIZED DISRUPTION'}
+                    {isBaja ? 'SURF RECLAMATION' : 'AUTHORIZED AUDIT'}
                   </p>
                   <h3 className={cn(
                     "font-display text-4xl uppercase leading-none",
                     isBaja ? "text-baja-pink" : "text-on-surface"
                   )}>
-                    {isBaja ? 'The Petty Slide' : 'Submit Violation Report'}
+                    {isBaja ? 'The Petty Slide' : 'Submit Audit Request'}
                   </h3>
                 </div>
 
                 <p className={cn("font-serif text-lg leading-relaxed", isBaja && "text-baja-pink")}>
                   {isBaja 
-                    ? "Spill some salt on a rival's post. If the beach council agrees, they lose XP. Once per swell." 
-                    : "File a formal grievance against a rival agent's evidence. Verified violations result in a standing penalty."}
+                    ? "Spill some salt on a rival's post. Use the menu on any entry to initiate a check. 2 per week." 
+                    : "File a formal grievance against a rival agent's evidence. Use the 'More' menu on any dispatch feed entry."}
                 </p>
 
-                {snitchSent || !canSnitchNow ? (
+                {fieldCheckSent || !canFieldCheckNow ? (
                   <div className={cn(
                     "p-8 text-center",
                     isBaja ? "bg-baja-aqua text-white rounded-full" : 
                     "bg-on-surface text-paper border-2 border-brand-orange"
                   )}>
                     <p className="font-display text-2xl tracking-widest uppercase">
-                      {snitchSent ? (isBaja ? "WAVE CRASHED" : "REPORT_FILED") : (isBaja ? "SEA IS CALM" : "COOLDOWN_ACTIVE")}
+                      {!canFieldCheckNow ? "WEEKLY_QUOTA_REACHED" : "AUDIT_FILED"}
                     </p>
                     <p className={cn("micro-label mt-1", isBaja ? "text-white/80" : "text-paper opacity-60")}>
-                      {lastSnitch ? `TARGET: ${lastSnitch.targetName} // TYPE: ${lastSnitch.type.toUpperCase()}` : "PROTOCOL RESET IN PROGRESS"}
+                      {lastFieldCheck ? `LATEST_STATUS: ${lastFieldCheck.status.toUpperCase()}` : "PROTOCOL RESET IN PROGRESS"}
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <p className={cn("micro-label", isBaja && "text-baja-aqua uppercase tracking-widest")}>SELECT TARGET ASSET</p>
-                    <div className="flex flex-wrap gap-3">
-                      {standings.filter(u => u.id !== auth.currentUser?.uid).slice(0, 3).map(u => (
-                        <button 
-                          key={u.id}
-                          onClick={() => handleSnitch(u.name, u.id)}
-                          className={cn(
-                            "px-6 py-2 transition-all font-display uppercase tracking-tight",
-                            isBaja 
-                              ? "bg-white border-2 border-baja-pink text-baja-pink rounded-full hover:bg-baja-pink hover:text-white" 
-                              : "bureau-btn-outline"
-                          )}
-                        >
-                          {u.name}
-                        </button>
-                      ))}
-                    </div>
+                  <div className="p-6 bg-on-surface/5 border-2 border-dashed border-on-surface/10 rounded-xl text-center">
+                    <p className="font-mono text-[10px] uppercase opacity-60">Ready for Intelligence Audit</p>
+                    <p className="font-serif italic text-sm mt-2">"Find an entry in the feed to report."</p>
                   </div>
                 )}
               </div>
@@ -528,19 +604,29 @@ export default function FrontlinesPage() {
               <div className="space-y-4">
                 {isBaja ? <Flame className="w-10 h-10 text-white" /> : <ShieldAlert className="w-10 h-10 text-brand-orange" />}
                 <h4 className="font-display text-4xl uppercase leading-none tracking-tighter">
-                  {isBaja ? 'Petty Level' : 'BUREAU PENALTY STATUS'}
+                  {isBaja ? 'Petty Level' : 'BUREAU AUDIT STATUS'}
                 </h4>
                 <p className={cn("font-serif italic text-lg leading-snug", isBaja ? "text-white/80" : "opacity-80")}>
-                  {isBaja ? '"Making waves, keeping it salty."' : '"Disruption protocols enabled. Enforce the civic code with prejudice."'}
+                  {isBaja ? '"Making waves, keeping it salty."' : '"Auditor protocols enabled. Verify the field with prejudice."'}
                 </p>
               </div>
               <div className={cn("pt-6 border-t", isBaja ? "border-white/30" : "border-paper/20")}>
-                <p className={cn("micro-label", isBaja ? "text-white/60" : "opacity-50")}>PROTOCOL_RESET_IN:</p>
-                <p className="font-mono text-3xl">08:42:12</p>
+                <p className={cn("micro-label", isBaja ? "text-white/60" : "opacity-50")}>WEEKLY_REMAINING:</p>
+                <p className="font-mono text-3xl">
+                  {canCallFieldCheck(currentWeekNumber) ? (2 - (profile?.fieldCheckHistory?.filter(d => {
+                    const checkDate = new Date(d);
+                    const weekStart = getServerDate();
+                    weekStart.setDate(weekStart.getDate() - (weekStart.getDay() || 7)); // Simple week start
+                    return checkDate > weekStart;
+                  })?.length || 0)) : 0}/2
+                </p>
               </div>
             </div>
           </div>
         )}
+        </div>
+        
+        <SabotageHub />
       </section>
     </>
     )}

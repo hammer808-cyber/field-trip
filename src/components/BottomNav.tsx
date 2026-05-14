@@ -12,12 +12,12 @@ export function BottomNav() {
   const isHeat = skin === 'heatwave';
   
   const navItems = [
-    { icon: Layers, label: 'ORDERS', path: '/deck' },
-    { icon: History, label: 'RECORD', path: '/journal' },
-    { icon: Camera, label: 'SECURE', path: '/capture', special: true },
+    { icon: Layers, label: 'TRIPS', path: '/deck' },
+    { icon: History, label: 'VIEWFINDER', path: '/journal' },
+    { icon: Camera, label: 'PROOF', path: '/capture', special: true },
     { icon: Users, label: 'CREW', path: '/crew' },
-    { icon: Trophy, label: 'BOARD', path: '/frontlines' },
-    { icon: Settings, label: 'BIO', path: '/profile' }
+    { icon: Trophy, label: 'SCOREBOARD', path: '/frontlines' },
+    { icon: Settings, label: 'FILE', path: '/profile' }
   ];
 
   return (

@@ -3,6 +3,8 @@ import { Entry } from '../constants';
 import { cn } from '../lib/utils';
 import { CheckCircle2, AlertCircle, Clock, ShieldAlert } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { AvatarPreview } from './AvatarPreview';
+import { DEFAULT_AVATAR } from '../constants/avatarAssets';
 import { adminOverrideReview } from '../services/proofService';
 
 interface EntryCardProps {
@@ -19,7 +21,7 @@ export function EntryCard({ entry, className }: EntryCardProps) {
     switch (entry.status) {
       case 'approved':
       case 'approved_by_admin':
-        return { icon: CheckCircle2, text: 'Validated', color: 'text-brand-green', stickerColor: 'green' };
+        return { icon: CheckCircle2, text: 'Verified', color: 'text-brand-green', stickerColor: 'green' };
       case 'needs-more-proof':
       case 'needs_review':
         return { icon: AlertCircle, text: 'Needs More Proof', color: 'text-brand-orange', stickerColor: 'orange' };
@@ -27,7 +29,7 @@ export function EntryCard({ entry, className }: EntryCardProps) {
         return { icon: ShieldAlert, text: 'Rejected', color: 'text-error', stickerColor: 'black' };
       case 'pending':
       default:
-        return { icon: Clock, text: 'Authentication Pending', color: 'text-on-surface opacity-40', stickerColor: 'white' };
+        return { icon: Clock, text: 'Field Check Pending', color: 'text-on-surface opacity-40', stickerColor: 'white' };
     }
   };
 
@@ -37,10 +39,6 @@ export function EntryCard({ entry, className }: EntryCardProps) {
   const handleAdminAction = async (newStatus: 'approved' | 'rejected') => {
     if (!isAdmin || !user) return;
     try {
-      // Find the reviewId if we have one, otherwise we might need to handle this differently.
-      // For now, if we don't have reviewId, we can't call adminOverrideReview easily.
-      // But in this system, we can assume we're overriding by entryId.
-      // I'll update proofService to handle optional reviewId.
       await adminOverrideReview('manual-override', entry.id, newStatus as any, `Manual override by ${profile?.name || user.email}`);
     } catch (error) {
       console.error("Admin override failed:", error);
@@ -77,13 +75,20 @@ export function EntryCard({ entry, className }: EntryCardProps) {
         )}
       </div>
       <div className="flex justify-between items-start mb-4">
-        <div className="space-y-1">
-          <p className="micro-label">FILED_{entry.createdAt ? new Date(entry.createdAt.seconds * 1000).toLocaleTimeString() : 'RECENT'}</p>
-          <h4 className="font-display text-sm uppercase tracking-tighter text-on-surface/80">{entry.challengeTitle}</h4>
+        <div className="flex items-center gap-3">
+          <AvatarPreview 
+            avatar={entry.userAvatar || DEFAULT_AVATAR} 
+            size="sm" 
+            className="rounded-full border border-on-surface/10 bg-on-surface/5" 
+          />
+          <div className="space-y-1">
+            <p className="micro-label">FILED_BY_{entry.userName || 'ANON'}</p>
+            <h4 className="font-display text-sm uppercase tracking-tighter text-on-surface/80">{entry.tripTitle}</h4>
+          </div>
         </div>
-        <div className="bureau-tag bg-on-surface/10 text-on-surface shrink-0">LOC_{entry.id.substring(0,4)}</div>
+        <div className="bureau-tag bg-on-surface/10 text-on-surface shrink-0">LOC_{entry.id?.substring(0,4) || 'XXXX'}</div>
       </div>
-      <p className="font-serif italic text-lg leading-relaxed line-clamp-3">"{entry.note}"</p>
+      <p className="font-serif italic text-lg leading-relaxed line-clamp-3">"{entry.fieldNote}"</p>
       <div className="mt-6 flex justify-between items-end border-t border-on-surface/10 pt-4">
         <div className={cn("flex items-center gap-1.5", status.color)}>
           <StatusIcon className="w-3 h-3" />

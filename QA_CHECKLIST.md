@@ -1,7 +1,7 @@
 # Field Trip QA Checklist
 
 ## 1. User Pathways
-- [ ] **Onboarding**: Start as guest, answer quiz, receive persona. Verify persona is saved to Firebase.
+- [ ] **Onboarding**: Start as guest, answer quiz, receive Field Type. Verify Field Type is saved to Firebase.
 - [ ] **Returning User**: Verify points, solo count, and submissions persist across sessions.
 - [ ] **Memorial Day Lock**:
   - [ ] Set "Simulated Date" to before May 25. Verify Viewfinder shows "SYSTEM_LOCKED".
@@ -12,7 +12,7 @@
 - [ ] **Submission Flow**:
   - [ ] Capture image, add note, dispatch.
   - [ ] Verify entry appears in "Prior Reports" on Deck.
-  - [ ] Verify points are added correctly (base points + persona modifiers).
+  - [ ] Verify points are added correctly (base points + Field Type modifiers).
 - [ ] **Leaderboard**:
   - [ ] Verify user is hidden from leaderboard below 50 points.
   - [ ] Verify user appears on Frontlines board after 50 points.

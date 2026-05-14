@@ -48,7 +48,7 @@ export default function AdminUsersPage() {
     if (!user || isUpdating) return;
     
     // Safety: Don't allow self-demotion if you're the only admin
-    if (userId === user.uid && adminIds.length === 1) {
+    if (userId === user.uid && (adminIds?.length || 0) === 1) {
       alert("CRITICAL_FAIL: You are the last standing admin. Assign a successor before resigning.");
       return;
     }
@@ -76,7 +76,7 @@ export default function AdminUsersPage() {
           </div>
           <div className="text-right">
             <p className="micro-label opacity-40">ADMIN_FORCE_SIZE</p>
-            <p className="text-2xl font-display text-brand-orange">{adminIds.length}</p>
+            <p className="text-2xl font-display text-brand-orange">{adminIds?.length || 0}</p>
           </div>
         </div>
 
@@ -103,7 +103,7 @@ export default function AdminUsersPage() {
             <div className="p-12 text-center opacity-40 italic text-xs uppercase tracking-widest">
               Accessing encrypted registry...
             </div>
-          ) : filteredUsers.length === 0 ? (
+          ) : (filteredUsers?.length || 0) === 0 ? (
             <div className="p-12 text-center opacity-40 italic text-xs uppercase tracking-widest">
               No matching records found.
             </div>

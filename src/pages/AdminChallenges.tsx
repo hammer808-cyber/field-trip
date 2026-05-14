@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { 
-  ChallengeCard as ChallengeCardType, 
-  ChallengeCategory, 
-  ChallengeType, 
-  ChallengeStatus,
-  ProofType,
-  ProofMode
+  TripCard as ChallengeCardType, 
+  TripType,
+  TripMode,
+  TripStatus,
+  ProofType
 } from '../types/challenges';
 import { 
   getAllChallenges, 
   saveChallenge, 
   subscribeToChallenges 
 } from '../services/challengeService';
+import { useApp } from '../context/AppContext';
+import { updateFeatureFlags, deploySummer2026Manifest, updateChallengeStatus } from '../services/adminGameService';
+import { validateChallengeBrandFit } from '../services/brandService';
 import { 
   Plus, 
   Search, 
@@ -26,26 +28,55 @@ import {
   Users, 
   Eye, 
   Filter,
-  ArrowLeft
+  ArrowLeft,
+  Settings,
+  CloudUpload
 } from 'lucide-react';
+
 import { Card, Sticker } from '../components/UI';
 import { ChallengeCard } from '../components/ChallengeCard';
 import { cn } from '../lib/utils';
 import { useNavigate } from 'react-router-dom';
 
-const CATEGORIES: ChallengeCategory[] = ['Social', 'Nature', 'Navigator', 'Stealth', 'Chaos', 'Onboarding', 'Bonus', 'Detour'];
-const MODES: ChallengeType[] = ['solo', 'crew', 'flexible'];
+const CATEGORIES: TripType[] = ['Field Challenge', 'Evidence Challenge', 'Crew Challenge', 'Social Spark', 'Explore the Map', 'Taste Test', 'Proof Goblin', 'Crew Chaos', 'Onboarding', 'Bonus', 'Final'];
+const MODES: TripMode[] = ['solo', 'crew', 'flexible'];
 const PROOF_TYPES: ProofType[] = ['photo', 'note', 'location', 'group-confirmation'];
+const STATUSES: TripStatus[] = ['draft', 'approved', 'scheduled', 'active', 'archived'];
 
-const PROOF_MODES: ProofMode[] = ['strict_proof', 'flexible_proof', 'social_proof'];
+const PROOF_MODES: ProofType[] = ['photo', 'note', 'location'];
 
 export default function AdminChallengesPage() {
   const { isAdmin, isLoading: themeLoading } = useTheme();
+  const { gameConfig, isFeatureEnabled } = useApp();
   const [challenges, setChallenges] = useState<ChallengeCardType[]>([]);
+  const [isDeploying, setIsDeploying] = useState(false);
+
+  const handleDeployManifest = async () => {
+    if (!window.confirm("BUREAU_UPLINK: This will synchronize the 14-week Summer of Field Trip manifest to Firestore. Existing challenges with matching IDs will be merged. Continue?")) return;
+    
+    setIsDeploying(true);
+    try {
+      const result = await deploySummer2026Manifest();
+      alert(`BUREAU_SUCCESS: Deployed ${result.weeks} weeks and ${result.templates} templates to the registry. Active season set to ${result.seasonId}.`);
+    } catch (err: any) {
+      alert(`BUREAU_ERROR: Deployment failed. ${err.message}`);
+    } finally {
+      setIsDeploying(false);
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [editingChallenge, setEditingChallenge] = useState<Partial<ChallengeCardType> | null>(null);
   const [search, setSearch] = useState('');
+  const [toggling, setToggling] = useState(false);
   const navigate = useNavigate();
+
+  const fieldEffectEnabled = isFeatureEnabled('fieldTypeEffectsEnabled');
+
+  const toggleFieldEffects = async () => {
+    setToggling(true);
+    await updateFeatureFlags({ fieldTypeEffectsEnabled: !fieldEffectEnabled });
+    setToggling(false);
+  };
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -64,7 +95,7 @@ export default function AdminChallengesPage() {
         <Shield className="w-16 h-16 text-error opacity-20" />
         <h1 className="text-huge text-4xl">Access Restricted</h1>
         <p className="font-serif italic text-on-surface-variant max-w-sm">
-          Challenge Registry Access requires Level 4 clearance. This event has been reported.
+          Trip Registry Access requires Level 4 clearance. This event has been reported.
         </p>
         <button onClick={() => navigate('/')} className="underline font-mono text-xs">Return to Base</button>
       </div>
@@ -73,7 +104,7 @@ export default function AdminChallengesPage() {
 
   const filteredChallenges = challenges.filter(c => 
     c.title.toLowerCase().includes(search.toLowerCase()) || 
-    c.category.toLowerCase().includes(search.toLowerCase())
+    c.type.toLowerCase().includes(search.toLowerCase())
   );
 
   const handleSave = async () => {
@@ -91,54 +122,88 @@ export default function AdminChallengesPage() {
                <ArrowLeft className="w-4 h-4" />
              </button>
             <div className="bureau-tag bg-brand-orange text-white text-[10px]">OPS_REGISTRY_V2</div>
-            <p className="micro-label">PROTOCOL: [CHALLENGE_MGMT_BETA]</p>
+            <p className="micro-label">PROTOCOL: [TRIP_MGMT_BETA]</p>
           </div>
-          <h2 className="text-huge text-6xl text-on-surface leading-none uppercase tracking-tighter">Mission Control</h2>
-          <p className="bureau-subhead max-w-xl">Centralized registry for Bureau operations. Author, edit, and archive the tasks that define the Field Trip.</p>
+          <h2 className="text-huge text-6xl text-on-surface leading-none uppercase tracking-tighter">Control Booth</h2>
+          <p className="bureau-subhead max-w-xl">Centralized registry for Bureau operations. Author, edit, and archive the trips that define the Field Trip.</p>
         </div>
-        <button 
-          onClick={() => setEditingChallenge({
-            title: '',
-            shortDescription: '',
-            fullInstructions: '',
-            category: 'Chaos',
-            difficulty: 3,
-            points: 100,
-            estimatedTime: '30m',
-            mode: 'solo',
-            proofMode: 'flexible_proof',
-            requiredProof: ['photo'],
-            proofRequirements: {
-              requiredSubjects: [],
-              minConfidence: 60,
-              requireLocation: false,
-              requireTimestamp: true
-            },
-            status: 'available',
-            tags: [],
-            seasonAvailability: ['S1'],
-            skinCompatibility: []
-          })}
-          className="bureau-btn text-xl flex items-center gap-2 group"
-        >
-          <Plus className="w-6 h-6 transition-transform group-hover:rotate-90" />
-          AUTHOR_NEW_MISSION
-        </button>
+        <div className="flex gap-4">
+          <button 
+            onClick={handleDeployManifest}
+            disabled={isDeploying}
+            className="bureau-btn text-xl flex items-center gap-2 group bg-mustard border-on-surface text-on-surface"
+          >
+            <CloudUpload className={cn("w-6 h-6 transition-transform", isDeploying && "animate-bounce")} />
+            {isDeploying ? 'DEPLOYING...' : 'DEPLOY_SUMMER_SURGE'}
+          </button>
+          <button 
+            onClick={() => setEditingChallenge({
+              title: '',
+              shortDescription: '',
+              fullInstructions: '',
+              type: 'Chaos' as any,
+              basePoints: 100,
+              levels: {
+                Scout: { points: 100, description: '' },
+                Explorer: { points: 150, description: '' },
+                Legend: { points: 200, description: '' }
+              },
+              mode: 'solo',
+              requiredProof: ['photo'],
+              proofRequirements: {
+                requiredSubjects: [],
+                minConfidence: 60,
+                requireLocation: false,
+                requireTimestamp: true
+              },
+              status: 'available',
+              tags: [],
+              seasonAvailability: ['S1'],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            })}
+            className="bureau-btn text-xl flex items-center gap-2 group"
+          >
+            <Plus className="w-6 h-6 transition-transform group-hover:rotate-90" />
+            AUTHOR_NEW_MISSION
+          </button>
+        </div>
       </header>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {[
-          { label: 'TOTAL_MISSIONS', value: challenges.length },
-          { label: 'ACTIVE_SOCIAL', value: challenges.filter(c => c.category === 'Social').length },
-          { label: 'ACTIVE_CHAOS', value: challenges.filter(c => c.category === 'Chaos').length },
-          { label: 'CREW_REQUIRED', value: challenges.filter(c => c.mode === 'crew').length },
+          { label: 'TOTAL_MISSIONS', value: (challenges?.length || 0) },
+          { label: 'ACTIVE_SOCIAL', value: (challenges?.filter(c => c.category === 'Social Spark').length || 0) },
+          { label: 'ACTIVE_EXPLORE', value: (challenges?.filter(c => c.type === 'Explore the Map').length || 0) },
+          { label: 'CREW_REQUIRED', value: (challenges?.filter(c => c.mode === 'crew').length || 0) },
         ].map(stat => (
           <div key={stat.label} className="notice-card p-4">
             <p className="micro-label opacity-40">{stat.label}</p>
             <p className="font-display text-4xl">{stat.value}</p>
           </div>
         ))}
+        
+        {/* System Settings Toggle */}
+        <div className="notice-card p-4 bg-brand-orange/10 border-brand-orange/20 flex flex-col justify-between">
+          <div>
+            <p className="micro-label text-brand-orange flex items-center gap-1 font-bold">
+              <Settings className="w-3 h-3" />
+              SYSTEM_CONFIG
+            </p>
+            <p className="text-sm font-mono mt-1 opacity-60">FIELD_TYPE effects</p>
+          </div>
+          <button 
+            disabled={toggling}
+            onClick={toggleFieldEffects}
+            className={cn(
+              "text-xs font-bold px-3 py-1 mt-2 border-2 uppercase tracking-tight transition-all",
+              fieldEffectEnabled ? "bg-green-500 text-white border-green-600" : "bg-neutral-200 text-neutral-500 border-neutral-300"
+            )}
+          >
+            {toggling ? '...' : fieldEffectEnabled ? 'ACTIVE (ON)' : 'MUTED (OFF)'}
+          </button>
+        </div>
       </div>
 
       {/* Search and Filters */}
@@ -163,6 +228,17 @@ export default function AdminChallengesPage() {
         {filteredChallenges.map(c => (
            <div key={c.id} className="relative group">
              <ChallengeCard challenge={c} onClick={() => setEditingChallenge(c)} />
+             
+             {/* Brand Fit Badge */}
+             <div className={cn(
+               "absolute top-4 left-4 z-10 px-2 py-1 text-[10px] font-bold uppercase tracking-widest border-2",
+               c.brandFit === 'approved' ? "bg-green-500 text-white border-green-600" :
+               c.brandFit === 'rejected' ? "bg-red-500 text-white border-red-600" :
+               "bg-mustard text-on-surface border-on-surface"
+             )}>
+               {c.brandFit}
+             </div>
+
              <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                <button 
                 onClick={() => setEditingChallenge(c)}
@@ -193,12 +269,34 @@ export default function AdminChallengesPage() {
 
             <div className="p-8 space-y-12">
                {/* Preview Section */}
-               <div className="space-y-4">
-                  <p className="micro-label font-bold border-b border-on-surface/10 pb-2">HOLOGRAPHIC_PREVIEW</p>
-                  <div className="max-w-sm">
-                    <ChallengeCard challenge={editingChallenge as ChallengeCardType} />
+                  <div className="space-y-4">
+                    <p className="micro-label font-bold border-b border-on-surface/10 pb-2">HOLOGRAPHIC_PREVIEW</p>
+                    <div className="max-w-sm">
+                      <ChallengeCard challenge={editingChallenge as ChallengeCardType} />
+                    </div>
+                    {editingChallenge.brandFit && (
+                      <div className={cn(
+                        "p-4 border-2 flex items-start gap-3",
+                        editingChallenge.brandFit === 'approved' ? "bg-green-50 border-green-200" : 
+                        editingChallenge.brandFit === 'rejected' ? "bg-red-50 border-red-200" : "bg-mustard/10 border-mustard"
+                      )}>
+                        <Shield className={cn("w-5 h-5", editingChallenge.brandFit === 'approved' ? "text-green-600" : "text-red-600")} />
+                        <div>
+                          <p className="text-xs font-bold uppercase">Brand Fit: {editingChallenge.brandFit}</p>
+                          <p className="text-xs opacity-60">Verified via Field Trip Brand Filter Protocol.</p>
+                        </div>
+                      </div>
+                    )}
+                    <button 
+                      onClick={() => {
+                        const check = validateChallengeBrandFit(editingChallenge);
+                        setEditingChallenge({ ...editingChallenge, brandFit: check.status });
+                      }}
+                      className="w-full py-2 bg-on-surface text-paper text-[10px] font-bold uppercase tracking-widest hover:bg-brand-orange transition-all"
+                    >
+                      RUN_BRAND_VALIDATION
+                    </button>
                   </div>
-               </div>
 
                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 pt-8 border-t border-on-surface/10">
                   <div className="space-y-8">
@@ -236,10 +334,10 @@ export default function AdminChallengesPage() {
 
                     <div className="grid grid-cols-2 gap-6">
                        <div className="space-y-2">
-                        <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">CATEGORY</label>
+                        <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">TRIP_TYPE</label>
                         <select 
-                          value={editingChallenge.category}
-                          onChange={(e) => setEditingChallenge({ ...editingChallenge, category: e.target.value as ChallengeCategory })}
+                          value={editingChallenge.type}
+                          onChange={(e) => setEditingChallenge({ ...editingChallenge, type: e.target.value as TripType })}
                           className="w-full bg-paper border-2 border-on-surface p-2 font-mono text-xs"
                         >
                           {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat.toUpperCase()}</option>)}
@@ -249,7 +347,7 @@ export default function AdminChallengesPage() {
                         <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">OP_MODE</label>
                         <select 
                           value={editingChallenge.mode}
-                          onChange={(e) => setEditingChallenge({ ...editingChallenge, mode: e.target.value as ChallengeType })}
+                          onChange={(e) => setEditingChallenge({ ...editingChallenge, mode: e.target.value as TripMode })}
                           className="w-full bg-paper border-2 border-on-surface p-2 font-mono text-xs"
                         >
                           {MODES.map(m => <option key={m} value={m}>{m.toUpperCase()}</option>)}
@@ -339,16 +437,16 @@ export default function AdminChallengesPage() {
                       </div>
                     </div>
 
-                    <div className="space-y-4">
-                      <p className="micro-label font-bold">OP_STATUS</p>
+                     <div className="space-y-4">
+                      <p className="micro-label font-bold">OP_STATUS (LIFECYCLE)</p>
                       <div className="grid grid-cols-2 gap-2">
-                         {['locked', 'available', 'archived'].map(s => (
+                         {STATUSES.map(s => (
                            <button
                             key={s}
                             onClick={() => setEditingChallenge({ ...editingChallenge, status: s as any })}
                             className={cn(
-                              "p-2 border-2 text-[10px] font-mono uppercase text-left",
-                              editingChallenge.status === s ? "bg-brand-orange text-white border-brand-orange" : "border-on-surface/10 opacity-60"
+                              "p-2 border-2 text-[10px] font-mono uppercase text-left transition-all",
+                              editingChallenge.status === s ? "bg-brand-orange text-white border-brand-orange" : "border-on-surface/10 opacity-60 hover:opacity-100"
                             )}
                            >
                             {s}

@@ -16,20 +16,23 @@ import {
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Entry } from '../constants';
+import { guardedCall } from './guardedService';
 
 const COLLECTION = 'entries';
 
 export async function addEntryToFirestore(entry: Omit<Entry, 'id' | 'createdAt'>) {
-  try {
-    const docRef = await addDoc(collection(db, COLLECTION), {
-      ...entry,
-      createdAt: serverTimestamp(),
-      status: 'submitted'
-    });
-    return docRef.id;
-  } catch (error) {
-    return handleFirestoreError(error, OperationType.CREATE, COLLECTION);
-  }
+  return guardedCall(`entry_submit_${entry.userId}`, async () => {
+    try {
+      const docRef = await addDoc(collection(db, COLLECTION), {
+        ...entry,
+        createdAt: serverTimestamp(),
+        status: 'submitted'
+      });
+      return docRef.id;
+    } catch (error) {
+      return handleFirestoreError(error, OperationType.CREATE, COLLECTION);
+    }
+  }, { cooldownMs: 5000 }); // 5s cooldown between entries
 }
 
 /**

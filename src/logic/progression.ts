@@ -1,11 +1,11 @@
-import { PersonaId } from '../constants';
+import { FieldTypeId } from '../constants';
 
 // GAME CONFIGURATION
 export const CONFIG = {
   PRE_SEASON_UNLOCK_DATE: '2026-05-25T00:00:00Z',
   STAGING_UNLOCK_DATE: '2026-05-15T00:00:00Z', // For beta testers
   CREW_MODE_SOLO_REQUIRED: 3,
-  SNITCH_MODE_POINTS_REQUIRED: 250,
+  FIELD_CHECK_MODE_POINTS_REQUIRED: 250,
   LEADERBOARD_VISIBILITY_POINTS: 50,
   ADMIN_EMAIL_WHITELIST: ['hammer808@gmail.com'], // Example
 };
@@ -16,7 +16,7 @@ export interface GameState {
   points: number;
   soloCount: number;
   onboardingComplete: boolean;
-  persona: PersonaId | null;
+  fieldType: FieldTypeId | null;
   isAdmin: boolean;
   currentDate: Date;
 }
@@ -39,11 +39,11 @@ export function canAccessCrewMode(state: GameState): boolean {
 }
 
 /**
- * PATHWAY: Can user access Snitch Mode?
+ * PATHWAY: Can user access Field Check Mode?
  */
-export function canAccessSnitchMode(state: GameState): boolean {
+export function canAccessFieldCheckMode(state: GameState): boolean {
   if (state.isAdmin) return true;
-  return state.points >= CONFIG.SNITCH_MODE_POINTS_REQUIRED;
+  return state.points >= CONFIG.FIELD_CHECK_MODE_POINTS_REQUIRED;
 }
 
 /**
@@ -71,8 +71,8 @@ export function getNextMilestone(state: GameState): string | null {
   if (state.soloCount < CONFIG.CREW_MODE_SOLO_REQUIRED) {
     return `Complete ${CONFIG.CREW_MODE_SOLO_REQUIRED - state.soloCount} more solo missions to unlock CREW_MODE.`;
   }
-  if (state.points < CONFIG.SNITCH_MODE_POINTS_REQUIRED) {
-    return `Reach ${CONFIG.SNITCH_MODE_POINTS_REQUIRED} points to unlock SNITCH_CAPABILITY.`;
+  if (state.points < CONFIG.FIELD_CHECK_MODE_POINTS_REQUIRED) {
+    return `Reach ${CONFIG.FIELD_CHECK_MODE_POINTS_REQUIRED} points to unlock FIELD_CHECK_CAPABILITY.`;
   }
   return "All system nodes synchronized. Operation: Field Trip is full-scale.";
 }

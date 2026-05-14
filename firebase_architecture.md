@@ -11,7 +11,7 @@ The following operations **MUST** bypass client constraints and be implemented a
    - **Logic**: 
      - Verify `status` is currently `submitted`.
      - Update `status` to `approved`.
-     - Increment `User.points` by the challenge value (plus persona modifiers).
+     - Increment `User.points` by the challenge value (plus Field Type modifiers).
      - Increment `User.soloCount`.
      - Update `LeaderboardScore`.
    - **Why**: Prevents users from giving themselves unlimited points.

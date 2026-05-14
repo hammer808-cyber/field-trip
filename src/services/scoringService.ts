@@ -1,14 +1,5 @@
-import { 
-  collection, 
-  addDoc, 
-  doc, 
-  updateDoc, 
-  increment, 
-  serverTimestamp, 
-  runTransaction 
-} from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { ScoreEvent, ScoreEventType } from '../types/game';
+import { auth } from '../lib/firebase';
+import { ScoreEventType } from '../types/game';
 
 export async function awardPoints(
   userId: string, 
@@ -17,46 +8,41 @@ export async function awardPoints(
   type: ScoreEventType,
   details: {
     entryId?: string;
-    challengeId?: string;
+    tripId?: string;
     description: string;
     crewId?: string;
+    userAvatar?: any;
   }
 ) {
   try {
-    await runTransaction(db, async (transaction) => {
-      // 1. Create ScoreEvent
-      const scoreEventRef = doc(collection(db, 'scoreEvents'));
-      const scoreEvent: Omit<ScoreEvent, 'id'> = {
-        userId,
-        userName,
-        type,
+    const user = auth.currentUser;
+    if (!user) throw new Error('NOT_AUTHENTICATED');
+
+    const idToken = await user.getIdToken();
+    
+    // Call Secure Server API instead of writing directly to Firestore
+    const response = await fetch('/api/game/award-points', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${idToken}`
+      },
+      body: JSON.stringify({
         points,
-        entryId: details.entryId,
-        challengeId: details.challengeId,
-        description: details.description,
-        crewId: details.crewId,
-        createdAt: serverTimestamp() as any
-      };
-      transaction.set(scoreEventRef, scoreEvent);
-
-      // 2. Update User Profile
-      const userRef = doc(db, 'users', userId);
-      transaction.update(userRef, {
-        points: increment(points),
-        updatedAt: serverTimestamp()
-      });
-
-      // 3. Update Crew if applicable
-      if (details.crewId) {
-        const crewRef = doc(db, 'crews', details.crewId);
-        transaction.update(crewRef, {
-          totalPoints: increment(points),
-          updatedAt: serverTimestamp()
-        });
-      }
+        type,
+        details
+      })
     });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || 'FAILED_TO_AWARD_POINTS');
+    }
+
+    return await response.json();
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, 'scoreEvents');
+    console.error('Error awarding points via API:', error);
+    throw error;
   }
 }
 
@@ -66,6 +52,7 @@ export async function adjustPointsManually(
   points: number,
   reason: string
 ) {
+  // Only admins can do this, the API will verify tokens
   return awardPoints(userId, userName, points, 'admin_adjustment', {
     description: `Manual adjustment: ${reason}`
   });

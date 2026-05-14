@@ -27,10 +27,10 @@ export const BadgeCollection: React.FC<BadgeCollectionProps> = ({ progress }) =>
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <p className="micro-label opacity-40">BUREAU_COLLECTIBLES</p>
-          <h2 className="font-display text-4xl uppercase tracking-tighter">Field Fragments</h2>
+          <h2 className="font-display text-4xl uppercase tracking-tighter">Field Marks</h2>
         </div>
         <div className="text-right">
-          <p className="micro-label opacity-20">UNLOCKED</p>
+          <p className="micro-label opacity-20">REGISTERED</p>
           <p className="font-mono text-xl">{progress.filter(p => p.isUnlocked).length} / {BADGE_DEFINITIONS.length}</p>
         </div>
       </div>

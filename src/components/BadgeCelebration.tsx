@@ -3,19 +3,26 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { BADGE_DEFINITIONS, UserBadgeProgress } from '../types/badges';
 import * as LucideIcons from 'lucide-react';
-import { Sparkles, X, Award } from 'lucide-react';
+import { Sparkles, X, Award, Users } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';
 
 export const BadgeCelebration: React.FC = () => {
-  const { badgeProgress, profile, markBadgeAsSeen } = useApp();
+  const { badgeProgress, profile, markBadgeAsSeen, markCrewModeSeen } = useApp();
   const { skin } = useTheme();
   const [celebratingBadge, setCelebratingBadge] = useState<any>(null);
+  const [showCrewUnlock, setShowCrewUnlock] = useState(false);
 
   // Check for new unlocks
   useEffect(() => {
     if (!profile) return;
     
+    // Check Crew Mode
+    if (profile.crewModeUnlocked && !profile.crewModeSeen && !celebratingBadge && !showCrewUnlock) {
+      setShowCrewUnlock(true);
+      return;
+    }
+
     const unlocked = badgeProgress.filter(p => p.isUnlocked);
     const seenBadges = new Set(profile.seenBadges || []);
 
@@ -33,9 +40,21 @@ export const BadgeCelebration: React.FC = () => {
   const isDiamond = skin === 'slippery-diamond';
   const isHeat = skin === 'heatwave';
 
-  if (!celebratingBadge) return null;
+  const handleDismiss = () => {
+    if (showCrewUnlock) {
+      setShowCrewUnlock(false);
+      markCrewModeSeen();
+    }
+    setCelebratingBadge(null);
+  };
 
-  const IconComponent = (LucideIcons as any)[celebratingBadge.icon] || Award;
+  if (!celebratingBadge && !showCrewUnlock) return null;
+
+  const IconComponent = celebratingBadge ? ((LucideIcons as any)[celebratingBadge.icon] || Award) : Users;
+  const title = celebratingBadge ? celebratingBadge.title : "Crew Mode Unlocked";
+  const desc = celebratingBadge ? celebratingBadge.description : "You have proven you can be trusted with mild group-based nonsense.";
+  const reward = celebratingBadge ? celebratingBadge.unlockReward : "CREW COLLECTIONS";
+  const label = celebratingBadge ? "BUREAU_CLEARANCE_OBTAINED" : "COLLECTIVE_SUBSYSTEM_SYNC";
 
   return (
     <AnimatePresence>
@@ -94,17 +113,17 @@ export const BadgeCelebration: React.FC = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-center gap-2">
                 <Sparkles className="w-4 h-4 text-brand-orange" />
-                <p className="micro-label text-brand-orange tracking-[0.4em]">BUREAU_CLEARANCE_OBTAINED</p>
+                <p className="micro-label text-brand-orange tracking-[0.4em]">{label}</p>
                 <Sparkles className="w-4 h-4 text-brand-orange" />
               </div>
               <h2 className={cn(
                 "font-display text-5xl uppercase tracking-tighter leading-none",
                 isBaja ? "text-baja-pink" : isDiamond ? "text-white" : "text-on-surface"
               )}>
-                {celebratingBadge.title}
+                {title}
               </h2>
               <p className="font-serif italic opacity-60">
-                "{celebratingBadge.description}"
+                "{desc}"
               </p>
             </div>
 
@@ -113,11 +132,11 @@ export const BadgeCelebration: React.FC = () => {
               isBaja ? "bg-baja-sand" : "bg-on-surface/5 border border-on-surface/10"
             )}>
               <p className="micro-label opacity-40 mb-1">REWARD_UNLOCKED</p>
-              <p className="font-display text-xl uppercase text-brand-orange">{celebratingBadge.unlockReward}</p>
+              <p className="font-display text-xl uppercase text-brand-orange">{reward}</p>
             </div>
 
             <button
-              onClick={() => setCelebratingBadge(null)}
+              onClick={handleDismiss}
               className={cn(
                 "w-full py-4 font-display font-bold uppercase tracking-widest transition-all active:scale-95",
                 isBaja ? "bg-baja-pink text-white rounded-full shadow-[4px_4px_0px_#40e0d0]" :
@@ -130,7 +149,7 @@ export const BadgeCelebration: React.FC = () => {
           </div>
 
           <button 
-            onClick={() => setCelebratingBadge(null)}
+            onClick={handleDismiss}
             className="absolute top-6 right-6 opacity-40 hover:opacity-100 transition-opacity"
           >
             <X className="w-6 h-6" />

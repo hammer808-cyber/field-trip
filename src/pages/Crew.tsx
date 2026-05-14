@@ -19,41 +19,57 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { getCrew, getCrewLore, subscribeToCrewLore, getLatestDispatch } from '../services/crewService';
+import { getWeeklySummary } from '../services/summaryService';
 import { Crew, CrewLore, CrewDispatch } from '../types/crew';
 import { Card, Sticker } from '../components/UI';
 import { CrewArtifactsGallery } from '../components/CrewArtifactsGallery';
 
 export default function CrewPage() {
   const { skin } = useTheme();
-  const { user, crewArtifacts } = useApp();
+  const { user, profile, crewArtifacts, activeSeason, currentWeekNumber } = useApp();
   const [activeTab, setActiveTab] = useState<'home' | 'lore' | 'members' | 'stats' | 'dispatch'>('home');
   const [crew, setCrew] = useState<Crew | null>(null);
   const [lore, setLore] = useState<CrewLore | null>(null);
   const [dispatch, setDispatch] = useState<CrewDispatch | null>(null);
+  const [weeklySummary, setWeeklySummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   // For demo purposes, we'll assume the user belongs to a crew or is looking at one
   // In a real app, we'd fetch the user's crewId from their profile
-  const crewId = 'sample-baja-bratz-crew'; 
+  const crewId = user?.crewId || (profile as any)?.crewId; 
 
   useEffect(() => {
+    if (!crewId) {
+      setLoading(false);
+      return;
+    }
     async function init() {
-      const c = await getCrew(crewId);
+      const c = await getCrew(crewId!);
       if (c) {
         setCrew(c);
-        const l = await getCrewLore(crewId);
+        const l = await getCrewLore(crewId!);
         setLore(l);
-        const d = await getLatestDispatch(crewId);
+        const d = await getLatestDispatch(crewId!);
         setDispatch(d);
+        
+        if (activeSeason?.id) {
+           const summary = await getWeeklySummary(activeSeason.id, currentWeekNumber);
+           setWeeklySummary(summary);
+        }
       }
       setLoading(false);
     }
     init();
 
-    const unsub = subscribeToCrewLore(crewId, (data) => setLore(data));
+    const unsub = subscribeToCrewLore(crewId!, (data) => setLore(data));
     return () => unsub();
-  }, [crewId]);
+  }, [crewId, activeSeason?.id, currentWeekNumber]);
+
+  const crewStanding = weeklySummary?.crewStats?.[crewId!] || null;
+  const crewRank = weeklySummary ? (Object.entries(weeklySummary.crewStats)
+    .sort(([, a]: any, [, b]: any) => b.totalScore - a.totalScore)
+    .findIndex(([id]) => id === crewId) + 1) : 0;
 
   if (loading) return <div className="flex items-center justify-center min-h-screen font-mono">LOADING_CREW_IDENTITY...</div>;
 
@@ -154,10 +170,10 @@ export default function CrewPage() {
                </h3>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {[
-                    { label: 'Most Suspicious Entry', value: lore?.highlights.mostSuspiciousEntry ? `ENTRY_${lore.highlights.mostSuspiciousEntry.slice(-4).toUpperCase()}` : 'No suspicious activity yet. Boring, but respectable.' },
-                    { label: 'Biggest Comeback', value: lore?.highlights.biggestComeback || 'Steady state maintained. No major swings recorded.' },
-                    { label: 'Most Chaotic Trip', value: lore?.highlights.mostChaoticTrip || 'This crew has not caused enough trouble to be studied.' },
-                    { label: 'Field Checks Survived', value: lore?.highlights.mostFieldChecksSurvived || '0 (Clean Record)' },
+                    { label: 'Most Suspicious Entry', value: lore?.highlights?.mostSuspiciousEntry ? `ENTRY_${lore.highlights.mostSuspiciousEntry.slice(-4).toUpperCase()}` : 'No suspicious activity yet. Boring, but respectable.' },
+                    { label: 'Biggest Comeback', value: lore?.highlights?.biggestComeback || 'Steady state maintained. No major swings recorded.' },
+                    { label: 'Most Chaotic Trip', value: lore?.highlights?.mostChaoticTrip || 'This crew has not caused enough trouble to be studied.' },
+                    { label: 'Field Checks Survived', value: lore?.highlights?.mostFieldChecksSurvived || '0 (Clean Record)' },
                   ].map(h => (
                     <div key={h.label}>
                       <Card className="p-6 space-y-2">
@@ -172,7 +188,7 @@ export default function CrewPage() {
             <section className="space-y-4">
                <h3 className="micro-label font-bold">INSIDE_LOGS (JOKES)</h3>
                <div className="space-y-4">
-                  {lore?.insideJokes.length ? lore.insideJokes.map((joke, i) => (
+                  {lore?.insideJokes?.length ? lore.insideJokes.map((joke, i) => (
                      <div key={i} className="bg-paper border-l-4 border-brand-orange p-4 italic font-serif opacity-80">
                        "{joke}"
                      </div>
@@ -206,10 +222,10 @@ export default function CrewPage() {
           <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4">
              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                  { label: 'APPROVED', val: lore?.seasonStats.S1?.totalApprovedEntries || 0, icon: ShieldCheck },
-                  { label: 'QUESTIONED', val: lore?.seasonStats.S1?.totalRejectedEntries || 0, icon: AlertTriangle },
-                  { label: 'COMPLETED', val: lore?.seasonStats.S1?.totalCompletedChallenges || 0, icon: Trophy },
-                  { label: 'RANK', val: '#42', icon: BarChart3 },
+                  { label: 'APPROVED', val: lore?.seasonStats?.S1?.totalApprovedEntries || 0, icon: ShieldCheck },
+                  { label: 'QUESTIONED', val: lore?.seasonStats?.S1?.totalRejectedEntries || 0, icon: AlertTriangle },
+                  { label: 'WEEKLY_SCORE', val: crewStanding?.totalScore || 0, icon: Trophy },
+                  { label: 'WEEKLY_RANK', val: crewRank > 0 ? `#${crewRank}` : '---', icon: BarChart3 },
                 ].map(stat => (
                   <div key={stat.label} className="notice-card p-6 flex flex-col items-center justify-center space-y-2">
                     <stat.icon className="w-6 h-6 opacity-20" />

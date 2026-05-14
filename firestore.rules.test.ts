@@ -9,61 +9,58 @@
 
 describe("Field Trip Security Rules", () => {
   
-  describe("Users Collection", () => {
-    it("should allow a user to create their own profile with 0 points", async () => {
-      // SUCCESS: isOwner, points == 0, soloCount == 0
+  describe("Auth & Signup", () => {
+    it("should allow reading an accessCode by ID but deny listing them", async () => {
+      // SUCCESS: get(/accessCodes/CODE_ID)
+      // FAILURE: list(/accessCodes)
     });
 
-    it("should deny a user creating their own profile with 1000 points", async () => {
-      // FAILURE: points must be 0 on creation
+    it("should allow creating a unique username if not taken", async () => {
+      // SUCCESS: create(/usernames/myname) { userId: 'me' }
     });
 
-    it("should deny updating points directly", async () => {
-      // FAILURE: affectedKeys().hasOnly(['name', 'persona', ...]) prohibits 'points'
-    });
-
-    it("should allow reading any user profile", async () => {
-      // SUCCESS: allow read: if isSignedIn()
+    it("should deny profile creation with 'approved' status", async () => {
+      // FAILURE: must be 'pending' initially
     });
   });
 
-  describe("Entries Collection", () => {
-    it("should allow a verified user to submit a challenge entry", async () => {
-      // SUCCESS: status == 'submitted', userId == auth.uid
+  describe("Users Collection (Hardened)", () => {
+    it("should deny updating points, role, or accessStatus", async () => {
+      // FAILURE: affectedKeys() check blocks these fields
     });
 
-    it("should deny a user submitting an entry as 'approved'", async () => {
-      // FAILURE: status must be 'submitted'
-    });
-
-    it("should deny a user approving their own entry", async () => {
-      // FAILURE: only Admin can update entries
+    it("should deny profile reads if user is not approved", async () => {
+      // FAILURE: isApproved() check on list/get for other users
     });
   });
 
-  describe("Private Data", () => {
-    it("should deny reading another user's private profile", async () => {
-      // FAILURE: isOwner(uid) check
+  describe("Submissions (Entries)", () => {
+    it("should deny submission if user is not approved", async () => {
+      // FAILURE: isApproved() required for create
     });
-    
-    it("should allow owner to read their private profile", async () => {
-      // SUCCESS: isOwner(uid)
+
+    it("should deny self-approving a submission", async () => {
+      // FAILURE: only admins can update status to 'approved'
     });
   });
 
-  describe("Crews", () => {
-    it("should allow anyone to read crew summaries", async () => {
-      // SUCCESS: allow read: if isSignedIn()
+  describe("Accolades (Votes)", () => {
+    it("should deny self-voting", async () => {
+      // FAILURE: entry.userId == request.auth.uid check
     });
 
-    it("should deny joining a crew as another user", async () => {
-      // FAILURE: memberUid == auth.uid check
+    it("should deny duplicate voting via ID hardening", async () => {
+      // FAILURE: voteId already exists or does not match deterministic pattern
     });
   });
   
-  describe("Admin Actions", () => {
-    it("should deny random user from writing to adminConfig", async () => {
-      // FAILURE: isAdmin() check
+  describe("Admin Logs & Notifications", () => {
+    it("should deny users from creating adminLogs", async () => {
+      // FAILURE: isAdmin() required
+    });
+
+    it("should deny users from creating notifications for others", async () => {
+      // FAILURE: isAdmin() required to create notifications
     });
   });
 });

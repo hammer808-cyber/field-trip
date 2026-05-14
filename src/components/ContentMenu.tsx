@@ -5,13 +5,15 @@ import {
   Flag, 
   UserMinus, 
   EyeOff,
-  AlertTriangle
+  AlertTriangle,
+  FileCheck
 } from 'lucide-react';
 import { ReportModal } from './ReportModal';
 import { blockUser } from '../services/moderationService';
 import { useApp } from '../context/AppContext';
 import { ReportTargetType } from '../types/game';
 import { cn } from '../lib/utils';
+import { FieldCheckModal } from './FieldCheckModal';
 
 interface ContentMenuProps {
   targetId: string;
@@ -22,9 +24,10 @@ interface ContentMenuProps {
 }
 
 export function ContentMenu({ targetId, targetType, authorId, authorName, className }: ContentMenuProps) {
-  const { user } = useApp();
+  const { user, isFieldCheckUnlocked, canFieldCheckNow } = useApp();
   const [isOpen, setIsOpen] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [showFieldCheck, setShowFieldCheck] = useState(false);
   const [isBlocking, setIsBlocking] = useState(false);
 
   const handleBlock = async () => {
@@ -53,6 +56,23 @@ export function ContentMenu({ targetId, targetType, authorId, authorName, classN
             onClick={() => setIsOpen(false)} 
           />
           <div className="absolute top-8 right-0 z-50 bg-paper border-2 border-on-surface shadow-[4px_4px_0px_#000] w-48 text-[10px] uppercase font-bold tracking-widest divide-y divide-on-surface/10">
+            {isFieldCheckUnlocked && targetType === 'entry' && (
+               <button 
+                onClick={() => {
+                  setShowFieldCheck(true);
+                  setIsOpen(false);
+                }}
+                disabled={!canFieldCheckNow}
+                className={cn(
+                  "w-full p-4 flex items-center gap-3 hover:bg-brand-orange/5 text-brand-orange text-left",
+                  !canFieldCheckNow && "opacity-20 grayscale"
+                )}
+              >
+                <FileCheck className="w-3.5 h-3.5" />
+                Initiate Field Check
+              </button>
+            )}
+
             <button 
               onClick={() => {
                 setShowReport(true);
@@ -87,6 +107,15 @@ export function ContentMenu({ targetId, targetType, authorId, authorName, classN
         targetType={targetType}
         targetName={authorName}
       />
+
+      {isFieldCheckUnlocked && (
+        <FieldCheckModal 
+          isOpen={showFieldCheck}
+          onClose={() => setShowFieldCheck(false)}
+          targetId={targetId}
+          targetName={authorName}
+        />
+      )}
     </div>
   );
 }

@@ -1,25 +1,29 @@
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import { motion } from 'motion/react';
-import { PERSONAS } from '../constants';
+import { FIELD_TYPES } from '../constants';
 import { Card, Sticker } from '../components/UI';
 import { SkinSelector } from '../components/SkinSelector';
 import { BadgeCollection } from '../components/BadgeCollection';
-import { Download, Trash2, UserCircle, Settings, Shield, Palette, Zap, AlertTriangle, Sparkles, Sun, Waves, Heart } from 'lucide-react';
+import { AvatarPreview } from '../components/AvatarPreview';
+import { DEFAULT_AVATAR } from '../constants/avatarAssets';
+import { Download, Trash2, UserCircle, Settings, Shield, Palette, Zap, AlertTriangle, Sparkles, Sun, Waves, Heart, Fingerprint, ClipboardCheck } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
-import { getSnitchDescription } from '../logic/snitchLogic';
+import { getFieldCheckLabel } from '../logic/fieldCheckLogic';
 import { updateProfile } from '../services/userService';
 import { Hibiscus, ChromeStar, GlossOverlay } from '../components/BajaBratzAssets';
 import { DiamondStar, Sparkle, SunFlare, GlossOverlay as DiamondGloss } from '../components/SkinAssets';
 
+import { FieldTypeCard } from '../components/FieldTypeCard';
+
 export default function ProfilePage() {
-  const { persona, points, soloCount, entries, incomingSnitch, profile, user, signOut, badgeProgress } = useApp();
+  const { fieldType, points, soloCount, entries, incomingFieldCheck, profile, user, signOut, badgeProgress } = useApp();
   const { skin: activeSkin, isAdmin, frankieMode, setFrankieMode } = useTheme();
   const navigate = useNavigate();
 
-  const personaData = persona ? PERSONAS[persona] : null;
-  const snitchData = incomingSnitch ? getSnitchDescription(incomingSnitch.type) : null;
+  const fieldTypeData = fieldType ? FIELD_TYPES[fieldType] : null;
+  const fieldCheckData = incomingFieldCheck ? getFieldCheckLabel(incomingFieldCheck.reason) : null;
   
   const skinSlug = activeSkin?.slug || 'default';
   const isBaja = skinSlug === 'baja-bratz';
@@ -72,9 +76,9 @@ export default function ProfilePage() {
             isHeat ? "text-white font-display drop-shadow-[0_4px_#ff007f]" :
             "text-on-surface"
           )}>
-            {isBaja ? 'Beach Bag' : isDiamond ? 'The Assets' : isHeat ? 'Beach Bag' : 'Personnel File'}
+            {isBaja ? 'Field File' : isDiamond ? 'The Assets' : isHeat ? 'Field File' : 'Field File'}
           </h1>
-          {!isBaja && !isDiamond && !isHeat && <p className="bureau-subhead">Certified identification and service history for active assets.</p>}
+          {!isBaja && !isDiamond && !isHeat && <p className="bureau-subhead">Certified identification and service history for field assets.</p>}
         </div>
         <div className="text-right flex flex-col items-end gap-2">
           {isAdmin && (
@@ -134,30 +138,65 @@ export default function ProfilePage() {
             {!isBaja && !isDiamond && !isHeat && <div className="file-tab">SERVICE_IDENTITY_CARD</div>}
             {(isBaja || isDiamond) && <GlossOverlay opacity={isDiamond ? 0.2 : 0.3} />}
             <div className={cn(
-              "absolute top-4 right-4 group-hover:opacity-100 transition-opacity",
-              isBaja ? "text-baja-aqua opacity-20" : 
-              isDiamond ? "text-white opacity-10" :
-              isHeat ? "text-heat-pink opacity-20" :
-              "text-on-surface opacity-5"
+              "absolute top-4 right-4 group-hover:opacity-100 transition-opacity flex flex-col items-center gap-3",
+              isBaja ? "text-baja-aqua" : 
+              isDiamond ? "text-white opacity-40 focus-within:opacity-100" :
+              isHeat ? "text-heat-pink" :
+              "text-on-surface"
             )}>
-              {isBaja ? <Sparkles className="w-32 h-32" /> : isDiamond ? <Sparkle className="w-32 h-32" /> : isHeat ? <Waves className="w-32 h-32" /> : <Shield className="w-40 h-40" />}
+              <div className="relative group">
+                <AvatarPreview 
+                  avatar={profile?.avatar || DEFAULT_AVATAR} 
+                  size="lg" 
+                  className={cn(
+                    "rounded-full border-2",
+                    isBaja ? "border-baja-pink shadow-[0_0_15px_rgba(255,105,180,0.3)]" :
+                    isDiamond ? "border-white/40" :
+                    isHeat ? "border-heat-pink" :
+                    "border-brand-orange"
+                  )} 
+                />
+                <button
+                  onClick={() => navigate('/field-id')}
+                  className={cn(
+                    "absolute -bottom-2 -right-2 p-2 rounded-full shadow-lg transition-transform hover:scale-110 active:scale-95 group/btn",
+                    isBaja ? "bg-baja-pink text-white" :
+                    isDiamond ? "bg-white text-black" :
+                    isHeat ? "bg-heat-pink text-white" :
+                    "bg-brand-orange text-white"
+                  )}
+                >
+                  <Fingerprint size={16} className="group-hover/btn:rotate-12 transition-transform" />
+                  <div className="absolute top-1/2 left-full translate-x-2 -translate-y-1/2 bg-black text-white text-[8px] py-1 px-2 opacity-0 group-hover/btn:opacity-100 whitespace-nowrap pointer-events-none rounded-sm uppercase tracking-widest border border-white/10">
+                    Edit_Identity
+                  </div>
+                </button>
+              </div>
             </div>
             
             <div className={cn("space-y-8 relative z-10", !isBaja && !isDiamond && !isHeat && "p-8")}>
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
-                   <div className="space-y-2">
-                    <p className={cn("micro-label", isBaja ? "text-baja-aqua" : isDiamond ? "text-white/40" : isHeat ? "text-heat-aqua" : "text-brand-orange")}>
-                      {isBaja ? 'Beach Role' : isDiamond ? 'System Tag' : isHeat ? 'Beach Role' : 'AUTHORIZED_AGENT_ALIAS'}
-                    </p>
-                    <h4 className={cn(
-                      "leading-none",
-                      isBaja ? "text-5xl text-baja-pink font-display uppercase font-normal" : 
-                      isDiamond ? "text-6xl text-white font-black liquid-chrome bg-clip-text text-transparent uppercase font-sans" :
-                      isHeat ? "text-5xl text-heat-pink font-display uppercase font-normal" :
-                      "font-display text-huge uppercase tracking-tighter text-on-surface"
-                    )}>{profile?.name || personaData?.name || "Unassigned"}</h4>
-                  </div>
+                    <div className="flex flex-col gap-1">
+                      <p className={cn("micro-label", isBaja ? "text-baja-aqua" : isDiamond ? "text-white/40" : isHeat ? "text-heat-aqua" : "text-brand-orange")}>
+                        {isBaja ? 'Beach Role' : isDiamond ? 'System Tag' : isHeat ? 'Beach Role' : 'FIELD_TYPE_ASSIGNMENT'}
+                      </p>
+                      <h4 className={cn(
+                        "leading-none",
+                        isBaja ? "text-5xl text-baja-pink font-display uppercase font-normal" : 
+                        isDiamond ? "text-6xl text-white font-black liquid-chrome bg-clip-text text-transparent uppercase font-sans" :
+                        isHeat ? "text-5xl text-heat-pink font-display uppercase font-normal" :
+                        "font-display text-huge uppercase tracking-tighter text-on-surface"
+                      )}>{fieldTypeData?.name || "Unassigned"}</h4>
+                      {fieldTypeData && (
+                        <p className={cn(
+                          "text-[10px] font-mono font-bold uppercase tracking-widest",
+                          isBaja ? "text-baja-pink/60" : "opacity-60"
+                        )}>
+                          [{fieldTypeData.badgeLabel}]
+                        </p>
+                      )}
+                    </div>
                   {!isBaja && !isDiamond && !isHeat && (
                     <div className="bureau-tag bg-brand-orange text-white rotate-6">CERTIFIED</div>
                   )}
@@ -177,7 +216,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="space-y-1">
                   <p className="micro-label opacity-40">
-                    {isBaja ? 'Beach Log' : isDiamond ? 'Sync Marks' : isHeat ? 'Splash Log' : 'VALIDATED_REPORTS'}
+                    {isBaja ? 'Beach Proof' : isDiamond ? 'Sync Marks' : isHeat ? 'Splash Proof' : 'VALIDATED_ENTRIES'}
                   </p>
                   <p className={cn(
                     "font-display text-4xl", 
@@ -188,20 +227,20 @@ export default function ProfilePage() {
                   )}>{entries.length} <span className="text-xs opacity-50">ENT</span></p>
                 </div>
                 <div className="space-y-1">
-                  <p className="micro-label opacity-40">ONBOARDING_STATUS</p>
+                  <p className="micro-label opacity-40">FIELD_CLEARANCE</p>
                   <p className={cn(
                     "font-display text-4xl", 
                     isBaja ? "text-baja-coral" : 
                     isDiamond ? "text-white/50 font-mono" :
                     isHeat ? "text-heat-pink" :
                     "text-on-surface"
-                  )}>{soloCount}/3 <span className="text-xs opacity-50">PHSE</span></p>
+                  )}>{soloCount}/3 <span className="text-xs opacity-50">TRIP</span></p>
                 </div>
               </div>
 
               <div className="pt-4 border-t border-dashed border-on-surface/10 flex justify-end">
-                 <button 
-                  onClick={() => navigate('/onboarding')}
+                  <button 
+                  onClick={() => navigate('/classification')}
                   className={cn(
                     "font-mono text-[6px] uppercase tracking-[0.3em] opacity-5 hover:opacity-60 transition-all active:scale-95",
                     isBaja ? "text-baja-pink" : 
@@ -210,12 +249,12 @@ export default function ProfilePage() {
                     "text-on-surface"
                   )}
                 >
-                   {isBaja ? '[ Reset Vibe ]' : isDiamond ? '[ Purge Calibration ]' : isHeat ? '[ Refresh Sun ]' : '[ RE_CALIBRATE_IDENTITY ]'}
+                   {isBaja ? '[ Reset Vibe ]' : isDiamond ? '[ Purge Calibration ]' : isHeat ? '[ Refresh Sun ]' : '[ RE_CLASSIFY_FIELD_TYPE ]'}
                 </button>
               </div>
             </div>
 
-            {snitchData && (
+            {fieldCheckData && (
               <div className="absolute top-0 right-0 p-4 animate-pulse">
                 <div className={cn(
                   "font-display text-[10px] px-3 py-1 rotate-12 flex items-center gap-1 shadow-lg border-2",
@@ -225,7 +264,7 @@ export default function ProfilePage() {
                   "bg-brand-orange text-white border-on-surface shadow-[4px_4px_0_black]"
                 )}>
                   <AlertTriangle className="w-3 h-3" />
-                  VIOLATION: {snitchData.title}
+                  VIOLATION: {fieldCheckData}
                 </div>
               </div>
             )}
@@ -263,6 +302,33 @@ export default function ProfilePage() {
         </div>
       </section>
 
+      <section className="space-y-8">
+        <div className="flex items-center gap-4">
+          <h3 className="font-display text-2xl uppercase tracking-tighter text-on-surface">Field Classification</h3>
+          <div className="h-px flex-grow bg-on-surface/10" />
+        </div>
+        
+        {fieldType ? (
+          <FieldTypeCard type={fieldType} />
+        ) : (
+          <Card className="p-12 text-center space-y-6">
+            <div className="w-16 h-16 bg-brand-orange/10 rounded-full flex items-center justify-center mx-auto border-2 border-dashed border-brand-orange animate-pulse">
+              <ClipboardCheck className="text-brand-orange" />
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-xl font-black uppercase italic italic">Unclassified_Asset</h4>
+              <p className="text-xs opacity-60 max-w-xs mx-auto">The Bureau has not yet determined your behavioral profile. Identification is mandatory for field deployment.</p>
+            </div>
+            <button 
+              onClick={() => navigate('/classification')}
+              className="bg-brand-orange text-white px-8 py-3 font-black uppercase tracking-widest text-xs hover:scale-105 transition-transform"
+            >
+              Start Classification
+            </button>
+          </Card>
+        )}
+      </section>
+
       {/* Field Fragments / Badges */}
       <section className="space-y-8">
         <BadgeCollection progress={badgeProgress} />
@@ -292,7 +358,7 @@ export default function ProfilePage() {
           <div className="h-px flex-grow bg-on-surface/10" />
         </div>
 
-        <Card className="p-6">
+        <Card className="p-6 space-y-8">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <p className="font-bold uppercase tracking-tight text-sm">Reduce Playful Commentary</p>
@@ -313,6 +379,74 @@ export default function ProfilePage() {
             >
               <motion.div 
                 animate={{ x: profile?.preferences?.reduceCommentary ? 24 : 4 }}
+                className="absolute top-1 left-0 w-4 h-4 bg-white rounded-full shadow-sm"
+              />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-on-surface/5 pt-6">
+            <div className="space-y-1">
+              <p className="font-bold uppercase tracking-tight text-sm">Quiet Crew Mode</p>
+              <p className="text-xs opacity-60">Silence non-essential pings and social notifications.</p>
+            </div>
+            <button 
+              onClick={async () => {
+                if (!user || !profile) return;
+                await updateProfile(user.uid, { quietCrewMode: !profile.quietCrewMode });
+              }}
+              className={cn(
+                "w-12 h-6 rounded-full relative transition-colors duration-300",
+                profile?.quietCrewMode ? "bg-brand-orange" : "bg-on-surface/10"
+              )}
+            >
+              <motion.div 
+                animate={{ x: profile?.quietCrewMode ? 24 : 4 }}
+                className="absolute top-1 left-0 w-4 h-4 bg-white rounded-full shadow-sm"
+              />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-on-surface/5 pt-6">
+            <div className="space-y-1">
+              <p className="font-bold uppercase tracking-tight text-sm">Receipts Mode (Hard)</p>
+              <p className="text-xs text-error font-bold italic">Enforce detailed field notes & rigorous proof standards.</p>
+            </div>
+            <button 
+              onClick={async () => {
+                if (!user || !profile) return;
+                await updateProfile(user.uid, { receiptsMode: !profile.receiptsMode });
+              }}
+              className={cn(
+                "w-12 h-6 rounded-full relative transition-colors duration-300",
+                profile?.receiptsMode ? "bg-error" : "bg-on-surface/10"
+              )}
+            >
+              <motion.div 
+                animate={{ x: profile?.receiptsMode ? 24 : 4 }}
+                className="absolute top-1 left-0 w-4 h-4 bg-white rounded-full shadow-sm"
+              />
+            </button>
+          </div>
+          <div className="flex items-center justify-between border-t border-on-surface/5 pt-6">
+            <div className="space-y-1">
+              <p className="font-bold uppercase tracking-tight text-sm">Private Photo Vault</p>
+              <p className="text-xs opacity-60">Your approved field proof is only visible to you and Bureau auditors.</p>
+            </div>
+            <button 
+              onClick={async () => {
+                if (!user || !profile) return;
+                const current = profile.preferences?.privateApprovedPhotos || false;
+                await updateProfile(user.uid, {
+                  preferences: { ...profile.preferences, privateApprovedPhotos: !current }
+                });
+              }}
+              className={cn(
+                "w-12 h-6 rounded-full relative transition-colors duration-300",
+                profile?.preferences?.privateApprovedPhotos ? "bg-brand-orange" : "bg-on-surface/10"
+              )}
+            >
+              <motion.div 
+                animate={{ x: profile?.preferences?.privateApprovedPhotos ? 24 : 4 }}
                 className="absolute top-1 left-0 w-4 h-4 bg-white rounded-full shadow-sm"
               />
             </button>
@@ -379,13 +513,13 @@ export default function ProfilePage() {
 
       <footer className="pt-24 pb-12 flex flex-col items-center justify-center space-y-6">
         <Sticker color="black" className="px-8 py-3 font-display text-4xl -rotate-6 uppercase select-none transition-transform hover:rotate-0">
-          {isBaja ? 'VERIFIED LUXE OPS' : 'BUREAU AUTHENTICATED'}
+          {isBaja ? 'VERIFIED LUXE OPS' : 'FIELD_TRIP_AUTHENTICATED'}
         </Sticker>
         <p className={cn(
           "font-mono text-xs uppercase tracking-[0.4em] opacity-40",
           isBaja && "text-baja-pink opacity-40 font-bold"
         )}>
-          {isBaja ? 'BEACH LOG v2.0 ' : 'BUREAU INTEL MANIFEST v11.2'}
+          {isBaja ? 'FIELD FILE v2.0 ' : 'FIELD_TRIP_INTEL_MANIFEST v11.2'}
         </p>
       </footer>
     </div>

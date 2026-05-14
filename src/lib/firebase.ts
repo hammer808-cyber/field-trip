@@ -1,72 +1,111 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getAuth, Auth } from 'firebase/auth';
+import { 
+  getFirestore, 
+  initializeFirestore,
+  doc, 
+  getDocFromServer,
+  Firestore
+} from 'firebase/firestore';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-if (firebaseConfig.projectId !== "field-trip-495823") {
-  throw new Error("Wrong Firebase project connected. Expected field-trip-495823.");
+// Basic validation of config from file
+const REQUIRED_CONFIG = ['apiKey', 'authDomain', 'projectId', 'appId'];
+const missingFields = REQUIRED_CONFIG.filter(field => !firebaseConfig[field as keyof typeof firebaseConfig]);
+
+let firebaseErrorValue: string | null = missingFields.length > 0 
+  ? `Missing critical Firebase configuration fields: ${missingFields.join(', ')}.` 
+  : null;
+
+// Enforce specific project requested by user
+const TARGET_PROJECT_ID = "field-trip-495823";
+if (!firebaseErrorValue && firebaseConfig.projectId !== TARGET_PROJECT_ID) {
+  firebaseErrorValue = `Project ID mismatch: Configured for "${firebaseConfig.projectId}", but requires "${TARGET_PROJECT_ID}".`;
 }
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+export const firebaseError = firebaseErrorValue;
 
-// Initialize App Check
-const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+// Safe Initialization
+let app: FirebaseApp;
+let auth: Auth;
+let storage: FirebaseStorage;
+let db: Firestore;
 
-if (typeof window !== 'undefined') {
-  // Use a global to prevent duplicate initialization during HMR
-  const G = window as any;
-  if (!G.FIREBASE_APP_CHECK_INITIALIZED) {
-    if (RECAPTCHA_SITE_KEY) {
-      initializeAppCheck(app, {
-        provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
-        isTokenAutoRefreshEnabled: true,
-      });
-      G.FIREBASE_APP_CHECK_INITIALIZED = true;
-    } else if (import.meta.env.PROD) {
-      console.warn(
-        'Firebase App Check Warning: VITE_RECAPTCHA_SITE_KEY is missing. ' +
-        'Firestore security enforcement may reject requests in production if App Check is enforced.'
-      );
+if (!firebaseErrorValue) {
+  try {
+    app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+    
+    // Log project info as requested (no API key)
+    console.log(`[Firebase] Initialized for Project: ${firebaseConfig.projectId}, App ID: ${firebaseConfig.appId}`);
+
+    // Initialize Services
+    auth = getAuth(app);
+    storage = getStorage(app);
+    
+    // Use initializeFirestore with long polling to bypass potential proxy/websocket issues
+    db = initializeFirestore(app, {
+      experimentalForceLongPolling: true,
+    }, (firebaseConfig as any).firestoreDatabaseId);
+
+    // Initialize App Check
+    const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+    if (typeof window !== 'undefined' && RECAPTCHA_SITE_KEY) {
+      const G = window as any;
+      if (!G.FIREBASE_APP_CHECK_INITIALIZED) {
+        try {
+          initializeAppCheck(app, {
+            provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
+            isTokenAutoRefreshEnabled: true,
+          });
+          G.FIREBASE_APP_CHECK_INITIALIZED = true;
+          console.log("[Firebase] App Check initialized.");
+        } catch (acErr) {
+          console.warn("[Firebase] App Check initialization failed:", acErr);
+        }
+      }
     }
+  } catch (err: any) {
+    console.error("[Firebase] Initialization error:", err);
+    // If initialization fails, we still need to provide something to prevent top-level crashes
+    auth = null as any;
+    storage = null as any;
+    db = null as any;
   }
+} else {
+  // Provide null as any to satisfy imports during broken config state
+  auth = null as any;
+  storage = null as any;
+  db = null as any;
 }
 
-// Initialize Services
-export const auth = getAuth(app);
-export const storage = getStorage(app);
-
-// Initialize Firestore
-export const db = getFirestore(app);
+export { auth, storage, db };
 
 /**
  * Validates connection to Firestore.
- * This is critical to ensure the app is properly configured and online.
  */
 async function testConnection() {
+  if (!db) return;
   try {
-    // Attempting a server-side fetch to verify actual connectivity
     const connectionRef = doc(db, 'test', 'connection');
+    // Using getDocFromServer as CRITICAL CONSTRAINT in skill
     await getDocFromServer(connectionRef);
-    console.log("Firestore connection verified successfully.");
+    console.log("[Firebase] Firestore connection verified.");
   } catch (error: any) {
-    console.warn("Firestore connectivity check warning:", error);
-    if (error?.message?.includes('the client is offline') || error?.code === 'unavailable') {
-      console.error("CRITICAL: Firestore backend unreachable. This often means the Project ID is incorrect, the database instance doesn't exist, or the API key lacks Firestore permissions.");
-    }
-    if (error?.code === 'permission-denied') {
-      console.error("CRITICAL: Firestore permission denied on test collection. Check security rules for /test/connection.");
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.error("Please check your Firebase configuration: The client is reporting offline.");
+    } else {
+      console.warn("[Firebase] Connectivity check warning:", error);
     }
   }
 }
 
-// Only log connection test in development
-if (import.meta.env.DEV) {
+if (import.meta.env.DEV && !firebaseErrorValue) {
   testConnection();
 }
 
-// Error handling types and helper as per integration guidelines
+// Error handling types and helper
 export enum OperationType {
   CREATE = 'create',
   UPDATE = 'update',
@@ -93,19 +132,17 @@ interface FirestoreErrorInfo {
   }
 }
 
-/**
- * Standardized Firestore error handler to provide debugging context while maintaining security.
- */
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
+  const currentAuth = auth;
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+      userId: currentAuth?.currentUser?.uid || null,
+      email: currentAuth?.currentUser?.email || null,
+      emailVerified: currentAuth?.currentUser?.emailVerified || null,
+      isAnonymous: currentAuth?.currentUser?.isAnonymous || null,
+      tenantId: currentAuth?.currentUser?.tenantId || null,
+      providerInfo: currentAuth?.currentUser?.providerData?.map(provider => ({
         providerId: provider.providerId,
         email: provider.email,
       })) || []
