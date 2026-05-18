@@ -9,7 +9,8 @@ import {
   serverTimestamp,
   orderBy
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
+import { logAdminAction } from './moderationService';
 import { FieldCheck } from '../types/game';
 
 const COLLECTION = 'fieldChecks';
@@ -48,11 +49,47 @@ export const subscribeToIncomingFieldChecks = (userId: string, callback: (checks
   });
 };
 
+export const subscribeToAllOpenFieldChecks = (callback: (checks: FieldCheck[]) => void) => {
+  const q = query(
+    collection(db, COLLECTION),
+    where('status', '==', 'open'),
+    orderBy('createdAt', 'desc')
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const checks = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as FieldCheck[];
+    callback(checks);
+  }, (error) => {
+    handleFirestoreError(error, OperationType.LIST, COLLECTION);
+  });
+};
+
 export const resolveFieldCheck = async (checkId: string, status: 'approved' | 'rejected' | 'dismissed') => {
   try {
     const docRef = doc(db, COLLECTION, checkId);
     await updateDoc(docRef, {
       status,
+      updatedAt: serverTimestamp()
+    });
+
+    if (auth.currentUser) {
+      await logAdminAction(auth.currentUser.uid, checkId, 'fieldCheck', 'resolve', { status });
+    }
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, `${COLLECTION}/${checkId}`);
+    throw error;
+  }
+};
+
+export const submitDefense = async (checkId: string, defense: string) => {
+  try {
+    const docRef = doc(db, COLLECTION, checkId);
+    await updateDoc(docRef, {
+      defense,
+      defenseSubmittedAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
   } catch (error) {

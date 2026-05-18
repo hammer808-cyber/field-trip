@@ -11,7 +11,8 @@ import {
   Timestamp,
   writeBatch
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
+import { logAdminAction } from './moderationService';
 import { Vote, VoteCategory, Entry, ScoreEvent } from '../types/game';
 import { awardPoints } from './scoringService';
 
@@ -132,5 +133,9 @@ export const finalizeVoteWinners = async (weekNumber: number) => {
         );
       }
     }
+  }
+
+  if (auth.currentUser) {
+    await logAdminAction(auth.currentUser.uid, `week-${weekNumber}`, 'votes', 'finalize_winners', { weekNumber });
   }
 };

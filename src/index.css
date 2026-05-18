@@ -8,135 +8,220 @@
   --font-mono: "Courier Prime", "Courier New", monospace;
   --font-display: "Anton", sans-serif;
 
-  --color-brand-green: #525e4c; /* Muted Olive */
-  --color-brand-orange: #c2410c; /* Burnt Orange */
-  --color-brand-mustard: #e0a92e; /* Mustard */
-  --color-brand-blue: #64748b; /* Dusty Blue */
+  /* High-Voltage Light Edition Palette */
+  --color-brand-lime: #BFFF00; /* Electric Acid Lime */
+  --color-brand-orange: #FF6B00; /* Safety Orange */
+  --color-brand-magenta: #FF00FF; /* High-Voltage Magenta */
+  --color-brand-cyan: #00F0FF; /* Electric Cyan */
+  --color-brand-purple: #9D00FF; /* Deep Purple Accent */
   
-  --color-paper: #faf9f6;
-  --color-paper-dark: #efeeeb;
-  --color-on-surface: #121212;
-  --color-on-surface-variant: #49454f;
-  --color-outline: #121212;
-  --color-outline-variant: #e5e5e5;
-  --color-error: #ba1a1a;
+  --color-paper: #FFFFFF;
+  --color-paper-dark: #F0F2F5;
+  --color-on-surface: #000000;
+  --color-on-surface-variant: #111111;
+  --color-on-surface-subtle: #444444;
+  --color-outline: #000000;
+  --color-outline-variant: #E5E5E5;
+  --color-error: #FF003C;
 
-  --animate-scan: scan 4s linear infinite;
+  --color-chrome: linear-gradient(135deg, #f5f5f5 0%, #ffffff 40%, #dcdcdc 50%, #ffffff 60%, #e0e0e0 100%);
+  --color-prism: linear-gradient(90deg, #FF00FF, #00F0FF, #BFFF00, #FF6B00, #FF00FF);
+  --color-glass: rgba(255, 255, 255, 0.85);
+
+  --animate-scan: scan 6s linear infinite;
+  --animate-shimmer: shimmer 3s infinite linear;
+  --animate-pulse-fast: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 body {
-  @apply bg-paper text-on-surface font-sans;
+  @apply bg-paper text-on-surface font-sans antialiased;
   background-image: 
-    linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+    linear-gradient(rgba(0,0,0,0.03) 1.5px, transparent 1.5px),
+    linear-gradient(90deg, rgba(0,0,0,0.03) 1.5px, transparent 1.5px);
   background-size: 32px 32px;
   background-attachment: fixed;
   position: relative;
 }
 
+body::before {
+  content: "";
+  @apply fixed inset-0 pointer-events-none z-[100];
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.05) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+  background-size: 100% 3px, 3px 100%;
+  opacity: 0.15;
+}
+
 body::after {
   content: "";
-  @apply fixed inset-0 pointer-events-none opacity-20;
-  background-image: url("https://www.transparenttextures.com/patterns/natural-paper.png");
+  @apply fixed inset-0 pointer-events-none opacity-[0.02];
+  background-image: url("https://www.transparenttextures.com/patterns/micro-carbon.png");
   z-index: 50;
 }
 
-/* Bureau Typography */
+/* Bureau Typography - High Voltage Edition */
 .text-huge {
   font-family: var(--font-display);
-  font-size: clamp(3rem, 12vw, 8rem);
-  line-height: 0.85;
-  letter-spacing: -0.02em;
+  font-size: clamp(4rem, 18vw, 12rem);
+  line-height: 0.82;
+  letter-spacing: -0.04em;
   text-transform: uppercase;
+  color: var(--color-on-surface);
+  font-weight: 800;
 }
 
 .micro-label {
-  @apply font-mono text-[9px] uppercase tracking-[0.25em] font-bold;
+  @apply font-mono text-[10px] uppercase tracking-[0.3em] font-extrabold leading-none;
 }
 
 .bureau-header {
-  @apply border-b-2 border-on-surface pb-2 mb-4 flex justify-between items-end;
+  @apply border-b-8 border-on-surface pb-6 mb-12 flex justify-between items-end relative;
+}
+
+.bureau-header::after {
+  content: "";
+  @apply absolute bottom-[-4px] left-0 w-full h-[2px] bg-brand-lime;
 }
 
 .bureau-subhead {
-  @apply font-serif italic text-xl opacity-60;
+  @apply font-mono uppercase text-xs font-bold tracking-[0.15em] opacity-60 leading-tight;
 }
 
-/* Card & Panel Styles */
+/* Card & Panel Styles - Modular High Contrast */
 .notice-card {
-  @apply bg-white border-2 border-on-surface relative p-0 overflow-hidden transition-all;
-  box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+  @apply bg-white border-2 border-on-surface relative p-0 overflow-hidden transition-all duration-300;
+  box-shadow: 12px 12px 0px 0px var(--color-on-surface);
 }
 
 .notice-card::before {
   content: "";
-  @apply absolute top-0 left-0 w-full h-1 bg-on-surface opacity-10;
+  @apply absolute top-0 left-0 w-full h-1 bg-brand-lime;
 }
 
 .notice-card:hover {
-  transform: translate(-1px, -1px);
-  box-shadow: 6px 6px 0px 0px rgba(0,0,0,1);
+  @apply scale-[1.01];
+  box-shadow: 16px 16px 0px 0px var(--color-brand-lime);
 }
 
 .bureau-panel {
-  @apply border border-on-surface bg-paper-dark p-4 font-mono text-sm leading-relaxed;
+  @apply border-2 border-on-surface bg-white p-8 font-mono text-xs leading-relaxed relative;
+  box-shadow: 4px 4px 0px 0px rgba(0,0,0,0.05);
 }
 
 .bureau-btn {
-  @apply bg-on-surface text-paper px-6 py-2 font-display uppercase tracking-wider text-lg hover:bg-brand-orange transition-colors active:translate-y-px;
+  @apply bg-on-surface text-white px-10 py-5 font-display uppercase tracking-wider text-2xl hover:bg-brand-orange transition-all active:translate-y-1 active:translate-x-1 active:shadow-none inline-flex items-center justify-center relative overflow-hidden leading-tight;
+  box-shadow: 6px 6px 0px 0px var(--color-brand-lime);
+}
+
+.bureau-btn::after {
+  content: "";
+  @apply absolute top-0 left-0 w-full h-1 bg-white/20;
 }
 
 .bureau-btn-outline {
-  @apply border-2 border-on-surface px-6 py-2 font-display uppercase tracking-wider text-lg hover:bg-on-surface hover:text-paper transition-all active:translate-y-px;
+  @apply border-2 border-on-surface bg-white text-on-surface px-10 py-5 font-display uppercase tracking-wider text-2xl hover:bg-on-surface hover:text-white transition-all active:scale-95 inline-flex items-center justify-center leading-tight;
+  box-shadow: 6px 6px 0px 0px rgba(0,0,0,0.1);
+}
+
+.bureau-btn-sm {
+  @apply bg-on-surface text-white px-4 py-2 font-display uppercase tracking-widest text-[10px] border-2 border-on-surface transition-all active:scale-95 flex items-center justify-center;
+  box-shadow: 3px 3px 0px 0px var(--color-brand-magenta);
 }
 
 .bureau-tag {
-  @apply px-2 py-0.5 bg-on-surface text-paper font-mono text-[10px] uppercase tracking-wider inline-block;
+  @apply px-4 py-2 bg-brand-lime text-black border-2 border-on-surface font-mono text-[11px] font-bold uppercase tracking-wider inline-block leading-none;
+  box-shadow: 4px 4px 0px 0px var(--color-on-surface);
+}
+
+.bureau-input {
+  @apply w-full bg-white border-2 border-on-surface p-5 font-mono text-sm focus:bg-brand-lime/10 outline-none transition-all rounded-none placeholder:opacity-30 font-bold;
+  box-shadow: inset 2px 2px 0px rgba(0,0,0,0.05);
 }
 
 /* Evidence/Report UI */
 .evidence-frame {
-  @apply aspect-square bg-paper-dark border-2 border-on-surface overflow-hidden relative grayscale hover:grayscale-0 transition-all;
+  @apply aspect-[3/4] bg-paper-dark border-2 border-on-surface overflow-hidden relative transition-all;
+  box-shadow: 8px 8px 0px 0px rgba(0,0,0,0.05);
+}
+
+.evidence-frame:hover {
+  @apply border-brand-lime;
+  box-shadow: 12px 12px 0px 0px var(--color-brand-lime);
 }
 
 .evidence-label {
-  @apply absolute bottom-0 left-0 right-0 bg-on-surface text-paper p-1 text-[10px] font-mono uppercase flex justify-between items-center;
+  @apply absolute bottom-0 left-0 right-0 bg-on-surface text-brand-lime p-3 text-[9px] font-mono font-black uppercase flex justify-between items-center z-20;
 }
 
 .report-filed-stamp {
-  @apply absolute top-4 right-4 border-4 border-brand-orange text-brand-orange px-4 py-1 font-display text-4xl rotate-12 opacity-40 pointer-events-none uppercase;
+  @apply absolute top-10 right-10 border-4 border-brand-orange text-brand-orange px-8 py-3 font-display text-6xl -rotate-12 opacity-90 pointer-events-none uppercase font-black mix-blend-multiply;
+  background: white;
+  box-shadow: 4px 4px 0px var(--color-brand-orange);
 }
 
 /* Grid Utilities */
 .bureau-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 2rem;
+  gap: 3rem;
 }
 
 .file-tab {
-  @apply inline-block px-4 py-1 bg-on-surface text-paper font-display uppercase text-sm -mb-px relative z-10;
+  @apply inline-block px-8 py-3 bg-on-surface text-brand-lime font-display uppercase text-xl -mb-px relative z-10 font-black italic;
   clip-path: polygon(0 0, 90% 0, 100% 100%, 0% 100%);
 }
 
-/* Animated Elements */
-@keyframes flicker {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.8; }
+/* High Voltage Special effects */
+.chrome-effect {
+  background: var(--color-chrome);
+  border: 2px solid #000;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
 }
 
-.bureau-flicker {
-  animation: flicker 0.1s infinite;
+.prism-bg {
+  background: var(--color-prism);
+  background-size: 400% 400%;
+  animation: prism-flow 10s linear infinite;
 }
 
-.scan-line {
-  @apply absolute inset-0 w-full h-1 bg-brand-orange/10 pointer-events-none;
-  animation: scan 4s linear infinite;
+@keyframes prism-flow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 400% 50%; }
+}
+
+.flare-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.flare-shimmer::after {
+  content: "";
+  position: absolute;
+  top: -100%;
+  left: -100%;
+  width: 300%;
+  height: 300%;
+  background: linear-gradient(45deg, transparent, rgba(255,255,255,0.4), transparent);
+  transform: rotate(45deg);
+  animation: shimmer 4s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translate(-100%, -100%) rotate(45deg); }
+  100% { transform: translate(100%, 100%) rotate(45deg); }
 }
 
 @keyframes scan {
   0% { transform: translateY(-100%); }
   100% { transform: translateY(100vh); }
+}
+
+/* Utility Accents */
+.glass-panel {
+  @apply bg-white/80 backdrop-blur-md border-2 border-on-surface/10;
+}
+
+.neon-border {
+  @apply border-2 border-brand-lime shadow-[0_0_15px_rgba(191,255,0,0.4)];
 }
 
 /* Skin Overrides remain for legacy support/seasonal swaps */

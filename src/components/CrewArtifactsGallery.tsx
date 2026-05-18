@@ -6,6 +6,7 @@ import * as LucideIcons from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';
 import { X, Calendar, User, Info, Link as LinkIcon, Sparkles } from 'lucide-react';
+import { formatSafeDateOnly } from '../lib/utils';
 
 interface ArtifactGalleryProps {
   artifacts: CrewArtifact[];
@@ -15,9 +16,9 @@ export const CrewArtifactsGallery: React.FC<ArtifactGalleryProps> = ({ artifacts
   const { skin } = useTheme();
   const [selectedArtifact, setSelectedArtifact] = useState<CrewArtifact | null>(null);
 
-  const isBaja = skin === 'baja-bratz';
-  const isDiamond = skin === 'slippery-diamond';
-  const isHeat = skin === 'heatwave';
+  const isBaja = skin.id === 'baja-bratz';
+  const isDiamond = skin.id === 'slippery-diamond';
+  const isHeat = skin.id === 'heatwave';
 
   return (
     <div className="space-y-6">
@@ -149,7 +150,7 @@ export const CrewArtifactsGallery: React.FC<ArtifactGalleryProps> = ({ artifacts
                       <Calendar className="w-2.5 h-2.5" /> RECOVERED
                     </p>
                     <p className="font-mono text-[9px]">
-                      {new Date(selectedArtifact.createdAt).toLocaleDateString()}
+                      {formatSafeDateOnly(selectedArtifact.createdAt)}
                     </p>
                   </div>
                   <div className="space-y-1">

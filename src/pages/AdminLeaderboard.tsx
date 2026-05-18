@@ -1,22 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/ThemeContext';
 import { getActiveSeason, getAppConfig } from '../services/seasonService';
 import { recalculateWeeklySummary, getWeeklySummary } from '../services/summaryService';
+import { logAdminAction } from '../services/moderationService';
 import { Season, WeeklySummary } from '../types/game';
 import { Card } from '../components/UI';
-import { RefreshCw, Lock, Unlock, AlertTriangle, CheckCircle2, ChevronRight, BarChart3 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { RefreshCw, Lock, Unlock, AlertTriangle, CheckCircle2, ChevronRight, BarChart3, Shield } from 'lucide-react';
+import { cn, formatSafeDate } from '../lib/utils';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { useNavigate } from 'react-router-dom';
 
 export default function AdminLeaderboard() {
   const { user } = useApp();
+  const { isAdmin } = useTheme();
+  const navigate = useNavigate();
   const [season, setSeason] = useState<Season | null>(null);
   const [summaries, setSummaries] = useState<Record<number, WeeklySummary | null>>({});
   const [loading, setLoading] = useState(true);
   const [processingWeek, setProcessingWeek] = useState<number | null>(null);
 
   useEffect(() => {
+    if (!isAdmin) {
+        setLoading(false);
+        return;
+    }
+
     async function loadData() {
       const config = await getAppConfig();
       if (config?.activeSeasonId) {
@@ -35,12 +45,13 @@ export default function AdminLeaderboard() {
       setLoading(false);
     }
     loadData();
-  }, []);
+  }, [isAdmin]);
 
   const handleRecalculate = async (weekNumber: number) => {
-    if (!season) return;
+    if (!season || !user) return;
     setProcessingWeek(weekNumber);
     try {
+      await logAdminAction(user.uid, `week-${weekNumber}`, 'leaderboard', 'recalculate_summary', { seasonId: season.id, weekNumber });
       await recalculateWeeklySummary(season.id, weekNumber);
       const updated = await getWeeklySummary(season.id, weekNumber);
       setSummaries(prev => ({ ...prev, [weekNumber]: updated }));
@@ -53,9 +64,10 @@ export default function AdminLeaderboard() {
   };
 
   const toggleLock = async (weekNumber: number, currentLocked?: boolean) => {
-    if (!season) return;
+    if (!season || !user) return;
     const summaryId = `${season.id}_${weekNumber}`;
     try {
+      await logAdminAction(user.uid, summaryId, 'leaderboard', currentLocked ? 'unlock_week' : 'lock_week', { seasonId: season.id, weekNumber });
       await updateDoc(doc(db, 'weeklySummaries', summaryId), {
         isLocked: !currentLocked
       });
@@ -68,8 +80,25 @@ export default function AdminLeaderboard() {
     }
   };
 
-  if (loading) return <div className="p-8 text-center animate-pulse font-mono uppercase">Syncing Leaderboard Infrastructure...</div>;
-  if (!season) return <div className="p-8 text-center text-error font-mono">NO_ACTIVE_SEASON_FOUND</div>;
+  if (loading) return <div className="p-8 text-center animate-pulse font-mono uppercase text-xs">Syncing Leaderboard Infrastructure...</div>;
+  
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center space-y-6 font-mono">
+        <Shield className="w-16 h-16 text-error opacity-20" />
+        <h1 className="text-xl font-black uppercase text-error">Access_Denied</h1>
+        <p className="text-[10px] opacity-40 uppercase tracking-widest leading-relaxed max-w-xs mx-auto">
+          Clearance Level 4 required for Leaderboard Scaling Management.
+        </p>
+        <button onClick={() => navigate('/deck')} className="px-6 py-2 border border-on-surface/20 text-[10px] uppercase tracking-widest hover:bg-on-surface/5 transition-colors">Return to Deck</button>
+      </div>
+    );
+  }
+
+  if (!season) return <div className="p-8 text-center text-error font-mono flex flex-col items-center gap-4">
+    <AlertTriangle className="w-8 h-8 opacity-40" />
+    <span className="text-xs uppercase font-bold tracking-widest">NO_ACTIVE_SEASON_FOUND</span>
+  </div>;
 
   return (
     <div className="p-8 pb-32 max-w-5xl mx-auto space-y-12">
@@ -129,9 +158,7 @@ export default function AdminLeaderboard() {
                       <div className="space-y-1">
                         <p className="micro-label opacity-40">LAST_RECALC</p>
                         <p className="font-mono text-[10px]">
-                          {summary.lastCalculatedAt?.toDate 
-                            ? summary.lastCalculatedAt.toDate().toLocaleString() 
-                            : 'N/A'}
+                          {formatSafeDate(summary.lastCalculatedAt, undefined, 'N/A')}
                         </p>
                       </div>
                     )}

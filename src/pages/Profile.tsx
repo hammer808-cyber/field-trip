@@ -7,7 +7,7 @@ import { SkinSelector } from '../components/SkinSelector';
 import { BadgeCollection } from '../components/BadgeCollection';
 import { AvatarPreview } from '../components/AvatarPreview';
 import { DEFAULT_AVATAR } from '../constants/avatarAssets';
-import { Download, Trash2, UserCircle, Settings, Shield, Palette, Zap, AlertTriangle, Sparkles, Sun, Waves, Heart, Fingerprint, ClipboardCheck } from 'lucide-react';
+import { Download, Trash2, UserCircle, Settings, Shield, Palette, Zap, AlertTriangle, Sparkles, Sun, Waves, Heart, Fingerprint, ClipboardCheck, MessageSquare } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { getFieldCheckLabel } from '../logic/fieldCheckLogic';
@@ -18,8 +18,8 @@ import { DiamondStar, Sparkle, SunFlare, GlossOverlay as DiamondGloss } from '..
 import { FieldTypeCard } from '../components/FieldTypeCard';
 
 export default function ProfilePage() {
-  const { fieldType, points, soloCount, entries, incomingFieldCheck, profile, user, signOut, badgeProgress } = useApp();
-  const { skin: activeSkin, isAdmin, frankieMode, setFrankieMode } = useTheme();
+  const { fieldType, points, soloTripsCount, entries, incomingFieldCheck, profile, user, signOut, badgeProgress } = useApp();
+  const { skin: activeSkin, isAdmin, frankieMode, setFrankieMode, fc } = useTheme();
   const navigate = useNavigate();
 
   const fieldTypeData = fieldType ? FIELD_TYPES[fieldType] : null;
@@ -31,14 +31,14 @@ export default function ProfilePage() {
   const isHeat = skinSlug === 'heatwave';
 
   const handleSignOut = async () => {
-    if (confirm("Disconnecting from Bureau? Active session will be terminated.")) {
+    if (confirm("Sign out of Fieldtrip? Active session will be ended.")) {
       await signOut();
       navigate('/');
     }
   };
 
   return (
-    <div className="pb-40 px-6 pt-12 space-y-16 max-w-4xl mx-auto relative overflow-hidden">
+    <div className="pb-40 px-6 pt-12 space-y-24 max-w-5xl mx-auto relative overflow-hidden">
       {isBaja && !frankieMode && (
         <>
           <Hibiscus className="absolute top-0 left-[-20px] w-64 h-64 opacity-10 -z-10" />
@@ -61,70 +61,69 @@ export default function ProfilePage() {
         </>
       )}
 
-      <header className="flex items-end justify-between relative">
-        <div className="space-y-4">
-          <p className="micro-label">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-12 relative border-b-8 border-on-surface pb-12">
+        <div className="space-y-6">
+          <p className="micro-label inline-block bg-brand-lime px-3 py-1 border-2 border-on-surface shadow-[4px_4px_0px_black]">
             {isBaja ? 'Coastal ID: BABE-0921' : 
              isDiamond ? 'Diamond ID: LUXE-88' :
              isHeat ? 'Heat ID: HOT-99' :
-             'BUREAU_ID // ASSET_TRKR.0921'}
+             fc('BUREAU_ID // ASSET_TRKR.0921', 'PROFILE ID')}
           </p>
           <h1 className={cn(
-            "text-huge leading-none",
+            "text-huge leading-tight italic font-bold",
             isBaja ? "text-baja-pink drop-shadow-[4px_4px_0px_#40e0d0]" : 
             isDiamond ? "liquid-chrome bg-clip-text text-transparent filter drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]" :
             isHeat ? "text-white font-display drop-shadow-[0_4px_#ff007f]" :
             "text-on-surface"
           )}>
-            {isBaja ? 'Field File' : isDiamond ? 'The Assets' : isHeat ? 'Field File' : 'Field File'}
+            {isBaja ? 'Field File' : isDiamond ? 'The Assets' : isHeat ? 'Profile' : fc('Profile', 'Profile')}
           </h1>
-          {!isBaja && !isDiamond && !isHeat && <p className="bureau-subhead">Certified identification and service history for field assets.</p>}
+          {!isBaja && !isDiamond && !isHeat && <p className="bureau-subhead text-xl opacity-100 italic">{fc('Official identity and service history for explorers.', 'Your official field record and settings.')}</p>}
         </div>
-        <div className="text-right flex flex-col items-end gap-2">
+        <div className="text-right flex flex-col items-end gap-6">
           {isAdmin && (
-            <div className="flex flex-wrap justify-end gap-2 max-w-[200px]">
-              <Link to="/admin/proofs" title="Proofs" className="p-3 bg-brand-orange text-white rounded-none hover:rotate-12 transition-transform shadow-[4px_4px_0px_black]">
-                <Shield className="w-6 h-6" />
+            <div className="flex flex-wrap justify-end gap-3 max-w-[240px]">
+              <Link to="/admin/proofs" title="Proofs" className="p-4 bg-brand-orange text-white rounded-none hover:rotate-12 transition-transform shadow-[6px_6px_0px_black] border-2 border-on-surface">
+                <Shield className="w-6 h-6 stroke-[2.5]" />
               </Link>
-              <Link to="/admin/challenges" title="Challenges" className="p-3 bg-brand-orange text-white rounded-none hover:rotate-12 transition-transform shadow-[4px_4px_0px_black]">
-                <Zap className="w-6 h-6" />
+              <Link to="/admin/challenges" title="Challenges" className="p-4 bg-brand-orange text-white rounded-none hover:rotate-12 transition-transform shadow-[6px_6px_0px_black] border-2 border-on-surface">
+                <Zap className="w-6 h-6 stroke-[2.5]" />
               </Link>
-              <Link to="/admin/skins" title="Skins" className="p-3 bg-brand-orange text-white rounded-none hover:rotate-12 transition-transform shadow-[4px_4px_0px_black]">
-                <Palette className="w-6 h-6" />
+              <Link to="/admin/skins" title="Skins" className="p-4 bg-brand-lime text-on-surface rounded-none hover:rotate-12 transition-transform shadow-[6px_6px_0px_black] border-2 border-on-surface">
+                <Palette className="w-6 h-6 stroke-[2.5]" />
               </Link>
-              <Link to="/admin/moderation" title="Moderation" className="p-3 bg-error text-white rounded-none hover:rotate-12 transition-transform shadow-[4px_4px_0px_black]">
-                <AlertTriangle className="w-6 h-6" />
-              </Link>
-              <Link to="/admin/users" title="Users" className="p-3 bg-on-surface text-paper rounded-none hover:rotate-12 transition-transform shadow-[4px_4px_0px_gray]">
-                <UserCircle className="w-6 h-6" />
+              <Link to="/admin/moderation" title="Moderation" className="p-4 bg-error text-white rounded-none hover:rotate-12 transition-transform shadow-[6px_6px_0px_black] border-2 border-on-surface">
+                <AlertTriangle className="w-6 h-6 stroke-[2.5]" />
               </Link>
             </div>
           )}
-          <Settings className={cn(
-            "w-8 h-8 opacity-40 hover:opacity-100 transition-opacity", 
-            isBaja ? "text-baja-pink" : 
-            isDiamond ? "text-white" :
-            isHeat ? "text-white" :
-            "text-on-surface"
-          )} />
-          <p className="micro-label uppercase tracking-[0.2em] opacity-40">
-            {isBaja ? 'VIP ACCESS' : isDiamond ? 'ENCRYPTED' : isHeat ? 'VIP' : 'LEVEL_03_CLEARANCE'}
-          </p>
+          <div className="flex items-center gap-4">
+            <p className="micro-label uppercase tracking-widest opacity-60 font-bold">
+              {isBaja ? 'VIP ACCESS' : isDiamond ? 'ENCRYPTED' : isHeat ? 'VIP' : 'LEVEL_03_ACCESS'}
+            </p>
+            <Settings className={cn(
+              "w-10 h-10 opacity-100 hover:rotate-90 transition-all cursor-pointer", 
+              isBaja ? "text-baja-pink" : 
+              isDiamond ? "text-white" :
+              isHeat ? "text-white" :
+              "text-on-surface"
+            )} />
+          </div>
         </div>
       </header>
 
       <section className="space-y-8">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-6">
           <h3 className={cn(
-            "font-serif text-3xl italic", 
+            "font-display text-4xl italic uppercase tracking-tight font-bold", 
             isBaja ? "text-baja-pink font-display uppercase font-normal tracking-wide" :
             isDiamond ? "text-white font-mono uppercase tracking-[0.3em]" :
             isHeat ? "text-white font-display uppercase font-normal" : 
-            "font-display text-2xl uppercase tracking-tighter text-on-surface"
+            "text-on-surface"
           )}>
-            {isBaja ? 'The Beach Book' : isDiamond ? 'The Identity' : isHeat ? 'The Beach Book' : 'BUREAU IDENTITY'}
+            {isBaja ? 'The Beach Book' : isDiamond ? 'The Identity' : isHeat ? 'The Beach Book' : fc('BUREAU IDENTITY', 'IDENTITY')}
           </h3>
-          {!isBaja && !isDiamond && !isHeat && <div className="h-px flex-grow bg-on-surface/10" />}
+          {!isBaja && !isDiamond && !isHeat && <div className="h-2 flex-grow bg-on-surface/10" />}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -135,7 +134,7 @@ export default function ProfilePage() {
             isHeat ? "bg-white border-white border-4 rounded-[3rem] shadow-[15px_15px_0px_rgba(255,140,0,0.5)] p-8" :
             "notice-card p-0"
           )}>
-            {!isBaja && !isDiamond && !isHeat && <div className="file-tab">SERVICE_IDENTITY_CARD</div>}
+            {!isBaja && !isDiamond && !isHeat && <div className="file-tab">{fc('ASSET_ID', 'ID')}</div>}
             {(isBaja || isDiamond) && <GlossOverlay opacity={isDiamond ? 0.2 : 0.3} />}
             <div className={cn(
               "absolute top-4 right-4 group-hover:opacity-100 transition-opacity flex flex-col items-center gap-3",
@@ -177,16 +176,16 @@ export default function ProfilePage() {
             <div className={cn("space-y-8 relative z-10", !isBaja && !isDiamond && !isHeat && "p-8")}>
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-2">
                       <p className={cn("micro-label", isBaja ? "text-baja-aqua" : isDiamond ? "text-white/40" : isHeat ? "text-heat-aqua" : "text-brand-orange")}>
-                        {isBaja ? 'Beach Role' : isDiamond ? 'System Tag' : isHeat ? 'Beach Role' : 'FIELD_TYPE_ASSIGNMENT'}
+                        {isBaja ? 'Beach Role' : isDiamond ? 'System Tag' : isHeat ? 'Beach Role' : fc('FIELD_TYPE_ASSIGNMENT', 'FIELD TYPE')}
                       </p>
                       <h4 className={cn(
-                        "leading-none",
+                        "leading-tight",
                         isBaja ? "text-5xl text-baja-pink font-display uppercase font-normal" : 
                         isDiamond ? "text-6xl text-white font-black liquid-chrome bg-clip-text text-transparent uppercase font-sans" :
                         isHeat ? "text-5xl text-heat-pink font-display uppercase font-normal" :
-                        "font-display text-huge uppercase tracking-tighter text-on-surface"
+                        "font-display text-huge uppercase tracking-tight text-on-surface"
                       )}>{fieldTypeData?.name || "Unassigned"}</h4>
                       {fieldTypeData && (
                         <p className={cn(
@@ -203,40 +202,40 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-12">
-                <div className="space-y-1">
-                  <p className="micro-label opacity-40">CURRENT_STANDING</p>
-                  <p className={cn(
-                    "font-display text-4xl", 
-                    isBaja ? "text-baja-aqua" : 
-                    isDiamond ? "text-white" :
-                    isHeat ? "text-heat-mango" :
-                    "text-brand-orange"
-                  )}>{points} <span className="text-xs opacity-50">STD</span></p>
+                <div className="flex items-center gap-12 pt-4">
+                  <div className="space-y-2">
+                    <p className="micro-label opacity-60 font-bold tracking-wider">STANDING</p>
+                    <p className={cn(
+                      "font-display text-6xl italic font-bold", 
+                      isBaja ? "text-baja-aqua" : 
+                      isDiamond ? "text-white" :
+                      isHeat ? "text-heat-mango" :
+                      "text-brand-orange"
+                    )}>{points} <span className="text-xl opacity-20 italic">PTS</span></p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="micro-label opacity-60 font-bold tracking-wider">
+                      {isBaja ? 'Beach Proof' : isDiamond ? 'Sync Marks' : isHeat ? 'PROOF' : fc('PROOF', 'PHOTOS')}
+                    </p>
+                    <p className={cn(
+                      "font-display text-6xl italic font-bold", 
+                      isBaja ? "text-baja-pink" : 
+                      isDiamond ? "text-white" :
+                      isHeat ? "text-heat-pink" :
+                      "text-on-surface"
+                    )}>{entries.length} <span className="text-xl opacity-20 italic">CAP</span></p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="micro-label opacity-60 font-bold tracking-wider">DRIFTS</p>
+                    <p className={cn(
+                      "font-display text-6xl italic font-bold", 
+                      isBaja ? "text-baja-coral" : 
+                      isDiamond ? "text-white/50 font-mono" :
+                      isHeat ? "text-heat-pink" :
+                      "text-on-surface"
+                    )}>{soloTripsCount}/3 <span className="text-xl opacity-20 italic">SOLO</span></p>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <p className="micro-label opacity-40">
-                    {isBaja ? 'Beach Proof' : isDiamond ? 'Sync Marks' : isHeat ? 'Splash Proof' : 'VALIDATED_ENTRIES'}
-                  </p>
-                  <p className={cn(
-                    "font-display text-4xl", 
-                    isBaja ? "text-baja-pink" : 
-                    isDiamond ? "text-white" :
-                    isHeat ? "text-heat-pink" :
-                    "text-on-surface"
-                  )}>{entries.length} <span className="text-xs opacity-50">ENT</span></p>
-                </div>
-                <div className="space-y-1">
-                  <p className="micro-label opacity-40">FIELD_CLEARANCE</p>
-                  <p className={cn(
-                    "font-display text-4xl", 
-                    isBaja ? "text-baja-coral" : 
-                    isDiamond ? "text-white/50 font-mono" :
-                    isHeat ? "text-heat-pink" :
-                    "text-on-surface"
-                  )}>{soloCount}/3 <span className="text-xs opacity-50">TRIP</span></p>
-                </div>
-              </div>
 
               <div className="pt-4 border-t border-dashed border-on-surface/10 flex justify-end">
                   <button 
@@ -249,7 +248,7 @@ export default function ProfilePage() {
                     "text-on-surface"
                   )}
                 >
-                   {isBaja ? '[ Reset Vibe ]' : isDiamond ? '[ Purge Calibration ]' : isHeat ? '[ Refresh Sun ]' : '[ RE_CLASSIFY_FIELD_TYPE ]'}
+                   {isBaja ? '[ Reset Vibe ]' : isDiamond ? '[ Purge Calibration ]' : isHeat ? '[ Refresh Sun ]' : '[ RE-AUDIT VIBE ]'}
                 </button>
               </div>
             </div>
@@ -283,16 +282,16 @@ export default function ProfilePage() {
                isHeat ? <Waves className="w-10 h-10 text-white mb-6" /> :
                <Shield className="w-10 h-10 text-brand-orange mb-6" />}
               <h4 className={cn(
-                "font-display text-4xl uppercase leading-none mb-4 tracking-tighter",
-                isDiamond && "font-sans font-black tracking-tighter"
+                "font-display text-4xl uppercase leading-tight mb-4 tracking-tight",
+                isDiamond && "font-sans font-bold tracking-tight"
               )}>
-                {isBaja ? 'Rank: Bae' : isDiamond ? 'Rank: Prism' : isHeat ? 'Rank: Hot' : 'STATUS: ACTIVE'}
+                {isBaja ? 'Rank: Bae' : isDiamond ? 'Rank: Prism' : isHeat ? 'Rank: Hot' : fc('STATUS: ACTIVE', 'ACTIVE PLAYER')}
               </h4>
               <p className={cn("font-serif italic leading-relaxed text-lg", (isBaja || isDiamond || isHeat) ? "text-white" : "text-paper/80")}>
                 {isBaja ? '"Golden hour is a state of mind, babe."' : 
                  isDiamond ? '"The harder the light, the brighter you shine."' :
                  isHeat ? '"Poolside is the only side, babe."' :
-                 '"Asset verified. Field performance meets core Bureau requirements for civic adventure."'}
+                 fc('"Explorer verified. Field performance meets core requirements for adventure."', '"Your account is verified. You are ready for field deployment."')}
               </p>
             </div>
             <div className={cn("text-[10px] font-mono mt-8 uppercase tracking-widest", (isBaja || isDiamond || isHeat) ? "opacity-60" : "opacity-40")}>
@@ -323,46 +322,50 @@ export default function ProfilePage() {
               onClick={() => navigate('/classification')}
               className="bg-brand-orange text-white px-8 py-3 font-black uppercase tracking-widest text-xs hover:scale-105 transition-transform"
             >
-              Start Classification
+              START AUDIT
             </button>
           </Card>
         )}
       </section>
 
       {/* Field Fragments / Badges */}
-      <section className="space-y-8">
+      <section className="space-y-12">
+        <div className="flex items-center gap-6">
+          <h3 className="font-display text-4xl italic uppercase tracking-tighter text-on-surface font-black">Field Badges</h3>
+          <div className="h-2 flex-grow bg-on-surface/10" />
+        </div>
         <BadgeCollection progress={badgeProgress} />
       </section>
 
       {/* The Protocol / Skin Selector */}
-      <section className="space-y-8">
-        <div className="flex items-center gap-4">
-          <h3 className={cn("font-serif text-3xl italic", 
+      <section className="space-y-12">
+        <div className="flex items-center gap-6">
+          <h3 className={cn("font-display text-4xl italic uppercase tracking-tighter text-on-surface font-black", 
             isBaja ? "text-baja-pink font-display uppercase font-normal tracking-wide" :
-            "font-display text-2xl uppercase tracking-tighter text-on-surface"
+            ""
           )}>
             {isBaja ? 'Vibe Settings' : 'PROTOCOLS // VISUAL_ENGINE'}
           </h3>
-          {!isBaja && <div className="h-px flex-grow bg-on-surface/10" />}
+          {!isBaja && <div className="h-2 flex-grow bg-on-surface/10" />}
         </div>
 
         <SkinSelector />
       </section>
 
       {/* Preferences */}
-      <section className="space-y-8">
-        <div className="flex items-center gap-4">
-          <h3 className="font-display text-2xl uppercase tracking-tighter text-on-surface">
-            User Preferences
+      <section className="space-y-12">
+        <div className="flex items-center gap-6">
+          <h3 className="font-display text-4xl italic uppercase tracking-tighter text-on-surface font-black">
+            Asset Preferences
           </h3>
-          <div className="h-px flex-grow bg-on-surface/10" />
+          <div className="h-2 flex-grow bg-on-surface/10" />
         </div>
 
-        <Card className="p-6 space-y-8">
+        <div className="bg-white border-4 border-on-surface p-10 shadow-[16px_16px_0px_black] space-y-10">
           <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="font-bold uppercase tracking-tight text-sm">Reduce Playful Commentary</p>
-              <p className="text-xs opacity-60">Disable behavioral observations and "fortune-cookie" insights.</p>
+            <div className="space-y-2">
+              <p className="font-display text-2xl italic font-black uppercase tracking-tight">Reduce Playful Commentary</p>
+              <p className="font-display text-lg italic opacity-40">Disable behavioral observations and "fortune-cookie" insights during session.</p>
             </div>
             <button 
               onClick={async () => {
@@ -373,21 +376,22 @@ export default function ProfilePage() {
                 });
               }}
               className={cn(
-                "w-12 h-6 rounded-full relative transition-colors duration-300",
-                profile?.preferences?.reduceCommentary ? "bg-brand-orange" : "bg-on-surface/10"
+                "w-20 h-10 border-4 border-on-surface relative transition-colors duration-300",
+                profile?.preferences?.reduceCommentary ? "bg-brand-orange" : "bg-on-surface/5"
               )}
             >
               <motion.div 
-                animate={{ x: profile?.preferences?.reduceCommentary ? 24 : 4 }}
-                className="absolute top-1 left-0 w-4 h-4 bg-white rounded-full shadow-sm"
+                animate={{ x: profile?.preferences?.reduceCommentary ? 44 : 4 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                className="absolute top-1 left-0 w-8 h-[calc(100%-8px)] bg-on-surface"
               />
             </button>
           </div>
 
-          <div className="flex items-center justify-between border-t border-on-surface/5 pt-6">
-            <div className="space-y-1">
-              <p className="font-bold uppercase tracking-tight text-sm">Quiet Crew Mode</p>
-              <p className="text-xs opacity-60">Silence non-essential pings and social notifications.</p>
+          <div className="flex items-center justify-between border-t-4 border-on-surface/5 pt-10">
+            <div className="space-y-2">
+              <p className="font-display text-2xl italic font-black uppercase tracking-tight">Quiet Crew Mode</p>
+              <p className="font-display text-lg italic opacity-40">Silence non-essential pings and social notifications from the field.</p>
             </div>
             <button 
               onClick={async () => {
@@ -395,21 +399,22 @@ export default function ProfilePage() {
                 await updateProfile(user.uid, { quietCrewMode: !profile.quietCrewMode });
               }}
               className={cn(
-                "w-12 h-6 rounded-full relative transition-colors duration-300",
-                profile?.quietCrewMode ? "bg-brand-orange" : "bg-on-surface/10"
+                "w-20 h-10 border-4 border-on-surface relative transition-colors duration-300",
+                profile?.quietCrewMode ? "bg-brand-lime" : "bg-on-surface/5"
               )}
             >
               <motion.div 
-                animate={{ x: profile?.quietCrewMode ? 24 : 4 }}
-                className="absolute top-1 left-0 w-4 h-4 bg-white rounded-full shadow-sm"
+                animate={{ x: profile?.quietCrewMode ? 44 : 4 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                className="absolute top-1 left-0 w-8 h-[calc(100%-8px)] bg-on-surface"
               />
             </button>
           </div>
 
-          <div className="flex items-center justify-between border-t border-on-surface/5 pt-6">
-            <div className="space-y-1">
-              <p className="font-bold uppercase tracking-tight text-sm">Receipts Mode (Hard)</p>
-              <p className="text-xs text-error font-bold italic">Enforce detailed field notes & rigorous proof standards.</p>
+          <div className="flex items-center justify-between border-t-4 border-on-surface/5 pt-10">
+            <div className="space-y-2">
+              <p className="font-display text-2xl italic font-black uppercase tracking-tight text-error">Receipts Mode (Hard)</p>
+              <p className="font-display text-lg italic text-error opacity-60">Enforce detailed field notes and rigorous evidence verification standards.</p>
             </div>
             <button 
               onClick={async () => {
@@ -417,20 +422,22 @@ export default function ProfilePage() {
                 await updateProfile(user.uid, { receiptsMode: !profile.receiptsMode });
               }}
               className={cn(
-                "w-12 h-6 rounded-full relative transition-colors duration-300",
-                profile?.receiptsMode ? "bg-error" : "bg-on-surface/10"
+                "w-20 h-10 border-4 border-on-surface relative transition-colors duration-300",
+                profile?.receiptsMode ? "bg-error" : "bg-on-surface/5"
               )}
             >
               <motion.div 
-                animate={{ x: profile?.receiptsMode ? 24 : 4 }}
-                className="absolute top-1 left-0 w-4 h-4 bg-white rounded-full shadow-sm"
+                animate={{ x: profile?.receiptsMode ? 44 : 4 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                className="absolute top-1 left-0 w-8 h-[calc(100%-8px)] bg-on-surface"
               />
             </button>
           </div>
-          <div className="flex items-center justify-between border-t border-on-surface/5 pt-6">
-            <div className="space-y-1">
-              <p className="font-bold uppercase tracking-tight text-sm">Private Photo Vault</p>
-              <p className="text-xs opacity-60">Your approved field proof is only visible to you and Bureau auditors.</p>
+          
+          <div className="flex items-center justify-between border-t-4 border-on-surface/5 pt-10">
+            <div className="space-y-2">
+              <p className="font-display text-2xl italic font-black uppercase tracking-tight">Private Photo Vault</p>
+              <p className="font-display text-lg italic opacity-40">Your approved field proof is only visible to you and Fieldtrip reviewers.</p>
             </div>
             <button 
               onClick={async () => {
@@ -441,75 +448,139 @@ export default function ProfilePage() {
                 });
               }}
               className={cn(
-                "w-12 h-6 rounded-full relative transition-colors duration-300",
-                profile?.preferences?.privateApprovedPhotos ? "bg-brand-orange" : "bg-on-surface/10"
+                "w-20 h-10 border-4 border-on-surface relative transition-colors duration-300",
+                profile?.preferences?.privateApprovedPhotos ? "bg-brand-orange" : "bg-on-surface/5"
               )}
             >
               <motion.div 
-                animate={{ x: profile?.preferences?.privateApprovedPhotos ? 24 : 4 }}
-                className="absolute top-1 left-0 w-4 h-4 bg-white rounded-full shadow-sm"
+                animate={{ x: profile?.preferences?.privateApprovedPhotos ? 44 : 4 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                className="absolute top-1 left-0 w-8 h-[calc(100%-8px)] bg-on-surface"
               />
             </button>
           </div>
-        </Card>
+        </div>
       </section>
 
       {/* Archival Actions */}
-      <section className="space-y-8">
-        <div className="flex items-center gap-4">
-          <h3 className={cn("font-serif text-3xl italic", 
+      <section className="space-y-12">
+        <div className="flex items-center gap-6">
+          <h3 className={cn("font-display text-4xl italic uppercase tracking-tighter text-on-surface font-black", 
             isBaja ? "text-baja-pink font-display uppercase font-normal tracking-wide" :
-            "font-display text-2xl uppercase tracking-tighter text-on-surface"
+            ""
           )}>
             {isBaja ? 'Safe Box' : 'ARCHIVAL_CONTROLS'}
           </h3>
-          {!isBaja && <div className="h-px flex-grow bg-on-surface/10" />}
+          {!isBaja && <div className="h-2 flex-grow bg-on-surface/10" />}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
           <button className="group relative text-left">
-            {!isBaja && !isDiamond && !isHeat && <div className="absolute inset-0 bg-on-surface shadow-[8px_8px_0_gray] translate-x-1 translate-y-1" />}
+            <div className="absolute inset-0 bg-on-surface shadow-[12px_12px_0_black] translate-x-3 translate-y-3" />
             <div className={cn(
-              "relative border-4 p-8 flex items-center gap-6 transition-all",
-              isBaja ? "bg-white border-baja-pink rounded-full hover:bg-baja-sand shadow-[8px_8px_0_#40e0d0]" : 
+              "relative border-8 p-10 flex items-center gap-8 transition-transform group-hover:-translate-y-1 group-active:translate-y-1",
+              isBaja ? "bg-white border-baja-pink rounded-full hover:bg-baja-sand" : 
               isDiamond ? "bg-white/5 border-white/20 rounded-none hover:bg-white/10" :
-              "notice-card flex-row p-8"
+              "bg-white border-on-surface"
             )}>
-              <Download className={cn("w-10 h-10", isBaja ? "text-baja-pink" : "text-brand-orange")} />
-              <div className="space-y-1">
+              <Download className={cn("w-14 h-14", isBaja ? "text-baja-pink" : "text-brand-orange")} />
+              <div className="space-y-2">
                 <span className={cn(
-                  "font-display uppercase leading-tight",
-                  isBaja ? "text-3xl text-baja-pink font-normal" : "text-3xl text-on-surface"
-                )}>{isBaja ? 'Export Glam' : 'REQUEST_RECORD'}</span>
-                <p className={cn("micro-label", isBaja ? "text-baja-pink/60" : "opacity-40")}>
-                  {isBaja ? 'Get your beach log (JSON)' : 'OFFICIAL DOSSIER DOWNLOAD (JSON)'}
+                  "font-display uppercase leading-tight font-black italic",
+                  isBaja ? "text-4xl text-baja-pink font-normal" : "text-4xl text-on-surface"
+                )}>{isBaja ? 'Export Glam' : 'DOWNLOAD_DOSSIER'}</span>
+                <p className={cn("micro-label font-black", isBaja ? "text-baja-pink/60" : "opacity-40")}>
+                  {isBaja ? 'Get your beach log (JSON)' : 'OFFICIAL ASSET MANIFEST EXPORT (JSON)'}
                 </p>
               </div>
             </div>
           </button>
 
           <button onClick={handleSignOut} className="group relative text-left">
-             {!isBaja && !isDiamond && !isHeat && <div className="absolute inset-0 bg-error/20 shadow-[8px_8px_0_#ff000022] translate-x-1 translate-y-1" />}
+             <div className="absolute inset-0 bg-error/20 shadow-[12px_12px_0_#ff000022] translate-x-3 translate-y-3" />
              <div className={cn(
-              "relative border-4 p-8 flex items-center gap-6 transition-all",
-              isBaja ? "bg-white border-baja-pink rounded-full hover:bg-baja-sand shadow-[8px_8px_0_#ff4d9422]" : 
+              "relative border-8 p-10 flex items-center gap-8 transition-transform group-hover:-translate-y-1 group-active:translate-y-1",
+              isBaja ? "bg-white border-baja-pink rounded-full hover:bg-baja-sand" : 
               isDiamond ? "bg-white/5 border-white/20 rounded-none hover:bg-white/10" :
-              "notice-card flex-row p-8 border-error/50 hover:border-error"
+              "bg-white border-error/40 hover:border-error"
             )}>
-              <Trash2 className={cn("w-10 h-10", isBaja ? "text-baja-coral" : "text-error")} />
-              <div className="space-y-1">
+              <Trash2 className={cn("w-14 h-14", isBaja ? "text-baja-coral" : "text-error")} />
+              <div className="space-y-2">
                 <span className={cn(
-                  "font-display uppercase leading-tight",
-                  isBaja ? "text-3xl text-baja-coral font-normal" : "text-3xl text-error"
-                )}>{isBaja ? 'Sunk Entry' : 'DISCONNECT_SYS'}</span>
-                <p className={cn("micro-label", isBaja ? "text-baja-coral/60" : "text-error opacity-60")}>
-                  {isBaja ? 'Permanent vibe destruction' : 'RECLAMATION_SESSION_END'}
+                  "font-display uppercase leading-tight font-black italic",
+                  isBaja ? "text-4xl text-baja-coral font-normal" : "text-4xl text-error"
+                )}>{isBaja ? 'Sunk Entry' : 'RECLAMATION_LOGOUT'}</span>
+                <p className={cn("micro-label font-black", isBaja ? "text-baja-coral/60" : "text-error opacity-60")}>
+                  {isBaja ? 'Permanent vibe destruction' : 'TERMINATE ACTIVE BUREAU SESSION'}
                 </p>
               </div>
             </div>
           </button>
         </div>
       </section>
+
+      {/* Support & Feedback */}
+      <section className="space-y-8 pt-12 border-t-2 border-on-surface/5">
+        <div className="flex items-center gap-4">
+          <h3 className="font-display text-2xl uppercase tracking-tighter text-on-surface">
+            BETA_SUPPORT
+          </h3>
+          <div className="h-px flex-grow bg-on-surface/10" />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <a 
+            href="mailto:hammer808@gmail.com?subject=Field%20Trip%20Beta%20Feedback"
+            className="flex items-center gap-4 p-6 bg-on-surface/5 border-2 border-on-surface/10 hover:border-brand-orange hover:bg-brand-orange/5 transition-all group"
+          >
+            <div className="p-3 bg-brand-orange/10 text-brand-orange group-hover:bg-brand-orange group-hover:text-white transition-colors">
+              <MessageSquare size={24} />
+            </div>
+            <div>
+              <p className="font-bold uppercase tracking-tight text-sm">Report Issue / Feedback</p>
+              <p className="text-[10px] opacity-40 uppercase tracking-widest font-mono">Uplink direct to HQ</p>
+            </div>
+          </a>
+
+          <div className="flex items-center gap-4 p-6 bg-on-surface/5 border-2 border-on-surface/10 opacity-40 grayscale pointer-events-none">
+            <div className="p-3 bg-on-surface/10 text-on-surface">
+              <Shield size={24} />
+            </div>
+            <div>
+              <p className="font-bold uppercase tracking-tight text-sm">Knowledge Base</p>
+              <p className="text-[10px] opacity-40 uppercase tracking-widest font-mono">Field guides coming soon</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Admin Quick Links */}
+      {isAdmin && (
+        <section className="space-y-8 pt-12 border-t-4 border-dashed border-brand-orange/20">
+          <div className="flex items-center gap-4">
+            <h3 className="font-display text-2xl uppercase tracking-tighter text-brand-orange">
+              Admin_HQ
+            </h3>
+            <div className="h-px flex-grow bg-brand-orange/10" />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: 'Registry', path: '/admin/challenges' },
+              { label: 'Review', path: '/admin/proofs' },
+              { label: 'Skins', path: '/admin/skins' },
+              { label: 'DevTools', path: '/admin/dev-tools' },
+            ].map(link => (
+              <button
+                key={link.path}
+                onClick={() => navigate(link.path)}
+                className="p-4 bg-brand-orange/5 border-2 border-brand-orange/20 hover:border-brand-orange hover:bg-brand-orange/10 text-[10px] font-black uppercase tracking-widest text-brand-orange transition-all"
+              >
+                {link.label}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <footer className="pt-24 pb-12 flex flex-col items-center justify-center space-y-6">
         <Sticker color="black" className="px-8 py-3 font-display text-4xl -rotate-6 uppercase select-none transition-transform hover:rotate-0">

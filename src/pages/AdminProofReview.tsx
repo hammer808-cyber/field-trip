@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, orderBy, limit, where, getDocs } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, limit, where, getDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { ProofReview, ProofStatus } from '../types/proof';
 import { Entry } from '../constants';
 import { adminOverrideReview, evaluateProof } from '../services/proofService';
 import { Card, Sticker } from '../components/UI';
-import { Shield, Check, X, RefreshCw, AlertCircle, Info, Database } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { Shield, Check, X, RefreshCw, AlertCircle, Info, Database, CameraOff } from 'lucide-react';
+import { cn, formatSafeDateOnly } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
 
@@ -31,16 +31,35 @@ export default function AdminProofReview() {
       limit(50)
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
       const reviewData = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as ProofReview));
-      setReviews(reviewData as any);
+      
+      // Fetch corresponding entries to show images and notes
+      const entryIds = [...new Set(reviewData.map(r => r.entryId))];
+      const entryMap: Record<string, Entry> = {};
+      
+      try {
+        await Promise.all(entryIds.map(async (eid) => {
+          if (!eid) return;
+          const snap = await getDoc(doc(db, 'entries', eid));
+          if (snap.exists()) {
+            entryMap[eid] = { id: snap.id, ...snap.data() } as Entry;
+          }
+        }));
+      } catch (err) {
+        console.error("Failed to batch fetch entries for review:", err);
+      }
+
+      setReviews(reviewData.map(r => ({
+        ...r,
+        entry: entryMap[r.entryId]
+      })));
       setLoading(false);
     });
 
-    // Stats Query
-    const statsUnsubscribe = onSnapshot(collection(db, 'entries'), (snapshot) => {
-      const allEntries = snapshot.docs.map(d => d.data() as Entry);
-      const rejected = allEntries.filter(e => e.status === 'rejected');
+    // Stats Query - Filtered for efficiency
+    const statsUnsubscribe = onSnapshot(query(collection(db, 'entries'), where('status', '==', 'rejected')), (snapshot) => {
+      const rejected = snapshot.docs.map(d => d.data() as Entry);
       const waiting = rejected.filter(e => !e.imagePurged);
       const purged = rejected.filter(e => e.imagePurged);
       
@@ -51,7 +70,7 @@ export default function AdminProofReview() {
       setStorageStats({
         waitingPurge: waiting?.length || 0,
         purged: purged?.length || 0,
-        oldestUnpurged: oldest ? new Date(oldest.seconds * 1000).toLocaleDateString() : 'N/A'
+        oldestUnpurged: formatSafeDateOnly(oldest, 'N/A')
       });
     });
 
@@ -82,10 +101,11 @@ export default function AdminProofReview() {
     setRerunningId(review.id);
 
     try {
-      // Find the entry for this review
-      const entrySnap = await getDocs(query(collection(db, 'entries'), where('id', '==', review.entryId), limit(1)));
-      if (entrySnap.empty) throw new Error("ENTRY_NOT_FOUND");
-      const entry = entrySnap.docs[0].data() as Entry;
+      // Direct getDoc for efficiency
+      const { getDoc, doc } = await import('firebase/firestore');
+      const entrySnap = await getDoc(doc(db, 'entries', review.entryId));
+      if (!entrySnap.exists()) throw new Error("ENTRY_NOT_FOUND");
+      const entry = { id: entrySnap.id, ...entrySnap.data() } as Entry;
 
       if (!entry.proofImage) throw new Error("NO_IMAGE_IN_ENTRY");
 
@@ -202,7 +222,7 @@ export default function AdminProofReview() {
 }
 
 interface ProofReviewCardProps {
-  review: ProofReview;
+  review: ProofReview & { entry?: Entry };
   onApprove: () => Promise<void> | void;
   onReject: () => Promise<void> | void;
   onResubmit: () => Promise<void> | void;
@@ -218,15 +238,41 @@ function ProofReviewCard({ review, onApprove, onReject, onResubmit, onRerunAI, i
   return (
     <Card className="overflow-hidden border-2 border-on-surface/10 bg-paper">
       <div className="flex flex-col md:flex-row h-full">
+        {/* Visual Proof */}
+        <div className="md:w-1/3 h-64 md:h-auto bg-black relative border-b md:border-b-0 md:border-r border-on-surface/10">
+          {review.entry?.proofImage ? (
+            <img 
+              src={review.entry.proofImage} 
+              alt="Proof" 
+              className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center gap-3 opacity-20 bg-on-surface/5">
+              <CameraOff className="w-8 h-8" />
+              <p className="micro-label font-mono">IMAGE_MISSING_OR_PURGED</p>
+            </div>
+          )}
+          
+          <div className="absolute top-2 left-2 flex gap-1">
+            <Sticker color="black" className="text-[7px]">
+              {review.entry?.uploadSource?.toUpperCase() || 'UNKNOWN'}
+            </Sticker>
+            {review.entry?.metadataStatus === 'verified' && (
+              <Sticker color="blue" className="text-[7px]">GPS_VERIFIED</Sticker>
+            )}
+          </div>
+        </div>
+
         {/* Audit Details */}
-        <div className="md:w-full p-6 flex flex-col justify-between">
+        <div className="md:w-2/3 p-6 flex flex-col justify-between">
           <div className="space-y-6">
             <header className="flex justify-between items-start">
               <div className="space-y-1">
-                <p className="micro-label opacity-40 uppercase mb-1">Target Mission: {review.challengeId}</p>
+                <p className="micro-label opacity-40 uppercase mb-1">Target Mission: {review.entry?.tripTitle || review.challengeId}</p>
                 <div className="flex items-center gap-2">
                   <h3 className="font-display text-xl uppercase tracking-tighter leading-none italic">
-                    Entry ID: {review.entryId}
+                    Reporter: {review.entry?.userName || 'ID:' + review.userId}
                   </h3>
                   {isCached && (
                     <Sticker color="blue" className="text-[7px]">CACHED_RESULT</Sticker>
@@ -237,57 +283,68 @@ function ProofReviewCard({ review, onApprove, onReject, onResubmit, onRerunAI, i
                 <Sticker color={review.status === 'approved' ? "green" : review.status === 'rejected' ? "black" : "orange"} className="text-[8px]">
                   {review.status.toUpperCase()}
                 </Sticker>
-                <Sticker color={review.confidenceScore > 80 ? "blue" : "white"} className="text-[8px]">
-                  CONFIDENCE: {review.confidenceScore}%
+                <Sticker color={(review.confidenceScore || 0) > 80 ? "blue" : "white"} className="text-[8px]">
+                  CONFIDENCE: {review.confidenceScore || 0}%
                 </Sticker>
               </div>
             </header>
 
-            <div className="p-4 bg-on-surface/5 border border-on-surface/10 space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="micro-label opacity-40 uppercase">Review Notes</p>
-                <div className="flex items-center gap-2">
-                   <button 
-                    onClick={onRerunAI}
-                    disabled={isRerunning}
-                    className="p-1 hover:bg-on-surface/10 rounded transition-colors text-brand-orange disabled:opacity-20"
-                    title="Rerun AI Analysis (Bypass Cache)"
-                  >
-                    <RefreshCw className={cn("w-3 h-3", isRerunning && "animate-spin")} />
-                  </button>
-                  <button 
-                    onClick={() => setShowAnalysis(!showAnalysis)}
-                    className="p-1 hover:bg-on-surface/10 rounded transition-colors"
-                  >
-                    <Info className="w-3 h-3" />
-                  </button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="p-3 bg-on-surface/5 border border-on-surface/10 rounded">
+                  <p className="micro-label opacity-40 uppercase mb-2">Field Journal Entry</p>
+                  <p className="text-sm font-serif italic leading-relaxed text-on-surface/80">
+                    "{review.entry?.fieldNote || 'No notes provided.'}"
+                  </p>
                 </div>
               </div>
-              
-              <p className="text-sm font-serif italic leading-relaxed">
-                {review.reviewNotes}
-              </p>
 
-              {(review?.missingRequirements?.length || 0) > 0 && (
-                <div className="pt-3 border-t border-dashed border-on-surface/20 space-y-2">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-error uppercase">Missing Evidence</p>
-                    <div className="flex flex-wrap gap-1">
-                      {review.missingRequirements.map(req => (
-                        <span key={req} className="text-[10px] px-1 bg-red-500/10 text-red-700">-{req}</span>
-                      ))}
-                    </div>
+              <div className="p-4 bg-on-surface/5 border border-on-surface/10 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="micro-label opacity-40 uppercase">Bureau Analysis</p>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={onRerunAI}
+                      disabled={isRerunning}
+                      className="p-1 hover:bg-on-surface/10 rounded transition-colors text-brand-orange disabled:opacity-20"
+                      title="Rerun AI Analysis (Bypass Cache)"
+                    >
+                      <RefreshCw className={cn("w-3 h-3", isRerunning && "animate-spin")} />
+                    </button>
+                    <button 
+                      onClick={() => setShowAnalysis(!showAnalysis)}
+                      className="p-1 hover:bg-on-surface/10 rounded transition-colors"
+                    >
+                      <Info className="w-3 h-3" />
+                    </button>
                   </div>
                 </div>
-              )}
+                
+                <p className="text-xs font-mono leading-relaxed opacity-80">
+                  {review.reviewNotes}
+                </p>
+
+                {(review?.missingRequirements?.length || 0) > 0 && (
+                  <div className="pt-3 border-t border-dashed border-on-surface/20 space-y-2">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-error uppercase font-mono">Failed Protocols</p>
+                      <div className="flex flex-wrap gap-1">
+                        {review.missingRequirements?.map(req => (
+                          <span key={req} className="text-[10px] px-1 bg-error/10 text-error font-mono">-{req}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {review.confidenceScore < 50 && (
+            {(review.confidenceScore || 0) < 50 && (
               <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200">
                 <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
                 <div>
                   <p className="text-[10px] font-bold text-red-700 mb-1 uppercase">Low Confidence Warning</p>
-                  <p className="text-[9px] font-mono text-red-600">Manual verification recommended for this entry.</p>
+                  <p className="text-[9px] font-mono text-red-600">The AI is unsure. Manual override mandatory.</p>
                 </div>
               </div>
             )}

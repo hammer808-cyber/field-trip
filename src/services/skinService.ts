@@ -1,5 +1,6 @@
 import { doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, getDocs, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
+import { logAdminAction } from './moderationService';
 import { Skin, SkinSettings, UserThemePreference } from '../types/skin';
 
 const COLLECTION = 'appConfig';
@@ -83,6 +84,17 @@ export async function setAdminStatus(uid: string, isAdmin: boolean) {
     } else {
       await deleteDoc(adminRef);
     }
+
+    // Audit Log
+    if (auth.currentUser) {
+        await logAdminAction(
+            auth.currentUser.uid,
+            uid,
+            'user',
+            isAdmin ? 'grant_admin' : 'revoke_admin',
+            { targetUserId: uid }
+        );
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `admins/${uid}`);
   }
@@ -100,9 +112,16 @@ export function subscribeToUserThemePreference(uid: string, callback: (prefs: Us
   return onSnapshot(doc(db, 'userPrefs', uid), (snap) => {
     if (snap.exists()) {
       callback(snap.data() as UserThemePreference);
+    } else {
+      // Provide defaults if missing
+      callback({
+        selectedSkinId: 'original',
+        visualCalmEnabled: false
+      });
     }
   }, (error) => {
-    handleFirestoreError(error, OperationType.GET, `userPrefs/${uid}`);
+    // Graceful log for theme prefs
+    console.warn("[skinService] User theme preference read skipped:", error.message);
   });
 }
 
@@ -119,6 +138,10 @@ export async function saveSkin(skin: Partial<Skin>) {
       ...(isNew ? { createdAt: serverTimestamp() } : {}),
       updatedBy: auth.currentUser?.uid || 'system'
     }, { merge: true });
+
+    if (auth.currentUser) {
+      await logAdminAction(auth.currentUser.uid, skinId, 'skin', isNew ? 'create' : 'update', { name: skin.name });
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `skins/${skin.id || 'new'}`);
   }
@@ -139,6 +162,10 @@ export async function setDefaultSkin(skinId: string) {
     
     // 4. Update settings
     await updateSkinSettings({ defaultSkinId: skinId });
+
+    if (auth.currentUser) {
+      await logAdminAction(auth.currentUser.uid, skinId, 'skin', 'set_default');
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `skins/${skinId}`);
   }
@@ -150,6 +177,10 @@ export async function updateSkinStatus(skinId: string, status: Skin['status']) {
       status,
       updatedAt: serverTimestamp()
     });
+
+    if (auth.currentUser) {
+      await logAdminAction(auth.currentUser.uid, skinId, 'skin', 'update_status', { status });
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `skins/${skinId}`);
   }
@@ -166,6 +197,10 @@ export async function updateThemePreference(uid: string, prefs: Partial<UserThem
 export async function updateSkinSettings(settings: Partial<SkinSettings>) {
   try {
     await setDoc(doc(db, COLLECTION, DOC_ID), settings, { merge: true });
+
+    if (auth.currentUser) {
+      await logAdminAction(auth.currentUser.uid, 'game', 'config', 'update_skin_settings', { settings });
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${COLLECTION}/${DOC_ID}`);
   }

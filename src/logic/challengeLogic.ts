@@ -12,8 +12,9 @@ export function drawChallenge(pool: TripCard[], filter?: (c: TripCard) => boolea
 
 export function validateSubmissionRules(entry: { proofImage: string; fieldNote: string }, challenge: TripCard) {
   const errors: string[] = [];
+  const requiredProof = challenge.proofType || challenge.requiredProof || [];
   
-  if (challenge.requiredProof.includes('photo') && !entry.proofImage) {
+  if (requiredProof.includes('photo') && !entry.proofImage) {
     errors.push('Required photo proof is missing.');
   }
   
@@ -77,38 +78,86 @@ export function applyFieldTypeModifier(challenge: TripCard, fieldTypeId: string 
   let penalty = 0;
   let text = '';
 
-  switch (fieldTypeId) {
-    case 'house-goblin':
-      penalty = 5;
-      text = 'Threshold Tax: -5 unless detour authenticated.';
-      break;
-    case 'social-menace':
-      bonus = 20;
-      text = 'Witness Bonus: +20 for social proof.';
-      if (!isCrewEntry) {
-        penalty = 10;
-        text = 'Solo Sentence: -10 for un-witnessed mission.';
-      }
-      break;
-    case 'soft-criminal':
-      penalty = 5;
-      text = 'Verification overhead: -5 for administrative processing.';
-      break;
-    case 'static-breaker':
-      bonus = 15;
-      text = 'Pattern Interrupt: +15 for category disruption.';
-      break;
-    case 'wild-card':
-      const chance = Math.random();
-      if (chance > 0.8) {
-        bonus = 40;
-        text = 'Wild Card: Random variance! +40';
-      } else if (chance < 0.2) {
-        penalty = 15;
-        text = 'Wild Card: Chaos penalty! -15';
-      }
-      break;
+  // 1. Data-Driven Affinity Bonus
+  if (challenge.personaAffinity?.includes(fieldTypeId as any)) {
+    bonus += 20;
+    text = `Archetype Affinity: +20 for ${fieldTypeId} compatibility. `;
   }
 
-  return { bonus, penalty, text };
+  // 2. Tag-Based Modifiers (Generalized)
+  if (challenge.boostTags && challenge.boostTags.length > 0) {
+    // This could be expanded to map field types to preferred tags
+    // For now, let's look for archetype-specific preferences
+    const preferences: Record<string, string[]> = {
+      'captainClipboard': ['rules', 'checklist', 'organization', 'audit'],
+      'mallRat': ['urban', 'social', 'indoor', 'commercial'],
+      'mascota': ['bold', 'performance', 'aesthetic', 'dynamic'],
+      'elondra': ['narrative', 'drama', 'detailed', 'aesthetic'],
+      'lostCamper': ['exploration', 'mystery', 'strange', 'detour'],
+      'bigfoot': ['observation', 'solo', 'nature', 'hidden']
+    };
+
+    const userPrefs = preferences[fieldTypeId] || [];
+    const matchedBoosts = challenge.boostTags.filter(t => userPrefs.includes(t));
+    if (matchedBoosts.length > 0) {
+      bonus += matchedBoosts.length * 10;
+      text += `Tag Boost: +${matchedBoosts.length * 10} for ${matchedBoosts.join(', ')}. `;
+    }
+
+    const matchedSlowdowns = challenge.slowDownTags?.filter(t => userPrefs.includes(t)) || [];
+    if (matchedSlowdowns.length > 0) {
+      penalty += matchedSlowdowns.length * 10;
+      text += `Tag Friction: -${matchedSlowdowns.length * 10} for ${matchedSlowdowns.join(', ')}. `;
+    }
+  }
+
+  // 3. Fallback Legacy Multipliers (if no data-driven bonus was applied)
+  if (bonus === 0 && penalty === 0) {
+    switch (fieldTypeId) {
+      case 'captainClipboard':
+        bonus = 10;
+        text = 'Detail Bonus: +10 for certified documentation.';
+        break;
+      case 'mallRat':
+        if (challenge.tags?.includes('urban')) {
+          bonus = 15;
+          text = 'Social Hub Bonus: +15 for urban operation.';
+        } else {
+          penalty = 5;
+          text = 'Nature Tax: -5 for low-AC environment.';
+        }
+        break;
+      case 'mascota':
+        bonus = 20;
+        text = 'Spirit Boost: +20 for high-energy documentation.';
+        break;
+      case 'elondra':
+        if (challenge.tags?.includes('detailed') || challenge.tags?.includes('narrative')) {
+          bonus = 25;
+          text = 'Narrative Authority: +25 for sophisticated zine-ready notes.';
+        } else {
+          bonus = 10;
+          text = 'Final Word Bonus: +10 for certified flair.';
+        }
+        break;
+      case 'lostCamper':
+        const chance = Math.random();
+        if (chance > 0.5) {
+          bonus = 25;
+          text = 'Serendipity: +25 found a shortcut!';
+        }
+        break;
+      case 'bigfoot':
+        if (!isCrewEntry) {
+          bonus = 15;
+          text = 'Solitude Bonus: +15 for elusive observation.';
+        } else {
+          penalty = 10;
+          text = 'Presence Penalty: -10 for forced social interaction.';
+        }
+        break;
+    }
+  }
+
+  return { bonus, penalty, text: text.trim() };
 }

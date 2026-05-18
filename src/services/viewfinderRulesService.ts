@@ -62,8 +62,8 @@ export const DEFAULT_VIEWFINDER_RULES: ViewfinderRules = VIEWFINDER_RULE_PRESETS
  * Logic: default preset rules + selected preset rules + individual challenge overrides.
  */
 export function getViewfinderRulesForChallenge(challenge: TripCard): ViewfinderRules {
-  const presetKey = challenge.viewfinderRulePreset || 'standard';
-  const presetRules = VIEWFINDER_RULE_PRESETS[presetKey] || DEFAULT_VIEWFINDER_RULES;
+  const presetKey = (challenge.viewfinderRulePreset || 'standard') as any;
+  const presetRules = (VIEWFINDER_RULE_PRESETS as any)[presetKey] || DEFAULT_VIEWFINDER_RULES;
 
   // Merge: Default -> Preset -> Direct challenge fields (deprecated but supported) -> Explicit overrides
   const rules: ViewfinderRules = {

@@ -1,4 +1,5 @@
 import { AIAnalysis } from "../types/proof";
+import { authenticatedFetch } from "../lib/api";
 
 export async function analyzeSubmissionImage(
   base64Image: string,
@@ -7,11 +8,8 @@ export async function analyzeSubmissionImage(
   requiredSubjects: string[] = []
 ): Promise<AIAnalysis> {
   try {
-    const response = await fetch('/api/analyze-proof', {
+    const response = await authenticatedFetch('/api/analyze-proof', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({
         base64Image,
         challengeTitle,
@@ -21,7 +19,7 @@ export async function analyzeSubmissionImage(
     });
 
     if (!response.ok) {
-      throw new Error(`BUREAU_API_ERROR: ${response.status}`);
+      throw new Error(`HQ_API_ERROR: ${response.status}`);
     }
 
     return await response.json();
@@ -34,7 +32,7 @@ export async function analyzeSubmissionImage(
       visible_evidence: [],
       missing_evidence: ["NETWORK_COMM_FAILURE"],
       confidence: 0,
-      reason: "The Bureau's field uplink is experiencing high latency or failure.",
+      reason: "The Fieldtrip field uplink is experiencing high latency or failure.",
       suggested_lore_tags: ["Desync_Ghost"]
     };
   }

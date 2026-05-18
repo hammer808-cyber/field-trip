@@ -14,14 +14,13 @@ interface EntryCardProps {
 }
 
 export function EntryCard({ entry, className }: EntryCardProps) {
-  const { profile, user } = useApp();
-  const isAdmin = profile?.isAdmin;
+  const { isAdmin, user, profile } = useApp();
 
   const getStatusInfo = () => {
     switch (entry.status) {
       case 'approved':
       case 'approved_by_admin':
-        return { icon: CheckCircle2, text: 'Verified', color: 'text-brand-green', stickerColor: 'green' };
+        return { icon: CheckCircle2, text: 'Verified', color: 'text-on-surface', stickerColor: 'lime' };
       case 'needs-more-proof':
       case 'needs_review':
         return { icon: AlertCircle, text: 'Needs More Proof', color: 'text-brand-orange', stickerColor: 'orange' };
@@ -29,7 +28,7 @@ export function EntryCard({ entry, className }: EntryCardProps) {
         return { icon: ShieldAlert, text: 'Rejected', color: 'text-error', stickerColor: 'black' };
       case 'pending':
       default:
-        return { icon: Clock, text: 'Field Check Pending', color: 'text-on-surface opacity-40', stickerColor: 'white' };
+        return { icon: Clock, text: 'Field Check Pending', color: 'opacity-40', stickerColor: 'white' };
     }
   };
 
@@ -47,55 +46,68 @@ export function EntryCard({ entry, className }: EntryCardProps) {
 
   return (
     <div className={cn(
-      "min-w-[300px] flex-shrink-0 notice-card p-8 transition-transform hover:scale-[1.02] bg-paper-dark relative group",
+      "min-w-[340px] flex-shrink-0 p-10 transition-all hover:-translate-y-2 bg-white relative group border-4 border-on-surface shadow-[16px_16px_0px_var(--color-brand-orange)] hover:shadow-[24px_24px_0px_black]",
       className
     )}>
-      <div className="relative aspect-video mb-4 overflow-hidden rounded-sm border-2 border-on-surface/10">
+      <div className="relative aspect-video mb-8 overflow-hidden border-4 border-on-surface shadow-[8px_8px_0px_black] group-hover:rotate-1 transition-transform">
         <img 
           src={entry.proofImage} 
           alt="" 
           loading="lazy"
-          className="w-full h-full object-cover" 
+          className="w-full h-full object-cover transition-all duration-1000 group-hover:scale-110 sepia-[0.1] contrast-125" 
         />
+        <div className="absolute inset-0 bg-brand-lime/10 mix-blend-overlay pointer-events-none" />
+        
         {isAdmin && (
-          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-            <button 
-              onClick={() => handleAdminAction('approved')}
-              className="bg-brand-green text-white px-3 py-1 text-[10px] font-mono uppercase rounded-sm hover:scale-105"
-            >
-              Approve
-            </button>
-            <button 
-              onClick={() => handleAdminAction('rejected')}
-              className="bg-error text-white px-3 py-1 text-[10px] font-mono uppercase rounded-sm hover:scale-105"
-            >
-              Reject
-            </button>
+          <div className="absolute inset-0 bg-on-surface/90 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-6 p-6 backdrop-blur-sm z-30">
+            <p className="text-white micro-label mb-2 font-black tracking-[0.4em] italic">ADMIN_OVERRIDE_PROTOCOL</p>
+            <div className="flex gap-4">
+              <button 
+                onClick={() => handleAdminAction('approved')}
+                className="bg-brand-lime text-black px-8 py-3 text-sm font-display uppercase font-black border-2 border-on-surface hover:bg-white transition-all shadow-[6px_6px_0px_black] italic"
+              >
+                AUTHO_VERIFY
+              </button>
+              <button 
+                onClick={() => handleAdminAction('rejected')}
+                className="bg-error text-white px-8 py-3 text-sm font-display uppercase font-black border-2 border-on-surface hover:bg-on-surface transition-all shadow-[6px_6px_0px_black] italic"
+              >
+                REJECT_VIBE
+              </button>
+            </div>
           </div>
         )}
+
+        <div className="absolute top-2 left-2 bg-on-surface text-brand-lime px-2 py-0.5 text-[8px] font-black uppercase tracking-widest italic z-20">LENS_ARCHIVE</div>
       </div>
-      <div className="flex justify-between items-start mb-4">
-        <div className="flex items-center gap-3">
+      <div className="flex justify-between items-start mb-8">
+        <div className="flex items-center gap-5">
           <AvatarPreview 
             avatar={entry.userAvatar || DEFAULT_AVATAR} 
-            size="sm" 
-            className="rounded-full border border-on-surface/10 bg-on-surface/5" 
+            size="lg" 
+            className="border-2 border-on-surface bg-white shadow-[4px_4px_0px_black] rounded-none" 
           />
-          <div className="space-y-1">
-            <p className="micro-label">FILED_BY_{entry.userName || 'ANON'}</p>
-            <h4 className="font-display text-sm uppercase tracking-tighter text-on-surface/80">{entry.tripTitle}</h4>
+          <div className="space-y-1.5 text-left">
+            <p className="micro-label opacity-40 font-black tracking-[0.2em] italic">FILED_BY_{entry.userName?.toUpperCase() || 'ANON_AGENT'}</p>
+            <h4 className="font-display text-2xl uppercase tracking-tighter text-on-surface font-black italic leading-[0.8]">{entry.tripTitle}</h4>
           </div>
         </div>
-        <div className="bureau-tag bg-on-surface/10 text-on-surface shrink-0">LOC_{entry.id?.substring(0,4) || 'XXXX'}</div>
+        <div className="bureau-tag shadow-[4px_4px_0px_black] border-2 border-on-surface bg-brand-lime text-black font-black italic">ID_{entry.id?.substring(0,4).toUpperCase() || 'XXXX'}</div>
       </div>
-      <p className="font-serif italic text-lg leading-relaxed line-clamp-3">"{entry.fieldNote}"</p>
-      <div className="mt-6 flex justify-between items-end border-t border-on-surface/10 pt-4">
-        <div className={cn("flex items-center gap-1.5", status.color)}>
-          <StatusIcon className="w-3 h-3" />
-          <span className="micro-label font-bold">{status.text}</span>
+      
+      <div className="bg-paper-dark p-6 border-l-8 border-on-surface italic shadow-inner mb-8 text-left group-hover:bg-brand-lime/5 transition-colors">
+        <p className="font-serif text-xl leading-relaxed line-clamp-3 font-medium text-on-surface/80">"{entry.fieldNote}"</p>
+      </div>
+
+      <div className="flex justify-between items-end border-t-4 border-on-surface/5 pt-8">
+        <div className={cn("flex items-center gap-3", status.color)}>
+          <div className={cn("p-1.5 border-2 shadow-[2px_2px_0px_black]", status.stickerColor === 'lime' ? 'bg-brand-lime' : 'bg-white')}>
+            <StatusIcon className={cn("w-5 h-5", entry.status === 'approved' ? "text-on-surface stroke-[3]" : "stroke-[3]")} />
+          </div>
+          <span className="micro-label font-black text-sm italic uppercase tracking-widest">{status.text.replace(/ /g, '_')}</span>
         </div>
         <div className="text-right">
-          <span className="font-display text-brand-orange">+{entry.pointsAwarded} XP</span>
+          <span className="font-display text-3xl text-brand-orange font-black italic drop-shadow-[4px_4px_0_var(--color-on-surface)]">+{entry.pointsAwarded}_XP</span>
         </div>
       </div>
     </div>

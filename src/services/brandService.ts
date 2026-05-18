@@ -25,8 +25,8 @@ export function validateChallengeBrandFit(challenge: Partial<ChallengeCard>): { 
   }
 
   // Rule: Simple enough but with layers
-  if (!challenge.levels?.Explorer || !challenge.levels?.Legend) {
-    return { status: 'needs_review', reason: 'Missing Explorer or Legend layers.' };
+  if (!challenge.levels?.Advanced || !challenge.levels?.Certified) {
+    return { status: 'needs_review', reason: 'Missing Advanced or Certified layers.' };
   }
 
   // Rule: Proof requirements

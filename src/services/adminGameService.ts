@@ -1,5 +1,6 @@
 import { doc, setDoc, updateDoc, serverTimestamp, collection } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, auth } from '../lib/firebase';
+import { logAdminAction } from './moderationService';
 import { AppConfig, Season } from '../types/game';
 import { TripStatus } from '../types/challenges';
 
@@ -27,6 +28,10 @@ export async function updateFeatureFlags(flags: Partial<AppConfig['featureFlags'
   await updateDoc(configRef, {
     [`featureFlags`]: flags
   });
+
+  if (auth.currentUser) {
+    await logAdminAction(auth.currentUser.uid, 'game', 'config', 'update_feature_flags', { flags });
+  }
 }
 
 export async function createSeason(season: Omit<Season, 'id' | 'createdAt'>) {
@@ -35,6 +40,11 @@ export async function createSeason(season: Omit<Season, 'id' | 'createdAt'>) {
     ...season,
     createdAt: serverTimestamp()
   });
+
+  if (auth.currentUser) {
+    await logAdminAction(auth.currentUser.uid, seasonRef.id, 'season', 'create', { seasonTitle: season.title });
+  }
+
   return seasonRef.id;
 }
 
@@ -43,6 +53,10 @@ export async function setGlobalActiveSeason(seasonId: string) {
   await updateDoc(configRef, {
     activeSeasonId: seasonId
   });
+
+  if (auth.currentUser) {
+    await logAdminAction(auth.currentUser.uid, 'game', 'config', 'set_active_season', { seasonId });
+  }
 }
 
 /**
@@ -125,7 +139,7 @@ export async function deploySummer2026Manifest() {
     const crewT = crewTemplates[i % crewTemplates.length];
 
     const defaultData = {
-      image: "/images/challenges/generic-summer.jpg",
+      image: "https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?q=80&w=800",
       proofNeeded: "Photo evidence or field note.",
       crewModeBehavior: "Flexible collaboration.",
       mode: "flexible" as any,
@@ -148,6 +162,10 @@ export async function deploySummer2026Manifest() {
 
   await setDoc(seasonRef, seasonData, { merge: true });
   await setGlobalActiveSeason(seasonId);
+
+  if (auth.currentUser) {
+    await logAdminAction(auth.currentUser.uid, seasonId, 'season', 'bulk_deploy_manifest', { seasonTitle: seasonData.title });
+  }
   
   return {
     weeks: 14,
@@ -162,4 +180,8 @@ export async function updateChallengeStatus(challengeId: string, status: TripSta
     status,
     updatedAt: new Date().toISOString()
   });
+
+  if (auth.currentUser) {
+    await logAdminAction(auth.currentUser.uid, challengeId, 'challenge', 'update_status', { newStatus: status });
+  }
 }

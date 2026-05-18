@@ -15,9 +15,9 @@ interface ProofCorrectionProps {
 export const ProofCorrection: React.FC<ProofCorrectionProps> = ({ review, onRetry, onDone }) => {
   const { skin } = useTheme();
 
-  const isBaja = skin === 'baja-bratz';
-  const isDiamond = skin === 'slippery-diamond';
-  const isHeat = skin === 'heatwave';
+  const isBaja = skin.id === 'baja-bratz';
+  const isDiamond = skin.id === 'slippery-diamond';
+  const isHeat = skin.id === 'heatwave';
 
   const isRejected = review.status === 'rejected';
 
@@ -64,12 +64,12 @@ export const ProofCorrection: React.FC<ProofCorrectionProps> = ({ review, onRetr
           <div className="space-y-2">
             <p className="micro-label opacity-40 uppercase">Missing Data</p>
             <div className="space-y-1.5">
-              {review.missingRequirements.map((req, i) => (
+              {review.missingRequirements?.map((req, i) => (
                 <div key={i} className="flex items-center gap-2 text-xs font-mono opacity-80">
                   <X className="w-3 h-3 text-red-500" /> {req}
                 </div>
               ))}
-              {review.missingRequirements.length === 0 && (
+              {(!review.missingRequirements || review.missingRequirements.length === 0) && (
                 <div className="flex items-center gap-2 text-xs font-mono opacity-60">
                    <Check className="w-3 h-3 text-green-500" /> All physical data present. Clarity issues detected.
                 </div>

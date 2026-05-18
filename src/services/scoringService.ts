@@ -1,5 +1,6 @@
 import { auth } from '../lib/firebase';
 import { ScoreEventType } from '../types/game';
+import { authenticatedFetch } from '../lib/api';
 
 export async function awardPoints(
   userId: string, 
@@ -17,20 +18,16 @@ export async function awardPoints(
   try {
     const user = auth.currentUser;
     if (!user) throw new Error('NOT_AUTHENTICATED');
-
-    const idToken = await user.getIdToken();
     
     // Call Secure Server API instead of writing directly to Firestore
-    const response = await fetch('/api/game/award-points', {
+    const response = await authenticatedFetch('/api/game/award-points', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${idToken}`
-      },
       body: JSON.stringify({
         points,
         type,
-        details
+        details,
+        targetUserId: userId,
+        targetUserName: userName
       })
     });
 

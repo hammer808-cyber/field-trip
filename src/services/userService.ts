@@ -17,7 +17,8 @@ import {
   getCountFromServer
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { FieldTypeId, ProductPersonaLensId } from '../constants';
+import { FieldTypeId, ProductPersonaLensId, FIELD_TYPES } from '../constants';
+import { normalizeFieldType } from '../constants/fieldTypes';
 
 import { AvatarData } from '../types/avatar';
 import { DEFAULT_AVATAR } from '../constants/avatarAssets';
@@ -48,6 +49,7 @@ export interface UserProfile {
   crewModeSeen: boolean;
   points: number;
   soloTripsCount: number;
+  completedCoreChallenges: number;
   boldTripsCount: number;
   crewTripsCount: number;
   rerollsAvailable: number;
@@ -74,6 +76,8 @@ export interface UserProfile {
   createdAt?: any;
   updatedAt?: any;
   betaAccessCodeUsed?: string;
+  accessStatus?: 'pending' | 'approved' | 'banned' | 'suspended';
+  role?: 'admin' | 'moderator' | null;
   // DEPRECATED: Use fieldType instead. Maintained for migration.
   persona?: FieldTypeId | null; 
 }
@@ -122,17 +126,17 @@ export async function getOrCreateProfile(user: any): Promise<UserProfile> {
     
     if (userDoc.exists()) {
       const data = userDoc.data();
-      // Migration: Map old 'persona' to 'fieldType' if needed
-      if ((data.persona || data.personaName) && !data.fieldType) {
-        return { 
-          id: userDoc.id, 
-          ...data,
-          fieldType: data.fieldType || data.persona || null,
-          fieldTypeName: data.fieldTypeName || data.personaName || null,
-          fieldClassificationComplete: data.fieldClassificationComplete || data.personaQuizComplete || false
-        } as UserProfile;
-      }
-      return { id: userDoc.id, ...data } as UserProfile;
+      const rawFieldType = data.fieldType || data.persona || null;
+      const normalizedType = normalizeFieldType(rawFieldType);
+      const fieldTypeData = FIELD_TYPES[normalizedType as FieldTypeId];
+      
+      return { 
+        id: userDoc.id, 
+        ...data,
+        fieldType: normalizedType,
+        fieldTypeName: fieldTypeData?.name || data.fieldTypeName || data.personaName || 'Field Agent',
+        fieldClassificationComplete: data.fieldClassificationComplete || data.personaQuizComplete || false
+      } as UserProfile;
     }
 
     const newProfile: UserProfile = {
@@ -150,17 +154,26 @@ export async function getOrCreateProfile(user: any): Promise<UserProfile> {
       crewModeSeen: false,
       points: 0,
       soloTripsCount: 0,
+      completedCoreChallenges: 0,
       boldTripsCount: 0,
       crewTripsCount: 0,
       rerollsAvailable: 3,
       activeTrip: null,
       lastSnitchDate: null,
+      accessStatus: 'pending',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
 
-    await setDoc(userRef, newProfile);
-    return newProfile;
+    try {
+      await setDoc(userRef, newProfile);
+      return newProfile;
+    } catch (writeErr) {
+      console.warn("[BUREAU_ADAPTER] Immediate profile creation failed (Rules check delay?). Returning transient profile context.");
+      // Return the profile object anyway so the app can mount, 
+      // but it won't be in DB yet. Subsequent onboarding steps will try to write it.
+      return newProfile;
+    }
   } catch (error) {
     return handleFirestoreError(error, OperationType.GET, `${COLLECTION}/${user.uid}`);
   }
@@ -174,18 +187,17 @@ export function subscribeToProfile(uid: string, callback: (profile: UserProfile)
   return onSnapshot(doc(db, COLLECTION, uid), (snapshot) => {
     if (snapshot.exists()) {
       const data = snapshot.data();
-      // Migration: Map old 'persona' to 'fieldType' if needed
-      if ((data.persona || data.personaName) && !data.fieldType) {
-        callback({ 
-          id: snapshot.id, 
-          ...data,
-          fieldType: data.fieldType || data.persona || null,
-          fieldTypeName: data.fieldTypeName || data.personaName || null,
-          fieldClassificationComplete: data.fieldClassificationComplete || data.personaQuizComplete || false
-        } as UserProfile);
-      } else {
-        callback({ id: snapshot.id, ...data } as UserProfile);
-      }
+      const rawFieldType = data.fieldType || data.persona || null;
+      const normalizedType = normalizeFieldType(rawFieldType);
+      const fieldTypeData = FIELD_TYPES[normalizedType as FieldTypeId];
+
+      callback({ 
+        id: snapshot.id, 
+        ...data,
+        fieldType: normalizedType,
+        fieldTypeName: fieldTypeData?.name || data.fieldTypeName || data.personaName || 'Field Agent',
+        fieldClassificationComplete: data.fieldClassificationComplete || data.personaQuizComplete || false
+      } as UserProfile);
     }
   }, (error) => {
     handleFirestoreError(error, OperationType.GET, `${COLLECTION}/${uid}`);
@@ -243,6 +255,8 @@ export function subscribeToTopStandings(callback: (users: UserProfile[]) => void
   return onSnapshot(q, (snapshot) => {
     callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile)));
   }, (error) => {
-    handleFirestoreError(error, OperationType.LIST, COLLECTION);
+    // Only log, don't crash the whole app for leaderboard failures
+    console.warn("[userService] Standing subscription skipped (likely pending accessStatus):", error.message);
+    callback([]);
   });
 }

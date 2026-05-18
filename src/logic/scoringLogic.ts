@@ -17,8 +17,21 @@ export function calculateSubmissionPoints(
 ) {
   let scoreEvents: Omit<ScoreEvent, 'id' | 'userId' | 'userName' | 'createdAt'>[] = [];
   
-  // Base Points from Level
-  const levelPoints = challenge.levels[entry.selectedLevel as ChallengeLevel]?.points || 0;
+  // Base Points from Level or baseXP
+  let levelPoints = 0;
+  if (challenge.levels && challenge.levels[entry.selectedLevel as ChallengeLevel]) {
+    levelPoints = challenge.levels[entry.selectedLevel as ChallengeLevel].points;
+  } else {
+    // Fallback to baseXP with standard multipliers
+    const base = challenge.baseXP || challenge.basePoints || 100;
+    const multipliers = {
+      'Standard': 1,
+      'Advanced': 1.5,
+      'Certified': 2
+    };
+    levelPoints = Math.round(base * multipliers[entry.selectedLevel as ChallengeLevel || 'Standard']);
+  }
+
   scoreEvents.push({
     type: 'trip_approved',
     points: levelPoints,
@@ -104,7 +117,7 @@ export function calculateSubmissionPoints(
       type: 'final_crown_bonus',
       points: 250,
       entryId: entry.id,
-      description: 'Final Season Crown Legend'
+      description: 'Certified Icon'
     });
   }
 

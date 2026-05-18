@@ -5,7 +5,8 @@ const mockState = (overrides: Partial<GameState> = {}): GameState => ({
   userId: 'test-user',
   email: 'test@example.com',
   points: 0,
-  soloCount: 0,
+  soloTripsCount: 0,
+  completedCoreChallenges: 0,
   onboardingComplete: true,
   fieldType: 'wild-card' as FieldTypeId,
   isAdmin: false,
@@ -26,10 +27,10 @@ const adminState = mockState({ isAdmin: true, currentDate: new Date('2026-05-10T
 console.assert(isViewfinderLocked(adminState) === false, "FAILURE: Admin should bypass pre-season lock");
 
 // 2. Crew Mode Progress Tests
-const recruitState = mockState({ soloCount: 1 });
+const recruitState = mockState({ soloTripsCount: 1 });
 console.assert(canAccessCrewMode(recruitState) === false, "FAILURE: Crew mode should require 3 solo missions");
 
-const veteranState = mockState({ soloCount: 3 });
+const veteranState = mockState({ soloTripsCount: 3 });
 console.assert(canAccessCrewMode(veteranState) === true, "FAILURE: Crew mode should unlock after 3 solo missions");
 
 // 3. Field Check Mode Tests

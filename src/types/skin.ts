@@ -40,6 +40,8 @@ export interface Skin {
   seasonId?: string;
   status: SkinStatus;
   isDefault: boolean;
+  isPublic?: boolean;
+  isActive?: boolean;
   visualCalmSupported: boolean;
   themeTokens: ThemeTokens;
   assets: SkinAssets;

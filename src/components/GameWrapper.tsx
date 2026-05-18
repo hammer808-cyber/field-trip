@@ -4,6 +4,7 @@ import { useTheme } from '../context/ThemeContext';
 import { Card, Sticker } from './UI';
 import { Lock, Clock, GraduationCap, Users } from 'lucide-react';
 import { motion } from 'motion/react';
+import { formatSafeDateOnly } from '../lib/utils';
 
 export function GameWrapper({ children }: { children: React.ReactNode }) {
   const { 
@@ -30,8 +31,8 @@ export function GameWrapper({ children }: { children: React.ReactNode }) {
   // Guest Mode
   if (!user) return <>{children}</>;
 
-  // Season Inactive Overlay - BYPASSED FOR ADMINS
-  if (!isSeasonActive && !activeSeason && !isAdmin) {
+  // Season Inactive Overlay - BYPASSED FOR ADMINS & DEV
+  if (!isSeasonActive && !activeSeason && !isAdmin && !import.meta.env.DEV) {
     return (
       <div className="min-h-screen bg-paper flex items-center justify-center p-6">
         <Card className="max-w-md w-full p-8 text-center space-y-6">
@@ -47,8 +48,8 @@ export function GameWrapper({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Pre-Season or Closed Season - BYPASSED FOR ADMINS
-  if (activeSeason && activeSeason.status !== 'active' && !isAdmin) {
+  // Pre-Season or Closed Season - BYPASSED FOR ADMINS & DEV
+  if (activeSeason && activeSeason.status !== 'active' && !isAdmin && !import.meta.env.DEV) {
     return (
       <div className="min-h-screen bg-paper flex items-center justify-center p-6">
         <Card className="max-w-md w-full p-8 text-center space-y-6">
@@ -66,11 +67,11 @@ export function GameWrapper({ children }: { children: React.ReactNode }) {
           <div className="grid grid-cols-2 gap-4 pt-4">
             <div className="text-left p-3 border-2 border-on-surface/10">
               <span className="micro-label opacity-40">STARTS</span>
-              <p className="text-xs font-mono">{activeSeason.startDate.toDate().toLocaleDateString()}</p>
+              <p className="text-xs font-mono">{formatSafeDateOnly(activeSeason.startDate)}</p>
             </div>
             <div className="text-left p-3 border-2 border-on-surface/10">
               <span className="micro-label opacity-40">ENDS</span>
-              <p className="text-xs font-mono">{activeSeason.endDate.toDate().toLocaleDateString()}</p>
+              <p className="text-xs font-mono">{formatSafeDateOnly(activeSeason.endDate)}</p>
             </div>
           </div>
         </Card>
@@ -80,7 +81,7 @@ export function GameWrapper({ children }: { children: React.ReactNode }) {
 
   // Onboarding Stage
   if (profile && !profile.onboardingCompleted) {
-    const remaining = (gameConfig?.onboardingEntriesRequired || 3) - (profile.soloCount || 0);
+    const remaining = (gameConfig?.onboardingEntriesRequired || 3) - (profile.soloTripsCount || 0);
     if (remaining > 0) {
       return (
         <div className="relative min-h-screen">
@@ -103,7 +104,7 @@ export function GameWrapper({ children }: { children: React.ReactNode }) {
                 {Array.from({ length: gameConfig?.onboardingEntriesRequired || 3 }).map((_, i) => (
                   <div 
                     key={i} 
-                    className={`w-3 h-3 border-2 ${i < (profile.soloCount || 0) ? 'bg-brand-orange border-brand-orange' : 'border-paper/20'}`} 
+                    className={`w-3 h-3 border-2 ${i < (profile.soloTripsCount || 0) ? 'bg-brand-orange border-brand-orange' : 'border-paper/20'}`} 
                   />
                 ))}
               </div>
@@ -116,11 +117,16 @@ export function GameWrapper({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {isAdmin && (!isSeasonActive || activeSeason?.status !== 'active') && (
-        <div className="fixed top-20 right-4 z-[100] pointer-events-none">
+      {(isAdmin || import.meta.env.DEV) && (!isSeasonActive || activeSeason?.status !== 'active' || activeSeason?.id === 'dev-season-2026') && (
+        <div className="fixed top-20 right-4 z-[100] pointer-events-none flex flex-col items-end gap-2">
           <Sticker color="black" className="text-[8px] opacity-80 border-dashed border-2 border-brand-orange">
-            ADMIN_SEASON_BYPASS
+            {isAdmin ? 'ADMIN_SEASON_BYPASS' : 'DEV_SEASON_ACTIVE'}
           </Sticker>
+          {activeSeason?.id === 'dev-season-2026' && (
+            <div className="bg-brand-orange text-white text-[7px] px-2 py-0.5 font-bold uppercase tracking-widest">
+              FALLBACK_MODE_ENGAGED
+            </div>
+          )}
         </div>
       )}
       {children}

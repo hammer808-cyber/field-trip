@@ -124,7 +124,18 @@ export default function AdminUsersPage() {
                     </div>
                     <div>
                       <p className="text-xs font-bold uppercase tracking-widest">{u.name}</p>
-                      <p className="text-[10px] font-mono opacity-40">{u.email}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-[10px] font-mono opacity-40">{u.email}</p>
+                        {u.fieldClassificationComplete ? (
+                          <span className="text-[8px] px-1 bg-brand-green/10 text-brand-green border border-brand-green/20 font-mono uppercase">
+                            {u.fieldTypeName || u.fieldType || 'ASSIGNED'}
+                          </span>
+                        ) : (
+                          <span className="text-[8px] px-1 bg-on-surface/10 text-on-surface/40 border border-on-surface/10 font-mono uppercase">
+                            ONBOARDING_PENDING
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -142,7 +153,7 @@ export default function AdminUsersPage() {
                         </span>
                       )}
                       <p className="text-[8px] font-mono opacity-30 uppercase tracking-tighter">
-                        REP: {u.points} // SOLO: {u.soloCount}
+                        REP: {u.points} // SOLO: {u.soloTripsCount}
                       </p>
                     </div>
 

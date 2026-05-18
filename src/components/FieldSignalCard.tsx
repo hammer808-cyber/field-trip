@@ -38,9 +38,9 @@ export const FieldSignalCard: React.FC<FieldSignalCardProps> = ({ activeSignal, 
     return () => clearInterval(timer);
   }, [activeSignal]);
 
-  const isBaja = skin === 'baja-bratz';
-  const isDiamond = skin === 'slippery-diamond';
-  const isHeat = skin === 'heatwave';
+  const isBaja = skin.id === 'baja-bratz';
+  const isDiamond = skin.id === 'slippery-diamond';
+  const isHeat = skin.id === 'heatwave';
 
   if (loading) {
     return (
@@ -70,31 +70,31 @@ export const FieldSignalCard: React.FC<FieldSignalCardProps> = ({ activeSignal, 
         isBaja ? "p-6 bg-[#40e0d0]/10 border-4 border-baja-pink rounded-[2.5rem] shadow-[8px_8px_0px_#ff007f]" :
         isDiamond ? "p-6 bg-white/5 backdrop-blur-xl border border-white/20 rounded-none shadow-[0_0_40px_rgba(255,255,255,0.05)]" :
         isHeat ? "p-6 bg-white border-4 border-heat-pink rounded-[3rem] shadow-[12px_12px_0px_rgba(255,140,0,0.4)]" :
-        "notice-card p-6 rotate-[-0.5deg] border-brand-orange/40 bg-paper-dark"
+        "p-6 bg-white border-4 border-on-surface shadow-[12px_12px_0px_rgba(0,0,0,0.1)]"
       )}>
         {/* Signal Icon & Type */}
-        <div className="flex justify-between items-start mb-4">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6 relative z-10">
+          <div className="flex items-center gap-4">
             <div className={cn(
-              "p-2 rounded-full",
-              isBaja ? "bg-baja-pink text-white" :
-              isDiamond ? "bg-white text-black" :
-              isHeat ? "bg-heat-pink text-white" :
-              "bg-brand-orange text-white"
+              "p-3 border-4 shadow-[4px_4px_0px_black]",
+              isBaja ? "bg-baja-pink text-white rounded-full" :
+              isDiamond ? "bg-white text-black rounded-none" :
+              isHeat ? "bg-heat-pink text-white rounded-full" :
+              "bg-brand-lime text-black border-on-surface"
             )}>
-              {activeSignal.signalType === 'bonus' ? <Zap className="w-4 h-4" /> : 
-               activeSignal.signalType === 'multiplier' ? <Sparkles className="w-4 h-4" /> : 
-               <Radio className="w-4 h-4" />}
+              {activeSignal.signalType === 'bonus' ? <Zap className="w-8 h-8 stroke-[3]" /> : 
+               activeSignal.signalType === 'multiplier' ? <Sparkles className="w-8 h-8 stroke-[3]" /> : 
+               <Radio className="w-8 h-8 stroke-[3]" />}
             </div>
-            <div>
+            <div className="text-left">
               <p className={cn(
-                "micro-label uppercase tracking-widest",
-                isBaja ? "text-baja-pink font-bold" : "opacity-60"
+                "micro-label uppercase tracking-[0.4em] font-black",
+                isBaja ? "text-baja-pink" : "text-brand-orange"
               )}>
-                {activeSignal.signalType}_SIGNAL // ACTIVE
+                {activeSignal.signalType}_SIGNAL // HV_DETECTION
               </p>
               <h3 className={cn(
-                "font-display text-2xl uppercase tracking-tighter leading-none mt-1",
+                "font-display text-4xl uppercase tracking-tighter leading-[0.8] mt-1 font-black",
                 isBaja ? "text-baja-pink" : isDiamond ? "text-white" : isHeat ? "text-heat-pink" : "text-on-surface"
               )}>
                 {activeSignal.title}
@@ -102,48 +102,50 @@ export const FieldSignalCard: React.FC<FieldSignalCardProps> = ({ activeSignal, 
             </div>
           </div>
           
-          <div className="text-right">
-            <p className="micro-label opacity-40 mb-1">SIGNAL_EXPIRY</p>
+          <div className="text-left md:text-right bg-white md:bg-transparent p-2 md:p-0 border-2 md:border-0 border-on-surface shadow-[4px_4px_0px_rgba(0,0,0,0.05)] md:shadow-none">
+            <p className="micro-label opacity-40 mb-1 font-black tracking-widest">SIGNAL_EXPIRATION</p>
             <div className={cn(
-              "font-mono text-sm flex items-center gap-2",
+              "font-mono text-xl flex items-center md:justify-end gap-2 font-black",
               isBaja ? "text-baja-pink" : isDiamond ? "text-white" : isHeat ? "text-heat-pink" : "text-brand-orange"
             )}>
-              <Timer className="w-3 h-3" />
+              <Timer className="w-5 h-5 stroke-[3]" />
               {timeLeft}
             </div>
           </div>
         </div>
 
         {/* Description & Flavor */}
-        <div className="space-y-3">
-          <p className={cn(
-            "font-serif text-sm italic leading-relaxed",
-            isDiamond ? "text-white/60" : "opacity-80"
-          )}>
-            "{activeSignal.description}"
-          </p>
+        <div className="space-y-6 relative z-10 text-left">
+          <div className="bg-paper-dark p-6 border-l-8 border-on-surface shadow-inner">
+            <p className={cn(
+              "font-serif text-xl italic leading-tight font-medium",
+              isDiamond ? "text-white/60" : "text-on-surface"
+            )}>
+              "{activeSignal.description}"
+            </p>
+          </div>
           
           <div className={cn(
-            "p-3 flex items-center justify-between",
-            isBaja ? "bg-white/40 rounded-2xl" : 
-            isDiamond ? "bg-white/5 border border-white/10" :
-            isHeat ? "bg-heat-yellow/20 rounded-2xl" : 
-            "bg-on-surface/5 rounded-lg border border-on-surface/10"
+            "p-6 flex items-center justify-between border-4",
+            isBaja ? "bg-white/40 border-baja-pink rounded-2xl" : 
+            isDiamond ? "bg-white/5 border-white/40" :
+            isHeat ? "bg-heat-yellow/20 border-white rounded-2xl" : 
+            "bg-on-surface text-brand-lime border-on-surface shadow-[8px_8px_0px_rgba(0,0,0,0.1)]"
           )}>
-            <div className="flex items-center gap-2">
-              <Zap className={cn("w-4 h-4", isBaja ? "text-baja-pink" : "text-brand-orange")} />
+            <div className="flex items-center gap-4">
+              <Zap className={cn("w-8 h-8", isBaja ? "text-baja-pink" : "text-brand-lime")} />
               <span className={cn(
-                "font-display text-sm uppercase tracking-tight",
-                isBaja ? "text-baja-pink" : "text-on-surface"
+                "font-display text-2xl uppercase tracking-tighter font-black",
+                isBaja ? "text-baja-pink" : "text-brand-lime"
               )}>
                 {activeSignal.bonusRule}
               </span>
             </div>
             <button 
               onClick={() => setShowInfo(!showInfo)}
-              className="opacity-40 hover:opacity-100 transition-opacity"
+              className="p-2 bg-white/20 hover:bg-white/40 transition-colors"
             >
-              <HelpCircle className="w-4 h-4" />
+              <Info className="w-6 h-6" />
             </button>
           </div>
 
@@ -153,15 +155,15 @@ export const FieldSignalCard: React.FC<FieldSignalCardProps> = ({ activeSignal, 
               animate={{ height: 'auto', opacity: 1 }}
               className="overflow-hidden"
             >
-              <div className="pt-2 pb-1 space-y-2">
-                <p className="micro-label opacity-40">WHY THIS MATTERS</p>
-                <p className="text-[10px] leading-relaxed font-serif opacity-60">
-                   Field Signals are real-time modifiers injected by the Bureau to reward adaptive field behavior. 
-                   Submitting reports that match active signal conditions yields prioritized clearance bonuses.
+              <div className="pt-4 pb-2 space-y-3">
+                <p className="micro-label font-black text-brand-orange">SYSTEM_NOTES</p>
+                <p className="text-[11px] leading-relaxed font-mono font-bold uppercase opacity-60">
+                   Field Signals are real-time modifiers injected by the Bureau to reward adaptive behavior. 
+                   Submitting reports during this window yields high-voltage clearance bonuses.
                 </p>
                 {activeSignal.flavorText && (
-                  <p className="text-[10px] leading-relaxed font-mono text-brand-orange/60">
-                    // OBS_DATA: {activeSignal.flavorText}
+                  <p className="text-[10px] leading-relaxed font-mono text-on-surface font-black bg-brand-lime/10 p-2 border border-brand-lime/20">
+                    &gt; OBS_DATA: {activeSignal.flavorText}
                   </p>
                 )}
               </div>

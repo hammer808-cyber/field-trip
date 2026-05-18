@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { AvatarPreview } from '../components/AvatarPreview';
-import { AVATAR_MANIFEST, DEFAULT_AVATAR } from '../constants/avatarAssets';
+import { AVATAR_MANIFEST, DEFAULT_AVATAR, PERSONA_AVATAR_PRESETS } from '../constants/avatarAssets';
 import { AvatarData, AvatarOption } from '../types/avatar';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, Save, ChevronRight, Check } from 'lucide-react';
+import { ChevronLeft, Save, ChevronRight, Check, RefreshCcw } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 type Category = keyof typeof AVATAR_MANIFEST;
@@ -68,38 +68,47 @@ export default function FieldIdentity() {
   };
   const selectedId = currentAvatar[fieldMapping[activeCategory]];
 
+  const handleResetToPersona = () => {
+    const persona = profile?.fieldType;
+    if (persona && PERSONA_AVATAR_PRESETS[persona]) {
+      if (confirm(`Reset Identity to ${profile.fieldTypeName} standard issue?`)) {
+        setCurrentAvatar(PERSONA_AVATAR_PRESETS[persona]);
+      }
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-black text-white font-mono flex flex-col pt-safe">
+    <div className="min-h-screen bg-white text-on-surface font-mono flex flex-col pt-safe">
       {/* Header */}
-      <header className="p-4 border-b border-white/10 flex items-center justify-between bg-black/80 backdrop-blur-md sticky top-0 z-50">
-        <button onClick={() => navigate(-1)} className="p-2 hover:bg-white/10 rounded-full transition-colors font-mono uppercase text-[10px] tracking-widest flex items-center gap-2">
-          <ChevronLeft size={16} />
+      <header className="p-6 border-b-8 border-on-surface flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-50">
+        <button onClick={() => navigate(-1)} className="p-3 hover:bg-on-surface/5 rounded-none border-2 border-on-surface shadow-[4px_4px_0px_black] transition-all font-mono uppercase text-[10px] tracking-widest flex items-center gap-2 font-black">
+          <ChevronLeft size={16} strokeWidth={3} />
           <span>Exit</span>
         </button>
         <div className="text-center">
-          <h1 className="text-sm font-black uppercase tracking-widest">Field_ID_Editor</h1>
-          <p className="text-[8px] opacity-40 uppercase">Archival_Interface_V1.0</p>
+          <h1 className="text-xl font-black uppercase tracking-tighter italic leading-none">Field_ID_Editor</h1>
+          <p className="text-[9px] opacity-40 uppercase font-black tracking-widest mt-1">Archival_Interface_V2.0</p>
         </div>
         <button 
           onClick={handleSave} 
           disabled={isSaving}
-          className="bg-white text-black px-4 py-1.5 rounded-sm font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-white/90 disabled:opacity-50"
+          className="bg-brand-orange text-white px-6 py-2 border-4 border-on-surface shadow-[6px_6px_0px_var(--color-brand-lime)] font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:scale-105 active:scale-95 disabled:opacity-50 transition-all"
         >
-          {isSaving ? <span className="animate-pulse">Saving...</span> : (
+          {isSaving ? <span className="animate-pulse">Archiving...</span> : (
             <>
-              <Save size={14} />
-              <span>Commit</span>
+              <Save size={16} strokeWidth={3} />
+              <span>Secure ID</span>
             </>
           )}
         </button>
       </header>
 
       {/* Main Preview Area */}
-      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-gradient-to-b from-neutral-900 to-black relative overflow-hidden">
+      <div className="flex-1 flex flex-col items-center justify-center p-12 bg-white relative overflow-hidden">
         {/* Background Gradients */}
-        <div className="absolute inset-0 z-0 opacity-30">
-          <div className="absolute top-1/4 -left-1/4 w-96 h-96 bg-brand-orange/20 blur-[100px] rounded-full" />
-          <div className="absolute bottom-1/4 -right-1/4 w-96 h-96 bg-blue-600/20 blur-[100px] rounded-full" />
+        <div className="absolute inset-0 z-0 opacity-10">
+          <div className="absolute top-1/4 -left-1/4 w-[600px] h-[600px] bg-brand-orange/20 blur-[150px] rounded-full" />
+          <div className="absolute bottom-1/4 -right-1/4 w-[600px] h-[600px] bg-brand-lime/20 blur-[150px] rounded-full" />
         </div>
 
         <motion.div 
@@ -107,64 +116,79 @@ export default function FieldIdentity() {
           animate={{ scale: 1, opacity: 1 }}
           className="relative z-10"
         >
-          <div className="absolute -inset-8 border border-white/5 pointer-events-none" />
-          <div className="absolute -inset-4 border border-white/10 pointer-events-none" />
-          <AvatarPreview avatar={currentAvatar} size="xl" className="shadow-[0_0_50px_rgba(255,255,255,0.05)]" />
+          <div className="absolute -inset-12 border-4 border-on-surface/5 pointer-events-none -rotate-3" />
+          <div className="absolute -inset-6 border-4 border-on-surface/10 pointer-events-none rotate-6" />
+          <AvatarPreview avatar={currentAvatar} size="xl" className="shadow-[20px_20px_0px_black] border-8 border-on-surface bg-white" />
           
           {/* Label */}
-          <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 w-full text-center">
-            <span className="text-[10px] uppercase tracking-[0.3em] font-black text-white/40">Field_Asset_ID</span>
+          <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 w-full text-center">
+             <div className="inline-block bg-on-surface text-brand-lime px-4 py-1 border-2 border-on-surface -rotate-2">
+               <span className="text-[12px] uppercase tracking-[0.4em] font-black italic">Field_Asset_ID</span>
+             </div>
           </div>
         </motion.div>
       </div>
 
       {/* Editor Controls */}
-      <div className="bg-neutral-900 border-t border-white/10 p-4 pb-safe-offset-4">
+      <div className="bg-white border-t-8 border-on-surface p-6 pb-safe-offset-6">
         {/* Category Selector */}
-        <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar py-2 border-b border-white/5">
-          {categories.map(cat => (
-            <button
-              key={cat.key}
-              onClick={() => setActiveCategory(cat.key)}
-              className={cn(
-                "px-3 py-1 text-[10px] uppercase tracking-widest font-bold whitespace-nowrap transition-all border-b-2",
-                activeCategory === cat.key ? "border-brand-orange text-brand-orange" : "border-transparent text-white/40 hover:text-white/60"
-              )}
+        <div className="flex items-center justify-between border-b-4 border-on-surface/5 mb-8">
+          <div className="flex gap-4 overflow-x-auto no-scrollbar py-2">
+            {categories.map(cat => (
+              <button
+                key={cat.key}
+                onClick={() => setActiveCategory(cat.key)}
+                className={cn(
+                  "px-4 py-2 text-xs uppercase tracking-widest font-black transition-all border-b-4",
+                  activeCategory === cat.key ? "border-brand-orange text-brand-orange scale-105" : "border-transparent text-on-surface/40 hover:text-on-surface/60"
+                )}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+          
+          {profile?.fieldType && PERSONA_AVATAR_PRESETS[profile.fieldType] && (
+            <button 
+              onClick={handleResetToPersona}
+              className="flex items-center gap-2 px-4 py-2 bg-on-surface/5 border-2 border-on-surface font-black uppercase text-[9px] tracking-widest hover:bg-brand-lime transition-colors"
+              title="Reset to Persona Default"
             >
-              {cat.label}
+              <RefreshCcw size={12} strokeWidth={3} />
+              Reset
             </button>
-          ))}
+          )}
         </div>
 
         {/* Options Grid */}
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-6 max-h-[40vh] overflow-y-auto pr-4 custom-scrollbar pb-8">
           {currentOptions.map((option: AvatarOption) => (
             <button
               key={option.id}
               onClick={() => handleSelectOption(activeCategory, option.id)}
               className={cn(
-                "relative flex flex-col items-center gap-2 p-2 rounded-sm border transition-all duration-300 group",
+                "relative flex flex-col items-center gap-4 p-4 transition-all duration-300 group border-4",
                 selectedId === option.id 
-                  ? "bg-brand-orange/10 border-brand-orange shadow-[0_0_15px_rgba(226,149,120,0.2)]" 
-                  : "bg-black/40 border-white/5 hover:border-white/20"
+                  ? "bg-brand-orange border-on-surface shadow-[8px_8px_0px_var(--color-brand-lime)] -translate-y-1" 
+                  : "bg-white border-on-surface/10 hover:border-on-surface hover:bg-on-surface/5"
               )}
             >
               {selectedId === option.id && (
-                <div className="absolute top-1 right-1 bg-brand-orange text-white rounded-full p-0.5 z-20 scale-75">
-                  <Check size={8} strokeWidth={4} />
+                <div className="absolute -top-3 -right-3 bg-brand-lime text-on-surface border-4 border-on-surface p-1 z-20 shadow-[4px_4px_0px_black] rotate-12">
+                  <Check size={14} strokeWidth={4} />
                 </div>
               )}
               
-              <div className="w-12 h-12 bg-neutral-800/50 rounded-full flex items-center justify-center overflow-hidden border border-white/5">
+              <div className="w-16 h-16 bg-paper-dark border-4 border-on-surface flex items-center justify-center overflow-hidden shadow-[4px_4px_0px_black]">
                 {option.path ? (
                   <img src={option.path} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-[8px] opacity-20 uppercase font-black">Null</span>
+                  <span className="text-[10px] opacity-20 uppercase font-black italic">Null</span>
                 )}
               </div>
               <span className={cn(
-                "text-[8px] uppercase tracking-tighter text-center line-clamp-1 group-hover:text-white transition-colors",
-                selectedId === option.id ? "text-brand-orange" : "text-white/40"
+                "text-[10px] uppercase font-black tracking-widest text-center line-clamp-1 transition-colors",
+                selectedId === option.id ? "text-white" : "text-on-surface/40 group-hover:text-on-surface"
               )}>
                 {option.name}
               </span>
@@ -180,15 +204,15 @@ export default function FieldIdentity() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-xl"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-brand-lime pr-safe pl-safe"
           >
-            <div className="text-center space-y-6">
-              <div className="w-20 h-20 bg-brand-orange rounded-full flex items-center justify-center mx-auto shadow-[0_0_40px_rgba(226,149,120,0.4)]">
-                <Check size={40} className="text-white" strokeWidth={3} />
+            <div className="text-center space-y-12">
+              <div className="w-32 h-32 bg-brand-orange border-8 border-on-surface flex items-center justify-center mx-auto shadow-[20px_20px_0px_black] rotate-12">
+                <Check size={64} className="text-white" strokeWidth={5} />
               </div>
-              <div className="space-y-2">
-                <h2 className="text-2xl font-black uppercase tracking-tighter italic">Identity_Secured</h2>
-                <p className="text-[10px] text-brand-orange uppercase tracking-[0.2em]">Field Database Updated Successfully</p>
+              <div className="space-y-6">
+                <h2 className="text-7xl font-black uppercase tracking-tighter italic leading-none drop-shadow-[6px_6px_0px_white]">ID_LOCKED</h2>
+                <p className="text-xl text-on-surface bg-white inline-block px-6 py-2 border-4 border-on-surface shadow-[8px_8px_0px_black] font-black uppercase tracking-[0.2em] -rotate-3">Dossier archived and approved.</p>
               </div>
             </div>
           </motion.div>

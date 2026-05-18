@@ -14,7 +14,8 @@ export interface GameState {
   userId: string | null;
   email: string | null;
   points: number;
-  soloCount: number;
+  soloTripsCount: number;
+  completedCoreChallenges: number;
   onboardingComplete: boolean;
   fieldType: FieldTypeId | null;
   isAdmin: boolean;
@@ -35,7 +36,7 @@ export function isViewfinderLocked(state: GameState): boolean {
  */
 export function canAccessCrewMode(state: GameState): boolean {
   if (state.isAdmin) return true;
-  return state.soloCount >= CONFIG.CREW_MODE_SOLO_REQUIRED;
+  return state.completedCoreChallenges >= CONFIG.CREW_MODE_SOLO_REQUIRED;
 }
 
 /**
@@ -68,8 +69,8 @@ export function getUserRole(state: GameState): 'admin' | 'field-agent' | 'recrui
  */
 export function getNextMilestone(state: GameState): string | null {
   if (!state.onboardingComplete) return "Complete Onboarding to begin Field Ops.";
-  if (state.soloCount < CONFIG.CREW_MODE_SOLO_REQUIRED) {
-    return `Complete ${CONFIG.CREW_MODE_SOLO_REQUIRED - state.soloCount} more solo missions to unlock CREW_MODE.`;
+  if (state.completedCoreChallenges < CONFIG.CREW_MODE_SOLO_REQUIRED) {
+    return `Complete ${CONFIG.CREW_MODE_SOLO_REQUIRED - state.completedCoreChallenges} more core challenges to unlock CREW_MODE.`;
   }
   if (state.points < CONFIG.FIELD_CHECK_MODE_POINTS_REQUIRED) {
     return `Reach ${CONFIG.FIELD_CHECK_MODE_POINTS_REQUIRED} points to unlock FIELD_CHECK_CAPABILITY.`;

@@ -143,7 +143,7 @@ export default function AdminQALensesPage() {
                 <option value="Field Classification">FIELD_CLASSIFICATION</option>
                 <option value="Trip Deck">TRIP_DECK</option>
                 <option value="Capture & Proof">CAPTURE_AND_PROOF</option>
-                <option value="Journal / Zine">JOURNAL_ZINE</option>
+                <option value="Voting Hub">VOTING_HUB</option>
                 <option value="Leaderboard">LEADERBOARD_SOCIAL</option>
               </select>
             </div>

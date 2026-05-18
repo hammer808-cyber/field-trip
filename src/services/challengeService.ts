@@ -12,7 +12,8 @@ import {
   Timestamp,
   limit
 } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, auth } from '../lib/firebase';
+import { logAdminAction } from './moderationService';
 import { ChallengeCard, ChallengeStatus } from '../types/challenges';
 
 const CHALLENGES_COLLECTION = 'challenges';
@@ -35,6 +36,17 @@ export async function saveChallenge(challenge: Partial<ChallengeCard>): Promise<
   };
   
   await setDoc(doc(db, CHALLENGES_COLLECTION, id), data, { merge: true });
+
+  if (auth.currentUser) {
+    await logAdminAction(
+      auth.currentUser.uid, 
+      id, 
+      'challenge', 
+      challenge.id ? 'update' : 'create', 
+      { title: challenge.title }
+    );
+  }
+
   return id;
 }
 
@@ -51,4 +63,8 @@ export async function updateChallengeStatus(id: string, status: ChallengeStatus)
     status,
     updatedAt: new Date().toISOString()
   });
+
+  if (auth.currentUser) {
+    await logAdminAction(auth.currentUser.uid, id, 'challenge', 'update_status', { newStatus: status });
+  }
 }

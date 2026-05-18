@@ -1,17 +1,53 @@
 import { useState } from 'react';
 import { useDev } from '../context/DevContext';
 import { FieldTypeId, FIELD_TYPES } from '../constants';
-import { X, Settings, Calendar, Shield, Zap, User } from 'lucide-react';
+import { X, Settings, Calendar, Shield, Zap, User, Microscope, ClipboardCopy, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { runFullPersonaAudit, AuditSummary } from '../utils/personaQuizSimulator';
 
 export function DevTools() {
   const { overrides, setOverrides, isDevMode } = useDev();
   const [isOpen, setIsOpen] = useState(false);
+  const [auditResult, setAuditResult] = useState<AuditSummary | null>(null);
 
   if (!isDevMode) return null;
 
   const updateOverride = (key: string, value: any) => {
     setOverrides(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleRunAudit = () => {
+    const result = runFullPersonaAudit();
+    setAuditResult(result);
+  };
+
+  const handleCopyAudit = () => {
+    if (!auditResult) return;
+    
+    const text = `
+BUREAU PERSONA QUIZ AUDIT SUMMARY
+Generated: ${auditResult.timestamp}
+
+1. QUESTION INTEGRITY
+Status: ${auditResult.integrity.passed ? 'PASS' : 'FAIL'}
+Questions Checked: ${auditResult.integrity.questionCount}
+Answers Checked: ${auditResult.integrity.answerCount}
+Errors Found: ${auditResult.integrity.errors.length}
+${auditResult.integrity.errors.map(e => ` - ${e}`).join('\n')}
+
+2. REACHABILITY
+${Object.entries(auditResult.reachability.reachable).map(([type, status]) => ` - ${type}: ${status ? 'REACHABLE' : 'UNREACHABLE'}`).join('\n')}
+
+3. RANDOM SIMULATION Distribution (${auditResult.simulation.iterations} trials)
+${auditResult.simulation.results.map(r => ` - ${r.type}: ${r.count} wins (${r.frequency})`).join('\n')}
+
+4. WARNINGS
+${auditResult.warnings.length > 0 ? auditResult.warnings.map(w => ` - ${w}`).join('\n') : 'No warnings detected.'}
+
+5. FINAL VERDICT
+Verdict: ${auditResult.verdict}
+`;
+    navigator.clipboard.writeText(text.trim());
   };
 
   return (
@@ -32,6 +68,91 @@ export function DevTools() {
             <h3 className="font-display text-xl uppercase tracking-widest text-brand-orange border-b border-on-surface/10 pb-2">
               BUREAU_DEBUG_PANEL
             </h3>
+
+            {/* Persona Simulator Section */}
+            <div className="space-y-3 p-3 bg-brand-mustard/10 border-2 border-brand-mustard/20 rounded-lg">
+              <label className="micro-label flex items-center gap-2 text-brand-mustard font-bold">
+                <Microscope className="w-3 h-3" /> QUIZ_VALIDATION_SUITE
+              </label>
+              
+              <button
+                onClick={handleRunAudit}
+                className="w-full py-2 bg-brand-mustard text-on-surface text-[10px] font-mono uppercase font-bold tracking-widest hover:bg-on-surface hover:text-white transition-colors"
+              >
+                RUN_FULL_QUIZ_AUDIT
+              </button>
+
+              {auditResult && (
+                <div className="space-y-3 mt-4 pt-4 border-t border-brand-mustard/20">
+                  <div className="flex items-center justify-between">
+                    <span className="micro-label text-brand-mustard">AUDIT_SUMMARY</span>
+                    <button 
+                      onClick={handleCopyAudit}
+                      className="p-1 hover:bg-brand-mustard/20 rounded transition-colors text-brand-mustard"
+                      title="Copy Summary"
+                    >
+                      <ClipboardCopy className="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-[10px] font-mono">
+                      <span>VERDICT:</span>
+                      <span className={cn(
+                        "font-bold px-2 py-0.5 rounded",
+                        auditResult.verdict === 'PASS' ? "bg-brand-green text-white" :
+                        auditResult.verdict === 'WARNING' ? "bg-brand-mustard text-on-surface" : "bg-error text-white"
+                      )}>
+                        {auditResult.verdict}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-mono opacity-60">INTEGRITY:</p>
+                      <div className="flex items-center gap-1.5 text-[10px] font-mono px-2 py-1 bg-white/50">
+                        {auditResult.integrity.passed ? <CheckCircle2 className="w-3 h-3 text-brand-green" /> : <XCircle className="w-3 h-3 text-error" />}
+                        <span>{auditResult.integrity.questionCount} Questions / {auditResult.integrity.answerCount} Answers</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-mono opacity-60">REACHABILITY:</p>
+                      <div className="grid grid-cols-2 gap-1">
+                        {Object.entries(auditResult.reachability.reachable).map(([type, reachable]) => (
+                          <div key={type} className="flex items-center gap-1 text-[9px] font-mono">
+                            <div className={cn("w-1.5 h-1.5 rounded-full", reachable ? "bg-brand-green" : "bg-error")} />
+                            <span className="truncate opacity-80">{type}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-mono opacity-60">DISTRIBUTION (RANDOM 5K):</p>
+                      <div className="space-y-1 bg-white/50 p-2 rounded">
+                        {auditResult.simulation.results.map(r => (
+                          <div key={r.type} className="flex items-center justify-between text-[9px] font-mono">
+                            <span className="opacity-80 truncate mr-2">{r.type}:</span>
+                            <span className="font-bold shrink-0">{r.frequency}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {auditResult.warnings.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-mono text-brand-orange flex items-center gap-1">
+                          <AlertTriangle className="w-2.5 h-2.5" /> WARNINGS ({auditResult.warnings.length})
+                        </p>
+                        <ul className="text-[8px] font-mono list-disc pl-3 text-brand-orange opacity-80">
+                          {auditResult.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Date Simulation */}
             <div className="space-y-2">

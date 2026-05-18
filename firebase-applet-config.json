@@ -1,9 +1,10 @@
 {
   "projectId": "field-trip-495823",
-  "appId": "1:685611230164:web:1f70418a5a3df84f456c41",
+  "appId": "1:685611230164:web:f7917d394b295be6456c41",
   "apiKey": "AIzaSyCI3uZ7_Z9snoc6-BOXNaE2BSUsaZxFxtk",
   "authDomain": "field-trip-495823.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-6bdf91b5-28e9-46f3-ae49-89cf99e2d88a",
   "storageBucket": "field-trip-495823.firebasestorage.app",
   "messagingSenderId": "685611230164",
-  "measurementId": ""
+  "measurementId": "G-CCY8F2BQH2"
 }

@@ -42,31 +42,31 @@ export function ReportModal({ isOpen, onClose, targetId, targetType, targetName 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[400] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[400] flex items-center justify-center p-6 bg-white/40 backdrop-blur-md">
       <AnimatePresence mode="wait">
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="bg-paper w-full max-w-sm border-2 border-on-surface shadow-2xl overflow-hidden"
+          className="bg-white w-full max-w-sm border-4 border-on-surface shadow-[16px_16px_0px_rgba(0,0,0,0.1)] overflow-hidden"
         >
           {/* Header */}
-          <div className="p-4 border-b-2 border-on-surface bg-on-surface/5 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4 text-error" />
-              <h2 className="font-display text-sm uppercase tracking-tighter">Report Content</h2>
+          <div className="p-5 border-b-4 border-on-surface bg-brand-orange text-white flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <ShieldAlert className="w-6 h-6 stroke-[3]" />
+              <h2 className="font-display text-xl uppercase tracking-tighter font-black">Report Content</h2>
             </div>
-            <button onClick={onClose} className="p-1 hover:bg-black/10 rounded-full"><X className="w-4 h-4" /></button>
+            <button onClick={onClose} className="p-2 hover:bg-white/20 transition-colors"><X className="w-6 h-6 stroke-[3]" /></button>
           </div>
 
-          <div className="p-6">
+          <div className="p-8">
             {step === 'reason' && (
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <p className="micro-label">PROTOCOL_REPORT</p>
-                  <p className="text-xs opacity-60">Why are you reporting this {targetType}?</p>
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <p className="micro-label text-brand-orange font-black">PROTOCOL_REPORT</p>
+                  <p className="text-sm font-bold opacity-60">Select violation category for this {targetType}:</p>
                 </div>
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
                   {REASONS.map((reason) => (
                     <button
                       key={reason.id}
@@ -74,13 +74,13 @@ export function ReportModal({ isOpen, onClose, targetId, targetType, targetName 
                         setSelectedReason(reason.id);
                         setStep('details');
                       }}
-                      className="w-full text-left p-3 border border-on-surface/10 hover:border-brand-orange hover:bg-brand-orange/5 transition-all group"
+                      className="w-full text-left p-4 border-4 border-on-surface hover:bg-brand-lime transition-all group shadow-[4px_4px_0px_black] active:shadow-none active:translate-x-1 active:translate-y-1"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] uppercase font-bold tracking-widest">{reason.label}</span>
-                        <ChevronRight className="w-3 h-3 opacity-20 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                        <span className="text-xs uppercase font-black tracking-widest">{reason.label}</span>
+                        <ChevronRight className="w-5 h-5 opacity-40 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                       </div>
-                      <p className="text-[8px] opacity-40 font-mono mt-1">{reason.description}</p>
+                      <p className="text-[10px] opacity-60 font-mono mt-2 leading-tight uppercase font-bold">{reason.description}</p>
                     </button>
                   ))}
                 </div>
@@ -88,40 +88,42 @@ export function ReportModal({ isOpen, onClose, targetId, targetType, targetName 
             )}
 
             {step === 'details' && (
-              <div className="space-y-4">
-                <button onClick={() => setStep('reason')} className="text-[8px] uppercase tracking-widest opacity-40 hover:opacity-100 transition-opacity flex items-center gap-1">
-                  ← Back to Reasons
+              <div className="space-y-6">
+                <button onClick={() => setStep('reason')} className="text-[10px] uppercase tracking-widest font-black opacity-40 hover:opacity-100 transition-opacity flex items-center gap-2 mb-2">
+                  ← REVISE_REASON
                 </button>
                 <div className="space-y-2">
-                  <p className="micro-label">ADDITIONAL_DETAILS</p>
+                  <p className="micro-label font-black">ADDITIONAL_CONTEXT</p>
                   <textarea
                     value={details}
                     onChange={(e) => setDetails(e.target.value)}
-                    placeholder="Provide more context for our moderators..."
-                    className="w-full bg-on-surface/5 border-2 border-on-surface/10 p-3 text-xs focus:border-brand-orange outline-none h-24"
+                    placeholder="Provide evidence details for bureau analysts..."
+                    className="w-full bg-white border-4 border-on-surface p-4 text-xs font-mono font-bold focus:ring-4 focus:ring-brand-lime outline-none h-32 placeholder:opacity-40"
                   />
                 </div>
                 <button
                   onClick={handleSubmit}
                   disabled={isSubmitting}
-                  className="w-full bureau-btn bg-error text-white text-[10px]"
+                  className="w-full bureau-btn bg-on-surface text-white py-6 text-sm font-black border-4 border-on-surface shadow-[8px_8px_0px_var(--color-brand-orange)] active:shadow-none active:translate-x-1 active:translate-y-1 transition-all"
                 >
-                  {isSubmitting ? 'SENDING_REPORT...' : 'SUBMIT_REPORT'}
+                  {isSubmitting ? 'UPLOADING_REPORT...' : 'DISPATCH_ANALYSTS'}
                 </button>
               </div>
             )}
 
             {step === 'success' && (
-              <div className="text-center py-8 space-y-4">
-                <div className="mx-auto w-12 h-12 bg-success/10 flex items-center justify-center rounded-full">
-                  <CheckCircle2 className="w-6 h-6 text-success" />
+              <div className="text-center py-10 space-y-6">
+                <div className="mx-auto w-20 h-20 bg-brand-lime border-4 border-on-surface flex items-center justify-center shadow-[6px_6px_0px_black]">
+                  <CheckCircle2 className="w-10 h-10 text-on-surface stroke-[3]" />
                 </div>
-                <div className="space-y-2">
-                  <h3 className="font-display text-xl uppercase tracking-tighter">Report Filed</h3>
-                  <p className="text-[10px] opacity-60">Our field analysts will investigate this transmission within 24 hours.</p>
+                <div className="space-y-3">
+                  <h3 className="font-display text-4xl uppercase tracking-tighter font-black">Report Filed</h3>
+                  <p className="text-xs font-mono font-bold opacity-60 uppercase tracking-widest leading-loose">
+                    Transmission secured.<br/>Analysts will evaluate within 24h.
+                  </p>
                 </div>
-                <button onClick={onClose} className="w-full bureau-btn bg-on-surface text-paper text-xs">
-                  CLOSE
+                <button onClick={onClose} className="w-full bureau-btn bg-on-surface text-white py-5 text-sm font-black shadow-[6px_6px_0px_var(--color-brand-cyan)]">
+                  DISMISS
                 </button>
               </div>
             )}

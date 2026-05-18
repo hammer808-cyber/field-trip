@@ -10,24 +10,35 @@ service firebase.storage {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Standard guard for image uploads
-    match /{allPaths=**} {
-      allow read: if isSignedIn();
-      allow write: if false; // Default deny
+    function isAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email == 'hammer808@gmail.com' && request.auth.token.email_verified == true)
+      );
     }
 
-    match /proofs/{userId}/{fileName} {
+    // Default deny for safety
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // Proofs: Supports subdirectories (e.g., proofs/original/USER_ID/file.jpg)
+    match /proofs/{folder}/{userId}/{fileName} {
       allow write: if isOwner(userId) && 
-                      request.resource.size < 5 * 1024 * 1024 &&
+                      request.resource.size < 10 * 1024 * 1024 &&
                       request.resource.contentType.matches('image/.*');
-      allow read: if isSignedIn();
+      
+      // Original raw evidence is private to owner/admin
+      // Filtered game-ready proof is visible to all Bureau members for voting
+      allow read: if (folder == 'original') 
+                  ? (isOwner(userId) || isAdmin())
+                  : isSignedIn();
     }
 
     match /avatars/{userId}/{fileName} {
       allow write: if isOwner(userId) && 
-                      request.resource.size < 1 * 1024 * 1024 &&
+                      request.resource.size < 2 * 1024 * 1024 &&
                       request.resource.contentType.matches('image/.*');
-      allow read: if true;
+      allow read: if true; // Avatars are public profile assets
     }
   }
 }

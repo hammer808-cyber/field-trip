@@ -1,9 +1,18 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth } from '../lib/firebase';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  limit, 
+  onSnapshot 
+} from 'firebase/firestore';
 import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, User } from 'firebase/auth';
-import { FieldTypeId, FIELD_TYPES, Entry, ProductPersonaLensId } from '../constants';
+import { FieldTypeId, FIELD_TYPES, Entry, ProductPersonaLensId, DEV_SEASON, DEV_APP_CONFIG } from '../constants';
 import { AvatarData } from '../types/avatar';
 import { TripCard as TripType } from '../types/challenges';
+import { RewardQueueItem, RewardIntensity } from '../types/feedback';
 import { MOCK_USERS } from '../data/mockUsers';
 import { MOCK_TRIPS } from '../constants';
 import { 
@@ -61,7 +70,7 @@ import { FieldSignal } from '../types/signals';
 import { castVote, getVotesForUser } from '../services/voteService';
 
 import { evaluateEntryForBadges, subscribeToUserBadgeProgress, checkRankBadges } from '../services/badgeService';
-import { UserBadgeProgress } from '../types/badges';
+import { BADGE_DEFINITIONS, UserBadgeProgress } from '../types/badges';
 
 import { evaluateEntryForArtifacts, subscribeToCrewArtifacts } from '../services/artifactService';
 import { CrewArtifact } from '../types/artifacts';
@@ -100,7 +109,9 @@ interface AppContextType {
   onboardingCompleted: boolean;
   blockedIds: string[];
   refreshConsent: () => Promise<void>;
+  updateProfile: (uid: string, data: Partial<UserProfile>) => Promise<void>;
   loading: boolean;
+  error: string | null;
   gameConfig: AppConfig | null;
   globalConfig: GlobalConfig;
   activeSeason: Season | null;
@@ -111,29 +122,13 @@ interface AppContextType {
   entries: Entry[];
   loadMoreEntries: () => Promise<void>;
   hasMoreEntries: boolean;
-  addEntry: (entry: { 
-    tripId?: string; 
-    proofImage: string; 
-    originalImageUrl?: string;
-    fieldNote: string; 
-    selectedLevel: 'Scout' | 'Explorer' | 'Legend'; 
-    detourCompleted: boolean; 
-    crewId?: string;
-    uploadSource?: 'camera' | 'upload';
-    photoTakenAt?: string | null;
-    fileLastModifiedAt?: string | null;
-    submittedAt?: string;
-    metadataStatus?: 'verified' | 'missing' | 'suspicious';
-    captureTrustLevel?: string;
-    filterUsed?: string;
-    filterIntensity?: number;
-    reviewStatus?: string;
-  }) => Promise<{ entryId: string; status: string; review?: ProofReview }>;
+  addEntry: (entry: Omit<Entry, 'id' | 'createdAt' | 'status' | 'pointsAwarded' | 'userName' | 'tripTitle'>) => Promise<{ entryId: string; status: string; review?: ProofReview }>;
   activeTrip: TripType | null;
   drawTrip: () => Promise<void>;
   trips: TripType[];
   points: number;
   soloTripsCount: number;
+  completedCoreChallenges: number;
   isCrewUnlocked: boolean;
   isFieldCheckUnlocked: boolean;
   rerollsAvailable: number;
@@ -173,6 +168,9 @@ interface AppContextType {
   isFeatureEnabled: (flag: keyof AppConfig['featureFlags']) => boolean;
   markBadgeAsSeen: (badgeId: string) => Promise<void>;
   dismissObservation: (msgId: string) => Promise<void>;
+  rewardQueue: RewardQueueItem[];
+  queueReward: (reward: Omit<RewardQueueItem, 'id'>) => void;
+  dismissReward: (id: string) => void;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   completeOnboarding: () => Promise<void>;
@@ -192,6 +190,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [lastVisibleEntry, setLastVisibleEntry] = useState<any>(null);
   const [hasMoreEntries, setHasMoreEntries] = useState(true);
@@ -210,7 +209,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [legalConsent, setLegalConsent] = useState<any | null>(null);
   const [hasConfirmedLegal, setHasConfirmedLegal] = useState<boolean>(true); 
   const [blockedIds, setBlockedIds] = useState<string[]>([]);
+  const [rewardQueue, setRewardQueue] = useState<RewardQueueItem[]>([]);
+  const [sessionSeenRewards, setSessionSeenRewards] = useState<Set<string>>(new Set());
   
+  const fieldType = profile?.fieldType || null;
+  const fieldClassificationComplete = !!profile?.fieldClassificationComplete;
+  const productPersonaLens = profile?.productPersonaLens || 'frankie';
+  const onboardingCompleted = !!profile?.onboardingCompleted;
+  const points = overrides.points !== null ? overrides.points : (profile?.points || 0);
+  const soloTripsCount = overrides.soloCount !== null ? overrides.soloCount : (profile?.soloTripsCount || 0);
+  const completedCoreChallenges = profile?.completedCoreChallenges || 0;
+  
+  const isAdmin = overrides.isAdmin !== null ? overrides.isAdmin : (profile?.role === 'admin' || (user?.email === 'hammer808@gmail.com' && (user?.emailVerified || user?.emailVerified === null)));
+
   // Sync Global Kill Switches
   useEffect(() => {
     syncServerTime();
@@ -218,14 +229,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Sync App Config
-
-  // Sync Active Season
   useEffect(() => {
-    if (!gameConfig?.activeSeasonId) {
-      setActiveSeason(null);
+    return subscribeToAppConfig((config) => {
+      if (config) {
+        setGameConfig(config);
+      } else if (import.meta.env.DEV) {
+        setGameConfig(DEV_APP_CONFIG as any);
+      }
+    });
+  }, []);
+  useEffect(() => {
+    const seasonId = gameConfig?.activeSeasonId;
+    if (!seasonId) {
+      if (import.meta.env.DEV) {
+        setActiveSeason(DEV_SEASON);
+      } else {
+        setActiveSeason(null);
+      }
       return;
     }
-    return subscribeToActiveSeason(gameConfig.activeSeasonId, setActiveSeason);
+    return subscribeToActiveSeason(seasonId, (season) => {
+      if (season) {
+        setActiveSeason(season);
+      } else if (import.meta.env.DEV && seasonId === 'dev-season-2026') {
+        setActiveSeason(DEV_SEASON);
+      } else {
+        setActiveSeason(null);
+      }
+    });
   }, [gameConfig?.activeSeasonId]);
 
   const refreshConsent = async () => {
@@ -237,26 +268,49 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Auth listener
   useEffect(() => {
-    return onAuthStateChanged(auth, async (u) => {
-      setUser(u);
-      if (u) {
-        setLoading(true);
-        const consent = await getLatestConsent(u.uid);
-        setLegalConsent(consent);
-        setHasConfirmedLegal(isConsentValid(consent));
-        const unsubBlocks = subscribeToBlocks(u.uid, setBlockedIds);
-        const p = await getOrCreateProfile(u);
-        setProfile(p);
-        return () => {
-          unsubBlocks();
-        };
-      } else {
-        setProfile(null);
-        setEntries([]);
-        setLegalConsent(null);
-        setHasConfirmedLegal(false);
-      }
+    if (!auth) {
+      console.warn("[AppContext] Firebase Auth not initialized.");
       setLoading(false);
+      return;
+    }
+    return onAuthStateChanged(auth, async (u) => {
+      try {
+        setUser(u);
+        if (u) {
+          setLoading(true);
+          // Parallel fetch for speed
+          const [consent, p] = await Promise.all([
+            getLatestConsent(u.uid).catch(err => {
+              console.warn("Targeted legal consent fetch failed (non-existent?):", err);
+              return null;
+            }),
+            getOrCreateProfile(u)
+          ]);
+          
+          setLegalConsent(consent);
+          // If consent is missing, we consider it not confirmed yet, which is fine
+          setHasConfirmedLegal(consent ? isConsentValid(consent) : false);
+          setProfile(p);
+          
+          // Blocks subscription
+          const unsubBlocks = subscribeToBlocks(u.uid, setBlockedIds);
+          
+          setLoading(false);
+          return () => {
+            unsubBlocks();
+          };
+        } else {
+          setProfile(null);
+          setEntries([]);
+          setLegalConsent(null);
+          setHasConfirmedLegal(false);
+          setLoading(false);
+        }
+      } catch (err: any) {
+        console.error("Critical Auth Initialization Error:", err);
+        setError(err.message || "BUREAU_SYSTEM_FAILURE: Could not initialize field profile.");
+        setLoading(false);
+      }
     });
   }, []);
 
@@ -268,25 +322,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [user]);
 
-  // Sync entries
+  // Sync entries (Subscription for real-time updates)
   useEffect(() => {
-    if (!user) return;
-    async function loadInitial() {
-      const result = await getUserEntriesPage(user.uid, 5);
-      if (result) {
-        setEntries(result.docs);
-        setLastVisibleEntry(result.lastVisible);
-        setHasMoreEntries(result.docs.length === 5);
-      }
+    if (!user) {
+      setEntries([]);
+      return;
     }
-    loadInitial();
+    
+    const q = query(
+      collection(db, 'entries'),
+      where('userId', '==', user.uid),
+      orderBy('createdAt', 'desc'),
+      limit(20)
+    );
+
+    return onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Entry));
+      setEntries(docs);
+      setLastVisibleEntry(snapshot.docs[snapshot.docs.length - 1]);
+      setHasMoreEntries(docs.length === 20);
+    }, (error) => {
+      console.warn("[AppContext] Entry subscription skipped (likely pending accessStatus):", error.message);
+      setEntries([]);
+    });
   }, [user]);
 
   const loadMoreEntries = async () => {
     if (!user || !hasMoreEntries) return;
     const result = await getUserEntriesPage(user.uid, 10, lastVisibleEntry);
     if (result) {
-      setEntries(prev => [...prev, ...result.docs]);
+      // Since we now have a subscription for the first 20, we need to be careful about merging.
+      // But for simplicity, we can still use the page fetch for "history".
+      // However, if the subscription is active, it will keep the first 20 sync'd.
+      setEntries(prev => {
+        const newDocs = result.docs.filter(doc => !prev.some(p => p.id === doc.id));
+        return [...prev, ...newDocs];
+      });
       setLastVisibleEntry(result.lastVisible);
       setHasMoreEntries(result.docs.length === 10);
     }
@@ -370,6 +441,101 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     checkRankBadges(user.uid, profile.points, profile.points - 1, profile.previousRank);
   }, [profile?.points]);
 
+  // Sync / Detect New Badges for Rewards
+  useEffect(() => {
+    if (!profile || !badgeProgress.length) return;
+    
+    // Check for Crew Mode Unlock (Major Reveal)
+    if (profile.crewModeUnlocked && !profile.crewModeSeen) {
+       queueReward({
+         type: 'milestone',
+         intensity: RewardIntensity.MAJOR_REVEAL,
+         title: "Crew Mode Engaged",
+         description: "You have proven you can be trusted with mild group-based nonsense.",
+         rewardText: "CREW COLLECTIONS",
+         iconName: 'Users'
+       });
+       markCrewModeSeen();
+    }
+
+    const seenBadges = new Set(profile.seenBadges || []);
+    const unlocked = badgeProgress.filter(p => p.isUnlocked && !seenBadges.has(p.badgeId));
+    
+    unlocked.forEach(p => {
+      const badge = BADGE_DEFINITIONS.find(b => b.id === p.badgeId);
+      if (badge) {
+        const isFirstBadge = (profile.seenBadges?.length || 0) === 0;
+        const isAura = badge.unlockReward.toLowerCase().includes('aura');
+
+        queueReward({
+          type: isAura ? 'aura' : 'badge',
+          intensity: isFirstBadge ? RewardIntensity.MAJOR_REVEAL : RewardIntensity.MEDIUM_REWARD,
+          title: badge.title,
+          description: isFirstBadge ? badge.description : undefined,
+          rewardText: badge.unlockReward,
+          iconName: badge.icon,
+          rarity: badge.rarity
+        });
+        markBadgeAsSeen(badge.id);
+      }
+    });
+  }, [badgeProgress, profile?.seenBadges, profile?.crewModeUnlocked]);
+
+  // Detect Progress Changes (Micro Feedback)
+  const prevProgress = useRef<UserBadgeProgress[]>([]);
+  useEffect(() => {
+    if (!badgeProgress.length || !prevProgress.current.length) {
+      prevProgress.current = badgeProgress;
+      return;
+    }
+
+    badgeProgress.forEach(curr => {
+      const prev = prevProgress.current.find(p => p.badgeId === curr.badgeId);
+      if (prev && curr.fragmentCount > prev.fragmentCount && !curr.isUnlocked) {
+        const badge = BADGE_DEFINITIONS.find(b => b.id === curr.badgeId);
+        queueReward({
+          type: 'progress',
+          intensity: RewardIntensity.MEDIUM_REWARD,
+          title: `${badge?.title || 'FRAGMENT'} OBTAINED`,
+          rewardText: `${curr.fragmentCount}/${badge?.requiredFragments || '?'}`,
+          iconName: 'Zap'
+        });
+      }
+    });
+
+    prevProgress.current = badgeProgress;
+  }, [badgeProgress]);
+
+  // Detect Rank Ups (Major Reveal)
+  const prevPointsRef = useRef<number>(0);
+  useEffect(() => {
+    if (points === 0) return;
+    if (prevPointsRef.current === 0) {
+      prevPointsRef.current = points;
+      return;
+    }
+
+    if (points > prevPointsRef.current) {
+      // Trigger major reveal every 500 points as "Milestones"
+      // Normal points are handled by evidence submission MEDIUM feedback
+      const prevFiveHundred = Math.floor(prevPointsRef.current / 500);
+      const currFiveHundred = Math.floor(points / 500);
+      
+      if (currFiveHundred > prevFiveHundred) {
+        queueReward({
+          type: 'milestone',
+          intensity: RewardIntensity.MAJOR_REVEAL,
+          title: `MILESTONE: ${currFiveHundred * 500} XP`,
+          description: "Your accumulated data has reached a critical mass. The Bureau recognizes your dedication.",
+          rewardText: "CLEARANCE_LEVEL_INCREASED",
+          iconName: 'ShieldCheck'
+        });
+      }
+    }
+
+    prevPointsRef.current = points;
+  }, [points]);
+
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     await signInWithPopup(auth, provider);
@@ -387,6 +553,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateAvatar = async (data: AvatarData) => {
     if (!user) return;
     await updateProfile(user.uid, { avatar: data });
+    queueReward({
+      type: 'action',
+      intensity: RewardIntensity.MICRO_FEEDBACK,
+      title: "Identity Updated",
+      iconName: 'UserCircle'
+    });
+  };
+
+  const markBadgeAsSeen = async (badgeId: string) => {
+    if (!user || !profile) return;
+    const currentSeen = profile.seenBadges || [];
+    if (!currentSeen.includes(badgeId)) {
+      await updateProfile(user.uid, { seenBadges: [...currentSeen, badgeId] });
+    }
   };
 
   const markCrewModeSeen = async () => {
@@ -404,6 +584,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const currentList = profile.maybeList || [];
     if (!currentList.includes(tripId)) {
       await updateProfile(user.uid, { maybeList: [...currentList, tripId] });
+      queueReward({
+        type: 'action',
+        intensity: RewardIntensity.MICRO_FEEDBACK,
+        title: "Mission Queued",
+        iconName: 'Plus'
+      });
     }
   };
 
@@ -411,6 +597,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!user || !profile) return;
     const currentList = profile.maybeList || [];
     await updateProfile(user.uid, { maybeList: currentList.filter(id => id !== tripId) });
+    queueReward({
+      type: 'action',
+      intensity: RewardIntensity.MICRO_FEEDBACK,
+      title: "Queue Updated",
+      iconName: 'Minus'
+    });
   };
 
   const useComebackCard = async () => {
@@ -481,24 +673,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return gameConfig?.featureFlags[flag] ?? true;
   };
 
-  const addEntry = async (entryData: { 
-    tripId?: string; 
-    proofImage: string; 
-    originalImageUrl?: string;
-    fieldNote: string; 
-    selectedLevel: 'Scout' | 'Explorer' | 'Legend'; 
-    detourCompleted: boolean; 
-    crewId?: string;
-    uploadSource?: 'camera' | 'upload';
-    photoTakenAt?: string | null;
-    fileLastModifiedAt?: string | null;
-    submittedAt?: string;
-    metadataStatus?: 'verified' | 'missing' | 'suspicious';
-    captureTrustLevel?: string;
-    filterUsed?: string;
-    filterIntensity?: number;
-    reviewStatus?: string;
-  }): Promise<{ entryId: string; status: string; review?: ProofReview }> => {
+  const addEntry = async (entryData: Omit<Entry, 'id' | 'createdAt' | 'status' | 'pointsAwarded' | 'userName' | 'tripTitle'>): Promise<{ entryId: string; status: string; review?: ProofReview }> => {
     if (!user || !profile) throw new Error('Not authenticated');
     
     const targetTripId = entryData.tripId || (profile.activeTrip?.id) || (trips[0]?.id);
@@ -516,7 +691,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         fieldNote: entryData.fieldNote,
         selectedLevel: entryData.selectedLevel,
         detourCompleted: entryData.detourCompleted,
-        crewId: entryData.crewId || profile.crewId,
+        crewId: entryData.crewId || profile.crewId || undefined,
         userAvatar: profile.avatar || undefined, 
         
         // Pass through viewfinder meta
@@ -550,6 +725,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         category: (currentTrip as any).type
       };
 
+      queueReward({
+        type: 'action',
+        intensity: RewardIntensity.MEDIUM_REWARD,
+        title: "Evidence Logged",
+        description: "Field data successfully captured and verified.",
+        rewardText: "XP_GRANTED",
+        iconName: 'ClipboardCheck'
+      });
+
       if (isFeatureEnabled('badgeFragmentsEnabled')) {
         evaluateEntryForBadges(user.uid, entryObj as any);
       }
@@ -561,6 +745,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (isFeatureEnabled('appObservationsEnabled')) {
         generateObservation(user.uid, profile.crewId || null, [entryObj as any, ...entries], { rankImproved: false });
       }
+    } else {
+      queueReward({
+        type: 'action',
+        intensity: RewardIntensity.MICRO_FEEDBACK,
+        title: "Protocol Logged",
+        iconName: 'Server'
+      });
     }
     
     return { entryId, status, review };
@@ -580,6 +771,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       reason: params.reason,
       details: params.details,
       status: 'open'
+    });
+
+    queueReward({
+      type: 'action',
+      intensity: RewardIntensity.MEDIUM_REWARD,
+      title: "Field Check Logged",
+      description: "Anomaly report submitted for Bureau review.",
+      iconName: 'ShieldAlert'
     });
 
     const newHistory = [...(profile.fieldCheckHistory || []), getServerDate().toISOString()];
@@ -605,20 +804,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await dismissObservation(msgId);
   };
 
-  const fieldType = profile?.fieldType || null;
-  const fieldClassificationComplete = !!profile?.fieldClassificationComplete;
-  const productPersonaLens = profile?.productPersonaLens || 'frankie';
-  const onboardingCompleted = !!profile?.onboardingCompleted;
-  const points = overrides.points !== null ? overrides.points : (profile?.points || 0);
-  const soloTripsCount = overrides.soloCount !== null ? overrides.soloCount : (profile?.soloTripsCount || 0);
-  
-  const isAdmin = overrides.isAdmin !== null ? overrides.isAdmin : (profile?.role === 'admin' || user?.email === 'hammer808@gmail.com');
+  const queueReward = (reward: Omit<RewardQueueItem, 'id'>) => {
+    const id = Math.random().toString(36).substring(7);
+    const item = { ...reward, id };
+    
+    // Check session limits for MAJOR_REVEAL
+    if (item.intensity === RewardIntensity.MAJOR_REVEAL) {
+      if (sessionSeenRewards.has(item.type)) {
+        // Downgrade to MEDIUM if already seen in session
+        item.intensity = RewardIntensity.MEDIUM_REWARD;
+      } else {
+        setSessionSeenRewards(prev => new Set(prev).add(item.type));
+      }
+    }
+    
+    setRewardQueue(prev => [...prev, item]);
+  };
+
+  const dismissReward = (id: string) => {
+    setRewardQueue(prev => prev.filter(r => r.id !== id));
+  };
 
   const gameState: GameState = {
     userId: user?.uid || null,
     email: user?.email || null,
     points,
-    soloCount: soloTripsCount,
+    soloTripsCount: soloTripsCount,
+    completedCoreChallenges: completedCoreChallenges,
     onboardingComplete: onboardingCompleted,
     fieldType: fieldType,
     isAdmin,
@@ -627,8 +839,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const isCrewUnlocked = (profile?.crewModeUnlocked || checkCrewMode(gameState) || overrides.forceUnlocked) && isFeatureEnabled('crewDispatchEnabled');
   const isFieldCheckUnlocked = (checkFieldCheckMode(gameState) || overrides.forceUnlocked) && isFeatureEnabled('rivalMomentsEnabled');
-  const isSeasonActive = activeSeason?.status === 'active' || isAdmin;
-  const isLocked = (checkViewfinderLocked(gameState) || (!isSeasonActive && !isAdmin)) && !overrides.forceUnlocked;
+  const isSeasonActive = activeSeason?.status === 'active' || isAdmin || import.meta.env.DEV;
+  const isLocked = (checkViewfinderLocked(gameState) || (!isSeasonActive && !isAdmin)) && !overrides.forceUnlocked && !import.meta.env.DEV;
 
   const canFieldCheckNow = canRequestFieldCheck(profile?.fieldCheckHistory || []) && isFieldCheckUnlocked;
   const activeTrip = profile?.activeTrip || null;
@@ -686,6 +898,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       user,
       profile,
       loading,
+      error,
       globalConfig,
       gameConfig,
       activeSeason,
@@ -704,6 +917,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       trips,
       points,
       soloTripsCount,
+      completedCoreChallenges,
       isCrewUnlocked,
       isFieldCheckUnlocked,
       rerollsAvailable,
@@ -744,9 +958,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       hasConfirmedLegal,
       blockedIds,
       refreshConsent,
+      updateProfile,
       isFeatureEnabled,
-      markBadgeAsSeen: async () => {}, // Mocked out for now
+      markBadgeAsSeen,
       dismissObservation: handleDismissObservation,
+      rewardQueue,
+      queueReward,
+      dismissReward,
       updateAvatar,
       signInWithGoogle,
       signOut,

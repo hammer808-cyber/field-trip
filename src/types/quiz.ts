@@ -31,7 +31,8 @@ export interface QuizQuestion {
 export interface QuizScore {
   captainClipboard: number;
   mallRat: number;
-  homecomingQueen: number;
+  mascota: number;
+  elondra: number;
   lostCamper: number;
   bigfoot: number;
 }

@@ -27,8 +27,8 @@ export const ChromeStar = ({ className }: { className?: string }) => (
   </motion.div>
 );
 
-export const GlossOverlay = () => (
-  <div className="absolute inset-0 pointer-events-none baja-gloss opacity-50" />
+export const GlossOverlay = ({ opacity = 0.5 }: { opacity?: number }) => (
+  <div className="absolute inset-0 pointer-events-none baja-gloss" style={{ opacity }} />
 );
 
 export const BeachTag = ({ children, className }: { children: React.ReactNode, className?: string }) => (

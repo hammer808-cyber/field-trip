@@ -14,9 +14,9 @@ interface BadgeCollectionProps {
 export const BadgeCollection: React.FC<BadgeCollectionProps> = ({ progress }) => {
   const { skin } = useTheme();
   
-  const isBaja = skin === 'baja-bratz';
-  const isDiamond = skin === 'slippery-diamond';
-  const isHeat = skin === 'heatwave';
+  const isBaja = skin.id === 'baja-bratz';
+  const isDiamond = skin.id === 'slippery-diamond';
+  const isHeat = skin.id === 'heatwave';
 
   const getBadgeProgress = (badgeId: string) => {
     return progress.find(p => p.badgeId === badgeId) || { fragmentCount: 0, isUnlocked: false };

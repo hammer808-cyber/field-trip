@@ -13,7 +13,8 @@ import {
   orderBy,
   limit
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
+import { logAdminAction } from './moderationService';
 import { Entry, FIELD_TYPES } from '../constants';
 import { evaluateProof } from './proofService';
 import { awardPoints } from './scoringService';
@@ -42,15 +43,15 @@ export async function submitTripEntry(
     isFinalCrown?: boolean;
     
     // Viewfinder Meta
-    uploadSource?: 'camera' | 'upload';
+    uploadSource?: 'camera' | 'cameraRoll' | 'upload';
     photoTakenAt?: string | null;
     fileLastModifiedAt?: string | null;
     submittedAt?: string;
-    metadataStatus?: 'verified' | 'missing' | 'suspicious';
-    captureTrustLevel?: string;
+    metadataStatus?: 'verified' | 'missing' | 'mismatch' | 'unverified' | 'suspicious';
+    captureTrustLevel?: 'live' | 'verifiedCameraRoll' | 'unverifiedCameraRoll';
     filterUsed?: string;
     filterIntensity?: number;
-    reviewStatus?: string;
+    reviewStatus?: 'approved' | 'pending' | 'pendingReview' | 'rejected' | 'autoRejected' | 'needsMoreProof';
     userAvatar?: any;
   },
   activeSeason?: Season | null
@@ -66,12 +67,18 @@ export async function submitTripEntry(
       collection(db, 'entries'),
       where('userId', '==', userId),
       where('tripId', '==', trip.id),
+      where('status', '==', 'approved'),
       orderBy('createdAt', 'desc'),
       limit(1)
     );
     const recentSnap = await getDocs(recentQuery);
     if (!recentSnap.empty) {
       const lastEntry = recentSnap.docs[0].data();
+      
+      if (!trip.isRepeatableTemplate) {
+        throw new Error(`Temporal Anchor: You have already completed the final transmission for "${trip.title}".`);
+      }
+
       const lastTime = lastEntry.createdAt?.toDate ? lastEntry.createdAt.toDate() : new Date(lastEntry.createdAt);
       const sevenDaysAgo = getServerDate();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -186,10 +193,18 @@ export async function submitTripEntry(
       }
 
       // Update user stats
-      await updateDoc(userRef, {
+      const userUpdates: any = {
         approvedEntriesCount: increment(1),
-        totalPoints: increment(scoring.totalPoints + ftBonus - (entryData.detourCompleted ? 0 : ftPenalty))
-      });
+        soloTripsCount: increment(1),
+        activeTrip: null,
+        points: increment(scoring.totalPoints + ftBonus - (entryData.detourCompleted ? 0 : ftPenalty))
+      };
+
+      if (trip.lane === 'core') {
+        userUpdates.completedCoreChallenges = increment(1);
+      }
+
+      await updateDoc(userRef, userUpdates);
     }
 
     await updateDoc(doc(db, 'entries', entryId), entryUpdate);
@@ -236,6 +251,23 @@ export async function resolveFieldCheck(
     
     await updateDoc(checkRef, resolvedCheck as any);
 
+    // Audit Log
+    if (auth.currentUser) {
+        await logAdminAction(
+            auth.currentUser.uid,
+            checkId,
+            'fieldCheck',
+            'resolve',
+            {
+                targetId: check.targetId,
+                targetUserId: check.targetUserId,
+                previousStatus: check.status,
+                newStatus: resolution,
+                notes: adminNotes
+            }
+        );
+    }
+
     // Update submission status
     const entryStatus = resolution === 'cleared' ? 'approved' : 
                        resolution === 'rejected' ? 'rejected' : 
@@ -246,13 +278,23 @@ export async function resolveFieldCheck(
       adminNotes: `Field Check Resolution: ${adminNotes}`
     });
 
+    const isConfession = check.reporterId === check.targetUserId;
+
     // Award bonus if valid snitch
     if (resolution === 'rejected' || resolution === 'adjusted') {
-       await awardPoints(check.reporterId, 'Bureau Auditor', 75, 'field_check_bonus', {
-         description: 'Valid Field Check Reward',
-         entryId: check.targetId
-       });
-    } else if (resolution === 'dismissed') {
+       if (!isConfession) {
+         await awardPoints(check.reporterId, 'Bureau Auditor', 75, 'field_check_bonus', {
+           description: 'Valid Field Check Reward',
+           entryId: check.targetId
+         });
+       } else {
+         // Confession: maybe a smaller bonus for honesty, or just no penalty
+         await awardPoints(check.reporterId, 'Bureau Auditor', 25, 'field_check_bonus', {
+           description: 'Self-Report Honesty Bonus',
+           entryId: check.targetId
+         });
+       }
+    } else if (resolution === 'dismissed' && !isConfession) {
        // Penalty for false petty snitch
        await awardPoints(check.reporterId, 'Bureau Auditor', -50, 'field_check_penalty', {
          description: 'False/Petty Field Check Penalty',
@@ -272,9 +314,9 @@ export async function checkOnboardingState(userId: string) {
   
   if (userSnap.exists()) {
     const data = userSnap.data();
-    const soloTripsCount = data.soloTripsCount || 0;
+    const coreCount = data.completedCoreChallenges || 0;
     
-    if (soloTripsCount >= 3 && !data.crewModeUnlocked) {
+    if (coreCount >= 3 && !data.crewModeUnlocked) {
       await updateDoc(userRef, {
         crewModeUnlocked: true,
         onboardingCompleted: true,

@@ -11,14 +11,21 @@ import {
   serverTimestamp,
   Timestamp,
   limit,
-  orderBy
+  orderBy,
+  increment
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
+import { logAdminAction } from './moderationService';
 import { ProofRequirement, ProofReview, ProofStatus, ProofCheck, AIAnalysis } from '../types/proof';
 import { analyzeSubmissionImage } from './geminiService';
 import { guardedCall } from './guardedService';
 import { getGlobalConfig } from './configService';
 import { getServerDate } from './timeService';
+import { MOCK_TRIPS } from '../constants';
+import { Entry } from '../types/game';
+import { calculateSubmissionPoints } from '../logic/scoringLogic';
+import { applyFieldTypeModifier } from '../logic/challengeLogic';
+import { awardPoints } from './scoringService';
 
 const REQUIREMENTS_COLLECTION = 'proofRequirements';
 const REVIEWS_COLLECTION = 'proofReviews';
@@ -129,7 +136,7 @@ export async function evaluateProof(
       userId, 
       base64Image, 
       entryData.fieldNote || (entryData as any).note || '', 
-      entryData.selectedLevel || (entryData as any).level || 'Scout',
+      entryData.selectedLevel || (entryData as any).level || 'Standard',
       requirement
     );
 
@@ -148,7 +155,7 @@ export async function evaluateProof(
             status: cachedData.status,
             confidenceScore: cachedData.confidenceScore,
             missingRequirements: cachedData.missingRequirements,
-            reviewNotes: cachedData.imageAnalysis.reason + " (AUTHENTICATED FROM CACHE)",
+            reviewNotes: (cachedData.imageAnalysis?.reason || "Bureau review confirmed") + " (AUTHENTICATED FROM CACHE)",
             reviewedAt: getServerDate().toISOString()
           };
 
@@ -169,7 +176,7 @@ export async function evaluateProof(
     if (requirement) {
       // Photo Check
       const photoCount = entryData.proofImage || base64Image ? 1 : 0;
-      if (photoCount < requirement.minimumPhotoCount) {
+      if (photoCount < (requirement.minimumPhotoCount || 1)) {
         missingRequirements.push('Minimum photo count not met.');
         confidenceScore -= 40;
       }
@@ -221,7 +228,7 @@ export async function evaluateProof(
       confidenceScore = Math.min(confidenceScore, analysis.confidence);
       
       if (!analysis.contains_required_subject && (requirement?.requiresObjectDetection)) {
-        missingRequirements.push(`Subject detection failure: ${analysis.missing_evidence.join(', ')}`);
+        missingRequirements.push(`Subject detection failure: ${analysis.missing_evidence?.join(', ') || 'unknown'}`);
         confidenceScore -= 30;
       }
 
@@ -229,7 +236,7 @@ export async function evaluateProof(
         missingRequirements.push("Image clarity or relevance is below mission standards.");
       }
 
-      reviewNotes = analysis.reason;
+      reviewNotes = analysis.reason || 'Evidence processed by AI.';
     }
 
     // 3. Status Determination
@@ -291,6 +298,15 @@ export async function evaluateProof(
 export async function adminOverrideReview(reviewId: string, entryId: string, newStatus: ProofStatus, notes: string) {
     try {
         const ref = doc(db, REVIEWS_COLLECTION, reviewId);
+        const entryRef = doc(db, ENTRIES_COLLECTION, entryId);
+        const entrySnap = await getDoc(entryRef);
+        
+        if (!entrySnap.exists()) {
+            throw new Error('Entry not found for audit.');
+        }
+
+        const entry = { id: entrySnap.id, ...entrySnap.data() } as Entry;
+        const isApproving = newStatus === 'approved';
         const isRejected = newStatus === 'rejected';
         
         const updateData: any = {
@@ -310,10 +326,26 @@ export async function adminOverrideReview(reviewId: string, entryId: string, new
 
         await updateDoc(ref, updateData);
 
-        // Also update entry status
-        const entryRef = doc(db, ENTRIES_COLLECTION, entryId);
+        // Audit Log
+        if (auth.currentUser) {
+            await logAdminAction(
+                auth.currentUser.uid,
+                reviewId,
+                'proofReview',
+                'override_status',
+                {
+                    entryId,
+                    targetUserId: entry.userId,
+                    previousStatus: entrySnap.data()?.status,
+                    newStatus,
+                    notes
+                }
+            );
+        }
+
+        // Update entry status
         const entryUpdate: any = {
-            status: newStatus === 'approved' ? 'approved' : 'rejected',
+            status: isApproving ? 'approved' : isRejected ? 'rejected' : 'needs_fix',
             adminNotes: notes
         };
 
@@ -324,6 +356,61 @@ export async function adminOverrideReview(reviewId: string, entryId: string, new
             
             entryUpdate.rejectedAt = serverTimestamp();
             entryUpdate.purgeEligibleAt = Timestamp.fromDate(purgeDate);
+        }
+
+        // SCORING LOGIC for CORE-05
+        if (isApproving && (entry.pointsAwarded === 0 || !entry.pointsAwarded)) {
+            const trip = MOCK_TRIPS.find(t => t.id === entry.tripId);
+            if (trip) {
+                const userRef = doc(db, 'users', entry.userId);
+                const userSnap = await getDoc(userRef);
+                const userData = userSnap.exists() ? userSnap.data() : null;
+                const fieldType = userData?.fieldType || null;
+                const userName = userData?.name || 'Agent';
+
+                const config = getGlobalConfig() as any;
+                const effectsEnabled = config?.featureFlags?.fieldTypeEffectsEnabled ?? true;
+
+                const scoring = calculateSubmissionPoints(
+                    entry,
+                    trip,
+                    {
+                        isFirstSubmission: false, // Could be improved if we track weekly firsts
+                        daysLate: 0 // Admin approval usually bypasses lateness or handles it manually
+                    }
+                );
+
+                entryUpdate.pointsAwarded = scoring.totalPoints;
+
+                // Award points via score events
+                for (const event of scoring.scoreEvents) {
+                    await awardPoints(entry.userId, userName, event.points, event.type as any, {
+                        ...event,
+                        crewId: entry.crewId,
+                        userAvatar: entry.userAvatar
+                    });
+                }
+
+                // Field Type Modifier
+                const { bonus: ftBonus, penalty: ftPenalty, text: ftText } = applyFieldTypeModifier(trip, fieldType, effectsEnabled, !!entry.crewId);
+                if (ftBonus > 0) {
+                    await awardPoints(entry.userId, userName, ftBonus, 'field_type_perk', {
+                        entryId, tripId: trip.id, description: ftText, crewId: entry.crewId, userAvatar: entry.userAvatar
+                    });
+                }
+                if (ftPenalty > 0 && !entry.detourCompleted) {
+                    await awardPoints(entry.userId, userName, -ftPenalty, 'field_type_snag', {
+                        entryId, tripId: trip.id, description: ftText, crewId: entry.crewId, userAvatar: entry.userAvatar
+                    });
+                }
+
+                // Update user stats
+                await updateDoc(userRef, {
+                    approvedEntriesCount: increment(1),
+                    activeTrip: null,
+                    updatedAt: serverTimestamp()
+                });
+            }
         }
 
         await updateDoc(entryRef, entryUpdate);

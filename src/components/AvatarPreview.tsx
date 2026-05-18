@@ -42,7 +42,7 @@ export const AvatarPreview: React.FC<AvatarPreviewProps> = ({
 
   return (
     <div className={cn(
-      "relative overflow-hidden rounded-sm border border-white/10 bg-black/40",
+      "relative overflow-hidden border-2 border-on-surface bg-white shadow-[4px_4px_0px_black] group",
       sizeClasses[size],
       className
     )}>
@@ -55,7 +55,7 @@ export const AvatarPreview: React.FC<AvatarPreviewProps> = ({
             key={layer.id}
             src={layer.path}
             alt=""
-            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none group-hover:scale-105 transition-transform duration-500"
             style={{ zIndex: layer.zIndex }}
             onError={(e) => {
               // Hide broken images in the UI if they don't exist yet
@@ -65,10 +65,16 @@ export const AvatarPreview: React.FC<AvatarPreviewProps> = ({
         );
       })}
       
+      {/* Decorative Shimmer Edge */}
+      <div className="absolute top-0 right-0 w-1 h-full bg-brand-lime opacity-50 z-[100]" />
+      
       {/* Fallback visual state if no assets actually load */}
-      <div className="absolute inset-0 flex items-center justify-center opacity-20 z-0">
-        <div className="w-1/2 h-1/2 rounded-full bg-white/20 blur-xl" />
+      <div className="absolute inset-0 flex items-center justify-center opacity-10 z-0">
+        <div className="w-1/2 h-1/2 rounded-full bg-brand-orange blur-xl" />
       </div>
+      
+      {/* Lens Overlay */}
+      <div className="absolute inset-0 border border-white/10 pointer-events-none z-[60]" />
     </div>
   );
 };

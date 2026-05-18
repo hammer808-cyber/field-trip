@@ -110,6 +110,8 @@ export interface FieldCheck {
   adminResolution?: string;
   resolvedAt?: Timestamp;
   createdAt: Timestamp;
+  defense?: string;
+  defenseSubmittedAt?: Timestamp;
 }
 
 export interface ChaosCard {
@@ -233,7 +235,7 @@ export interface Report {
   createdAt: Timestamp;
 }
 
-export type TripStatus = 'locked' | 'available' | 'in-progress' | 'submitted' | 'approved' | 'needs_fix' | 'under_field_check' | 'rejected' | 'expired' | 'archived';
+export type TripStatus = 'locked' | 'available' | 'in-progress' | 'submitted' | 'approved' | 'needs_fix' | 'under_field_check' | 'rejected' | 'expired' | 'archived' | 'pending' | 'checking' | 'needs-more-proof' | 'auto_approved' | 'needs_review' | 'resubmit_requested' | 'approved_by_admin' | 'draft';
 
 export interface Entry {
   id: string;
@@ -242,7 +244,7 @@ export interface Entry {
   crewId?: string;
   tripId: string;
   tripTitle: string;
-  selectedLevel: 'Scout' | 'Explorer' | 'Legend';
+  selectedLevel: 'Standard' | 'Advanced' | 'Certified';
   proofImage: string;
   userAvatar?: AvatarData;
   fieldNote: string;
@@ -256,6 +258,19 @@ export interface Entry {
   purgeEligibleAt?: any;
   imageStoragePath?: string;
   imagePurged?: boolean;
+
+  // Viewfinder & Metadata Extensions
+  originalImageUrl?: string;
+  filteredImageUrl?: string;
+  uploadSource?: 'camera' | 'cameraRoll' | 'upload';
+  photoTakenAt?: string | null;
+  fileLastModifiedAt?: string | null;
+  submittedAt?: string;
+  metadataStatus?: 'verified' | 'missing' | 'mismatch' | 'unverified' | 'suspicious';
+  captureTrustLevel?: 'live' | 'verifiedCameraRoll' | 'unverifiedCameraRoll';
+  filterUsed?: string;
+  filterIntensity?: number;
+  reviewStatus?: 'approved' | 'pending' | 'pendingReview' | 'rejected' | 'autoRejected' | 'needsMoreProof';
 }
 
 export interface ModerationAudit {

@@ -5,8 +5,10 @@ import {
   TripType,
   TripMode,
   TripStatus,
-  ProofType
+  ProofType,
+  ChallengeLane
 } from '../types/challenges';
+import { FieldTypeId } from '../constants/fieldTypes';
 import { 
   getAllChallenges, 
   saveChallenge, 
@@ -38,10 +40,12 @@ import { ChallengeCard } from '../components/ChallengeCard';
 import { cn } from '../lib/utils';
 import { useNavigate } from 'react-router-dom';
 
+const LANES: ChallengeLane[] = ['core', 'weekly', 'persona_spiced', 'wildcard', 'finale', 'onboarding'];
 const CATEGORIES: TripType[] = ['Field Challenge', 'Evidence Challenge', 'Crew Challenge', 'Social Spark', 'Explore the Map', 'Taste Test', 'Proof Goblin', 'Crew Chaos', 'Onboarding', 'Bonus', 'Final'];
 const MODES: TripMode[] = ['solo', 'crew', 'flexible'];
-const PROOF_TYPES: ProofType[] = ['photo', 'note', 'location', 'group-confirmation'];
+const PROOF_TYPES: ProofType[] = ['photo', 'note', 'location', 'group-confirmation', 'audio', 'video'];
 const STATUSES: TripStatus[] = ['draft', 'approved', 'scheduled', 'active', 'archived'];
+const ARCHETYPES: FieldTypeId[] = ['captainClipboard', 'mallRat', 'mascota', 'elondra', 'lostCamper', 'bigfoot'];
 
 const PROOF_MODES: ProofType[] = ['photo', 'note', 'location'];
 
@@ -109,7 +113,16 @@ export default function AdminChallengesPage() {
 
   const handleSave = async () => {
     if (!editingChallenge?.title) return alert("Title required.");
-    await saveChallenge(editingChallenge);
+    
+    // Sync legacy fields
+    const updated = {
+      ...editingChallenge,
+      theAsk: editingChallenge.description || editingChallenge.theAsk || '',
+      basePoints: editingChallenge.baseXP || editingChallenge.basePoints || 100,
+      requiredProof: editingChallenge.proofType || editingChallenge.requiredProof || ['photo']
+    };
+    
+    await saveChallenge(updated);
     setEditingChallenge(null);
   };
 
@@ -144,9 +157,9 @@ export default function AdminChallengesPage() {
               type: 'Chaos' as any,
               basePoints: 100,
               levels: {
-                Scout: { points: 100, description: '' },
-                Explorer: { points: 150, description: '' },
-                Legend: { points: 200, description: '' }
+                Standard: { points: 100, description: '' },
+                Advanced: { points: 150, description: '' },
+                Certified: { points: 200, description: '' }
               },
               mode: 'solo',
               requiredProof: ['photo'],
@@ -322,10 +335,10 @@ export default function AdminChallengesPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">FULL_OPERATIONAL_INSTRUCTIONS</label>
+                        <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">OPERATIONAL_INSTRUCTIONS (DESCRIPTION)</label>
                         <textarea 
-                          value={editingChallenge.fullInstructions || ''} 
-                          onChange={(e) => setEditingChallenge({ ...editingChallenge, fullInstructions: e.target.value })}
+                          value={editingChallenge.description || editingChallenge.theAsk || ''} 
+                          onChange={(e) => setEditingChallenge({ ...editingChallenge, description: e.target.value })}
                           className="w-full bg-on-surface/5 border-b-2 border-on-surface p-3 text-sm font-serif min-h-[120px] outline-none"
                           placeholder="Detail the exact steps for validation..."
                         />
@@ -334,23 +347,24 @@ export default function AdminChallengesPage() {
 
                     <div className="grid grid-cols-2 gap-6">
                        <div className="space-y-2">
-                        <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">TRIP_TYPE</label>
+                        <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">TRIP_CATEGORY</label>
                         <select 
-                          value={editingChallenge.type}
-                          onChange={(e) => setEditingChallenge({ ...editingChallenge, type: e.target.value as TripType })}
+                          value={editingChallenge.category || editingChallenge.type}
+                          onChange={(e) => setEditingChallenge({ ...editingChallenge, category: e.target.value as TripType })}
                           className="w-full bg-paper border-2 border-on-surface p-2 font-mono text-xs"
                         >
                           {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat.toUpperCase()}</option>)}
                         </select>
                        </div>
                        <div className="space-y-2">
-                        <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">OP_MODE</label>
+                        <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">MISSION_LANE</label>
                         <select 
-                          value={editingChallenge.mode}
-                          onChange={(e) => setEditingChallenge({ ...editingChallenge, mode: e.target.value as TripMode })}
+                          value={editingChallenge.lane}
+                          onChange={(e) => setEditingChallenge({ ...editingChallenge, lane: e.target.value as any })}
                           className="w-full bg-paper border-2 border-on-surface p-2 font-mono text-xs"
                         >
-                          {MODES.map(m => <option key={m} value={m}>{m.toUpperCase()}</option>)}
+                          <option value="">SELECT_LANE</option>
+                          {LANES.map(lane => <option key={lane} value={lane}>{lane.toUpperCase()}</option>)}
                         </select>
                        </div>
                     </div>
@@ -359,11 +373,11 @@ export default function AdminChallengesPage() {
                   <div className="space-y-8">
                     <div className="grid grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">STANDING_VALUE (XP)</label>
+                        <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">BASE_XP</label>
                         <input 
                           type="number" 
-                          value={editingChallenge.points} 
-                          onChange={(e) => setEditingChallenge({ ...editingChallenge, points: parseInt(e.target.value) })}
+                          value={editingChallenge.baseXP || editingChallenge.basePoints || 100} 
+                          onChange={(e) => setEditingChallenge({ ...editingChallenge, baseXP: parseInt(e.target.value) })}
                           className="w-full bg-transparent border-b-2 border-on-surface/20 p-2 text-xl font-display outline-none focus:border-on-surface"
                         />
                       </div>
@@ -378,57 +392,115 @@ export default function AdminChallengesPage() {
                       </div>
                     </div>
 
+                    <div className="grid grid-cols-2 gap-4">
+                      <label className="flex items-center gap-2 text-[10px] font-bold uppercase cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={editingChallenge.active} 
+                          onChange={(e) => setEditingChallenge({ ...editingChallenge, active: e.target.checked })}
+                        />
+                        ACTIVE_MISSION
+                      </label>
+                      <label className="flex items-center gap-2 text-[10px] font-bold uppercase cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={editingChallenge.repeatable} 
+                          onChange={(e) => setEditingChallenge({ ...editingChallenge, repeatable: e.target.checked })}
+                        />
+                        REPEATABLE
+                      </label>
+                      <label className="flex items-center gap-2 text-[10px] font-bold uppercase cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={editingChallenge.zineEligible} 
+                          onChange={(e) => setEditingChallenge({ ...editingChallenge, zineEligible: e.target.checked })}
+                        />
+                        ZINE_ELIGIBLE
+                      </label>
+                      <label className="flex items-center gap-2 text-[10px] font-bold uppercase cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={editingChallenge.snitchEligible} 
+                          onChange={(e) => setEditingChallenge({ ...editingChallenge, snitchEligible: e.target.checked })}
+                        />
+                        SNITCH_ELIGIBLE
+                      </label>
+                    </div>
+
                     <div className="space-y-4">
-                      <p className="micro-label font-bold">PROOF_VERIFICATION_MODE</p>
-                      <div className="grid grid-cols-3 gap-2">
-                        {PROOF_MODES.map(m => (
+                      <p className="micro-label font-bold uppercase opacity-60">ARCHETYPE_AFFINITY</p>
+                      <div className="flex flex-wrap gap-2">
+                        {ARCHETYPES.map(type => (
                           <button
-                            key={m}
-                            onClick={() => setEditingChallenge({ ...editingChallenge, proofMode: m })}
+                            key={type}
+                            onClick={() => {
+                              const current = editingChallenge.personaAffinity || [];
+                              const next = current.includes(type) 
+                                ? current.filter(t => t !== type)
+                                : [...current, type];
+                              setEditingChallenge({ ...editingChallenge, personaAffinity: next });
+                            }}
                             className={cn(
-                              "p-2 border-2 text-[10px] font-mono uppercase text-center",
-                              editingChallenge.proofMode === m ? "bg-brand-orange text-white border-brand-orange" : "border-on-surface/10 opacity-60"
+                              "px-3 py-1 border-2 text-[10px] font-mono uppercase transition-all",
+                              editingChallenge.personaAffinity?.includes(type) ? "bg-mustard text-on-surface border-on-surface" : "border-on-surface/20 opacity-60 hover:opacity-100"
                             )}
                           >
-                            {m.replace('_', ' ')}
+                            {type}
                           </button>
                         ))}
                       </div>
                     </div>
 
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">BOOST_TAGS (COMMA_SEP)</label>
+                        <input 
+                          type="text" 
+                          value={editingChallenge.boostTags?.join(', ') || ''} 
+                          onChange={(e) => setEditingChallenge({ ...editingChallenge, boostTags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                          className="w-full bg-on-surface/5 border-b-2 border-on-surface p-2 text-xs font-mono outline-none"
+                          placeholder="urban, speed, nature..."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">SLOWDOWN_TAGS (COMMA_SEP)</label>
+                        <input 
+                          type="text" 
+                          value={editingChallenge.slowDownTags?.join(', ') || ''} 
+                          onChange={(e) => setEditingChallenge({ ...editingChallenge, slowDownTags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                          className="w-full bg-on-surface/5 border-b-2 border-on-surface p-2 text-xs font-mono outline-none"
+                          placeholder="crowds, water, darkness..."
+                        />
+                      </div>
+                    </div>
+
                     <div className="space-y-4">
-                      <p className="micro-label font-bold">AI_VALIDATION_REQUIREMENTS (COMMA_SEP)</p>
+                      <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">UNLOCK_CONDITION</label>
                       <input 
                         type="text" 
-                        value={editingChallenge.proofRequirements?.requiredSubjects?.join(', ') || ''} 
-                        onChange={(e) => setEditingChallenge({ 
-                          ...editingChallenge, 
-                          proofRequirements: { 
-                            ...editingChallenge.proofRequirements, 
-                            requiredSubjects: e.target.value.split(',').map(s => s.trim()).filter(Boolean) 
-                          } 
-                        })}
+                        value={editingChallenge.unlockCondition || ''} 
+                        onChange={(e) => setEditingChallenge({ ...editingChallenge, unlockCondition: e.target.value })}
                         className="w-full bg-on-surface/5 border-b-2 border-on-surface p-2 text-xs font-mono outline-none"
-                        placeholder="cat, skateboard, red_hat..."
+                        placeholder="Reach level 5, Complete first excursion..."
                       />
                     </div>
 
                     <div className="space-y-4">
-                      <p className="micro-label font-bold">REQUIRED_EVIDENCE_TYPE</p>
+                      <p className="micro-label font-bold">REQUIRED_PROOF_TYPES</p>
                       <div className="flex flex-wrap gap-2">
                         {PROOF_TYPES.map(type => (
                           <button
                             key={type}
                             onClick={() => {
-                              const current = editingChallenge.requiredProof || [];
+                              const current = editingChallenge.proofType || editingChallenge.requiredProof || [];
                               const next = current.includes(type) 
                                 ? current.filter(t => t !== type)
                                 : [...current, type];
-                              setEditingChallenge({ ...editingChallenge, requiredProof: next });
+                              setEditingChallenge({ ...editingChallenge, proofType: next });
                             }}
                             className={cn(
                               "px-3 py-1 border-2 text-[10px] font-mono uppercase transition-all",
-                              editingChallenge.requiredProof?.includes(type) ? "bg-on-surface text-paper border-on-surface" : "border-on-surface/20 opacity-60 hover:opacity-100"
+                              (editingChallenge.proofType || editingChallenge.requiredProof)?.includes(type) ? "bg-on-surface text-paper border-on-surface" : "border-on-surface/20 opacity-60 hover:opacity-100"
                             )}
                           >
                             {type.replace('-', '_')}

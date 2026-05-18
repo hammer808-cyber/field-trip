@@ -69,7 +69,7 @@ export function BetaAccessGate({ userId, onAccepted }: BetaAccessGateProps) {
           <div className="mx-auto w-16 h-16 bg-brand-orange/10 flex items-center justify-center rounded-full">
             <Info className="w-8 h-8 text-brand-orange" />
           </div>
-          <h1 className="font-display text-4xl uppercase tracking-tighter">Welcome to the Beta</h1>
+          <h1 className="font-display text-4xl uppercase tracking-tighter">You’ve Been Selected</h1>
         </div>
 
         <div className="space-y-4 text-center">
@@ -90,7 +90,7 @@ export function BetaAccessGate({ userId, onAccepted }: BetaAccessGateProps) {
           onClick={() => setScreen('safety')}
           className="w-full bureau-btn bg-on-surface text-paper flex items-center justify-center gap-2"
         >
-          CONTINUE <ArrowRight className="w-4 h-4" />
+          PROCEED <ArrowRight className="w-4 h-4" />
         </button>
       </motion.div>
     ),
@@ -107,7 +107,7 @@ export function BetaAccessGate({ userId, onAccepted }: BetaAccessGateProps) {
           <div className="mx-auto w-16 h-16 bg-error/10 flex items-center justify-center rounded-full">
             <AlertTriangle className="w-8 h-8 text-error" />
           </div>
-          <h1 className="font-display text-4xl uppercase tracking-tighter">Safety Protocols</h1>
+          <h1 className="font-display text-4xl uppercase tracking-tighter">The Fine Print</h1>
         </div>
 
         <div className="notice-card p-6 border-error/20 bg-error/[0.02]">
@@ -136,7 +136,7 @@ export function BetaAccessGate({ userId, onAccepted }: BetaAccessGateProps) {
           onClick={() => setScreen('consent')}
           className="w-full bureau-btn bg-error text-white flex items-center justify-center gap-2"
         >
-          I UNDERSTAND <CheckCircle2 className="w-4 h-4" />
+          ACKNOWLEDGED <CheckCircle2 className="w-4 h-4" />
         </button>
       </motion.div>
     ),
@@ -153,7 +153,7 @@ export function BetaAccessGate({ userId, onAccepted }: BetaAccessGateProps) {
           <div className="mx-auto w-16 h-16 bg-brand-orange/10 flex items-center justify-center rounded-full">
             <Camera className="w-8 h-8 text-brand-orange" />
           </div>
-          <h1 className="font-display text-3xl uppercase tracking-tighter">Capture & Submission</h1>
+          <h1 className="font-display text-3xl uppercase tracking-tighter">Evidence Handling</h1>
           <p className="text-[10px] uppercase font-bold tracking-widest opacity-40">PROTOCOL_DATA_HANDLING</p>
         </div>
 
@@ -180,7 +180,7 @@ export function BetaAccessGate({ userId, onAccepted }: BetaAccessGateProps) {
           onClick={() => setScreen('final')}
           className="w-full bureau-btn bg-on-surface text-paper flex items-center justify-center gap-2 disabled:opacity-20 transition-all font-display uppercase tracking-widest"
         >
-          NEXT PHASE <ArrowRight className="w-4 h-4" />
+          NEXT STEP <ArrowRight className="w-4 h-4" />
         </button>
       </motion.div>
     ),
@@ -197,7 +197,7 @@ export function BetaAccessGate({ userId, onAccepted }: BetaAccessGateProps) {
           <div className="mx-auto w-16 h-16 bg-on-surface/5 flex items-center justify-center rounded-full">
             <Scale className="w-8 h-8 opacity-40" />
           </div>
-          <h1 className="font-display text-4xl uppercase tracking-tighter">Beta Authorization</h1>
+          <h1 className="font-display text-4xl uppercase tracking-tighter">Final Clearance</h1>
         </div>
 
         <div className="space-y-2">
@@ -237,7 +237,7 @@ export function BetaAccessGate({ userId, onAccepted }: BetaAccessGateProps) {
             onClick={handleAccept}
             className="w-full py-4 bg-brand-orange text-white font-display text-xl uppercase tracking-tighter hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-20 disabled:grayscale"
           >
-            {isSubmitting ? 'AUTHORIZING...' : 'ACCEPT & ENTER FIELD TRIP'}
+            {isSubmitting ? 'AUTHORIZING...' : 'ENTER THE FIELD'}
           </button>
         </div>
       </motion.div>

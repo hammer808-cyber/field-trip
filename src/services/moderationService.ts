@@ -9,9 +9,11 @@ import {
   getDocs,
   onSnapshot,
   deleteDoc,
-  updateDoc
+  updateDoc,
+  orderBy,
+  limit
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Report, ReportTargetType, ReportStatus, ModerationAudit } from '../types/game';
 
 // 1. Reporting
@@ -75,9 +77,45 @@ export async function updateReportStatus(reportId: string, status: ReportStatus)
   try {
     const docRef = doc(db, 'reports', reportId);
     await updateDoc(docRef, { status, updatedAt: serverTimestamp() });
+    
+    if (auth.currentUser) {
+      await logAdminAction(auth.currentUser.uid, reportId, 'report', 'update_status', { status });
+    }
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, 'reports');
   }
+}
+
+export async function logAdminAction(
+  adminId: string,
+  targetId: string,
+  targetType: string,
+  action: string,
+  metadata: any = {}
+) {
+  try {
+    await addDoc(collection(db, 'adminLogs'), {
+      adminId,
+      targetId,
+      targetType,
+      action,
+      ...metadata,
+      createdAt: serverTimestamp()
+    });
+  } catch (error) {
+    console.error('[AdminLog] Failed to write log:', error);
+  }
+}
+
+export function subscribeToAdminLogs(limitCount: number = 50, callback: (logs: any[]) => void) {
+  const q = query(
+    collection(db, 'adminLogs'), 
+    orderBy('createdAt', 'desc'),
+    limit(limitCount)
+  );
+  return onSnapshot(q, (snap) => {
+    callback(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  });
 }
 
 export async function performModerationAction(

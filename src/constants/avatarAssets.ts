@@ -2,9 +2,9 @@ import { AvatarAssetManifest, AvatarData } from '../types/avatar';
 
 export const AVATAR_MANIFEST: AvatarAssetManifest = {
   bases: [
-    { id: 'base-01', name: 'Scout Ivory', path: '/assets/avatars/base/base_ivory.svg' },
-    { id: 'base-02', name: 'Explorer Ochre', path: '/assets/avatars/base/base_ochre.svg' },
-    { id: 'base-03', name: 'Legend Obsidian', path: '/assets/avatars/base/base_obsidian.svg' },
+    { id: 'base-01', name: 'Archive Ivory', path: '/assets/avatars/base/base_ivory.svg' },
+    { id: 'base-02', name: 'Field Ochre', path: '/assets/avatars/base/base_ochre.svg' },
+    { id: 'base-03', name: 'Certified Obsidian', path: '/assets/avatars/base/base_obsidian.svg' },
     { id: 'base-04', name: 'Field Olive', path: '/assets/avatars/base/base_olive.svg' },
   ],
   hairs: [
@@ -16,8 +16,8 @@ export const AVATAR_MANIFEST: AvatarAssetManifest = {
   ],
   outfits: [
     { id: 'outfit-01', name: 'Bureau Uniform', path: '/assets/avatars/outfit/outfit_01.svg' },
-    { id: 'outfit-02', name: 'Scout Poncho', path: '/assets/avatars/outfit/outfit_02.svg' },
-    { id: 'outfit-03', name: 'Legendary Parka', path: '/assets/avatars/outfit/outfit_03.svg' },
+    { id: 'outfit-02', name: 'Issue Poncho', path: '/assets/avatars/outfit/outfit_02.svg' },
+    { id: 'outfit-03', name: 'Certified Parka', path: '/assets/avatars/outfit/outfit_03.svg' },
     { id: 'outfit-04', name: 'Field Jumpsuit', path: '/assets/avatars/outfit/outfit_04.svg' },
   ],
   accessories: [
@@ -35,9 +35,9 @@ export const AVATAR_MANIFEST: AvatarAssetManifest = {
   ],
   badges: [
     { id: 'badge-none', name: 'Unassigned', path: '' },
-    { id: 'badge-01', name: 'Scout Rank', path: '/assets/avatars/badge/badge_01.svg' },
-    { id: 'badge-02', name: 'Explorer Rank', path: '/assets/avatars/badge/badge_02.svg' },
-    { id: 'badge-03', name: 'Legend Rank', path: '/assets/avatars/badge/badge_03.svg' },
+    { id: 'badge-01', name: 'Standard Rank', path: '/assets/avatars/badge/badge_01.svg' },
+    { id: 'badge-02', name: 'Advanced Rank', path: '/assets/avatars/badge/badge_02.svg' },
+    { id: 'badge-03', name: 'Certified Rank', path: '/assets/avatars/badge/badge_03.svg' },
     { id: 'badge-04', name: 'Chaos Pilot', path: '/assets/avatars/badge/badge_04.svg' },
   ]
 };
@@ -49,4 +49,55 @@ export const DEFAULT_AVATAR: AvatarData = {
   accessoryId: 'acc-none',
   backgroundId: 'bg-01',
   badgeId: 'badge-none'
+};
+
+export const PERSONA_AVATAR_PRESETS: Record<string, AvatarData> = {
+  captainClipboard: {
+    baseId: 'base-01',
+    hairId: 'hair-none',
+    outfitId: 'outfit-01',
+    accessoryId: 'acc-01',
+    backgroundId: 'bg-04',
+    badgeId: 'badge-none'
+  },
+  mallRat: {
+    baseId: 'base-02',
+    hairId: 'hair-04',
+    outfitId: 'outfit-04',
+    accessoryId: 'acc-04',
+    backgroundId: 'bg-02',
+    badgeId: 'badge-none'
+  },
+  mascota: {
+    baseId: 'base-03',
+    hairId: 'hair-04',
+    outfitId: 'outfit-04',
+    accessoryId: 'acc-03',
+    backgroundId: 'bg-01',
+    badgeId: 'badge-04'
+  },
+  elondra: {
+    baseId: 'base-03',
+    hairId: 'hair-03',
+    outfitId: 'outfit-03',
+    accessoryId: 'acc-none',
+    backgroundId: 'bg-01',
+    badgeId: 'badge-none'
+  },
+  lostCamper: {
+    baseId: 'base-04',
+    hairId: 'hair-01',
+    outfitId: 'outfit-02',
+    accessoryId: 'acc-02',
+    backgroundId: 'bg-03',
+    badgeId: 'badge-none'
+  },
+  bigfoot: {
+    baseId: 'base-03',
+    hairId: 'hair-02',
+    outfitId: 'outfit-02',
+    accessoryId: 'acc-03',
+    backgroundId: 'bg-03',
+    badgeId: 'badge-none'
+  }
 };

@@ -25,6 +25,7 @@ interface ThemeContextType {
   isLoading: boolean;
   t: (key: keyof CopyOverrides) => string;
   asset: (key: keyof Skin['assets']) => string;
+  fc: (normal: string, frankie: string) => string;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -38,14 +39,19 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
 
+  // Helper for frankie mode copy switching
+  const fc = (normal: string, frankie: string): string => {
+    return frankieMode ? frankie : normal;
+  };
+
   // Helper for copy overrides with fallbacks
   const t = (key: keyof CopyOverrides): string => {
-    return activeSkin.copyOverrides?.[key] || DEFAULT_COPY_OVERRIDES[key];
+    return activeSkin.copyOverrides?.[key] || (DEFAULT_COPY_OVERRIDES[key] as string) || "";
   };
 
   // Helper for assets with fallbacks
   const asset = (key: keyof Skin['assets']): string => {
-    return activeSkin.assets?.[key] || DEFAULT_SKIN_ASSETS[key];
+    return activeSkin.assets?.[key] || (DEFAULT_SKIN_ASSETS[key] as string) || "";
   };
 
   // Listen to Auth
@@ -54,7 +60,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       if (user) {
         setUserId(user.uid);
         const adminStatus = await isUserAdmin(user.uid);
-        const isHardcodedAdmin = user.email === 'hammer808@gmail.com' && user.emailVerified;
+        const isHardcodedAdmin = user.email === 'hammer808@gmail.com' && (user.emailVerified || user.emailVerified === null);
         
         // Auto-bootstrap hardcoded admin into the collection for faster rule checks
         if (isHardcodedAdmin && !adminStatus) {
@@ -80,9 +86,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Subscribe to User Preferences
   useEffect(() => {
     if (!userId) return;
-    return subscribeToUserThemePreference(userId, (prefs) => {
+    const unsub = subscribeToUserThemePreference(userId, (prefs) => {
       setUserPrefs(prefs);
     });
+
+    return () => {
+      if (unsub) unsub();
+    };
   }, [userId]);
 
   // Determine and Subscribe to the ACTIVE skin - Optimization: Only 1 doc read
@@ -166,7 +176,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setFrankieMode,
       isLoading,
       t,
-      asset
+      asset,
+      fc
     }}>
       <div className={`app-skin-${activeSkin.slug} ${frankieMode ? 'frankie-active' : ''}`}>
         {children}
