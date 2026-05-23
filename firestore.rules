@@ -111,15 +111,56 @@ service cloud.firestore {
 
     // USERS (Identity & RBAC)
     match /users/{uId} {
+      function isSystemProtected(data, existing) {
+        let protectedFields = [
+          'points', 'xp', 'score', 'totalPoints', 'level', 'rank',
+          'tokens', 'fieldTokens', 'rerollsAvailable',
+          'accessStatus', 'role', 'unlockedRewards', 'betaAccessCodeUsed',
+          'approvedEntriesCount', 'soloTripsCount', 'boldTripsCount', 'crewTripsCount',
+          'completedCoreChallenges', 'completedChallengeIds', 'completedMissionIds',
+          'productPersonaLens', 'onboardingCompleted', 'crewModeUnlocked', 'isAdmin', 'admin'
+        ];
+        
+        // Block if any protected field is being changed
+        let isEditingProtected = data.diff(existing).affectedKeys().hasAny(protectedFields);
+        
+        // Special Case: fieldType. We protect it from UPDATES, but allow INITIAL SETTING if currently null.
+        // This lets the onboarding quiz work while preventing users from changing it later to farm rewards.
+        let isInitialFieldTypeSet = existing.get('fieldType', null) == null && 
+                                   data.diff(existing).affectedKeys().hasOnly(['fieldType', 'fieldTypeName', 'fieldClassificationComplete', 'updatedAt']);
+
+        let isFieldTypeUpdate = data.diff(existing).affectedKeys().hasAny(['fieldType', 'fieldTypeName', 'fieldClassificationComplete']);
+
+        return (isEditingProtected || (isFieldTypeUpdate && !isInitialFieldTypeSet));
+      }
+
       // allow get is more robust for non-existent profiles during registration
       allow get: if isSignedIn() && (uId == request.auth.uid || isAdmin());
       allow list: if isSignedIn();
-      allow create, update: if isSignedIn() && (uId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && (uId == request.auth.uid || isAdmin());
+      allow update: if isSignedIn() && (uId == request.auth.uid || isAdmin()) && (
+        isAdmin() || !isSystemProtected(incoming(), existing())
+      );
       allow delete: if isAdmin();
       
       // Allow recursive access to own subcollections (blocks, legalConsents, etc.)
-      match /{allPaths=**} {
+      match /blocks/{blockId} {
         allow read, write: if isSignedIn() && (uId == request.auth.uid || isAdmin());
+      }
+      match /legalConsents/{consentId} {
+        allow read, write: if isSignedIn() && (uId == request.auth.uid || isAdmin());
+      }
+      match /memories/{memoryId} {
+        allow read: if isSignedIn() && (uId == request.auth.uid || isAdmin());
+        allow create: if isAdmin();
+        allow update: if isSignedIn() && uId == request.auth.uid && 
+                      incoming().diff(existing()).affectedKeys().hasOnly(['favorite']);
+        allow delete: if isAdmin();
+      }
+      
+      match /{allPaths=**} {
+        allow read: if isSignedIn() && (uId == request.auth.uid || isAdmin());
+        allow write: if isAdmin();
       }
     }
 
@@ -130,10 +171,7 @@ service cloud.firestore {
     match /badgeProgress/{id} {
       allow get: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
       allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
-      allow update: if isSignedIn() && existing().userId == request.auth.uid && (
-        incoming().diff(existing()).affectedKeys().hasOnly(['fragmentCount', 'isUnlocked', 'unlockedAt', 'lastFragmentEarnedAt'])
-      );
+      allow create, update: if isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -191,25 +229,23 @@ service cloud.firestore {
     // FIELD CHECKS (User Reports)
     match /fieldChecks/{checkId} {
       function isValidFieldCheck(data) {
-        return data.keys().hasAll(['reporterId', 'targetId', 'targetUserId', 'reason', 'status', 'createdAt']) &&
-               data.reporterId == request.auth.uid &&
-               data.status in ['open', 'dismissed'] &&
+        return data.keys().hasAll(['reporterUid', 'submissionId', 'missionId', 'reportedUserId', 'reason', 'note', 'status', 'createdAt', 'updatedAt']) &&
+               data.reporterUid == request.auth.uid &&
+               data.status == 'pending' &&
                data.createdAt == requestTime() &&
-               (data.get('details', '').size() <= 2000);
+               data.updatedAt == requestTime() &&
+               data.note.size() >= 5 &&
+               data.note.size() <= 2000;
       }
       allow get: if isSignedIn() && (
         isAdmin() ||
-        resource.data.reporterId == request.auth.uid || 
-        resource.data.targetUserId == request.auth.uid
+        resource.data.reporterUid == request.auth.uid || 
+        resource.data.reportedUserId == request.auth.uid
       );
       allow list: if isAdmin(); // Only admins can list all checks.
       
-      allow create: if isSignedIn() && isValidId(checkId) && isValidFieldCheck(incoming());
-      allow update: if (isAdmin()) || (
-        isApproved() && resource.data.targetUserId == request.auth.uid &&
-        incoming().diff(existing()).affectedKeys().hasOnly(['defense', 'defenseSubmittedAt', 'updatedAt']) &&
-        (incoming().get('defense', '').size() <= 2000)
-      );
+      allow create: if isSignedIn() && isValidFieldCheck(incoming());
+      allow update: if isAdmin();
     }
 
     // VOTES (Accolades)

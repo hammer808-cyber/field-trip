@@ -16,7 +16,7 @@ import {
   where,
   getCountFromServer
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { FieldTypeId, ProductPersonaLensId, FIELD_TYPES } from '../constants';
 import { normalizeFieldType } from '../constants/fieldTypes';
 
@@ -59,7 +59,8 @@ export interface UserProfile {
   seenBadges?: string[];
   previousRank?: number;
   maybeList?: string[];
-  plainMode?: boolean;
+  frankieMode?: boolean; // App-wide Plain Language Mode
+  deprecated_plainMode?: boolean;
   comebackCardActive?: boolean;
   receiptsMode?: boolean;
   quietCrewMode?: boolean;
@@ -69,10 +70,29 @@ export interface UserProfile {
   activeSabotageId?: string | null;
   hasActiveSabotage?: boolean;
   preferences?: {
+    frankieMode?: boolean;
     reduceCommentary?: boolean;
-    notificationsEnabled?: boolean;
+    highContrast?: boolean;
+    motionEnabled?: boolean;
     privateApprovedPhotos?: boolean;
+    mathWizard?: boolean;
+    showOnBigBoard?: boolean;
+    showExactPoints?: boolean;
+    selectedMarkerStickerId?: string;
   };
+  unlockedRewards?: {
+    stickers: string[];
+    badges: string[];
+  };
+  tripProgress?: Record<string, {
+    photo?: boolean;
+    field_note?: boolean;
+    location?: boolean;
+    reaction?: boolean;
+    vote?: boolean;
+    time_window?: boolean;
+    hintUsed?: boolean;
+  }>;
   createdAt?: any;
   updatedAt?: any;
   betaAccessCodeUsed?: string;
@@ -213,6 +233,28 @@ export async function updateProfile(uid: string, data: Partial<UserProfile>) {
     });
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `${COLLECTION}/${uid}`);
+  }
+}
+
+export async function secureCompleteOnboarding() {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('NOT_AUTHENTICATED');
+
+    const { authenticatedFetch } = await import('../lib/api');
+    const response = await authenticatedFetch('/api/user/complete-onboarding', {
+      method: 'POST'
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || 'FAILED_TO_COMPLETE_ONBOARDING');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error completing onboarding via API:', error);
+    throw error;
   }
 }
 

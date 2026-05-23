@@ -32,7 +32,7 @@ export async function addEntryToFirestore(entry: Omit<Entry, 'id' | 'createdAt'>
     } catch (error) {
       return handleFirestoreError(error, OperationType.CREATE, COLLECTION);
     }
-  }, { cooldownMs: 5000 }); // 5s cooldown between entries
+  }, { cooldownMs: 2000 }); // 2s cooldown between entries
 }
 
 /**

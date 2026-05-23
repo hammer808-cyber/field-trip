@@ -16,8 +16,8 @@ const DEFAULT_CONFIG: GlobalConfig = {
   proofChecksEnabled: true,
   uploadsEnabled: true,
   leaderboardLiveUpdatesEnabled: false, // Default to false for cost safety
-  maxDailyProofChecksPerUser: 5,
-  maxDailyUploadsPerUser: 10,
+  maxDailyProofChecksPerUser: 20,
+  maxDailyUploadsPerUser: 30,
   betaMode: true,
 };
 

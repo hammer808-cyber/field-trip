@@ -13,23 +13,38 @@ export function calculateSubmissionPoints(
     isFieldCheckValid?: boolean;
     isFinalCrown?: boolean;
     daysLate?: number;
+    hintUsed?: boolean;
   }
 ) {
   let scoreEvents: Omit<ScoreEvent, 'id' | 'userId' | 'userName' | 'createdAt'>[] = [];
   
   // Base Points from Level or baseXP
   let levelPoints = 0;
+  const multipliers = {
+    'Standard': 1,
+    'Advanced': 1.5,
+    'Certified': 2
+  };
+
+  const selectedMultiplier = multipliers[entry.selectedLevel as ChallengeLevel || 'Standard'];
+  
   if (challenge.levels && challenge.levels[entry.selectedLevel as ChallengeLevel]) {
     levelPoints = challenge.levels[entry.selectedLevel as ChallengeLevel].points;
   } else {
     // Fallback to baseXP with standard multipliers
     const base = challenge.baseXP || challenge.basePoints || 100;
-    const multipliers = {
-      'Standard': 1,
-      'Advanced': 1.5,
-      'Certified': 2
-    };
-    levelPoints = Math.round(base * multipliers[entry.selectedLevel as ChallengeLevel || 'Standard']);
+    levelPoints = Math.round(base * selectedMultiplier);
+  }
+
+  // HINT PENALTY: Block Certified tier if hint was used
+  if (options.hintUsed && entry.selectedLevel === 'Certified') {
+    // Force reduction to Advanced level points if they tried to claim Certified with a hint
+    const base = challenge.baseXP || challenge.basePoints || 100;
+    const advancedPoints = challenge.levels?.['Advanced']?.points || Math.round(base * 1.5);
+    levelPoints = Math.round(advancedPoints * 0.85); // Further 15% reduction for using a hint
+  } else if (options.hintUsed) {
+    // Small reduction for other tiers
+    levelPoints = Math.round(levelPoints * 0.85);
   }
 
   scoreEvents.push({
@@ -37,7 +52,9 @@ export function calculateSubmissionPoints(
     points: levelPoints,
     entryId: entry.id,
     tripId: challenge.id,
-    description: `Challenge Completion: ${challenge.title} (${entry.selectedLevel})`
+    description: options.hintUsed 
+      ? `Challenge Completion: ${challenge.title} (${entry.selectedLevel}) [Hint Penalty Applied]`
+      : `Challenge Completion: ${challenge.title} (${entry.selectedLevel})`
   });
 
   // Photo Proof Bonus

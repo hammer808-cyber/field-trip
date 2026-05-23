@@ -112,8 +112,10 @@ export function ContentMenu({ targetId, targetType, authorId, authorName, classN
         <FieldCheckModal 
           isOpen={showFieldCheck}
           onClose={() => setShowFieldCheck(false)}
-          targetId={targetId}
-          targetName={authorName}
+          submissionId={targetId}
+          missionId="unknown"
+          reportedUserId={authorId || 'unknown'}
+          reportedUserName={authorName || 'Field Agent'}
         />
       )}
     </div>

@@ -19,11 +19,24 @@
         "crewModeUnlocked": { "type": "boolean" },
         "crewModeSeen": { "type": "boolean" },
         "onboardingCompleted": { "type": "boolean" },
-        "plainMode": { "type": "boolean", "description": "UI accessibility flag." },
+        "frankieMode": { "type": "boolean", "description": "Plain language system flag." },
+        "plainMode": { "type": "boolean", "description": "Deprecated - use frankieMode." },
         "seenBadges": { "type": "array", "items": { "type": "string" } },
         "maybeList": { "type": "array", "items": { "type": "string" }, "description": "Queued challenge IDs." },
         "previousRank": { "type": "number" },
         "rerollsAvailable": { "type": "number" },
+        "tripProgress": { 
+          "type": "object", 
+          "description": "Per-challenge progress tracking for unsubmitted missions.",
+          "additionalProperties": {
+             "type": "object",
+             "properties": {
+               "photo": { "type": "boolean" },
+               "field_note": { "type": "boolean" },
+               "location": { "type": "boolean" }
+             }
+          }
+        },
         "comebackCardActive": { "type": "boolean" },
         "fieldCheckHistory": { "type": "array", "items": { "type": "string" }, "description": "Timestamps of recent field check requests." },
         "role": { "type": "string", "enum": ["user", "admin"] },

@@ -2,7 +2,7 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
@@ -213,7 +213,14 @@ async function startServer() {
   app.use(express.json({ limit: '10mb' }));
 
   // Initialize Gemini
-  const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+  const ai = new GoogleGenAI({
+    apiKey: process.env.GEMINI_API_KEY || "",
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
+      }
+    }
+  });
 
   // Middleware for verifying Firebase ID Token and App Check Token
   const authenticate = async (req: any, res: any, next: any) => {
@@ -472,6 +479,68 @@ async function startServer() {
     }
   });
 
+  /**
+   * SECURE CONSUMABLES ENDPOINT
+   * Handles sensitive profile decrements (rerolls, tokens)
+   */
+  app.post("/api/game/use-reroll", authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const { uid } = req.user;
+
+    try {
+      const userRef = dbAdmin.collection('users').doc(uid);
+      const userSnap = await userRef.get();
+      
+      if (!userSnap.exists) return res.status(404).json({ error: "USER_NOT_FOUND" });
+      const data = userSnap.data();
+      
+      if (!data || (data.rerollsAvailable || 0) <= 0) {
+        return res.status(400).json({ error: "NO_REROLLS_AVAILABLE" });
+      }
+
+      await userRef.update({
+        rerollsAvailable: FieldValue.increment(-1),
+        updatedAt: FieldValue.serverTimestamp()
+      });
+
+      res.json({ success: true, remaining: (data.rerollsAvailable || 0) - 1 });
+    } catch (error) {
+      console.error('Reroll Error:', error);
+      res.status(500).json({ error: 'FAILED_TO_USE_REROLL' });
+    }
+  });
+
+  /**
+   * SECURE ONBOARDING ENDPOINT
+   * Allows users to mark onboarding as complete once they've finished classification.
+   */
+  app.post("/api/user/complete-onboarding", authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const { uid } = req.user;
+
+    try {
+      const userRef = dbAdmin.collection('users').doc(uid);
+      const userSnap = await userRef.get();
+      
+      if (!userSnap.exists) return res.status(404).json({ error: "USER_NOT_FOUND" });
+      const data = userSnap.data();
+      
+      if (!data?.fieldClassificationComplete) {
+         return res.status(400).json({ error: "CLASSIFICATION_REQUIRED" });
+      }
+
+      await userRef.update({
+        onboardingCompleted: true,
+        updatedAt: FieldValue.serverTimestamp()
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Onboarding Completion Error:', error);
+      res.status(500).json({ error: 'FAILED_TO_COMPLETE_ONBOARDING' });
+    }
+  });
+
   app.post("/api/proof/evaluate-metadata", authenticate, async (req: any, res) => {
     try {
       const { metadata, challengeId, challengeWindow } = req.body;
@@ -570,42 +639,61 @@ async function startServer() {
       // Remove prefix if present in base64Image
       const base64Data = base64Image.includes(",") ? base64Image.split(",")[1] : base64Image;
 
-      const model = ai.getGenerativeModel({
-        model: "gemini-1.5-flash",
-        generationConfig: {
+      const response = await ai.models.generateContent({
+        model: "gemini-flash-latest",
+        contents: {
+          parts: [
+            { text: prompt },
+            { inlineData: { data: base64Data, mimeType: "image/jpeg" } }
+          ]
+        },
+        config: {
           responseMimeType: "application/json",
           responseSchema: {
-            type: SchemaType.OBJECT,
+            type: Type.OBJECT,
             properties: {
-              contains_required_subject: { type: SchemaType.BOOLEAN },
-              visible_evidence: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-              missing_evidence: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
-              confidence: { type: SchemaType.NUMBER },
-              reason: { type: SchemaType.STRING },
-              suggested_lore_tags: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } }
+              contains_required_subject: { type: Type.BOOLEAN },
+              visible_evidence: { type: Type.ARRAY, items: { type: Type.STRING } },
+              missing_evidence: { type: Type.ARRAY, items: { type: Type.STRING } },
+              confidence: { type: Type.NUMBER },
+              reason: { type: Type.STRING },
+              suggested_lore_tags: { type: Type.ARRAY, items: { type: Type.STRING } }
             },
             required: ["contains_required_subject", "visible_evidence", "missing_evidence", "confidence", "reason", "suggested_lore_tags"]
           }
         }
       });
 
-      const result = await model.generateContent([
-        { text: prompt },
-        { inlineData: { data: base64Data, mimeType: "image/jpeg" } }
-      ]);
+      const text = response.text;
+      if (!text) {
+        throw new Error("EMPTY_GEMINI_RESPONSE: The model returned no text output.");
+      }
+      
+      try {
+        const parsed = JSON.parse(text);
+        res.json(parsed);
+      } catch (parseError: any) {
+        console.error("Failed to parse Gemini JSON:", text);
+        throw new Error(`JSON_PARSE_ERROR: Failed to parse mission analysis output: ${parseError.message}`);
+      }
 
-      const response = result.response;
-      res.json(JSON.parse(response.text() || '{}'));
-
-    } catch (error) {
+    } catch (error: any) {
       console.error("Gemini Analysis Error:", error);
+      
+      const isQuotaError = error.message?.includes("429") || error.message?.includes("quota");
+      const isSafetyError = error.message?.includes("SAFETY");
+      
       res.status(500).json({ 
         contains_required_subject: false,
         visible_evidence: [],
         missing_evidence: ["API_ERROR"],
         confidence: 0,
-        reason: "The Bureau's analytical uplink is currently unstable.",
-        suggested_lore_tags: ["Signal_Loss"]
+        reason: isQuotaError 
+          ? "The Bureau's processing banks are overloaded. Please standby (429 Quota Exceeded)."
+          : isSafetyError
+          ? "The Bureau's safety filters triggered on this evidence snapshot."
+          : `The Bureau's analytical uplink is currently unstable: ${error.message || 'Unknown Protocol Error'}`,
+        suggested_lore_tags: ["Signal_Loss", "BUREAU_DESYNC"]
       });
     }
   });

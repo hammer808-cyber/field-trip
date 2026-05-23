@@ -13,7 +13,9 @@ export function GameWrapper({ children }: { children: React.ReactNode }) {
     isSeasonActive, 
     activeSeason, 
     profile, 
-    gameConfig 
+    gameConfig,
+    onboardingCompletedCount,
+    isOnboardingComplete
   } = useApp();
   const { t, isAdmin } = useTheme();
 
@@ -80,8 +82,8 @@ export function GameWrapper({ children }: { children: React.ReactNode }) {
   }
 
   // Onboarding Stage
-  if (profile && !profile.onboardingCompleted) {
-    const remaining = (gameConfig?.onboardingEntriesRequired || 3) - (profile.soloTripsCount || 0);
+  if (profile && !isOnboardingComplete) {
+    const remaining = 3 - onboardingCompletedCount;
     if (remaining > 0) {
       return (
         <div className="relative min-h-screen">
@@ -97,14 +99,14 @@ export function GameWrapper({ children }: { children: React.ReactNode }) {
                 <GraduationCap className="w-5 h-5 text-brand-orange" />
                 <div>
                   <p className="text-[10px] uppercase font-bold tracking-widest">Training Protocol Active</p>
-                  <p className="text-xs opacity-60 font-mono">Complete {remaining} more solo mission{remaining > 1 ? 's' : ''} to unlock Crew access.</p>
+                  <p className="text-xs opacity-60 font-mono">Complete {remaining} more onboarding mission{remaining > 1 ? 's' : ''} to unlock Crew access.</p>
                 </div>
               </div>
               <div className="flex gap-1">
-                {Array.from({ length: gameConfig?.onboardingEntriesRequired || 3 }).map((_, i) => (
+                {Array.from({ length: 3 }).map((_, i) => (
                   <div 
                     key={i} 
-                    className={`w-3 h-3 border-2 ${i < (profile.soloTripsCount || 0) ? 'bg-brand-orange border-brand-orange' : 'border-paper/20'}`} 
+                    className={`w-3 h-3 border-2 ${i < onboardingCompletedCount ? 'bg-brand-orange border-brand-orange' : 'border-paper/20'}`} 
                   />
                 ))}
               </div>
@@ -118,13 +120,13 @@ export function GameWrapper({ children }: { children: React.ReactNode }) {
   return (
     <>
       {(isAdmin || import.meta.env.DEV) && (!isSeasonActive || activeSeason?.status !== 'active' || activeSeason?.id === 'dev-season-2026') && (
-        <div className="fixed top-20 right-4 z-[100] pointer-events-none flex flex-col items-end gap-2">
-          <Sticker color="black" className="text-[8px] opacity-80 border-dashed border-2 border-brand-orange">
-            {isAdmin ? 'ADMIN_SEASON_BYPASS' : 'DEV_SEASON_ACTIVE'}
+        <div className="fixed top-2 sm:top-20 right-2 sm:right-4 z-[100] pointer-events-none flex flex-row sm:flex-col items-center sm:items-end gap-1 sm:gap-2">
+          <Sticker color="black" className="text-[6px] sm:text-[8px] opacity-70 border-dashed border border-brand-orange py-0.5 px-1 sm:py-1 sm:px-2 leading-none">
+            {isAdmin ? 'ADMIN_BYPASS' : 'DEV_ACTIVE'}
           </Sticker>
           {activeSeason?.id === 'dev-season-2026' && (
-            <div className="bg-brand-orange text-white text-[7px] px-2 py-0.5 font-bold uppercase tracking-widest">
-              FALLBACK_MODE_ENGAGED
+            <div className="bg-brand-orange text-white text-[5px] sm:text-[7px] px-1 sm:px-2 py-0.5 font-bold uppercase tracking-widest leading-none">
+              FALLBACK_MODE
             </div>
           )}
         </div>

@@ -4,15 +4,20 @@ import { db } from '../lib/firebase';
 import { ProofReview, ProofStatus } from '../types/proof';
 import { Entry } from '../constants';
 import { adminOverrideReview, evaluateProof } from '../services/proofService';
+import { getPendingFieldChecks, updateFieldCheckStatus } from '../services/fieldCheckService';
 import { Card, Sticker } from '../components/UI';
-import { Shield, Check, X, RefreshCw, AlertCircle, Info, Database, CameraOff } from 'lucide-react';
+import { Shield, Check, X, RefreshCw, AlertCircle, Info, Database, CameraOff, Flag, CheckCircle, MessageSquare } from 'lucide-react';
+import { FieldCheck, FieldCheckStatus } from '../types/game';
 import { cn, formatSafeDateOnly } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
 
 export default function AdminProofReview() {
   const [reviews, setReviews] = useState<(ProofReview & { entry?: Entry })[]>([]);
+  const [fieldChecks, setFieldChecks] = useState<(FieldCheck & { entry?: Entry })[]>([]);
+  const [activeTab, setActiveTab ] = useState<'submissions' | 'checks'>('submissions');
   const [loading, setLoading] = useState(true);
+  const [loadingChecks, setLoadingChecks] = useState(true);
   const [rerunningId, setRerunningId] = useState<string | null>(null);
   const [storageStats, setStorageStats] = useState({
     waitingPurge: 0,
@@ -74,9 +79,33 @@ export default function AdminProofReview() {
       });
     });
 
+    const checksUnsubscribe = getPendingFieldChecks(async (checks) => {
+      const entryIds = [...new Set(checks.map(c => c.submissionId))];
+      const entryMap: Record<string, Entry> = {};
+      
+      try {
+        await Promise.all(entryIds.map(async (eid) => {
+          if (!eid) return;
+          const snap = await getDoc(doc(db, 'entries', eid));
+          if (snap.exists()) {
+            entryMap[eid] = { id: snap.id, ...snap.data() } as Entry;
+          }
+        }));
+      } catch (err) {
+        console.error("Failed to fetch entries for checks:", err);
+      }
+
+      setFieldChecks(checks.map(c => ({
+        ...c,
+        entry: entryMap[c.submissionId]
+      })));
+      setLoadingChecks(false);
+    });
+
     return () => {
       unsubscribe();
       statsUnsubscribe();
+      checksUnsubscribe();
     };
   }, [isAdmin]);
 
@@ -156,6 +185,15 @@ export default function AdminProofReview() {
     }
   };
 
+  const handleResolveCheck = async (checkId: string, status: FieldCheckStatus) => {
+    try {
+      const adminNote = prompt(`Resolution note for ${status}:`) || '';
+      await updateFieldCheckStatus(checkId, status, adminNote);
+    } catch (error) {
+      console.error("Failed to resolve check:", error);
+    }
+  };
+
   if (!isAdmin) {
     return <div className="p-8 text-center text-error font-mono">UNAUTHORIZED_ACCESS. ESCALATING...</div>;
   }
@@ -194,30 +232,153 @@ export default function AdminProofReview() {
         </p>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center p-12">
-          <RefreshCw className="w-8 h-8 animate-spin opacity-20" />
-        </div>
-      ) : (reviews?.length || 0) === 0 ? (
-        <Card className="p-12 text-center opacity-40 border-dashed">
-          <p className="font-mono text-sm uppercase">No pending evidence for audit.</p>
-        </Card>
+      {/* Navigation Tabs */}
+      <div className="flex gap-4 mb-8 border-b-4 border-on-surface/10 pb-0.5">
+        <button
+          onClick={() => setActiveTab('submissions')}
+          className={cn(
+            "px-6 py-3 font-display uppercase italic font-black transition-all",
+            activeTab === 'submissions' ? "bg-on-surface text-white border-b-4 border-white shadow-[0_4px_0_var(--color-brand-orange)]" : "text-on-surface/40 hover:text-on-surface"
+          )}
+        >
+          {reviews.length > 0 && <span className="mr-2 bg-brand-orange text-white px-1.5 py-0.5 text-[10px] non-italic">{reviews.length}</span>}
+          Pending_Evidence
+        </button>
+        <button
+          onClick={() => setActiveTab('checks')}
+          className={cn(
+            "px-6 py-3 font-display uppercase italic font-black transition-all",
+            activeTab === 'checks' ? "bg-on-surface text-white border-b-4 border-white shadow-[0_4px_0_var(--color-brand-orange)]" : "text-on-surface/40 hover:text-on-surface"
+          )}
+        >
+          {fieldChecks.length > 0 && <span className="mr-2 bg-brand-orange text-white px-1.5 py-0.5 text-[10px] non-italic">{fieldChecks.length}</span>}
+          Field_Checks
+        </button>
+      </div>
+
+      {activeTab === 'submissions' ? (
+        loading ? (
+          <div className="flex justify-center p-12">
+            <RefreshCw className="w-8 h-8 animate-spin opacity-20" />
+          </div>
+        ) : (reviews?.length || 0) === 0 ? (
+          <Card className="p-12 text-center opacity-40 border-dashed">
+            <p className="font-mono text-sm uppercase">No pending evidence for audit.</p>
+          </Card>
+        ) : (
+          <div className="space-y-8">
+            {reviews.map(r => (
+              <ProofReviewCard 
+                key={r.id} 
+                review={r} 
+                onApprove={() => handleAction(r, 'approved')}
+                onReject={() => handleAction(r, 'rejected')}
+                onResubmit={() => handleAction(r, 'needsMoreProof')}
+                onRerunAI={() => handleRerunAI(r)}
+                isRerunning={rerunningId === r.id}
+              />
+            ))}
+          </div>
+        )
       ) : (
-        <div className="space-y-8">
-          {reviews.map(r => (
-            <ProofReviewCard 
-              key={r.id} 
-              review={r} 
-              onApprove={() => handleAction(r, 'approved')}
-              onReject={() => handleAction(r, 'rejected')}
-              onResubmit={() => handleAction(r, 'needsMoreProof')}
-              onRerunAI={() => handleRerunAI(r)}
-              isRerunning={rerunningId === r.id}
-            />
-          ))}
-        </div>
+        loadingChecks ? (
+          <div className="flex justify-center p-12">
+            <RefreshCw className="w-8 h-8 animate-spin opacity-20" />
+          </div>
+        ) : fieldChecks.length === 0 ? (
+          <Card className="p-12 text-center opacity-40 border-dashed">
+            <p className="font-mono text-sm uppercase">No active field checks from agents.</p>
+          </Card>
+        ) : (
+          <div className="space-y-6">
+            {fieldChecks.map(check => (
+              <FieldCheckAdminCard 
+                key={check.id} 
+                check={check}
+                onResolve={(status) => handleResolveCheck(check.id, status)}
+              />
+            ))}
+          </div>
+        )
       )}
     </div>
+  );
+}
+
+function FieldCheckAdminCard({ check, onResolve }: { check: FieldCheck & { entry?: Entry }, onResolve: (status: FieldCheckStatus) => void }) {
+  const { fc } = useTheme();
+  
+  return (
+    <Card className="p-6 border-2 border-on-surface hover:shadow-[8px_8px_0px_black] transition-all bg-white">
+      <div className="flex flex-col md:flex-row gap-6">
+        <div className="md:w-1/4 h-48 bg-paper-dark border-4 border-on-surface overflow-hidden relative">
+          {check.entry?.proofImage ? (
+            <img 
+              src={check.entry.proofImage} 
+              alt="Subject" 
+              className="w-full h-full object-cover grayscale brightness-75" 
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-on-surface/5">
+              <CameraOff className="w-8 h-8 opacity-20" />
+            </div>
+          )}
+          <div className="absolute top-2 left-2 bg-on-surface text-white px-1.5 py-0.5 text-[8px] font-black uppercase italic">
+            ID_{check.submissionId.substring(0, 4)}
+          </div>
+        </div>
+
+        <div className="md:w-3/4 space-y-4">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="micro-label opacity-40 uppercase mb-1">REPORTER: {check.reporterUid}</p>
+              <p className="micro-label opacity-40 uppercase mb-1">SUBJECT: {check.reportedUserId} | MISSION: {check.missionId}</p>
+              <h3 className="font-display text-2xl uppercase italic font-black text-brand-orange leading-none mb-1">
+                {check.reason.toUpperCase()}
+              </h3>
+              <p className="text-[10px] font-mono text-on-surface/40">
+                Awaiting Review (Received: {check.createdAt?.toDate().toLocaleString()})
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => onResolve('reviewed')}
+                className="p-2 border-2 border-on-surface bg-brand-lime text-black shadow-[4px_4px_0px_black] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all flex items-center gap-2 font-display text-xs uppercase font-black italic"
+              >
+                <CheckCircle className="w-4 h-4" /> MARK_REVIEWED
+              </button>
+              <button 
+                onClick={() => onResolve('dismissed')}
+                className="p-2 border-2 border-on-surface bg-white text-on-surface shadow-[4px_4px_0px_black] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all flex items-center gap-2 font-display text-xs uppercase font-black italic"
+              >
+                <X className="w-4 h-4" /> DISMISS
+              </button>
+              <button 
+                onClick={() => onResolve('action_needed')}
+                className="p-2 border-2 border-on-surface bg-brand-orange text-white shadow-[4px_4px_0px_black] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all flex items-center gap-2 font-display text-xs uppercase font-black italic"
+              >
+                <Flag className="w-4 h-4" /> ACTION_NEEDED
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-paper-dark p-4 border-l-4 border-brand-orange italic shadow-inner">
+            <p className="font-serif text-lg leading-relaxed text-on-surface/80">
+              "{check.note}"
+            </p>
+          </div>
+
+          <div className="flex gap-4">
+            <div className="p-3 bg-on-surface/5 border border-on-surface/10 rounded flex-1">
+              <p className="micro-label opacity-40 uppercase mb-2">Original Field Note</p>
+              <p className="text-xs font-serif italic text-on-surface/60">
+                "{check.entry?.fieldNote || 'No notes.'}"
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Card>
   );
 }
 

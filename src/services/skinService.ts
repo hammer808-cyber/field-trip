@@ -111,12 +111,16 @@ export function subscribeToAdmins(callback: (adminIds: string[]) => void) {
 export function subscribeToUserThemePreference(uid: string, callback: (prefs: UserThemePreference) => void) {
   return onSnapshot(doc(db, 'userPrefs', uid), (snap) => {
     if (snap.exists()) {
-      callback(snap.data() as UserThemePreference);
+      const data = snap.data() as UserThemePreference;
+      callback({
+        ...data,
+        frankieMode: data.frankieMode ?? data.reduceCommentary ?? false
+      });
     } else {
       // Provide defaults if missing
       callback({
         selectedSkinId: 'original',
-        visualCalmEnabled: false
+        frankieMode: false
       });
     }
   }, (error) => {

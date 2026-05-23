@@ -42,6 +42,7 @@ export type ScoreEventType =
   | 'final_crown_bonus'
   | 'field_check_penalty'
   | 'invalid_proof_penalty'
+  | 'comeback_card'
   | 'admin_adjustment';
 
 export interface ScoreEvent {
@@ -96,22 +97,24 @@ export interface LegalConsent {
   platform?: string;
 }
 
-export type FieldCheckStatus = 'open' | 'cleared' | 'adjusted' | 'rejected' | 'dismissed' | 'checking';
-export type FieldCheckReason = 'wrong_challenge' | 'duplicate_proof' | 'old_photo' | 'unsafe_proof' | 'privacy_issue' | 'missing_proof' | 'ai_generated' | 'other';
+export type FieldCheckStatus = 'pending' | 'reviewed' | 'dismissed' | 'action_needed';
+export type FieldCheckReason = 'wrong_mission' | 'copied_or_reused' | 'unsafe' | 'inappropriate' | 'other';
 
 export interface FieldCheck {
   id: string;
-  reporterId: string;
-  targetId: string; // submissionId
-  targetUserId: string;
+  submissionId: string;
+  missionId: string;
+  reportedUserId: string;
+  reporterUid: string;
   reason: FieldCheckReason;
-  details: string;
+  note: string;
   status: FieldCheckStatus;
-  adminResolution?: string;
-  resolvedAt?: Timestamp;
   createdAt: Timestamp;
-  defense?: string;
-  defenseSubmittedAt?: Timestamp;
+  updatedAt: Timestamp;
+  reviewedBy?: string;
+  reviewedAt?: Timestamp;
+  adminNote?: string;
+  source?: string;
 }
 
 export interface ChaosCard {
@@ -271,6 +274,7 @@ export interface Entry {
   filterUsed?: string;
   filterIntensity?: number;
   reviewStatus?: 'approved' | 'pending' | 'pendingReview' | 'rejected' | 'autoRejected' | 'needsMoreProof';
+  hintUsed?: boolean;
 }
 
 export interface ModerationAudit {

@@ -54,7 +54,7 @@ export default function AdminModerationPage() {
     setActionReason('');
   };
 
-  const handleResolveFieldCheck = async (resolution: 'cleared' | 'rejected' | 'dismissed' | 'adjusted') => {
+  const handleResolveFieldCheck = async (resolution: 'reviewed' | 'action_needed' | 'dismissed') => {
     if (!selectedFieldCheck) return;
     setIsSubmitting(true);
     try {
@@ -155,7 +155,7 @@ export default function AdminModerationPage() {
                     isSelected={selectedFieldCheck?.id === check.id}
                     onClick={() => { setSelectedFieldCheck(check); setSelectedReport(null); }}
                     title={check.reason}
-                    subtitle={`Entry: ...${check.targetId.slice(-8)}`}
+                    subtitle={`Entry: ...${check.submissionId.slice(-8)}`}
                     tag="field_check"
                     time={formatSafeTimeOnly(check.createdAt)}
                   />
@@ -367,12 +367,12 @@ function FieldCheckDetails({ check, actionReason, onActionReasonChange, onResolv
           <div className="space-y-4">
             <div className="space-y-1">
               <p className="micro-label">SNITCH_REPORTER</p>
-              <p className="text-xs font-mono">{check.reporterId === check.targetUserId ? 'CONFESSION_SELF' : check.reporterId}</p>
+              <p className="text-xs font-mono">{check.reporterUid === check.reportedUserId ? 'CONFESSION_SELF' : check.reporterUid}</p>
             </div>
             <div className="space-y-1">
               <p className="micro-label">TARGET_ENTRY</p>
               <div className="flex items-center gap-2">
-                <p className="text-xs font-mono">{check.targetId}</p>
+                <p className="text-xs font-mono">{check.submissionId}</p>
                 <button className="text-brand-orange hover:underline text-[10px] font-bold uppercase flex items-center gap-1">
                   OPEN_EVIDENCE <ExternalLink className="w-3 h-3" />
                 </button>
@@ -383,20 +383,9 @@ function FieldCheckDetails({ check, actionReason, onActionReasonChange, onResolv
             <div className="space-y-1">
               <p className="micro-label">ACCUSATION_DETAILS</p>
               <p className="text-xs opacity-80 leading-relaxed italic border-l-2 border-on-surface/20 pl-4 bg-brand-orange/[0.02] p-2">
-                "{check.details || 'No details.'}"
+                "{check.note || 'No details.'}"
               </p>
             </div>
-            {check.defense && (
-              <div className="space-y-1">
-                <div className="flex justify-between items-center">
-                  <p className="micro-label">USER_DEFENSE</p>
-                  <p className="text-[8px] opacity-40 font-mono">SUBMITTED: {formatSafeTimeOnly(check.defenseSubmittedAt)}</p>
-                </div>
-                <p className="text-xs text-brand-green leading-relaxed italic border-l-2 border-brand-green/20 pl-4 bg-brand-green/[0.02] p-2">
-                  "{check.defense}"
-                </p>
-              </div>
-            )}
           </div>
         </div>
 
@@ -437,9 +426,8 @@ function ActionControls({ value, onChange, onAction, type }: any) {
           ) : (
             <>
               <button onClick={() => onAction('dismissed')} className="bureau-btn-sm bg-on-surface/10 text-on-surface hover:bg-on-surface hover:text-paper">DISMISS</button>
-              <button onClick={() => onAction('cleared')} className="bureau-btn-sm bg-brand-green/20 text-brand-green border-brand-green hover:bg-brand-green hover:text-white">CLEAR_ALL</button>
-              <button onClick={() => onAction('adjusted')} className="bureau-btn-sm bg-brand-orange/20 text-brand-orange border-brand-orange hover:bg-brand-orange hover:text-white">ADJUST</button>
-              <button onClick={() => onAction('rejected')} className="bureau-btn-sm bg-error/20 text-error border-error hover:bg-error hover:text-white">PENALIZE</button>
+              <button onClick={() => onAction('reviewed')} className="bureau-btn-sm bg-brand-green/20 text-brand-green border-brand-green hover:bg-brand-green hover:text-white">MARK_REVIEWED</button>
+              <button onClick={() => onAction('action_needed')} className="bureau-btn-sm bg-brand-orange/20 text-brand-orange border-brand-orange hover:bg-brand-orange hover:text-white">NEEDS_ACTION</button>
             </>
           )}
         </div>

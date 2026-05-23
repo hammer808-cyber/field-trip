@@ -7,7 +7,7 @@ import { SkinSelector } from '../components/SkinSelector';
 import { BadgeCollection } from '../components/BadgeCollection';
 import { AvatarPreview } from '../components/AvatarPreview';
 import { DEFAULT_AVATAR } from '../constants/avatarAssets';
-import { Download, Trash2, UserCircle, Settings, Shield, Palette, Zap, AlertTriangle, Sparkles, Sun, Waves, Heart, Fingerprint, ClipboardCheck, MessageSquare } from 'lucide-react';
+import { Download, Trash2, UserCircle, Settings, Shield, Palette, Zap, AlertTriangle, Sparkles, Sun, Waves, Heart, Fingerprint, ClipboardCheck, MessageSquare, ShieldCheck } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { getFieldCheckLabel } from '../logic/fieldCheckLogic';
@@ -16,11 +16,23 @@ import { Hibiscus, ChromeStar, GlossOverlay } from '../components/BajaBratzAsset
 import { DiamondStar, Sparkle, SunFlare, GlossOverlay as DiamondGloss } from '../components/SkinAssets';
 
 import { FieldTypeCard } from '../components/FieldTypeCard';
+import { getRewardMetadata, REWARD_REGISTRY } from '../data/rewardRegistry';
+
+import { MARKER_STICKERS } from '../data/markers';
 
 export default function ProfilePage() {
-  const { fieldType, points, soloTripsCount, entries, incomingFieldCheck, profile, user, signOut, badgeProgress } = useApp();
+  const { fieldType, points, soloTripsCount, entries, incomingFieldCheck, profile, user, signOut, badgeProgress, fieldTokens } = useApp();
   const { skin: activeSkin, isAdmin, frankieMode, setFrankieMode, fc } = useTheme();
   const navigate = useNavigate();
+
+  const handleUpdatePreference = async (key: string, value: any) => {
+    if (!user || !profile) return;
+    await updateProfile(user.uid, {
+      preferences: { ...profile.preferences, [key]: value }
+    });
+  };
+
+  const selectedMarker = MARKER_STICKERS.find(s => s.id === (profile?.preferences?.selectedMarkerStickerId || 'default-scout')) || MARKER_STICKERS[0];
 
   const fieldTypeData = fieldType ? FIELD_TYPES[fieldType] : null;
   const fieldCheckData = incomingFieldCheck ? getFieldCheckLabel(incomingFieldCheck.reason) : null;
@@ -202,38 +214,48 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-                <div className="flex items-center gap-12 pt-4">
+                <div className="flex items-center gap-4 sm:gap-12 pt-4 flex-wrap">
                   <div className="space-y-2">
-                    <p className="micro-label opacity-60 font-bold tracking-wider">STANDING</p>
+                    <p className="micro-label opacity-60 font-bold tracking-wider text-[8px] sm:text-[10px]">STANDING</p>
                     <p className={cn(
-                      "font-display text-6xl italic font-bold", 
+                      "font-display text-4xl sm:text-6xl italic font-bold", 
                       isBaja ? "text-baja-aqua" : 
                       isDiamond ? "text-white" :
                       isHeat ? "text-heat-mango" :
                       "text-brand-orange"
-                    )}>{points} <span className="text-xl opacity-20 italic">PTS</span></p>
+                    )}>{points} <span className="text-sm sm:text-xl opacity-20 italic">PTS</span></p>
                   </div>
                   <div className="space-y-2">
-                    <p className="micro-label opacity-60 font-bold tracking-wider">
+                    <p className="micro-label opacity-60 font-bold tracking-wider text-[8px] sm:text-[10px]">
                       {isBaja ? 'Beach Proof' : isDiamond ? 'Sync Marks' : isHeat ? 'PROOF' : fc('PROOF', 'PHOTOS')}
                     </p>
                     <p className={cn(
-                      "font-display text-6xl italic font-bold", 
+                      "font-display text-4xl sm:text-6xl italic font-bold", 
                       isBaja ? "text-baja-pink" : 
                       isDiamond ? "text-white" :
                       isHeat ? "text-heat-pink" :
                       "text-on-surface"
-                    )}>{entries.length} <span className="text-xl opacity-20 italic">CAP</span></p>
+                    )}>{entries.length} <span className="text-sm sm:text-xl opacity-20 italic">CAP</span></p>
                   </div>
                   <div className="space-y-2">
-                    <p className="micro-label opacity-60 font-bold tracking-wider">DRIFTS</p>
+                    <p className="micro-label opacity-60 font-bold tracking-wider text-[8px] sm:text-[10px]">DRIFTS</p>
                     <p className={cn(
-                      "font-display text-6xl italic font-bold", 
+                      "font-display text-4xl sm:text-6xl italic font-bold", 
                       isBaja ? "text-baja-coral" : 
                       isDiamond ? "text-white/50 font-mono" :
                       isHeat ? "text-heat-pink" :
                       "text-on-surface"
-                    )}>{soloTripsCount}/3 <span className="text-xl opacity-20 italic">SOLO</span></p>
+                    )}>{soloTripsCount}/3 <span className="text-sm sm:text-xl opacity-20 italic">SOLO</span></p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="micro-label opacity-60 font-bold tracking-wider text-[8px] sm:text-[10px]">TOKENS</p>
+                    <p className={cn(
+                      "font-display text-4xl sm:text-6xl italic font-bold", 
+                      isBaja ? "text-baja-magenta" : 
+                      isDiamond ? "text-brand-lime" :
+                      isHeat ? "text-heat-aqua" :
+                      "text-brand-lime"
+                    )}>{fieldTokens} <span className="text-sm sm:text-xl opacity-20 italic">F.T.</span></p>
                   </div>
                 </div>
 
@@ -328,6 +350,151 @@ export default function ProfilePage() {
         )}
       </section>
 
+      {/* Your Collection Preview */}
+      <section className="space-y-12">
+        <div className="flex items-center justify-between gap-6">
+          <div className="flex items-center gap-6 grow">
+            <h3 className="font-display text-4xl italic uppercase tracking-tighter text-on-surface font-black">Your Collection</h3>
+            <div className="h-2 flex-grow bg-on-surface/10" />
+          </div>
+          <Link 
+            to="/collection" 
+            className="shrink-0 group flex items-center gap-2 px-6 py-2 bg-on-surface text-white hover:bg-brand-orange transition-colors"
+          >
+            <span className="text-[10px] font-black uppercase tracking-widest italic font-display">View Full Vault</span>
+            <Sparkles className="w-4 h-4 group-hover:scale-125 transition-transform text-brand-lime" />
+          </Link>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* Stickers */}
+          <div className="space-y-6">
+            <div className="flex justify-between items-end border-b-2 border-on-surface/10 pb-2">
+              <p className="micro-label font-bold text-brand-orange uppercase tracking-widest">
+                Stickers ({profile?.unlockedRewards?.stickers?.length || 0} / {Object.values(REWARD_REGISTRY).filter(r => r.type === 'sticker').length})
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {Object.values(REWARD_REGISTRY).filter(r => r.type === 'sticker').map(meta => {
+                const isUnlocked = profile?.unlockedRewards?.stickers?.includes(meta.id);
+                return (
+                  <div 
+                    key={meta.id} 
+                    className={cn(
+                      "px-4 py-2 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic relative transition-all",
+                      isUnlocked 
+                        ? "bg-on-surface text-white shadow-[4px_4px_0px_var(--color-brand-magenta)]" 
+                        : "bg-paper border-2 border-dashed border-on-surface/20 text-on-surface/40 select-none cursor-not-allowed"
+                    )}
+                    title={isUnlocked ? meta.description : `Locked: ${meta.unlockCondition || 'Complete special field milestones.'}`}
+                  >
+                    {isUnlocked ? (
+                      meta.assetPath ? (
+                        <img 
+                          src={meta.assetPath} 
+                          alt="" 
+                          className="w-4 h-4 object-contain brightness-0 invert" 
+                          onError={(e) => (e.currentTarget.style.display = 'none')} 
+                        />
+                      ) : (
+                        <span className="text-sm shrink-0 leading-none">{meta.fallbackEmoji || '📝'}</span>
+                      )
+                    ) : (
+                      <span className="text-sm shrink-0 leading-none filter grayscale opacity-40">🔒</span>
+                    )}
+                    {meta.label}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Badges */}
+          <div className="space-y-6">
+            <div className="flex justify-between items-end border-b-2 border-on-surface/10 pb-2">
+              <p className="micro-label font-bold text-brand-lime uppercase tracking-widest">
+                Mission Badges ({profile?.unlockedRewards?.badges?.length || 0} / {Object.values(REWARD_REGISTRY).filter(r => r.type === 'badge').length})
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {Object.values(REWARD_REGISTRY).filter(r => r.type === 'badge').map(meta => {
+                const isUnlocked = profile?.unlockedRewards?.badges?.includes(meta.id);
+                return (
+                  <div 
+                    key={meta.id} 
+                    className={cn(
+                      "px-4 py-2 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 italic border-2 border-on-surface transition-all",
+                      isUnlocked 
+                        ? "bg-brand-lime text-on-surface shadow-[4px_4px_0px_black]" 
+                        : "bg-paper border-dashed border-on-surface/20 text-on-surface/40 select-none cursor-not-allowed shadow-none"
+                    )}
+                    title={isUnlocked ? meta.description : `Locked: ${meta.unlockCondition || 'Fulfill sector intelligence objectives.'}`}
+                  >
+                    {isUnlocked ? (
+                      meta.assetPath ? (
+                        <img 
+                          src={meta.assetPath} 
+                          alt="" 
+                          className="w-4 h-4 object-contain" 
+                          onError={(e) => (e.currentTarget.style.display = 'none')} 
+                        />
+                      ) : (
+                        meta.fallbackEmoji ? (
+                          <span className="text-sm shrink-0 leading-none">{meta.fallbackEmoji}</span>
+                        ) : (
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                        )
+                      )
+                    ) : (
+                      <span className="text-xs shrink-0 leading-none filter grayscale opacity-40">🔒</span>
+                    )}
+                    {meta.label}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-12">
+        <div className="flex items-center gap-6">
+          <h3 className="font-display text-4xl italic uppercase tracking-tighter text-on-surface font-black">Field Log // Records</h3>
+          <div className="h-2 flex-grow bg-on-surface/10" />
+        </div>
+        
+        {entries.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {entries.slice(0, 8).map(entry => (
+              <div key={entry.id} className="group relative">
+                <div className="bg-white border-4 border-on-surface p-2 shadow-[8px_8px_0px_black] transition-transform hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[12px_12px_0px_var(--color-brand-orange)]">
+                   <div className="aspect-square bg-paper-dark border-2 border-on-surface overflow-hidden relative">
+                      <img src={entry.proofImage || undefined} alt="" className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" />
+                      <div className="absolute top-0 right-0 bg-brand-orange text-white px-2 py-0.5 text-[7px] font-black uppercase italic tracking-tighter z-10 border-l-2 border-b-2 border-on-surface shadow-[2px_2px_0px_black]">
+                        {(entry as any).syncStatus === 'sync_failed' ? 'SYN_PENDING' : 'ARCHIVED'}
+                      </div>
+                      <div className="absolute bottom-0 left-0 w-full bg-on-surface/80 p-1 px-2 text-[8px] font-mono text-brand-lime uppercase italic">
+                        {new Date(entry.createdAt).toLocaleDateString()}
+                      </div>
+                   </div>
+                   <div className="mt-3">
+                      <p className="font-display text-xs font-black uppercase tracking-tighter line-clamp-1 italic">{entry.tripTitle}</p>
+                      <p className="text-[10px] font-bold text-brand-orange">+{entry.pointsAwarded} XP</p>
+                   </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-12 bg-on-surface/5 border-4 border-dashed border-on-surface/10 text-center space-y-4">
+             <div className="w-12 h-12 bg-on-surface/5 rounded-full flex items-center justify-center mx-auto">
+                <Shield className="opacity-20" />
+             </div>
+             <p className="font-display text-lg italic opacity-40 uppercase font-black tracking-widest leading-none">Intelligence record empty. Complete a mission to log field data.</p>
+          </div>
+        )}
+      </section>
+
       {/* Field Fragments / Badges */}
       <section className="space-y-12">
         <div className="flex items-center gap-6">
@@ -364,24 +531,27 @@ export default function ProfilePage() {
         <div className="bg-white border-4 border-on-surface p-10 shadow-[16px_16px_0px_black] space-y-10">
           <div className="flex items-center justify-between">
             <div className="space-y-2">
-              <p className="font-display text-2xl italic font-black uppercase tracking-tight">Reduce Playful Commentary</p>
-              <p className="font-display text-lg italic opacity-40">Disable behavioral observations and "fortune-cookie" insights during session.</p>
+              <p className="font-display text-2xl italic font-black uppercase tracking-tight">Frankie Mode</p>
+              <p className="font-display text-lg italic opacity-40">Plain-language directions across the app. No hints, no answers, just clearer wording.</p>
             </div>
             <button 
               onClick={async () => {
                 if (!user || !profile) return;
-                const current = profile.preferences?.reduceCommentary || false;
-                await updateProfile(user.uid, {
-                  preferences: { ...profile.preferences, reduceCommentary: !current }
-                });
+                const next = !frankieMode;
+                await Promise.all([
+                  updateProfile(user.uid, {
+                    preferences: { ...profile.preferences, frankieMode: next }
+                  }),
+                  setFrankieMode(next)
+                ]);
               }}
               className={cn(
                 "w-20 h-10 border-4 border-on-surface relative transition-colors duration-300",
-                profile?.preferences?.reduceCommentary ? "bg-brand-orange" : "bg-on-surface/5"
+                frankieMode ? "bg-brand-orange" : "bg-on-surface/5"
               )}
             >
               <motion.div 
-                animate={{ x: profile?.preferences?.reduceCommentary ? 44 : 4 }}
+                animate={{ x: frankieMode ? 44 : 4 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 className="absolute top-1 left-0 w-8 h-[calc(100%-8px)] bg-on-surface"
               />
@@ -458,6 +628,97 @@ export default function ProfilePage() {
                 className="absolute top-1 left-0 w-8 h-[calc(100%-8px)] bg-on-surface"
               />
             </button>
+          </div>
+
+          <div className="flex items-center justify-between border-t-4 border-on-surface/5 pt-10">
+            <div className="space-y-2">
+              <p className="font-display text-2xl italic font-black uppercase tracking-tight">Math Wizard</p>
+              <p className="font-display text-lg italic opacity-40">See a detailed score breakdown for every mission completion.</p>
+            </div>
+            <button 
+              onClick={async () => {
+                if (!user || !profile) return;
+                const current = profile.preferences?.mathWizard !== false; // Default to true if undefined
+                await updateProfile(user.uid, {
+                  preferences: { ...profile.preferences, mathWizard: !current }
+                });
+              }}
+              className={cn(
+                "w-20 h-10 border-4 border-on-surface relative transition-colors duration-300",
+                (profile?.preferences?.mathWizard !== false) ? "bg-brand-orange" : "bg-on-surface/5"
+              )}
+            >
+              <motion.div 
+                animate={{ x: (profile?.preferences?.mathWizard !== false) ? 44 : 4 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                className="absolute top-1 left-0 w-8 h-[calc(100%-8px)] bg-on-surface"
+              />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between border-t-4 border-on-surface/5 pt-10">
+            <div className="space-y-2">
+              <p className="font-display text-2xl italic font-black uppercase tracking-tight">Show on Big Board</p>
+              <p className="font-display text-lg italic opacity-40">Visibility status on the seasonal progress trail.</p>
+            </div>
+            <button 
+              onClick={() => handleUpdatePreference('showOnBigBoard', !(profile?.preferences?.showOnBigBoard !== false))}
+              className={cn(
+                "w-20 h-10 border-4 border-on-surface relative transition-colors duration-300",
+                (profile?.preferences?.showOnBigBoard !== false) ? "bg-brand-lime" : "bg-on-surface/5"
+              )}
+            >
+              <motion.div 
+                animate={{ x: (profile?.preferences?.showOnBigBoard !== false) ? 44 : 4 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                className="absolute top-1 left-0 w-8 h-[calc(100%-8px)] bg-on-surface"
+              />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between border-t-4 border-on-surface/5 pt-10">
+            <div className="space-y-2">
+              <p className="font-display text-2xl italic font-black uppercase tracking-tight">Show Exact Field Tokens</p>
+              <p className="font-display text-lg italic opacity-40">Display your precise token count on the public board.</p>
+            </div>
+            <button 
+              onClick={() => handleUpdatePreference('showExactPoints', !!profile?.preferences?.showExactPoints)}
+              className={cn(
+                "w-20 h-10 border-4 border-on-surface relative transition-colors duration-300",
+                profile?.preferences?.showExactPoints ? "bg-brand-cyan" : "bg-on-surface/5"
+              )}
+            >
+              <motion.div 
+                animate={{ x: profile?.preferences?.showExactPoints ? 44 : 4 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                className="absolute top-1 left-0 w-8 h-[calc(100%-8px)] bg-on-surface"
+              />
+            </button>
+          </div>
+
+          <div className="space-y-6 border-t-4 border-on-surface/5 pt-10">
+            <div className="space-y-2">
+              <p className="font-display text-2xl italic font-black uppercase tracking-tight">Trail Marker Sticker</p>
+              <p className="font-display text-lg italic opacity-40">Choose your representative on The Big Board.</p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {MARKER_STICKERS.map(marker => (
+                <button
+                  key={marker.id}
+                  onClick={() => handleUpdatePreference('selectedMarkerStickerId', marker.id)}
+                  className={cn(
+                    "p-4 border-4 transition-all text-left space-y-2 relative overflow-hidden",
+                    selectedMarker.id === marker.id 
+                      ? "border-on-surface bg-brand-orange text-white shadow-[4px_4px_0px_black] scale-105" 
+                      : "border-on-surface/10 bg-on-surface/5 text-on-surface italic grayscale hover:grayscale-0 hover:border-on-surface/40"
+                  )}
+                >
+                  <span className="text-3xl block">{marker.emoji}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest block">{marker.label}</span>
+                  <p className="text-[8px] opacity-60 leading-tight line-clamp-2">{marker.description}</p>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </section>

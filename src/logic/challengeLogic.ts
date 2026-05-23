@@ -34,20 +34,21 @@ export function validateSubmissionRules(entry: { proofImage: string; fieldNote: 
 }
 
 export function requestFieldCheck(
-  reporterId: string,
-  targetId: string,
-  targetUserId: string,
+  reporterUid: string,
+  submissionId: string,
+  missionId: string,
+  reportedUserId: string,
   reason: FieldCheckReason,
-  details: string
-): Omit<FieldCheck, 'id'> {
+  note: string
+): Omit<FieldCheck, 'id' | 'createdAt' | 'updatedAt'> {
   return {
-    reporterId,
-    targetId,
-    targetUserId,
+    reporterUid,
+    submissionId,
+    missionId,
+    reportedUserId,
     reason,
-    details,
-    status: 'open',
-    createdAt: Timestamp.now()
+    note,
+    status: 'pending'
   };
 }
 
@@ -55,8 +56,9 @@ export function resolveFieldCheck(check: FieldCheck, resolution: FieldCheckStatu
   return {
     ...check,
     status: resolution,
-    adminResolution: adminNotes,
-    resolvedAt: Timestamp.now()
+    adminNote: adminNotes,
+    updatedAt: Timestamp.now(),
+    reviewedAt: Timestamp.now()
   };
 }
 
@@ -78,86 +80,55 @@ export function applyFieldTypeModifier(challenge: TripCard, fieldTypeId: string 
   let penalty = 0;
   let text = '';
 
-  // 1. Data-Driven Affinity Bonus
-  if (challenge.personaAffinity?.includes(fieldTypeId as any)) {
-    bonus += 20;
-    text = `Archetype Affinity: +20 for ${fieldTypeId} compatibility. `;
+  // 1. Tag-Based Modifiers (Generalized)
+  const preferences: Record<string, string[]> = {
+    'captainClipboard': ['detailed', 'organized', 'rules', 'checklist', 'audit', 'review', 'list'],
+    'mallRat': ['urban', 'social', 'culture', 'public', 'commercial', 'overheard'],
+    'mascota': ['hype', 'event', 'social', 'bold', 'group', 'celebration'],
+    'elondra': ['aesthetic', 'drama', 'fashion', 'glam', 'mood', 'visual'],
+    'lostCamper': ['exploration', 'strange', 'detour', 'liminal', 'unexpected'],
+    'bigfoot': ['observation', 'solo', 'nature', 'hidden', 'trail']
+  };
+
+  const userPrefs = preferences[fieldTypeId] || [];
+  const matchedBoosts = challenge.boostTags?.filter(t => userPrefs.includes(t)) || [];
+  const matchesTagFromChallenge = challenge.tags?.some(t => userPrefs.includes(t)) || false;
+
+  // 2. Determine if Perk applies (+25 Bonus)
+  // If it matches persona affinity, boost tags, or general tags
+  if (challenge.personaAffinity?.includes(fieldTypeId as any) || matchedBoosts.length > 0 || matchesTagFromChallenge) {
+    bonus = 25;
+    text = `Field Type Bonus: +25 for ${fieldTypeId} compatibility.`;
   }
 
-  // 2. Tag-Based Modifiers (Generalized)
-  if (challenge.boostTags && challenge.boostTags.length > 0) {
-    // This could be expanded to map field types to preferred tags
-    // For now, let's look for archetype-specific preferences
-    const preferences: Record<string, string[]> = {
-      'captainClipboard': ['rules', 'checklist', 'organization', 'audit'],
-      'mallRat': ['urban', 'social', 'indoor', 'commercial'],
-      'mascota': ['bold', 'performance', 'aesthetic', 'dynamic'],
-      'elondra': ['narrative', 'drama', 'detailed', 'aesthetic'],
-      'lostCamper': ['exploration', 'mystery', 'strange', 'detour'],
-      'bigfoot': ['observation', 'solo', 'nature', 'hidden']
-    };
-
-    const userPrefs = preferences[fieldTypeId] || [];
-    const matchedBoosts = challenge.boostTags.filter(t => userPrefs.includes(t));
-    if (matchedBoosts.length > 0) {
-      bonus += matchedBoosts.length * 10;
-      text += `Tag Boost: +${matchedBoosts.length * 10} for ${matchedBoosts.join(', ')}. `;
-    }
-
-    const matchedSlowdowns = challenge.slowDownTags?.filter(t => userPrefs.includes(t)) || [];
-    if (matchedSlowdowns.length > 0) {
-      penalty += matchedSlowdowns.length * 10;
-      text += `Tag Friction: -${matchedSlowdowns.length * 10} for ${matchedSlowdowns.join(', ')}. `;
-    }
-  }
-
-  // 3. Fallback Legacy Multipliers (if no data-driven bonus was applied)
-  if (bonus === 0 && penalty === 0) {
+  // 3. Fallback/Special cases
+  if (bonus === 0) {
     switch (fieldTypeId) {
       case 'captainClipboard':
-        bonus = 10;
-        text = 'Detail Bonus: +10 for certified documentation.';
-        break;
-      case 'mallRat':
-        if (challenge.tags?.includes('urban')) {
-          bonus = 15;
-          text = 'Social Hub Bonus: +15 for urban operation.';
-        } else {
-          penalty = 5;
-          text = 'Nature Tax: -5 for low-AC environment.';
-        }
-        break;
-      case 'mascota':
-        bonus = 20;
-        text = 'Spirit Boost: +20 for high-energy documentation.';
-        break;
-      case 'elondra':
-        if (challenge.tags?.includes('detailed') || challenge.tags?.includes('narrative')) {
+        // Receipts Department: Bonus if many tags or specific context (simulated here)
+        if ((challenge.boostTags?.length || 0) > 2) {
           bonus = 25;
-          text = 'Narrative Authority: +25 for sophisticated zine-ready notes.';
-        } else {
-          bonus = 10;
-          text = 'Final Word Bonus: +10 for certified flair.';
+          text = 'Receipts Department: +25 for detailed mission profile.';
         }
         break;
       case 'lostCamper':
-        const chance = Math.random();
-        if (chance > 0.5) {
+        // Wrong Turn Bonus: Serendipity (50% chance if not matched otherwise)
+        if (Math.random() > 0.5) {
           bonus = 25;
-          text = 'Serendipity: +25 found a shortcut!';
+          text = 'Wrong Turn Bonus: +25 for accidental discovery!';
         }
         break;
       case 'bigfoot':
-        if (!isCrewEntry) {
-          bonus = 15;
-          text = 'Solitude Bonus: +15 for elusive observation.';
-        } else {
-          penalty = 10;
-          text = 'Presence Penalty: -10 for forced social interaction.';
+        if (!isCrewEntry && challenge.tags?.includes('nature')) {
+          bonus = 25;
+          text = 'Off-Trail Evidence: +25 for solo nature observation.';
         }
         break;
     }
   }
 
-  return { bonus, penalty, text: text.trim() };
+  // Ensure penalty is ALWAYS 0 for Blind Spots as per instructions
+  penalty = 0;
+
+  return { bonus, penalty: 0, text: text.trim() };
 }

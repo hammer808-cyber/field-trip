@@ -1,5 +1,5 @@
 import React from 'react';
-import { TripCard as TripCardType } from '../types/challenges';
+import { TripCard as TripCardType, ProofType } from '../types/challenges';
 import { cn } from '../lib/utils';
 import { 
   Zap, 
@@ -9,172 +9,198 @@ import {
   CheckCircle2, 
   Lock, 
   Clock, 
-  AlertTriangle,
-  Sticker as StickerIcon,
-  Search,
-  Camera
+  Camera,
+  FileText,
+  Heart,
+  Vote as VoteIcon,
+  HelpCircle,
+  Play,
+  ArrowRight,
+  Timer,
+  ShieldCheck,
+  Sparkles
 } from 'lucide-react';
+import { 
+  getFrankieTitle,
+  getFrankieDescription,
+  getFrankieFieldNotePrompt,
+  getFrankieDifficultyLabel,
+  getFrankieEstimatedTimeLabel,
+  getFrankieEvidenceLabel
+} from '../logic/frankieModeLogic';
 import { useTheme } from '../context/ThemeContext';
 import { Sticker } from './UI';
 
+export interface EvidenceProgress {
+  photo?: boolean;
+  field_note?: boolean;
+  location?: boolean;
+  reaction?: boolean;
+  vote?: boolean;
+  time_window?: boolean;
+  hintUsed?: boolean;
+}
+
 interface Props {
   challenge: TripCardType;
-  onClick?: () => void;
+  progress?: EvidenceProgress;
+  onStart?: () => void;
+  onSubmit?: () => void;
+  onHint?: () => void;
+  hintUsed?: boolean;
   className?: string;
 }
 
-export function ChallengeCard({ challenge, onClick, className }: Props) {
-  const { skin } = useTheme();
+export function MissionCard({ 
+  challenge, 
+  progress = {}, 
+  onStart, 
+  onSubmit, 
+  onHint,
+  hintUsed = false,
+  className 
+}: Props) {
+  const { skin, frankieMode, fc } = useTheme();
+  const fPref = { frankieMode };
   
   const isBaja = skin.id === 'baja-bratz';
   const isDiamond = skin.id === 'slippery-diamond';
   const isHeat = skin.id === 'heatwave';
 
   const typeIcons: Record<string, any> = {
-    'Leave the House': MapPin,
+    'Field Challenge': MapPin,
+    'Evidence Challenge': Camera,
     'Social Spark': Users,
-    'Explore the Map': Eye,
-    'Taste Test': Search,
-    'Proof Goblin': Camera,
-    'Crew Chaos': Zap,
-    'Onboarding': Search,
+    'Onboarding': Eye,
     'Bonus': Zap
   };
 
   const Icon = typeIcons[challenge.category || challenge.type] || Zap;
 
-  const statusColors: Record<string, string> = {
-    available: 'bg-on-surface text-brand-lime border-on-surface',
-    'in-progress': 'bg-brand-orange text-white border-on-surface',
-    submitted: 'bg-brand-cyan text-black border-on-surface',
-    approved: 'bg-brand-lime text-black border-on-surface',
-    rejected: 'bg-error text-white border-on-surface',
-    locked: 'bg-on-surface/10 text-on-surface/40 border-on-surface/10',
-    archived: 'bg-on-surface/5 text-on-surface/20 border-on-surface/5',
-    active: 'bg-brand-magenta text-white border-on-surface'
-  };
-
   const currentLane = challenge.lane || 'core';
-  const displayXP = challenge.baseXP || challenge.basePoints || 100;
+  const baseXP = challenge.baseXP || challenge.basePoints || 100;
+
+  const evidenceRequirements = [
+    { key: 'photo', label: getFrankieEvidenceLabel(challenge, 'photo', fPref), icon: Camera, required: (challenge.proofType || challenge.requiredProof || []).includes('photo') },
+    { key: 'field_note', label: getFrankieEvidenceLabel(challenge, 'field_note', fPref), icon: Zap, required: (challenge.proofType || challenge.requiredProof || []).includes('note') },
+    { key: 'location', label: getFrankieEvidenceLabel(challenge, 'location', fPref), icon: MapPin, required: (challenge.proofRequirements?.requireLocation || challenge.proofNeeded?.toLowerCase().includes('location') || (challenge.tags || []).includes('location') || (challenge.proofType || []).includes('location')) },
+  ].filter(req => req.required);
+
+  const isCollected = (key: string) => !!progress[key as keyof EvidenceProgress];
 
   return (
     <div 
-      onClick={challenge.status !== 'locked' ? onClick : undefined}
       className={cn(
-        "group relative flex flex-col transition-all cursor-pointer overflow-hidden",
-        challenge.status === 'locked' && "cursor-not-allowed",
-        isBaja ? "bg-white border-2 border-baja-pink rounded-xl shadow-md hover:shadow-lg" :
-        isDiamond ? "bg-black/40 border border-white/20 hover:border-white shadow-xl" :
-        isHeat ? "bg-white border-4 border-heat-pink rounded-[2rem] shadow-lg hover:-rotate-1" :
-        "bg-white border-4 border-on-surface shadow-[12px_12px_0px_black] hover:shadow-[18px_18px_0px_var(--color-brand-cyan)] hover:-translate-y-2"
-      )}
+        "group relative flex flex-col transition-all overflow-hidden text-left",
+        challenge.status === 'locked' && "opacity-60 grayscale cursor-not-allowed",
+        isBaja ? "bg-white border-2 border-baja-pink rounded-xl shadow-md" :
+        isDiamond ? "bg-black/80 border border-white/20 shadow-2xl text-white" :
+        isHeat ? "bg-white border-4 border-heat-pink rounded-[2rem] shadow-lg" :
+        "bg-white border-4 border-on-surface shadow-[12px_12px_0px_black] hover:shadow-[16px_16px_0px_var(--color-brand-lime)]"
+      , className)}
     >
-      {/* HUD Scanline Overlay - Only for default */}
-      {!isBaja && !isDiamond && !isHeat && (
-        <div className="absolute inset-0 pointer-events-none opacity-[0.02] z-50 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%)] bg-[length:100%_4px]" />
-      )}
-
-      {/* Dynamic Tab / Label */}
+      {/* Decorative ID Label */}
       <div className={cn(
-        "absolute top-0 right-0 px-4 py-2 text-[10px] font-mono uppercase tracking-[0.3em] z-20 font-black italic",
+        "absolute top-0 right-0 px-4 py-1.5 text-[9px] font-mono uppercase tracking-[0.3em] z-20 font-black italic",
         isBaja ? "bg-baja-aqua text-white rounded-bl-xl" :
         isDiamond ? "bg-white text-black" :
-        isHeat ? "bg-heat-yellow text-heat-pink rounded-bl-2xl border-l-2 border-b-2 border-heat-pink" :
-        "bg-on-surface text-brand-lime border-l-4 border-b-4 border-on-surface shadow-[-4px_4px_0_rgba(0,0,0,0.1)]"
+        isHeat ? "bg-heat-yellow text-heat-pink rounded-bl-2xl" :
+        "bg-on-surface text-brand-lime border-l-4 border-b-4 border-on-surface"
       )}>
-        {currentLane.toUpperCase()}_OPS_{challenge.id.slice(-4).toUpperCase()}
+        {currentLane.toUpperCase()}
       </div>
 
-      <div className="p-8 pt-14 space-y-6 flex flex-col h-full relative z-10">
-        {/* Header */}
-        <div className="flex justify-between items-start gap-6">
-          <div className="space-y-2 flex-1 text-left">
-            <div className="flex items-center gap-3 mb-2">
-               <span className={cn(
-                 "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 italic shadow-[2px_2px_0px_black] border border-on-surface",
-                 !isBaja && !isDiamond && !isHeat ? "bg-brand-lime text-on-surface font-black" : "opacity-40"
-               )}>MISSION_ID</span>
-               <span className="text-[9px] font-mono opacity-40 font-bold tracking-widest">#{challenge.id.slice(0, 8)}</span>
-            </div>
-            <h3 className={cn(
-              "font-display text-3xl md:text-4xl leading-none uppercase tracking-tighter font-black italic",
-              challenge.status === 'locked' && "opacity-40",
-              !isBaja && !isDiamond && !isHeat && "text-on-surface group-hover:text-brand-orange transition-colors"
-            )}>
-              {challenge.title}
-            </h3>
-            <p className="text-[12px] font-mono opacity-60 leading-tight uppercase line-clamp-2 font-black italic tracking-tight">
-              {(challenge.description || challenge.theAsk || '').slice(0, 100)}
-            </p>
+      <div className="p-6 space-y-6 flex flex-col h-full relative z-10">
+        <div className="flex justify-between items-start gap-4">
+          <div className="space-y-1 flex-1 min-w-0">
+             <div className="flex items-center gap-2 mb-1">
+                <Icon className="w-3.5 h-3.5 text-brand-orange" />
+                <span className="text-[10px] font-black uppercase tracking-widest opacity-40 italic">{fc(challenge.category || challenge.type, (challenge.category || challenge.type).split(' ')[0].toUpperCase())}</span>
+             </div>
+             <h3 className="font-outfit text-2xl leading-none uppercase tracking-tight font-black italic text-on-surface">
+               {getFrankieTitle(challenge, fPref)}
+             </h3>
           </div>
-          <div className={cn(
-            "p-4 border-4 shrink-0 shadow-[6px_6px_0px_black] transition-all group-hover:rotate-12 group-hover:scale-110",
-            isBaja ? "bg-baja-pink/10 border-baja-pink text-baja-pink rounded-lg" :
-            isDiamond ? "bg-white/10 border-white text-white" :
-            isHeat ? "bg-heat-pink border-white text-white rounded-full" :
-            "bg-white text-on-surface border-on-surface group-hover:bg-brand-lime"
-          )}>
-            <Icon className="w-8 h-8 stroke-[3]" />
+          <div className="bg-on-surface text-brand-lime px-2 py-1 text-sm font-black italic border-2 border-on-surface shadow-[4px_4px_0px_black] shrink-0">
+            +{baseXP}{fc('XP', ' PTS')}
           </div>
         </div>
 
-        {/* Content Preview */}
-        {challenge.status !== 'locked' ? (
-          <div className="flex-1 space-y-6">
-            <div className="flex flex-wrap gap-3">
-              <Sticker color={isBaja ? "orange" : isHeat ? "mustard" : "lime"} className="text-sm py-2 px-4 font-black shadow-[4px_4px_0px_black] italic">
-                {displayXP} XP
-              </Sticker>
-              {challenge.difficulty && (
-                <div className={cn(
-                  "px-4 py-2 text-[10px] font-black border-4 shadow-[4px_4px_0px_black] italic",
-                  !isBaja && !isDiamond && !isHeat ? "bg-white border-on-surface" : "bg-white"
-                )}>
-                  LVL: {challenge.difficulty}/5
+        <p className="text-sm font-sans leading-relaxed text-on-surface/80">
+          "{getFrankieDescription(challenge, fPref)}"
+        </p>
+
+        {/* Field Note Prompt */}
+        <div className="bg-brand-lime/10 border-l-4 border-brand-lime p-4 space-y-1">
+          <p className="text-[9px] font-black uppercase tracking-widest text-on-surface/60">{fc('Field Note Requirement', 'NOTES')}</p>
+          <p className="text-[10px] font-medium italic text-on-surface leading-relaxed">
+            "{getFrankieFieldNotePrompt(challenge, fPref)}"
+          </p>
+        </div>
+
+        {/* Evidence Checklist */}
+        <div className="space-y-3 bg-on-surface/5 p-4 border-2 border-on-surface/10">
+           <div className="flex justify-between items-center">
+              <span className="text-[10px] font-black uppercase tracking-widest opacity-40">{fc('Proof Requirements', 'PROOFS')}</span>
+              {challenge.zineEligible && (
+                <div className="flex items-center gap-1.5 text-brand-orange">
+                   <Sparkles className="w-3 h-3" />
+                   <span className="text-[8px] font-black uppercase">{fc('Zine Seed', 'BONUS')}</span>
                 </div>
               )}
-            </div>
-            
-            <div className="flex items-center gap-6 text-[11px] font-mono opacity-60 border-t-2 border-dashed border-on-surface/10 pt-6 font-black italic">
-              <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-brand-orange stroke-[3]" />
-                {(challenge.mode || 'SOLO').toUpperCase()}
-              </div>
-              <div className="flex items-center gap-2">
-                <Camera className="w-4 h-4 text-brand-cyan stroke-[3]" />
-                {(challenge.proofType || challenge.requiredProof || []).join(', ').toUpperCase()}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center py-10 space-y-4 opacity-10">
-            <Lock className="w-16 h-16 stroke-[3]" />
-            <p className="text-[11px] font-mono uppercase tracking-[0.4em] text-center font-black">
-              Requires clearance<br/>[SYS_QUEUE_LOCKED]
-            </p>
-          </div>
-        )}
-
-        {/* Status indicator footer */}
-        <div className="mt-auto pt-6 flex justify-between items-center border-t-2 border-on-surface/5">
-          <div className={cn(
-            "px-6 py-2 text-[10px] font-mono uppercase font-black border-4 shadow-[4px_4px_0px_black] italic",
-            statusColors[challenge.status]
-          )}>
-            {challenge.status.replace('-', '_')}
-          </div>
-          {challenge.status === 'approved' && (
-            <div className="text-on-surface flex items-center gap-3 font-display uppercase tracking-widest text-lg animate-bounce font-black italic">
-              VERIFIED <CheckCircle2 className="w-5 h-5 text-brand-lime stroke-[4]" />
-            </div>
-          )}
+           </div>
+           <div className="flex flex-wrap gap-2">
+              {evidenceRequirements.map((req) => {
+                const collected = isCollected(req.key);
+                const ReqIcon = req.icon;
+                return (
+                  <div 
+                    key={req.key}
+                    className={cn(
+                      "flex items-center gap-2 px-2 py-1 border-2 transition-all opacity-60",
+                      collected 
+                        ? "bg-brand-lime border-on-surface shadow-[3px_3px_0_black] -translate-y-0.5 opacity-100" 
+                        : "bg-white border-on-surface/10 text-on-surface/50"
+                    )}
+                  >
+                    <ReqIcon className="w-3 h-3" />
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-black uppercase tracking-tight leading-none">{req.label}</span>
+                      <span className="text-[7px] font-bold uppercase opacity-60 leading-none mt-0.5">{collected ? fc('COLLECTED', 'DONE') : fc('REQUIRED', 'NEEDED')}</span>
+                    </div>
+                    {collected && <CheckCircle2 className="w-3 h-3" />}
+                  </div>
+                );
+              })}
+           </div>
         </div>
+
+        {/* Footer Metadata */}
+        <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest opacity-40 italic pt-2">
+           <div className="flex items-center gap-1.5">
+              <Timer className="w-3.5 h-3.5" />
+              <span>{getFrankieEstimatedTimeLabel(challenge, fPref)}</span>
+           </div>
+           <div className="flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>{getFrankieDifficultyLabel(challenge, fPref)}</span>
+           </div>
+        </div>
+
+        {/* Primary Action */}
+        <button 
+          onClick={onStart}
+          className="w-full mt-2 py-3 bg-brand-cyan text-on-surface border-4 border-on-surface shadow-[6px_6px_0px_black] font-outfit text-lg font-black uppercase italic tracking-tight hover:bg-on-surface hover:text-brand-cyan transition-all active:translate-x-1 active:translate-y-1 active:shadow-none flex items-center justify-center gap-2"
+        >
+          {challenge.status === 'approved' ? fc('VIEW_ARCHIVE', 'COMPLETED') : fc('START_MISSION', 'GO')}
+          <ArrowRight className="w-5 h-5" />
+        </button>
+
+        {/* Decorative Shimmer Edge */}
+        {!isBaja && !isDiamond && !isHeat && (
+          <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-lime opacity-30 group-hover:opacity-100 transition-opacity" />
+        )}
       </div>
-      
-      {/* Decorative Shimmer Edge */}
-      {!isBaja && !isDiamond && !isHeat && (
-        <div className="absolute top-0 left-0 w-1 h-full bg-brand-lime opacity-30" />
-      )}
     </div>
   );
 }

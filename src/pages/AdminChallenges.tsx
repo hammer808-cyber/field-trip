@@ -36,7 +36,7 @@ import {
 } from 'lucide-react';
 
 import { Card, Sticker } from '../components/UI';
-import { ChallengeCard } from '../components/ChallengeCard';
+import { MissionCard } from '../components/ChallengeCard';
 import { cn } from '../lib/utils';
 import { useNavigate } from 'react-router-dom';
 
@@ -119,7 +119,8 @@ export default function AdminChallengesPage() {
       ...editingChallenge,
       theAsk: editingChallenge.description || editingChallenge.theAsk || '',
       basePoints: editingChallenge.baseXP || editingChallenge.basePoints || 100,
-      requiredProof: editingChallenge.proofType || editingChallenge.requiredProof || ['photo']
+      requiredProof: editingChallenge.proofType || editingChallenge.requiredProof || ['photo'],
+      isRepeatableTemplate: editingChallenge.repeatable !== undefined ? editingChallenge.repeatable : editingChallenge.isRepeatableTemplate
     };
     
     await saveChallenge(updated);
@@ -240,7 +241,7 @@ export default function AdminChallengesPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {filteredChallenges.map(c => (
            <div key={c.id} className="relative group">
-             <ChallengeCard challenge={c} onClick={() => setEditingChallenge(c)} />
+             <MissionCard challenge={c} onStart={() => setEditingChallenge(c)} />
              
              {/* Brand Fit Badge */}
              <div className={cn(
@@ -285,7 +286,7 @@ export default function AdminChallengesPage() {
                   <div className="space-y-4">
                     <p className="micro-label font-bold border-b border-on-surface/10 pb-2">HOLOGRAPHIC_PREVIEW</p>
                     <div className="max-w-sm">
-                      <ChallengeCard challenge={editingChallenge as ChallengeCardType} />
+                      <MissionCard challenge={editingChallenge as ChallengeCardType} />
                     </div>
                     {editingChallenge.brandFit && (
                       <div className={cn(
@@ -343,11 +344,33 @@ export default function AdminChallengesPage() {
                           placeholder="Detail the exact steps for validation..."
                         />
                       </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">FIELD_NOTE_PROMPT</label>
+                          <input 
+                            type="text" 
+                            value={editingChallenge.fieldNotePrompt || ''} 
+                            onChange={(e) => setEditingChallenge({ ...editingChallenge, fieldNotePrompt: e.target.value })}
+                            className="w-full bg-on-surface/5 border-b-2 border-on-surface p-2 text-xs font-mono outline-none"
+                            placeholder="What did you notice...?"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">BUREAU_HINT_TEXT</label>
+                          <input 
+                            type="text" 
+                            value={editingChallenge.hintText || ''} 
+                            onChange={(e) => setEditingChallenge({ ...editingChallenge, hintText: e.target.value })}
+                            className="w-full bg-on-surface/5 border-b-2 border-on-surface p-2 text-xs font-mono outline-none"
+                            placeholder="Look under the..."
+                          />
+                        </div>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-6">
                        <div className="space-y-2">
-                        <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">TRIP_CATEGORY</label>
+                        <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">MISSION_CATEGORY</label>
                         <select 
                           value={editingChallenge.category || editingChallenge.type}
                           onChange={(e) => setEditingChallenge({ ...editingChallenge, category: e.target.value as TripType })}
@@ -382,12 +405,83 @@ export default function AdminChallengesPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">DIFFICULTY_INDEX</label>
+                        <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">EST_TIME_MINS</label>
                         <input 
-                          type="number" min="1" max="5"
-                          value={editingChallenge.difficulty} 
-                          onChange={(e) => setEditingChallenge({ ...editingChallenge, difficulty: parseInt(e.target.value) })}
+                          type="number" 
+                          value={editingChallenge.estimatedTimeMinutes || 10} 
+                          onChange={(e) => setEditingChallenge({ ...editingChallenge, estimatedTimeMinutes: parseInt(e.target.value) })}
                           className="w-full bg-transparent border-b-2 border-on-surface/20 p-2 text-xl font-display outline-none focus:border-on-surface"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">DIFFICULTY_INDEX</label>
+                        <select 
+                          value={editingChallenge.difficulty} 
+                          onChange={(e) => setEditingChallenge({ ...editingChallenge, difficulty: e.target.value as any })}
+                          className="w-full bg-paper border-2 border-on-surface p-2 font-mono text-xs"
+                        >
+                          <option value="easy">EASY</option>
+                          <option value="medium">MEDIUM</option>
+                          <option value="hard">HARD</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 p-4 bg-brand-magenta/5 border-2 border-brand-magenta/10">
+                      <p className="micro-label font-bold text-brand-magenta uppercase">DISTANCE_BONUS_CONFIG</p>
+                      <label className="flex items-center gap-2 text-[10px] font-bold uppercase cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={editingChallenge.distanceBonus?.eligible || false} 
+                          onChange={(e) => setEditingChallenge({ 
+                            ...editingChallenge, 
+                            distanceBonus: { 
+                              ...(editingChallenge.distanceBonus || { label: '', description: '', bonusXp: 0 }),
+                              eligible: e.target.checked 
+                            } 
+                          })}
+                        />
+                        DISTANCE_BONUS_ELIGIBLE
+                      </label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">BONUS_LABEL</label>
+                          <input 
+                            type="text" 
+                            disabled={!editingChallenge.distanceBonus?.eligible}
+                            value={editingChallenge.distanceBonus?.label || ''} 
+                            onChange={(e) => setEditingChallenge({ 
+                              ...editingChallenge, 
+                              distanceBonus: { ...editingChallenge.distanceBonus!, label: e.target.value } 
+                            })}
+                            className="w-full bg-transparent border-b-2 border-brand-magenta/20 p-1 text-xs font-mono outline-none focus:border-brand-magenta"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">BONUS_XP</label>
+                          <input 
+                            type="number" 
+                            disabled={!editingChallenge.distanceBonus?.eligible}
+                            value={editingChallenge.distanceBonus?.bonusXp || 0} 
+                            onChange={(e) => setEditingChallenge({ 
+                              ...editingChallenge, 
+                              distanceBonus: { ...editingChallenge.distanceBonus!, bonusXp: parseInt(e.target.value) } 
+                            })}
+                            className="w-full bg-transparent border-b-2 border-brand-magenta/20 p-1 text-xs font-mono outline-none focus:border-brand-magenta"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">BONUS_DESCRIPTION</label>
+                        <input 
+                          type="text" 
+                          disabled={!editingChallenge.distanceBonus?.eligible}
+                          value={editingChallenge.distanceBonus?.description || ''} 
+                          onChange={(e) => setEditingChallenge({ 
+                            ...editingChallenge, 
+                            distanceBonus: { ...editingChallenge.distanceBonus!, description: e.target.value } 
+                          })}
+                          className="w-full bg-transparent border-b-2 border-brand-magenta/20 p-1 text-xs font-mono outline-none focus:border-brand-magenta"
                         />
                       </div>
                     </div>

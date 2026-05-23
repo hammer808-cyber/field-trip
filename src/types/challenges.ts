@@ -3,7 +3,7 @@ import { FieldTypeId } from '../constants';
 /**
  * The 'Lane' defines the structural track this challenge belongs to.
  */
-export type ChallengeLane = 'core' | 'weekly' | 'persona_spiced' | 'wildcard' | 'finale' | 'onboarding';
+export type ChallengeLane = 'core' | 'weekly' | 'persona_spiced' | 'wildcard' | 'finale' | 'onboarding' | 'seasonal';
 
 export type TripType = 'Field Challenge' | 'Evidence Challenge' | 'Crew Challenge' | 'Leave the House' | 'Social Spark' | 'Explore the Map' | 'Taste Test' | 'Proof Goblin' | 'Crew Chaos' | 'Onboarding' | 'Bonus' | 'Final';
 export type TripMode = 'solo' | 'crew' | 'flexible';
@@ -38,8 +38,10 @@ export interface TripCard {
   description: string;
   
   // --- GAMEPLAY & DIFFICULTY ---
-  /** Complexity score (1: Easy, 5: Hard) */
-  difficulty: number;
+  /** Complexity label */
+  difficulty: 'easy' | 'medium' | 'hard';
+  /** Estimated time to complete the challenge in minutes */
+  estimatedTimeMinutes: number;
   /** The foundation XP rewarded before any multipliers */
   baseXP: number;
   /** Which archetypes find this challenge easier or more thematic */
@@ -54,6 +56,20 @@ export interface TripCard {
   unlockCondition?: string;
   /** Whether the challenge is currently available in the game loop */
   active: boolean;
+
+  /** Rewards unlocked by this challenge */
+  rewards?: {
+    stickers?: string[];
+    badges?: string[];
+  };
+
+  /** Optional bonus for completing the task at a specified distance */
+  distanceBonus?: {
+    eligible: boolean;
+    label: string;
+    description: string;
+    bonusXp: number;
+  };
 
   // --- ARTIFACTS & PROOF ---
   /** The primary photo/note evidence types required */
@@ -99,7 +115,6 @@ export interface TripCard {
 
   // --- ADDITIONAL CONFIG ---
   mode: TripMode;
-  estimatedTimeMinutes?: number;
   isCrewCompatible?: boolean;
   safetyRules: string[];
   accessibilityNote?: string;
@@ -107,6 +122,8 @@ export interface TripCard {
   detour?: any;
   proofNeeded?: string;
   fieldNotePrompt?: string;
+  hintText?: string;
+  hintCap?: number;
   crewModeBehavior?: string;
   weekNumber?: number;
   viewfinderRulePreset?: string;
@@ -119,6 +136,17 @@ export interface TripCard {
   plainModePrompt?: string;
   shortDescription?: string;
   fullInstructions?: string;
+
+  // --- PLAIN LANGUAGE MODE (FRANKIE MODE) ---
+  plainTitle?: string;
+  plainDescription?: string;
+  plainDirections?: string;
+  plainFieldNotePrompt?: string;
+  plainEvidenceLabels?: Record<string, string>;
+  plainPointExplanation?: string;
+  plainDifficultyLabel?: string;
+  plainEstimatedTimeLabel?: string;
+
   seasonAvailability?: string | string[];
   isRepeatableTemplate?: boolean;
   maxAttempts?: number;
@@ -135,4 +163,5 @@ export interface UserTripProgress {
   startedAt?: string;
   completedAt?: string;
   submissionId?: string;
+  hintUsed?: boolean;
 }

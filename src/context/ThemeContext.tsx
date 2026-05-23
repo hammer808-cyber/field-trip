@@ -130,11 +130,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [isAdmin]);
 
   const frankieMode = useMemo(() => {
-    if (userPrefs?.visualCalmEnabled !== undefined) {
-      return userPrefs.visualCalmEnabled && activeSkin.visualCalmSupported;
+    if (userPrefs?.frankieMode !== undefined) {
+      return userPrefs.frankieMode;
     }
     return false;
-  }, [userPrefs, activeSkin]);
+  }, [userPrefs]);
 
   const setSkin = async (skinId: string) => {
     if (!userId) return;
@@ -143,7 +143,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setFrankieMode = async (val: boolean) => {
     if (!userId) return;
-    await updateUserThemePreference(userId, { visualCalmEnabled: val });
+    await updateUserThemePreference(userId, { frankieMode: val });
   };
 
   // Apply CSS variables

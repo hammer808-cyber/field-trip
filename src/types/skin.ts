@@ -63,6 +63,8 @@ export interface SkinSettings {
 
 export interface UserThemePreference {
   selectedSkinId: string;
-  visualCalmEnabled: boolean;
+  frankieMode: boolean;
+  /** @deprecated use frankieMode */
+  reduceCommentary?: boolean;
   updatedAt?: Timestamp | FieldValue;
 }

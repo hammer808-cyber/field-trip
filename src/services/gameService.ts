@@ -11,13 +11,15 @@ import {
   getDocs,
   Timestamp,
   orderBy,
-  limit
+  limit,
+  deleteField
 } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { logAdminAction } from './moderationService';
 import { Entry, FIELD_TYPES } from '../constants';
 import { evaluateProof } from './proofService';
 import { awardPoints } from './scoringService';
+import { addMemory } from './memoryService';
 import { TripCard, ChallengeLevel } from '../types/challenges';
 import { uploadBase64Image } from './storageService';
 import { calculateSubmissionPoints } from '../logic/scoringLogic';
@@ -53,6 +55,7 @@ export async function submitTripEntry(
     filterIntensity?: number;
     reviewStatus?: 'approved' | 'pending' | 'pendingReview' | 'rejected' | 'autoRejected' | 'needsMoreProof';
     userAvatar?: any;
+    hintUsed?: boolean;
   },
   activeSeason?: Season | null
 ) {
@@ -61,6 +64,9 @@ export async function submitTripEntry(
     const userSnap = await getDoc(userRef);
     const userData = userSnap.exists() ? userSnap.data() : null;
     const fieldType = userData?.fieldType || null;
+
+    // Use specific hintUsed flag from entryData OR from tripProgress if available
+    const hintWasUsed = entryData.hintUsed || userData?.tripProgress?.[trip.id]?.hintUsed || false;
 
     // 1. Anti-Repeat Check 
     const recentQuery = query(
@@ -75,7 +81,8 @@ export async function submitTripEntry(
     if (!recentSnap.empty) {
       const lastEntry = recentSnap.docs[0].data();
       
-      if (!trip.isRepeatableTemplate) {
+      const isRepeatable = trip.repeatable || trip.isRepeatableTemplate;
+      if (!isRepeatable) {
         throw new Error(`Temporal Anchor: You have already completed the final transmission for "${trip.title}".`);
       }
 
@@ -99,9 +106,13 @@ export async function submitTripEntry(
     let imagePath = '';
     
     if (entryData.proofImage.length > 500) {
-      const storageResult = await uploadBase64Image(userId, 'proofs', filename, entryData.proofImage);
-      imageUrl = storageResult.url;
-      imagePath = storageResult.path;
+      try {
+        const storageResult = await uploadBase64Image(userId, 'proofs/processed', filename, entryData.proofImage);
+        imageUrl = storageResult.url;
+        imagePath = storageResult.path;
+      } catch (uploadErr) {
+        console.warn("[Storage Fallback] Processed proof upload failed, retaining base64 data:", uploadErr);
+      }
     }
 
     // Determine lateness
@@ -125,15 +136,16 @@ export async function submitTripEntry(
       userName,
       tripId: trip.id,
       tripTitle: trip.title,
-      status: 'submitted',
+      status: 'pending', // Starts in pending audit state
       pointsAwarded: 0,
       createdAt: serverTimestamp(),
-      submittedAt: serverTimestamp()
+      submittedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
     });
 
     const entryId = entryRef.id;
 
-    // 3. AI Evaluate Proof (Pre-classification)
+    // 3. AI Evaluate Proof (Pre-classification check)
     const review = await evaluateProof(
       userId,
       trip.id,
@@ -143,93 +155,66 @@ export async function submitTripEntry(
       entryData.proofImage 
     );
 
-    const finalStatus = review.status === 'approved' ? 'approved' : 
-                       review.status === 'rejected' ? 'rejected' : 
-                       'needs_fix';
-
     const entryUpdate: any = {
-      status: finalStatus,
+      status: 'pending', // Explicitly keep as pending to restrict self-approvals
       proofCheckId: review.id,
-      adminNotes: review.reviewNotes
+      aiRecommendation: review.status,
+      adminNotes: review.reviewNotes,
+      updatedAt: serverTimestamp()
     };
 
-    // 4. Scoring Logic (if approved)
-    if (finalStatus === 'approved') {
-      const scoring = calculateSubmissionPoints(
-        { ...entryData, id: entryId } as any,
-        trip,
-        {
-          isFirstSubmission: false, 
-          isChaosModifierCompleted: entryData.isChaosModifierCompleted,
-          isSabotageSurvived: entryData.isSabotageSurvived,
-          sabotageSeverity: entryData.sabotageSeverity,
-          isFinalCrown: entryData.isFinalCrown,
-          daysLate: daysLate
-        }
-      );
-
-      entryUpdate.pointsAwarded = scoring.totalPoints;
-      
-      // Award points via score events
-      for (const event of scoring.scoreEvents) {
-        await awardPoints(userId, userName, event.points, event.type as any, {
-          ...event,
-          crewId: entryData.crewId,
-          userAvatar: entryData.userAvatar
-        });
-      }
-
-      // Field Type Modifier
-      const { bonus: ftBonus, penalty: ftPenalty, text: ftText } = applyFieldTypeModifier(trip, fieldType, effectsEnabled, !!entryData.crewId);
-      if (ftBonus > 0) {
-        await awardPoints(userId, userName, ftBonus, 'field_type_perk', {
-          entryId, tripId: trip.id, description: ftText, crewId: entryData.crewId, userAvatar: entryData.userAvatar
-        });
-      }
-      if (ftPenalty > 0 && !entryData.detourCompleted) {
-        await awardPoints(userId, userName, -ftPenalty, 'field_type_snag', {
-          entryId, tripId: trip.id, description: ftText, crewId: entryData.crewId, userAvatar: entryData.userAvatar
-        });
-      }
-
-      // Update user stats
-      const userUpdates: any = {
-        approvedEntriesCount: increment(1),
-        soloTripsCount: increment(1),
-        activeTrip: null,
-        points: increment(scoring.totalPoints + ftBonus - (entryData.detourCompleted ? 0 : ftPenalty))
-      };
-
-      if (trip.lane === 'core') {
-        userUpdates.completedCoreChallenges = increment(1);
-      }
-
-      await updateDoc(userRef, userUpdates);
-    }
-
     await updateDoc(doc(db, 'entries', entryId), entryUpdate);
-    return { entryId, status: finalStatus, review };
+
+    // Track the temporary calculated projection points for display on success frames
+    const estimatedScoring = calculateSubmissionPoints(
+      { ...entryData, id: entryId, hintUsed: hintWasUsed } as any,
+      trip,
+      {
+        isFirstSubmission: (userData?.approvedEntriesCount || 0) === 0,
+        daysLate: daysLate,
+        hintUsed: hintWasUsed
+      }
+    );
+
+    return { 
+      entryId, 
+      status: 'pending', 
+      review,
+      scoring: estimatedScoring,
+      ftBonus: 0,
+      ftText: 'Uplink recorded. Pending manual review.',
+      newRewards: undefined as { stickers: string[]; badges: string[] } | undefined
+    };
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, 'entries');
   }
 }
 
 export async function requestFieldCheck(
-  reporterId: string,
-  targetId: string,
-  targetUserId: string,
+  reporterUid: string,
+  submissionId: string,
+  missionId: string,
+  reportedUserId: string,
   reason: FieldCheckReason,
-  details: string
+  note: string
 ) {
   try {
-    const checkData = createFieldCheckObj(reporterId, targetId, targetUserId, reason, details);
+    const checkData = {
+      reporterUid,
+      submissionId,
+      missionId,
+      reportedUserId,
+      reason,
+      note,
+      status: 'pending',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      source: 'app_beta'
+    };
     const docRef = await addDoc(collection(db, 'fieldChecks'), checkData);
     
-    // Update submission status
-    await updateDoc(doc(db, 'entries', targetId), {
-      status: 'under_field_check'
-    });
-
+    // Update submission status if needed, or leave to admin
+    // User requested not to alter core approval logic too much
     return docRef.id;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, 'fieldChecks');
@@ -239,7 +224,7 @@ export async function requestFieldCheck(
 export async function resolveFieldCheck(
   checkId: string,
   resolution: FieldCheckStatus,
-  adminNotes: string
+  adminNote: string
 ) {
   try {
     const checkRef = doc(db, 'fieldChecks', checkId);
@@ -247,9 +232,14 @@ export async function resolveFieldCheck(
     if (!checkSnap.exists()) throw new Error('Field Check not found');
     
     const check = checkSnap.data() as any;
-    const resolvedCheck = resolveFieldCheckObj(check, resolution, adminNotes);
     
-    await updateDoc(checkRef, resolvedCheck as any);
+    await updateDoc(checkRef, {
+      status: resolution,
+      adminNote,
+      reviewedBy: auth.currentUser?.uid || 'system',
+      reviewedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
 
     // Audit Log
     if (auth.currentUser) {
@@ -259,72 +249,86 @@ export async function resolveFieldCheck(
             'fieldCheck',
             'resolve',
             {
-                targetId: check.targetId,
-                targetUserId: check.targetUserId,
+                submissionId: check.submissionId,
+                reportedUserId: check.reportedUserId,
                 previousStatus: check.status,
                 newStatus: resolution,
-                notes: adminNotes
+                notes: adminNote
             }
         );
     }
 
-    // Update submission status
-    const entryStatus = resolution === 'cleared' ? 'approved' : 
-                       resolution === 'rejected' ? 'rejected' : 
-                       resolution === 'adjusted' ? 'needs_fix' : 'dismissed';
-                       
-    await updateDoc(doc(db, 'entries', check.targetId), {
-      status: entryStatus,
-      adminNotes: `Field Check Resolution: ${adminNotes}`
-    });
-
-    const isConfession = check.reporterId === check.targetUserId;
-
-    // Award bonus if valid snitch
-    if (resolution === 'rejected' || resolution === 'adjusted') {
-       if (!isConfession) {
-         await awardPoints(check.reporterId, 'Bureau Auditor', 75, 'field_check_bonus', {
-           description: 'Valid Field Check Reward',
-           entryId: check.targetId
-         });
-       } else {
-         // Confession: maybe a smaller bonus for honesty, or just no penalty
-         await awardPoints(check.reporterId, 'Bureau Auditor', 25, 'field_check_bonus', {
-           description: 'Self-Report Honesty Bonus',
-           entryId: check.targetId
-         });
-       }
-    } else if (resolution === 'dismissed' && !isConfession) {
-       // Penalty for false petty snitch
-       await awardPoints(check.reporterId, 'Bureau Auditor', -50, 'field_check_penalty', {
-         description: 'False/Petty Field Check Penalty',
-         entryId: check.targetId
-       });
-    }
-
+    // Optional: Update submission status if action is needed
+    // But per instructions "Do not reverse rewards automatically"
+    // So we just log the resolution.
+    
     return true;
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, 'fieldChecks');
   }
 }
 
+export async function secureUseReroll() {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('NOT_AUTHENTICATED');
+
+    const { authenticatedFetch } = await import('../lib/api');
+    const response = await authenticatedFetch('/api/game/use-reroll', {
+      method: 'POST'
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || 'FAILED_TO_USE_REROLL');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error using reroll via API:', error);
+    throw error;
+  }
+}
+
 export async function checkOnboardingState(userId: string) {
   const userRef = doc(db, 'users', userId);
-  const userSnap = await getDoc(userRef);
   
-  if (userSnap.exists()) {
-    const data = userSnap.data();
-    const coreCount = data.completedCoreChallenges || 0;
+  // 1. Fetch relevant entries to check for specific starter IDs
+  const starterIds = ["starter-1", "starter-2", "starter-3"];
+  const q = query(
+    collection(db, 'entries'),
+    where('userId', '==', userId),
+    where('status', 'in', ['approved', 'approved_by_admin', 'auto_approved']),
+    where('tripId', 'in', starterIds)
+  );
+  
+  try {
+    const snapshot = await getDocs(q);
+    const completedStarterIds = new Set(snapshot.docs.map(doc => {
+      const tid = doc.data().tripId;
+      return tid ? tid.toLowerCase() : '';
+    }));
     
-    if (coreCount >= 3 && !data.crewModeUnlocked) {
-      await updateDoc(userRef, {
-        crewModeUnlocked: true,
-        onboardingCompleted: true,
-        updatedAt: serverTimestamp()
-      });
-      return true;
+    const allStartersDone = starterIds.every(id => completedStarterIds.has(id.toLowerCase()));
+
+    if (allStartersDone) {
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const data = userSnap.data();
+        if (!data.onboardingCompleted || !data.crewModeUnlocked) {
+          await updateDoc(userRef, {
+            crewModeUnlocked: true,
+            onboardingCompleted: true,
+            updatedAt: serverTimestamp()
+          });
+          return true;
+        }
+      }
     }
+  } catch (err) {
+    console.warn("[Onboarding Check] Failed to query entries for state check:", err);
   }
+  
   return false;
 }
 

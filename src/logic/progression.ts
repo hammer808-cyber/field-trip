@@ -36,7 +36,7 @@ export function isViewfinderLocked(state: GameState): boolean {
  */
 export function canAccessCrewMode(state: GameState): boolean {
   if (state.isAdmin) return true;
-  return state.completedCoreChallenges >= CONFIG.CREW_MODE_SOLO_REQUIRED;
+  return state.onboardingComplete;
 }
 
 /**
@@ -76,4 +76,14 @@ export function getNextMilestone(state: GameState): string | null {
     return `Reach ${CONFIG.FIELD_CHECK_MODE_POINTS_REQUIRED} points to unlock FIELD_CHECK_CAPABILITY.`;
   }
   return "All system nodes synchronized. Operation: Field Trip is full-scale.";
+}
+
+/**
+ * PATHWAY: Is the Summer Deck active?
+ * Date Range: May 30, 2026 to August 28, 2026 (inclusive).
+ */
+export function isSummerDeckActive(currentDate: Date): boolean {
+  const start = new Date('2026-05-30T00:00:00Z');
+  const end = new Date('2026-08-28T23:59:59Z');
+  return currentDate >= start && currentDate <= end;
 }

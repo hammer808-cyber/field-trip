@@ -12,7 +12,8 @@ import {
   Timestamp,
   limit,
   orderBy,
-  increment
+  increment,
+  deleteField
 } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { logAdminAction } from './moderationService';
@@ -26,6 +27,7 @@ import { Entry } from '../types/game';
 import { calculateSubmissionPoints } from '../logic/scoringLogic';
 import { applyFieldTypeModifier } from '../logic/challengeLogic';
 import { awardPoints } from './scoringService';
+import { addMemory } from './memoryService';
 
 const REQUIREMENTS_COLLECTION = 'proofRequirements';
 const REVIEWS_COLLECTION = 'proofReviews';
@@ -292,7 +294,7 @@ export async function evaluateProof(
       console.error('Error saving proof results:', error);
       return { id: 'error', ...review } as ProofReview;
     }
-  }, { cooldownMs: 15000 }); // 15s cooldown per user proof check to prevent hammering AI
+  }, { cooldownMs: 5000 }); // 5s cooldown per user proof check (beta-tuned)
 }
 
 export async function adminOverrideReview(reviewId: string, entryId: string, newStatus: ProofStatus, notes: string) {
@@ -375,10 +377,14 @@ export async function adminOverrideReview(reviewId: string, entryId: string, new
                     entry,
                     trip,
                     {
-                        isFirstSubmission: false, // Could be improved if we track weekly firsts
+                        isFirstSubmission: (userData?.approvedEntriesCount || 0) === 0,
                         daysLate: 0 // Admin approval usually bypasses lateness or handles it manually
                     }
                 );
+
+                const ftResult = applyFieldTypeModifier(trip, fieldType, effectsEnabled, !!entry.crewId);
+                const ftBonus = ftResult?.bonus || 0;
+                const ftText = ftResult?.text || '';
 
                 entryUpdate.pointsAwarded = scoring.totalPoints;
 
@@ -392,24 +398,135 @@ export async function adminOverrideReview(reviewId: string, entryId: string, new
                 }
 
                 // Field Type Modifier
-                const { bonus: ftBonus, penalty: ftPenalty, text: ftText } = applyFieldTypeModifier(trip, fieldType, effectsEnabled, !!entry.crewId);
                 if (ftBonus > 0) {
                     await awardPoints(entry.userId, userName, ftBonus, 'field_type_perk', {
                         entryId, tripId: trip.id, description: ftText, crewId: entry.crewId, userAvatar: entry.userAvatar
                     });
                 }
-                if (ftPenalty > 0 && !entry.detourCompleted) {
-                    await awardPoints(entry.userId, userName, -ftPenalty, 'field_type_snag', {
-                        entryId, tripId: trip.id, description: ftText, crewId: entry.crewId, userAvatar: entry.userAvatar
-                    });
+
+                // Reward & Badge Unlock Logic (duplication guarded)
+                const currentStickers = new Set<string>(userData?.unlockedRewards?.stickers || []);
+                const currentBadges = new Set<string>(userData?.unlockedRewards?.badges || []);
+
+                const newStickers: string[] = [];
+                const newBadges: string[] = [];
+
+                // 1. Badge: first-approved-mission
+                if (!currentBadges.has('first-approved-mission')) {
+                    newBadges.push('first-approved-mission');
                 }
 
-                // Update user stats
-                await updateDoc(userRef, {
+                // 2. Sticker: summer-starter (unlocked on starting/completing main seasonal expeditions)
+                if (!currentStickers.has('summer-starter')) {
+                    newStickers.push('summer-starter');
+                }
+
+                // 3. Sticker: first-field-note (if note length is at least 5 chars)
+                if (entry.fieldNote && entry.fieldNote.trim().length >= 5 && !currentStickers.has('first-field-note')) {
+                    newStickers.push('first-field-note');
+                }
+
+                // 4. Sticker: Persona reward matching user fieldType
+                if (fieldType) {
+                    const personaMap: Record<string, string> = {
+                        captainClipboard: 'persona-captain-clipboard',
+                        mallRat: 'persona-mall-rat',
+                        mascota: 'persona-homecoming-queen',
+                        elondra: 'persona-homecoming-queen',
+                        lostCamper: 'persona-lost-camper',
+                        bigfoot: 'persona-bigfoot'
+                    };
+                    const personaSticker = personaMap[fieldType];
+                    if (personaSticker && !currentStickers.has(personaSticker)) {
+                        newStickers.push(personaSticker);
+                    }
+                }
+
+                // 5. Trip custom rewards (if defined)
+                if (trip.rewards) {
+                    if (trip.rewards.stickers) {
+                        trip.rewards.stickers.forEach((s: string) => {
+                            if (!currentStickers.has(s) && !newStickers.includes(s)) {
+                                newStickers.push(s);
+                            }
+                        });
+                    }
+                    if (trip.rewards.badges) {
+                        trip.rewards.badges.forEach((b: string) => {
+                            if (!currentBadges.has(b) && !newBadges.includes(b)) {
+                                newBadges.push(b);
+                            }
+                        });
+                    }
+                }
+
+                const updatedStickers = [...Array.from(currentStickers), ...newStickers];
+                const updatedBadges = [...Array.from(currentBadges), ...newBadges];
+                
+                // Onboarding / Crew Mode Unlock Check (SECURE: Admin side only)
+                let onboardingUpdates = {};
+                const starterIds = ["starter-1", "starter-2", "starter-3"];
+                if (starterIds.includes(trip.id)) {
+                    // Check other entries for this user
+                    const q = query(
+                        collection(db, ENTRIES_COLLECTION),
+                        where('userId', '==', entry.userId),
+                        where('status', 'in', ['approved', 'approved_by_admin', 'auto_approved'])
+                    );
+                    const snap = await getDocs(q);
+                    const completedIds = new Set(snap.docs.map(d => (d.data().tripId || '').toLowerCase()));
+                    completedIds.add(trip.id.toLowerCase()); // Add the one we are currently approving
+
+                    const allStartersDone = starterIds.every(id => completedIds.has(id.toLowerCase()));
+                    if (allStartersDone && (!userData?.onboardingCompleted || !userData?.crewModeUnlocked)) {
+                        onboardingUpdates = {
+                            onboardingCompleted: true,
+                            crewModeUnlocked: true
+                        };
+                    }
+                }
+
+                const userUpdates: any = {
                     approvedEntriesCount: increment(1),
+                    soloTripsCount: increment(1),
                     activeTrip: null,
+                    unlockedRewards: {
+                        stickers: updatedStickers,
+                        badges: updatedBadges
+                    },
+                    ...onboardingUpdates,
+                    [`tripProgress.${trip.id}`]: deleteField(),
                     updatedAt: serverTimestamp()
-                });
+                };
+
+                // Add to zine memory registry
+                try {
+                    await addMemory(entry.userId, {
+                        userId: entry.userId,
+                        missionId: trip.id,
+                        seasonId: 'dev-season-2026',
+                        title: trip.title,
+                        category: trip.category || (trip as any).type || 'field',
+                        lane: trip.lane || 'summer',
+                        fieldNote: entry.fieldNote || 'A successful field trip entry.',
+                        evidenceType: trip.proofType || (trip as any).requiredProof || ['photo'],
+                        evidenceUrl: entry.proofImage || '',
+                        pointsEarned: scoring.totalPoints + ftBonus,
+                        rewardsEarned: (newStickers.length > 0 || newBadges.length > 0) ? {
+                            stickers: newStickers,
+                            badges: newBadges
+                        } : undefined,
+                        participants: entry.crewId ? [entry.crewId] : [],
+                        favorite: false,
+                        zineEligible: trip.zineEligible !== false,
+                        zinePageSeedGenerated: true
+                    });
+                } catch (memError) {
+                    console.warn("[Memory Guard] Failed to archive mission memory on override:", memError);
+                }
+
+                // Update user stats and rewards
+                await updateDoc(userRef, userUpdates);
             }
         }
 

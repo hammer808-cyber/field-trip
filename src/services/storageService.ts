@@ -43,7 +43,7 @@ export async function uploadBase64Image(userId: string, type: string, filename: 
     throw new Error('UPLOADS_DISABLED: The Bureau has temporarily restricted evidence uploads.');
   }
 
-  return guardedCall(`upload_${userId}`, async () => {
+  return guardedCall(`upload_${userId}_${type.replace(/\//g, '_')}`, async () => {
     // 1. Compression and Resize
     const compressedBase64 = await compressImage(base64String);
     
@@ -70,5 +70,5 @@ export async function uploadBase64Image(userId: string, type: string, filename: 
 
     const url = await getDownloadURL(snapshot.ref);
     return { url, path };
-  }, { cooldownMs: 3000 }); // 3s cooldown between user uploads
+  }, { cooldownMs: 1000 }); // 1s cooldown per user upload category
 }

@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, User } from 'firebase/auth';
 import { FieldTypeId, FIELD_TYPES, Entry, ProductPersonaLensId, DEV_SEASON, DEV_APP_CONFIG } from '../constants';
+import { MemoryEntry } from '../types/memories';
 import { AvatarData } from '../types/avatar';
 import { TripCard as TripType } from '../types/challenges';
 import { RewardQueueItem, RewardIntensity } from '../types/feedback';
@@ -17,8 +18,7 @@ import { MOCK_USERS } from '../data/mockUsers';
 import { MOCK_TRIPS } from '../constants';
 import { 
   drawChallenge as drawTripLogic, 
-  applyFieldTypeModifier,
-  drawChallenge
+  applyFieldTypeModifier
 } from '../logic/challengeLogic';
 import { 
   getCurrentSeasonWeek,
@@ -46,6 +46,7 @@ import {
   isViewfinderLocked as checkViewfinderLocked,
   canAccessCrewMode as checkCrewMode,
   canAccessFieldCheckMode as checkFieldCheckMode,
+  isSummerDeckActive,
   GameState
 } from '../logic/progression';
 import { 
@@ -53,7 +54,8 @@ import {
   subscribeToProfile, 
   updateProfile,
   UserProfile,
-  subscribeToTopStandings
+  subscribeToTopStandings,
+  secureCompleteOnboarding
 } from '../services/userService';
 import { 
   getUserEntriesPage
@@ -84,12 +86,15 @@ import { syncServerTime, getServerDate } from '../services/timeService';
 import { 
   submitTripEntry as submitEntryLogic, 
   checkOnboardingState, 
-  getUserStats 
+  getUserStats,
+  secureUseReroll
 } from '../services/gameService';
+import { awardPoints } from '../services/scoringService';
 import { 
   subscribeToAppConfig, 
   subscribeToActiveSeason 
 } from '../services/seasonService';
+import { subscribeToUserMemories, toggleFavoriteMemory as toggleMemoryFav } from '../services/memoryService';
 import { AppConfig, Season } from '../types/game';
 
 import { 
@@ -97,8 +102,11 @@ import {
   isConsentValid 
 } from '../services/legalService';
 import { subscribeToBlocks } from '../services/moderationService';
+import { getDeckPackById } from '../data/deckPacks';
+import { FEATURE_FLAGS } from '../config/featureFlags';
 
 import { watchGlobalConfig, getGlobalConfig, GlobalConfig } from '../services/configService';
+import { getEligibleDrawPool as getCanonicalPool } from '../logic/deckLogic';
 
 interface AppContextType {
   user: User | null;
@@ -122,9 +130,17 @@ interface AppContextType {
   entries: Entry[];
   loadMoreEntries: () => Promise<void>;
   hasMoreEntries: boolean;
-  addEntry: (entry: Omit<Entry, 'id' | 'createdAt' | 'status' | 'pointsAwarded' | 'userName' | 'tripTitle'>) => Promise<{ entryId: string; status: string; review?: ProofReview }>;
+  addEntry: (entry: Omit<Entry, 'id' | 'createdAt' | 'status' | 'pointsAwarded' | 'userName' | 'tripTitle'>) => Promise<{ 
+    entryId: string; 
+    status: string; 
+    review?: ProofReview;
+    scoring?: any;
+    ftBonus?: number;
+    ftText?: string;
+    newRewards?: { stickers: string[]; badges: string[] };
+  }>;
   activeTrip: TripType | null;
-  drawTrip: () => Promise<void>;
+  drawTrip: (tripId?: string, packId?: string) => Promise<TripType | null>;
   trips: TripType[];
   points: number;
   soloTripsCount: number;
@@ -132,6 +148,7 @@ interface AppContextType {
   isCrewUnlocked: boolean;
   isFieldCheckUnlocked: boolean;
   rerollsAvailable: number;
+  fieldTokens: number;
   useReroll: () => Promise<void>;
   fieldCheckEvents: FieldCheck[];
   useFieldCheck: (params: { targetId: string; reason: FieldCheckType; details: string }) => Promise<void>;
@@ -168,6 +185,17 @@ interface AppContextType {
   isFeatureEnabled: (flag: keyof AppConfig['featureFlags']) => boolean;
   markBadgeAsSeen: (badgeId: string) => Promise<void>;
   dismissObservation: (msgId: string) => Promise<void>;
+  memories: MemoryEntry[];
+  toggleFavoriteMemory: (memoryId: string, isFavorite: boolean) => Promise<void>;
+  completedChallengeIds: Set<string>;
+  completedOnboardingMissionIds: string[];
+  onboardingCompletedCount: number;
+  onboardingRequiredCount: number;
+  isOnboardingComplete: boolean;
+  getEligibleDrawPool: (packId?: string) => TripType[];
+  isSummerDeckUnlocked: boolean;
+  crewUnlocked: boolean;
+  currentDate: Date;
   rewardQueue: RewardQueueItem[];
   queueReward: (reward: Omit<RewardQueueItem, 'id'>) => void;
   dismissReward: (id: string) => void;
@@ -176,7 +204,9 @@ interface AppContextType {
   completeOnboarding: () => Promise<void>;
   markCrewModeSeen: () => Promise<void>;
   updateAvatar: (data: AvatarData) => Promise<void>;
-  togglePlainMode: () => Promise<void>;
+  toggleFrankieMode: () => Promise<void>;
+  updateTripProgress: (tripId: string, progress: Partial<import('../components/ChallengeCard').EvidenceProgress>) => Promise<void>;
+  grantPointsLocally: (amount: number, tripId: string, entryData?: any) => void;
   addToMaybeList: (tripId: string) => Promise<void>;
   removeFromMaybeList: (tripId: string) => Promise<void>;
   useComebackCard: () => Promise<void>;
@@ -196,7 +226,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [hasMoreEntries, setHasMoreEntries] = useState(true);
   const [standings, setStandings] = useState<UserProfile[]>([]);
   const [incomingFieldChecks, setIncomingFieldChecks] = useState<FieldCheck[]>([]);
-  const [trips, setTrips] = useState<TripType[]>([]);
+  const [trips, setTrips] = useState<TripType[]>(MOCK_TRIPS);
   const [activeSignal, setActiveSignal] = useState<FieldSignal | null>(null);
   const [loadingSignal, setLoadingSignal] = useState(true);
   const [badgeProgress, setBadgeProgress] = useState<UserBadgeProgress[]>([]);
@@ -211,16 +241,141 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [blockedIds, setBlockedIds] = useState<string[]>([]);
   const [rewardQueue, setRewardQueue] = useState<RewardQueueItem[]>([]);
   const [sessionSeenRewards, setSessionSeenRewards] = useState<Set<string>>(new Set());
+  const [pendingEntries, setPendingEntries] = useState<Entry[]>([]);
+  const [memories, setMemories] = useState<MemoryEntry[]>([]);
+  
+  function isFeatureEnabled(flag: keyof AppConfig['featureFlags']) {
+    return gameConfig?.featureFlags?.[flag] ?? (DEV_APP_CONFIG as any).featureFlags[flag];
+  }
+
+  // -------------------------------------------------------------------------
+  // SYSTEM: Canonical Progression Engine
+  // -------------------------------------------------------------------------
+  
+  const normalizeId = (id: string | any): string | null => {
+    if (!id) return null;
+    return id.toString().trim();
+  };
+
+  // 1. Unified Completion Set (Normalized Strings)
+  const mergedCompletedMissionIds = React.useMemo(() => {
+    const completed = new Set<string>();
+    
+    // Server entries
+    entries.forEach(e => {
+      // Logic: Count approved, admin-approved, auto-approved, under-check, or submitted as "completed" for progress.
+      if (['approved', 'approved_by_admin', 'auto_approved', 'submitted', 'under_field_check'].includes(e.status)) {
+        const id = normalizeId(e.tripId || (e as any).missionId || (e as any).challengeId);
+        if (id) completed.add(id.toLowerCase());
+      }
+    });
+
+    // Local pending entries
+    pendingEntries.forEach(pe => {
+      // IMPORTANT: pe.id is a local GUID (local_timestamp_tripId), NOT the mission ID.
+      // We must only use tripId or missionId to avoid counting local IDs as unique missions (tokens).
+      const id = normalizeId(pe.tripId || (pe as any).missionId);
+      if (id) completed.add(id.toLowerCase());
+    });
+    
+    return completed;
+  }, [entries, pendingEntries]);
+
+  // Aliases and base metrics
+  const completedChallengeIds = mergedCompletedMissionIds;
+  const fieldTokens = completedChallengeIds.size;
+
+  // 2. Onboarding Requirements (Starter-1, Starter-2, Starter-3 / Any Unique Completed Missions)
+  const ONBOARDING_IDS = React.useMemo(() => ["starter-1", "starter-2", "starter-3"], []);
+
+  const completedOnboardingMissionIds = React.useMemo(() => {
+    if (completedChallengeIds.size >= 3) {
+      return ONBOARDING_IDS;
+    }
+    return ONBOARDING_IDS.filter(id => completedChallengeIds.has(id.toLowerCase()));
+  }, [completedChallengeIds, ONBOARDING_IDS]);
+
+  const onboardingCompletedCount = ONBOARDING_IDS.filter(id => completedChallengeIds.has(id.toLowerCase())).length;
+  const onboardingRequiredCount = 3;
+  const isOnboardingComplete = ONBOARDING_IDS.every(id => completedChallengeIds.has(id.toLowerCase()));
   
   const fieldType = profile?.fieldType || null;
   const fieldClassificationComplete = !!profile?.fieldClassificationComplete;
   const productPersonaLens = profile?.productPersonaLens || 'frankie';
-  const onboardingCompleted = !!profile?.onboardingCompleted;
-  const points = overrides.points !== null ? overrides.points : (profile?.points || 0);
-  const soloTripsCount = overrides.soloCount !== null ? overrides.soloCount : (profile?.soloTripsCount || 0);
-  const completedCoreChallenges = profile?.completedCoreChallenges || 0;
+  const onboardingCompleted = !!profile?.onboardingCompleted || isOnboardingComplete;
   
-  const isAdmin = overrides.isAdmin !== null ? overrides.isAdmin : (profile?.role === 'admin' || (user?.email === 'hammer808@gmail.com' && (user?.emailVerified || user?.emailVerified === null)));
+  // 3. Stats & Scaling
+  const pendingPoints = pendingEntries.reduce((sum, e) => sum + (e.pointsAwarded || 0), 0);
+  const points = (overrides.points !== null) ? overrides.points : ((profile?.points || 0) + pendingPoints);
+  const soloTripsCount = fieldTokens; // Map unique missions to solo count for display as per user intent
+  
+  const completedCoreChallenges = React.useMemo(() => {
+    return Array.from(completedChallengeIds).filter(id => {
+      const mission = (MOCK_TRIPS as any[]).find(m => m.id === id);
+      return mission?.lane === 'core' || id.startsWith('starter-');
+    }).length;
+  }, [completedChallengeIds]);
+
+  const isAdmin = (overrides.isAdmin !== null) ? overrides.isAdmin : (profile?.role === 'admin' || (user?.email === 'hammer808@gmail.com' && (user?.emailVerified || user?.emailVerified === null)));
+
+  // 4. Game State & Unlocks
+  const gameState: GameState = {
+    userId: user?.uid || null,
+    email: user?.email || null,
+    points,
+    soloTripsCount,
+    completedCoreChallenges,
+    onboardingComplete: onboardingCompleted,
+    fieldType,
+    isAdmin,
+    currentDate: overrides.date ? new Date(overrides.date) : getServerDate(),
+  };
+
+  const isSummerDeckUnlocked = ((isOnboardingComplete || profile?.onboardingCompleted || overrides.forceUnlocked) && isSummerDeckActive(gameState.currentDate)) || isAdmin;
+  const isCrewUnlocked = (isOnboardingComplete || overrides.forceUnlocked) && isFeatureEnabled('crewDispatchEnabled');
+  const crewUnlocked = isCrewUnlocked; // Backward compat for some views
+  
+  const isFieldCheckUnlocked = (checkFieldCheckMode(gameState) || overrides.forceUnlocked) && isFeatureEnabled('rivalMomentsEnabled');
+  
+  // 5. Persistence: Pending entries that failed to sync or are optimistic
+  // This ensures they survive page refresh during beta.
+  useEffect(() => {
+    if (!user) {
+      setPendingEntries([]);
+      return;
+    }
+    const key = `field_log_pending_${user.uid}`;
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        setPendingEntries(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.warn("[AppContext] Failed to load pending log:", e);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const key = `field_log_pending_${user.uid}`;
+    if (pendingEntries.length > 0) {
+      localStorage.setItem(key, JSON.stringify(pendingEntries));
+    } else {
+      localStorage.removeItem(key);
+    }
+  }, [user, pendingEntries]);
+
+  // Reconciliation: Remove pending entries if they have synced and appeared in the server list
+  useEffect(() => {
+    if (entries.length > 0 && pendingEntries.length > 0) {
+      const syncedTripIds = new Set(entries.map(e => e.tripId));
+      const stillPending = pendingEntries.filter(p => !syncedTripIds.has(p.tripId));
+      if (stillPending.length !== pendingEntries.length) {
+        console.log(`[AppContext] Reconciled ${pendingEntries.length - stillPending.length} pending entries with server data.`);
+        setPendingEntries(stillPending);
+      }
+    }
+  }, [entries]);
 
   // Sync Global Kill Switches
   useEffect(() => {
@@ -241,20 +396,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const seasonId = gameConfig?.activeSeasonId;
     if (!seasonId) {
-      if (import.meta.env.DEV) {
-        setActiveSeason(DEV_SEASON);
-      } else {
-        setActiveSeason(null);
-      }
+      setActiveSeason(DEV_SEASON);
       return;
     }
     return subscribeToActiveSeason(seasonId, (season) => {
       if (season) {
         setActiveSeason(season);
-      } else if (import.meta.env.DEV && seasonId === 'dev-season-2026') {
-        setActiveSeason(DEV_SEASON);
       } else {
-        setActiveSeason(null);
+        setActiveSeason(DEV_SEASON);
       }
     });
   }, [gameConfig?.activeSeasonId]);
@@ -265,6 +414,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setLegalConsent(consent);
     setHasConfirmedLegal(isConsentValid(consent));
   };
+
+  // Sync Memories
+  useEffect(() => {
+    if (!user) {
+      setMemories([]);
+      return;
+    }
+    return subscribeToUserMemories(user.uid, (data) => {
+      setMemories(data);
+    });
+  }, [user]);
 
   // Auth listener
   useEffect(() => {
@@ -339,6 +499,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return onSnapshot(q, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Entry));
       setEntries(docs);
+      
       setLastVisibleEntry(snapshot.docs[snapshot.docs.length - 1]);
       setHasMoreEntries(docs.length === 20);
     }, (error) => {
@@ -386,7 +547,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Sync field checks
   useEffect(() => {
     if (!user) return;
-    return subscribeToIncomingFieldChecks(user.uid, (events) => {
+    return subscribeToIncomingFieldChecks(user.uid, (events: FieldCheck[]) => {
       setIncomingFieldChecks(events);
     });
   }, [user]);
@@ -547,7 +708,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const completeOnboarding = async () => {
     if (!user) return;
-    await updateProfile(user.uid, { onboardingCompleted: true });
+    try {
+      await secureCompleteOnboarding();
+    } catch (err: any) {
+      console.error("Failed to complete onboarding:", err.message);
+    }
   };
 
   const updateAvatar = async (data: AvatarData) => {
@@ -574,9 +739,62 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await updateProfile(user.uid, { crewModeSeen: true });
   };
 
-  const togglePlainMode = async () => {
+  const toggleFrankieMode = async () => {
     if (!user || !profile) return;
-    await updateProfile(user.uid, { plainMode: !profile.plainMode });
+    await updateProfile(user.uid, { frankieMode: !profile.frankieMode });
+  };
+
+  const updateTripProgress = async (tripId: string, progress: Partial<import('../components/ChallengeCard').EvidenceProgress>) => {
+    if (!user) return;
+    
+    // Use granular dot-notation updates to prevent overwriting other evidence 
+    // or other trips' progress when multiple updates happen rapidly (e.g. from effects)
+    const updates: any = {};
+    Object.entries(progress).forEach(([key, value]) => {
+      updates[`tripProgress.${tripId}.${key}`] = value;
+    });
+
+    await updateProfile(user.uid, updates);
+  };
+
+  const grantPointsLocally = (amount: number, tripId: string, entryData?: any) => {
+    if (!profile) return;
+    
+    // Prevent duplicate XP if missionId is already completed/scored for this user
+    if (completedChallengeIds.has(tripId)) {
+      console.log(`[AppContext] Duplicate mission submission rejected: ${tripId}`);
+      return;
+    }
+    
+    // 1. Create a local log entry if data is provided (for Field Log persistence across refreshes)
+    if (entryData) {
+      const localEntry: Entry = {
+        id: `local_${Date.now()}_${tripId}`,
+        userId: user?.uid || 'anonymous',
+        tripId: tripId,
+        status: 'approved',
+        pointsAwarded: amount,
+        createdAt: new Date().toISOString(),
+        proofImage: entryData.proofImage || entryData.photo || '',
+        tripTitle: entryData.title || 'Mission Record',
+        syncStatus: 'sync_failed'
+      } as any;
+      
+      setPendingEntries(prev => {
+        // Prevent double-adding the same mission
+        if (prev.some(e => e.tripId === tripId)) return prev;
+        return [...prev, localEntry];
+      });
+    }
+
+    queueReward({
+      type: 'action',
+      intensity: RewardIntensity.MEDIUM_REWARD,
+      title: "Data Secured Locally",
+      description: "Points awarded for field utility (local beta only).",
+      rewardText: "XP_GRANTED",
+      iconName: 'ShieldCheck'
+    });
   };
 
   const addToMaybeList = async (tripId: string) => {
@@ -607,7 +825,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const useComebackCard = async () => {
     if (!user || !profile || !profile.comebackCardActive) return;
-    await updateProfile(user.uid, { points: profile.points + 25, comebackCardActive: false });
+    await awardPoints(user.uid, profile.name, 25, 'comeback_card', {
+      description: "Comeback Card Redeemed"
+    });
+    await updateProfile(user.uid, { comebackCardActive: false });
   };
 
   const evaluateEntryProof = async (entryData: { note: string }, base64Image: string): Promise<ProofReview> => {
@@ -643,37 +864,75 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const drawTrip = async () => {
-    if (!user || trips.length === 0) return;
+  const getEligibleDrawPool = React.useCallback((packId?: string): TripType[] => {
+    const pack = packId ? getDeckPackById(packId) : null;
+    const { eligibleMissions } = getCanonicalPool({
+      missions: trips,
+      completedMissionIds: completedChallengeIds,
+      isOnboardingComplete,
+      activePack: pack,
+      isSummerDeckUnlocked,
+      isAdmin,
+    });
+    return eligibleMissions;
+  }, [trips, completedChallengeIds, isOnboardingComplete, isSummerDeckUnlocked, isAdmin]);
+
+  const drawTrip = async (tripId?: string, packId?: string): Promise<TripType | null> => {
+    if (!user || trips.length === 0) return null;
     
-    let pool = trips;
-    
-    // If in season mode, only draw from current week's challenges
-    if (activeSeason && activeWeekDrop) {
-      const weeklyIds = [
-        activeWeekDrop.fieldChallengeId,
-        activeWeekDrop.evidenceChallengeId,
-        activeWeekDrop.crewChallengeId
-      ];
-      pool = trips.filter(t => weeklyIds.includes(t.id));
+    if (tripId) {
+      const specific = trips.find(t => t.id === tripId);
+      if (specific) {
+        await updateProfile(user.uid, { activeTrip: specific });
+        return specific;
+      }
     }
 
-    const available = pool.filter(c => c.status === 'available');
-    const newTrip = drawTripLogic(available.length > 0 ? available : pool as any) as any;
-    await updateProfile(user.uid, { activeTrip: newTrip });
+    // 1. Get the current eligible pool for the pack
+    const eligiblePool = getEligibleDrawPool(packId);
+    
+    // 2. For a NEW draw, exclude the current active trip if possible
+    let finalPool = eligiblePool.filter(t => {
+      const activeId = activeTrip?.id ? activeTrip.id.toString().toLowerCase() : null;
+      return activeId !== t.id.toString().toLowerCase();
+    });
+
+    // 3. If we filtered everything out (e.g. only 1 eligible left and it is active)
+    // then allow it if we are in onboarding or if it is the last card in pack
+    if (finalPool.length === 0 && eligiblePool.length > 0) {
+      finalPool = eligiblePool;
+    }
+
+    if (finalPool.length === 0) return null;
+
+    const newTrip = drawTripLogic(finalPool as any) as any;
+    
+    if (newTrip) {
+      await updateProfile(user.uid, { activeTrip: newTrip });
+    }
+    
+    return newTrip;
   };
 
   const useReroll = async () => {
     if (!user || !profile || profile.rerollsAvailable <= 0) return;
-    await drawTrip();
-    await updateProfile(user.uid, { rerollsAvailable: profile.rerollsAvailable - 1 });
+    try {
+       await secureUseReroll();
+       await drawTrip();
+    } catch (err: any) {
+       console.error("Reroll failed:", err.message);
+    }
   };
 
-  const isFeatureEnabled = (flag: keyof AppConfig['featureFlags']) => {
-    return gameConfig?.featureFlags[flag] ?? true;
-  };
-
-  const addEntry = async (entryData: Omit<Entry, 'id' | 'createdAt' | 'status' | 'pointsAwarded' | 'userName' | 'tripTitle'>): Promise<{ entryId: string; status: string; review?: ProofReview }> => {
+  const addEntry = async (entryData: Omit<Entry, 'id' | 'createdAt' | 'status' | 'pointsAwarded' | 'userName' | 'tripTitle'>): Promise<{ 
+    entryId: string; 
+    status: string; 
+    review?: ProofReview;
+    scoring?: any;
+    ftBonus?: number;
+    ftText?: string;
+    newRewards?: { stickers: string[]; badges: string[] };
+  }> => {
     if (!user || !profile) throw new Error('Not authenticated');
     
     const targetTripId = entryData.tripId || (profile.activeTrip?.id) || (trips[0]?.id);
@@ -710,7 +969,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     if (!result) throw new Error('Submission failed');
 
-    const { entryId, status, review } = result;
+    const { entryId, status, review, scoring, ftBonus, ftText, newRewards } = result;
     setLastReview(review);
 
     if (profile.crewId && status === 'approved') {
@@ -754,23 +1013,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
     }
     
-    return { entryId, status, review };
+    return { entryId, status, review, scoring, ftBonus, ftText, newRewards };
   };
 
   const useFieldCheck = async (params: { targetId: string; reason: FieldCheckType; details: string }) => {
     if (!user || !profile || !canRequestFieldCheck(profile.fieldCheckHistory || [])) return;
     
-    // Find target user from entry (requires entry lookup usually, but for now we follow the payload)
-    // In a real app we'd get targetUserId from the entry
+    // Attempt to find missionId if possible
+    const missionId = 'unknown'; 
     const targetUserId = 'unknown-for-demo'; 
 
     await submitFieldCheck({
-      reporterId: user.uid,
-      targetId: params.targetId,
-      targetUserId: targetUserId,
-      reason: params.reason,
-      details: params.details,
-      status: 'open'
+      submissionId: params.targetId,
+      missionId: missionId,
+      reportedUserId: targetUserId,
+      reason: params.reason as any,
+      note: params.details,
     });
 
     queueReward({
@@ -804,6 +1062,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await dismissObservation(msgId);
   };
 
+  const toggleFavoriteMemory = async (memoryId: string, isFavorite: boolean) => {
+    if (!user) return;
+    await toggleMemoryFav(user.uid, memoryId, isFavorite);
+  };
+
   const queueReward = (reward: Omit<RewardQueueItem, 'id'>) => {
     const id = Math.random().toString(36).substring(7);
     const item = { ...reward, id };
@@ -825,20 +1088,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setRewardQueue(prev => prev.filter(r => r.id !== id));
   };
 
-  const gameState: GameState = {
-    userId: user?.uid || null,
-    email: user?.email || null,
-    points,
-    soloTripsCount: soloTripsCount,
-    completedCoreChallenges: completedCoreChallenges,
-    onboardingComplete: onboardingCompleted,
-    fieldType: fieldType,
-    isAdmin,
-    currentDate: overrides.date ? new Date(overrides.date) : getServerDate(),
-  };
-
-  const isCrewUnlocked = (profile?.crewModeUnlocked || checkCrewMode(gameState) || overrides.forceUnlocked) && isFeatureEnabled('crewDispatchEnabled');
-  const isFieldCheckUnlocked = (checkFieldCheckMode(gameState) || overrides.forceUnlocked) && isFeatureEnabled('rivalMomentsEnabled');
   const isSeasonActive = activeSeason?.status === 'active' || isAdmin || import.meta.env.DEV;
   const isLocked = (checkViewfinderLocked(gameState) || (!isSeasonActive && !isAdmin)) && !overrides.forceUnlocked && !import.meta.env.DEV;
 
@@ -908,7 +1157,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setFieldType,
       productPersonaLens,
       setProductPersonaLens,
-      entries,
+      entries: [...pendingEntries, ...entries],
       loadMoreEntries,
       hasMoreEntries,
       addEntry,
@@ -918,16 +1167,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       points,
       soloTripsCount,
       completedCoreChallenges,
+      completedOnboardingMissionIds,
+      onboardingCompletedCount,
+      onboardingRequiredCount,
+      isOnboardingComplete,
+      getEligibleDrawPool,
+      isSummerDeckUnlocked,
+      crewUnlocked,
       isCrewUnlocked,
+      currentDate: gameState.currentDate,
       isFieldCheckUnlocked,
       rerollsAvailable,
+      fieldTokens,
       useReroll,
-      fieldCheckEvents: [],
+      fieldCheckEvents: incomingFieldChecks,
       useFieldCheck,
       canFieldCheckNow,
       incomingFieldCheck,
       resolveIncomingFieldCheck,
       standings,
+      memories,
+      toggleFavoriteMemory,
       activeSignal,
       loadingSignal,
       badgeProgress,
@@ -962,6 +1222,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       isFeatureEnabled,
       markBadgeAsSeen,
       dismissObservation: handleDismissObservation,
+      completedChallengeIds,
       rewardQueue,
       queueReward,
       dismissReward,
@@ -970,7 +1231,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       signOut,
       completeOnboarding,
       markCrewModeSeen,
-      togglePlainMode,
+      toggleFrankieMode,
+      updateTripProgress,
+      grantPointsLocally,
       addToMaybeList,
       removeFromMaybeList,
       useComebackCard,

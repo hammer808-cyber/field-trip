@@ -19,7 +19,18 @@ export async function analyzeSubmissionImage(
     });
 
     if (!response.ok) {
-      throw new Error(`HQ_API_ERROR: ${response.status}`);
+      let errorMessage = `HQ_API_ERROR: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.reason) {
+          errorMessage += ` - ${errorData.reason}`;
+        } else if (errorData.error) {
+          errorMessage += ` - ${errorData.error}`;
+        }
+      } catch (e) {
+        // Fallback if not JSON
+      }
+      throw new Error(errorMessage);
     }
 
     return await response.json();

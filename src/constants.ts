@@ -189,6 +189,7 @@ export interface Entry {
   filterUsed?: string;
   filterIntensity?: number;
   reviewStatus?: 'approved' | 'pending' | 'pendingReview' | 'rejected' | 'autoRejected' | 'needsMoreProof';
+  hintUsed?: boolean;
 }
 
 export const MOCK_ENTRIES: Entry[] = [

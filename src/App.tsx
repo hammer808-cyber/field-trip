@@ -73,6 +73,7 @@ const AdminLeaderboard = lazy(() => import('./pages/AdminLeaderboard'));
 const AdminQALenses = lazy(() => import('./pages/AdminQALenses'));
 const AdminDevTools = lazy(() => import('./pages/AdminDevTools'));
 const Banned = lazy(() => import('./pages/Banned'));
+const Collection = lazy(() => import('./pages/Collection'));
 
 // Fallback loader
 const PageLoader = () => (
@@ -195,7 +196,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       <ErrorBoundary fallback={<div className="p-8 text-center bg-error/10 text-error">CRITICAL_SYSTEM_ERROR. REBOOT_REQUIRED.</div>}>
         <GameWrapper>
           <Suspense fallback={<PageLoader />}>
-            <main className={cn(showNav && "pb-24")}>
+            <main className={cn(showNav && "pb-20")}>
               {children}
             </main>
           </Suspense>
@@ -245,6 +246,7 @@ export default function App() {
                 <Route path="/admin/leaderboard" element={<AdminLeaderboard />} />
                 <Route path="/admin/qa" element={<AdminQALenses />} />
                 <Route path="/admin/dev-tools" element={<AdminDevTools />} />
+                <Route path="/collection" element={<Collection />} />
                 <Route path="/banned" element={<Banned />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

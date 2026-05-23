@@ -96,24 +96,32 @@ export const FieldTypeCard: React.FC<FieldTypeCardProps> = ({ type, compact = fa
           </div>
         </div>
 
-        {/* Perks & Snags */}
-        <div className="space-y-4 pt-4 border-t border-dashed border-on-surface/20">
-          <div className="flex gap-4 items-center">
-            <div className="flex-shrink-0 w-10 h-10 bg-brand-lime border-2 border-on-surface flex items-center justify-center shadow-[2px_2px_0px_black]">
+        {/* Perks & Blind Spots */}
+        <div className="space-y-6 pt-4 border-t border-dashed border-on-surface/20">
+          <div className="flex gap-4 items-start">
+            <div className="flex-shrink-0 w-10 h-10 bg-brand-lime border-2 border-on-surface flex items-center justify-center shadow-[2px_2px_0px_black] mt-1">
               <Zap size={18} strokeWidth={3} className="text-on-surface" />
             </div>
-            <div className="text-left">
-              <p className="text-[10px] font-black uppercase text-on-surface tracking-widest opacity-60">System_Perk</p>
-              <p className="text-xs font-bold uppercase text-on-surface leading-tight">{data.perk}</p>
+            <div className="text-left space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-black uppercase text-on-surface tracking-[0.2em] opacity-40">Perk</span>
+                <div className="h-[1px] w-4 bg-on-surface/10" />
+              </div>
+              <p className="text-[11px] font-black uppercase text-on-surface italic">{data.perk}</p>
+              <p className="text-[11px] font-medium leading-tight text-on-surface/80">{data.perkDesc}</p>
             </div>
           </div>
-          <div className="flex gap-4 items-center">
-            <div className="flex-shrink-0 w-10 h-10 bg-white border-2 border-on-surface flex items-center justify-center shadow-[2px_2px_0px_var(--color-brand-orange)]">
+          <div className="flex gap-4 items-start">
+            <div className="flex-shrink-0 w-10 h-10 bg-white border-2 border-on-surface flex items-center justify-center shadow-[2px_2px_0px_var(--color-brand-orange)] mt-1">
               <Shield size={18} strokeWidth={3} className="text-brand-orange" />
             </div>
-            <div className="text-left">
-              <p className="text-[10px] font-black uppercase text-brand-orange tracking-widest opacity-60">Field_Snag</p>
-              <p className="text-xs font-bold uppercase text-on-surface leading-tight">{data.snag}</p>
+            <div className="text-left space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-black uppercase text-brand-orange tracking-[0.2em] opacity-40">Blind Spot</span>
+                <div className="h-[1px] w-4 bg-on-surface/10" />
+              </div>
+              <p className="text-[11px] font-black uppercase text-brand-orange italic">{data.blindSpot}</p>
+              <p className="text-[11px] font-medium leading-tight text-on-surface/80">{data.blindSpotDesc}</p>
             </div>
           </div>
         </div>

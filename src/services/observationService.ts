@@ -44,7 +44,7 @@ export async function generateObservation(userId: string, crewId: string | null,
   }
 
   // 3. Low Risk behavior
-  const lowRiskEntries = entries.filter(e => e.difficulty <= 2).length;
+  const lowRiskEntries = entries.filter(e => e.difficulty === 'easy' || e.difficulty === 1 || e.difficulty === 2).length;
   if (lowRiskEntries >= 3 && entries.length === lowRiskEntries) {
     observations.push("You keep choosing low-risk challenges. The Field Notes are politely judging your risk aversion.");
   }

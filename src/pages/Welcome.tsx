@@ -90,7 +90,7 @@ export default function WelcomePage() {
             </div>
           ) : (
             <img 
-              src={photo.src} 
+              src={photo.src || undefined} 
               alt={photo.alt} 
               onError={() => setHasError(true)}
               className="h-full w-full object-cover transition-all duration-700 group-hover:scale-110 group-hover:rotate-2" 
