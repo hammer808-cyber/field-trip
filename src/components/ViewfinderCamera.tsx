@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle } f
 import { Camera, RefreshCw, Zap, Target, Image as ImageIcon, CheckCircle2, AlertCircle, Loader2, Sparkles, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, safeToDate } from '../lib/utils';
+import { getDisplayLabel } from '../utils/labelUtils';
 import { useTheme } from '../context/ThemeContext';
 import { ChallengeCard } from '../types/challenges';
 import { getViewfinderRulesForChallenge } from '../services/viewfinderRulesService';
@@ -26,6 +27,116 @@ interface ViewfinderCameraProps {
 export interface ViewfinderCameraHandle {
   capture: () => void;
   toggleCamera: () => void;
+}
+
+interface SimulatedStreamResult {
+  stream: MediaStream;
+  stop: () => void;
+}
+
+function createSimulatedStream(challengeImage?: string): SimulatedStreamResult {
+  const canvas = document.createElement('canvas');
+  canvas.width = 640;
+  canvas.height = 480;
+  const ctx = canvas.getContext('2d');
+
+  const bgImg = new Image();
+  bgImg.crossOrigin = "anonymous";
+  // fallback image of a majestic mountain view or challenge image
+  bgImg.src = challengeImage || "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600";
+
+  let animationId: number;
+  let angle = 0;
+  let scanY = 0;
+  let frameCount = 0;
+
+  const drawSimulatedFrame = () => {
+    if (!ctx) return;
+
+    // Draw background image if loaded, otherwise scenic gradient
+    if (bgImg.complete && bgImg.naturalWidth > 0) {
+      // Kinetic scanning pan-tilt effect
+      const panX = Math.sin(angle * 0.3) * 15;
+      const panY = Math.cos(angle * 0.2) * 10;
+      ctx.drawImage(bgImg, panX - 10, panY - 10, canvas.width + 20, canvas.height + 20);
+    } else {
+      const gradient = ctx.createRadialGradient(
+        canvas.width / 2, canvas.height / 2, 10,
+        canvas.width / 2, canvas.height / 2, canvas.width / 1.5
+      );
+      gradient.addColorStop(0, '#1c1c1e');
+      gradient.addColorStop(1, '#0c0c0e');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // Grid overlays
+    ctx.strokeStyle = 'rgba(255, 92, 0, 0.08)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < canvas.width; x += 40) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvas.height);
+      ctx.stroke();
+    }
+    for (let y = 0; y < canvas.height; y += 40) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+      ctx.stroke();
+    }
+
+    // Diagnostics overlays
+    const cx = canvas.width / 2 + Math.cos(angle * 0.5) * 40;
+    const cy = canvas.height / 2 + Math.sin(angle * 0.7) * 20;
+
+    ctx.strokeStyle = '#22d3ee'; // Target focal point
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 30, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = '#ff5c00'; // Indicator point
+    ctx.beginPath();
+    ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Laser scanbar
+    ctx.strokeStyle = 'rgba(190, 242, 100, 0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, scanY);
+    ctx.lineTo(canvas.width, scanY);
+    ctx.stroke();
+
+    // Diagnoses texts
+    ctx.fillStyle = '#ff5c00';
+    ctx.font = '9px monospace';
+    ctx.fillText('SIMULATION ACTIVE', 20, 30);
+    ctx.fillStyle = '#bef264';
+    ctx.fillText('STRIKE_TEAM: VIRTUAL_SENSOR_OK', 20, 45);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(`COORDS: [${(34.0522 + Math.sin(angle) * 0.001).toFixed(6)}° N, ${(118.2437 + Math.cos(angle) * 0.001).toFixed(6)}° W]`, 20, 440);
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillText(`FEED_HZ: 30FPS // FRAME_${frameCount}`, 20, 455);
+
+    angle += 0.02;
+    scanY = (scanY + 2.5) % canvas.height;
+    frameCount++;
+
+    animationId = requestAnimationFrame(drawSimulatedFrame);
+  };
+
+  drawSimulatedFrame();
+
+  const stream = (canvas as any).captureStream ? (canvas as any).captureStream(30) : null;
+  return {
+    stream,
+    stop: () => {
+      cancelAnimationFrame(animationId);
+    }
+  };
 }
 
 const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProps>(({ challenge, onCapture }, ref) => {
@@ -101,23 +212,54 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
         }
         setIsInitializing(false);
       } catch (err: any) {
-        console.error("Camera access failed:", err);
+        console.warn("Camera access warning (expected if headless/unpermitted):", err);
         if (isMounted) {
-          if (facingMode === 'environment') {
-            // Try fallback to any camera if environment fails
-            try {
-              currentStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-              setStream(currentStream);
-               if (videoRef.current) {
-                videoRef.current.srcObject = currentStream;
-              }
-              setIsInitializing(false);
-              return;
-            } catch (innerErr) {
-              setError("CAMERA_FAIL: Could not access any device camera.");
+          // If we failed with facingMode, let's try ANY default camera
+          try {
+            currentStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            setStream(currentStream);
+            if (videoRef.current) {
+              videoRef.current.srcObject = currentStream;
             }
-          } else {
-            setError("CAMERA_FAIL: Camera access denied or unavailable.");
+            setIsInitializing(false);
+            return;
+          } catch (innerErr: any) {
+            console.warn("Default camera fallback warning (expected if headless/unpermitted):", innerErr);
+            
+            // Physical webcam or camera device not found; fall back to virtual scenic simulator
+            try {
+              console.log("No physical camera detected. Initializing strike-team live simulator...");
+              const sim = createSimulatedStream(challenge.image);
+              if (sim.stream) {
+                currentStream = sim.stream;
+                setStream(currentStream);
+                if (videoRef.current) {
+                   videoRef.current.srcObject = currentStream;
+                }
+                setIsInitializing(false);
+                (window as any).__vcamera_cleanup = sim.stop;
+                return;
+              } else {
+                throw new Error("captureStream not supported");
+              }
+            } catch (simErr: any) {
+              console.warn("Diagnostic simulator initialization warning:", simErr);
+              const isNoDevice = err?.name === 'NotFoundError' || 
+                               innerErr?.name === 'NotFoundError' || 
+                               err?.message?.toLowerCase().includes('device not found') || 
+                               innerErr?.message?.toLowerCase().includes('device not found');
+
+              const isPermissionDenied = err?.name === 'NotAllowedError' || 
+                                       innerErr?.name === 'NotAllowedError';
+
+              if (isNoDevice) {
+                setError("CAMERA_DEVICE_NOT_FOUND: No physical camera or webcam was detected. If you are using a desktop browser without a webcam, you can use the Photo Upload or Beta Simulator fallbacks below.");
+              } else if (isPermissionDenied) {
+                setError("CAMERA_PERMISSION_DENIED: Camera access was blocked. Please check your browser permissions or use the Photo Upload and Beta Simulator fallbacks below.");
+              } else {
+                setError(`CAMERA_ACCESS_ERROR: ${innerErr?.message || err?.message || 'Access failed.'}. Please use the fallback options below.`);
+              }
+            }
           }
           setIsInitializing(false);
         }
@@ -130,6 +272,14 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
       isMounted = false;
       if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop());
+      }
+      if (typeof (window as any).__vcamera_cleanup === 'function') {
+        try {
+          (window as any).__vcamera_cleanup();
+          delete (window as any).__vcamera_cleanup;
+        } catch (unmountErr) {
+          console.warn("Failed to clean up virtual camera stream (non-fatal):", unmountErr);
+        }
       }
     };
   }, [facingMode]);
@@ -190,11 +340,33 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
       const originalImageUrl = canvas.toDataURL('image/jpeg', 0.9);
       
       try {
+        let latitude: number | null = null;
+        let longitude: number | null = null;
+        if (navigator.geolocation) {
+          try {
+            const coords = await new Promise<{ latitude: number; longitude: number } | null>((resolve) => {
+              navigator.geolocation.getCurrentPosition(
+                (position) => {
+                  resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+                },
+                () => resolve(null),
+                { timeout: 1500, enableHighAccuracy: false }
+              );
+            });
+            if (coords) {
+              latitude = coords.latitude;
+              longitude = coords.longitude;
+            }
+          } catch (_) {}
+        }
+
         const metadata: ImageMetadata & { source: 'camera' } = {
           metadataStatus: 'verified',
           source: 'camera',
-          photoTakenAt: new Date().toISOString()
-        };
+          photoTakenAt: new Date().toISOString(),
+          latitude,
+          longitude
+        } as any;
 
         const filteredImageUrl = await applyFilterToImageUrl(originalImageUrl, selectedFilter);
         
@@ -349,7 +521,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
         <div className="absolute top-6 left-6 font-mono text-[9px] text-white uppercase tracking-widest space-y-2 z-40">
           <div className="flex items-center gap-2 bg-on-surface/80 px-2 py-0.5 border border-white/20">
             <span className={cn("w-2 h-2 rounded-full", isProcessing ? "bg-red-500 animate-pulse" : "bg-brand-lime")} />
-            {isProcessing ? "PROCESSING_SIGNAL..." : `LINK_STABLE // ${readouts.status}`}
+            {isProcessing ? getDisplayLabel('PROCESSING_SIGNAL') : `LINK_STABLE // ${readouts.status}`}
           </div>
           <div className="flex gap-4">
              <div className="bg-brand-orange text-on-surface px-1.5 font-black">ISO_{readouts.iso}</div>
@@ -371,21 +543,17 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
         {/* Brackets */}
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-12">
           <div className="relative w-full h-full">
-            <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-brand-lime" />
-            <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-brand-lime" />
-            <div className="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-brand-lime" />
-            <div className="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-brand-lime" />
-            
-            <div className="absolute inset-0 flex items-center justify-center opacity-20">
-               <div className="w-px h-12 bg-brand-orange" />
-               <div className="h-px w-12 bg-brand-orange" />
+            {/* Inner corner brackets simplified to maintain high clarity of viewfinder */}
+            <div className="absolute inset-0 flex items-center justify-center opacity-25">
+               <div className="w-px h-8 bg-brand-orange/60" />
+               <div className="h-px w-8 bg-brand-orange/60" />
             </div>
           </div>
         </div>
 
         {/* Bottom Controls */}
-        <div className="absolute bottom-10 inset-x-0 flex items-center justify-between px-8 z-50">
-          {/* Upload Button */}
+        <div className="absolute bottom-6 inset-x-0 flex items-center justify-between px-8 z-50">
+          {/* Upload Button - Secondary */}
           <div className="relative">
             <input 
               type="file" 
@@ -399,54 +567,87 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
               onClick={() => fileInputRef.current?.click()}
               disabled={isProcessing || !activeRules.allowCameraRollUpload}
               className={cn(
-                "group flex flex-col items-center gap-2",
+                "group flex flex-col items-center gap-1.5 transition-all text-white/75 hover:text-white",
                 (isProcessing || !activeRules.allowCameraRollUpload) && "opacity-30 grayscale"
               )}
             >
-              <div className="w-14 h-14 rounded-full bg-white/10 backdrop-blur-md border-2 border-white/20 flex items-center justify-center group-hover:bg-white/20 group-hover:border-brand-lime transition-all shadow-[4px_4px_0px_black]">
-                <ImageIcon className="w-6 h-6 text-white" />
+              <div className="w-11 h-11 rounded-full bg-black/45 backdrop-blur-md border border-white/20 flex items-center justify-center transition-all group-hover:bg-black/70 group-hover:border-white/40 shadow-md">
+                <ImageIcon className="w-5 h-5 text-current" />
               </div>
-              <span className="font-mono text-[9px] text-white font-black uppercase tracking-widest">Upload</span>
+              <span className="font-mono text-[8px] uppercase tracking-wider font-semibold">Upload</span>
             </button>
             {!activeRules.allowCameraRollUpload && (
-              <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-brand-orange text-white px-3 py-1 border-2 border-on-surface shadow-[4px_4px_0px_black] whitespace-nowrap">
-                <p className="font-mono text-[8px] font-black uppercase">Live_Required</p>
+              <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-brand-orange text-white px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] whitespace-nowrap">
+                <p className="font-mono text-[7px] font-black uppercase">Live_Only</p>
               </div>
             )}
           </div>
 
-          {/* Capture Button */}
-          <button 
-            onClick={handleCapture}
-            disabled={isProcessing}
-            className="group relative"
-          >
-            <div className="w-24 h-24 rounded-full border-[6px] border-white/20 p-1 group-active:scale-95 transition-transform">
-              <div className="w-full h-full rounded-full bg-white border-[6px] border-on-surface flex items-center justify-center shadow-[0_0_30px_rgba(255,107,0,0.3)]">
-                {isProcessing ? (
-                  <Loader2 className="w-10 h-10 text-brand-orange animate-spin" />
-                ) : (
-                  <div className="w-12 h-12 bg-brand-orange rounded-sm flex items-center justify-center">
-                    <Camera className="w-8 h-8 text-white stroke-[3]" />
-                  </div>
-                )}
+          {/* Premium Sticker-style Capture Button - Playful, On-Brand Field Stamp */}
+          <div className="relative">
+            <button 
+              onClick={handleCapture}
+              disabled={isProcessing}
+              className="group relative select-none cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-lime"
+            >
+              {/* Sticker drop-shadow depth layer */}
+              <div className="absolute inset-0 bg-black/30 rounded-2xl blur-[3px] translate-y-1 transition-all duration-300 group-hover:translate-x-1 group-hover:translate-y-2 group-hover:blur-[4px] group-active:translate-x-0.5 group-active:translate-y-0.5 group-active:blur-[1px]" />
+              
+              {/* Sticker Vinyl contour body */}
+              <div className="relative bg-white p-1 border-3 border-on-surface rounded-2xl shadow-[inset_0_2px_4px_rgba(255,255,255,0.8)] flex flex-col items-center justify-center rotate-[-3deg] group-hover:rotate-[1deg] group-hover:scale-105 group-active:scale-95 transition-all duration-300">
+                
+                {/* Sticker body */}
+                <div className={cn(
+                  "w-22 h-22 rounded-xl flex flex-col items-center justify-center text-white relative overflow-hidden shadow-inner",
+                  isBaja ? "bg-baja-pink" : isHeat ? "bg-heat-pink" : "bg-brand-orange"
+                )}>
+                  
+                  {/* High gloss peel highlight reflection */}
+                  <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/30 to-transparent pointer-events-none" />
+                  
+                  {/* Subtle retro stamp grid overlay */}
+                  <div className="absolute inset-0 opacity-[0.08] bg-[repeating-linear-gradient(45deg,#000,#000_3px,transparent_3px,transparent_6px)] pointer-events-none" />
+                  
+                  {isProcessing ? (
+                    <Loader2 className="w-8 h-8 text-white animate-spin" />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center">
+                      {/* Interactive Star Accent */}
+                      <div className="absolute top-1 right-1">
+                        <Sparkles className="w-3.5 h-3.5 text-yellow-300 animate-pulse fill-yellow-300" />
+                      </div>
+                      
+                      {/* Certified live stamp badge */}
+                      <span className="text-[6px] font-mono tracking-widest font-black uppercase opacity-90 text-[#FFECE3] mb-1">STRIKE RECON</span>
+                      
+                      {/* Tactile Camera Ring */}
+                      <div className="w-10 h-10 rounded-full bg-white text-on-surface flex items-center justify-center shadow-md border-[2.5px] border-on-surface transition-transform duration-300 group-hover:scale-110">
+                        <Camera className="w-5 h-5 stroke-[2.5]" />
+                      </div>
+                      
+                      {/* Seal type text */}
+                      <span className="text-[10px] font-display font-black tracking-widest uppercase mt-1 italic text-white drop-shadow-[0_1.5px_1px_rgba(0,0,0,0.5)]">SNAP!</span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-            <div className="absolute -inset-2 rounded-full border-2 border-brand-lime animate-pulse pointer-events-none" />
-          </button>
+            </button>
+          </div>
 
-          {/* Filter Toggle */}
+          {/* Filter/Lens Toggle - Secondary */}
           <button 
             onClick={() => setShowFilters(!showFilters)}
-            className="group flex flex-col items-center gap-2"
+            className="group flex flex-col items-center gap-1.5 transition-all text-white/75 hover:text-white"
           >
             <div className={cn(
-              "w-14 h-14 rounded-full transition-all flex items-center justify-center shadow-[4px_4px_0px_black]",
-              showFilters ? "bg-brand-lime border-on-surface border-2" : "bg-white/10 border-white/20 border-2 backdrop-blur-md"
+              "w-11 h-11 rounded-full border flex items-center justify-center transition-all shadow-md backdrop-blur-md",
+              showFilters 
+                ? "bg-brand-lime border-on-surface text-on-surface shadow-brand-lime/20" 
+                : "bg-black/45 border-white/20 text-white group-hover:bg-black/70 group-hover:border-white/40"
             )}>
-              <Filter className={cn("w-6 h-6", showFilters ? "text-on-surface" : "text-white")} />
+              <Filter className="w-5 h-5 text-current" />
             </div>
-            <span className="font-mono text-[9px] text-white font-black uppercase tracking-widest">Lens</span>
+            <span className="font-mono text-[8px] uppercase tracking-wider font-semibold">Filters</span>
           </button>
         </div>
 

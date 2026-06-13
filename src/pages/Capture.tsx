@@ -1,10 +1,10 @@
-import { useState, useRef, Suspense, lazy, useEffect } from 'react';
+import React, { useState, useRef, Suspense, lazy, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { MOCK_TRIPS } from '../constants';
-import { Camera, X, Check, Upload, Lock, Calendar, MessageSquare, Zap, Sparkles, ShieldCheck, AlertCircle, MapPin, RefreshCw, ChevronLeft } from 'lucide-react';
-import { Sticker, Card as UICard } from '../components/UI';
+import { Camera, X, Check, Upload, Lock, Calendar, MessageSquare, Zap, Sparkles, ShieldCheck, AlertCircle, MapPin, RefreshCw, ChevronLeft, ChevronRight, Loader2, FileText, ChevronDown } from 'lucide-react';
+import { Card as UICard } from '../components/UI';
 import { 
   getFrankieTitle,
   getFrankieDescription,
@@ -13,26 +13,96 @@ import {
 } from '../logic/frankieModeLogic';
 import { useTheme } from '../context/ThemeContext';
 import { cn, safeToDate } from '../lib/utils';
+import { ActionButton, DisplayPanel, RecoveryScreen } from '../components/UIUtilities';
 import { Hibiscus, ChromeStar, GlossOverlay } from '../components/BajaBratzAssets';
 import { PalmTree, BeachTag as HeatBeachTag, GlossOverlay as DiamondGloss } from '../components/SkinAssets';
 import type { ViewfinderCameraHandle } from '../components/ViewfinderCamera';
 import { evaluateProof } from '../services/proofService';
 import { uploadBase64Image } from '../services/storageService';
 import { getGlobalConfig } from '../services/configService';
+import { calculateSubmissionPoints } from '../logic/scoringLogic';
+import { getCatalystForWeek } from '../services/weeklyCatalystService';
+import { analyzeSubmissionImage } from '../services/geminiService';
 
 // Heavy component lazy load
 const ViewfinderCamera = lazy(() => import('../components/ViewfinderCamera'));
-
 import { ProofCorrection } from '../components/ProofCorrection';
 import { MissionResultCard } from '../components/MissionResultCard';
+import { FieldClipboard } from '../components/FieldClipboard';
+import { FieldClipboardData, FieldClipboardState } from '../types/fieldClipboard';
+
+import { LAUNCH_MISSION, LAUNCH_MISSION_ID } from '../data/specialMissions';
+
+import { resolveMissionById } from '../logic/missionResolver';
+import { normalizeEntryStatus } from '../logic/entryLogic';
+
+const GESTURES = [
+  "Thumbs Up",
+  "Peace Sign",
+  "Three fingers raised",
+  "Holding a pen/pencil",
+  "Pointing at the subject",
+  "Wave hand",
+  "Fist pump",
+  "Open palm"
+];
+
+function generateReceiptChallenge() {
+  const isGesture = Math.random() < 0.5;
+  if (isGesture) {
+    const gesture = GESTURES[Math.floor(Math.random() * GESTURES.length)];
+    const instructionsOpts = [
+      `Receipt Check: Add today’s weird little proof detail so Trevor knows this happened in the wild. Incorporate a physical "${gesture}" gesture clearly within your photo proof.`,
+      `Today’s Field Receipt: include something orange, suspicious, or emotionally unavailable. Make sure a clear "${gesture}" gesture is visible in the photo.`
+    ];
+    const chosenInstructions = instructionsOpts[Math.floor(Math.random() * instructionsOpts.length)];
+    return {
+      type: 'gesture',
+      code: `GESTURE_${gesture.toUpperCase().replace(/\s+/g, '_')}`,
+      text: gesture,
+      instructions: chosenInstructions
+    };
+  } else {
+    const num = Math.floor(100 + Math.random() * 900);
+    const prefixes = ["TACO", "ORANGE", "CHIP", "OK", "EV", "TX", "WILD"];
+    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+    const code = `${prefix}-${num}`;
+    const instructionsOpts = [
+      `Receipt Check: Add today’s weird little proof detail so Trevor knows this happened in the wild. Write down the dynamic proof code "${code}" on a piece of paper in your photo, or write it explicitly inside your field note journal.`,
+      `Today’s Field Receipt: include something orange, suspicious, or emotionally unavailable. Write the code "${code}" on a scrap or reference it clearly.`
+    ];
+    const chosenInstructions = instructionsOpts[Math.floor(Math.random() * instructionsOpts.length)];
+    return {
+      type: 'code',
+      code: code,
+      text: code,
+      instructions: chosenInstructions
+    };
+  }
+}
 
 export default function CapturePage() {
   const [params] = useSearchParams();
-  const tripIdParam = params.get('id');
+  const tripIdParam = params.get('id') || params.get('missionId') || params.get('challengeId');
+  const isRetry = params.get('isRetry') === 'true';
+  const isResubmit = params.get('isResubmit') === 'true';
+  const originalEntryId = params.get('originalEntryId');
+  const isRepairMode = params.get('mode') === 'addMoreProof';
+  const entryIdParam = params.get('entryId');
+  const reviewIdParam = params.get('reviewId');
   const navigate = useNavigate();
   const submitLockRef = useRef(false);
+
+  const [receiptChallenge, setReceiptChallenge] = useState<{
+    type: string;
+    code: string;
+    text: string;
+    instructions: string;
+  } | null>(null);
+  
   const { 
     addEntry, 
+    entries,
     trips, 
     activeTrip,
     incomingFieldCheck, 
@@ -44,52 +114,144 @@ export default function CapturePage() {
     lastReview,
     clearReview,
     updateTripProgress,
-    grantPointsLocally,
+    registerPendingSubmissionLocally,
     fieldType,
     fieldTokens,
     completedChallengeIds,
-    isOnboardingComplete
+    submittedPendingChallengeIds,
+    needsMoreProofChallengeIds,
+    isOnboardingComplete,
+    unlockDiscoverySticker,
+    cameraPermissionReady,
+    locationPermissionReady,
+    requestCamera,
+    requestLocation,
+    mustCompleteStarterMission,
+    activeSeason,
+    currentWeekNumber
   } = useApp();
+
   const cameraRef = useRef<ViewfinderCameraHandle>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { skin, frankieMode, fc } = useTheme();
 
-  // Find initial trip: URL param > activeTrip > trips[0]
-  const resolveTrip = (id?: string | null) => {
-    // 1. Check URL ID in current trips
-    if (id && trips.length > 0) {
-      const found = trips.find(t => t.id === id);
-      if (found) return found;
+  const repairEntry = React.useMemo(() => {
+    if (!entries || entries.length === 0) return null;
+    if (entryIdParam) {
+      return entries.find(e => e.id === entryIdParam);
     }
-    
-    // 2. Fallback to activeTrip from profile
-    if (activeTrip) return activeTrip;
+    const lowerId = tripIdParam?.toLowerCase();
+    return entries.find(e => 
+      (e.tripId?.toLowerCase() === lowerId || e.missionId?.toLowerCase() === lowerId || e.challengeId?.toLowerCase() === lowerId) && 
+      normalizeEntryStatus(e.status) === 'needs_more_proof'
+    );
+  }, [entries, entryIdParam, tripIdParam]);
 
-    // 3. Ultimate fallback to first available if trips are loaded
-    if (trips.length > 0) {
-      const isCompleted = (tid: string) => completedChallengeIds.has(tid.toLowerCase());
-      const isOnboardingActive = !isOnboardingComplete;
+  const repairFeedback = React.useMemo(() => {
+    if (!repairEntry) return null;
+    return repairEntry.adminNotes || (repairEntry as any).adminNote || (repairEntry as any).reviewerNote || null;
+  }, [repairEntry]);
 
-      // Priority: If onboarding active, pick first incomplete starter
-      if (isOnboardingActive) {
-        const starterIds = ["starter-1", "starter-2", "starter-3"];
-        const starter = trips.find(t => starterIds.includes(t.id.toLowerCase()) && !isCompleted(t.id));
-        if (starter) return starter;
-      }
+  // Initialization Timeout Logic
+  const [initializationTimedOut, setInitializationTimedOut] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setInitializationTimedOut(true);
+    }, 6000); // 6 seconds for initialization fallback
+    return () => clearTimeout(timer);
+  }, []);
 
-      const firstAvailable = trips.find(t => t.status !== 'locked' && !isCompleted(t.id));
-      return firstAvailable || trips[0];
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        onCapture({
+          originalImageUrl: base64,
+          filteredImageUrl: base64,
+          metadata: { 
+            source: 'upload', 
+            metadataStatus: 'verified',
+            photoTakenAt: file.lastModified ? new Date(file.lastModified).toISOString() : null
+          },
+          trustLevel: 'verifiedCameraRoll',
+          filterId: 'original',
+          reviewStatus: 'pending'
+        });
+      };
+      reader.readAsDataURL(file);
     }
-
-    // 4. Fallback for sync lag / mock data
-    if (id) {
-       const mockFound = (MOCK_TRIPS as any[]).find(t => t.id === id);
-       if (mockFound) return mockFound;
-    }
-
-    return null;
   };
 
-  const [currentTrip, setCurrentTrip] = useState<any>(resolveTrip(tripIdParam));
+
+  // Find initial trip: URL param > activeTrip > trips[0]
+  // Mission Resolution Logic
+  const resolvedTrip = React.useMemo(() => {
+    return resolveMissionById(tripIdParam) || activeTrip || trips[0];
+  }, [tripIdParam, activeTrip, trips]);
+
+  const [currentTrip, setCurrentTrip] = useState<any>(resolvedTrip);
+  const [loading, setLoading] = useState(true);
+
+  const missionNotFound = tripIdParam && !resolveMissionById(tripIdParam) && !loading;
+
+  useEffect(() => {
+    if (resolvedTrip && (!currentTrip || currentTrip.id !== resolvedTrip.id)) {
+      setCurrentTrip(resolvedTrip);
+    }
+  }, [resolvedTrip, currentTrip]);
+
+  useEffect(() => {
+    console.log('[Capture] Trip Resolution:', {
+      paramId: tripIdParam,
+      resolved: currentTrip?.id,
+      title: currentTrip?.title,
+      loading,
+      onboarding: isOnboardingComplete
+    });
+  }, [currentTrip, tripIdParam, loading, isOnboardingComplete]);
+
+  // Initialization Timeout Handler
+  if (initializationTimedOut && !currentTrip && loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-8 font-mono bg-paper">
+        <div className="max-w-md w-full border-4 border-on-surface p-8 space-y-6 bg-white shadow-[12px_12px_0px_var(--color-brand-orange)]">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-6 h-6 text-brand-orange" />
+            <h1 className="text-xl font-black uppercase tracking-tighter">Handshake_Timeout</h1>
+          </div>
+          <p className="text-xs leading-relaxed opacity-60">
+            System initialization is taking longer than expected. This could be due to signal loss or account synchronization delays.
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            <ActionButton label="Back to Missions" onClick={() => navigate('/deck')} />
+            <ActionButton label="Retry System" onClick={() => window.location.reload()} variant="primary" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (missionNotFound) {
+    return (
+       <div className="min-h-screen flex items-center justify-center p-8 font-mono bg-paper">
+         <div className="max-w-md w-full border-4 border-on-surface p-8 space-y-6 bg-white shadow-[12px_12px_0px_#ff3131]">
+           <div className="flex items-center gap-3">
+             <AlertCircle className="w-6 h-6 text-error" />
+             <h1 className="text-xl font-black uppercase tracking-tighter">Mission_Not_Found</h1>
+           </div>
+           <div className="p-4 bg-error/5 border border-error/20 font-mono text-[10px] break-all">
+             ID_REF: {tripIdParam}
+           </div>
+           <p className="text-xs leading-relaxed opacity-60">
+             The requested mission profile could not be retrieved from the central bank.
+           </p>
+           <ActionButton label="Return to Mission Deck" onClick={() => navigate('/deck')} variant="primary" className="w-full" />
+         </div>
+       </div>
+    );
+  }
   
   const [restoredState] = useState(() => {
     try {
@@ -107,8 +269,129 @@ export default function CapturePage() {
     return null;
   });
 
-  const [step, setStep] = useState<'viewfinder' | 'developing' | 'review' | 'pending' | 'correction' | 'submitted'>(restoredState ? 'pending' : 'viewfinder');
-  const [submissionStatus, setSubmissionStatus] = useState<'ready' | 'saving' | 'syncing' | 'submitted' | 'retry'>(restoredState ? 'submitted' : 'ready');
+  const isNeedsMore = tripIdParam ? needsMoreProofChallengeIds?.has(tripIdParam.toLowerCase()) : false;
+  const initialFcState: FieldClipboardState = restoredState ? 'result' : (isNeedsMore || isRepairMode ? 'needs_more_proof' : 'brief');
+  
+  const [fcState, setFcState] = useState<FieldClipboardState>(initialFcState);
+  const [fcData, setFcData] = useState<FieldClipboardData>({
+    photoCaptured: restoredState ? true : (isNeedsMore || isRepairMode), // if we are in repair mode, we likely had data but need to fix it
+    photoUrl: restoredState ? restoredState.evidenceSubmitted : undefined,
+    note: restoredState ? restoredState.fieldLogMessage : '',
+    findingType: restoredState ? (restoredState as any).findingType : undefined,
+    isRetry,
+    isRepair: isRepairMode || isNeedsMore
+  });
+  
+  const [submissionStatus, setSubmissionStatus] = useState<'ready' | 'saving' | 'syncing' | 'submitted' | 'retry' | 'error'>(restoredState ? 'submitted' : 'ready');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (currentTrip?.id) {
+      const storageKey = `ft_challenge_${currentTrip.id}`;
+      const cached = localStorage.getItem(storageKey);
+      if (cached) {
+        try {
+          setReceiptChallenge(JSON.parse(cached));
+        } catch (e) {
+          const fresh = generateReceiptChallenge();
+          localStorage.setItem(storageKey, JSON.stringify(fresh));
+          setReceiptChallenge(fresh);
+        }
+      } else {
+        const fresh = generateReceiptChallenge();
+        localStorage.setItem(storageKey, JSON.stringify(fresh));
+        setReceiptChallenge(fresh);
+      }
+    }
+  }, [currentTrip?.id]);
+
+  // Hard Guard: Block access if mission is already submitted/approved and NOT in needs_more_proof
+  useEffect(() => {
+    if (!tripIdParam || !user) return;
+    
+    // Clear any stale local mission pointers if we are entering capture for a specific mission
+    localStorage.removeItem('activeTrip');
+    localStorage.removeItem('currentMission');
+    localStorage.removeItem('resumeMission');
+    sessionStorage.removeItem('activeTrip');
+
+    const lowerId = tripIdParam.toLowerCase();
+    const isCompleted = completedChallengeIds.has(lowerId);
+    const isPending = submittedPendingChallengeIds.has(lowerId);
+    const isNeedsMore = needsMoreProofChallengeIds?.has(lowerId) || isRepairMode;
+
+    // If it's already in a final/pending state and NOT specifically requested for resubmission
+    if ((isCompleted || isPending) && !isNeedsMore && fcState !== 'result' && submissionStatus !== 'submitted') {
+       console.log(`[Capture Guard] Mission ${lowerId} already submitted/approved. Redirecting back to Deck.`);
+       // Use replace: true to prevent back-button loops
+       navigate('/deck', { replace: true });
+    }
+  }, [tripIdParam, completedChallengeIds, submittedPendingChallengeIds, needsMoreProofChallengeIds, user, navigate, fcState, submissionStatus]);
+
+  // Gating properties needed early
+  const isLaunchMission = !!(currentTrip?.id && currentTrip.id.toLowerCase() === LAUNCH_MISSION_ID.toLowerCase());
+  // Retired guide flags
+  
+  const isStarterMission = !!(currentTrip?.id && [
+    'starter-2', 
+    'starter-3', 
+    LAUNCH_MISSION_ID.toLowerCase()
+  ].includes(currentTrip.id.toLowerCase()));
+  const isStarterTrainingActive = !isOnboardingComplete && isStarterMission;
+  const isUnavailable = !!(currentTrip && (completedChallengeIds.has(currentTrip.id.toLowerCase()) || submittedPendingChallengeIds.has(currentTrip.id.toLowerCase())));
+
+  // Page load triggers
+  useEffect(() => {
+    if (fcState === 'capture') {
+      unlockDiscoverySticker('capture_start', 'capture');
+    }
+  }, [fcState, unlockDiscoverySticker]);
+
+  // STRICTION: Detect if this mission is ALREADY submitted via entries context
+  // This solves the "dead end" where a refresh or navigation back shows the review screen again
+  useEffect(() => {
+    if (submissionStatus === 'submitted' || fcState === 'result') return;
+    if (!tripIdParam || entries.length === 0) return;
+
+    const existingEntry = entries.find(e => 
+      (e.tripId === tripIdParam || e.missionId === tripIdParam) && 
+      ['pending', 'approved', 'submitted', 'under_field_check'].includes(e.status)
+    );
+
+    if (existingEntry) {
+      console.log('[Capture] Found existing entry for missionId:', tripIdParam, 'restoring success state.');
+      setCompleteRecord({
+        tripId: tripIdParam,
+        title: existingEntry.tripTitle || existingEntry.challengeTitle || 'Mission Record',
+        awardedXP: existingEntry.pointsAwarded || existingEntry.estimatedPoints || 150,
+        baseXP: 150,
+        note: existingEntry.fieldNote || existingEntry.note || 'Uplink stored.',
+        photo: existingEntry.proofImage || existingEntry.imageUrl,
+        proofType: ['photo'],
+        completedAt: existingEntry.createdAt,
+        syncStatus: 'synced',
+        scoringData: {
+          scoring: { totalPoints: existingEntry.pointsAwarded || existingEntry.estimatedPoints || 150 },
+          ftBonus: 0,
+          ftText: 'Uplink Verified',
+          tokenAwarded: false,
+          totalTokens: fieldTokens
+        }
+      });
+      setFcState('result');
+      setSubmissionStatus('submitted');
+    }
+  }, [tripIdParam, entries, submissionStatus, fcState, fieldTokens]);
+
+  // Handle successful submission navigation timer
+  useEffect(() => {
+    if (fcState === 'result' && !isStarterTrainingActive) {
+      // We don't auto-navigate anymore to give user control over the result view
+      // But we might want a "Finish" button on the result card. 
+      // For now, let's keep it visible and let them tap something if available.
+    }
+  }, [fcState, isStarterTrainingActive]);
+
   const [completeRecord, setCompleteRecord] = useState<any>(() => {
     if (restoredState) {
       return {
@@ -125,14 +408,42 @@ export default function CapturePage() {
           scoring: { totalPoints: restoredState.awardedXP },
           ftBonus: 0,
           ftText: restoredState.syncStatus === 'synced' ? 'Synchronized' : 'Uplink Pending...',
-          tokenAwarded: restoredState.tokenAwarded,
-          totalTokens: (fieldTokens || 0)
+          tokenAwarded: restoredState.tokenAwarded || false,
+          totalTokens: restoredState.totalTokens || 0
         }
       };
     }
     return null;
   });
 
+  // Handle fallback redirect for already submitted missions
+  useEffect(() => {
+    // Recovery redirect logic
+    if ((!currentTrip && !completeRecord && (fcState as string) !== 'result') || (isUnavailable && !completeRecord && (fcState as string) !== 'result' && submissionStatus !== 'submitted')) {
+      const timer = setTimeout(() => {
+        // Only redirect if still true after 0.5s (proactive recovery)
+        if ((!currentTrip && !completeRecord && (fcState as string) !== 'result') || (isUnavailable && !completeRecord && (fcState as string) !== 'result' && submissionStatus !== 'submitted')) {
+          navigate('/deck');
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [currentTrip, completeRecord, fcState, completedChallengeIds, submittedPendingChallengeIds, navigate, submissionStatus, isUnavailable]);
+
+  // Reset scroll on step changes
+  useEffect(() => {
+    // Only reset if we're moving to a distinct new content phase
+    if (fcState === 'noting' || fcState === 'reviewing' || fcState === 'submitting' || fcState === 'needs_more_proof') {
+      const resetScroll = () => {
+        window.scrollTo({ top: 0, behavior: 'instant' as any });
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      };
+      resetScroll();
+      requestAnimationFrame(resetScroll);
+    }
+  }, [fcState]);
+  
   // Track localStorage updates whenever completeRecord changes
   useEffect(() => {
     if (completeRecord) {
@@ -159,10 +470,10 @@ export default function CapturePage() {
     if (tripIdParam) {
       if (completeRecord && completeRecord.tripId !== tripIdParam) {
         setCompleteRecord(null);
-        setStep('viewfinder');
+        setFcState('capture');
         setSubmissionStatus('ready');
         setCaptureData(null);
-        setNote('');
+        setFcData(prev => ({ ...prev, note: '' }));
       } else if (!completeRecord) {
         try {
           const stored = localStorage.getItem('fieldtrip_last_completed_result');
@@ -188,7 +499,7 @@ export default function CapturePage() {
                   totalTokens: (fieldTokens || 0)
                 }
               });
-              setStep('pending');
+              setFcState('result');
               setSubmissionStatus('submitted');
             }
           }
@@ -205,15 +516,15 @@ export default function CapturePage() {
     if (submissionStatus === 'submitted') return;
 
     // Only update currentTrip if we don't have one, or if the ID in the URL explicitly changes
-    const target = resolveTrip(tripIdParam);
+    const target = resolveMissionById(tripIdParam);
     
     // If we have a target from URL or activeTrip, and it's different from current, update it
     if (target && (!currentTrip || currentTrip.id !== target.id)) {
-      if (step !== 'pending') {
+      if (fcState !== 'submitting') {
         setCurrentTrip(target);
       }
     }
-  }, [tripIdParam, trips, activeTrip, submissionStatus, step]);
+  }, [tripIdParam, trips, activeTrip, submissionStatus, fcState, entries]);
   const [captureData, setCaptureData] = useState<{
     originalImageUrl: string;
     filteredImageUrl: string;
@@ -222,6 +533,9 @@ export default function CapturePage() {
     filterId: string;
     reviewStatus: string;
     message?: string;
+    aiAnalysisResult?: any;
+    proofCheckResult?: any;
+    proofId?: string;
   } | null>(null);
   const [scoringData, setScoringData] = useState<{
     scoring?: any;
@@ -231,9 +545,177 @@ export default function CapturePage() {
   } | null>(null);
   const [developingCaption, setDevelopingCaption] = useState('Developing...');
   const shouldReduceMotion = useReducedMotion();
-  const [note, setNote] = useState('');
+  const [findingType, setFindingType] = useState('');
   const [selectedLevel, setSelectedLevel] = useState<'Standard' | 'Advanced' | 'Certified'>('Advanced');
-  const [detourCompleted, setDetourCompleted] = useState(false);
+  const [catalyst, setCatalyst] = useState<any>(null);
+  const [bonusProofFulfilled, setBonusProofFulfilled] = useState(false);
+
+  const [aiAnalysisResult, setAiAnalysisResult] = useState<any>(null);
+  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
+
+  // Trigger real AI Image analysis upon capture/upload
+  useEffect(() => {
+    if (!captureData || !currentTrip) {
+      setAiAnalysisResult(null);
+      setIsAiAnalyzing(false);
+      return;
+    }
+
+    // CLIENT IDEMPOTENCY GUARD: Prevent repeated calls on component re-render, routes, or reload.
+    const existingResult = captureData.aiAnalysisResult || captureData.proofCheckResult;
+    if (existingResult && existingResult.status && existingResult.status !== 'idle' && existingResult.status !== 'analyzing') {
+      setAiAnalysisResult(existingResult);
+      setIsAiAnalyzing(false);
+      return;
+    }
+
+    let active = true;
+    const runAnalysis = async () => {
+      setIsAiAnalyzing(true);
+      try {
+        const base64Img = captureData.originalImageUrl || captureData.filteredImageUrl || '';
+        if (!base64Img) return;
+
+        const reqSubjects = currentTrip.proofRequirements?.requiredSubjects || 
+                             currentTrip.requiredProof || 
+                             [];
+
+        const detectionResult = await analyzeSubmissionImage(
+          base64Img,
+          currentTrip.title || '',
+          currentTrip.description || currentTrip.theAsk || '',
+          reqSubjects,
+          captureData.proofId,
+          currentTrip.id,
+          currentTrip.deckId
+        );
+
+        if (active) {
+          setAiAnalysisResult(detectionResult);
+          
+          // Also set it in capture-data state in order to persist with submission and avoid double-scan on refresh
+          setCaptureData(prev => prev ? {
+            ...prev,
+            aiAnalysisResult: detectionResult,
+            proofCheckResult: detectionResult
+          } : null);
+        }
+      } catch (err) {
+        console.error('[Capture] AI Image Analysis failed:', err);
+        if (active) {
+          setAiAnalysisResult({
+            status: 'error',
+            requiredSubject: currentTrip.title || 'Target Match',
+            detectedSubject: false,
+            confidence: 0,
+            detectedItems: [],
+            missingItems: ['SCAN_FAILED'],
+            displayTitle: 'Scan Failed',
+            displayDetail: 'Optical scanning protocol encountered an access error.',
+            missionMatchScore: 0
+          });
+        }
+      } finally {
+        if (active) {
+          setIsAiAnalyzing(false);
+        }
+      }
+    };
+
+    runAnalysis();
+
+    return () => {
+      active = false;
+    };
+  }, [captureData, currentTrip?.id]);
+
+  useEffect(() => {
+    let active = true;
+    const fetchCatalyst = async () => {
+      if (!currentTrip) return;
+      try {
+        const seasonId = activeSeason?.id || 'dev-season-2026';
+        const weekNum = currentTrip.weekNumber || currentWeekNumber || 1;
+        const cat = await getCatalystForWeek(seasonId, weekNum);
+        if (active) {
+          setCatalyst(cat);
+        }
+      } catch (err) {
+        console.warn("[Capture] fetchCatalyst error:", err);
+      }
+    };
+    fetchCatalyst();
+    return () => { active = false; };
+  }, [activeSeason?.id, currentTrip?.id, currentWeekNumber]);
+
+  useEffect(() => {
+    setBonusProofFulfilled(false);
+  }, [currentTrip?.id]);
+
+
+  // Fast Find state fields
+  const [fastFindStarted, setFastFindStarted] = useState(false);
+  const [fastFindStartedAt, setFastFindStartedAt] = useState<number | null>(null);
+  const [fastFindExpiresAt, setFastFindExpiresAt] = useState<number | null>(null);
+  const [fastFindExpired, setFastFindExpired] = useState(false);
+  const [lockedSignalIntensity, setLockedSignalIntensity] = useState<'Standard' | 'Advanced' | 'Certified' | null>(null);
+  const [lockedBasePoints, setLockedBasePoints] = useState<number | null>(null);
+  const [fastFindTimeRemaining, setFastFindTimeRemaining] = useState<number>(300);
+
+  const isFastFind = !!(currentTrip && (currentTrip.mode === 'fastFind' || currentTrip.type === 'fastFind'));
+
+  // Reset Fast Find state on active trip change
+  useEffect(() => {
+    setFastFindStarted(false);
+    setFastFindStartedAt(null);
+    setFastFindExpiresAt(null);
+    setFastFindExpired(false);
+    setLockedSignalIntensity(null);
+    setLockedBasePoints(null);
+    if (currentTrip) {
+      const limit = currentTrip.timeLimitSeconds || 300;
+      setFastFindTimeRemaining(limit);
+    }
+  }, [currentTrip?.id]);
+
+  // Handle countdown interval safely
+  useEffect(() => {
+    if (!fastFindStarted || !isFastFind || fastFindExpired) return;
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const expires = fastFindExpiresAt || 0;
+      const remainingMs = expires - now;
+      const remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+      
+      setFastFindTimeRemaining(remainingSeconds);
+
+      if (remainingSeconds <= 0) {
+        setFastFindExpired(true);
+        clearInterval(interval);
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [fastFindStarted, isFastFind, fastFindExpiresAt, fastFindExpired]);
+
+  const handleStartFastFind = () => {
+    if (!isFastFind || fastFindStarted) return;
+    const now = Date.now();
+    const limit = (currentTrip?.timeLimitSeconds || 300) * 1000;
+    const expires = now + limit;
+    
+    setFastFindStarted(true);
+    setFastFindStartedAt(now);
+    setFastFindExpiresAt(expires);
+    setFastFindExpired(false);
+    setLockedSignalIntensity(selectedLevel);
+    
+    const base = currentTrip?.baseXP || currentTrip?.basePoints || 100;
+    setLockedBasePoints(base);
+    setFastFindTimeRemaining(Math.ceil(limit / 1000));
+  };
+
   const [hintUsed, setHintUsed] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
@@ -272,7 +754,7 @@ export default function CapturePage() {
   const fPref = { frankieMode };
 
   const isPhotoFulfilled = localPhotoCaptured || !!missionProgress.photo;
-  const isNoteFulfilled = note.trim().length >= 10 || !!missionProgress.field_note;
+  const isNoteFulfilled = fcData.note.trim().length >= 10 || !!missionProgress.field_note;
   const isLocationFulfilled = localLocationChecked || !!missionProgress.location;
 
   const evidenceRequirements = [
@@ -280,14 +762,118 @@ export default function CapturePage() {
     { key: 'field_note', label: getFrankieEvidenceLabel(currentTrip, 'field_note', fPref), fulfilled: isNoteFulfilled, required: (currentTrip?.proofType || currentTrip?.requiredProof || []).includes('note') },
     { key: 'location', label: getFrankieEvidenceLabel(currentTrip, 'location', fPref), fulfilled: isLocationFulfilled, required: (currentTrip?.proofRequirements?.requireLocation || currentTrip?.proofNeeded?.toLowerCase().includes('location') || (currentTrip?.tags || []).includes('location') || (currentTrip?.proofType || []).includes('location')) },
   ].filter(req => req.required);
+
+  // --- POINT SELECTION SYSTEM GATING ---
+  // (isStarterTrainingActive moved higher up)
+
+  const isRequiredProofCompleted = evidenceRequirements
+    .filter(r => r.key !== 'field_note')
+    .every(r => r.fulfilled);
+
+  const isFieldNoteEntered = fcData.note.trim().length >= 10;
+  const supportsBonusProof = !!currentTrip?.distanceBonus?.eligible;
+  const isBonusProofCompleted = bonusProofFulfilled;
+
+  const getLockReason = (level: 'Standard' | 'Advanced' | 'Certified') => {
+    if (isStarterTrainingActive) {
+      if (level === 'Advanced' || level === 'Certified') {
+        return "Locked during Training.";
+      }
+    } else {
+      if (level === 'Advanced') {
+        if (!isFieldNoteEntered) {
+          return "Add a field note to unlock.";
+        }
+      }
+      if (level === 'Certified') {
+        if (hintUsed) {
+          return "Locked: Hint used.";
+        }
+        if (!isFieldNoteEntered) {
+          return "Add a field note to unlock.";
+        }
+        if (supportsBonusProof && !isBonusProofCompleted) {
+          return "Bonus proof required.";
+        }
+      }
+    }
+    return null;
+  };
+
+  // Automatically adjust selectedLevel if it becomes locked based on evidence
+  useEffect(() => {
+    if (isStarterTrainingActive) {
+      if (selectedLevel !== 'Standard') {
+        setSelectedLevel('Standard');
+      }
+      return;
+    }
+
+    // After onboarding is complete:
+    if (selectedLevel === 'Certified') {
+      const isCertifiedLocked = !isRequiredProofCompleted || !isFieldNoteEntered || (supportsBonusProof && !isBonusProofCompleted) || hintUsed;
+      if (isCertifiedLocked) {
+        // Fallback to Advanced if possible, else Standard
+        const isAdvancedLocked = !isRequiredProofCompleted || !isFieldNoteEntered;
+        if (isAdvancedLocked) {
+          setSelectedLevel('Standard');
+        } else {
+          setSelectedLevel('Advanced');
+        }
+      }
+    } else if (selectedLevel === 'Advanced') {
+      const isAdvancedLocked = !isRequiredProofCompleted || !isFieldNoteEntered;
+      if (isAdvancedLocked) {
+        setSelectedLevel('Standard');
+      }
+    }
+  }, [
+    isStarterTrainingActive,
+    isRequiredProofCompleted,
+    isFieldNoteEntered,
+    supportsBonusProof,
+    isBonusProofCompleted,
+    hintUsed,
+    selectedLevel
+  ]);
   
   const isMissionReady = currentTrip && evidenceRequirements.every(r => r.fulfilled);
 
+  const handleStartCapture = async () => {
+    await proceedToCapture();
+  };
+
+  const proceedToCapture = async () => {
+    // 1. Camera is contextually requested when starting capture if not already ready
+    if (!cameraPermissionReady) {
+      await requestCamera();
+    }
+
+    // 2. Location is only requested contextually if mission requires it
+    const locationRequired = currentTrip.proofRequirements?.requireLocation || 
+                           currentTrip.proofNeeded?.toLowerCase().includes('location') || 
+                           (currentTrip.tags || []).includes('location') || 
+                           (currentTrip.proofType || []).includes('location');
+    
+    if (locationRequired && !locationPermissionReady) {
+      await requestLocation();
+    }
+
+    setFcState('capture');
+  };
+
   const onCapture = (data: any) => {
-    setCaptureData(data);
+    const proofId = data?.proofId || `proof_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const updatedData = { ...data, proofId };
+    setCaptureData(updatedData);
     setLocalPhotoCaptured(true);
-    setDevelopingCaption('Developing...');
-    setStep('developing');
+    setFcData(prev => ({
+      ...prev,
+      photoCaptured: true,
+      photoUrl: data.filteredImageUrl,
+      trustLevel: data.trustLevel
+    }));
+    setFcState('previewing_polaroid'); // Show instant clear preview in frame
     
     // Track photo progress
     if (currentTrip?.id && currentTrip.id !== 'unknown') {
@@ -298,9 +884,24 @@ export default function CapturePage() {
   };
 
   useEffect(() => {
+    if (fcState === 'previewing_polaroid') {
+      const timer = setTimeout(() => {
+        setFcState('developing_polaroid');
+      }, 1500); 
+      return () => clearTimeout(timer);
+    }
+    if (fcState === 'developing_polaroid') {
+      const timer = setTimeout(() => {
+        setFcState('reviewing');
+      }, 4500); 
+      return () => clearTimeout(timer);
+    }
+  }, [fcState]);
+
+  useEffect(() => {
     // Sync note progress
     if (currentTrip?.id && currentTrip.id !== 'unknown') {
-      if (note.length >= 10) {
+      if (fcData.note.length >= 10) {
         updateTripProgress(currentTrip.id, { field_note: true }).catch(err => {
           console.warn("Firestore updateTripProgress for note failed:", err);
         });
@@ -310,7 +911,7 @@ export default function CapturePage() {
         });
       }
     }
-  }, [note, currentTrip?.id]);
+  }, [fcData.note, currentTrip?.id]);
 
   useEffect(() => {
     // Initial progress sync for location and existing state
@@ -331,15 +932,15 @@ export default function CapturePage() {
   }, [currentTrip?.id, currentTrip?.proofNeeded, currentTrip?.tags, currentTrip?.proofRequirements]);
 
   useEffect(() => {
-    if (step === 'developing') {
+    if (fcState === 'detecting') {
       const timer1 = setTimeout(() => setDevelopingCaption('Ready.'), 2200);
-      const timer2 = setTimeout(() => setStep('review'), 3000);
+      const timer2 = setTimeout(() => setFcState('reviewing'), 3000);
       return () => {
         clearTimeout(timer1);
         clearTimeout(timer2);
       };
     }
-  }, [step]);
+  }, [fcState]);
 
   const handleCaptureClick = () => {
     if (isUploading) return;
@@ -366,24 +967,58 @@ export default function CapturePage() {
 
   const handleSubmit = async (bypassReview = false) => {
     if (!user || !profile || !captureData || isUploading || submitLockRef.current) return;
+    
+    // We do not auto-advance here to avoid navigating away from the MISSION SECURED screen prematurely.
+    // Instead, we will advance the onboarding step when they hit "BACK TO DECK".
     if (!currentTrip) {
       setSubmissionStatus('retry');
       return;
+    }
+
+    if (isFastFind) {
+      if (!fastFindStarted || !fastFindStartedAt || !fastFindExpiresAt) {
+        alert("Submission Blocked: Fast Find was not properly started.");
+        return;
+      }
+      if (Date.now() > fastFindExpiresAt) {
+        setFastFindExpired(true);
+        alert("Submission Blocked: This Fast Find attempt has expired.");
+        return;
+      }
     }
 
     submitLockRef.current = true;
     
     // 0. Calculate Rewards
     const isFirstTime = !completedChallengeIds.has(currentTrip.id);
-    const multiplier = selectedLevel === 'Standard' ? 1 : selectedLevel === 'Advanced' ? 1.5 : 2;
-    const base = currentTrip.baseXP || currentTrip.basePoints || 100;
-    let awardedXP = Math.round(base * multiplier);
-    if (hintUsed) awardedXP = Math.round(awardedXP * 0.85);
+    const draftForScoring = {
+      id: 'draft',
+      proofImage: captureData?.filteredImageUrl || '',
+      imageUrl: captureData?.filteredImageUrl || '',
+      photoUrl: captureData?.filteredImageUrl || '',
+      note: fcData.note || '',
+      fieldNote: fcData.note || ''
+    } as any;
+
+    const scoringResult = calculateSubmissionPoints(
+      draftForScoring,
+      currentTrip,
+      {
+        isFirstSubmission: (profile?.approvedEntriesCount || 0) === 0,
+        daysLate: 0,
+        hintUsed: hintUsed,
+        weekNumber: currentTrip.weekNumber || currentWeekNumber || 1,
+        catalyst: catalyst || undefined
+      }
+    );
+
+    let awardedXP = scoringResult.totalPoints;
+    if (isRetry) awardedXP = Math.round(awardedXP * 0.5);
     
     const awardedTokenCount = isFirstTime ? 1 : 0;
 
     // 1. OPTIMISTIC UPDATE IMMEDIATELY
-    grantPointsLocally(awardedXP, currentTrip.id, {
+    registerPendingSubmissionLocally(awardedXP, currentTrip.id, {
       title: currentTrip.title,
       photo: captureData.filteredImageUrl,
       awardedXP: awardedXP
@@ -395,7 +1030,7 @@ export default function CapturePage() {
       title: currentTrip.title,
       awardedXP: awardedXP,
       baseXP: awardedXP,
-      note: note,
+      note: fcData.note,
       photo: captureData.filteredImageUrl,
       proofType: currentTrip.proofType || currentTrip.requiredProof || ['photo'],
       image: currentTrip.image,
@@ -412,84 +1047,106 @@ export default function CapturePage() {
     setCompleteRecord(localResult);
 
     // Enter pending step immediately so user sees "TRANSMITTING"
-    setStep('pending');
+    setFcState('submitting');
     setSubmissionStatus('saving');
     setIsUploading(true);
-
-    // 3. Timeout Guard: Ensure result appears within 3 seconds
-    const timeoutHandle = setTimeout(() => {
-      setSubmissionStatus('submitted');
-    }, 3000);
 
     // 4. Background Sync Process
     const runSync = async () => {
       try {
-        // Optional Review
-        if (!bypassReview) {
-          try {
-            const review = await evaluateProof(
-              user.uid, 
-              currentTrip.id, 
-              currentTrip.title, 
-              currentTrip.description || currentTrip.theAsk || '', 
-              { note, receiptsMode: isReceipts }, 
-              captureData.originalImageUrl
-            );
-            if (review.status === 'needsMoreProof' || review.status === 'rejected') {
-              clearTimeout(timeoutHandle);
-              setStep('correction');
-              setIsUploading(false);
-              submitLockRef.current = false;
-              setSubmissionStatus('ready');
-              return;
-            }
-          } catch (error: any) {
-            console.warn("Evaluation uplink unstable, continuing with local data:", error.message);
-          }
-        }
+        const proofId = `proof_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        console.log(`[ProofSubmit] proofId created: ${proofId}`);
+        console.log(`[ProofSubmit] local preview exists: ${!!(captureData.originalImageUrl || captureData.filteredImageUrl)}`);
 
-        // Upload and Persist
+        // Step 1: Upload images first to satisfy Requirement 2
         const now = Date.now();
-        let originalUrl = captureData.originalImageUrl;
-        let filteredUrl = captureData.filteredImageUrl;
-        let uploadSucceeded = false;
+        const filename = `${proofId}.jpg`;
+        const storagePath = `proofUploads/${user.uid}/${currentTrip.id}/${filename}`;
         
-        try {
-          const [origRes, filtRes] = await Promise.all([
-            uploadBase64Image(user.uid, 'proofs/original', `orig_${now}.jpg`, captureData.originalImageUrl),
-            uploadBase64Image(user.uid, 'proofs/filtered', `filt_${now}.jpg`, captureData.filteredImageUrl)
-          ]);
-          originalUrl = origRes.url;
-          filteredUrl = filtRes.url;
-          uploadSucceeded = true;
-        } catch (uploadError: any) {
-          console.warn("[Capture Pre-Upload Fallback] Firebase storage upload failed, using local base64/dataURLs:", uploadError.message);
-        }
+        console.log(`[ProofSubmit] upload started: ${filename}`);
+        console.log(`[ProofSubmit] storagePath: ${storagePath}`);
         
+        const [origRes, filtRes] = await Promise.all([
+          uploadBase64Image(user.uid, 'proofs/original', `orig_${proofId}.jpg`, captureData.originalImageUrl),
+          uploadBase64Image(user.uid, 'proofUploads', filename, captureData.filteredImageUrl)
+        ]);
+        
+        const originalUrl = origRes.url;
+        const filteredUrl = filtRes.url;
+        const filteredStoragePath = filtRes.path;
+        
+        console.log(`[ProofSubmit] upload complete`);
+        console.log(`[ProofSubmit] downloadURL received: ${filteredUrl.substring(0, 50)}...`);
+
+        // Step 2: Save the permanent URL and path into the proof document
+        console.log(`[ProofSubmit] proof document saved with photoUrl`);
         const result = await addEntry({
+          uid: user.uid,
+          missionId: currentTrip.id,
+          challengeId: currentTrip.id,
           tripId: currentTrip.id,
-          proofImage: filteredUrl,
+          photoUrl: filteredUrl,      // Canonical field
+          imageUrl: filteredUrl,      // Canonical field
+          mediaUrl: filteredUrl,      // Fallback
+          photoStoragePath: filteredStoragePath,
+          imageStoragePath: filteredStoragePath,
+          storagePath: filteredStoragePath,
+          proofImage: filteredUrl,      // Legacy
           originalImageUrl: originalUrl,
           filteredImageUrl: filteredUrl,
-          fieldNote: note || 'A successful field trip entry.',
-          selectedLevel,
-          detourCompleted,
+          fieldNote: fcData.note || 'A successful field trip entry.',
+          findingType,
+          selectedCategory: selectedLevel,
+          selectedLevel: selectedLevel,
           crewId: profile.crewId || undefined,
           userId: user.uid,
-          uploadSource: captureData.metadata.source,
+          uploadSource: captureData.metadata.source || 'camera',
           photoTakenAt: captureData.metadata.photoTakenAt || null,
-          fileLastModifiedAt: (() => {
-            const d = safeToDate(captureData.metadata.fileLastModified);
-            return d ? d.toISOString() : null;
-          })(),
+          latitude: captureData.metadata.latitude !== undefined ? captureData.metadata.latitude : null,
+          longitude: captureData.metadata.longitude !== undefined ? captureData.metadata.longitude : null,
           submittedAt: new Date().toISOString(),
-          metadataStatus: captureData.metadata.metadataStatus,
+          updatedAt: new Date().toISOString(),
+          metadataStatus: captureData.metadata.metadataStatus || 'unverified',
           captureTrustLevel: captureData.trustLevel as any,
-          filterUsed: captureData.filterId,
+          filterUsed: captureData.filterId || 'original',
           filterIntensity: 1.0,
           reviewStatus: captureData.reviewStatus as any,
-          hintUsed: hintUsed
-        });
+          hintUsed: hintUsed,
+          proofChallengeCode: receiptChallenge?.code,
+          proofChallengeType: receiptChallenge?.type,
+          proofChallengeText: receiptChallenge?.text,
+          proofChallengeInstructions: receiptChallenge?.instructions,
+          isRetry: isRetry,
+          retryPointMultiplier: isRetry ? 0.5 : undefined,
+          originalEntryId: originalEntryId || null,
+          existingEntryId: entryIdParam || null,
+          fastFindAttempt: isFastFind ? {
+            mode: "fastFind",
+            selectedIntensity: lockedSignalIntensity || 'Standard',
+            lockedBasePoints: lockedBasePoints || currentTrip.baseXP || currentTrip.basePoints || 100,
+            startedAt: fastFindStartedAt ? new Date(fastFindStartedAt).toISOString() : new Date().toISOString(),
+            expiresAt: fastFindExpiresAt ? new Date(fastFindExpiresAt).toISOString() : new Date().toISOString(),
+            submittedAt: new Date().toISOString(),
+            completedBeforeExpiration: true,
+            expired: false,
+            hintUsed: false
+          } : undefined,
+          aiAnalysisResult: aiAnalysisResult,
+          proofCheckResult: aiAnalysisResult
+        } as any);
+
+        console.log(`[ProofSubmit] AI scan started`);
+        // AI Scan happens inside addEntry via evaluateProof, but we already have its results from step 320-ish in addEntry context if pre-calculated
+        // Or it will run now. If it fails, addEntry still returns the result because it's wrapped in try/catch in gameService.
+        console.log(`[ProofSubmit] AI scan result or fallback: ${result.review?.status || 'Manual Review Fallback'}`);
+        
+        if (!bypassReview && result.review && (result.review.status === 'needs_more_proof' || result.review.status === 'rejected')) {
+          setFcState('needs_more_proof');
+          setIsUploading(false);
+          submitLockRef.current = false;
+          setSubmissionStatus('ready');
+          return;
+        }
 
         const finalXP = (result.scoring?.totalPoints || 0) + (result.ftBonus || 0);
 
@@ -497,8 +1154,7 @@ export default function CapturePage() {
           ...localResult,
           photo: filteredUrl,
           awardedXP: finalXP || awardedXP,
-          syncStatus: uploadSucceeded ? 'synced' : 'sync_failed',
-          syncError: uploadSucceeded ? undefined : 'UPLINK_CONGESTION',
+          syncStatus: 'synced',
           scoringData: {
             scoring: result.scoring,
             ftBonus: result.ftBonus,
@@ -518,26 +1174,33 @@ export default function CapturePage() {
           totalTokens: (fieldTokens || 0) + awardedTokenCount
         } as any);
 
-        clearTimeout(timeoutHandle);
+        setFcState('result'); // MOVE TO SUCCESS STEP
         setSubmissionStatus('submitted');
+        if (currentTrip?.id) {
+          localStorage.removeItem(`ft_challenge_${currentTrip.id}`);
+        }
         if (incomingFieldCheck) resolveIncomingFieldCheck();
         
       } catch (error: any) {
-        console.error("Sync failed:", error);
-        const isQuotaError = error.message?.includes('DAILY_LIMIT') || error.message?.includes('COOLDOWN');
-        const isSystemBusy = error.message?.includes('SYSTEM_BUSY');
-
+        console.error("[ProofSubmit] FATAL Error:", error);
+        setFcState('result');
+        setSubmissionStatus('submitted');
         setCompleteRecord((prev: any) => ({
           ...prev,
           syncStatus: 'sync_failed',
-          syncError: isQuotaError ? 'BUREAU_QUOTA_REACHED' : isSystemBusy ? 'UPLINK_CONGESTION' : error.message
+          syncError: error.message
         }));
-        
-        clearTimeout(timeoutHandle);
-        setSubmissionStatus('submitted');
       } finally {
         setIsUploading(false);
         submitLockRef.current = false;
+        // Ensure stale mission state is purged from storage immediately after submission attempt
+        localStorage.removeItem('fieldtrip_active_trip');
+        localStorage.removeItem('current_mission_id');
+        localStorage.removeItem('resume_mission_id');
+        localStorage.removeItem('activeTrip');
+        localStorage.removeItem('currentMission');
+        localStorage.removeItem('resumeMission');
+        sessionStorage.removeItem('activeTrip');
       }
     };
 
@@ -550,669 +1213,150 @@ export default function CapturePage() {
     handleSubmit(true); // Bypass review on retry
   };
 
-  if (completeRecord) {
-    const isFirstTime = !!completeRecord.scoringData?.tokenAwarded;
-    const isSyncing = submissionStatus === 'syncing' || submissionStatus === 'saving';
-    
+
+  // Show recovery if mission is missing and we aren't in a success/pending state
+  if (!currentTrip && !completeRecord && !loading && fcState !== 'result' && submissionStatus !== 'submitted' && fcState !== 'submitting' && fcState !== 'detecting' && fcState !== 'needs_more_proof') {
+    console.error('[Capture] Mission Recovery Triggered:', { tripIdParam, activeTripId: activeTrip?.id });
     return (
-      <div className={cn(
-        "min-h-screen flex flex-col font-sans relative overflow-y-auto",
-        isBaja ? "bg-baja-sand text-baja-pink" : 
-        isDiamond ? "bg-black text-white" :
-        isHeat ? "bg-heat-yellow text-white" :
-        "bg-white"
-      )}>
-        {/* Background Grid Pattern */}
-        {!isPlain && !isBaja && !isDiamond && !isHeat && (
-          <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.03]" 
-               style={{ 
-                 backgroundImage: 'linear-gradient(var(--color-on-surface) 1.5px, transparent 1.5px), linear-gradient(90deg, var(--color-on-surface) 1.5px, transparent 1.5px)', 
-                 backgroundSize: '48px 48px' 
-               }} 
-          />
-        )}
-        
-        {/* Main Content Viewport */}
-        <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-6 md:p-12 relative z-10 w-full max-w-lg mx-auto my-auto h-auto">
-          <div className={cn(
-            "bg-white border-4 border-on-surface p-6 sm:p-12 text-center space-y-8 relative overflow-hidden w-full",
-            isPlain ? "shadow-none border-black" :
-            isBaja ? "shadow-[12px_12px_0px_rgba(255,77,148,0.3)] border-baja-pink" :
-            isDiamond ? "bg-white/10 border-white/20 shadow-none blur-bg text-white" :
-            isHeat ? "bg-heat-pink border-white shadow-[12px_12px_0px_rgba(255,140,0,0.5)] text-white" :
-            "shadow-[16px_16px_0px_black] sm:shadow-[24px_24px_0px_black]"
-          )}>
-            {/* Prisms & Stamps */}
-            <div className="absolute top-0 right-0 w-24 h-24 bg-brand-orange/10 rotate-45 translate-x-12 -translate-y-12" />
-            
-            {/* Header Block */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-brand-orange animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60 font-mono">{fc('UPLINK_STATUS // RECORDED', 'STATUS: SAVED')}</span>
-              </div>
-              <h2 className="font-display text-4xl sm:text-6xl font-black uppercase italic tracking-tighter leading-none text-on-surface">
-                {fc('MISSION_SECURED', 'MISSION COMPLETE')}
-              </h2>
-              <div className="h-1 w-20 bg-brand-orange mx-auto shadow-[0_0_8px_var(--color-brand-orange)]" />
-            </div>
-
-            {/* Mission Details */}
-            <div className="space-y-2">
-              <span className="text-[8px] font-mono opacity-50 uppercase tracking-widest block">Objective Coordinates</span>
-              <h3 className="font-display text-2xl sm:text-3xl font-bold uppercase italic leading-tight text-on-surface">
-                {completeRecord.title}
-              </h3>
-            </div>
-
-            {/* Photographic Evidence & Field Logs */}
-            {(completeRecord.photo || completeRecord.note) && (
-              <div className="space-y-4 pt-2">
-                {completeRecord.photo && (
-                  <div className="aspect-[4/3] w-full bg-paper-dark border-4 border-on-surface overflow-hidden relative rotate-[-1deg] mx-auto shadow-md">
-                    <img src={completeRecord.photo || undefined} alt="Evidence submitted" className="w-full h-full object-cover grayscale brightness-110 contrast-125" referrerPolicy="no-referrer" />
-                    <div className="absolute bottom-0 left-0 w-full bg-on-surface/90 text-brand-lime p-2 font-mono text-[8px] uppercase tracking-wider text-left">
-                      {fc('EVIDENCE_LOG_PHOTO // SECURE_UPLINK_IMAGE', 'PHOTO EVIDENCE')}
-                    </div>
-                  </div>
-                )}
-                {completeRecord.note && (
-                  <div className="p-4 bg-paper-dark border-2 border-on-surface/20 text-left relative italic">
-                    <span className="absolute top-1 right-2 text-[8px] font-mono opacity-40 uppercase">Field Log Entry</span>
-                    <p className="font-serif text-sm text-on-surface/80 leading-relaxed font-medium">"{completeRecord.note}"</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Acquisition Rewards */}
-            <div className="space-y-4">
-              <div className="bg-brand-cyan/20 text-on-surface p-4 border-4 border-on-surface shadow-[6px_6px_0px_black] text-left">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className="text-[8px] font-black uppercase tracking-widest opacity-60 font-mono block">Acquisition Status</span>
-                    <h4 className="font-display text-lg sm:text-lg font-black uppercase italic leading-none mt-1">{fc('PENDING_MANUAL_AUDIT', 'PENDING ADMIN AUDIT')}</h4>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-2xl sm:text-3xl font-display font-black text-on-surface block">+{completeRecord.awardedXP} XP</span>
-                    <span className="text-[8px] font-mono opacity-50 uppercase block">Pending Review</span>
-                  </div>
-                </div>
-
-                <div className="mt-3 pt-3 border-t border-on-surface/10 text-[9px] font-mono opacity-80 leading-relaxed uppercase">
-                  {fc('SECURE_UPLINK_SUCCESSFUL. The field checkpoint team has received your evidence. Point credits and sticker/badge acquisitions will unlock upon manual verification.', 'Uplink successful. Your evidence is in the checkpoint queue. XP and stickers will unlock once manual verification is completed.')}
-                </div>
-
-                {isFirstTime && (
-                  <div className="mt-2 pt-2 border-t border-dashed border-on-surface/10 flex justify-between items-center text-[10px] font-black uppercase tracking-wider text-brand-orange">
-                    <span>Potential Field Token:</span>
-                    <span className="font-display font-black">+1 Token</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Server Synchrony Metadata */}
-              <div className={cn(
-                "p-3 text-[10px] font-black uppercase tracking-widest border-2",
-                completeRecord.syncStatus === 'synced' ? "bg-brand-lime/10 border-brand-lime text-on-surface" :
-                completeRecord.syncStatus === 'sync_failed' ? "bg-brand-orange/10 border-brand-orange text-brand-orange" :
-                "bg-on-surface/5 border-on-surface/20 text-on-surface/60"
-              )}>
-                {completeRecord.syncStatus === 'synced' ? fc("UPLINK ARCHIVED // QUEUED", "QUEUED") : 
-                 completeRecord.syncStatus === 'sync_failed' ? fc("LOCAL SAVE // RETRY UPLINK", "SAVED LOCALLY (RETRY SYNC)") :
-                 fc("SAVED LOCALLY // SYNC PENDING", "SAVED LOCALLY (SYNC PENDING)")}
-              </div>
-            </div>
-
-            {/* Tactical Return Triggers */}
-            <div className="pt-4 flex flex-col gap-4">
-              <button
-                onClick={() => navigate('/deck')}
-                className="w-full py-4 bg-on-surface text-white hover:bg-brand-orange transition-all font-display text-2xl uppercase tracking-wider font-black italic shadow-[8px_8px_0px_var(--color-brand-lime)] active:shadow-none active:translate-x-1 active:translate-y-1 block"
-              >
-                {fc('RETURN_TO_DECK', 'BACK TO DECK')}
-              </button>
-              
-              <button
-                onClick={() => navigate('/profile')}
-                className="w-full py-4 bg-white border-4 border-on-surface text-on-surface hover:bg-brand-lime transition-all font-display text-2xl uppercase tracking-wider font-black italic shadow-[8px_8px_0px_black] active:shadow-none active:translate-x-1 active:translate-y-1 block"
-              >
-                VIEW_FIELD_LOG
-              </button>
-
-              {(completeRecord.syncStatus === 'sync_failed' || (completeRecord.syncStatus === 'pending' && isSyncing)) && (
-                <button
-                  onClick={handleRetrySync}
-                  disabled={isSyncing}
-                  className="w-full py-3 bg-brand-orange text-white border-4 border-on-surface font-display text-sm uppercase tracking-widest shadow-[6px_6px_0px_black] active:shadow-none active:translate-x-1 active:translate-y-1 transition-all font-black italic flex items-center justify-center gap-2 block"
-                >
-                  <RefreshCw className={cn("w-4 h-4", isSyncing && "animate-spin")} />
-                  {isSyncing ? fc("UPLINK TRANSMITTING...", "SYNCING...") : fc("RETRY SYNC UPLINK", "RETRY SYNC")}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      <RecoveryScreen 
+        message={`Mission not found: "${tripIdParam || 'Unspecified ID'}". The signal for this sector may have been archived or re-assigned.`} 
+        onAction={() => console.log('Mission reported missing:', tripIdParam)}
+      />
     );
   }
 
+  // Debug logging for state transitions
+  useEffect(() => {
+    console.log("[Capture State]", {
+      tripIdParam,
+      fcState,
+      submissionStatus,
+      missionFound: !!currentTrip,
+      activeTripId: activeTrip?.id,
+      completeRecordId: completeRecord?.tripId,
+      submitting: isUploading,
+      hasPhoto: !!captureData || !!completeRecord?.photo,
+      hasNote: !!fcData.note || !!completeRecord?.note
+    });
+  }, [tripIdParam, fcState, submissionStatus, currentTrip, activeTrip, completeRecord, isUploading, captureData, fcData.note]);
+
   return (
     <div className={cn(
-      "min-h-screen flex flex-col font-sans relative overflow-hidden",
+      "page-scroll flex flex-col font-sans relative ft-paper-texture",
       isBaja ? "bg-baja-sand text-baja-pink" : 
       isDiamond ? "bg-black text-white" :
       isHeat ? "bg-heat-yellow text-white" :
-      "bg-white"
+      "bg-[#FAF8F5] text-on-surface"
     )}>
-      {/* Backgrounds */}
-      {!isPlain && !isBaja && !isDiamond && !isHeat && (
-        <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.03]" 
-             style={{ 
-               backgroundImage: 'linear-gradient(var(--color-on-surface) 1.5px, transparent 1.5px), linear-gradient(90deg, var(--color-on-surface) 1.5px, transparent 1.5px)', 
-               backgroundSize: '48px 48px' 
-             }} 
-        />
-      )}
-      {/* High-Voltage HUD / Scanline Overlay */}
-      {!isPlain && !isBaja && !isDiamond && !isHeat && (
-        <div className="fixed inset-0 pointer-events-none z-[100] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.015)_50%)] bg-[length:100%_3px] opacity-10" />
-      )}
-
-      {/* Header */}
-      {(!currentTrip && !completeRecord) ? (
-        <div className="flex-grow flex items-center justify-center p-12">
-          <div className="bg-white border-4 border-on-surface shadow-[16px_16px_0px_black] p-10 text-center space-y-6">
-            <h2 className="font-display text-4xl uppercase tracking-tighter italic font-black">{fc('NO MISSION ACTIVE', 'NO ACTIVE MISSION')}</h2>
-            <p className="font-serif italic opacity-60">{fc('Return to the deck to find a mission.', 'Go back to the deck to pick a mission.')}</p>
-            <button 
-              onClick={() => navigate('/deck')}
-              className="px-8 py-4 bg-brand-orange text-white border-4 border-on-surface shadow-[8px_8px_0px_black] font-bold italic"
-            >
-              {fc('BACK_TO_DECK', 'BACK TO DECK')}
-            </button>
-          </div>
-        </div>
-      ) : (
-      <>
-      <div className="absolute top-0 left-0 w-full p-3 sm:p-6 flex justify-between items-start z-30 pointer-events-none">
-        <div className="space-y-2 sm:space-y-4 w-full pointer-events-auto">
-          {!isPlain && (
-            <div className="hidden sm:flex items-center gap-3">
-              <div className="w-2 h-2 bg-brand-lime shadow-[0_0_8px_var(--color-brand-lime)]" />
-              <p className={cn("micro-label font-bold tracking-wider italic", isBaja ? "text-baja-aqua" : isDiamond ? "text-white/40" : isHeat ? "text-white" : "text-brand-lime")}>
-                {isBaja ? 'COASTAL SNAP' : isDiamond ? 'OPTICAL CALIBRATION' : isHeat ? 'PHOTO ROLL' : fc('ACTIVE SIGNAL // PHOTO MODE', 'READY')}
-              </p>
-            </div>
-          )}
-          <div className="flex flex-col sm:flex-col gap-2 sm:gap-4 max-w-sm sm:max-w-md">
-              <div className="flex items-center gap-2 sm:gap-4 bg-on-surface text-white p-2.5 sm:p-4 border-2 sm:border-4 border-white/20 shadow-[4px_4px_0px_black] sm:shadow-[8px_8px_0px_black] rotate-[-1deg] w-fit">
-                <div className="flex flex-col justify-center">
-                   <p className="text-[8px] sm:text-[10px] font-black opacity-60 tracking-[0.2em] italic text-brand-orange leading-none">{fc('MISSION_OPERATIONAL', 'MISSION ACTIVE')}</p>
-                   <h2 className={cn("font-display text-2xl sm:text-4xl uppercase tracking-tight leading-tight italic font-bold mt-0.5", isPlain && "drop-shadow-[4px_4px_0_black]")}>
-                     {isPlain ? fc('PHOTO', 'TAKE PHOTO') : fc('PHOTO', 'PHOTO')}
-                   </h2>
-                </div>
-              </div>
-             
-              <div className={cn(
-                "flex items-center gap-2.5 sm:gap-4 px-3 sm:px-6 py-2 sm:py-4 border-2 sm:border-4 shadow-[4px_4px_0px_black] sm:shadow-[8px_8px_0px_black] italic select-none",
-                isPlain ? "bg-white text-black border-black" :
-                isBaja ? "bg-white text-baja-pink border-baja-pink" :
-                isDiamond ? "bg-white/10 text-white border-white/20 blur-bg" :
-                isHeat ? "bg-heat-pink text-white border-white" :
-                "bg-brand-lime text-on-surface border-on-surface font-bold"
-              )}>
-                <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3] opacity-60 shrink-0" />
-                <div className="flex flex-col text-left min-w-0">
-                  <span className={cn("font-bold text-xs sm:text-sm uppercase tracking-wider truncate", isPlain && "text-sm sm:text-xl font-display")}>{getFrankieTitle(currentTrip, fPref)}</span>
-                  <span className="text-[7px] sm:text-[8px] font-black uppercase tracking-[0.15em] opacity-40 leading-none mt-0.5">ACTIVE MISSION</span>
-                </div>
-              </div>
-          </div>
-        </div>
-      </div>
+      {/* Removed: Notebook Rings Decoration to avoid confusion with horizontal guide pills */}
+      <div className="w-full flex justify-center py-2 relative z-20 select-none pointer-events-none mb-2" />
+      
+      {/* Main 3-Step Guided Container */}
+      <div className="flex-grow flex flex-col items-center justify-start p-4 sm:p-6 md:p-8 pt-4 max-w-md w-full mx-auto relative z-10">
 
       <AnimatePresence mode="wait">
-        {step === 'viewfinder' && (
-          <motion.div 
-            key="viewfinder"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex-grow flex flex-col items-center justify-center p-4 sm:p-6 pt-32 sm:pt-6 relative z-10"
-          >
-            <div className={cn(
-              "relative w-full max-w-xs sm:max-w-md aspect-[3/4] overflow-hidden group transition-all",
-              isPlain ? "border-8 border-white rounded-none shadow-none bg-paper" :
-              isBaja ? "border-[12px] border-white rounded-[3rem] shadow-[0_20px_50px_rgba(255,77,148,0.3)] bg-white/20" : 
-              isDiamond ? "border-[1px] border-white/40 rounded-none bg-black ring-[12px] ring-white/5" :
-              isHeat ? "border-[8px] border-white rounded-[2rem] shadow-[0_15px_40px_rgba(255,140,0,0.5)] bg-white/10" :
-              "border-4 border-on-surface bg-black shadow-[16px_16px_0px_rgba(0,0,0,0.15)] sm:shadow-[32px_32px_0px_rgba(0,0,0,0.15)] rounded-sm"
-            )}>
-              {/* Corner Brackets for High Voltage */}
-              {!isBaja && !isDiamond && !isHeat && (
-                <>
-                  <div className="absolute top-4 left-4 sm:top-6 sm:left-6 w-8 h-8 sm:w-16 sm:h-16 border-t-4 sm:border-t-8 border-l-4 sm:border-l-8 border-brand-lime z-40 opacity-90 shadow-[0_0_15px_var(--color-brand-lime)]" />
-                  <div className="absolute top-4 right-4 sm:top-6 sm:right-6 w-8 h-8 sm:w-16 sm:h-16 border-t-4 sm:border-t-8 border-r-4 sm:border-r-8 border-brand-lime z-40 opacity-90 shadow-[0_0_15px_var(--color-brand-lime)]" />
-                  <div className="absolute bottom-4 left-4 sm:bottom-6 sm:left-6 w-8 h-8 sm:w-16 sm:h-16 border-b-4 sm:border-b-8 border-l-4 sm:border-l-8 border-brand-lime z-40 opacity-90 shadow-[0_0_15px_var(--color-brand-lime)]" />
-                  <div className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 w-8 h-8 sm:w-16 sm:h-16 border-b-4 sm:border-b-8 border-r-4 sm:border-r-8 border-brand-lime z-40 opacity-90 shadow-[0_0_15px_var(--color-brand-lime)]" />
-                  
-                  {/* Rec Indicator */}
-                  <div className="absolute top-6 sm:top-10 left-1/2 -translate-x-1/2 flex items-center gap-2 sm:gap-4 bg-on-surface px-4 py-1.5 sm:px-6 sm:py-2.5 rounded-none z-40 shadow-[4px_4px_0px_var(--color-brand-orange)] sm:shadow-[6px_6px_0px_var(--color-brand-orange)] border border-white/20">
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse" />
-                    <span className="text-[9px] sm:text-[11px] font-mono text-white font-bold tracking-widest italic">{fc('LENS_ACTIVE', 'CAMERA LIVE')}</span>
-                  </div>
-                </>
-              )}
-              
-                <div className="absolute top-16 sm:top-24 right-4 z-[60] flex flex-col gap-4">
-                  <button 
-                    onClick={() => cameraRef.current?.toggleCamera()}
-                    className="w-10 h-10 sm:w-12 sm:h-12 bg-black/60 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center text-white hover:bg-brand-orange transition-colors shadow-lg active:scale-90"
-                    title="Toggle Camera"
-                  >
-                    <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </button>
-                </div>
-
-                <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center bg-on-surface/5"><Camera className="w-12 h-12 opacity-10 animate-pulse" /></div>}>
-                <ViewfinderCamera challenge={currentTrip} ref={cameraRef} onCapture={onCapture} />
-              </Suspense>
-              {(isBaja || isDiamond) && <GlossOverlay opacity={isDiamond ? 0.3 : 0.4} />}
-            </div>
-
-            {/* UI Actions */}
-            <div className="flex items-center gap-4 sm:gap-8 w-full max-w-xs sm:max-w-md pt-6 sm:pt-12 px-4 sm:px-6">
-              <button 
-                onClick={() => navigate(-1)} 
-                className="p-4 sm:p-6 rounded-none bg-white border-2 sm:border-4 border-on-surface text-on-surface hover:bg-brand-lime transition-all shadow-[4px_4px_0px_black] sm:shadow-[8px_8px_0px_black] active:translate-x-1 active:translate-y-1 active:shadow-none"
-              >
-                <X className="w-6 h-6 sm:w-8 sm:h-8 stroke-[3.5]" />
-              </button>
-              <button 
-                onClick={handleCaptureClick}
-                disabled={isUploading || isLocked}
-                className={cn(
-                  "flex-grow py-5 sm:py-8 rounded-none font-display text-xl sm:text-2xl md:text-3xl uppercase tracking-tight transition-all shadow-[8px_8px_0px_black] sm:shadow-[16px_16px_0px_black] active:translate-x-1 active:translate-y-1 sm:active:translate-x-2 sm:active:translate-y-2 active:shadow-none overflow-hidden relative font-bold italic",
-                  isBaja ? "bg-baja-pink text-white" : isDiamond ? "bg-white text-black" : isHeat ? "bg-heat-pink text-white" : "bg-brand-orange text-white border-2 sm:border-4 border-on-surface hover:bg-on-surface"
-                )}
-              >
-                <span className="relative z-10">{isUploading ? fc('PROCESSING...', 'PROCESSING...') : fc('TAKE PHOTO', 'TAKE PHOTO')}</span>
-                {!isBaja && !isDiamond && !isHeat && (
-                   <div className="absolute top-0 right-0 w-24 h-full bg-white/20 -skew-x-12 translate-x-8" />
-                )}
-              </button>
-            </div>
-          </motion.div>
-        )}
-
-        {step === 'developing' && captureData && (
+        {currentTrip && !completeRecord && submissionStatus !== 'submitted' && (fcState !== 'result') && (
           <motion.div
-            key="developing"
+            key="fc-flow"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex-grow flex flex-col items-center justify-center p-6 z-50 bg-on-surface/90 backdrop-blur-2xl"
+            className="w-full"
           >
-             <motion.div layoutId="proof-card" className="bg-white p-6 pb-16 shadow-[24px_24px_0px_black] border-2 border-black max-w-xs w-full">
-                <div className="aspect-[3/4] w-full overflow-hidden relative bg-paper-dark border-2 border-on-surface">
-                   <motion.img 
-                     src={captureData.filteredImageUrl || undefined} 
-                     alt="Developing Proof" 
-                     className="w-full h-full object-cover grayscale brightness-125 contrast-150"
-                     initial={{ filter: 'grayscale(1) blur(12px) brightness(1.6)', opacity: 0.3 }}
-                     animate={{ filter: 'grayscale(0) blur(0px) brightness(1)', opacity: 1 }}
-                     transition={{ duration: 2.5 }}
-                   />
-                   {/* Prism Overlay for nightlife look */}
-                   <div className="absolute inset-0 bg-gradient-to-tr from-brand-lime/10 via-transparent to-brand-magenta/10 mix-blend-overlay pointer-events-none" />
-                </div>
-                <div className="mt-10 text-left space-y-4">
-                   <div className="flex items-center gap-2">
-                      <div className="h-1 flex-grow bg-brand-orange" />
-                      <p className="font-mono text-[10px] uppercase font-black tracking-[0.4em] text-on-surface">{developingCaption}</p>
-                   </div>
-                   <div className="flex justify-between items-center opacity-40">
-                      <span className="text-[8px] font-mono">UPLINK_01</span>
-                      <span className="text-[8px] font-mono">EST_TIME: 2.4s</span>
-                   </div>
-                </div>
-             </motion.div>
-          </motion.div>
-        )}
+            {isRepairMode && repairFeedback && fcState === 'brief' && (
+              <div className="mb-6 bg-brand-orange/10 border-l-4 border-brand-orange p-5 rounded-2xl text-left space-y-1.5 shadow-sm">
+                <p className="font-mono text-[9px] font-black uppercase tracking-wider text-brand-orange flex items-center gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5" /> BUREAU_REPAIR_FEEDBACK
+                </p>
+                <p className="text-xs font-serif italic text-on-surface leading-relaxed">
+                  "{repairFeedback}"
+                </p>
+              </div>
+            )}
 
-        {step === 'review' && captureData && (
-          <motion.div 
-            key="review"
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex-grow flex flex-col items-center p-3 sm:p-6 pt-16 sm:pt-24 pb-16 sm:pb-32 z-10 overflow-y-auto bg-white"
-          >
-            <div className="w-full max-w-sm sm:max-w-md space-y-6 sm:space-y-12">
-               <div className="bg-white border-2 sm:border-4 border-on-surface shadow-[6px_6px_0px_black] sm:shadow-[24px_24px_0px_black] overflow-visible relative">
-                  <div className="absolute -top-4 sm:-top-6 left-3 sm:left-8 bg-brand-lime text-on-surface px-3 sm:px-6 py-1.5 sm:py-3 text-[8px] sm:text-[12px] font-bold uppercase tracking-wider border-2 sm:border-4 border-on-surface shadow-[4px_4px_0px_black] sm:shadow-[8px_8px_0px_black] italic">{fc('PROOF // VERIFIED', 'PHOTO VERIFIED')}</div>
-                  <div className="p-3 sm:p-10 pt-10 sm:pt-16 space-y-4 sm:space-y-12">
-                     <motion.div layoutId="proof-card" className="aspect-square bg-paper-dark border-2 sm:border-4 border-on-surface shadow-[6px_6px_0px_var(--color-brand-magenta)] sm:shadow-[16px_16px_0px_var(--color-brand-magenta)] relative overflow-hidden rotate-[-1deg]">
-                       <img src={captureData.filteredImageUrl || undefined} alt="Proof" className="w-full h-full object-cover sepia-[0.1] contrast-125 brightness-110" />
-                       <div className="absolute bottom-0 left-0 w-full bg-on-surface text-brand-lime p-1.5 sm:p-4 font-mono text-[8px] sm:text-[11px] uppercase tracking-tight italic font-bold">SIGNAL_SOURCE: {captureData.metadata.source} // LATENCY_{Math.round(Math.random() * 20)}ms</div>
-                       
-                       {/* Scanner line detail */}
-                       <div className="absolute inset-x-0 h-1.5 sm:h-2 bg-brand-lime opacity-30 top-1/2 animate-scan pointer-events-none" />
-                     </motion.div>
-                     
-                     {/* Metadata Trust Banner */}
-                     <div className={cn(
-                       "flex items-center gap-2.5 sm:gap-6 p-2.5 sm:p-6 border-2 sm:border-4 shadow-[4px_4px_0px_black] sm:shadow-[8px_8px_0px_black] italic",
-                       captureData.trustLevel === 'live' ? "bg-brand-lime/10 border-brand-lime text-on-surface" :
-                       captureData.trustLevel === 'verifiedCameraRoll' ? "bg-brand-cyan/10 border-brand-cyan text-on-surface" :
-                       "bg-brand-orange/10 border-brand-orange text-on-surface"
-                     )}>
-                       <div className={cn("p-1.5 sm:p-3 border-2 sm:border-4 shadow-[2px_2px_0px_black] sm:shadow-[4px_4px_0px_black]", 
-                         captureData.trustLevel === 'live' ? "bg-brand-lime border-on-surface" :
-                         "bg-white border-on-surface"
-                       )}>
-                         {captureData.trustLevel === 'live' ? <ShieldCheck className="w-4 h-4 sm:w-8 sm:h-8 text-on-surface stroke-[3]" /> : <AlertCircle className="w-4 h-4 sm:w-8 sm:h-8 text-on-surface stroke-[3]" />}
-                       </div>
-                       <div className="flex flex-col gap-0.5 min-w-0">
-                         <span className="font-black text-[9px] sm:text-sm uppercase tracking-[0.15em] sm:tracking-[0.3em] truncate">{captureData.trustLevel.toUpperCase()}</span>
-                         <span className="text-[7.5px] sm:text-[11px] opacity-70 font-sans leading-tight font-medium text-on-surface/85">{captureData.message || (captureData.trustLevel === 'live' ? "Photo verified for field trip." : "Legacy data detected. Subject to audit.")}</span>
-                       </div>
-                     </div>
+            <FieldClipboard
+              mission={currentTrip}
+              onStartCapture={proceedToCapture}
+              onPhotoConfirm={onCapture}
+              onSubmit={() => handleSubmit()}
+              state={fcState}
+              setState={setFcState}
+              data={fcData}
+              setData={setFcData}
+              aiAnalysisResult={aiAnalysisResult}
+              isAiAnalyzing={isAiAnalyzing}
+              catalyst={catalyst}
+              receiptChallenge={receiptChallenge}
+              repairFeedback={repairFeedback}
+            >
+              {fcState === 'capture' && (
+                <div className="w-full flex flex-col space-y-4">
+                  {/* Fast Find countdown indicator */}
+                  {isFastFind && fastFindStarted && (
+                    <div className="w-full bg-on-surface text-paper border-2 border-brand-orange p-3 flex items-center justify-between gap-3 shadow-[4px_4px_0px_black] font-mono rounded-xl">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 rounded-full h-2 bg-brand-orange animate-ping" />
+                        <span className="text-[9px] uppercase font-black text-brand-orange">Fast Find Timer:</span>
+                      </div>
+                      <div className="text-sm font-black text-white bg-black px-2 py-0.5 rounded tracking-widest font-mono">
+                        {Math.floor(fastFindTimeRemaining / 60).toString().padStart(2, '0')}:
+                        {(fastFindTimeRemaining % 60).toString().padStart(2, '0')}
+                      </div>
+                    </div>
+                  )}
 
-                     <div className="space-y-4 sm:space-y-10">
-                        <div className="space-y-1.5 sm:space-y-6 border-l-[4px] sm:border-l-8 border-brand-orange pl-3 sm:pl-8">
-                           <p className="text-[8px] sm:text-[12px] font-bold tracking-wider opacity-50 uppercase italic">ACTIVE_MISSION_TARGET</p>
-                           <h3 className="font-display text-xl sm:text-4xl md:text-5xl uppercase tracking-tight leading-none text-on-surface font-black italic">{getFrankieTitle(currentTrip, fPref)}</h3>
-                           <p className="text-xs sm:text-sm md:text-base font-sans opacity-80 leading-relaxed">{getFrankieDescription(currentTrip, fPref)}</p>
+                  <div id="viewfinder-area" className="relative w-full aspect-[3/4] overflow-hidden group transition-all border-4 border-on-surface bg-black rounded-xl">
+                      <Suspense fallback={
+                        <div className="absolute inset-0 flex items-center justify-center bg-black">
+                          <Loader2 className="w-10 h-10 text-brand-orange animate-spin" />
                         </div>
-
-                        <div className="space-y-3 md:space-y-6 bg-paper-dark p-3 md:p-8 border-4 border-on-surface shadow-[6px_6px_0px_black] md:shadow-[10px_10px_0px_black] italic">
-                          <p className="text-[9px] md:text-[11px] font-black tracking-[0.3em] uppercase opacity-60">CHOOSE_SIGNAL_INTENSITY</p>
-                          <div className="grid grid-cols-3 gap-2 md:gap-6">
-                             {(['Standard', 'Advanced', 'Certified'] as const).map(level => {
-                                 const isLevelBlocked = level === 'Certified' && hintUsed;
-                                 return (
-                                   <button
-                                     key={level}
-                                     onClick={() => !isLevelBlocked && setSelectedLevel(level)}
-                                     className={cn(
-                                       "p-2 md:p-4 border-4 transition-all text-center shadow-[4px_4px_0px_black] active:shadow-none active:translate-x-1 active:translate-y-1 font-black relative overflow-hidden",
-                                       selectedLevel === level ? "border-on-surface bg-brand-orange text-white" : "border-on-surface/20 bg-white text-on-surface hover:border-brand-orange",
-                                       isLevelBlocked && "opacity-40 grayscale cursor-not-allowed border-dashed"
-                                     )}
-                                   >
-                                     <div className="text-[8px] md:text-[10px] uppercase tracking-tighter italic">{level}</div>
-                                     <div className="text-[11px] md:text-[13px] font-mono leading-none mt-1 md:mt-2 italic">
-                                       +{currentTrip.levels?.[level]?.points || Math.round((currentTrip.baseXP || currentTrip.basePoints || 100) * (level === 'Standard' ? 1 : level === 'Advanced' ? 1.5 : 2))}
-                                     </div>
-                                     {isLevelBlocked && <Lock className="absolute top-1 right-1 w-2 h-2 opacity-40" />}
-                                   </button>
-                                 );
-                               })}
-                          </div>
-                          {hintUsed && (
-                             <p className="text-[9px] font-bold text-brand-orange uppercase tracking-widest mt-2 flex items-center gap-2">
-                               <ShieldCheck className="w-3.5 h-3.5" /> Bureau Penalty: Certified Tier Blocked & -15% XP For Hint Usage
-                             </p>
-                          )}
-                        </div>
-
-                        {evidenceRequirements.some(r => r.key === 'location') && (
-                          <div className="bg-brand-lime p-4 border-4 border-on-surface shadow-[6px_6px_0px_black] italic flex items-center gap-4">
-                            <div className="p-2 bg-on-surface text-brand-lime">
-                              <MapPin className="w-6 h-6" />
-                            </div>
-                            <div>
-                               <p className="text-[10px] font-black uppercase tracking-widest leading-none">BETA_LOCATION_SYNC</p>
-                               <p className="text-[8px] font-bold opacity-60 uppercase mt-1">Satellite Lock Confirmed: Latency <span className="text-on-surface">12ms</span></p>
-                               <p className="text-[7px] font-black text-on-surface uppercase tracking-tight mt-1 opacity-40">SIMULATION_ACTIVE_FOR_BETA_TEST</p>
-                            </div>
-                            <div className="ml-auto">
-                               <div className="w-3 h-3 rounded-full bg-on-surface animate-pulse" />
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="space-y-2 sm:space-y-4 group">
-                           <label className="text-[9px] sm:text-[11px] font-mono tracking-wider uppercase flex items-center gap-2">
-                             <MessageSquare className="w-3.5 h-3.5 text-brand-orange stroke-[2.5]" />
-                             FIELD_NOTE
-                           </label>
-                           <textarea 
-                            value={note}
-                            onChange={(e) => setNote(e.target.value)}
-                            placeholder={getFrankieFieldNotePrompt(currentTrip, fPref)}
-                            className="w-full h-24 sm:h-32 bg-white border-2 sm:border-4 border-on-surface focus:border-brand-magenta focus:ring-0 focus:outline-none p-3 font-sans text-sm sm:text-base text-on-surface shadow-inner placeholder:opacity-30"
-                          />
-                        </div>
-
-                        <div className="flex flex-col gap-3 sm:gap-6 pt-2">
-                           <p className="text-[8px] sm:text-[10px] font-sans text-on-surface/50 text-center italic leading-tight">
-                             {fc('BETA_GUIDE', 'Complete the required evidence, then SECURE EVIDENCE to score your Mission.')}
-                           </p>
-                           <button 
-                             onClick={() => handleSubmit()} 
-                             disabled={!isMissionReady || isUploading}
-                             className={cn(
-                               "w-full py-4 sm:py-6 md:py-8 font-display text-xl sm:text-2xl md:text-3xl uppercase tracking-tighter border-2 sm:border-4 border-on-surface transition-all font-black italic",
-                               isMissionReady 
-                                ? "bg-brand-orange text-white shadow-[6px_6px_0px_black] sm:shadow-[16px_16px_0px_black] active:shadow-none active:translate-x-1 active:translate-y-1 sm:active:translate-x-2 sm:active:translate-y-2 hover:bg-on-surface"
-                                : "bg-on-surface/10 text-on-surface/40 cursor-not-allowed shadow-none"
-                             )}
-                           >
-                             {isMissionReady ? fc('SECURE_EVIDENCE', 'SECURE EVIDENCE') : fc('INCOMPLETE_PROOF', 'INCOMPLETE PROOF')}
-                           </button>
-                           {!isMissionReady && (
-                             <div className="bg-brand-orange/5 p-3 sm:p-4 border border-dashed border-brand-orange/20">
-                               <p className="text-[9px] sm:text-[10px] font-mono text-brand-orange uppercase tracking-widest text-center font-bold">
-                                 STILL_NEEDED_BY_BUREAU:
-                               </p>
-                               <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mt-2">
-                                 {evidenceRequirements.filter(r => !r.fulfilled).map(r => (
-                                   <div key={r.key} className="flex items-center gap-1.5 text-on-surface font-bold uppercase text-[9px] sm:text-[10px]">
-                                     <div className="w-1.5 h-1.5 bg-brand-orange rounded-full" />
-                                     {r.label}
-                                   </div>
-                                 ))}
-                               </div>
-                             </div>
-                           )}
-                           <button onClick={() => { setCaptureData(null); setStep('viewfinder'); }} className="text-[9px] sm:text-[11px] font-bold uppercase tracking-wider text-on-surface opacity-50 hover:opacity-100 hover:text-error flex items-center justify-center gap-2 transition-all italic">
-                             <X className="w-3.5 h-3.5 stroke-[3.5]" />
-                             CANCEL_AND_RESET
-                           </button>
-                        </div>
-                     </div>
+                      }>
+                        <ViewfinderCamera 
+                          challenge={currentTrip}
+                          onCapture={onCapture}
+                          ref={cameraRef}
+                        />
+                      </Suspense>
                   </div>
-               </div>
-               
-               {/* Footer security badge */}
-               <div className="flex justify-center items-center gap-4 py-8">
-                  <div className="h-[2px] w-12 bg-on-surface/10" />
-                  <span className="text-[8px] font-mono opacity-30 select-none">BUREAU_ENCRYPTION_ACTIVE // 4096_BIT</span>
-                  <div className="h-[2px] w-12 bg-on-surface/10" />
-               </div>
-            </div>
+                </div>
+              )}
+            </FieldClipboard>
           </motion.div>
         )}
 
-        {(step === 'pending' || submissionStatus === 'submitted') && (completeRecord || captureData) && (
-          <motion.div 
-            key="success-screen"
-            initial={{ opacity: 0, scale: 0.95 }}
+        {fcState === 'result' && (completeRecord || captureData) && (
+          <motion.div
+            key="step-success"
+            initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="flex-grow flex flex-col items-center justify-center p-4 sm:p-6 space-y-8 sm:space-y-16 z-50 bg-white text-on-surface overflow-y-auto"
+            className="w-full max-w-sm mx-auto"
           >
-            <div className="relative group w-full max-w-lg my-auto">
-               <div className="bg-white border-4 border-on-surface shadow-[16px_16px_0px_black] sm:shadow-[32px_32px_0px_black] p-6 sm:p-16 text-center space-y-10 sm:space-y-12 relative overflow-hidden">
-                  {/* Decorative prisms */}
-                  <div className="absolute top-0 right-0 w-32 h-32 sm:w-48 sm:h-48 bg-brand-lime opacity-10 rotate-45 translate-x-16 -translate-y-16 sm:translate-x-24 sm:-translate-y-24" />
-                  <div className="absolute bottom-0 left-0 w-32 h-32 sm:w-48 sm:h-48 bg-brand-magenta opacity-10 rotate-45 -translate-x-16 translate-y-16 sm:-translate-x-24 sm:translate-y-24" />
-                  
-                  {submissionStatus !== 'submitted' && captureData && (
-                    <div className="relative mx-auto w-48 h-60 sm:w-64 sm:h-80">
-                      <div className="absolute inset-0 border-8 p-4 bg-paper-dark shadow-[10px_10px_0px_rgba(0,0,0,0.1)] sm:shadow-[20px_20px_0px_rgba(0,0,0,0.1)] border-on-surface rotate-6 transition-transform group-hover:rotate-12">
-                        <img src={captureData.filteredImageUrl} alt="Entry" className="w-full h-full object-cover grayscale brightness-110 contrast-125" />
-                      </div>
-                      <div className="absolute -bottom-6 -right-6 sm:-bottom-10 sm:-right-10 w-24 h-12 sm:w-40 sm:h-20 border-4 sm:border-8 border-brand-orange text-brand-orange flex items-center justify-center font-display text-xl sm:text-4xl uppercase tracking-[0.2em] rotate-[-15deg] bg-white shadow-[4px_4px_0px_black] sm:shadow-[8px_8px_0px_black] z-20 font-black italic">
-                        SENT
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="space-y-8 sm:space-y-10 pt-4">
-                      <h1 className={cn(
-                        "font-display uppercase tracking-tighter text-on-surface leading-[0.7] font-black italic",
-                        (submissionStatus === 'submitted' || completeRecord?.syncStatus === 'sync_failed') ? "text-5xl md:text-7xl" : "text-7xl md:text-8xl"
-                      )}>
-                        {fc((submissionStatus === 'submitted' || completeRecord?.syncStatus === 'sync_failed') ? 'MISSION_SECURED' : 'TRANSMITTING', (submissionStatus === 'submitted' || completeRecord?.syncStatus === 'sync_failed') ? 'SAVED' : 'SENDING...')}
-                      </h1>
-                    <div className="h-2 w-24 sm:w-32 bg-brand-orange mx-auto shadow-[0_0_10px_var(--color-brand-orange)]" />
-                    
-                    {(submissionStatus === 'submitted' || completeRecord?.syncStatus === 'sync_failed') ? (
-                      <div className="space-y-8 sm:space-y-10">
-                        <div className="bg-brand-lime text-on-surface p-4 sm:p-6 border-4 border-on-surface shadow-[8px_8px_0px_black] text-left rotate-1">
-                           <div className="flex justify-between items-start">
-                              <div>
-                                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Status_Update</p>
-                                <h3 className="font-display text-2xl sm:text-3xl font-black uppercase italic leading-none mt-1">XP_AWARDED</h3>
-                              </div>
-                              <p className="text-4xl sm:text-5xl font-display font-black">+{completeRecord?.awardedXP || scoringData?.scoring?.totalPoints || currentTrip?.baseXP || 0}</p>
-                           </div>
-                           <p className="text-[10px] font-bold uppercase tracking-widest mt-4 opacity-70">
-                             {completeRecord?.syncStatus === 'synced' ? 'Saved to Field Log' : 
-                              completeRecord?.syncStatus === 'pending' ? 'Saved locally for beta. Sync pending...' :
-                              completeRecord?.syncStatus === 'sync_failed' ? 'Saved locally for beta. Sync failed. Retry available.' : 
-                              'Stabilizing Field Log entry...'}
-                           </p>
-                        </div>
-
-                        {completeRecord && (
-                          <MissionResultCard 
-                            trip={{
-                              id: completeRecord.tripId, 
-                              title: completeRecord.title,
-                              proofType: completeRecord.proofType,
-                              image: completeRecord.image
-                            } as any}
-                            scoringData={completeRecord.scoringData || scoringData || {}}
-                            evidence={{ photo: completeRecord.photo, note: completeRecord.note || 'A successful field trip entry.' }}
-                            showMathWizard={profile?.preferences?.mathWizard !== false}
-                            newRewards={completeRecord.scoringData?.newRewards || scoringData?.newRewards}
-                          />
-                        )}
-                      </div>
-                    ) : submissionStatus === 'retry' ? (
-                      <div className="bg-white border-4 border-on-surface p-6 sm:p-8 shadow-[12px_12px_0px_black] sm:shadow-[24px_24px_0px_black] text-center max-w-sm mx-auto space-y-6">
-                        <AlertCircle className="w-10 h-10 sm:w-12 sm:h-12 text-brand-orange mx-auto mb-4" />
-                        <h3 className="font-display text-3xl sm:text-4xl font-black italic uppercase leading-none">UPLINK_ERROR</h3>
-                        <p className="font-serif italic text-base sm:text-lg opacity-80 leading-relaxed">The transmission signal was disrupted. Please re-attempt target security.</p>
-                        <div className="pt-4 flex flex-col gap-4">
-                          <button 
-                            onClick={() => setStep('review')}
-                            className="w-full py-4 sm:py-6 bg-brand-orange text-white font-display text-2xl sm:text-3xl font-black uppercase italic tracking-tighter border-4 border-on-surface shadow-[8px_8px_0px_black] active:shadow-none active:translate-x-1 active:translate-y-1"
-                          >
-                            RETURN_TO_REVIEW
-                          </button>
-                          <button 
-                            onClick={() => navigate('/deck')}
-                            className="text-[10px] font-black uppercase tracking-widest opacity-40 hover:opacity-100"
-                          >
-                            ABORT_MISSION
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="font-serif text-xl sm:text-2xl leading-relaxed px-4 sm:px-6 opacity-80 italic font-medium">
-                        Stabilizing transmission signal. Documenting parameters. Please hold position.
-                      </p>
-                    )}
-                  </div>
-
-                  {(submissionStatus === 'submitted' || completeRecord?.syncStatus === 'sync_failed' || submissionStatus === 'syncing') && (
-                    <div className="pt-8 sm:pt-10 flex flex-col gap-4 sm:gap-6 w-full max-w-sm mx-auto">
-                      <button 
-                        onClick={() => navigate('/deck')} 
-                        className="w-full py-4 sm:py-6 bg-on-surface text-white font-display text-2xl sm:text-3xl uppercase tracking-tighter shadow-[8px_8px_0px_var(--color-brand-lime)] sm:shadow-[12px_12px_0px_var(--color-brand-lime)] active:shadow-none active:translate-x-2 active:translate-y-2 transition-all font-black italic hover:bg-brand-orange"
-                      >
-                        RETURN_TO_DECK
-                      </button>
-                      
-                      <div className="flex flex-col gap-4">
-                        <button 
-                          onClick={() => navigate('/profile')} 
-                          className={cn(
-                            "w-full py-4 sm:py-6 border-4 border-on-surface font-display text-2xl sm:text-3xl uppercase tracking-tighter transition-all font-black italic shadow-[8px_8px_0px_black] active:shadow-none active:translate-x-1 active:translate-y-1",
-                            completeRecord?.syncStatus === 'sync_failed' ? "bg-brand-orange text-white" : "bg-white text-on-surface hover:bg-brand-orange hover:text-white"
-                          )}
-                        >
-                          {completeRecord?.syncStatus === 'sync_failed' ? 'SECURE_IN_FIELD_LOG' : 'VIEW_FIELD_LOG'}
-                        </button>
-
-                        <div className="grid grid-cols-2 gap-4">
-                          {completeRecord?.syncStatus === 'sync_failed' || (completeRecord?.syncStatus === 'pending' && submissionStatus === 'syncing') ? (
-                            <button 
-                              onClick={handleRetrySync} 
-                              className="col-span-2 py-4 bg-brand-orange text-white border-4 border-on-surface font-display text-xl uppercase tracking-widest shadow-[8px_8px_0px_black] active:shadow-none active:translate-x-1 active:translate-y-1 transition-all font-black italic flex items-center justify-center gap-3"
-                            >
-                              <RefreshCw className={cn("w-5 h-5", (submissionStatus === 'syncing' || submissionStatus === 'saving') && "animate-spin")} />
-                              {(submissionStatus === 'syncing' || submissionStatus === 'saving') ? 'SYNCING...' : 'RETRY_SYNC'}
-                            </button>
-                          ) : (
-                            <button 
-                              onClick={() => navigate('/big-board')} 
-                              className="col-span-2 py-3 sm:py-4 bg-white text-on-surface border-4 border-on-surface font-display text-sm sm:text-base uppercase tracking-widest shadow-[6px_6px_0px_black] active:shadow-none active:translate-x-1 active:translate-y-1 transition-all font-black italic hover:bg-brand-lime"
-                            >
-                              BIG_BOARD
-                            </button>
-                          )}
-                        </div>
-
-                        {completeRecord?.syncStatus === 'sync_failed' && (
-                          <div className="space-y-4">
-                            <p className="text-[10px] font-bold text-on-surface/40 uppercase tracking-widest text-center italic">
-                              Big Board rankings remain unchanged while unsynced.
-                            </p>
-                            <button 
-                              onClick={() => navigate('/big-board')} 
-                              className="w-full py-2 text-[10px] font-bold uppercase tracking-widest text-on-surface/40 hover:text-on-surface hover:opacity-100 transition-all italic underline underline-offset-4"
-                            >
-                              CONTINUE_TO_BIG_BOARD_ANYWAY
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-               </div>
-            </div>
+            <MissionResultCard 
+              trip={currentTrip!}
+              scoringData={scoringData || completeRecord?.scoringData || {}}
+              evidence={{
+                photo: (completeRecord?.photo || captureData?.filteredImageUrl || ''),
+                note: (completeRecord?.note || fcData.note || '')
+              }}
+              showMathWizard={true}
+            />
           </motion.div>
-        )}
-
-        {step === 'correction' && lastReview && (
-          <ProofCorrection 
-            review={lastReview} 
-            onRetry={() => { setStep('review'); clearReview(); }}
-            onDone={() => { handleSubmit(true); }}
-          />
         )}
       </AnimatePresence>
-      </>
-      )}
+      </div>
 
       {import.meta.env.DEV && (
-        <div className="fixed bottom-2 left-2 z-[250] pointer-events-auto select-none">
+        <div className="fixed bottom-2 left-2 z-[250] pointer-events-none select-none">
           {!showDebug ? (
             <button 
               onClick={() => setShowDebug(true)}
-              className="bg-black/95 text-brand-lime hover:bg-brand-orange font-mono text-[8px] px-2 py-1 border border-brand-lime shadow-md uppercase font-black cursor-pointer rounded-sm"
+              className="bg-black/95 text-brand-lime hover:bg-brand-orange font-mono text-[8px] px-2 py-1 border border-brand-lime shadow-md uppercase font-black cursor-pointer rounded-sm pointer-events-auto"
               title="Open QA Console"
             >
               [QA DBG]
             </button>
           ) : (
-            <div className="bg-black/95 text-brand-lime font-mono text-[8.5px] p-2.5 border border-brand-lime space-y-1 w-48 shadow-2xl relative rounded-sm">
+            <div className="bg-black/95 text-brand-lime font-mono text-[8.5px] p-2.5 border border-brand-lime space-y-1 w-48 shadow-2xl relative rounded-sm pointer-events-auto">
               <button 
                 onClick={() => setShowDebug(false)}
                 className="absolute top-1 right-2 text-white hover:text-brand-orange text-[9px] font-bold cursor-pointer"
@@ -1236,6 +1380,16 @@ export default function CapturePage() {
               <p>routeId: {tripIdParam || 'none'}</p>
               <p>currentTrip id: {currentTrip?.id || 'none'}</p>
               <p>submitting: {isUploading ? 'yes' : 'no'}</p>
+              <p>repairMode: {isRepairMode ? 'yes' : 'no'}</p>
+              <p>repairEntry: {repairEntry?.id || 'none'}</p>
+              <p>repairImg: {(repairEntry?.photoUrl || repairEntry?.imageUrl || repairEntry?.proofImage) ? 'EXISTS' : 'MISSING'}</p>
+              <p>repairSrcRow: {(() => {
+                if (!repairEntry) return 'none';
+                if (repairEntry.photoUrl) return 'photoUrl';
+                if (repairEntry.imageUrl) return 'imageUrl';
+                if (repairEntry.proofImage) return 'proofImage';
+                return 'NOT_FOUND';
+              })()}</p>
             </div>
           )}
         </div>

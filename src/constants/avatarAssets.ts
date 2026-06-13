@@ -84,7 +84,7 @@ export const PERSONA_AVATAR_PRESETS: Record<string, AvatarData> = {
     backgroundId: 'bg-01',
     badgeId: 'badge-none'
   },
-  lostCamper: {
+  theGobbler: {
     baseId: 'base-04',
     hairId: 'hair-01',
     outfitId: 'outfit-02',

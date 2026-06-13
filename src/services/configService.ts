@@ -9,16 +9,32 @@ export interface GlobalConfig {
   maxDailyProofChecksPerUser: number;
   maxDailyUploadsPerUser: number;
   betaMode: boolean;
+  
+  // AI Specific Caps (Stage 2B)
+  aiImageAnalysisEnabled: boolean;
+  maxDailyAiScansPerUser: number;
+  maxAiScansPerProof: number;
+  maxAiRetriesPerProof: number;
+  maxGlobalAiScansPerDay: number;
+  aiCostGuardEnabled: boolean;
 }
 
 const DEFAULT_CONFIG: GlobalConfig = {
   maintenanceMode: false,
   proofChecksEnabled: true,
   uploadsEnabled: true,
-  leaderboardLiveUpdatesEnabled: false, // Default to false for cost safety
-  maxDailyProofChecksPerUser: 20,
-  maxDailyUploadsPerUser: 30,
-  betaMode: true,
+  leaderboardLiveUpdatesEnabled: false, 
+  maxDailyProofChecksPerUser: 50,
+  maxDailyUploadsPerUser: 100,
+  betaMode: false,
+
+  // AI Defaults
+  aiImageAnalysisEnabled: true,
+  maxDailyAiScansPerUser: 5,
+  maxAiScansPerProof: 1,
+  maxAiRetriesPerProof: 1,
+  maxGlobalAiScansPerDay: 500,
+  aiCostGuardEnabled: true,
 };
 
 let currentConfig: GlobalConfig = { ...DEFAULT_CONFIG };

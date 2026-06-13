@@ -1,6 +1,8 @@
 import { DeckPack } from '../types/deckPacks';
-import { SUMMER_CHALLENGE_BANK } from './summerChallengeBank';
+import { HEATWAVE_CHALLENGE_BANK } from './heatwaveChallengeBank';
+import { SOCAL_SUMMER_CHALLENGE_BANK } from './socalSummerChallengeBank';
 import { ChallengeCard } from '../types/challenges';
+import { HEATWAVE_SEASON_START_DATE, HEATWAVE_SEASON_END_DATE } from '../constants';
 
 export const DECK_PACKS: DeckPack[] = [
   {
@@ -15,174 +17,162 @@ export const DECK_PACKS: DeckPack[] = [
     visibility: 'public',
     isActive: true,
     fallbackIcon: 'Zap',
+    coverImage: '/assets/ui/starter_deck.svg',
     sortOrder: 1,
     difficultyRange: ['easy', 'medium'],
-    tags: ['essential', 'onboarding']
+    tags: ['essential', 'onboarding'],
+    defaultFindingTypes: [
+      "Object",
+      "Surface",
+      "Sign",
+      "Color",
+      "Texture",
+      "Pattern",
+      "Sound",
+      "Scene",
+      "Human-made evidence",
+      "Natural evidence"
+    ]
   },
   {
-    packId: 'summer-surge-2026',
-    packName: 'Summer Surge 2026',
-    shortName: 'Summer Surge',
-    description: 'The main tactical feed for the current atmospheric season. Document the heat, the light, and the urban overgrowth.',
+    packId: 'socal-summer',
+    packName: 'SoCal Summer',
+    shortName: 'SoCal',
+    description: 'A sun-baked Southern California field deck for beach days, neighborhood walks, boardwalk snacks, golden hour sightings, local landmarks, and summer micro-adventures.',
+    theme: 'baja',
+    season: 'Summer 2026',
+    missionIds: SOCAL_SUMMER_CHALLENGE_BANK.map(m => m.id as string),
+    unlockRule: 'starter-complete',
+    visibility: 'public',
+    isActive: true,
+    fallbackIcon: 'Waves',
+    coverImage: '/assets/ui/socal_deck.png',
+    sortOrder: 2,
+    difficultyRange: ['easy', 'medium', 'hard'],
+    
+    // Canonical properties
+    deckId: 'socal-summer',
+    deckSubtitle: 'Long Beach & Coastal Fields',
+    status: 'active',
+    deckType: 'regional',
+    requiredUnlock: 'starter-complete',
+    requiredStarterApprovals: 3,
+    totalCards: 15,
+
+    defaultFindingTypes: [
+      "Beach Clue",
+      "Coastal Artifact",
+      "Sun Signature",
+      "Shoreline Signal",
+      "Palm Clue",
+      "Public Art",
+      "Summer Snack",
+      "Golden Hour Evidence"
+    ]
+  },
+  {
+    packId: 'heatwave-receipts',
+    packName: 'Heatwave Receipts',
+    shortName: 'Heatwave',
+    description: 'Everyday thermal surveillance and hot transactions. Locate heat signatures, protective gear, group oases, and financial cooling logs.',
     theme: 'heat',
     season: 'Summer 2026',
-    missionIds: SUMMER_CHALLENGE_BANK.map(m => m.id as string).filter(id => id),
+    missionIds: HEATWAVE_CHALLENGE_BANK.filter(m => m.deckId === 'heatwave-receipts').map(m => m.id as string),
     unlockRule: 'seasonal',
-    startsAt: '2026-05-30T00:00:00Z',
-    endsAt: '2026-08-28T23:59:59Z',
+    startsAt: HEATWAVE_SEASON_START_DATE,
+    endsAt: HEATWAVE_SEASON_END_DATE,
     visibility: 'public',
     isActive: true,
     fallbackIcon: 'Sun',
+    coverImage: '/assets/ui/heatwave_deck.png',
     sortOrder: 2,
-    difficultyRange: ['easy', 'medium', 'hard']
+    difficultyRange: ['easy', 'medium', 'hard'],
+    
+    // Canonical properties
+    deckId: 'heatwave-receipts',
+    deckSubtitle: 'A Summer Fieldtrip Deck',
+    status: 'active',
+    deckType: 'seasonal',
+    requiredUnlock: 'starter-complete',
+    requiredStarterApprovals: 3,
+    totalCards: 25,
+
+    defaultFindingTypes: [
+      "Heat Signal",
+      "Meltdown Object",
+      "Summer Surface",
+      "Public Drama",
+      "Cooling Evidence",
+      "Sweat Artifact",
+      "Shade Receipt",
+      "Neon Clue",
+      "Outdoor Chaos"
+    ]
   },
   {
-    packId: 'quick-hits',
-    packName: 'Quick Hits',
-    shortName: 'Quick',
-    description: 'Rapid data points. Missions designed to be completed in under 10 minutes.',
+    packId: 'errand-runs',
+    packName: 'Errand Runs',
+    shortName: 'Errands',
+    description: 'Everyday missions transformed into tactical surveillance. Locate signatures at checkpoints, queues, and aisles.',
     theme: 'diamond',
-    missionIds: SUMMER_CHALLENGE_BANK.filter(m => (m.estimatedTimeMinutes || 0) <= 10).map(m => m.id as string),
+    missionIds: [],
     unlockRule: 'immediate',
     visibility: 'public',
     isActive: true,
-    fallbackIcon: 'Clock',
-    sortOrder: 3,
-    difficultyRange: ['easy', 'medium'],
-    evidenceTypesIncluded: ['photo', 'note']
-  },
-  {
-    packId: 'expeditions',
-    packName: 'Expeditions',
-    shortName: 'Expedition',
-    description: 'Extended signal tracking. High-effort missions for the dedicated scout.',
-    theme: 'cosmic',
-    missionIds: SUMMER_CHALLENGE_BANK.filter(m => (m.estimatedTimeMinutes || 0) >= 15 || m.difficulty === 'hard').map(m => m.id as string),
-    unlockRule: 'rank_limit',
-    requiredRank: 2,
-    visibility: 'public',
-    isActive: true,
-    fallbackIcon: 'Compass',
-    sortOrder: 4,
-    difficultyRange: ['medium', 'hard']
-  },
-  {
-    packId: 'evidence-photo',
-    packName: 'Evidence: Photo Missions',
-    shortName: 'Optics',
-    description: 'Visual confirmation required. Missions focused on ocular data capture.',
-    missionIds: SUMMER_CHALLENGE_BANK.filter(m => m.proofType?.includes('photo')).map(m => m.id as string),
-    unlockRule: 'immediate',
-    visibility: 'public',
-    isActive: true,
-    fallbackIcon: 'Camera',
-    sortOrder: 5,
-    evidenceTypesIncluded: ['photo']
-  },
-  {
-    packId: 'evidence-note',
-    packName: 'Evidence: Field Note Missions',
-    shortName: 'Notes',
-    description: 'Literary observation required. Detailed field reports for the Bureau archives.',
-    missionIds: SUMMER_CHALLENGE_BANK.filter(m => m.proofType?.includes('note')).map(m => m.id as string),
-    unlockRule: 'immediate',
-    visibility: 'public',
-    isActive: true,
-    fallbackIcon: 'Zap',
-    sortOrder: 6,
-    evidenceTypesIncluded: ['note']
-  },
-  {
-    packId: 'evidence-location',
-    packName: 'Evidence: Location Missions',
-    shortName: 'Sync',
-    description: 'Geospatial verification required. Sync your satellite lock with these targeted areas.',
-    missionIds: SUMMER_CHALLENGE_BANK.filter(m => m.proofRequirements?.requireLocation).map(m => m.id as string),
-    unlockRule: 'rank_limit',
-    requiredRank: 3,
-    visibility: 'public',
-    isActive: true,
-    fallbackIcon: 'MapPin',
-    sortOrder: 7,
-    evidenceTypesIncluded: ['location']
-  },
-  {
-    packId: 'archetype-captain-clipboard',
-    packName: 'Captain Clipboard Pack',
-    shortName: 'Clipboard',
-    description: 'Official. Bureaucratic. Orderly. Document the bureaucracy of the physical world.',
-    missionIds: SUMMER_CHALLENGE_BANK.filter(m => m.personaAffinity?.includes('captainClipboard')).map(m => m.id as string),
-    unlockRule: 'archetype_match',
-    requiredArchetype: 'captainClipboard',
-    visibility: 'planned',
-    isActive: false,
-    fallbackIcon: 'Clipboard',
-    sortOrder: 8
-  },
-  {
-    packId: 'archetype-mall-rat',
-    packName: 'Mall Rat Pack',
-    shortName: 'Mall Rat',
-    description: 'Navigate the commercial corridors. Document the retail artifacts of the era.',
-    missionIds: SUMMER_CHALLENGE_BANK.filter(m => m.personaAffinity?.includes('mallRat')).map(m => m.id as string),
-    unlockRule: 'archetype_match',
-    requiredArchetype: 'mallRat',
-    visibility: 'planned',
-    isActive: false,
     fallbackIcon: 'ShoppingBag',
-    sortOrder: 9
+    sortOrder: 3,
+    defaultFindingTypes: [
+      "Checkout Evidence",
+      "Parking Lot Clue",
+      "Cart Artifact",
+      "Shelf Signal",
+      "Receipt Moment",
+      "Line Drama",
+      "Errand Object",
+      "Found Signage"
+    ]
   },
   {
-    packId: 'archetype-mascota',
-    packName: 'Mascota Pack',
-    shortName: 'Mascota',
-    description: 'Visual flair and aesthetic precision. Discover the style within the sprawl.',
-    missionIds: SUMMER_CHALLENGE_BANK.filter(m => m.personaAffinity?.includes('mascota')).map(m => m.id as string),
-    unlockRule: 'archetype_match',
-    requiredArchetype: 'mascota',
-    visibility: 'planned',
-    isActive: false,
-    fallbackIcon: 'Palette',
-    sortOrder: 10
+    packId: 'baja-bratz',
+    packName: 'Baja Bratz',
+    shortName: 'Baja',
+    description: 'Future drop. High-speed, high-heat signals from the coastal dunes.',
+    theme: 'baja',
+    missionIds: [],
+    unlockRule: 'immediate',
+    visibility: 'public',
+    isActive: true,
+    fallbackIcon: 'Flame',
+    sortOrder: 4,
+    isFutureDrop: true,
   },
   {
-    packId: 'archetype-elondra',
-    packName: 'Elondra Pack',
-    shortName: 'Elondra',
-    description: 'High-concept observation. The spiritual pulse of the summer heat.',
-    missionIds: SUMMER_CHALLENGE_BANK.filter(m => m.personaAffinity?.includes('elondra')).map(m => m.id as string),
-    unlockRule: 'archetype_match',
-    requiredArchetype: 'elondra',
-    visibility: 'planned',
-    isActive: false,
-    fallbackIcon: 'Sparkles',
-    sortOrder: 11
+    packId: 'urban-recon',
+    packName: 'Urban Recon',
+    shortName: 'Recon',
+    description: 'Future drop. Tactical navigation of the concrete jungle.',
+    theme: 'diamond',
+    missionIds: [],
+    unlockRule: 'immediate',
+    visibility: 'public',
+    isActive: true,
+    fallbackIcon: 'Navigation',
+    sortOrder: 5,
+    isFutureDrop: true,
   },
   {
-    packId: 'archetype-lost-camper',
-    packName: 'Lost Camper Pack',
-    shortName: 'Lost Camper',
-    description: 'Urban exploration via accidental discovery. Find your way by getting lost.',
-    missionIds: SUMMER_CHALLENGE_BANK.filter(m => m.personaAffinity?.includes('lostCamper')).map(m => m.id as string),
-    unlockRule: 'archetype_match',
-    requiredArchetype: 'lostCamper',
-    visibility: 'planned',
-    isActive: false,
-    fallbackIcon: 'Tent',
-    sortOrder: 12
-  },
-  {
-    packId: 'archetype-bigfoot',
-    packName: 'Bigfoot Pack',
-    shortName: 'Bigfoot',
-    description: 'Stealth surveillance. See without being seen. The master of hidden signals.',
-    missionIds: SUMMER_CHALLENGE_BANK.filter(m => m.personaAffinity?.includes('bigfoot')).map(m => m.id as string),
-    unlockRule: 'archetype_match',
-    requiredArchetype: 'bigfoot',
-    visibility: 'planned',
-    isActive: false,
-    fallbackIcon: 'Footprints',
-    sortOrder: 13
+    packId: 'wildlife-witness',
+    packName: 'Wildlife Witness',
+    shortName: 'Wildlife',
+    description: 'Future drop. Monitoring the non-human residents of the sprawl.',
+    theme: 'cosmic',
+    missionIds: [],
+    unlockRule: 'immediate',
+    visibility: 'public',
+    isActive: true,
+    fallbackIcon: 'Bird',
+    sortOrder: 5,
+    isFutureDrop: true,
   }
 ];
 
@@ -205,7 +195,7 @@ export const getMissionsForPack = (packId: string, missionBank: Partial<Challeng
 };
 
 export const getDefaultDeckPack = (): DeckPack => {
-  return DECK_PACKS.find(p => p.packId === 'summer-surge-2026') || DECK_PACKS[0];
+  return DECK_PACKS.find(p => p.packId === 'heatwave-receipts') || DECK_PACKS[0];
 };
 
 export const missionBelongsToPack = (missionId: string, packId: string): boolean => {

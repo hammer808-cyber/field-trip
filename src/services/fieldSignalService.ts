@@ -7,7 +7,7 @@ import {
   onSnapshot,
   Timestamp 
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, logFirestoreError, handleFirestoreError, OperationType } from '../lib/firebase';
 import { FieldSignal } from '../types/signals';
 import { getServerDate, getServerTime } from './timeService';
 
@@ -50,7 +50,7 @@ export function subscribeToActiveSignal(callback: (signal: FieldSignal | null) =
       callback(null);
     }
   }, (error) => {
-    handleFirestoreError(error, OperationType.LIST, COLLECTION);
+    logFirestoreError(error, OperationType.LIST, COLLECTION);
   });
 }
 

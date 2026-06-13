@@ -11,7 +11,7 @@ import {
   orderBy,
   limit
 } from 'firebase/firestore';
-import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, auth, logFirestoreError, handleFirestoreError, OperationType } from '../lib/firebase';
 import { logAdminAction } from './moderationService';
 import { FieldCheck, FieldCheckStatus } from '../types/game';
 
@@ -69,7 +69,7 @@ export const getPendingFieldChecks = (callback: (checks: FieldCheck[]) => void) 
     })) as FieldCheck[];
     callback(checks);
   }, (error) => {
-    handleFirestoreError(error, OperationType.LIST, COLLECTION);
+    logFirestoreError(error, OperationType.LIST, COLLECTION);
   });
 };
 
@@ -118,7 +118,7 @@ export const subscribeToIncomingFieldChecks = (userId: string, callback: (checks
     })) as FieldCheck[];
     callback(checks);
   }, (error) => {
-    handleFirestoreError(error, OperationType.LIST, COLLECTION);
+    logFirestoreError(error, OperationType.LIST, COLLECTION);
   });
 };
 
@@ -136,6 +136,6 @@ export const subscribeToAllOpenFieldChecks = (callback: (checks: FieldCheck[]) =
     })) as FieldCheck[];
     callback(checks);
   }, (error) => {
-    handleFirestoreError(error, OperationType.LIST, COLLECTION);
+    logFirestoreError(error, OperationType.LIST, COLLECTION);
   });
 };

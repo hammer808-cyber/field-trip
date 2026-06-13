@@ -1,6 +1,24 @@
 import EXIF from 'exif-js';
 import { ImageMetadata, MetadataStatus } from '../types/proof';
 
+function convertDMSToDD(dms: any, ref: string): number | null {
+  if (!dms || !Array.isArray(dms) || dms.length < 3) return null;
+  const parseVal = (val: any) => {
+    if (typeof val === 'number') return val;
+    if (val && typeof val === 'object' && val.numerator !== undefined && val.denominator !== undefined) {
+      return val.numerator / val.denominator;
+    }
+    return parseFloat(val);
+  };
+  const degrees = parseVal(dms[0]);
+  const minutes = parseVal(dms[1]);
+  const seconds = parseVal(dms[2]);
+  if (isNaN(degrees) || isNaN(minutes) || isNaN(seconds)) return null;
+  let dd = degrees + minutes / 60 + seconds / 3600;
+  if (ref === 'S' || ref === 'W') dd = -dd;
+  return dd;
+}
+
 export async function extractImageMetadata(file: File): Promise<ImageMetadata> {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -34,13 +52,25 @@ export async function extractImageMetadata(file: File): Promise<ImageMetadata> {
         }
       }
 
+      const latitude = convertDMSToDD(exifData?.GPSLatitude, exifData?.GPSLatitudeRef);
+      const longitude = convertDMSToDD(exifData?.GPSLongitude, exifData?.GPSLongitudeRef);
+
+      const make = exifData?.Make ? String(exifData.Make).trim() : undefined;
+      const model = exifData?.Model ? String(exifData.Model).trim() : undefined;
+      const software = exifData?.Software ? String(exifData.Software).trim() : undefined;
+
       resolve({
         dateTimeOriginal,
         createDate,
         modifyDate,
         fileLastModified: file.lastModified,
         photoTakenAt,
-        metadataStatus: status
+        metadataStatus: status,
+        latitude,
+        longitude,
+        make,
+        model,
+        software
       });
     };
     reader.onerror = () => {

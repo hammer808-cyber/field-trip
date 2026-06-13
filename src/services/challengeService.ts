@@ -12,7 +12,7 @@ import {
   Timestamp,
   limit
 } from 'firebase/firestore';
-import { db, auth } from '../lib/firebase';
+import { db, auth, logFirestoreError, OperationType } from '../lib/firebase';
 import { logAdminAction } from './moderationService';
 import { ChallengeCard, ChallengeStatus } from '../types/challenges';
 
@@ -55,6 +55,8 @@ export function subscribeToChallenges(callback: (challenges: ChallengeCard[]) =>
   const q = query(collection(db, CHALLENGES_COLLECTION), orderBy('createdAt', 'desc'), limit(100));
   return onSnapshot(q, (snapshot) => {
     callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChallengeCard)));
+  }, (error) => {
+    logFirestoreError(error, OperationType.LIST, CHALLENGES_COLLECTION);
   });
 }
 

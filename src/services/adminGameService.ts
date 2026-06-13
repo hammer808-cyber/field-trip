@@ -7,6 +7,7 @@ import { TripStatus } from '../types/challenges';
 export async function initializeGameConfig() {
   const configRef = doc(db, 'appConfig', 'game');
   const defaultConfig: AppConfig = {
+    activeSeasonId: 'heatwave-receipts',
     onboardingEntriesRequired: 3,
     featureFlags: {
       fieldSignalsEnabled: true,
@@ -17,10 +18,27 @@ export async function initializeGameConfig() {
       crewDispatchEnabled: true,
       proofFinderEnabled: true,
       skinsEnabled: true,
-      fieldTypeEffectsEnabled: true
+      fieldTypeEffectsEnabled: true,
+      fieldGuideAssistEnabled: true
     }
   };
   await setDoc(configRef, defaultConfig, { merge: true });
+}
+
+export async function repairGlobalConfig() {
+  const globalRef = doc(db, 'appConfig', 'global');
+  const defaultGlobal: any = {
+    maintenanceMode: false,
+    proofChecksEnabled: true,
+    uploadsEnabled: true,
+    leaderboardLiveUpdatesEnabled: false,
+    maxDailyProofChecksPerUser: 50,
+    maxDailyUploadsPerUser: 100,
+    betaMode: false,
+  };
+  await setDoc(globalRef, defaultGlobal, { merge: true });
+  await initializeGameConfig();
+  await deployHeatwave2026Manifest();
 }
 
 export async function updateFeatureFlags(flags: Partial<AppConfig['featureFlags']>) {
@@ -63,17 +81,17 @@ export async function setGlobalActiveSeason(seasonId: string) {
  * Deploys the curated Summer 2026 challenge bank and schedules the 14-week manifest.
  * Safe to re-run: uses stable IDs and idempotent logic.
  */
-export async function deploySummer2026Manifest() {
-  const { SUMMER_CHALLENGE_BANK } = await import('../data/summerChallengeBank');
+export async function deployHeatwave2026Manifest() {
+  const { HEATWAVE_CHALLENGE_BANK } = await import('../data/heatwaveChallengeBank');
   const { validateChallengeBrandFit } = await import('./brandService');
   const { saveChallenge } = await import('./challengeService');
   const { Timestamp } = await import('firebase/firestore');
   
-  console.log(`[Admin] Deploying Summer 2026 Bank and Manifest...`);
+  console.log(`[Admin] Deploying Heatwave Receipts Bank and Manifest...`);
   
   // 1. Deploy templates to the bank
   const approvedBankIds: string[] = [];
-  for (const template of SUMMER_CHALLENGE_BANK) {
+  for (const template of HEATWAVE_CHALLENGE_BANK) {
     const brandCheck = validateChallengeBrandFit(template);
     const finalChallenge: any = {
       ...template,
@@ -88,27 +106,25 @@ export async function deploySummer2026Manifest() {
   }
 
   // 2. Schedule 14 weeks using the bank
-  // For this manifest, we'll map specific templates to weeks or rotate them
-  const seasonId = 'summer-2026';
+  const seasonId = 'heatwave-receipts';
   const seasonRef = doc(db, 'seasons', seasonId);
   
   const seasonData: Season = {
     id: seasonId,
-    title: 'SUMMER_OF_FIELD_TRIP_2026',
-    description: 'The definitive 14-week curated summer experience.',
+    title: 'HEATWAVE_RECEIPTS',
+    description: 'Heatwave Receipts: A Summer Fieldtrip Deck',
     status: 'active',
-    startDate: Timestamp.fromDate(new Date('2026-05-10')),
-    endDate: Timestamp.fromDate(new Date('2026-08-16')),
+    startDate: Timestamp.fromDate(new Date('2026-06-06')),
+    endDate: Timestamp.fromDate(new Date('2026-09-06')),
     weeks: Array.from({ length: 14 }).map((_, i) => {
       const week = i + 1;
-      // Assign templates to week (in a real app, this would be manual, here we automate for the mission)
-      const fieldId = `summer26_w${week}_field`;
-      const evidenceId = `summer26_w${week}_evidence`;
-      const crewId = `summer26_w${week}_crew`;
+      const fieldId = `ss26_w${week}_field`;
+      const evidenceId = `ss26_w${week}_evidence`;
+      const crewId = `ss26_w${week}_crew`;
       
       return {
         number: week,
-        startDate: Timestamp.fromDate(new Date(new Date('2026-05-10').getTime() + i * 7 * 24 * 60 * 60 * 1000)),
+        startDate: Timestamp.fromDate(new Date(new Date('2026-06-06').getTime() + i * 7 * 24 * 60 * 60 * 1000)),
         fieldChallengeId: fieldId,
         evidenceChallengeId: evidenceId,
         crewChallengeId: crewId,
@@ -120,10 +136,10 @@ export async function deploySummer2026Manifest() {
   };
 
   // 3. Mapping logic
-  const fieldTemplates = SUMMER_CHALLENGE_BANK.filter(t => t.type === 'Field Challenge');
-  const evidenceTemplates = SUMMER_CHALLENGE_BANK.filter(t => t.type === 'Evidence Challenge');
-  const crewTemplates = SUMMER_CHALLENGE_BANK.filter(t => t.type === 'Crew Challenge');
-  const finalTemplate = SUMMER_CHALLENGE_BANK.find(t => t.type === 'Final');
+  const fieldTemplates = HEATWAVE_CHALLENGE_BANK.filter(t => t.type === 'Field Challenge');
+  const evidenceTemplates = HEATWAVE_CHALLENGE_BANK.filter(t => t.type === 'Evidence Challenge');
+  const crewTemplates = HEATWAVE_CHALLENGE_BANK.filter(t => t.type === 'Crew Challenge');
+  const finalTemplate = HEATWAVE_CHALLENGE_BANK.find(t => t.type === 'Final');
 
   for (let i = 0; i < 14; i++) {
     const week = i + 1;
@@ -144,15 +160,15 @@ export async function deploySummer2026Manifest() {
       crewModeBehavior: "Flexible collaboration.",
       mode: "flexible" as any,
       requiredProof: ["photo"] as any,
-      seasonAvailability: ["summer-2026"],
+      seasonAvailability: ["heatwave-receipts"],
       accessibilityNote: "Standard pedestrian access.",
       safetyRules: ["Stay aware of surroundings."]
     };
 
     const weekMissions = [
-      { ...defaultData, ...fieldT, id: `summer26_w${week}_field`, weekNumber: week, status: 'scheduled' as any },
-      { ...defaultData, ...evidenceT, id: `summer26_w${week}_evidence`, weekNumber: week, status: 'scheduled' as any },
-      { ...defaultData, ...crewT, id: `summer26_w${week}_crew`, weekNumber: week, status: 'scheduled' as any, mode: 'crew' }
+      { ...defaultData, ...fieldT, id: `ss26_w${week}_field`, weekNumber: week, status: 'scheduled' as any },
+      { ...defaultData, ...evidenceT, id: `ss26_w${week}_evidence`, weekNumber: week, status: 'scheduled' as any },
+      { ...defaultData, ...crewT, id: `ss26_w${week}_crew`, weekNumber: week, status: 'scheduled' as any, mode: 'crew' }
     ];
 
     for (const m of weekMissions) {
@@ -169,7 +185,7 @@ export async function deploySummer2026Manifest() {
   
   return {
     weeks: 14,
-    templates: SUMMER_CHALLENGE_BANK.length,
+    templates: HEATWAVE_CHALLENGE_BANK.length,
     seasonId
   };
 }

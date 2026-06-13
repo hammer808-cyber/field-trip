@@ -1,4 +1,4 @@
-export type UnlockRule = 'immediate' | 'rank_limit' | 'archetype_match' | 'beta_only' | 'seasonal';
+export type UnlockRule = 'immediate' | 'rank_limit' | 'archetype_match' | 'beta_only' | 'seasonal' | 'starter-complete';
 
 export interface DeckPack {
   packId: string;
@@ -27,7 +27,18 @@ export interface DeckPack {
   
   // Tagging & Filters
   rewardIds?: string[];
+  defaultFindingTypes?: string[];
   difficultyRange?: ('easy' | 'medium' | 'hard')[];
   evidenceTypesIncluded?: ('photo' | 'note' | 'location')[];
   tags?: string[];
+  isFutureDrop?: boolean;
+
+  // Seasonal/Canonical fields
+  deckId?: string;
+  deckSubtitle?: string;
+  status?: string;
+  deckType?: string;
+  requiredUnlock?: string;
+  requiredStarterApprovals?: number;
+  totalCards?: number;
 }

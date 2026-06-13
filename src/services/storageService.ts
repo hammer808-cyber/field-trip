@@ -1,35 +1,55 @@
-import { 
-  ref, 
-  uploadString, 
-  getDownloadURL 
-} from 'firebase/storage';
-import { storage } from '../lib/firebase';
+import { auth } from '../lib/firebase';
 import { guardedCall } from './guardedService';
 import { getGlobalConfig } from './configService';
 
 /**
  * Compresses and resizes a base64 image using a canvas.
  */
-async function compressImage(base64Str: string, maxWidth = 1000, quality = 0.7): Promise<string> {
+export async function compressImage(base64Str: string, maxWidth = 1000, quality = 0.7): Promise<string> {
+  if (typeof window === 'undefined' || typeof Image === 'undefined' || typeof document === 'undefined') {
+    return base64Str;
+  }
   return new Promise((resolve) => {
-    const img = new Image();
-    img.src = base64Str;
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      let width = img.width;
-      let height = img.height;
+    const timeout = setTimeout(() => {
+      console.warn("[compressImage] timeout reached, returning raw");
+      resolve(base64Str);
+    }, 5000);
 
-      if (width > maxWidth) {
-        height = Math.round((height * maxWidth) / width);
-        width = maxWidth;
-      }
+    try {
+      const img = new Image();
+      img.src = base64Str;
+      img.onload = () => {
+        clearTimeout(timeout);
+        try {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
 
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      ctx?.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', quality));
-    };
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } catch (err) {
+          console.warn("[compressImage] canvas compression error, returning raw", err);
+          resolve(base64Str);
+        }
+      };
+      img.onerror = (err) => {
+        clearTimeout(timeout);
+        console.warn("[compressImage] image load error, returning raw", err);
+        resolve(base64Str);
+      };
+    } catch (e) {
+      clearTimeout(timeout);
+      console.warn("[compressImage] fallback to raw base64 due to exception:", e);
+      resolve(base64Str);
+    }
   });
 }
 
@@ -57,18 +77,42 @@ export async function uploadBase64Image(userId: string, type: string, filename: 
     }
 
     const path = `${type}/${userId}/${filename}`;
-    const storageRef = ref(storage, path);
     
-    const snapshot = await uploadString(storageRef, base64Data, 'base64', {
-      contentType: 'image/jpeg',
-      customMetadata: {
-          'userId': userId,
-          'originalSize': base64String.length.toString(),
-          'compressedSize': byteSize.toString()
-      }
-    });
+    try {
+      // Switch to server-side proxy to bypass client-side storage rules issues
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) throw new Error('AUTH_REQUIRED: You must be signed in to upload evidence.');
 
-    const url = await getDownloadURL(snapshot.ref);
-    return { url, path };
+      const response = await fetch('/api/storage/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          userId,
+          type,
+          filename,
+          base64Data,
+          metadata: {
+            'userId': userId,
+            'originalSize': base64Data.length.toString(),
+            'compressedSize': byteSize.toString()
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || response.statusText);
+      }
+
+      const data = await response.json();
+      return { url: data.url, path: data.path };
+    } catch (err: any) {
+      console.error(`[storageService] FATAL: Cloud storage upload failed (path: ${path}). Persistence requirement violated.`, err.message || err);
+      // Re-throw so the calling service (gameService/submissionService) can handle it or show error to user
+      throw err;
+    }
   }, { cooldownMs: 1000 }); // 1s cooldown per user upload category
 }

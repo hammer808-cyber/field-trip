@@ -22,15 +22,20 @@ service cloud.firestore {
     // 1. HELPERS & PILLARS
     // =========================================================================
 
+    // Deployment Heartbeat: 2026-06-10T07:37:30Z
     function isSignedIn() { return request.auth != null; }
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
     function isAdmin() { 
       return isSignedIn() && (
-        // Allow developer email even if verified is null (some providers in preview)
-        (request.auth.token.email == 'hammer808@gmail.com' && (request.auth.token.email_verified == true || request.auth.token.email_verified == null)) ||
-        // Hardcoded UID for the developer to ensure access if token email is tricky
+        // Allow developer email (ignore verified status in preview/dev mode)
+        (request.auth.token.email == 'hammer808@gmail.com') ||
+        // Hardcoded UID for the developer
+        (request.auth.uid == 'vX7K0XGkXRM2yPzhidv79Q59GqC2') ||
         (request.auth.uid == 'oae0GwP7mpcUX7i93AeDGd22VNu2') ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') == 'admin' ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isAdmin', false) == true))
       );
     }
     function isApproved() {
@@ -40,8 +45,7 @@ service cloud.firestore {
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('accessStatus', 'pending') == 'approved') ||
         // Always allow if they have a profile during beta (simplified gate)
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) ||
-        true
+        exists(/databases/$(database)/documents/users/$(request.auth.uid))
       );
     }
     
@@ -85,7 +89,7 @@ service cloud.firestore {
                data.userId == request.auth.uid &&
                data.createdAt == requestTime();
       }
-      allow read: if isSignedIn();
+      allow read: if true;
       allow create: if isSignedIn() && isValidUsername(incoming()) && username.size() <= 32;
     }
 
@@ -113,12 +117,10 @@ service cloud.firestore {
     match /users/{uId} {
       function isSystemProtected(data, existing) {
         let protectedFields = [
-          'points', 'xp', 'score', 'totalPoints', 'level', 'rank',
-          'tokens', 'fieldTokens', 'rerollsAvailable',
-          'accessStatus', 'role', 'unlockedRewards', 'betaAccessCodeUsed',
-          'approvedEntriesCount', 'soloTripsCount', 'boldTripsCount', 'crewTripsCount',
-          'completedCoreChallenges', 'completedChallengeIds', 'completedMissionIds',
-          'productPersonaLens', 'onboardingCompleted', 'crewModeUnlocked', 'isAdmin', 'admin'
+          'xp', 'weeklyXp', 'seasonXp', 'level', 'role',
+          'submittedPendingChallengeIds', 'submittedChallengeIds', 
+          'approvedCompletedChallengeIds', 'approvedEntriesCount',
+          'points', 'score', 'totalPoints', 'rank', 'tokens' // legacy but still protected
         ];
         
         // Block if any protected field is being changed
@@ -127,7 +129,7 @@ service cloud.firestore {
         // Special Case: fieldType. We protect it from UPDATES, but allow INITIAL SETTING if currently null.
         // This lets the onboarding quiz work while preventing users from changing it later to farm rewards.
         let isInitialFieldTypeSet = existing.get('fieldType', null) == null && 
-                                   data.diff(existing).affectedKeys().hasOnly(['fieldType', 'fieldTypeName', 'fieldClassificationComplete', 'updatedAt']);
+                                   data.diff(existing).affectedKeys().hasOnly(['fieldType', 'fieldTypeName', 'fieldClassificationComplete', 'fieldTypeQuizCompleted', 'fieldTypeScores', 'fieldTypeAssignedAt', 'fieldTypeLastUpdatedAt', 'updatedAt', 'avatar']);
 
         let isFieldTypeUpdate = data.diff(existing).affectedKeys().hasAny(['fieldType', 'fieldTypeName', 'fieldClassificationComplete']);
 
@@ -149,6 +151,17 @@ service cloud.firestore {
       }
       match /legalConsents/{consentId} {
         allow read, write: if isSignedIn() && (uId == request.auth.uid || isAdmin());
+      }
+      match /drawnMissionCards/{mId} {
+        function isValidDrawnCard(data) {
+          return data.keys().hasAll(['uid', 'missionId', 'status', 'drawnAt']) &&
+                 data.uid == uId &&
+                 data.status in ["drawn", "saved_for_later", "active", "pending_review", "needs_more_proof", "approved", "rejected"];
+        }
+        allow read: if isSignedIn() && (uId == request.auth.uid || isAdmin());
+        allow create: if isSignedIn() && uId == request.auth.uid && isValidDrawnCard(incoming());
+        allow update: if (isSignedIn() && uId == request.auth.uid && isValidDrawnCard(incoming())) || isAdmin();
+        allow delete: if isAdmin();
       }
       match /memories/{memoryId} {
         allow read: if isSignedIn() && (uId == request.auth.uid || isAdmin());
@@ -195,21 +208,32 @@ service cloud.firestore {
       function isValidEntry(data) {
         return data.keys().hasAll(['userId', 'status', 'createdAt']) &&
                data.userId == request.auth.uid &&
-               data.status in ['submitted', 'available', 'approved', 'rejected'] &&
+               data.status in ['pending', 'submitted', 'available', 'approved', 'rejected', 'needs_more_proof', 'under_field_check', 'needs_review', 'retry-submitted', 'auto_approved', 'pending_upload', 'pending_review'] &&
                (data.fieldNote == null || data.fieldNote.size() <= 1000);
       }
 
       allow read: if isApproved() || (isSignedIn() && resource.data.userId == request.auth.uid);
       
-      allow create: if isApproved() && isValidId(entryId) && isValidEntry(incoming()) &&
+      allow create: if (isApproved() && isValidId(entryId) && isValidEntry(incoming()) &&
                     incoming().createdAt == requestTime() &&
-                    incoming().status == 'submitted';
+                    incoming().status in ['pending', 'submitted', 'pending_upload', 'pending_review']) || isAdmin();
       
-      allow update: if (isOwner(existing().userId) && (
-        incoming().diff(existing()).affectedKeys().hasOnly(['proofImage', 'fieldNote', 'status', 'updatedAt']) &&
-        incoming().status == 'submitted' &&
+      allow update: if isAdmin() || (isOwner(existing().userId) && (
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'imageUrl', 'storagePath', 'fieldNote', 'status', 'updatedAt',
+          'deckId', 'challengeId', 'userId',
+          'displayName', 'username', 'entryId',
+          'proofImage', 'imageStoragePath', 'missionId' // legacy mirrors
+        ]) &&
+        incoming().status in ['pending', 'submitted', 'pending_upload', 'pending_review'] &&
         isValidEntry(incoming())
-      )) || isAdmin();
+      )) || (
+        // Action: Tribunal Flag (Non-owner called it out)
+        isSignedIn() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['tribunalStatus']) &&
+        incoming().tribunalStatus == 'open' &&
+        existsAfter(/databases/$(database)/documents/tribunalCases/$(entryId))
+      );
       
       allow delete: if isAdmin();
     }
@@ -248,20 +272,102 @@ service cloud.firestore {
       allow update: if isAdmin();
     }
 
+    // BALLOT CANDIDATES (Source of truth for Weekly Voting Hub)
+    match /ballotCandidates/{candidateId} {
+      function isValidCandidate(data) {
+        return data.keys().hasAll(['id', 'entryId', 'userId', 'userName', 'tripId', 'tripTitle', 'proofImage', 'fieldNote', 'weekNumber', 'seasonId', 'addedAt']) &&
+               data.id is string &&
+               data.entryId is string &&
+               data.userId is string &&
+               data.userName is string &&
+               data.tripId is string &&
+               data.tripTitle is string &&
+               data.proofImage is string &&
+               data.fieldNote is string &&
+               data.weekNumber is int &&
+               data.seasonId is string;
+      }
+      allow read: if isApproved();
+      allow create: if isSignedIn() && isValidCandidate(incoming());
+      allow update, delete: if isAdmin();
+    }
+
+    // WEEKLY BALLOTS SYSTEM & IN-LINE SUBCOLLECTIONS
+    match /weeklyBallots/{ballotId} {
+      function isValidWeeklyBallot(data) {
+        return data.keys().hasAll(['seasonId', 'weekNumber', 'cycleStartAt', 'votingOpensAt', 'votingClosesAt', 'awardsReleaseAt', 'phase', 'candidateEntryIds', 'categoryCandidateMap', 'totalCandidates', 'isGenerated', 'isLocked', 'generatedAt']) &&
+               data.seasonId is string &&
+               data.weekNumber is int &&
+               data.phase in ['submission', 'voting', 'awards'] &&
+               data.candidateEntryIds is list &&
+               data.categoryCandidateMap is map &&
+               data.totalCandidates is int &&
+               data.isGenerated is bool &&
+               data.isLocked is bool;
+      }
+      allow read: if isApproved();
+      allow create: if isApproved() && isValidWeeklyBallot(incoming());
+      allow update: if isApproved() && isValidWeeklyBallot(incoming()) && (
+        isAdmin() || 
+        incoming().diff(existing()).affectedKeys().hasOnly(['candidateEntryIds', 'categoryCandidateMap', 'totalCandidates', 'isGenerated', 'isLocked', 'generatedAt', 'lockedAt', 'finalizedAt', 'phase'])
+      );
+      allow delete: if isAdmin();
+
+      match /candidates/{entryId} {
+        function isValidWeeklyBallotCandidate(data) {
+          return data.keys().hasAll(['entryId', 'userId', 'displayName', 'photoUrl', 'missionId', 'missionTitle', 'deckId', 'approvedAt', 'submittedAt', 'eligibleWeekNumber', 'seasonId', 'categories', 'voteCountByCategory', 'totalVotes', 'isEligible', 'createdAt', 'updatedAt']) &&
+                 data.entryId is string &&
+                 data.userId is string &&
+                 data.displayName is string &&
+                 data.photoUrl is string &&
+                 data.missionId is string &&
+                 data.missionTitle is string &&
+                 data.deckId is string &&
+                 data.eligibleWeekNumber is int &&
+                 data.seasonId is string &&
+                 data.categories is list &&
+                 data.voteCountByCategory is map &&
+                 data.totalVotes is int &&
+                 data.isEligible is bool;
+        }
+
+        allow read: if isApproved();
+        allow create: if isApproved() && 
+                         isValidWeeklyBallotCandidate(incoming()) && 
+                         get(/databases/$(database)/documents/entries/$(entryId)).data.status == 'approved';
+        allow update: if isApproved() && isValidWeeklyBallotCandidate(incoming()) && (
+                         isAdmin() || 
+                         incoming().diff(existing()).affectedKeys().hasOnly(['voteCountByCategory', 'totalVotes', 'isEligible', 'isDisqualified', 'disqualifiedReason', 'updatedAt'])
+                      );
+        allow delete: if isAdmin();
+      }
+    }
+
     // VOTES (Accolades)
     match /votes/{voteId} {
       function isValidVote(data) {
-        return data.keys().hasAll(['userId', 'entryId', 'weekNumber', 'category', 'createdAt']) &&
+        return data.keys().hasAll(['userId', 'entryId', 'weekNumber', 'seasonId', 'category', 'createdAt']) &&
                data.userId == request.auth.uid &&
                data.createdAt == requestTime();
       }
-      allow read: if isApproved();
-      // voteId: userId_week_category prevents duplicates
+      allow read: if isApproved() && (
+        isAdmin() ||
+        resource == null ||
+        resource.data.userId == request.auth.uid
+      );
+      // voteId: userId_seasonId_week_category prevents duplicates
       allow create: if isApproved() && 
-                    voteId == (request.auth.uid + "_w" + incoming().weekNumber + "_" + incoming().category) &&
+                    voteId == (request.auth.uid + "_" + incoming().seasonId + "_w" + incoming().weekNumber + "_" + incoming().category) &&
                     isValidVote(incoming()) &&
-                    get(/databases/$(database)/documents/entries/$(incoming().entryId)).data.userId != request.auth.uid;
-      allow update, delete: if isAdmin();
+                    get(/databases/$(database)/documents/entries/$(incoming().entryId)).data.userId != request.auth.uid &&
+                    get(/databases/$(database)/documents/entries/$(incoming().entryId)).data.status == 'approved';
+      allow update: if isApproved() &&
+                    isOwner(existing().userId) &&
+                    incoming().userId == request.auth.uid &&
+                    incoming().diff(existing()).affectedKeys().hasOnly(['entryId', 'createdAt']) &&
+                    get(/databases/$(database)/documents/entries/$(incoming().entryId)).data.userId != request.auth.uid &&
+                    get(/databases/$(database)/documents/entries/$(incoming().entryId)).data.status == 'approved';
+      allow delete: if isAdmin();
     }
 
     // SABOTAGE EVENTS
@@ -304,6 +410,15 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /adminRepairLogs/{id} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /_system/{id} {
+      allow read, write: if isAdmin();
+    }
+
     // STAMPS (Collectibles)
     match /stamps/{id} {
       allow read: if isOwner(resource.data.userId) || isAdmin();
@@ -322,6 +437,36 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // AI CONTROL ACTIONS (SERVER-ONLY WRITES)
+    match /proofs/{proofId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    match /aiUsageLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /aiDailyCounters/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow write: if false;
+    }
+
+    match /likes/{likeId} {
+      // likeId pattern: entryId_userId
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && likeId.endsWith(request.auth.uid) && incoming().userId == request.auth.uid;
+      allow delete: if isSignedIn() && (likeId.endsWith(request.auth.uid) || isAdmin());
+    }
+
+    match /reactions/{reactionId} {
+      // reactionId pattern: entryId_userId_emoji
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
     match /proofReviews/{id} {
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow create: if isApproved() && incoming().userId == request.auth.uid;
@@ -334,6 +479,43 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     
+    // TRIBUNAL
+    match /tribunalCases/{caseId} {
+      function isValidTribunalCase(data) {
+        return data.keys().hasAll(['entryId', 'reporterId', 'targetId', 'weekNumber', 'seasonId', 'status', 'agreeVotes', 'disagreeVotes', 'createdAt', 'title', 'description', 'proofImage', 'playerName', 'fieldNote', 'deckName']) &&
+               data.reporterId == request.auth.uid &&
+               data.status == 'open' &&
+               data.agreeVotes == 0 &&
+               data.disagreeVotes == 0 &&
+               data.createdAt == requestTime();
+      }
+      allow read: if isApproved();
+      allow create: if isApproved() && isValidId(caseId) && isValidTribunalCase(incoming()) &&
+                    exists(/databases/$(database)/documents/entries/$(incoming().entryId));
+      allow update: if isApproved() && (
+        isAdmin() || 
+        // Action: Cast/Change Vote
+        (incoming().diff(existing()).affectedKeys().hasAny(['agreeVotes', 'disagreeVotes'])) ||
+        // Action: Resolve Case
+        (incoming().diff(existing()).affectedKeys().hasAny(['status', 'outcome', 'updatedAt']))
+      );
+    }
+
+    match /tribunalVotes/{voteId} {
+      function isValidTribunalVote(data) {
+        return data.keys().hasAll(['userId', 'caseId', 'vote', 'createdAt']) &&
+               data.userId == request.auth.uid &&
+               data.vote in ['agree', 'disagree'] &&
+               data.createdAt == requestTime();
+      }
+      allow read: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
+      // voteId: userId_caseId
+      allow create: if isApproved() && voteId == (request.auth.uid + "_" + incoming().caseId) && isValidTribunalVote(incoming());
+      allow update: if isApproved() && isOwner(existing().userId) && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['vote', 'createdAt']) && 
+                    isValidTribunalVote(incoming());
+    }
+
     // Global Catch-all Deny at the very end
     match /{document=**} {
       allow read, write: if false;

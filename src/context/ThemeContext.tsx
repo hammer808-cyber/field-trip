@@ -1,25 +1,19 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { auth } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { 
-  subscribeToSkin, 
-  subscribeToSkins, 
-  subscribeToSkinSettings, 
-  subscribeToUserThemePreference, 
-  updateThemePreference as updateUserThemePreference,
-  isUserAdmin,
-  setAdminStatus
-} from '../services/skinService';
-import { Skin, SkinSettings, UserThemePreference, ThemeTokens, CopyOverrides } from '../types/skin';
-import { BASE_SKIN, DEFAULT_SKIN_ASSETS, DEFAULT_COPY_OVERRIDES } from '../constants/skins';
+import { doc, onSnapshot, updateDoc, setDoc } from 'firebase/firestore';
+import { Skin, SkinSettings, UserThemePreference, CopyOverrides } from '../types/skin';
+import { STARTER_SKINS } from '../data/skins';
+import { isUserAdmin, subscribeToSkinSettings } from '../services/skinService';
+
+const BASE_SKIN = STARTER_SKINS[0];
 
 interface ThemeContextType {
   skin: Skin;
   allSkins: Skin[];
   settings: SkinSettings | null;
-  userPrefs: UserThemePreference | null;
+  frankieMode: boolean;
   isAdmin: boolean;
-  frankieMode: boolean; // Visual Calm mode
   setSkin: (skinId: string) => Promise<void>;
   setFrankieMode: (val: boolean) => Promise<void>;
   isLoading: boolean;
@@ -32,118 +26,101 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [activeSkin, setActiveSkin] = useState<Skin>(BASE_SKIN);
-  const [allSkins, setAllSkins] = useState<Skin[]>([]);
-  const [settings, setSettings] = useState<SkinSettings | null>(null);
   const [userPrefs, setUserPrefs] = useState<UserThemePreference | null>(null);
+  const [settings, setSettings] = useState<SkinSettings | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+
+  // Helper for copy overrides with fallbacks
+  const t = (key: keyof CopyOverrides): string => {
+    return activeSkin.copyOverrides?.[key] || (BASE_SKIN.copyOverrides[key] as string) || "";
+  };
+
+  // Helper for assets with fallbacks
+  const asset = (key: keyof Skin['assets']): string => {
+    return activeSkin.assets?.[key] || (BASE_SKIN.assets[key] as string) || "";
+  };
+
+  // Listen to Auth
+  useEffect(() => {
+    return onAuthStateChanged(auth, async (user) => {
+      try {
+        if (user) {
+          setUserId(user.uid);
+          const adminStatus = await isUserAdmin(user.uid);
+          setIsAdmin(adminStatus || user.email === 'hammer808@gmail.com');
+        } else {
+          setUserId(null);
+          setIsAdmin(false);
+          setUserPrefs(null);
+          setActiveSkin(BASE_SKIN);
+        }
+      } catch (err) {
+        console.error("[ThemeContext] Auth state change processing failed:", err);
+        // Reset state on error to avoid stale/stuck data
+        setUserId(null);
+        setIsAdmin(false);
+      }
+    });
+  }, []);
+
+  // Listen to User Preferences
+  useEffect(() => {
+    if (!userId) {
+      setIsLoading(false);
+      return;
+    }
+    
+    // Global Settings
+    const unsubSettings = subscribeToSkinSettings(setSettings);
+
+    const unsubPrefs = onSnapshot(doc(db, 'userPrefs', userId), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data() as UserThemePreference;
+        setUserPrefs(data);
+        
+        // Find skin in local config
+        const skinId = data.selectedSkinId || 'classic';
+        const foundSkin = STARTER_SKINS.find(s => s.id === skinId) || BASE_SKIN;
+        setActiveSkin(foundSkin);
+      } else {
+        setUserPrefs({ selectedSkinId: 'classic', frankieMode: false });
+        setActiveSkin(BASE_SKIN);
+      }
+      setIsLoading(false);
+    }, (err) => {
+      console.warn("[ThemeContext] User preferences fetch failed:", err.message);
+      setIsLoading(false);
+      // Fallback
+      setUserPrefs({ selectedSkinId: 'classic', frankieMode: false });
+      setActiveSkin(BASE_SKIN);
+    });
+
+    return () => {
+      unsubSettings();
+      unsubPrefs();
+    };
+  }, [userId]);
+
+  const frankieMode = userPrefs?.frankieMode || false;
 
   // Helper for frankie mode copy switching
   const fc = (normal: string, frankie: string): string => {
     return frankieMode ? frankie : normal;
   };
 
-  // Helper for copy overrides with fallbacks
-  const t = (key: keyof CopyOverrides): string => {
-    return activeSkin.copyOverrides?.[key] || (DEFAULT_COPY_OVERRIDES[key] as string) || "";
-  };
-
-  // Helper for assets with fallbacks
-  const asset = (key: keyof Skin['assets']): string => {
-    return activeSkin.assets?.[key] || (DEFAULT_SKIN_ASSETS[key] as string) || "";
-  };
-
-  // Listen to Auth
-  useEffect(() => {
-    return onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setUserId(user.uid);
-        const adminStatus = await isUserAdmin(user.uid);
-        const isHardcodedAdmin = user.email === 'hammer808@gmail.com' && (user.emailVerified || user.emailVerified === null);
-        
-        // Auto-bootstrap hardcoded admin into the collection for faster rule checks
-        if (isHardcodedAdmin && !adminStatus) {
-          await setAdminStatus(user.uid, true);
-        }
-
-        setIsAdmin(adminStatus || isHardcodedAdmin);
-      } else {
-        setUserId(null);
-        setIsAdmin(false);
-        setUserPrefs(null);
-      }
-    });
-  }, []);
-
-  // Subscribe to Global Settings
-  useEffect(() => {
-    return subscribeToSkinSettings((newSettings) => {
-      setSettings(newSettings);
-    });
-  }, []);
-
-  // Subscribe to User Preferences
-  useEffect(() => {
-    if (!userId) return;
-    const unsub = subscribeToUserThemePreference(userId, (prefs) => {
-      setUserPrefs(prefs);
-    });
-
-    return () => {
-      if (unsub) unsub();
-    };
-  }, [userId]);
-
-  // Determine and Subscribe to the ACTIVE skin - Optimization: Only 1 doc read
-  useEffect(() => {
-    if (!settings) return;
-
-    let targetId = settings.forcedSkinId;
-    if (!targetId && userPrefs?.selectedSkinId && settings.userSkinSelectionEnabled) {
-      targetId = userPrefs.selectedSkinId;
-    }
-    if (!targetId) {
-      targetId = settings.defaultSkinId;
-    }
-    if (!targetId) return;
-
-    // Targeted single doc listener
-    const unsub = subscribeToSkin(targetId, (skin) => {
-      setActiveSkin(skin);
-      setIsLoading(false);
-    });
-
-    return () => unsub();
-  }, [settings, userPrefs]);
-
-  // Subscribe to ALL skins if admin
-  useEffect(() => {
-    if (!isAdmin) {
-      setAllSkins([]);
-      return;
-    }
-    const unsub = subscribeToSkins((skins) => {
-      setAllSkins(skins);
-    }, true);
-    return () => unsub();
-  }, [isAdmin]);
-
-  const frankieMode = useMemo(() => {
-    if (userPrefs?.frankieMode !== undefined) {
-      return userPrefs.frankieMode;
-    }
-    return false;
-  }, [userPrefs]);
-
   const setSkin = async (skinId: string) => {
     if (!userId) return;
-    await updateUserThemePreference(userId, { selectedSkinId: skinId });
+    await setDoc(doc(db, 'userPrefs', userId), { selectedSkinId: skinId }, { merge: true });
+    
+    // Also update profile if in profile
+    await setDoc(doc(db, 'users', userId), { equippedSkinId: skinId }, { merge: true });
   };
 
   const setFrankieMode = async (val: boolean) => {
     if (!userId) return;
-    await updateUserThemePreference(userId, { frankieMode: val });
+    await setDoc(doc(db, 'userPrefs', userId), { frankieMode: val }, { merge: true });
   };
 
   // Apply CSS variables
@@ -162,16 +139,22 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.style.setProperty('--font-body', tokens.fontBody);
     root.style.setProperty('--radius', tokens.borderRadius);
     root.style.setProperty('--shadow', tokens.shadowStyle);
+    
+    // Background texture
+    if (activeSkin.assets.backgroundTexture) {
+      root.style.setProperty('--bg-texture', activeSkin.assets.backgroundTexture);
+    } else {
+      root.style.setProperty('--bg-texture', 'none');
+    }
   }, [activeSkin]);
 
   return (
     <ThemeContext.Provider value={{ 
       skin: activeSkin, 
-      allSkins, 
-      settings, 
-      userPrefs, 
-      isAdmin, 
+      allSkins: STARTER_SKINS, 
+      settings,
       frankieMode, 
+      isAdmin,
       setSkin, 
       setFrankieMode,
       isLoading,

@@ -26,7 +26,7 @@ export const BadgeCollection: React.FC<BadgeCollectionProps> = ({ progress }) =>
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <p className="micro-label opacity-40">BUREAU_COLLECTIBLES</p>
+          <p className="micro-label opacity-40">BUREAU COLLECTIBLES</p>
           <h2 className="font-display text-4xl uppercase tracking-tighter">Field Marks</h2>
         </div>
         <div className="text-right">

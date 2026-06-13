@@ -25,7 +25,7 @@ import {
   Image as ImageIcon,
   MessageSquare
 } from 'lucide-react';
-import { Card, Sticker } from '../components/UI';
+import { Card, FieldBadge } from '../components/UI';
 import { cn } from '../lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { DEFAULT_THEME_TOKENS, DEFAULT_SKIN_ASSETS, DEFAULT_COPY_OVERRIDES } from '../constants/skins';
@@ -52,17 +52,29 @@ export default function AdminSkinsPage() {
   }
 
   const handleStatusChange = async (skinId: string, status: Skin['status']) => {
-    await updateSkinStatus(skinId, status);
+    try {
+      await updateSkinStatus(skinId, status);
+    } catch (err) {
+      console.error("Failed to update skin status:", err);
+    }
   };
 
   const handleSetDefault = async (skinId: string) => {
     if (window.confirm("Set this as the global default skin?")) {
-      await setDefaultSkin(skinId);
+      try {
+        await setDefaultSkin(skinId);
+      } catch (err) {
+        console.error("Failed to set default skin:", err);
+      }
     }
   };
 
   const handleSetForced = async (skinId: string | null) => {
-    await updateSkinSettings({ forcedSkinId: skinId });
+    try {
+      await updateSkinSettings({ forcedSkinId: skinId });
+    } catch (err) {
+      console.error("Failed to force skin:", err);
+    }
   };
 
   return (
@@ -150,7 +162,13 @@ export default function AdminSkinsPage() {
             <div className="flex items-center justify-between">
               <span className="font-display text-lg tracking-tighter">{settings?.userSkinSelectionEnabled ? "ACTIVE" : "LOCKED"}</span>
               <button 
-                onClick={() => updateSkinSettings({ userSkinSelectionEnabled: !settings?.userSkinSelectionEnabled })}
+                onClick={async () => {
+                  try {
+                    await updateSkinSettings({ userSkinSelectionEnabled: !settings?.userSkinSelectionEnabled });
+                  } catch (err) {
+                    console.error("Failed to toggle skin selection:", err);
+                  }
+                }}
                 className={cn(
                   "w-12 h-6 rounded-none transition-all relative p-1 border-2",
                   settings?.userSkinSelectionEnabled ? "bg-on-surface border-on-surface" : "bg-on-surface/10 border-on-surface/20"
@@ -169,7 +187,13 @@ export default function AdminSkinsPage() {
             <div className="flex items-center justify-between">
               <span className="font-display text-lg tracking-tighter">{settings?.visualCalmAvailable ? "ONLINE" : "OFFLINE"}</span>
               <button 
-                onClick={() => updateSkinSettings({ visualCalmAvailable: !settings?.visualCalmAvailable })}
+                onClick={async () => {
+                  try {
+                    await updateSkinSettings({ visualCalmAvailable: !settings?.visualCalmAvailable });
+                  } catch (err) {
+                    console.error("Failed to toggle visual calm:", err);
+                  }
+                }}
                 className={cn(
                   "w-12 h-6 rounded-none transition-all relative p-1 border-2",
                   settings?.visualCalmAvailable ? "bg-on-surface border-on-surface" : "bg-on-surface/10 border-on-surface/20"
@@ -251,7 +275,7 @@ export default function AdminSkinsPage() {
 
                   <div className="mt-auto pt-4 flex items-center justify-between">
                     <span className="micro-label opacity-40">SEASON: {skin.seasonId || 'NONE'}</span>
-                    {skin.isDefault && <Sticker color="orange" className="text-[8px] py-1">DEFAULT_STRAND</Sticker>}
+                    {skin.isDefault && <FieldBadge variant="sticker" color="orange" size="xs" className="py-1">DEFAULT_STRAND</FieldBadge>}
                   </div>
                 </div>
               </div>
@@ -502,10 +526,15 @@ export default function AdminSkinsPage() {
                  <button 
                   onClick={async () => {
                     if (!editingSkin.name || !editingSkin.slug) return alert("CORE_DATA_MISSING: VALIDATION_FAILED.");
-                    await saveSkin(editingSkin);
-                    setEditingSkin(null);
-                    setIsAddingSkin(false);
-                    setActiveTab('manifest');
+                    try {
+                      await saveSkin(editingSkin);
+                      setEditingSkin(null);
+                      setIsAddingSkin(false);
+                      setActiveTab('manifest');
+                    } catch (err: any) {
+                      console.error("Failed to save skin:", err);
+                      alert(`BUREAU_ERROR: Save failed. ${err.message}`);
+                    }
                   }}
                   className="bureau-btn shadow-[8px_8px_0px_#2D5A27] active:shadow-none translate-y-0 active:translate-y-1 transition-all"
                  >

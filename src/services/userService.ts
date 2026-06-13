@@ -16,7 +16,7 @@ import {
   where,
   getCountFromServer
 } from 'firebase/firestore';
-import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, auth, handleFirestoreError, OperationType, logFirestoreError } from '../lib/firebase';
 import { FieldTypeId, ProductPersonaLensId, FIELD_TYPES } from '../constants';
 import { normalizeFieldType } from '../constants/fieldTypes';
 
@@ -45,10 +45,36 @@ export interface UserProfile {
   productPersonaLens?: ProductPersonaLensId | null;
 
   onboardingCompleted: boolean;
+  hasCompletedFieldKitOnboarding?: boolean;
+  fieldKitReady?: boolean;
+  permissionsPrompted?: boolean;
+  cameraPermissionGranted?: boolean;
+  locationPermissionGranted?: boolean;
+  fieldKitCompletedAt?: string;
+  starterDeckComplete?: boolean;
+  hasSeenDeckChooserIntro?: boolean;
+  hasSeenFieldTypeResults?: boolean;
+  hasCompletedGuidedFirstEntry?: boolean;
+  starterDeckTourSeen_v1?: boolean;
+  fieldGuideAssistEnabled?: boolean;
+  forcedLaunchMissionCompleted?: boolean;
+  onboardingStarted?: boolean;
+  starterApprovedCount?: number;
+  activeMissionId?: string;
+  activeSubmissionStatus?: 'pending_review' | 'needs_more_proof' | 'rejected' | 'approved' | null;
+  onboardingCurrentStep?: number;
+  onboardingSkippedAt?: number | null;
+  firstMissionSubmitted?: boolean;
+  firstMissionApproved?: boolean;
+  firstPointsAwarded?: boolean;
   crewModeUnlocked: boolean;
   crewModeSeen: boolean;
-  points: number;
+  xp: number;
+  weeklyXp?: number;
+  seasonXp?: number;
+  points?: number; // legacy
   soloTripsCount: number;
+  approvedEntriesCount?: number;
   completedCoreChallenges: number;
   boldTripsCount: number;
   crewTripsCount: number;
@@ -59,6 +85,12 @@ export interface UserProfile {
   seenBadges?: string[];
   previousRank?: number;
   maybeList?: string[];
+  completedChallengeIds?: string[];
+  submittedChallengeIds?: string[];
+  submittedPendingChallengeIds?: string[];
+  rejectedChallengeIds?: string[];
+  needsMoreProofChallengeIds?: string[];
+  completedSpecialMissionIds?: string[];
   frankieMode?: boolean; // App-wide Plain Language Mode
   deprecated_plainMode?: boolean;
   comebackCardActive?: boolean;
@@ -69,6 +101,7 @@ export interface UserProfile {
   sabotageShieldExpiresAt?: any;
   activeSabotageId?: string | null;
   hasActiveSabotage?: boolean;
+  firstMissionTourComplete?: boolean;
   preferences?: {
     frankieMode?: boolean;
     reduceCommentary?: boolean;
@@ -78,12 +111,43 @@ export interface UserProfile {
     mathWizard?: boolean;
     showOnBigBoard?: boolean;
     showExactPoints?: boolean;
+    showExactCoordinates?: boolean;
     selectedMarkerStickerId?: string;
+    rewardAnimationIntensity?: 'full' | 'reduced' | 'minimal';
+  };
+  fieldPulse?: {
+    currentWeekId: string;
+    completedActions: number;
+    activeDays: string[];
+    graceTokens: number;
+    pulseStreak: number;
+    lastGraceWeekUsed?: string;
+    lastPulseCompletedWeek?: string;
+    registeredEvents?: string[];
   };
   unlockedRewards?: {
     stickers: string[];
     badges: string[];
+    skins?: string[];
   };
+  launchMissionAssigned?: boolean;
+  launchMissionId?: string;
+  launchMissionAssignedAt?: string;
+  discoveryEvents?: Record<string, boolean>;
+  trevorSettings?: {
+    enabled: boolean;
+    collapsed: boolean;
+    dismissedAfterFiveMissions?: boolean;
+    lastSeenApprovedCount?: number;
+  };
+  completedDiscoveryGroups?: string[];
+  stickerUnlockHistory?: Array<{
+    stickerId: string;
+    discoveryKey: string;
+    unlockedAt: any;
+    sourcePage: string;
+  }>;
+  equippedSkinId?: string;
   tripProgress?: Record<string, {
     photo?: boolean;
     field_note?: boolean;
@@ -108,15 +172,19 @@ const COLLECTION = 'users';
  * FETCH: Gets current user rank using optimized count server side.
  * Cost: 1 Read per 1000 documents (standard firebase pricing for aggregation).
  */
-export async function getUserRank(points: number): Promise<number> {
+export async function getUserRank(xp: number): Promise<number> {
   const q = query(
     collection(db, COLLECTION),
-    where('points', '>', points)
+    where('xp', '>', xp)
   );
   try {
     const snapshot = await getCountFromServer(q);
     return snapshot.data().count + 1;
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'unavailable' || error?.message?.includes('offline')) {
+      console.warn("[UserService] Rank fetch unavailable (offline).");
+      return 0;
+    }
     console.error('Error getting rank:', error);
     return 0;
   }
@@ -129,7 +197,11 @@ export async function getTotalUserCount(): Promise<number> {
   try {
     const snapshot = await getCountFromServer(collection(db, COLLECTION));
     return snapshot.data().count;
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'unavailable' || error?.message?.includes('offline')) {
+      console.warn("[UserService] Total user count unavailable (offline).");
+      return 1;
+    }
     console.error('Error getting total user count:', error);
     return 1;
   }
@@ -150,12 +222,26 @@ export async function getOrCreateProfile(user: any): Promise<UserProfile> {
       const normalizedType = normalizeFieldType(rawFieldType);
       const fieldTypeData = FIELD_TYPES[normalizedType as FieldTypeId];
       
+      const fieldClassificationComplete = !!(data.fieldClassificationComplete || data.personaQuizComplete || data.fieldTypeQuizCompleted);
+      
+      const xpValue = data.xp !== undefined ? data.xp : (data.points || 0);
+
       return { 
         id: userDoc.id, 
         ...data,
+        xp: xpValue,
         fieldType: normalizedType,
         fieldTypeName: fieldTypeData?.name || data.fieldTypeName || data.personaName || 'Field Agent',
-        fieldClassificationComplete: data.fieldClassificationComplete || data.personaQuizComplete || false
+        fieldClassificationComplete: fieldClassificationComplete,
+        fieldTypeQuizCompleted: data.fieldTypeQuizCompleted || data.personaQuizComplete || fieldClassificationComplete,
+        discoveryEvents: data.discoveryEvents || {},
+        completedDiscoveryGroups: data.completedDiscoveryGroups || [],
+        stickerUnlockHistory: data.stickerUnlockHistory || [],
+        submittedChallengeIds: data.submittedChallengeIds || [],
+        completedChallengeIds: data.completedChallengeIds || [],
+        approvedEntriesCount: data.approvedEntriesCount || 0,
+        boldTripsCount: data.boldTripsCount || 0,
+        crewTripsCount: data.crewTripsCount || 0
       } as UserProfile;
     }
 
@@ -164,6 +250,7 @@ export async function getOrCreateProfile(user: any): Promise<UserProfile> {
       name: user.displayName || 'Field Agent',
       email: user.email,
       photoURL: user.photoURL || '',
+      fieldGuideAssistEnabled: true,
       fieldType: null,
       fieldTypeName: null,
       fieldClassificationComplete: false,
@@ -172,6 +259,9 @@ export async function getOrCreateProfile(user: any): Promise<UserProfile> {
       onboardingCompleted: false,
       crewModeUnlocked: false,
       crewModeSeen: false,
+      xp: 0,
+      weeklyXp: 0,
+      seasonXp: 0,
       points: 0,
       soloTripsCount: 0,
       completedCoreChallenges: 0,
@@ -179,8 +269,24 @@ export async function getOrCreateProfile(user: any): Promise<UserProfile> {
       crewTripsCount: 0,
       rerollsAvailable: 3,
       activeTrip: null,
+      completedChallengeIds: [],
+      submittedChallengeIds: [],
       lastSnitchDate: null,
-      accessStatus: 'pending',
+      unlockedRewards: {
+        stickers: [],
+        badges: [],
+        skins: ['classic']
+      },
+      discoveryEvents: {},
+      stickerUnlockHistory: [],
+      trevorSettings: {
+        enabled: true,
+        collapsed: false,
+        dismissedAfterFiveMissions: false,
+        lastSeenApprovedCount: 0
+      },
+      equippedSkinId: 'classic',
+      accessStatus: 'approved',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
@@ -194,7 +300,12 @@ export async function getOrCreateProfile(user: any): Promise<UserProfile> {
       // but it won't be in DB yet. Subsequent onboarding steps will try to write it.
       return newProfile;
     }
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'unavailable' || error?.message?.includes('offline')) {
+      console.warn("[UserService] Firestore unreachable during profile fetch. Returning transient context.");
+      // AppContext will handle the fallback logic
+      throw error; 
+    }
     return handleFirestoreError(error, OperationType.GET, `${COLLECTION}/${user.uid}`);
   }
 }
@@ -211,16 +322,29 @@ export function subscribeToProfile(uid: string, callback: (profile: UserProfile)
       const normalizedType = normalizeFieldType(rawFieldType);
       const fieldTypeData = FIELD_TYPES[normalizedType as FieldTypeId];
 
+      const fieldClassificationComplete = !!(data.fieldClassificationComplete || data.personaQuizComplete || data.fieldTypeQuizCompleted);
+      const shouldRepair = !!normalizedType && normalizedType !== 'unclassified' && !fieldClassificationComplete;
+      
+      const xpValue = data.xp !== undefined ? data.xp : (data.points || 0);
+
       callback({ 
         id: snapshot.id, 
         ...data,
+        xp: xpValue,
+        rejectedChallengeIds: data.rejectedChallengeIds || [],
+        needsMoreProofChallengeIds: data.needsMoreProofChallengeIds || [],
         fieldType: normalizedType,
         fieldTypeName: fieldTypeData?.name || data.fieldTypeName || data.personaName || 'Field Agent',
-        fieldClassificationComplete: data.fieldClassificationComplete || data.personaQuizComplete || false
-      } as UserProfile);
+        fieldClassificationComplete: fieldClassificationComplete || shouldRepair,
+        fieldTypeQuizCompleted: data.fieldTypeQuizCompleted || data.personaQuizComplete || fieldClassificationComplete || shouldRepair
+      } as any as UserProfile);
     }
-  }, (error) => {
-    handleFirestoreError(error, OperationType.GET, `${COLLECTION}/${uid}`);
+  }, (error: any) => {
+    if (error?.code === 'unavailable' || error?.message?.includes('offline')) {
+      console.warn("[BUREAU] Profile subscription running in offline/cached mode.");
+    } else {
+      logFirestoreError(error, OperationType.GET, `${COLLECTION}/${uid}`);
+    }
   });
 }
 
@@ -265,7 +389,7 @@ export async function secureCompleteOnboarding() {
 export async function getLeaderboardPage(pageSize = 25, lastVisible?: QueryDocumentSnapshot<DocumentData>) {
   let q = query(
     collection(db, COLLECTION),
-    orderBy('points', 'desc'),
+    orderBy('xp', 'desc'),
     limit(pageSize)
   );
 
@@ -291,7 +415,7 @@ export async function getLeaderboardPage(pageSize = 25, lastVisible?: QueryDocum
 export function subscribeToTopStandings(callback: (users: UserProfile[]) => void, count = 10) {
   const q = query(
     collection(db, COLLECTION),
-    orderBy('points', 'desc'),
+    orderBy('xp', 'desc'),
     limit(count)
   );
   return onSnapshot(q, (snapshot) => {

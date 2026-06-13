@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { FieldSignal } from '../types/signals';
-import { Card, Sticker } from './UI';
+import { Card } from './UI';
 import { Timer, Zap, Sparkles, HelpCircle, Info, Radio } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';

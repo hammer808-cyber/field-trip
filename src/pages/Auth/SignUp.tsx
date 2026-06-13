@@ -130,24 +130,53 @@ export default function SignUp({ accessCode, onSuccess, onBack }: SignUpProps) {
 
       onSuccess();
     } catch (err: any) {
-      console.error('Sign up error:', err);
+      console.error('Sign up error - Detailed diagnostics:', {
+        code: err.code,
+        message: err.message,
+        name: err.name,
+        stack: err.stack,
+        errObj: err
+      });
+
+      const messageUpper = String(err.message || '').toUpperCase();
+
       if (err.code === 'auth/email-already-in-use') {
         setError('Email already in use.');
       } else if (err.code === 'auth/weak-password') {
         setError('Password too weak.');
-      } else if (err.message === 'USERNAME_TAKEN') {
+      } else if (err.code === 'auth/invalid-email') {
+        setError('Invalid email address format.');
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setError('Email/Password provider not enabled in Firebase project config.');
+      } else if (messageUpper === 'USERNAME_TAKEN' || err.message === 'USERNAME_TAKEN') {
         setError('Username already taken.');
+      } else if (messageUpper === 'INVALID_ACCESS_CODE') {
+        setError('Invalid access code or spelling error.');
+      } else if (messageUpper === 'ACCESS_CODE_INACTIVE') {
+        setError('This access code is inactive.');
+      } else if (messageUpper === 'ACCESS_CODE_EXHAUSTED') {
+        setError('This access code has reached maximum uses.');
+      } else if (err.code === 'permission-denied' || messageUpper.includes('PERMISSION-DENIED') || messageUpper.includes('PERMISSION_DENIED')) {
+        setError('Firebase Security Rules denied username query or profile creation. Please ask an admin.');
       } else {
-        // Try to extract Firestore error info if present
-        try {
-          const info = JSON.parse(err.message);
-          if (info.error?.includes('permission')) {
-            setError(`SECURITY_DENIAL: ACCESS_STATUS_PENDING // ${info.operationType.toUpperCase()}_FAIL`);
-          } else {
-            setError(info.error || 'System error during registration. Try again.');
+        // Try to parse err.message as JSON if it represents a JSON-structured response
+        let isParsed = false;
+        if (typeof err.message === 'string' && err.message.trim().startsWith('{')) {
+          try {
+            const info = JSON.parse(err.message);
+            if (info.error?.includes('permission')) {
+              setError(`SECURITY_DENIAL: ACCESS_STATUS_PENDING // ${info.operationType?.toUpperCase() || 'WRITE'}_FAIL`);
+            } else {
+              setError(info.error || 'System error during registration. Try again.');
+            }
+            isParsed = true;
+          } catch {
+            // keep going
           }
-        } catch {
-          setError('System error during registration. Try again.');
+        }
+        
+        if (!isParsed) {
+          setError(err.message || 'System error during registration. Try again.');
         }
       }
     } finally {

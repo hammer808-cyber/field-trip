@@ -1,0 +1,10 @@
+{
+  "name": "Field Trip: High-Voltage",
+  "description": "An official civic adventure bureau in its High-Voltage Light Edition. Transform standard outings into high-fidelity field reports through a structured system of dispatches, evidence securement, and high-contrast clinical exploration.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

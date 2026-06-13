@@ -12,6 +12,24 @@ export default function ClassificationPage() {
   const { profile } = useApp();
   const [step, setStep] = useState<ClassificationStep>('INTRO');
 
+  // Guard: If already complete, go to results
+  React.useEffect(() => {
+    if (profile?.fieldClassificationComplete) {
+      navigate('/field-type');
+    }
+  }, [profile?.fieldClassificationComplete, navigate]);
+
+  // Reset scroll to top on local step transitions
+  React.useEffect(() => {
+    const resetScroll = () => {
+      window.scrollTo({ top: 0, behavior: 'instant' as any });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+    resetScroll();
+    requestAnimationFrame(resetScroll);
+  }, [step]);
+
   const handleSequenceComplete = () => {
     setStep('QUIZ');
   };
@@ -26,16 +44,8 @@ export default function ClassificationPage() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="min-h-screen bg-white relative overflow-x-hidden pt-20 pb-32"
+      className="page-scroll bg-transparent relative pt-20"
     >
-      {/* HV-LE Background Grid */}
-      <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.03]" 
-           style={{ 
-             backgroundImage: 'linear-gradient(var(--color-on-surface) 1.5px, transparent 1.5px), linear-gradient(90deg, var(--color-on-surface) 1.5px, transparent 1.5px)', 
-             backgroundSize: '40px 40px' 
-           }} 
-      />
-      
       <div className="relative z-10">
         <AnimatePresence mode="wait">
         {step === 'INTRO' ? (

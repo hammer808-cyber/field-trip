@@ -12,7 +12,7 @@ import {
   getDocs,
   where
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType, logFirestoreError } from '../lib/firebase';
 import { MemoryEntry } from '../types/memories';
 
 const MEMORIES_SUBCOLLECTION = 'memories';
@@ -42,8 +42,12 @@ export function subscribeToUserMemories(userId: string, callback: (memories: Mem
       ...doc.data()
     } as MemoryEntry));
     callback(memories);
-  }, (error) => {
-    handleFirestoreError(error, OperationType.LIST, `users/${userId}/memories`);
+  }, (error: any) => {
+    if (error?.code === 'unavailable' || error?.message?.includes('offline')) {
+      console.warn("[BUREAU] Memories subscription running in offline/cached mode.");
+    } else {
+      logFirestoreError(error, OperationType.LIST, `users/${userId}/memories`);
+    }
   });
 }
 

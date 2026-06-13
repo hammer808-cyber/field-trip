@@ -29,10 +29,10 @@ export const ObservationFeed: React.FC = () => {
         className="w-full mb-10"
       >
         <div className={cn(
-          "p-8 relative border-4 flex flex-col md:flex-row gap-8 overflow-hidden",
+          "p-5 sm:p-8 relative border-4 flex flex-col md:flex-row gap-6 sm:gap-8 overflow-hidden",
           latest.observationType === 'Behavior' 
-            ? "border-brand-orange bg-white shadow-[16px_16px_0px_var(--color-brand-orange)]" 
-            : "border-on-surface bg-white shadow-[12px_12px_0px_black]",
+            ? "border-brand-orange bg-white shadow-[12px_12px_0px_var(--color-brand-orange)] sm:shadow-[16px_16px_0px_var(--color-brand-orange)]" 
+            : "border-on-surface bg-white shadow-[8px_8px_0px_black] sm:shadow-[12px_12px_0px_black]",
           isBaja && "border-baja-pink bg-white shadow-[8px_8px_0px_#ff007f] rotate-1",
           isDiamond && "border-white/40 bg-white/5 backdrop-blur-xl",
           isHeat && "border-heat-pink bg-white rounded-3xl"
@@ -43,20 +43,20 @@ export const ObservationFeed: React.FC = () => {
           )}
 
           <div className={cn(
-            "p-6 border-4 shadow-[6px_6px_0px_black] shrink-0 self-start relative z-10 -rotate-3",
+            "p-5 sm:p-6 border-4 shadow-[4px_4px_0px_black] sm:shadow-[6px_6px_0px_black] shrink-0 self-start relative z-10 -rotate-3",
             latest.observationType === 'Behavior' ? "bg-brand-orange text-white" : "bg-on-surface text-brand-lime",
             isBaja && "bg-baja-pink text-white",
             isDiamond && "bg-white text-black"
           )}>
-            {latest.observationType === 'Behavior' ? <Sparkles className="w-10 h-10 stroke-[2.5]" /> : <MessageCircle className="w-10 h-10 stroke-[2.2]" />}
+            {latest.observationType === 'Behavior' ? <Sparkles className="w-8 h-8 sm:w-10 sm:h-10 stroke-[2.5]" /> : <MessageCircle className="w-8 h-8 sm:w-10 sm:h-10 stroke-[2.2]" />}
           </div>
 
-          <div className="flex-1 space-y-4 text-left relative z-10">
+          <div className="flex-1 space-y-3 sm:space-y-4 text-left relative z-10">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
-                 <div className={cn("w-2 h-2 rounded-full animate-pulse", latest.observationType === 'Behavior' ? "bg-brand-orange" : "bg-brand-lime")} />
+                 <div className={cn("w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full animate-pulse", latest.observationType === 'Behavior' ? "bg-brand-orange" : "bg-brand-lime")} />
                  <p className={cn(
-                   "text-[10px] uppercase tracking-[0.4em] font-black leading-none",
+                   "text-[9px] sm:text-[10px] uppercase tracking-[0.4em] font-black leading-none",
                    latest.observationType === 'Behavior' ? "text-brand-orange" : "opacity-40"
                  )}>
                    SIGNAL_DECODEX // {latest.observationType.toUpperCase()}
@@ -70,7 +70,7 @@ export const ObservationFeed: React.FC = () => {
               </button>
             </div>
             <p className={cn(
-              "text-3xl md:text-4xl font-display italic text-on-surface leading-[0.9] pr-12 font-black uppercase tracking-tighter",
+              "text-2xl sm:text-3xl md:text-4xl font-display italic text-on-surface leading-[0.9] pr-10 sm:pr-12 font-black uppercase tracking-tighter",
               latest.observationType === 'Behavior' && "text-brand-orange"
             )}>
               "{latest.observationText}"

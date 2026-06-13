@@ -17,16 +17,16 @@ export default function VotingBallotPage() {
           <div className="space-y-2">
              <div className="flex items-center gap-3">
                 <span className="w-3 h-3 bg-brand-orange animate-pulse shadow-[0_0_10px_var(--color-brand-orange)]" />
-                <p className="font-display text-xs font-black uppercase tracking-[0.4em] text-brand-orange italic">VOTE_ACTIVE</p>
+                <p className="font-display text-xs font-black uppercase tracking-[0.4em] text-brand-orange italic">VOTE ACTIVE</p>
              </div>
-             <p className="font-display text-[10px] font-black opacity-30 uppercase tracking-[0.5em] italic">Ballot_Box // Zine_Ballot</p>
+             <p className="font-display text-[10px] font-black opacity-30 uppercase tracking-[0.5em] italic">Ballot Box // Zine Ballot</p>
           </div>
         </div>
         
         <div className="space-y-6">
-          <div className="relative inline-block">
-            <h1 className="text-[8rem] md:text-[12rem] font-display uppercase tracking-tighter italic leading-[0.75] font-black text-on-surface">
-              Zine_Ballot
+          <div className="relative inline-block max-w-full">
+            <h1 className="text-[clamp(3.5rem,15vw,8rem)] md:text-[12rem] font-display uppercase tracking-tighter italic leading-[0.75] font-black text-on-surface break-words">
+              Zine Ballot
             </h1>
             <div className="absolute -bottom-4 left-0 w-full h-8 bg-brand-lime -z-10 rotate-[-1deg] opacity-60" />
           </div>

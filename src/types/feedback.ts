@@ -4,7 +4,7 @@ export enum RewardIntensity {
   MICRO_FEEDBACK = 'MICRO_FEEDBACK',
 }
 
-export type RewardType = 'badge' | 'aura' | 'persona' | 'rank' | 'milestone' | 'artifact' | 'progress' | 'action';
+export type RewardType = 'badge' | 'sticker' | 'aura' | 'persona' | 'rank' | 'milestone' | 'artifact' | 'progress' | 'action';
 
 export interface RewardQueueItem {
   id: string;
@@ -15,5 +15,6 @@ export interface RewardQueueItem {
   rewardText?: string;
   iconName?: string; // Lucide icon name
   rarity?: 'common' | 'uncommon' | 'rare' | 'bureau-secret';
+  redirectPath?: string;
   metadata?: any;
 }

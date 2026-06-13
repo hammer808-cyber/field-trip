@@ -1,4 +1,4 @@
-export type FieldTypeId = 'captainClipboard' | 'mallRat' | 'mascota' | 'elondra' | 'lostCamper' | 'bigfoot';
+export type FieldTypeId = 'captainClipboard' | 'mallRat' | 'mascota' | 'elondra' | 'theGobbler' | 'bigfoot' | 'unclassified';
 
 export interface FieldType {
   id: FieldTypeId;
@@ -29,16 +29,17 @@ export interface FieldType {
 }
 
 export const FIELD_TYPE_ALIASES: Record<string, FieldTypeId> = {
-  'homecomingQueen': 'elondra',
-  'Homecoming Queen': 'elondra',
+  'theaterDropout': 'elondra',
   'theMascot': 'mascota',
   'the-mascot': 'mascota',
-  'mascot': 'mascota',
-  'Mascot': 'mascota',
-  'The Mascot': 'mascota',
-  'scout': 'lostCamper',
-  'explorer': 'lostCamper',
-  'persona': 'lostCamper', // Fallback
+  'organzied': 'captainClipboard',
+  'strict': 'captainClipboard',
+  'homecomingQueen': 'elondra',
+  'observe': 'mallRat',
+  'explorer': 'bigfoot',
+  'aloof': 'bigfoot', // Fallback
+  'lostCamper': 'bigfoot',
+  'evidenceGoblin': 'theGobbler',
 };
 
 export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
@@ -58,11 +59,11 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
     badgeLabel: 'Taskmaster',
     emptyState: 'The clipboard is empty. This is unacceptable.',
     recommendedChallengeTags: ['organization', 'rules', 'timed', 'checklist'],
-    image: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=800',
-    avatarPath: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=800',
-    resultImagePath: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=800',
-    cardImagePath: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=800',
-    fullImagePath: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?q=80&w=800',
+    image: '/assets/characters/captainClipboard/results.png',
+    avatarPath: '/assets/characters/captainClipboard/avatar.png',
+    resultImagePath: '/assets/characters/captainClipboard/results.png',
+    cardImagePath: '/assets/characters/captainClipboard/card.png',
+    fullImagePath: '/assets/characters/captainClipboard/full.png',
     fieldStrength: 'High Fidelity Documentation',
     fieldRisk: 'Analysis Paralysis',
     howToPlay: 'Stick to the rules. Document the flow, not just the results.',
@@ -84,11 +85,11 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
     badgeLabel: 'Aisle Oracle',
     emptyState: 'No activity. Are we at the arcade?',
     recommendedChallengeTags: ['social', 'public', 'crew', 'location', 'urban'],
-    image: 'https://images.unsplash.com/photo-1519452635265-7b1fbfd1e4e0?q=80&w=800',
-    avatarPath: 'https://images.unsplash.com/photo-1519452635265-7b1fbfd1e4e0?q=80&w=800',
-    resultImagePath: 'https://images.unsplash.com/photo-1519452635265-7b1fbfd1e4e0?q=80&w=800',
-    cardImagePath: 'https://images.unsplash.com/photo-1519452635265-7b1fbfd1e4e0?q=80&w=800',
-    fullImagePath: 'https://images.unsplash.com/photo-1519452635265-7b1fbfd1e4e0?q=80&w=800',
+    image: '/assets/characters/mallRat/results.png',
+    avatarPath: '/assets/characters/mallRat/avatar.png',
+    resultImagePath: '/assets/characters/mallRat/results.png',
+    cardImagePath: '/assets/characters/mallRat/card.png',
+    fullImagePath: '/assets/characters/mallRat/full.png',
     fieldStrength: 'Urban Camouflage',
     fieldRisk: 'Distraction by Snacks',
     howToPlay: 'Find the scene. If there is a food court nearby, you are winning.',
@@ -110,11 +111,11 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
     badgeLabel: 'Hype Beast',
     emptyState: 'The stage is empty. Bring the energy.',
     recommendedChallengeTags: ['performance', 'aesthetic', 'social', 'bold'],
-    image: 'https://images.unsplash.com/photo-1521017432531-fbd92d744264?q=80&w=800',
-    avatarPath: 'https://images.unsplash.com/photo-1521017432531-fbd92d744264?q=80&w=800',
-    resultImagePath: 'https://images.unsplash.com/photo-1521017432531-fbd92d744264?q=80&w=800',
-    cardImagePath: 'https://images.unsplash.com/photo-1521017432531-fbd92d744264?q=80&w=800',
-    fullImagePath: 'https://images.unsplash.com/photo-1521017432531-fbd92d744264?q=80&w=800',
+    image: '/assets/characters/mascota/results.png',
+    avatarPath: '/assets/characters/mascota/avatar.png',
+    resultImagePath: '/assets/characters/mascota/results.png',
+    cardImagePath: '/assets/characters/mascota/card.png',
+    fullImagePath: '/assets/characters/mascota/full.png',
     fieldStrength: 'Unshakeable Morale',
     fieldRisk: 'Over-the-top antics',
     howToPlay: 'Be the main character. Every photo is a performance.',
@@ -136,41 +137,41 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
     badgeLabel: 'Dramaturg',
     emptyState: 'The script is unwritten. Start the drama.',
     recommendedChallengeTags: ['aesthetic', 'narrative', 'social', 'detailed'],
-    image: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?q=80&w=800',
-    avatarPath: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?q=80&w=800',
-    resultImagePath: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?q=80&w=800',
-    cardImagePath: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?q=80&w=800',
-    fullImagePath: 'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?q=80&w=800',
+    image: '/assets/characters/elondra/results.png',
+    avatarPath: '/assets/characters/elondra/avatar.png',
+    resultImagePath: '/assets/characters/elondra/results.png',
+    cardImagePath: '/assets/characters/elondra/card.png',
+    fullImagePath: '/assets/characters/elondra/full.png',
     fieldStrength: 'Narrative Authority',
     fieldRisk: 'Scathing Reviews',
     howToPlay: 'Own the narrative. Make every entry feel like a headline.',
     narration: 'TREVOR: "The dramatic pauses in your report are technically unscripted. Continue with caution."'
   },
-  'lostCamper': {
-    id: 'lostCamper',
-    name: 'Lost Camper',
-    shortLabel: 'Sightseer',
-    campRole: 'The Detour Director',
-    coreInstinct: 'Wander / Discover',
-    description: 'You have mastered the art of the intentional wrong turn. Serendipity is your only authorized compass, and you find the best metadata where the map ends.',
-    vibe: 'Curious, Confused, Lucky',
-    perk: 'Wrong Turn Bonus',
-    perkDesc: 'Earn +25 when your entry captures strange, liminal, confusing, offbeat, detour, unexpected-location, or “how did we get here?” moments.',
-    blindSpot: 'Too Normal to Process',
-    blindSpotDesc: 'Straightforward, polished, obvious, or overly planned entries do not trigger your Field Type Bonus unless your note points out something strange or unexpected.',
-    stamp: 'SUCCESSFULLY_LOST',
-    badgeLabel: 'Sightseer',
-    emptyState: 'Map is upside down. Exactly where I want to be.',
-    recommendedChallengeTags: ['exploration', 'solo', 'location', 'strange'],
-    image: 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?q=80&w=800',
-    avatarPath: 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?q=80&w=800',
-    resultImagePath: 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?q=80&w=800',
-    cardImagePath: 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?q=80&w=800',
-    fullImagePath: 'https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?q=80&w=800',
-    fieldStrength: 'Uncanny Luck',
-    fieldRisk: 'Getting actually lost',
-    howToPlay: 'Embrace the detour. The best finds are rarely on the map.',
-    narration: 'TREVOR: "You are currently 400 meters off-protocol. I trust you are finding something worth the bureaucratic effort."'
+  'theGobbler': {
+    id: 'theGobbler',
+    name: 'The Gobbler',
+    shortLabel: 'Proof Fiend',
+    campRole: 'The Material Harvester',
+    coreInstinct: 'Gobble / Hoard',
+    description: 'Driven by an insatiable hunger for raw evidence. You swallow missions whole, hoarding proofs like glittering gems in your digital lair.',
+    vibe: 'Voracious, Relentless, Chaotic',
+    perk: 'Insatiable Index',
+    perkDesc: 'Earn +25 when your entry contains multiple proofs, extra details, hidden findings, or chaotic energy that others ignore.',
+    blindSpot: 'Overconsumption',
+    blindSpotDesc: 'Plain, low-context, or half-hearted entries do not trigger your Field Type Bonus unless you add some real vigor and deep description.',
+    stamp: 'GOBBLER_CONQUERED',
+    badgeLabel: 'The Gobbler',
+    emptyState: 'A hollow silence reigns. Time to consume some challenges.',
+    recommendedChallengeTags: ['exploration', 'photo', 'strange', 'bold'],
+    image: '/assets/characters/theGobbler/results.png',
+    avatarPath: '/assets/characters/theGobbler/avatar.png',
+    resultImagePath: '/assets/characters/theGobbler/results.png',
+    cardImagePath: '/assets/characters/theGobbler/card.png',
+    fullImagePath: '/assets/characters/theGobbler/full.png',
+    fieldStrength: 'Chaotic Volition',
+    fieldRisk: 'Hoarding Junk Data',
+    howToPlay: 'Consume everything. No detail is too small, no proof too strange.',
+    narration: 'TREVOR: "Your download speed is impressive, but your digital digestion is absolutely terrifying."'
   },
   'bigfoot': {
     id: 'bigfoot',
@@ -188,11 +189,11 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
     badgeLabel: 'Cryptid',
     emptyState: 'Undetected. Good.',
     recommendedChallengeTags: ['observation', 'photo', 'strange', 'fieldNotes', 'solo'],
-    image: 'https://images.unsplash.com/photo-1448375033038-3f2517148d80?q=80&w=800',
-    avatarPath: 'https://images.unsplash.com/photo-1448375033038-3f2517148d80?q=80&w=800',
-    resultImagePath: 'https://images.unsplash.com/photo-1448375033038-3f2517148d80?q=80&w=800',
-    cardImagePath: 'https://images.unsplash.com/photo-1448375033038-3f2517148d80?q=80&w=800',
-    fullImagePath: 'https://images.unsplash.com/photo-1448375033038-3f2517148d80?q=80&w=800',
+    image: '/assets/characters/bigfoot/results.png',
+    avatarPath: '/assets/characters/bigfoot/avatar.png',
+    resultImagePath: '/assets/characters/bigfoot/results.png',
+    cardImagePath: '/assets/characters/bigfoot/card.png',
+    fullImagePath: '/assets/characters/bigfoot/full.png',
     fieldStrength: 'Stealth Documentation',
     fieldRisk: 'Total Isolation',
     howToPlay: 'Stay in the shadows. Document the things others are too busy talking to see.',
@@ -226,8 +227,27 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
   }
 };
 
+export function normalizePersonaKey(personaKey: string | null | undefined): FieldTypeId {
+  if (!personaKey) return 'unclassified';
+  
+  if (personaKey === 'lostCamper') return 'bigfoot';
+  if (personaKey === 'evidenceGoblin') return 'theGobbler';
+  if (personaKey === 'mallRat') return 'mallRat';
+  if (personaKey === 'mascota') return 'mascota';
+  if (personaKey === 'bigfoot') return 'bigfoot';
+  if (personaKey === 'captainClipboard') return 'captainClipboard';
+  if (personaKey === 'elondra') return 'elondra';
+  if (personaKey === 'theGobbler') return 'theGobbler';
+
+  return normalizeFieldType(personaKey);
+}
+
 export function normalizeFieldType(type: string | null | undefined): FieldTypeId {
-  if (!type) return 'lostCamper'; // Default fallback
+  if (!type) return 'unclassified'; // Default fallback
+  
+  // Safe legacy mapping layer
+  if (type === 'lostCamper') return 'bigfoot';
+  if (type === 'evidenceGoblin') return 'theGobbler';
   
   if (FIELD_TYPES[type as FieldTypeId]) return type as FieldTypeId;
   
@@ -239,8 +259,9 @@ export function normalizeFieldType(type: string | null | undefined): FieldTypeId
   if (normalized.includes('mallrat')) return 'mallRat';
   if (normalized.includes('mascot')) return 'mascota';
   if (normalized.includes('elondra') || normalized.includes('queen')) return 'elondra';
-  if (normalized.includes('camper')) return 'lostCamper';
+  if (normalized.includes('camper')) return 'bigfoot';
+  if (normalized.includes('gobbler') || normalized.includes('goblin')) return 'theGobbler';
   if (normalized.includes('bigfoot')) return 'bigfoot';
   
-  return 'lostCamper';
+  return 'unclassified';
 }

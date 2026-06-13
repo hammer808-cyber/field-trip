@@ -5,10 +5,11 @@ import { subscribeToAllOpenFieldChecks } from '../services/fieldCheckService';
 import { resolveFieldCheck } from '../services/gameService';
 import { finalizeVoteWinners } from '../services/voteService';
 import { Report, FieldCheck } from '../types/game';
-import { Card, Sticker } from '../components/UI';
+import { Card, FieldBadge } from '../components/UI';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { cn, formatSafeTimeOnly, formatSafeDateOnly } from '../lib/utils';
+import { getDisplayLabel } from '../utils/labelUtils';
 
 export default function AdminModerationPage() {
   const { user, isAdmin, currentWeekNumber } = useApp();
@@ -38,20 +39,25 @@ export default function AdminModerationPage() {
     if (!selectedReport || !user) return;
     setIsSubmitting(true);
     
-    await performModerationAction(
-      user.uid,
-      selectedReport.targetId,
-      selectedReport.targetType,
-      action,
-      selectedReport.reason,
-      actionReason
-    );
+    try {
+      await performModerationAction(
+        user.uid,
+        selectedReport.targetId,
+        selectedReport.targetType,
+        action,
+        selectedReport.reason,
+        actionReason
+      );
 
-    await updateReportStatus(selectedReport.id, action === 'dismiss' ? 'dismissed' : 'resolved');
-    
-    setIsSubmitting(false);
-    setSelectedReport(null);
-    setActionReason('');
+      await updateReportStatus(selectedReport.id, action === 'dismiss' ? 'dismissed' : 'resolved');
+      setSelectedReport(null);
+      setActionReason('');
+    } catch (err: any) {
+      console.error("Moderation action failed:", err);
+      alert(`BUREAU_ERROR: Action failed. ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleResolveFieldCheck = async (resolution: 'reviewed' | 'action_needed' | 'dismissed') => {
@@ -88,7 +94,7 @@ export default function AdminModerationPage() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <Sticker color="orange">ADMIN_PANEL</Sticker>
+            <FieldBadge variant="sticker" color="orange">{getDisplayLabel('ADMIN_PANEL')}</FieldBadge>
             <h1 className="font-display text-4xl uppercase tracking-tighter">Internal Affairs</h1>
           </div>
           <div className="flex gap-4">
@@ -98,7 +104,7 @@ export default function AdminModerationPage() {
               className="px-4 py-2 bg-mustard text-black font-display uppercase tracking-widest text-[10px] flex items-center gap-2 hover:bg-on-surface hover:text-mustard transition-all border-2 border-on-surface"
             >
               <Trophy className={cn("w-3 h-3", isFinalizingVotes && "animate-bounce")} />
-              {isFinalizingVotes ? 'FINALIZING...' : 'FINALIZE_WEEK_VOTES'}
+              {isFinalizingVotes ? 'FINALIZING...' : getDisplayLabel('FINALIZE_WEEK_VOTES')}
             </button>
             <div className="flex gap-1 border-2 border-on-surface p-1">
                <button 
@@ -127,7 +133,7 @@ export default function AdminModerationPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* List View */}
         <div className={cn(view === 'audit' ? "md:col-span-3" : "md:col-span-1", "space-y-4")}>
-          <p className="micro-label">{view === 'audit' ? 'ADMIN_ACTION_LOG' : 'INCOMING_QUEUE'}</p>
+          <p className="micro-label">{view === 'audit' ? getDisplayLabel('ADMIN_ACTION_LOG') : getDisplayLabel('INCOMING_QUEUE')}</p>
           <div className={cn("space-y-2 max-h-[600px] overflow-y-auto pr-2", view === 'audit' && "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 space-y-0")}>
             {view === 'reports' ? (
               reports.length === 0 ? (
@@ -297,7 +303,7 @@ function ReportDetails({ report, actionReason, onActionReasonChange, onAction }:
           </div>
           <div className="text-right">
             <p className="micro-label">STATUS</p>
-            <Sticker color="black">{report.status.toUpperCase()}</Sticker>
+            <FieldBadge variant="sticker" color="black">{report.status.toUpperCase()}</FieldBadge>
           </div>
         </div>
 
@@ -354,34 +360,34 @@ function FieldCheckDetails({ check, actionReason, onActionReasonChange, onResolv
               <h2 className="font-display text-2xl uppercase tracking-tighter leading-none italic">Field Check Audit</h2>
             </div>
             <p className="text-[10px] uppercase font-bold tracking-widest opacity-60">
-              ALLEGATION: <span className="text-brand-orange">{check.reason.toUpperCase()}</span>
+              {getDisplayLabel('ALLEGATION')}: <span className="text-brand-orange">{getDisplayLabel(check.reason)}</span>
             </p>
           </div>
           <div className="text-right">
-            <p className="micro-label">STATUS</p>
-            <Sticker color="orange">{check.status.toUpperCase()}</Sticker>
+            <p className="micro-label">{getDisplayLabel('STATUS')}</p>
+            <FieldBadge variant="sticker" color="orange">{getDisplayLabel(check.status)}</FieldBadge>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-8">
           <div className="space-y-4">
             <div className="space-y-1">
-              <p className="micro-label">SNITCH_REPORTER</p>
-              <p className="text-xs font-mono">{check.reporterUid === check.reportedUserId ? 'CONFESSION_SELF' : check.reporterUid}</p>
+              <p className="micro-label">{getDisplayLabel('SNITCH_REPORTER')}</p>
+              <p className="text-xs font-mono">{check.reporterUid === check.reportedUserId ? getDisplayLabel('CONFESSION_SELF') : check.reporterUid}</p>
             </div>
             <div className="space-y-1">
-              <p className="micro-label">TARGET_ENTRY</p>
+              <p className="micro-label">{getDisplayLabel('TARGET_ENTRY')}</p>
               <div className="flex items-center gap-2">
                 <p className="text-xs font-mono">{check.submissionId}</p>
                 <button className="text-brand-orange hover:underline text-[10px] font-bold uppercase flex items-center gap-1">
-                  OPEN_EVIDENCE <ExternalLink className="w-3 h-3" />
+                  {getDisplayLabel('OPEN_EVIDENCE')} <ExternalLink className="w-3 h-3" />
                 </button>
               </div>
             </div>
           </div>
           <div className="space-y-4">
             <div className="space-y-1">
-              <p className="micro-label">ACCUSATION_DETAILS</p>
+              <p className="micro-label">{getDisplayLabel('ACCUSATION_DETAILS')}</p>
               <p className="text-xs opacity-80 leading-relaxed italic border-l-2 border-on-surface/20 pl-4 bg-brand-orange/[0.02] p-2">
                 "{check.note || 'No details.'}"
               </p>

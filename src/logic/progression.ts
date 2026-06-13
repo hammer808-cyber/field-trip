@@ -1,8 +1,8 @@
-import { FieldTypeId } from '../constants';
+import { FieldTypeId, HEATWAVE_SEASON_START_DATE, HEATWAVE_SEASON_END_DATE } from '../constants';
 
 // GAME CONFIGURATION
 export const CONFIG = {
-  PRE_SEASON_UNLOCK_DATE: '2026-05-25T00:00:00Z',
+  PRE_SEASON_UNLOCK_DATE: HEATWAVE_SEASON_START_DATE,
   STAGING_UNLOCK_DATE: '2026-05-15T00:00:00Z', // For beta testers
   CREW_MODE_SOLO_REQUIRED: 3,
   FIELD_CHECK_MODE_POINTS_REQUIRED: 250,
@@ -13,6 +13,7 @@ export const CONFIG = {
 export interface GameState {
   userId: string | null;
   email: string | null;
+  xp: number;
   points: number;
   soloTripsCount: number;
   completedCoreChallenges: number;
@@ -44,7 +45,7 @@ export function canAccessCrewMode(state: GameState): boolean {
  */
 export function canAccessFieldCheckMode(state: GameState): boolean {
   if (state.isAdmin) return true;
-  return state.points >= CONFIG.FIELD_CHECK_MODE_POINTS_REQUIRED;
+  return state.xp >= CONFIG.FIELD_CHECK_MODE_POINTS_REQUIRED;
 }
 
 /**
@@ -52,7 +53,7 @@ export function canAccessFieldCheckMode(state: GameState): boolean {
  */
 export function isLeaderboardVisible(state: GameState): boolean {
   if (state.isAdmin) return true;
-  return state.points >= CONFIG.LEADERBOARD_VISIBILITY_POINTS;
+  return state.xp >= CONFIG.LEADERBOARD_VISIBILITY_POINTS;
 }
 
 /**
@@ -72,18 +73,28 @@ export function getNextMilestone(state: GameState): string | null {
   if (state.completedCoreChallenges < CONFIG.CREW_MODE_SOLO_REQUIRED) {
     return `Complete ${CONFIG.CREW_MODE_SOLO_REQUIRED - state.completedCoreChallenges} more core challenges to unlock CREW_MODE.`;
   }
-  if (state.points < CONFIG.FIELD_CHECK_MODE_POINTS_REQUIRED) {
-    return `Reach ${CONFIG.FIELD_CHECK_MODE_POINTS_REQUIRED} points to unlock FIELD_CHECK_CAPABILITY.`;
+  if (state.xp < CONFIG.FIELD_CHECK_MODE_POINTS_REQUIRED) {
+    return `Reach ${CONFIG.FIELD_CHECK_MODE_POINTS_REQUIRED} XP to unlock FIELD_CHECK_CAPABILITY.`;
   }
   return "All system nodes synchronized. Operation: Field Trip is full-scale.";
 }
 
 /**
- * PATHWAY: Is the Summer Deck active?
- * Date Range: May 30, 2026 to August 28, 2026 (inclusive).
+ * PATHWAY: Is the Heatwave Deck active?
+ * Date Range: June 6, 2026 to August 28, 2026 (inclusive).
  */
-export function isSummerDeckActive(currentDate: Date): boolean {
-  const start = new Date('2026-05-30T00:00:00Z');
-  const end = new Date('2026-08-28T23:59:59Z');
+export function isHeatwaveDeckActive(currentDate: Date): boolean {
+  const start = new Date(HEATWAVE_SEASON_START_DATE);
+  const end = new Date(HEATWAVE_SEASON_END_DATE);
   return currentDate >= start && currentDate <= end;
+}
+
+/**
+ * PATHWAY: Is the Heatwave Deck available/stabilized?
+ * Rule: Unlocks 1 day after the season begins.
+ */
+export function isHeatwaveDeckStabilized(currentDate: Date): boolean {
+  const start = new Date(HEATWAVE_SEASON_START_DATE);
+  const stabilizedDate = new Date(start.getTime() + (24 * 60 * 60 * 1000));
+  return currentDate >= stabilizedDate;
 }

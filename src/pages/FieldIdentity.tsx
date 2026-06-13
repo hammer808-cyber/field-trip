@@ -130,7 +130,7 @@ export default function FieldIdentity() {
       </div>
 
       {/* Editor Controls */}
-      <div className="bg-white border-t-8 border-on-surface p-6 pb-safe-offset-6">
+      <div className="bg-white border-t-8 border-on-surface p-6 pb-safe">
         {/* Category Selector */}
         <div className="flex items-center justify-between border-b-4 border-on-surface/5 mb-8">
           <div className="flex gap-4 overflow-x-auto no-scrollbar py-2">

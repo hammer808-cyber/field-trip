@@ -37,18 +37,23 @@ export interface Skin {
   id: string;
   name: string;
   slug: string; // for class names
+  description: string;
+  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+  unlockCondition: string;
   seasonId?: string;
   status: SkinStatus;
   isDefault: boolean;
   isPublic?: boolean;
   isActive?: boolean;
   visualCalmSupported: boolean;
+  previewColors?: string[];
   themeTokens: ThemeTokens;
   assets: SkinAssets;
   copyOverrides: CopyOverrides;
   createdAt?: Timestamp | FieldValue;
   updatedAt?: Timestamp | FieldValue;
   updatedBy?: string;
+  decalRefs?: string[];
 }
 
 export interface SkinSettings {

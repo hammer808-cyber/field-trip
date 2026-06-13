@@ -14,7 +14,7 @@ import {
   QueryDocumentSnapshot,
   DocumentData
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType, logFirestoreError } from '../lib/firebase';
 import { Entry } from '../constants';
 import { guardedCall } from './guardedService';
 
@@ -42,6 +42,7 @@ export async function getUserEntriesPage(userId: string, pageSize = 10, lastVisi
   let q = query(
     collection(db, COLLECTION),
     where('userId', '==', userId),
+    where('showInUserLogbook', '==', true),
     orderBy('createdAt', 'desc'),
     limit(pageSize)
   );
@@ -52,8 +53,11 @@ export async function getUserEntriesPage(userId: string, pageSize = 10, lastVisi
 
   try {
     const snapshot = await getDocs(q);
+    const docs = snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as Entry))
+      .filter(e => e.archived !== true);
     return {
-      docs: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Entry)),
+      docs,
       lastVisible: snapshot.docs[snapshot.docs.length - 1]
     };
   } catch (error) {
@@ -65,9 +69,12 @@ export async function getUserEntriesPage(userId: string, pageSize = 10, lastVisi
  * PAGINATION: Global approved entries.
  */
 export async function getGlobalEntriesPage(pageSize = 10, lastVisible?: QueryDocumentSnapshot<DocumentData>) {
+  const approvedStatuses = ['approved', 'approved_by_admin', 'auto_approved', 'completed'];
+  
   let q = query(
     collection(db, COLLECTION),
-    where('status', '==', 'approved'),
+    where('status', 'in', approvedStatuses),
+    where('showInCommunityFeed', '==', true),
     orderBy('createdAt', 'desc'),
     limit(pageSize)
   );
@@ -78,8 +85,11 @@ export async function getGlobalEntriesPage(pageSize = 10, lastVisible?: QueryDoc
 
   try {
     const snapshot = await getDocs(q);
+    const docs = snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as Entry))
+      .filter(e => e.archived !== true && e.countsTowardLiveStats !== false);
     return {
-      docs: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Entry)),
+      docs,
       lastVisible: snapshot.docs[snapshot.docs.length - 1]
     };
   } catch (error) {
@@ -87,20 +97,45 @@ export async function getGlobalEntriesPage(pageSize = 10, lastVisible?: QueryDoc
   }
 }
 
-/**
- * REALTIME: Subscribe to just the latest few for "Live" vibes.
- */
 export function subscribeToLatestGlobalEntries(callback: (entries: Entry[]) => void, count = 5) {
+  const approvedStatuses = ['approved', 'approved_by_admin', 'auto_approved', 'completed'];
+
   const q = query(
     collection(db, COLLECTION),
-    where('status', '==', 'approved'),
+    where('status', 'in', approvedStatuses),
+    where('showInCommunityFeed', '==', true),
     orderBy('createdAt', 'desc'),
     limit(count)
   );
 
   return onSnapshot(q, (snapshot) => {
-    callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Entry)));
+    const entries = snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as Entry))
+      .filter(e => e.archived !== true && e.countsTowardLiveStats !== false);
+    callback(entries);
   }, (error) => {
-    handleFirestoreError(error, OperationType.LIST, COLLECTION);
+    logFirestoreError(error, OperationType.LIST, COLLECTION);
   });
 }
+
+/**
+ * Shared selector/helper querying Firestore for approved submissions for a user.
+ */
+export async function getApprovedSubmissionsForUser(userId: string): Promise<Entry[]> {
+  const approvedStatuses = ['approved', 'approved_by_admin', 'auto_approved', 'completed', 'verified', 'retry-approved', 'archived'];
+  const qByUserId = query(
+    collection(db, COLLECTION),
+    where('userId', '==', userId),
+    where('status', 'in', approvedStatuses)
+  );
+  try {
+    const snapshot = await getDocs(qByUserId);
+    return snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as Entry))
+      .filter(e => e.archived !== true);
+  } catch (error) {
+    console.error(`[getApprovedSubmissionsForUser] Error querying approved submissions for user ${userId}:`, error);
+    return [];
+  }
+}
+

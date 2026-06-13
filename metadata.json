@@ -1,8 +1,9 @@
 {
-  "name": "Field Trip: High-Voltage",
-  "description": "An official civic adventure bureau in its High-Voltage Light Edition. Transform standard outings into high-fidelity field reports through a structured system of dispatches, evidence securement, and high-contrast clinical exploration.",
+  "name": "The Bureau: Field Trip",
+  "description": "A high-stakes photographic persistence game for mobile and desktop. Document reality, earn clearance, and rise through the ranks of the Bureau.",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "geolocation"
   ],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

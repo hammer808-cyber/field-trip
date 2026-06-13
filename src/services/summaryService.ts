@@ -45,7 +45,7 @@ export async function recalculateWeeklySummary(seasonId: string, weekNumber: num
     const events = eventsSnap.docs.map(d => ({ id: d.id, ...d.data() } as ScoreEvent));
 
     // 4. Aggregate data
-    const playerStats: Record<string, { points: number; entriesCount: number; userName: string; crewId?: string; fieldTypeName: string }> = {};
+    const playerStats: Record<string, { xp: number; points: number; entriesCount: number; userName: string; crewId?: string; fieldTypeName: string }> = {};
     const crewBaseStats: Record<string, { 
       crewName: string;
       playerScores: number[];
@@ -88,6 +88,7 @@ export async function recalculateWeeklySummary(seasonId: string, weekNumber: num
         const userDoc = usersSnap.docs.find(d => d.id === ev.userId);
         const userData = userDoc?.data();
         playerStats[ev.userId] = { 
+          xp: 0,
           points: 0, 
           entriesCount: 0, 
           userName: ev.userName, 
@@ -95,6 +96,7 @@ export async function recalculateWeeklySummary(seasonId: string, weekNumber: num
           fieldTypeName: userData?.fieldTypeName || userData?.fieldType || 'FIELD AGENT'
         };
       }
+      playerStats[ev.userId].xp += ev.points;
       playerStats[ev.userId].points += ev.points;
       if (ev.type === 'trip_approved') {
         playerStats[ev.userId].entriesCount += 1;
@@ -153,13 +155,18 @@ export async function recalculateWeeklySummary(seasonId: string, weekNumber: num
     const summaryId = `${seasonId}_${weekNumber}`;
     const summaryRef = doc(db, 'weeklySummaries', summaryId);
     
-    const summary: WeeklySummary = {
+    const existingSnap = await getDoc(summaryRef);
+    const existing = existingSnap.exists() ? existingSnap.data() : null;
+    
+    const summary: any = {
       id: summaryId,
       seasonId,
       weekNumber,
       playerStats, // Note: if very large, this should move to subcollection
       crewStats,
-      lastCalculatedAt: serverTimestamp()
+      lastCalculatedAt: serverTimestamp(),
+      isLocked: existing?.isLocked ?? false,
+      voteWinners: existing?.voteWinners ?? null
     };
     
     batch.set(summaryRef, summary);

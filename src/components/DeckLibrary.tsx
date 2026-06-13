@@ -9,8 +9,10 @@ import {
   MapPin, Camera, AlertTriangle, ShieldCheck, 
   X, ChevronRight, Bookmark
 } from 'lucide-react';
+import { StickerDecal, StickerCorner } from './StickerDecals';
 import { cn } from '../lib/utils';
-import { Card, Sticker } from './UI';
+import { Card } from './UI';
+import { getMissionImage } from '../utils/missionImages';
 
 interface DeckLibraryProps {
   allChallenges: TripCard[];
@@ -20,7 +22,10 @@ export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
   const navigate = useNavigate();
   const { 
     profile, activeTrip, currentWeekNumber, 
-    activeSeason, isWeekLocked, completedChallengeIds, drawTrip 
+    activeSeason, isWeekLocked, completedChallengeIds, drawTrip,
+    isHeatwaveDeckUnlocked: isSummerDeckUnlocked,
+    isSocalSummerUnlocked,
+    isAdmin
   } = useApp();
   const { fc } = useTheme();
   const [selectedChallenge, setSelectedChallenge] = useState<TripCard | null>(null);
@@ -35,7 +40,16 @@ export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
       
       // Determine if locked
       let isLocked = false;
-      if (activeSeason) {
+
+      // 1. Deck Gating
+      if (challenge.deckId === 'heatwave-receipts' && !isSummerDeckUnlocked && !isAdmin) {
+        isLocked = true;
+      } else if (challenge.deckId === 'socal-summer' && !isSocalSummerUnlocked && !isAdmin) {
+        isLocked = true;
+      }
+
+      // 2. Weekly Gating (only if not already locked by deck)
+      if (activeSeason && !isLocked) {
         // If it follows the seasonal ID pattern, check if that week is locked
         const match = challenge.id.match(/^(field|evidence|crew)-(\d+)$/);
         if (match) {
@@ -57,7 +71,7 @@ export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
 
       return { ...challenge, uiStatus };
     });
-  }, [allChallenges, activeTrip, profile?.tripProgress, completedChallengeIds, isWeekLocked, activeSeason]);
+  }, [allChallenges, activeTrip, profile?.tripProgress, completedChallengeIds, isWeekLocked, activeSeason, isSummerDeckUnlocked, isSocalSummerUnlocked, isAdmin]);
 
   const filteredChallenges = useMemo(() => {
     if (filter === 'all') return challengesWithStatus;
@@ -71,8 +85,8 @@ export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
     <div className="space-y-12">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-4">
         <div className="space-y-2">
-          <h3 className="font-display text-4xl uppercase tracking-tighter italic font-black">Mission Archive_</h3>
-          <p className="micro-label opacity-40 font-bold tracking-widest uppercase italic">Operational Inventory // All Sectors</p>
+          <h3 className="font-display text-3xl sm:text-4xl uppercase tracking-tighter italic font-black">Mission Archive_</h3>
+          <p className="micro-label opacity-40 font-bold tracking-widest uppercase italic text-brand-orange">Beta: Submissions may require admin review before XP updates</p>
         </div>
         
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
@@ -130,6 +144,8 @@ export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
               if (selectedChallenge) {
                 drawTrip(selectedChallenge.id).then(() => {
                   navigate('/capture?id=' + selectedChallenge.id);
+                }).catch(err => {
+                  console.error("[DeckLibrary] Failed to start trip:", err);
                 });
                 setSelectedChallenge(null);
               }
@@ -159,26 +175,41 @@ function MissionCardItem({ challenge, onClick, idx }: { challenge: TripCard & { 
       whileHover={{ y: -8, rotate: idx % 2 === 0 ? 1 : -1 }}
       onClick={onClick}
       className={cn(
-        "group relative cursor-pointer border-4 transition-all overflow-hidden w-[320px] shrink-0 bg-white",
+        "group relative cursor-pointer border-4 transition-all overflow-hidden w-[280px] sm:w-[320px] shrink-0 bg-white",
         isLocked ? "grayscale opacity-60 border-on-surface/20" : "border-on-surface shadow-[8px_8px_0px_black] hover:shadow-[16px_16px_0px_var(--color-brand-orange)]",
         isCompleted && "bg-brand-lime/5 border-on-surface",
         isCued && "border-brand-orange",
         isInProgress && "border-brand-cyan"
       )}
     >
-      <div className="aspect-[4/5] overflow-hidden relative bg-on-surface/5">
+      <div className="aspect-[3/4] sm:aspect-[4/5] overflow-hidden relative bg-on-surface/5">
         <img 
-          src={challenge.image} 
+          src={getMissionImage(challenge.id, challenge.category || challenge.type, challenge.image)} 
           alt={challenge.title} 
           className={cn(
             "w-full h-full object-cover transition-transform duration-700 group-hover:scale-110",
             isLocked && "blur-[2px]"
           )}
           onError={(e) => {
-            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&q=80&w=800';
+            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1541339907198-e08756ebafe3?auto=format&fit=crop&q=80&w=800';
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+        {/* Dark Gradient Overlay for Readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+        
+        {/* Paper Texture Overlay */}
+        <div className="absolute inset-0 opacity-10 pointer-events-none mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')]" />
+
+        {/* Dynamic decorative mission reward sticker decal */}
+        {challenge.rewards?.stickers && challenge.rewards.stickers.length > 0 && (
+          <StickerDecal
+            id={challenge.rewards.stickers[0]}
+            className="left-4 top-4 w-10 h-10 pointer-events-none"
+            scale={0.8}
+            rotation={-6}
+            zIndex="z-20"
+          />
+        )}
         
         {/* Status Badges */}
         <div className="absolute top-4 right-4 flex flex-col gap-2 items-end">
@@ -273,12 +304,17 @@ function ChallengePreviewModal({ challenge, uiStatus, onClose, onStart }: { chal
         </button>
  
         {/* Header / Image Section */}
-        <div className="w-full aspect-video sm:aspect-[16/9] relative bg-on-surface shrink-0">
+        <div className="w-full aspect-[4/3] sm:aspect-[16/9] relative bg-on-surface shrink-0 border-b-4 border-on-surface overflow-hidden">
           <img 
-            src={challenge.image} 
+            src={getMissionImage(challenge.id, challenge.category || challenge.type, challenge.image)} 
             alt={challenge.title} 
             className={cn("w-full h-full object-cover", isLocked && "grayscale opacity-60")}
           />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+          
+          {/* Paper Texture Overlay */}
+          <div className="absolute inset-0 opacity-10 pointer-events-none mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')]" />
+
           {isLocked && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-black/40 backdrop-blur-[2px]">
               <Lock className="w-12 h-12 mb-2 opacity-40" />

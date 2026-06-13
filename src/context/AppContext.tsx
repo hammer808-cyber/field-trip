@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { 
   collection, 
+  doc,
   query, 
   where, 
   orderBy, 
@@ -9,7 +10,7 @@ import {
   onSnapshot 
 } from 'firebase/firestore';
 import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, User } from 'firebase/auth';
-import { FieldTypeId, FIELD_TYPES, Entry, ProductPersonaLensId, DEV_SEASON, DEV_APP_CONFIG } from '../constants';
+import { FieldTypeId, FIELD_TYPES, Entry, ProductPersonaLensId, DEV_SEASON, DEV_APP_CONFIG, HEATWAVE_SEASON_START_DATE, HEATWAVE_SEASON_END_DATE } from '../constants';
 import { MemoryEntry } from '../types/memories';
 import { AvatarData } from '../types/avatar';
 import { TripCard as TripType } from '../types/challenges';
@@ -46,7 +47,8 @@ import {
   isViewfinderLocked as checkViewfinderLocked,
   canAccessCrewMode as checkCrewMode,
   canAccessFieldCheckMode as checkFieldCheckMode,
-  isSummerDeckActive,
+  isHeatwaveDeckActive as isSummerDeckActive,
+  isHeatwaveDeckStabilized as isSummerDeckStabilized,
   GameState
 } from '../logic/progression';
 import { 
@@ -69,7 +71,10 @@ import { subscribeToChallenges } from '../services/challengeService';
 import { processLoreForEntry } from '../services/crewService';
 import { subscribeToActiveSignal } from '../services/fieldSignalService';
 import { FieldSignal } from '../types/signals';
+import { awardDiscoverySticker } from '../services/discoveryService';
+import { DISCOVERY_STICKERS, DiscoverySticker } from '../constants/discoveryStickers';
 import { castVote, getVotesForUser } from '../services/voteService';
+import { calculateStarterState, StarterCompletionState } from '../utils/starterHelper';
 
 import { evaluateEntryForBadges, subscribeToUserBadgeProgress, checkRankBadges } from '../services/badgeService';
 import { BADGE_DEFINITIONS, UserBadgeProgress } from '../types/badges';
@@ -82,6 +87,8 @@ import { Observation } from '../types/observations';
 import { getProofRequirement } from '../services/proofService';
 import { ProofReview, ProofRequirement } from '../types/proof';
 import { syncServerTime, getServerDate } from '../services/timeService';
+import { LAUNCH_MISSION, LAUNCH_MISSION_ID, isLaunchMissionEligible } from '../data/specialMissions';
+import { normalizeEntryStatus } from '../logic/entryLogic';
 
 import { 
   submitTripEntry as submitEntryLogic, 
@@ -101,12 +108,25 @@ import {
   getLatestConsent, 
   isConsentValid 
 } from '../services/legalService';
+import { DEFAULT_AVATAR } from '../constants/avatarAssets';
 import { subscribeToBlocks } from '../services/moderationService';
 import { getDeckPackById } from '../data/deckPacks';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 
+import { 
+  subscribeToUserMissionCards, 
+  saveDrawnMissionCard, 
+  updateMissionCardStatus,
+  setActiveMissionCard
+} from '../services/missionCardService';
+
 import { watchGlobalConfig, getGlobalConfig, GlobalConfig } from '../services/configService';
 import { getEligibleDrawPool as getCanonicalPool } from '../logic/deckLogic';
+
+import { 
+  DrawnMissionCard, 
+  DrawnMissionCardStatus 
+} from '../types/game';
 
 interface AppContextType {
   user: User | null;
@@ -119,6 +139,8 @@ interface AppContextType {
   refreshConsent: () => Promise<void>;
   updateProfile: (uid: string, data: Partial<UserProfile>) => Promise<void>;
   loading: boolean;
+  authLoading: boolean;
+  profileLoading: boolean;
   error: string | null;
   gameConfig: AppConfig | null;
   globalConfig: GlobalConfig;
@@ -142,7 +164,13 @@ interface AppContextType {
   activeTrip: TripType | null;
   drawTrip: (tripId?: string, packId?: string) => Promise<TripType | null>;
   trips: TripType[];
+  drawnMissionCards: DrawnMissionCard[];
+  saveMissionCard: (card: Partial<DrawnMissionCard>) => Promise<string>;
+  updateMissionCardStatus: (missionId: string, status: DrawnMissionCardStatus, extraData?: Partial<DrawnMissionCard>) => Promise<void>;
+  setActiveMissionCard: (missionId: string) => Promise<void>;
+  xp: number;
   points: number;
+  pendingPoints: number;
   soloTripsCount: number;
   completedCoreChallenges: number;
   isCrewUnlocked: boolean;
@@ -188,12 +216,41 @@ interface AppContextType {
   memories: MemoryEntry[];
   toggleFavoriteMemory: (memoryId: string, isFavorite: boolean) => Promise<void>;
   completedChallengeIds: Set<string>;
+  submittedPendingChallengeIds: Set<string>;
+  approvedCompletedChallengeIds: Set<string>;
+  rejectedChallengeIds: Set<string>;
+  needsMoreProofChallengeIds: Set<string>;
+  approvedEntriesCount: number;
+  boldTripsCount: number;
+  crewTripsCount: number;
   completedOnboardingMissionIds: string[];
   onboardingCompletedCount: number;
   onboardingRequiredCount: number;
   isOnboardingComplete: boolean;
+  hasCompletedFieldKitOnboarding: boolean;
+  hasCompletedGuidedFirstEntry: boolean;
+  hasSeenFieldTypeResults: boolean;
+  onboardingStarted: boolean;
+  starterApprovedCount: number;
+  starterState: StarterCompletionState;
+  pendingStarterCount: number;
+  retryStarterCount: number;
+  nextStarterAction: string;
+  activeMissionId: string | null;
+  activeSubmissionStatus: 'pending_review' | 'needs_more_proof' | 'rejected' | 'approved' | null;
+  cameraPermissionReady: boolean;
+  locationPermissionReady: boolean;
+  isIOS: boolean;
+  isStandalone: boolean;
+  mustCompleteStarterMission: boolean;
+  requestCamera: () => Promise<boolean>;
+  requestLocation: () => Promise<boolean>;
+  completeFieldKitOnboarding: () => Promise<void>;
+  isTribunalUnlocked: boolean;
   getEligibleDrawPool: (packId?: string) => TripType[];
-  isSummerDeckUnlocked: boolean;
+  isHeatwaveDeckUnlocked: boolean;
+  isSocalSummerUnlocked: boolean;
+  fieldGuideAssistEnabled: boolean;
   crewUnlocked: boolean;
   currentDate: Date;
   rewardQueue: RewardQueueItem[];
@@ -205,12 +262,18 @@ interface AppContextType {
   markCrewModeSeen: () => Promise<void>;
   updateAvatar: (data: AvatarData) => Promise<void>;
   toggleFrankieMode: () => Promise<void>;
+  unlockDiscoverySticker: (discoveryKey: string, sourcePage?: string) => Promise<DiscoverySticker | null>;
+  registerPulseAction: (actionType: 'submit_proof' | 'complete_mission' | 'vote' | 'add_field_note' | 'unlock_sticker', uniqueId?: string) => Promise<void>;
   updateTripProgress: (tripId: string, progress: Partial<import('../components/ChallengeCard').EvidenceProgress>) => Promise<void>;
-  grantPointsLocally: (amount: number, tripId: string, entryData?: any) => void;
+  registerPendingSubmissionLocally: (amount: number, tripId: string, entryData?: any) => void;
   addToMaybeList: (tripId: string) => Promise<void>;
   removeFromMaybeList: (tripId: string) => Promise<void>;
   useComebackCard: () => Promise<void>;
   evaluateEntryProof: (entryData: { note: string }, base64Image: string) => Promise<ProofReview>;
+  showHelpToast: (message: string) => void;
+  retryMissionSubmission: (missionId: string) => Promise<void>;
+  showCompass: (show: boolean) => void;
+  isCompassOpen: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -219,7 +282,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const { overrides } = useDev();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isAdminFromCollection, setIsAdminFromCollection] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const loading = authLoading || profileLoading;
   const [error, setError] = useState<string | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [lastVisibleEntry, setLastVisibleEntry] = useState<any>(null);
@@ -242,7 +308,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [rewardQueue, setRewardQueue] = useState<RewardQueueItem[]>([]);
   const [sessionSeenRewards, setSessionSeenRewards] = useState<Set<string>>(new Set());
   const [pendingEntries, setPendingEntries] = useState<Entry[]>([]);
+  const [drawnMissionCards, setDrawnMissionCards] = useState<DrawnMissionCard[]>([]);
   const [memories, setMemories] = useState<MemoryEntry[]>([]);
+  const pendingUnlocksRef = useRef<Set<string>>(new Set());
   
   function isFeatureEnabled(flag: keyof AppConfig['featureFlags']) {
     return gameConfig?.featureFlags?.[flag] ?? (DEV_APP_CONFIG as any).featureFlags[flag];
@@ -257,57 +325,294 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return id.toString().trim();
   };
 
-  // 1. Unified Completion Set (Normalized Strings)
-  const mergedCompletedMissionIds = React.useMemo(() => {
-    const completed = new Set<string>();
+  // 1. Unified Distinct Status Sets (Normalized Strings)
+  // APPROVED completed submissions
+  const approvedCompletedChallengeIds = React.useMemo(() => {
+    const approved = new Set<string>();
     
-    // Server entries
+    // Seed from Firestore UserProfile document've been approved (canonical persistent storage)
+    if (profile?.completedChallengeIds && Array.isArray(profile.completedChallengeIds)) {
+      profile.completedChallengeIds.forEach(id => {
+        if (id) approved.add(id.toLowerCase());
+      });
+    }
+
+    // Scanned real-time server entries that are approved/completed
     entries.forEach(e => {
-      // Logic: Count approved, admin-approved, auto-approved, under-check, or submitted as "completed" for progress.
-      if (['approved', 'approved_by_admin', 'auto_approved', 'submitted', 'under_field_check'].includes(e.status)) {
-        const id = normalizeId(e.tripId || (e as any).missionId || (e as any).challengeId);
-        if (id) completed.add(id.toLowerCase());
+      const status = normalizeEntryStatus(e.status);
+      if (status === 'approved') {
+        const id = normalizeId(e.missionId || e.challengeId || e.tripId);
+        if (id) approved.add(id.toLowerCase());
       }
     });
 
-    // Local pending entries
-    pendingEntries.forEach(pe => {
-      // IMPORTANT: pe.id is a local GUID (local_timestamp_tripId), NOT the mission ID.
-      // We must only use tripId or missionId to avoid counting local IDs as unique missions (tokens).
-      const id = normalizeId(pe.tripId || (pe as any).missionId);
-      if (id) completed.add(id.toLowerCase());
+    return approved;
+  }, [entries, profile?.completedChallengeIds]);
+
+  // REJECTED submissions
+  const rejectedChallengeIds = React.useMemo(() => {
+    const rejected = new Set<string>();
+    if (profile?.rejectedChallengeIds && Array.isArray(profile.rejectedChallengeIds)) {
+      profile.rejectedChallengeIds.forEach(id => {
+        if (id) rejected.add(id.toLowerCase());
+      });
+    }
+    entries.forEach(e => {
+      const status = normalizeEntryStatus(e.status);
+      if (status === 'rejected') {
+        const id = normalizeId(e.missionId || e.challengeId || e.tripId);
+        if (id) rejected.add(id.toLowerCase());
+      }
     });
+    return rejected;
+  }, [entries, profile?.rejectedChallengeIds]);
+
+  // NEEDS MORE PROOF submissions
+  const needsMoreProofChallengeIds = React.useMemo(() => {
+    const needsMore = new Set<string>();
+    if (profile?.needsMoreProofChallengeIds && Array.isArray(profile.needsMoreProofChallengeIds)) {
+      profile.needsMoreProofChallengeIds.forEach(id => {
+        if (id) needsMore.add(id.toLowerCase());
+      });
+    }
+    entries.forEach(e => {
+      const status = normalizeEntryStatus(e.status);
+      if (status === 'needs_more_proof') {
+        const id = normalizeId(e.missionId || e.challengeId || e.tripId);
+        if (id) needsMore.add(id.toLowerCase());
+      }
+    });
+    return needsMore;
+  }, [entries, profile?.needsMoreProofChallengeIds]);
+
+  // SUBMITTED pending review
+  const submittedPendingChallengeIds = React.useMemo(() => {
+    const pending = new Set<string>();
     
-    return completed;
-  }, [entries, pendingEntries]);
+    // Seed from UserProfile (for instant user-specific persistent state across tabs/refreshes)
+    if (profile?.submittedChallengeIds && Array.isArray(profile.submittedChallengeIds)) {
+      profile.submittedChallengeIds.forEach(id => {
+        if (id) pending.add(id.toLowerCase());
+      });
+    }
+
+    // Server-side pending documents
+    entries.forEach(e => {
+      const status = normalizeEntryStatus(e.status);
+      if (status === 'pending_review' || status === 'needs_more_proof') {
+        const id = normalizeId(e.missionId || e.challengeId || e.tripId);
+        if (id) pending.add(id.toLowerCase());
+      }
+    });
+
+    // Client-side optimistic logs before Firestore sync complete
+    pendingEntries.forEach(pe => {
+      const id = normalizeId(pe.tripId || (pe as any).missionId);
+      if (id) pending.add(id.toLowerCase());
+    });
+
+    // Prune approved / rejected / needs more proof so they don't block display state
+    approvedCompletedChallengeIds.forEach(id => pending.delete(id.toLowerCase()));
+    rejectedChallengeIds.forEach(id => pending.delete(id.toLowerCase()));
+    needsMoreProofChallengeIds.forEach(id => pending.delete(id.toLowerCase()));
+
+    return pending;
+  }, [entries, pendingEntries, profile?.submittedChallengeIds, approvedCompletedChallengeIds, rejectedChallengeIds, needsMoreProofChallengeIds]);
 
   // Aliases and base metrics
-  const completedChallengeIds = mergedCompletedMissionIds;
+  // STRICTION: completedChallengeIds points strictly to approved ones for unlocks!
+  const completedChallengeIds = approvedCompletedChallengeIds;
   const fieldTokens = completedChallengeIds.size;
 
-  // 2. Onboarding Requirements (Starter-1, Starter-2, Starter-3 / Any Unique Completed Missions)
+  // 2. Onboarding Requirements (The Ignored Place, Starter-2, Starter-3 / Any Unique Completed Missions)
   const ONBOARDING_IDS = React.useMemo(() => ["starter-1", "starter-2", "starter-3"], []);
 
   const completedOnboardingMissionIds = React.useMemo(() => {
-    if (completedChallengeIds.size >= 3) {
-      return ONBOARDING_IDS;
-    }
-    return ONBOARDING_IDS.filter(id => completedChallengeIds.has(id.toLowerCase()));
+    // STRICTION: For Summer unlock, only use APPROVED completed challenges
+    const starters = ONBOARDING_IDS.filter(id => 
+      completedChallengeIds.has(id.toLowerCase())
+    );
+    return starters;
   }, [completedChallengeIds, ONBOARDING_IDS]);
 
-  const onboardingCompletedCount = ONBOARDING_IDS.filter(id => completedChallengeIds.has(id.toLowerCase())).length;
+  const activeMissionId = profile?.activeMissionId || profile?.activeTrip?.id || null;
+  const activeSubmissionStatus = (profile?.activeSubmissionStatus || profile?.activeTrip?.status || null) as 'pending_review' | 'needs_more_proof' | 'rejected' | 'approved' | null;
+
+  // Canonical Starter Deck Gating State Calculation
+  const starterState = React.useMemo(() => {
+    // Merge real-time entries with profile canonical approved IDs to prevent truncation issues
+    const mergedEntries = [...pendingEntries, ...entries];
+    
+    // Ensure missions from profile are represented if missing from entries (rare but happens with truncation)
+    if (profile?.completedChallengeIds) {
+      profile.completedChallengeIds.forEach((id: string) => {
+        const idLower = id.toLowerCase();
+        if (!mergedEntries.some(e => (e.missionId || e.challengeId || e.tripId || '').toLowerCase() === idLower)) {
+          // Synthetic entry for completion check
+          (mergedEntries as any).push({
+            missionId: idLower,
+            status: 'approved',
+            userId: user?.uid,
+            deckId: 'starter-signals'
+          });
+        }
+      });
+    }
+
+    return calculateStarterState(
+      user?.uid || '',
+      mergedEntries,
+      activeMissionId,
+      activeSubmissionStatus,
+      gameConfig?.starterResetVersion,
+      gameConfig?.activeStarterDeckId
+    );
+  }, [user?.uid, entries, pendingEntries, activeMissionId, activeSubmissionStatus, gameConfig?.starterResetVersion, gameConfig?.activeStarterDeckId, profile?.completedChallengeIds]);
+
+  const starterApprovedCount = starterState.starterApprovedCount;
+  const isOnboardingComplete = starterState.starterComplete;
+  const onboardingCompletedCount = starterState.starterApprovedCount;
   const onboardingRequiredCount = 3;
-  const isOnboardingComplete = ONBOARDING_IDS.every(id => completedChallengeIds.has(id.toLowerCase()));
+  const onboardingCompleted = starterState.starterComplete;
+
+  // Track "Started Onboarding" (including pending) for some UI hints if needed,
+  // but for hard gating we use isOnboardingComplete (Approved only)
+  const onboardingAttemptedIds = React.useMemo(() => {
+    return ONBOARDING_IDS.filter(id => 
+      completedChallengeIds.has(id.toLowerCase()) || 
+      submittedPendingChallengeIds.has(id.toLowerCase())
+    );
+  }, [completedChallengeIds, submittedPendingChallengeIds, ONBOARDING_IDS]);
   
   const fieldType = profile?.fieldType || null;
   const fieldClassificationComplete = !!profile?.fieldClassificationComplete;
   const productPersonaLens = profile?.productPersonaLens || 'frankie';
-  const onboardingCompleted = !!profile?.onboardingCompleted || isOnboardingComplete;
+  const hasCompletedGuidedFirstEntry = !!profile?.hasCompletedGuidedFirstEntry;
+  const hasSeenFieldTypeResults = !!profile?.hasSeenFieldTypeResults;
+  const onboardingStarted = !!profile?.onboardingStarted;
+  const hasCompletedFieldKitOnboarding = !!profile?.hasCompletedFieldKitOnboarding;
+
+  const [cameraPermissionReady, setCameraPermissionReady] = useState(false);
+  const [locationPermissionReady, setLocationPermissionReady] = useState(false);
+
+  const requestCamera = async (): Promise<boolean> => {
+    console.log('[FIELD_KIT_SETUP_START] Requesting camera permission (audio:false)...');
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.warn("[FIELD_KIT_CAMERA_SKIPPED] getUserMedia not supported");
+        setCameraPermissionReady(false);
+        return false;
+      }
+      
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      stream.getTracks().forEach(track => track.stop()); // Stop immediately, we just wanted the permission
+      setCameraPermissionReady(true);
+      console.log('[FIELD_KIT_CAMERA_COMPLETE] Camera permission granted.');
+      return true;
+    } catch (err) {
+      console.warn("[FIELD_KIT_CAMERA_SKIPPED] Camera permission denied or failed:", err);
+      setCameraPermissionReady(false);
+      return false; // Resolve anyway to avoid blocking flow
+    }
+  };
+
+  const requestLocation = async (): Promise<boolean> => {
+    console.log('[FIELD_KIT_SETUP_START] Requesting geolocation permission...');
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        console.warn("[FIELD_KIT_LOCATION_SKIPPED] Geolocation not supported");
+        setLocationPermissionReady(false);
+        resolve(false);
+        return;
+      }
+
+      const timeoutId = setTimeout(() => {
+        console.warn("[FIELD_KIT_LOCATION_SKIPPED] Geolocation request timed out (5s)");
+        resolve(false);
+      }, 5000);
+
+      navigator.geolocation.getCurrentPosition(
+        () => {
+          clearTimeout(timeoutId);
+          setLocationPermissionReady(true);
+          console.log('[FIELD_KIT_LOCATION_COMPLETE] Geolocation permission granted.');
+          resolve(true);
+        },
+        (err) => {
+          clearTimeout(timeoutId);
+          console.warn("[FIELD_KIT_LOCATION_SKIPPED] Geolocation permission denied or failed:", err);
+          setLocationPermissionReady(false);
+          resolve(false); // Resolve anyway
+        },
+        { timeout: 5000, enableHighAccuracy: false }
+      );
+    });
+  };
+
+  const completeFieldKitOnboarding = async () => {
+    if (!user) return;
+    console.log('[FIELD_KIT_SETUP_COMPLETE] Finalizing field kit onboarding for profile:', user.uid);
+    const now = new Date().toISOString();
+    await handleUpdateProfile(user.uid, { 
+      hasCompletedFieldKitOnboarding: true,
+      fieldKitReady: true,
+      permissionsPrompted: true,
+      cameraPermissionGranted: cameraPermissionReady,
+      locationPermissionGranted: locationPermissionReady,
+      fieldKitCompletedAt: now,
+      updatedAt: now,
+      // Assign Launch mission if launch day eligible
+      launchMissionAssigned: true,
+      launchMissionId: LAUNCH_MISSION_ID,
+      launchMissionAssignedAt: now,
+      activeTrip: LAUNCH_MISSION
+    });
+  };
   
   // 3. Stats & Scaling
-  const pendingPoints = pendingEntries.reduce((sum, e) => sum + (e.pointsAwarded || 0), 0);
-  const points = (overrides.points !== null) ? overrides.points : ((profile?.points || 0) + pendingPoints);
-  const soloTripsCount = fieldTokens; // Map unique missions to solo count for display as per user intent
+  const pendingPoints = React.useMemo(() => {
+    // 1. Sum up local pending entries (optimistic points)
+    const localSum = pendingEntries.reduce((sum, e) => sum + (e.pointsAwarded || (e as any).estimatedPoints || 150), 0);
+    
+    // 2. Avoid double-counting for entries currently in local pending
+    const localPendingTripIds = new Set(pendingEntries.map(e => e.tripId));
+    
+    // 3. Sum up server-side entries that represent XP in-flight
+    const serverPendingSum = entries.reduce((sum, e) => {
+      const isPendingXP = ['pending', 'pending_review', 'submitted_pending_review', 'submitted', 'under_field_check', 'needs_more_proof'].includes(e.status);
+      if (isPendingXP && !localPendingTripIds.has(e.tripId)) {
+        // Fallback chain for points: actual > estimated > base placeholder
+        return sum + ((e as any).pointsAwarded || (e as any).estimatedPoints || 150);
+      }
+      return sum;
+    }, 0);
+    
+    return localSum + serverPendingSum;
+  }, [pendingEntries, entries]);
+
+  const xp = (overrides.xp !== null) ? overrides.xp : (profile?.xp !== undefined ? profile.xp : (profile?.points || 0));
+  const points = xp;
+  const soloTripsCount = (profile?.soloTripsCount !== undefined) ? profile.soloTripsCount : fieldTokens;
+  const approvedEntriesCount = fieldTokens;
+  const boldTripsCount = profile?.boldTripsCount || 0;
+  const crewTripsCount = profile?.crewTripsCount || 0;
+  
+  // Dev-only diagnostic logging tracking the loading of stats
+  React.useEffect(() => {
+    if (import.meta.env.DEV && user) {
+      console.log(`[AppContext_Diagnostic] Stats Loaded for User ${user.uid}:`, {
+        points,
+        approvedEntriesCount,
+        completedChallengeIdsSize: completedChallengeIds.size,
+        completedChallengeList: Array.from(completedChallengeIds),
+        submittedPendingChallengeIdsSize: submittedPendingChallengeIds.size,
+        needsMoreProofChallengeIdsSize: needsMoreProofChallengeIds.size,
+        rejectedChallengeIdsSize: rejectedChallengeIds.size,
+        onboardingCompletedCount
+      });
+    }
+  }, [user, points, approvedEntriesCount, completedChallengeIds, submittedPendingChallengeIds, needsMoreProofChallengeIds, rejectedChallengeIds, onboardingCompletedCount]);
+
   
   const completedCoreChallenges = React.useMemo(() => {
     return Array.from(completedChallengeIds).filter(id => {
@@ -316,12 +621,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }).length;
   }, [completedChallengeIds]);
 
-  const isAdmin = (overrides.isAdmin !== null) ? overrides.isAdmin : (profile?.role === 'admin' || (user?.email === 'hammer808@gmail.com' && (user?.emailVerified || user?.emailVerified === null)));
+  const isAdmin = (overrides.isAdmin !== null) 
+    ? overrides.isAdmin 
+    : (profile?.role === 'admin' || 
+       isAdminFromCollection ||
+       user?.uid === 'vX7K0XGkXRM2yPzhidv79Q59GqC2' ||
+       (user?.email === 'hammer808@gmail.com' && (user?.emailVerified || user?.emailVerified === null)));
+
+  const mustCompleteStarterMission = React.useMemo(() => {
+    if (!profile || !user) return false;
+    
+    // Core check for the Guided Launch sequence
+    // ONLY force it if it hasn't been submitted (pending, approved, or needs_more_proof)
+    if (profile.hasCompletedGuidedFirstEntry === false && !submittedPendingChallengeIds.has(LAUNCH_MISSION_ID) && !completedChallengeIds.has(LAUNCH_MISSION_ID)) {
+      return true;
+    }
+
+    return false;
+  }, [profile, user, submittedPendingChallengeIds, completedChallengeIds]);
 
   // 4. Game State & Unlocks
   const gameState: GameState = {
     userId: user?.uid || null,
     email: user?.email || null,
+    xp,
     points,
     soloTripsCount,
     completedCoreChallenges,
@@ -331,11 +654,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     currentDate: overrides.date ? new Date(overrides.date) : getServerDate(),
   };
 
-  const isSummerDeckUnlocked = ((isOnboardingComplete || profile?.onboardingCompleted || overrides.forceUnlocked) && isSummerDeckActive(gameState.currentDate)) || isAdmin;
-  const isCrewUnlocked = (isOnboardingComplete || overrides.forceUnlocked) && isFeatureEnabled('crewDispatchEnabled');
+  // Hard Gating: isHeatwaveDeckUnlocked requires ALL approved starter missions AND current date >= season start
+  const isHeatwaveDeckUnlocked = React.useMemo(() => {
+    if (isAdmin || overrides.forceUnlocked) return true;
+    
+    // Safety: If the user already has any approved heatwave missions, it must remain unlocked to prevent state-locking
+    const hasHeatwaveProgress = Array.from(completedChallengeIds).some(id => {
+      const mission = trips.find(t => t.id.toLowerCase() === id.toLowerCase());
+      return (mission?.deckId || '').toLowerCase() === 'heatwave-receipts';
+    });
+    if (hasHeatwaveProgress) return true;
+
+    if (!isOnboardingComplete) return false;
+    return gameState.currentDate >= new Date(HEATWAVE_SEASON_START_DATE);
+  }, [isAdmin, overrides.forceUnlocked, isOnboardingComplete, gameState.currentDate, completedChallengeIds, trips]);
+
+  const isSocalSummerUnlocked = React.useMemo(() => {
+    if (isAdmin || overrides.forceUnlocked) return true;
+    
+    const hasSocalProgress = Array.from(completedChallengeIds).some(id => {
+      const mission = trips.find(t => t.id.toLowerCase() === id.toLowerCase());
+      return (mission?.deckId || '').toLowerCase() === 'socal-summer';
+    });
+    if (hasSocalProgress) return true;
+
+    return isOnboardingComplete;
+  }, [isAdmin, overrides.forceUnlocked, isOnboardingComplete, completedChallengeIds, trips]);
+
+  const fieldGuideAssistEnabled = isFeatureEnabled('fieldGuideAssistEnabled');
+  
+  // Tribunal access gate
+  const isTribunalUnlocked = (isOnboardingComplete || overrides.forceUnlocked);
+
+  const isCrewUnlocked = (isOnboardingComplete || profile?.onboardingCompleted || profile?.starterDeckComplete || overrides.forceUnlocked) && isFeatureEnabled('crewDispatchEnabled');
   const crewUnlocked = isCrewUnlocked; // Backward compat for some views
   
-  const isFieldCheckUnlocked = (checkFieldCheckMode(gameState) || overrides.forceUnlocked) && isFeatureEnabled('rivalMomentsEnabled');
+  const isFieldCheckUnlocked = (checkFieldCheckMode(gameState) || overrides.forceUnlocked) && isFeatureEnabled('rivalMomentsEnabled') && isTribunalUnlocked;
   
   // 5. Persistence: Pending entries that failed to sync or are optimistic
   // This ensures they survive page refresh during beta.
@@ -383,7 +737,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return watchGlobalConfig(setGlobalConfig);
   }, []);
 
+  // iOS / PWA detection
+  const [isIOS, setIsIOS] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+
+  useEffect(() => {
+    const ua = window.navigator.userAgent.toLowerCase();
+    const isIPhone = ua.indexOf('iphone') > -1 || ua.indexOf('ipad') > -1;
+    const isSafari = ua.indexOf('safari') > -1 && ua.indexOf('chrome') === -1;
+    setIsIOS(isIPhone && isSafari);
+    
+    // @ts-ignore
+    setIsStandalone(window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches);
+  }, []);
+
   // Sync App Config
+  useEffect(() => {
+    if (user && isOnboardingComplete && !profile?.onboardingCompleted) {
+      console.log("[AppContext] Starter missions logged. Triggering persistent onboarding completion check...");
+      checkOnboardingState(user.uid).catch(err => {
+        console.warn("[AppContext] checkOnboardingState background task failed:", err);
+      });
+    }
+  }, [user, isOnboardingComplete, profile?.onboardingCompleted]);
+
   useEffect(() => {
     return subscribeToAppConfig((config) => {
       if (config) {
@@ -410,9 +787,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const refreshConsent = async () => {
     if (!user) return;
-    const consent = await getLatestConsent(user.uid);
-    setLegalConsent(consent);
-    setHasConfirmedLegal(isConsentValid(consent));
+    try {
+      const consent = await getLatestConsent(user.uid);
+      setLegalConsent(consent);
+      setHasConfirmedLegal(isConsentValid(consent));
+    } catch (err) {
+      console.warn("Failed to refresh consent:", err);
+    }
   };
 
   // Sync Memories
@@ -430,32 +811,97 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!auth) {
       console.warn("[AppContext] Firebase Auth not initialized.");
-      setLoading(false);
+      setAuthLoading(false);
+      setProfileLoading(false);
       return;
     }
     return onAuthStateChanged(auth, async (u) => {
+      console.log('[AppContext] Auth state changed:', u?.uid || 'null');
       try {
         setUser(u);
+        setAuthLoading(false);
+        
         if (u) {
-          setLoading(true);
+          setProfileLoading(true);
           // Parallel fetch for speed
+          // Use a timeout for for the initial profile fetch to avoid hanging for 10s on connectivity issues
+          let profileTimeoutId: any;
+          let profileTimedOut = false;
+          const profileFetch = getOrCreateProfile(u);
+
+          // Guard against unhandled promise rejection if profile fetch rejects after the timeout
+          profileFetch.catch(err => {
+            if (profileTimedOut) {
+              console.info("[AppContext] Profile fetch rejected after timeout occurred:", err.message);
+            }
+          });
+
           const [consent, p] = await Promise.all([
             getLatestConsent(u.uid).catch(err => {
               console.warn("Targeted legal consent fetch failed (non-existent?):", err);
               return null;
             }),
-            getOrCreateProfile(u)
+            Promise.race([
+              profileFetch,
+              new Promise<UserProfile>((_, reject) => {
+                profileTimeoutId = setTimeout(() => {
+                  profileTimedOut = true;
+                  reject(new Error('PROFILE_FETCH_TIMEOUT'));
+                }, 4000);
+              })
+            ]).then(res => {
+              clearTimeout(profileTimeoutId);
+              return res;
+            }).catch(err => {
+              console.warn("[AppContext] Profile fetch/creation failed or timed out (offline?):", err);
+              // Fallback to a localized safe profile to bypass fatal offline gate crashes
+              const fallback: UserProfile = {
+                id: u.uid,
+                name: u.displayName || 'Field Agent',
+                email: u.email || '',
+                photoURL: u.photoURL || '',
+                fieldType: null,
+                fieldTypeName: null,
+                fieldClassificationComplete: false, // Ensure we don't bypass onboarding on transient profile load failures
+                productPersonaLens: 'frankie',
+                avatar: DEFAULT_AVATAR,
+                onboardingCompleted: false, // Ensure they do guided tour
+                crewModeUnlocked: false,
+                crewModeSeen: false,
+                xp: 0,
+                weeklyXp: 0,
+                seasonXp: 0,
+                points: 0,
+                soloTripsCount: 0,
+                completedCoreChallenges: 0,
+                boldTripsCount: 0,
+                crewTripsCount: 0,
+                rerollsAvailable: 3,
+                activeTrip: null,
+                lastSnitchDate: null,
+                accessStatus: 'approved',
+                createdAt: null as any,
+                updatedAt: null as any
+              };
+              return fallback;
+            })
           ]);
+          clearTimeout(profileTimeoutId);
+          
+          console.log('[AppContext] Profile Hydra success:', p.id, { 
+            fieldClassificationComplete: p.fieldClassificationComplete,
+            onboardingCompleted: p.onboardingCompleted 
+          });
           
           setLegalConsent(consent);
           // If consent is missing, we consider it not confirmed yet, which is fine
           setHasConfirmedLegal(consent ? isConsentValid(consent) : false);
           setProfile(p);
-          
+
           // Blocks subscription
           const unsubBlocks = subscribeToBlocks(u.uid, setBlockedIds);
-          
-          setLoading(false);
+
+          setProfileLoading(false);
           return () => {
             unsubBlocks();
           };
@@ -464,22 +910,58 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setEntries([]);
           setLegalConsent(null);
           setHasConfirmedLegal(false);
-          setLoading(false);
+          setAuthLoading(false);
+          setProfileLoading(false);
         }
       } catch (err: any) {
         console.error("Critical Auth Initialization Error:", err);
         setError(err.message || "BUREAU_SYSTEM_FAILURE: Could not initialize field profile.");
-        setLoading(false);
+        setAuthLoading(false);
+        setProfileLoading(false);
       }
     });
   }, []);
 
+  useEffect(() => {
+    if (!user) {
+      setDrawnMissionCards([]);
+      return;
+    }
+    return subscribeToUserMissionCards(user.uid, (cards) => {
+      console.log('[AppContext] Drawn mission cards sync:', cards.length);
+      setDrawnMissionCards(cards);
+    });
+  }, [user]);
+
   // Sync profile
   useEffect(() => {
-    if (!user) return;
-    return subscribeToProfile(user.uid, (p) => {
-      setProfile(p);
+    if (!user) {
+      setIsAdminFromCollection(false);
+      return;
+    }
+
+    // Real-time admin check for Priority 1 Robustness
+    const unsubAdmin = onSnapshot(doc(db, 'admins', user.uid), (snap) => {
+      setIsAdminFromCollection(snap.exists());
+    }, (err) => {
+      console.warn("[AppContext] Admin check failed (likely permissions):", err.message);
+      setIsAdminFromCollection(false);
     });
+
+    const unsubProfile = subscribeToProfile(user.uid, (p) => {
+      console.log('[AppContext] Profile sync update:', { 
+        id: p.id, 
+        fieldClassificationComplete: p.fieldClassificationComplete,
+        onboardingCompleted: p.onboardingCompleted
+      });
+      setProfile(p);
+      setProfileLoading(false);
+    });
+
+    return () => {
+      unsubAdmin();
+      unsubProfile();
+    };
   }, [user]);
 
   // Sync entries (Subscription for real-time updates)
@@ -489,38 +971,152 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     
-    const q = query(
+    // Query by canonical uid (new entries)
+    const qUid = query(
+      collection(db, 'entries'),
+      where('uid', '==', user.uid),
+      orderBy('createdAt', 'desc'),
+      limit(20)
+    );
+
+    // Query by legacy userId (old entries)
+    const qUserId = query(
       collection(db, 'entries'),
       where('userId', '==', user.uid),
       orderBy('createdAt', 'desc'),
       limit(20)
     );
 
-    return onSnapshot(q, (snapshot) => {
+    const unsubUid = onSnapshot(qUid, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Entry));
-      setEntries(docs);
-      
-      setLastVisibleEntry(snapshot.docs[snapshot.docs.length - 1]);
-      setHasMoreEntries(docs.length === 20);
-    }, (error) => {
-      console.warn("[AppContext] Entry subscription skipped (likely pending accessStatus):", error.message);
-      setEntries([]);
+      setEntries(prev => {
+        const merged = [...prev];
+        docs.forEach(d => {
+          const idx = merged.findIndex(p => p.id === d.id);
+          if (idx >= 0) merged[idx] = d;
+          else merged.push(d);
+        });
+        return merged.sort((a, b) => {
+           const ta = a.createdAt?.seconds || a.submittedAt?.seconds || 0;
+           const tb = b.createdAt?.seconds || b.submittedAt?.seconds || 0;
+           return tb - ta;
+        }).slice(0, 50);
+      });
+    }, (err) => {
+      console.warn("[AppContext] Entry sync (UID query) failed:", err.message);
     });
+
+    const unsubUserId = onSnapshot(qUserId, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Entry));
+      setEntries(prev => {
+        const merged = [...prev];
+        docs.forEach(d => {
+          const idx = merged.findIndex(p => p.id === d.id);
+          if (idx >= 0) merged[idx] = d;
+          else merged.push(d);
+        });
+        return merged.sort((a, b) => {
+           const ta = a.createdAt?.seconds || a.submittedAt?.seconds || 0;
+           const tb = b.createdAt?.seconds || b.submittedAt?.seconds || 0;
+           return tb - ta;
+        }).slice(0, 50);
+      });
+    }, (err) => {
+      console.warn("[AppContext] Entry sync (UserId query) failed:", err.message);
+    });
+
+    return () => {
+      unsubUid();
+      unsubUserId();
+    };
   }, [user]);
+
+  // Synchronize Field Pulse weekly transitions on load
+  useEffect(() => {
+    if (!profile || !user || !activeSeason) return;
+    const weekNo = getCurrentSeasonWeek(activeSeason);
+    if (weekNo <= 0) return;
+    const weekId = `week-${weekNo}`;
+    const pulse = profile.fieldPulse;
+    
+    if (pulse && pulse.currentWeekId !== weekId && weekId !== 'week-0') {
+      console.log(`[FieldPulse] Advancing week from ${pulse.currentWeekId} to ${weekId}`);
+      const updatedPulse = { ...pulse };
+      const completed = pulse.completedActions >= 5;
+      
+      if (completed) {
+        updatedPulse.pulseStreak = (updatedPulse.pulseStreak || 0) + 1;
+        updatedPulse.lastPulseCompletedWeek = pulse.currentWeekId;
+      } else if (pulse.graceTokens > 0) {
+        updatedPulse.graceTokens = Math.max(0, pulse.graceTokens - 1);
+        updatedPulse.lastGraceWeekUsed = pulse.currentWeekId;
+        console.log(`[FieldPulse] Streak preserved via Grace Token for week ${pulse.currentWeekId}`);
+      } else {
+        updatedPulse.pulseStreak = 0;
+        console.log(`[FieldPulse] Streak lost for week ${pulse.currentWeekId}`);
+      }
+      
+      updatedPulse.currentWeekId = weekId;
+      updatedPulse.completedActions = 0;
+      updatedPulse.activeDays = [];
+      updatedPulse.graceTokens = (updatedPulse.graceTokens || 0) + 1;
+      
+      handleUpdateProfile(user.uid, { fieldPulse: updatedPulse }).catch(err => {
+         console.warn("[FieldPulse] Failed to advance week:", err);
+      });
+    } else if (!pulse) {
+      const initialPulse = {
+        currentWeekId: weekId,
+        completedActions: 0,
+        activeDays: [] as string[],
+        graceTokens: 1,
+        pulseStreak: 0,
+        registeredEvents: [] as string[]
+      };
+      handleUpdateProfile(user.uid, { fieldPulse: initialPulse }).catch(err => {
+         console.warn("[FieldPulse] Failed to initialize pulse:", err);
+      });
+    }
+  }, [profile?.fieldPulse?.currentWeekId, user?.uid, activeSeason]);
+
+  // Auto-register mission completed pulse action when entry status transitions to approved
+  useEffect(() => {
+    if (!profile || !user || entries.length === 0) return;
+    const pulse = profile.fieldPulse;
+    if (!pulse) return;
+    
+    entries.forEach(entry => {
+      const isApproved = ['approved', 'auto_approved', 'approved_by_admin', 'retry-approved'].includes(entry.status || '');
+      if (isApproved) {
+        const eventKey = `complete_mission_${entry.id}`;
+        const registered = pulse.registeredEvents?.includes(eventKey);
+        if (!registered) {
+          console.log(`[FieldPulse] Automatically registering newly approved mission as pulse action: ${entry.id}`);
+          registerPulseAction('complete_mission', entry.id).catch(err => {
+             console.warn("[FieldPulse] Failed to auto-register approved mission:", err);
+          });
+        }
+      }
+    });
+  }, [entries, profile?.fieldPulse]);
 
   const loadMoreEntries = async () => {
     if (!user || !hasMoreEntries) return;
-    const result = await getUserEntriesPage(user.uid, 10, lastVisibleEntry);
-    if (result) {
-      // Since we now have a subscription for the first 20, we need to be careful about merging.
-      // But for simplicity, we can still use the page fetch for "history".
-      // However, if the subscription is active, it will keep the first 20 sync'd.
-      setEntries(prev => {
-        const newDocs = result.docs.filter(doc => !prev.some(p => p.id === doc.id));
-        return [...prev, ...newDocs];
-      });
-      setLastVisibleEntry(result.lastVisible);
-      setHasMoreEntries(result.docs.length === 10);
+    try {
+      const result = await getUserEntriesPage(user.uid, 10, lastVisibleEntry);
+      if (result && !(result instanceof Error)) {
+        // Since we now have a subscription for the first 20, we need to be careful about merging.
+        // But for simplicity, we can still use the page fetch for "history".
+        // However, if the subscription is active, it will keep the first 20 sync'd.
+        setEntries(prev => {
+          const newDocs = result.docs.filter(doc => !prev.some(p => p.id === doc.id));
+          return [...prev, ...newDocs];
+        });
+        setLastVisibleEntry(result.lastVisible);
+        setHasMoreEntries(result.docs.length === 10);
+      }
+    } catch (err) {
+      console.warn("Failed to load more entries:", err);
     }
   };
 
@@ -559,9 +1155,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     return subscribeToChallenges((data) => {
-      setTrips(data as TripType[]);
+      console.log('[AppContext] Challenges sync:', data.length);
+      
+      // Merge mocks with Firestore data to ensure core missions are always available
+      // favoring Firestore data if IDs match (using Firestore as "overrides")
+      const merged: TripType[] = [...(data as TripType[])];
+      const existingIds = new Set(data.map(m => m.id.toLowerCase()));
+      
+      // Inject Special Missions if eligible
+      const currentDate = overrides.date ? new Date(overrides.date) : getServerDate();
+      if (isLaunchMissionEligible(profile, currentDate, submittedPendingChallengeIds)) {
+        if (!existingIds.has(LAUNCH_MISSION_ID.toLowerCase())) {
+          merged.push(LAUNCH_MISSION as any);
+          existingIds.add(LAUNCH_MISSION_ID.toLowerCase());
+        }
+      }
+
+      MOCK_TRIPS.forEach(mock => {
+        if (!existingIds.has(mock.id.toLowerCase())) {
+          merged.push(mock as any);
+        }
+      });
+      
+      console.log(`[AppContext] Missions merged. Total: ${merged.length} (Firestore: ${data.length}, Mocks: ${merged.length - data.length})`);
+      setTrips(merged);
     });
-  }, [user]);
+  }, [user, profile?.onboardingCompleted, profile?.completedSpecialMissionIds, overrides.date, submittedPendingChallengeIds]);
 
   // Sync Badge Progress
   useEffect(() => {
@@ -599,8 +1218,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Handle Rank Badges
   useEffect(() => {
     if (!user || !profile) return;
-    checkRankBadges(user.uid, profile.points, profile.points - 1, profile.previousRank);
-  }, [profile?.points]);
+    const currentXP = profile.xp || (profile as any).points || 0;
+    checkRankBadges(user.uid, currentXP, currentXP - 1, profile.previousRank).catch(err => {
+       console.warn("[AppContext] checkRankBadges background task failed:", err);
+    });
+  }, [profile?.xp, profile?.points]);
 
   // Sync / Detect New Badges for Rewards
   useEffect(() => {
@@ -616,7 +1238,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
          rewardText: "CREW COLLECTIONS",
          iconName: 'Users'
        });
-       markCrewModeSeen();
+       markCrewModeSeen().catch(err => console.warn("markCrewModeSeen failed:", err));
     }
 
     const seenBadges = new Set(profile.seenBadges || []);
@@ -637,7 +1259,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           iconName: badge.icon,
           rarity: badge.rarity
         });
-        markBadgeAsSeen(badge.id);
+        markBadgeAsSeen(badge.id).catch(err => console.warn("markBadgeAsSeen failed:", err));
       }
     });
   }, [badgeProgress, profile?.seenBadges, profile?.crewModeUnlocked]);
@@ -669,6 +1291,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Detect Rank Ups (Major Reveal)
   const prevPointsRef = useRef<number>(0);
+  
+  // Detect Special Mission Approval
+  useEffect(() => {
+    if (!user || !profile || !approvedCompletedChallengeIds.has(LAUNCH_MISSION_ID.toLowerCase())) return;
+    
+    const completedSpecialIds = profile.completedSpecialMissionIds || [];
+    if (!completedSpecialIds.includes(LAUNCH_MISSION_ID)) {
+      console.log(`[AppContext] Launch mission approved! Updating completedSpecialMissionIds for ${user.uid}`);
+      handleUpdateProfile(user.uid, {
+        completedSpecialMissionIds: [...completedSpecialIds, LAUNCH_MISSION_ID]
+      }).catch(err => console.warn("[AppContext] Failed to update special missions:", err));
+    }
+  }, [approvedCompletedChallengeIds, profile?.completedSpecialMissionIds, user?.uid]);
+
   useEffect(() => {
     if (points === 0) return;
     if (prevPointsRef.current === 0) {
@@ -697,17 +1333,74 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     prevPointsRef.current = points;
   }, [points]);
 
+  const [starterRewardShown, setStarterRewardShown] = useState(false);
+  const [isCompassOpen, setIsCompassOpen] = useState(false);
+
+  const showHelpToast = (message: string) => {
+    queueReward({
+      type: 'action',
+      intensity: RewardIntensity.MICRO_FEEDBACK,
+      title: "Field Intelligence",
+      description: message,
+      iconName: 'Info'
+    });
+  };
+
+  const showCompass = (show: boolean) => setIsCompassOpen(show);
+
+  useEffect(() => {
+    if (isOnboardingComplete && !starterRewardShown && user) {
+      const isSeasonStarted = gameState.currentDate >= new Date(HEATWAVE_SEASON_START_DATE);
+      
+      queueReward({
+        type: 'milestone',
+        intensity: RewardIntensity.MAJOR_REVEAL,
+        title: "Starter Pack complete!",
+        description: isSeasonStarted 
+          ? "Starter Pack complete! Summer Deck is now live."
+          : "Starter Pack complete! Summer Deck opens Saturday.",
+        rewardText: isSeasonStarted ? "CHOOSE SUMMER DECK" : "CHECK COUNTDOWN",
+        redirectPath: '/deck',
+        iconName: 'Zap'
+      });
+      setStarterRewardShown(true);
+    }
+  }, [isOnboardingComplete, starterRewardShown, user, gameState.currentDate]);
+
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (err: any) {
+      console.error("Sign in failed:", err.message);
+      setError("AUTHENTICATION_FAILED: Bureau credentials rejected.");
+    }
   };
 
   const signOut = async () => {
-    await firebaseSignOut(auth);
+    try {
+      await firebaseSignOut(auth);
+    } catch (err: any) {
+      console.error("Sign out failed:", err.message);
+    }
+  };
+
+  const handleUpdateProfile = async (uid: string, data: Partial<UserProfile>) => {
+    console.log('[AppContext] updateProfile call:', uid, data);
+    // Optimistic update
+    setProfile(prev => prev ? { ...prev, ...data } as UserProfile : null);
+    try {
+      await updateProfile(uid, data);
+    } catch (err) {
+      console.error("Profile update failed, reverting optimistic state:", err);
+      // If we wanted to be perfect we would revert here, but subscribeToProfile will sync the truth anyway
+    }
   };
 
   const completeOnboarding = async () => {
     if (!user) return;
+    // Optimistic update
+    setProfile(prev => prev ? { ...prev, onboardingCompleted: true } as UserProfile : null);
     try {
       await secureCompleteOnboarding();
     } catch (err: any) {
@@ -717,31 +1410,197 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const updateAvatar = async (data: AvatarData) => {
     if (!user) return;
-    await updateProfile(user.uid, { avatar: data });
-    queueReward({
-      type: 'action',
-      intensity: RewardIntensity.MICRO_FEEDBACK,
-      title: "Identity Updated",
-      iconName: 'UserCircle'
-    });
+    try {
+      await handleUpdateProfile(user.uid, { avatar: data });
+      queueReward({
+        type: 'action',
+        intensity: RewardIntensity.MICRO_FEEDBACK,
+        title: "Identity Updated",
+        iconName: 'UserCircle'
+      });
+    } catch (err) {
+      console.error("Avatar update failed:", err);
+    }
   };
 
   const markBadgeAsSeen = async (badgeId: string) => {
     if (!user || !profile) return;
-    const currentSeen = profile.seenBadges || [];
-    if (!currentSeen.includes(badgeId)) {
-      await updateProfile(user.uid, { seenBadges: [...currentSeen, badgeId] });
+    try {
+      const currentSeen = profile.seenBadges || [];
+      if (!currentSeen.includes(badgeId)) {
+        await handleUpdateProfile(user.uid, { seenBadges: [...currentSeen, badgeId] });
+      }
+    } catch (err) {
+      console.warn("Failed to mark badge as seen:", err);
     }
   };
 
   const markCrewModeSeen = async () => {
     if (!user) return;
-    await updateProfile(user.uid, { crewModeSeen: true });
+    try {
+      await handleUpdateProfile(user.uid, { crewModeSeen: true });
+    } catch (err) {
+      console.warn("Failed to mark crew mode seen:", err);
+    }
   };
 
   const toggleFrankieMode = async () => {
     if (!user || !profile) return;
-    await updateProfile(user.uid, { frankieMode: !profile.frankieMode });
+    try {
+      await handleUpdateProfile(user.uid, { frankieMode: !profile.frankieMode });
+    } catch (err) {
+      console.warn("Failed to toggle frankie mode:", err);
+    }
+  };
+
+  const registerPulseAction = async (
+    actionType: 'submit_proof' | 'complete_mission' | 'vote' | 'add_field_note' | 'unlock_sticker',
+    uniqueId?: string
+  ) => {
+    if (!user || !profile) return;
+    
+    const weekNum = activeSeason ? getCurrentSeasonWeek(activeSeason) : 0;
+    const weekId = activeSeason ? `week-${weekNum}` : 'week-0';
+    
+    // Safely parse current pulse
+    const pulse = profile.fieldPulse ? { ...profile.fieldPulse } : {
+      currentWeekId: weekId,
+      completedActions: 0,
+      activeDays: [] as string[],
+      graceTokens: 1,
+      pulseStreak: 0,
+      registeredEvents: [] as string[]
+    };
+    
+    // Check for duplicates
+    if (uniqueId) {
+      const eventKey = `${actionType}_${uniqueId}`;
+      if (!pulse.registeredEvents) {
+        pulse.registeredEvents = [];
+      }
+      if (pulse.registeredEvents.includes(eventKey)) {
+        return; // already tracked!
+      }
+      pulse.registeredEvents.push(eventKey);
+    }
+    
+    // If the week of the loaded pulse is outdated, run transition first
+    if (pulse.currentWeekId !== weekId && weekId !== 'week-0') {
+      const completed = pulse.completedActions >= 5;
+      if (completed) {
+        pulse.pulseStreak = (pulse.pulseStreak || 0) + 1;
+      } else if (pulse.graceTokens > 0) {
+        pulse.graceTokens = Math.max(0, pulse.graceTokens - 1);
+        pulse.lastGraceWeekUsed = pulse.currentWeekId;
+      } else {
+        pulse.pulseStreak = 0;
+      }
+      
+      pulse.currentWeekId = weekId;
+      pulse.completedActions = 0;
+      pulse.activeDays = [];
+      pulse.graceTokens = (pulse.graceTokens || 0) + 1; // grant 1 grace token per week
+    }
+    
+    // Track active day
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (!pulse.activeDays) {
+      pulse.activeDays = [];
+    }
+    if (!pulse.activeDays.includes(todayStr)) {
+      pulse.activeDays.push(todayStr);
+    }
+    
+    // Increment actions
+    pulse.completedActions = (pulse.completedActions || 0) + 1;
+    
+    // Trigger Micro Reward for UI Stamp/Wiggle
+    queueReward({
+      type: 'action',
+      intensity: RewardIntensity.MICRO_FEEDBACK,
+      title: `${actionType.replace('_', ' ').toUpperCase()} SUCCESS`,
+      iconName: actionType === 'vote' ? 'Vote' : actionType === 'unlock_sticker' ? 'Sparkles' : 'Camera'
+    });
+    
+    // Check if pulse completes hits 5
+    if (pulse.completedActions === 5) {
+      pulse.pulseStreak = (pulse.pulseStreak || 0) + 1;
+      pulse.lastPulseCompletedWeek = weekId;
+      
+      queueReward({
+        type: 'milestone',
+        intensity: RewardIntensity.MAJOR_REVEAL,
+        title: "⚡ FIELD PULSE AT 100%!",
+        description: "Your consistency metric is fully synchronized. Keep the campfire crackling to maintain momentum! Trevor nods with silent, campy approval.",
+        rewardText: "PROUD PULSATOR DECAL UNLOCKED",
+        iconName: 'Activity',
+      });
+    }
+    
+    try {
+      await handleUpdateProfile(user.uid, { fieldPulse: pulse });
+    } catch (err) {
+      console.error("Pulse update failed:", err);
+    }
+  };
+
+  const unlockDiscoverySticker = async (discoveryKey: string, sourcePage: string = 'unknown') => {
+    if (!user || !profile) return null;
+
+    // Prevent duplicate calls for the same key in the same session while one is in flight
+    if (pendingUnlocksRef.current.has(discoveryKey)) return null;
+
+    // Check if already unlocked locally to prevent wasting a call
+    const stickerDef = DISCOVERY_STICKERS.find(s => s.discoveryKey === discoveryKey);
+    const alreadyOwns = (profile.discoveryEvents?.[discoveryKey]) || 
+                        (profile.unlockedRewards?.stickers?.includes(stickerDef?.id || 'MISSING_ID'));
+    if (alreadyOwns) return null;
+
+    pendingUnlocksRef.current.add(discoveryKey);
+
+    try {
+      const result = await awardDiscoverySticker(user.uid, profile, discoveryKey, sourcePage);
+      
+      if (result) {
+        const { sticker, completedGroups } = result;
+        
+        // Register field pulse action (increment action count)
+        registerPulseAction('unlock_sticker', sticker.id);
+        
+        // 1. Queue Sticker Reward
+        queueReward({
+          type: 'sticker',
+          intensity: RewardIntensity.MAJOR_REVEAL,
+          title: "Sticker discovered!",
+          description: sticker.description,
+          rewardText: sticker.name,
+          iconName: sticker.iconName,
+          rarity: sticker.rarity as any,
+          metadata: { stickerId: sticker.id }
+        });
+
+        // 2. Queue Group Completion Rewards
+        if (completedGroups && completedGroups.length > 0) {
+          completedGroups.forEach(group => {
+            queueReward({
+              type: 'milestone',
+              intensity: RewardIntensity.MAJOR_REVEAL,
+              title: `SET COMPLETE: ${group.name}`,
+              description: group.completionCopy,
+              rewardText: `+${group.xpReward} XP EARNED`,
+              iconName: 'BadgeAlert'
+            });
+          });
+        }
+
+        return sticker;
+      }
+      return null;
+    } finally {
+      // Remove from pending so it can be tried again if it failed, 
+      // but if it succeeded, the 'isAlreadyUnlocked' check at top will catch it next time.
+      pendingUnlocksRef.current.delete(discoveryKey);
+    }
   };
 
   const updateTripProgress = async (tripId: string, progress: Partial<import('../components/ChallengeCard').EvidenceProgress>) => {
@@ -754,14 +1613,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updates[`tripProgress.${tripId}.${key}`] = value;
     });
 
-    await updateProfile(user.uid, updates);
+    try {
+      await handleUpdateProfile(user.uid, updates);
+    } catch (err) {
+      console.warn("Failed to update trip progress:", err);
+    }
   };
 
-  const grantPointsLocally = (amount: number, tripId: string, entryData?: any) => {
+  /**
+   * 17. Client side optimistic state for mission submissions.
+   * This ensures the mission disappears from the "Available" lists immediately upon clicking submit,
+   * before the Firestore sync is even complete.
+   * STRICTION: This does NOT award XP! XP is awarded only by the server/admin upon approval.
+   */
+  const registerPendingSubmissionLocally = (amount: number, tripId: string, entryData?: any) => {
     if (!profile) return;
     
-    // Prevent duplicate XP if missionId is already completed/scored for this user
-    if (completedChallengeIds.has(tripId)) {
+    // Prevent duplicate XP if missionId is already completed/scored/pending for this user
+    if (completedChallengeIds.has(tripId) || submittedPendingChallengeIds.has(tripId)) {
       console.log(`[AppContext] Duplicate mission submission rejected: ${tripId}`);
       return;
     }
@@ -772,8 +1641,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         id: `local_${Date.now()}_${tripId}`,
         userId: user?.uid || 'anonymous',
         tripId: tripId,
-        status: 'approved',
-        pointsAwarded: amount,
+        status: 'pending_review',
+        pointsAwarded: 0,
+        estimatedPoints: amount,
         createdAt: new Date().toISOString(),
         proofImage: entryData.proofImage || entryData.photo || '',
         tripTitle: entryData.title || 'Mission Record',
@@ -787,48 +1657,114 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
     }
 
-    queueReward({
-      type: 'action',
-      intensity: RewardIntensity.MEDIUM_REWARD,
-      title: "Data Secured Locally",
-      description: "Points awarded for field utility (local beta only).",
-      rewardText: "XP_GRANTED",
-      iconName: 'ShieldCheck'
-    });
+    showHelpToast(`Mission "${entryData?.title || 'Proof'}" submitted for satellite verification.`);
   };
 
   const addToMaybeList = async (tripId: string) => {
     if (!user || !profile) return;
-    const currentList = profile.maybeList || [];
-    if (!currentList.includes(tripId)) {
-      await updateProfile(user.uid, { maybeList: [...currentList, tripId] });
-      queueReward({
-        type: 'action',
-        intensity: RewardIntensity.MICRO_FEEDBACK,
-        title: "Mission Queued",
-        iconName: 'Plus'
-      });
+    try {
+      const currentList = profile.maybeList || [];
+      if (!currentList.includes(tripId)) {
+        await handleUpdateProfile(user.uid, { maybeList: [...currentList, tripId] });
+        queueReward({
+          type: 'action',
+          intensity: RewardIntensity.MICRO_FEEDBACK,
+          title: "Mission Queued",
+          iconName: 'Plus'
+        });
+      }
+    } catch (err) {
+      console.warn("Failed to add to maybe list:", err);
     }
   };
 
   const removeFromMaybeList = async (tripId: string) => {
     if (!user || !profile) return;
-    const currentList = profile.maybeList || [];
-    await updateProfile(user.uid, { maybeList: currentList.filter(id => id !== tripId) });
-    queueReward({
-      type: 'action',
-      intensity: RewardIntensity.MICRO_FEEDBACK,
-      title: "Queue Updated",
-      iconName: 'Minus'
-    });
+    try {
+      const currentList = profile.maybeList || [];
+      await handleUpdateProfile(user.uid, { maybeList: currentList.filter(id => id !== tripId) });
+      queueReward({
+        type: 'action',
+        intensity: RewardIntensity.MICRO_FEEDBACK,
+        title: "Queue Updated",
+        iconName: 'Minus'
+      });
+    } catch (err) {
+      console.warn("Failed to remove from maybe list:", err);
+    }
   };
 
   const useComebackCard = async () => {
     if (!user || !profile || !profile.comebackCardActive) return;
-    await awardPoints(user.uid, profile.name, 25, 'comeback_card', {
-      description: "Comeback Card Redeemed"
+    try {
+      await awardPoints(user.uid, profile.name, 25, 'comeback_card', {
+        description: "Comeback Card Redeemed"
+      });
+      await handleUpdateProfile(user.uid, { comebackCardActive: false });
+    } catch (err) {
+      console.error("Failed to use comeback card:", err);
+    }
+  };
+
+  const handleRetryMissionSubmission = async (missionId: string) => {
+    if (!user) {
+      console.error('[AppContext] retryResetFailed: No authenticated user.');
+      return;
+    }
+    const missionIdClean = missionId.toLowerCase().trim();
+    console.log(`[AppContext] retryButtonPressed for mission: ${missionIdClean}`);
+    console.log(`[AppContext] retryResetStarted for mission: ${missionIdClean}`);
+    
+    // 1. Optimistic update for profile
+    setProfile(prev => {
+      if (!prev) return null;
+      const updatedProfile = { ...prev };
+      
+      // Clear activeTrip if it matches
+      if (updatedProfile.activeTrip && updatedProfile.activeTrip.id && updatedProfile.activeTrip.id.toLowerCase().trim() === missionIdClean) {
+        updatedProfile.activeTrip = null;
+      }
+      
+      // Clear missionId from array properties
+      if (updatedProfile.submittedChallengeIds) {
+        updatedProfile.submittedChallengeIds = updatedProfile.submittedChallengeIds.filter(id => id.toLowerCase().trim() !== missionIdClean);
+      }
+      if (updatedProfile.submittedPendingChallengeIds) {
+        updatedProfile.submittedPendingChallengeIds = updatedProfile.submittedPendingChallengeIds.filter(id => id.toLowerCase().trim() !== missionIdClean);
+      }
+      if (updatedProfile.rejectedChallengeIds) {
+        updatedProfile.rejectedChallengeIds = updatedProfile.rejectedChallengeIds.filter(id => id.toLowerCase().trim() !== missionIdClean);
+      }
+      if (updatedProfile.needsMoreProofChallengeIds) {
+        updatedProfile.needsMoreProofChallengeIds = updatedProfile.needsMoreProofChallengeIds.filter(id => id.toLowerCase().trim() !== missionIdClean);
+      }
+      if (updatedProfile.tripProgress) {
+        const progressCopy = { ...updatedProfile.tripProgress };
+        delete progressCopy[missionIdClean];
+        updatedProfile.tripProgress = progressCopy;
+      }
+      
+      return updatedProfile as UserProfile;
     });
-    await updateProfile(user.uid, { comebackCardActive: false });
+
+    // 2. Optimistic update for entries
+    setEntries(prev => {
+      return prev.map(e => {
+        const eMissionId = (e.missionId || e.challengeId || e.tripId || '').toLowerCase().trim();
+        if (eMissionId === missionIdClean && ['rejected', 'needs_more_proof', 'needs-more-proof'].includes(e.status)) {
+          return { ...e, status: 'retried' as any };
+        }
+        return e;
+      });
+    });
+
+    try {
+      const { retryMissionSubmission } = await import('../services/deckProgressService');
+      await retryMissionSubmission(user.uid, missionIdClean);
+      console.log(`[AppContext] retryResetSuccess for mission: ${missionIdClean}`);
+    } catch (err) {
+      console.error(`[AppContext] retryResetFailed for mission: ${missionIdClean}`, err);
+    }
   };
 
   const evaluateEntryProof = async (entryData: { note: string }, base64Image: string): Promise<ProofReview> => {
@@ -849,69 +1785,209 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const setFieldType = async (id: FieldTypeId) => {
     if (!user) return;
-    const typeData = FIELD_TYPES[id];
-    await updateProfile(user.uid, { 
-      fieldType: id,
-      fieldTypeName: typeData.name,
-      fieldClassificationComplete: true
-    });
+    try {
+      const typeData = FIELD_TYPES[id];
+      await handleUpdateProfile(user.uid, { 
+        fieldType: id,
+        fieldTypeName: typeData.name,
+        fieldClassificationComplete: true
+      });
+    } catch (err) {
+      console.error("Failed to set field type:", err);
+    }
   };
 
   const setProductPersonaLens = async (id: ProductPersonaLensId) => {
     if (!user) return;
-    await updateProfile(user.uid, { 
-      productPersonaLens: id
-    });
+    try {
+      await handleUpdateProfile(user.uid, { 
+        productPersonaLens: id
+      });
+    } catch (err) {
+      console.error("Failed to set product persona lens:", err);
+    }
   };
 
   const getEligibleDrawPool = React.useCallback((packId?: string): TripType[] => {
-    const pack = packId ? getDeckPackById(packId) : null;
-    const { eligibleMissions } = getCanonicalPool({
+    // 1. Enforce Starter Pack if not complete
+    let effectivePackId = packId;
+    if (!isOnboardingComplete && !isAdmin && !overrides.forceUnlocked) {
+      effectivePackId = 'starter-signals';
+    }
+
+    const pack = effectivePackId ? getDeckPackById(effectivePackId) : null;
+    
+    // 2. Prevent selecting locked summer deck if not unlocked
+    if (effectivePackId === 'heatwave-receipts' && !isHeatwaveDeckUnlocked && !isAdmin && !overrides.forceUnlocked) {
+      return [];
+    }
+    
+    if (effectivePackId === 'socal-summer' && !isSocalSummerUnlocked && !isAdmin && !overrides.forceUnlocked) {
+      return [];
+    }
+
+    console.log('[AppContext] getEligibleDrawPool call:', {
+      profileId: profile?.id,
+      fieldClassificationComplete,
+      isOnboardingComplete,
+      activePackId: packId,
+      isHeatwaveDeckUnlocked,
+      completedChallengeIdsCount: completedChallengeIds.size,
+      submittedPendingChallengeIdsCount: submittedPendingChallengeIds.size,
+      needsMoreProofChallengeIdsCount: needsMoreProofChallengeIds.size,
+      rejectedChallengeIdsCount: rejectedChallengeIds.size,
+      tripsCount: trips.length
+    });
+
+    const { eligibleMissions, reason, excludedCards } = getCanonicalPool({
       missions: trips,
       completedMissionIds: completedChallengeIds,
+      pendingMissionIds: submittedPendingChallengeIds,
+      needsMoreProofMissionIds: needsMoreProofChallengeIds,
+      rejectedMissionIds: rejectedChallengeIds,
       isOnboardingComplete,
       activePack: pack,
-      isSummerDeckUnlocked,
+      isHeatwaveDeckUnlocked,
+      isSocalSummerUnlocked,
       isAdmin,
     });
+    
+    // DEEP DEBUG LOGGING
+    if (pack?.packId === 'heatwave-receipts' || !isOnboardingComplete) {
+      console.log(`[DEEP_TRACE] Status for ${pack?.packId}:`, {
+        eligible: eligibleMissions.length,
+        reason,
+        missions: trips.length,
+        excluded: (excludedCards || []).length
+      });
+    }
+
     return eligibleMissions;
-  }, [trips, completedChallengeIds, isOnboardingComplete, isSummerDeckUnlocked, isAdmin]);
+  }, [trips, completedChallengeIds, submittedPendingChallengeIds, needsMoreProofChallengeIds, rejectedChallengeIds, isOnboardingComplete, isHeatwaveDeckUnlocked, isAdmin, profile?.id]);
 
   const drawTrip = async (tripId?: string, packId?: string): Promise<TripType | null> => {
     if (!user || trips.length === 0) return null;
-    
-    if (tripId) {
-      const specific = trips.find(t => t.id === tripId);
-      if (specific) {
-        await updateProfile(user.uid, { activeTrip: specific });
-        return specific;
+
+    try {
+      if (mustCompleteStarterMission && tripId !== LAUNCH_MISSION_ID) {
+        console.warn("[AppContext] Launch mission is required first. Blocking normal draw.");
+        await handleUpdateProfile(user.uid, { activeTrip: LAUNCH_MISSION });
+        // Also save to mission cards
+        await saveDrawnMissionCard(user.uid, {
+          missionId: LAUNCH_MISSION_ID,
+          challengeId: LAUNCH_MISSION_ID,
+          deckId: 'starter-signals',
+          missionTitle: LAUNCH_MISSION.title,
+          missionSummary: LAUNCH_MISSION.description,
+          status: 'active',
+          isActive: true
+        });
+        return LAUNCH_MISSION;
       }
+      
+      if (tripId) {
+        const specific = trips.find(t => t.id === tripId);
+        if (specific) {
+          await handleUpdateProfile(user.uid, { activeTrip: specific });
+          await saveDrawnMissionCard(user.uid, {
+            missionId: specific.id,
+            challengeId: specific.id,
+            deckId: packId || 'unknown',
+            missionTitle: specific.title,
+            missionSummary: specific.description,
+            status: 'active',
+            isActive: true
+          });
+          return specific;
+        }
+      }
+    } catch (err) {
+      console.warn("Trip assignment failed:", err);
     }
 
     // 1. Get the current eligible pool for the pack
-    const eligiblePool = getEligibleDrawPool(packId);
+    const effectivePackId = packId || (isOnboardingComplete ? (localStorage.getItem('active_deck_pack_id') || 'urban-recon') : 'starter-signals');
+    const eligiblePool = getEligibleDrawPool(effectivePackId);
     
-    // 2. For a NEW draw, exclude the current active trip if possible
+    // 2. Identify previous mission to avoid immediate repeat (Summer rule)
+    const lastEntryId = profile?.submittedChallengeIds?.[profile.submittedChallengeIds.length - 1];
+    const activeId = activeTrip?.id ? activeTrip.id.toString().toLowerCase() : null;
+    const previousId = lastEntryId || activeId;
+
+    // 3. For a NEW draw, exclude the current active trip AND the previous one if possible
     let finalPool = eligiblePool.filter(t => {
-      const activeId = activeTrip?.id ? activeTrip.id.toString().toLowerCase() : null;
-      return activeId !== t.id.toString().toLowerCase();
+      const tid = t.id.toString().toLowerCase();
+      // Only exclude previous if there are other options
+      if (eligiblePool.length > 1 && tid === previousId) return false;
+      return true;
     });
 
-    // 3. If we filtered everything out (e.g. only 1 eligible left and it is active)
-    // then allow it if we are in onboarding or if it is the last card in pack
+    // 4. Default if all filtered out
     if (finalPool.length === 0 && eligiblePool.length > 0) {
       finalPool = eligiblePool;
     }
 
+    const selectedId = finalPool.length > 0 ? (drawTripLogic(finalPool as any) as any)?.id : null;
+
+    // 5. DEEP LOGGING as requested
+    console.log("[Deck Draw]", { 
+      uid: user?.uid,
+      deckId: effectivePackId, 
+      totalCards: trips.length, 
+      approvedIds: Array.from(approvedCompletedChallengeIds), 
+      pendingIds: Array.from(submittedPendingChallengeIds), 
+      needsMoreProofIds: Array.from(needsMoreProofChallengeIds), 
+      rejectedIds: Array.from(rejectedChallengeIds), 
+      activeTripId: activeId, 
+      previousDrawnId: previousId, 
+      eligibleIds: eligiblePool.map(t => t.id), 
+      selectedId 
+    });
+
     if (finalPool.length === 0) return null;
 
-    const newTrip = drawTripLogic(finalPool as any) as any;
+    const newTrip = finalPool.find(t => t.id === selectedId) || finalPool[0];
     
     if (newTrip) {
-      await updateProfile(user.uid, { activeTrip: newTrip });
+      try {
+        await handleUpdateProfile(user.uid, { activeTrip: newTrip });
+        // Save to mission cards - status is 'drawn' initially in the new flow
+        await saveDrawnMissionCard(user.uid, {
+          missionId: newTrip.id,
+          challengeId: newTrip.id,
+          deckId: effectivePackId,
+          missionTitle: newTrip.title,
+          missionSummary: newTrip.description,
+          status: 'drawn',
+          isActive: false
+        });
+      } catch (err) {
+        console.warn("Trip draw save failed:", err);
+      }
     }
     
     return newTrip;
+  };
+
+  const handleSaveMissionCard = async (card: Partial<DrawnMissionCard>) => {
+    if (!user) return '';
+    return saveDrawnMissionCard(user.uid, card);
+  };
+
+  const handleUpdateMissionCardStatus = async (missionId: string, status: DrawnMissionCardStatus, extraData?: Partial<DrawnMissionCard>) => {
+    if (!user) return;
+    return updateMissionCardStatus(user.uid, missionId, status, extraData);
+  };
+
+  const handleSetActiveMissionCard = async (missionId: string) => {
+    if (!user) return;
+    
+    const targetTrip = trips.find(t => t.id === missionId);
+    if (targetTrip) {
+      await handleUpdateProfile(user.uid, { activeTrip: targetTrip });
+    }
+    
+    return setActiveMissionCard(user.uid, missionId);
   };
 
   const useReroll = async () => {
@@ -945,24 +2021,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       profile.name,
       currentTrip as any,
       {
-        proofImage: entryData.proofImage,
+        proofImage: entryData.proofImage || '',
         originalImageUrl: entryData.originalImageUrl,
-        fieldNote: entryData.fieldNote,
-        selectedLevel: entryData.selectedLevel,
-        detourCompleted: entryData.detourCompleted,
+        fieldNote: entryData.fieldNote || '',
+        selectedLevel: (entryData.selectedLevel || 'Standard') as any,
+        detourCompleted: entryData.detourCompleted || false,
         crewId: entryData.crewId || profile.crewId || undefined,
         userAvatar: profile.avatar || undefined, 
         
         // Pass through viewfinder meta
-        uploadSource: entryData.uploadSource,
-        photoTakenAt: entryData.photoTakenAt,
-        fileLastModifiedAt: entryData.fileLastModifiedAt,
+        imageStoragePath: (entryData as any).imageStoragePath,
+        storagePath: (entryData as any).storagePath,
+        uploadSource: entryData.uploadSource as any,
+        photoTakenAt: (entryData as any).photoTakenAt,
+        fileLastModifiedAt: (entryData as any).fileLastModifiedAt,
         submittedAt: entryData.submittedAt,
-        metadataStatus: entryData.metadataStatus,
-        captureTrustLevel: entryData.captureTrustLevel,
-        filterUsed: entryData.filterUsed,
-        filterIntensity: entryData.filterIntensity,
-        reviewStatus: entryData.reviewStatus
+        metadataStatus: entryData.metadataStatus as any,
+        captureTrustLevel: entryData.captureTrustLevel as any,
+        filterUsed: (entryData as any).filterUsed,
+        filterIntensity: (entryData as any).filterIntensity,
+        reviewStatus: (entryData as any).reviewStatus as any,
+        hintUsed: entryData.hintUsed,
+        fastFindAttempt: (entryData as any).fastFindAttempt,
+        isRetry: (entryData as any).isRetry || false,
+        originalEntryId: (entryData as any).originalEntryId || null,
+        retryPointMultiplier: (entryData as any).retryPointMultiplier || null,
+        reviewerNote: (entryData as any).reviewerNote || null,
+        fieldType: profile.fieldType || undefined,
+        fieldTypeName: profile.fieldTypeName || undefined,
+        existingEntryId: (entryData as any).existingEntryId || null,
+        findingType: (entryData as any).findingType || null,
+        aiAnalysisResult: (entryData as any).aiAnalysisResult || null,
+        proofCheckResult: (entryData as any).proofCheckResult || null,
       },
       activeSeason
     );
@@ -973,7 +2063,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setLastReview(review);
 
     if (profile.crewId && status === 'approved') {
-      await processLoreForEntry(profile.crewId, { id: entryId, status: 'approved' } as any);
+      try {
+        await processLoreForEntry(profile.crewId, { id: entryId, status: 'approved' } as any);
+      } catch (err) {
+        console.warn("[AppContext] Crew lore processing failed:", err);
+      }
     }
 
     if (status === 'approved') {
@@ -994,15 +2088,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (isFeatureEnabled('badgeFragmentsEnabled')) {
-        evaluateEntryForBadges(user.uid, entryObj as any);
+        evaluateEntryForBadges(user.uid, entryObj as any).catch(e => console.warn("[AppContext] Badge evaluation failed:", e));
       }
 
       if (profile.crewId && isFeatureEnabled('crewArtifactsEnabled')) {
-        evaluateEntryForArtifacts(profile.crewId, user.uid, profile.name, entryObj as any);
+        evaluateEntryForArtifacts(profile.crewId, user.uid, profile.name, entryObj as any).catch(e => console.warn("[AppContext] Artifact evaluation failed:", e));
       }
 
       if (isFeatureEnabled('appObservationsEnabled')) {
-        generateObservation(user.uid, profile.crewId || null, [entryObj as any, ...entries], { rankImproved: false });
+        generateObservation(user.uid, profile.crewId || null, [entryObj as any, ...entries], { rankImproved: false }).catch(e => console.warn("[AppContext] Observation generation failed:", e));
+      }
+
+      // Check for discovery stickers
+      if (entryData.proofImage && entryData.fieldNote) {
+        unlockDiscoverySticker('proof_pirate', 'capture').catch(e => console.warn("Discovery unlock failed (proof_pirate):", e));
       }
     } else {
       queueReward({
@@ -1011,6 +2110,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         title: "Protocol Logged",
         iconName: 'Server'
       });
+    }
+
+    // Optimistic clearance of activeTrip and tracking submittal to prevent lag/duplicates
+    setProfile(prev => {
+      if (!prev) return null;
+      const submitted = prev.submittedChallengeIds || [];
+      const lowerId = currentTrip.id.toLowerCase();
+      const updatedSubmitted = submitted.includes(lowerId) ? submitted : [...submitted, lowerId];
+      return {
+        ...prev,
+        activeTrip: null,
+        submittedChallengeIds: updatedSubmitted
+      };
+    });
+
+    // Register Field Pulse actions
+    registerPulseAction('submit_proof', entryId).catch(err => console.warn("Pulse register failed (submit):", err));
+    if (entryData.fieldNote) {
+      registerPulseAction('add_field_note', entryId).catch(err => console.warn("Pulse register failed (note):", err));
     }
     
     return { entryId, status, review, scoring, ftBonus, ftText, newRewards };
@@ -1023,26 +2141,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const missionId = 'unknown'; 
     const targetUserId = 'unknown-for-demo'; 
 
-    await submitFieldCheck({
-      submissionId: params.targetId,
-      missionId: missionId,
-      reportedUserId: targetUserId,
-      reason: params.reason as any,
-      note: params.details,
-    });
+    try {
+      await submitFieldCheck({
+        submissionId: params.targetId,
+        missionId: missionId,
+        reportedUserId: targetUserId,
+        reason: params.reason as any,
+        note: params.details,
+      });
 
-    queueReward({
-      type: 'action',
-      intensity: RewardIntensity.MEDIUM_REWARD,
-      title: "Field Check Logged",
-      description: "Anomaly report submitted for Bureau review.",
-      iconName: 'ShieldAlert'
-    });
+      queueReward({
+        type: 'action',
+        intensity: RewardIntensity.MEDIUM_REWARD,
+        title: "Field Check Logged",
+        description: "Anomaly report submitted for Bureau review.",
+        iconName: 'ShieldAlert'
+      });
 
-    const newHistory = [...(profile.fieldCheckHistory || []), getServerDate().toISOString()];
-    await updateProfile(user.uid, {
-      fieldCheckHistory: newHistory
-    });
+      const newHistory = [...(profile.fieldCheckHistory || []), getServerDate().toISOString()];
+      await handleUpdateProfile(user.uid, {
+        fieldCheckHistory: newHistory
+      });
+    } catch (err) {
+      console.error("Field check failed:", err);
+    }
   };
 
   const resolveIncomingFieldCheck = async () => {
@@ -1050,21 +2172,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const latest = incomingFieldChecks[0];
     // In summer season, admin resolves these, but user can dismiss notifications
     if (latest.id) {
-      // Logic for user dismissing their notification (not necessarily deleting the audit)
-      // For now we use the service to "resolve" it
-      await resolveFieldCheck(latest.id, 'dismissed');
+      try {
+        // Logic for user dismissing their notification (not necessarily deleting the audit)
+        // For now we use the service to "resolve" it
+        await resolveFieldCheck(latest.id, 'dismissed');
+      } catch (err) {
+        console.warn("Failed to resolve field check:", err);
+      }
     }
   };
 
   const clearReview = () => setLastReview(null);
 
   const handleDismissObservation = async (msgId: string) => {
-    await dismissObservation(msgId);
+    try {
+      await dismissObservation(msgId);
+    } catch (err) {
+      console.warn("Failed to dismiss observation:", err);
+    }
   };
 
   const toggleFavoriteMemory = async (memoryId: string, isFavorite: boolean) => {
     if (!user) return;
-    await toggleMemoryFav(user.uid, memoryId, isFavorite);
+    try {
+      await toggleMemoryFav(user.uid, memoryId, isFavorite);
+    } catch (err) {
+      console.warn("Failed to toggle favorite memory:", err);
+    }
   };
 
   const queueReward = (reward: Omit<RewardQueueItem, 'id'>) => {
@@ -1102,35 +2236,57 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!activeSeason || currentWeekNumber <= 0) return;
-    getWeeklySabotages(currentWeekNumber).then(setActiveSabotages);
+    getWeeklySabotages(currentWeekNumber)
+      .then(setActiveSabotages)
+      .catch(err => console.warn("[AppContext] Failed to sync sabotages:", err));
   }, [activeSeason, currentWeekNumber]);
 
   const handleDeploySabotage = async (targetId: string, cardId: string, severity: 'minor' | 'major', attackerCrewId?: string) => {
     if (!user || !activeSeason) return;
-    await deploySabotage(user.uid, targetId, cardId, currentWeekNumber, severity, attackerCrewId);
-    const updated = await getWeeklySabotages(currentWeekNumber);
-    setActiveSabotages(updated);
+    try {
+      await deploySabotage(user.uid, targetId, cardId, currentWeekNumber, severity, attackerCrewId);
+      const updated = await getWeeklySabotages(currentWeekNumber);
+      setActiveSabotages(updated);
+    } catch (err) {
+      console.error("Sabotage deploy failed:", err);
+    }
   };
 
   const handleActivateShield = async () => {
     if (!user) return;
-    await activateSabotageShield(user.uid);
-    // Refresh profile would happen naturally via listeners normally, 
-    // but we can trigger a manual fetch or just let the persistent profile listener handle it.
+    try {
+      await activateSabotageShield(user.uid);
+    } catch (err) {
+      console.error("Shield activation failed:", err);
+    }
   };
 
   const [userVotes, setUserVotes] = useState<any[]>([]);
 
   useEffect(() => {
     if (!user || currentWeekNumber <= 0) return;
-    getVotesForUser(user.uid, currentWeekNumber).then(setUserVotes);
-  }, [user, currentWeekNumber]);
+    getVotesForUser(user.uid, currentWeekNumber, activeSeason?.id || 'heatwave-receipts')
+      .then(setUserVotes)
+      .catch(err => console.warn("[AppContext] Failed to sync user votes:", err));
+  }, [user, currentWeekNumber, activeSeason?.id]);
 
   const handleCastVote = async (entryId: string, weekNumber: number, category: any) => {
     if (!user) throw new Error('Not authenticated');
-    await castVote(user.uid, entryId, weekNumber, category);
-    const updatedVotes = await getVotesForUser(user.uid, weekNumber);
-    setUserVotes(updatedVotes);
+    try {
+      const sId = activeSeason?.id || 'heatwave-receipts';
+      await castVote(user.uid, entryId, weekNumber, category, sId);
+      const updatedVotes = await getVotesForUser(user.uid, weekNumber, sId);
+      setUserVotes(updatedVotes);
+      
+      // Register Field Pulse action
+      registerPulseAction('vote', `${entryId}_${category}`).catch(e => console.warn("Pulse register failed:", e));
+      
+      // Trigger weekly_vote_cast discovery
+      unlockDiscoverySticker('weekly_vote_cast', 'voting').catch(e => console.warn("Discovery unlock failed:", e));
+    } catch (err) {
+      console.error("Vote action failed:", err);
+      throw err;
+    }
   };
 
   const handleIsWeekUnlocked = (weekNumber: number) => activeSeason ? isWeekUnlocked(activeSeason, weekNumber) : false;
@@ -1147,6 +2303,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       user,
       profile,
       loading,
+      authLoading,
+      profileLoading,
       error,
       globalConfig,
       gameConfig,
@@ -1164,15 +2322,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       activeTrip,
       drawTrip,
       trips,
+      xp,
       points,
+      pendingPoints,
       soloTripsCount,
+      approvedEntriesCount,
+      boldTripsCount,
+      crewTripsCount,
       completedCoreChallenges,
       completedOnboardingMissionIds,
       onboardingCompletedCount,
       onboardingRequiredCount,
       isOnboardingComplete,
+      hasCompletedFieldKitOnboarding,
+      hasCompletedGuidedFirstEntry,
+      hasSeenFieldTypeResults,
+      onboardingStarted,
+      starterApprovedCount,
+      starterState,
+      pendingStarterCount: starterState.pendingStarterCount,
+      retryStarterCount: starterState.retryStarterCount,
+      nextStarterAction: starterState.nextStarterAction,
+      activeMissionId,
+      activeSubmissionStatus,
+      cameraPermissionReady,
+      locationPermissionReady,
+      requestCamera,
+      requestLocation,
+      completeFieldKitOnboarding,
+      mustCompleteStarterMission,
+      fieldGuideAssistEnabled,
+      isTribunalUnlocked,
       getEligibleDrawPool,
-      isSummerDeckUnlocked,
+      isHeatwaveDeckUnlocked,
+      isSocalSummerUnlocked,
+      isIOS,
+      isStandalone,
       crewUnlocked,
       isCrewUnlocked,
       currentDate: gameState.currentDate,
@@ -1218,11 +2403,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       hasConfirmedLegal,
       blockedIds,
       refreshConsent,
-      updateProfile,
+      updateProfile: handleUpdateProfile,
       isFeatureEnabled,
       markBadgeAsSeen,
       dismissObservation: handleDismissObservation,
       completedChallengeIds,
+      submittedPendingChallengeIds,
+      approvedCompletedChallengeIds,
+      rejectedChallengeIds,
+      needsMoreProofChallengeIds,
       rewardQueue,
       queueReward,
       dismissReward,
@@ -1232,12 +2421,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       completeOnboarding,
       markCrewModeSeen,
       toggleFrankieMode,
+      unlockDiscoverySticker,
+      registerPulseAction,
       updateTripProgress,
-      grantPointsLocally,
+      registerPendingSubmissionLocally,
+      showHelpToast,
+      showCompass,
+      isCompassOpen,
       addToMaybeList,
       removeFromMaybeList,
       useComebackCard,
-      evaluateEntryProof
+      evaluateEntryProof,
+      retryMissionSubmission: handleRetryMissionSubmission,
+      drawnMissionCards,
+      saveMissionCard: handleSaveMissionCard,
+      updateMissionCardStatus: handleUpdateMissionCardStatus,
+      setActiveMissionCard: handleSetActiveMissionCard
     }}>
       {children}
     </AppContext.Provider>

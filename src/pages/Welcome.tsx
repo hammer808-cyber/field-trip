@@ -1,23 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Camera, ChevronRight } from 'lucide-react';
+import { Camera, ChevronRight, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
-import { Sticker } from '../components/UI';
 import { cn } from '../lib/utils';
 import { Hibiscus, ChromeStar, GlossOverlay } from '../components/BajaBratzAssets';
 import { DiamondStar, Sparkle, SunFlare, GlossOverlay as DiamondGloss } from '../components/SkinAssets';
+import { getDisplayLabel } from '../utils/labelUtils';
 
 import AccessCodeGate from './Auth/AccessCodeGate';
 import SignUp from './Auth/SignUp';
 import SignIn from './Auth/SignIn';
 
+import { PageLoader } from '../components/PageLoader';
+
 const base = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
 
 const openingPolaroids = [
   {
-    src: `https://images.unsplash.com/photo-1516339901601-2e1b62dc0c45?w=600&h=600&fit=crop&q=80&sat=-100&contrast=120`,
+    src: `images/opening/field-trip-01`,
     alt: "Field Trip opening Polaroid 1",
   },
   {
@@ -47,9 +49,22 @@ type AuthMode = 'welcome' | 'access_code' | 'signup' | 'signin';
 export default function WelcomePage() {
   const { skin, frankieMode, fc } = useTheme();
   const { user, fieldType, fieldClassificationComplete, loading, onboardingCompleted } = useApp();
-  const [authMode, setAuthMode] = useState<AuthMode>('access_code');
+  const [authMode, setAuthMode] = useState<AuthMode>('welcome');
   const [accessCode, setAccessCode] = useState('');
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
   const navigate = useNavigate();
+
+  // Reset scroll on auth mode changes
+  useEffect(() => {
+    const resetScroll = () => {
+      window.scrollTo({ top: 0, behavior: 'instant' as any });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+    resetScroll();
+    const rafId = requestAnimationFrame(resetScroll);
+    return () => cancelAnimationFrame(rafId);
+  }, [authMode]);
 
   const isBaja = skin.id === 'baja-bratz';
   const isDiamond = skin.id === 'slippery-diamond';
@@ -116,27 +131,14 @@ export default function WelcomePage() {
   };
 
   if (loading) {
-// ... existing loading state ...
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-paper">
-         <div className="text-huge animate-pulse opacity-20">INITIALIZING...</div>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   return (
     <div className={cn(
-      "min-h-screen flex flex-col items-center justify-center p-4 md:p-6 text-center relative overflow-x-hidden overflow-y-auto transition-colors duration-700",
-      authMode === 'welcome' ? "bg-white" : (isBaja ? "bg-[#f5e6d3]" : isDiamond ? "bg-[#0a0a0a]" : isHeat ? "bg-[#ffcc33]" : "bg-white")
+      "page-scroll flex flex-col items-center justify-center p-4 md:p-6 text-center relative transition-colors duration-700",
+      authMode === 'welcome' ? "bg-transparent" : (isBaja ? "bg-[#f5e6d3]" : isDiamond ? "bg-[#0a0a0a]" : isHeat ? "bg-[#ffcc33]" : "bg-transparent")
     )}>
-      {/* High-Voltage Grid Background */}
-      <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.04]" 
-           style={{ 
-             backgroundImage: 'linear-gradient(var(--color-on-surface) 1.5px, transparent 1.5px), linear-gradient(90deg, var(--color-on-surface) 1.5px, transparent 1.5px)', 
-             backgroundSize: '40px 40px' 
-           }} 
-      />
-
       {/* Decorative Shimmer / HUD Effect */}
       <div className="fixed inset-0 pointer-events-none z-[100] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.03)_50%)] bg-[length:100%_2px] opacity-10" />
 
@@ -170,30 +172,34 @@ export default function WelcomePage() {
             className="flex flex-col items-center w-full max-w-4xl mx-auto py-12 px-4"
           >
             {/* Header / Logo Section */}
-            <div className="flex flex-col items-center space-y-4 md:space-y-6 mb-12 md:mb-24 relative z-10">
+            <div className="flex flex-col items-center space-y-4 md:space-y-6 mb-8 md:mb-16 relative z-10">
               <div className="flex items-center gap-6 mb-4">
                  <div className="w-12 h-1 bg-brand-orange" />
-                 <span className="micro-label text-brand-orange tracking-[0.5em]">{fc('AUTHENTICATION_STATION', 'SIGN IN')}</span>
+                 <span className="micro-label text-brand-orange tracking-[0.5em]">WELCOME TO FIELDTRIP</span>
                  <div className="w-12 h-1 bg-brand-orange" />
               </div>
               
-              <div className="text-center space-y-2">
+              <div className="text-center space-y-4">
                 <h1 className="text-huge italic">
-                  F I E L D T R I P
+                  FIELDTRIP
                 </h1>
                 <div className="flex flex-col items-center">
-                   <p className="font-mono text-[11px] font-bold text-on-surface uppercase tracking-[0.4em] bg-brand-lime px-5 py-2 shadow-[4px_4px_0px_black] rotate-1">
-                     {fc('GO OUTSIDE. EXPLORE THE WORLD.', 'GO OUTSIDE. EXPLORE YOUR CITY.')}
+                   <p className="font-mono text-xs sm:text-sm font-bold text-on-surface uppercase tracking-[0.25em] bg-brand-lime px-5 py-2.5 shadow-[4px_4px_0px_black] rotate-1">
+                     A summer photo game for your crew.
                    </p>
-                   <p className="font-serif italic text-xl md:text-2xl opacity-75 mt-8 max-w-md leading-relaxed">
-                     {fc('"You made it. Barely. Now go document the world’s vibe with alarming confidence."', '"Welcome. You\'re ready to start exploring and documenting the world around you."')}
-                   </p>
+                   <div className="font-serif italic text-lg sm:text-xl opacity-85 mt-6 max-w-md space-y-1.5 leading-relaxed bg-[#FFFDF6]/85 p-4 border-2 border-on-surface shadow-[4px_4px_0px_black] rotate-[-1deg]">
+                     <p>Get a mission.</p>
+                     <p>Take the picture.</p>
+                     <p>Earn points.</p>
+                     <p>Make memories.</p>
+                     <p>Win the season.</p>
+                   </div>
                 </div>
               </div>
             </div>
 
             {/* Hero Image Section (Polaroids) */}
-            <div className="relative w-full aspect-square max-w-2xl mb-12 flex items-center justify-center">
+            <div className="relative w-full aspect-square max-w-2xl mb-6 md:mb-12 flex items-center justify-center">
               {/* Polaroids Staggered Layout */}
               <div className="relative w-full h-full">
                 {/* Arrows Overlay */}
@@ -340,34 +346,108 @@ export default function WelcomePage() {
             </div>
 
             {/* Actions Section */}
-            <div className="flex flex-col md:flex-row gap-8 md:gap-12 w-full max-w-3xl mt-16 md:mt-24 mb-16 relative z-30">
-              {/* Utility Floating Label */}
-              <div className="absolute -top-12 left-0 flex items-center gap-2 md:block">
-                <div className="w-2 h-2 bg-brand-orange animate-pulse rounded-full md:hidden" />
-                <span className="font-mono text-[9px] font-black uppercase tracking-[0.5em] opacity-40">
-                  {fc('Vibe Check // ENGAGEMENT_OPTIONS', 'OPTIONS')}
-                </span>
+            <div className="flex flex-col w-full max-w-3xl mt-8 md:mt-24 mb-16 relative z-30 space-y-4">
+              <div className="flex flex-col md:flex-row gap-6 md:gap-12 w-full">
+                {/* Utility Floating Label */}
+                <div className="absolute -top-12 left-0 flex items-center gap-2 md:block">
+                  <div className="w-2 h-2 bg-brand-orange animate-pulse rounded-full md:hidden" />
+                  <span className="font-mono text-[9px] font-black uppercase tracking-[0.5em] opacity-40">
+                    CAMP_LAUNCH_CONTROLS
+                  </span>
+                </div>
+                
+                <button 
+                  onClick={handleStart}
+                  className="flex-1 px-8 py-6 md:px-10 md:py-10 border-[3.5px] border-on-surface bg-on-surface text-white font-display font-bold text-2xl md:text-5xl uppercase tracking-tight hover:bg-brand-orange transition-all active:translate-x-1 active:translate-y-1 active:shadow-none shadow-[10px_10px_0px_var(--color-brand-lime)] md:shadow-[14px_14px_0px_var(--color-brand-lime)] group relative overflow-hidden italic leading-tight"
+                >
+                  <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
+                  <span className="relative z-10 flex items-center justify-center gap-4">
+                    START FIRST PHOTO MISSION
+                    <ChevronRight className="w-6 h-6 md:w-8 md:h-8" />
+                  </span>
+                </button>
+                
+                <button 
+                  onClick={() => setShowHowItWorks(true)}
+                  className="flex-1 px-8 py-6 md:px-10 md:py-10 border-[3.5px] border-on-surface bg-white text-on-surface font-display font-bold text-2xl md:text-5xl uppercase tracking-tight hover:bg-brand-lime hover:text-on-surface transition-all active:translate-x-1 active:translate-y-1 active:shadow-none shadow-[10px_10px_0px_var(--color-brand-cyan)] md:shadow-[14px_14px_0px_var(--color-brand-cyan)] group relative overflow-hidden italic leading-tight"
+                >
+                  <div className="absolute inset-0 bg-brand-lime translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
+                  <span className="relative z-10 transition-colors">HOW IT WORKS</span>
+                </button>
               </div>
-              
-              <button 
-                onClick={handleStart}
-                className="flex-1 px-10 py-10 border-2 border-on-surface bg-on-surface text-white font-display font-bold text-4xl md:text-6xl uppercase tracking-tight hover:bg-brand-orange transition-all active:translate-x-1 active:translate-y-1 active:shadow-none shadow-[20px_20px_0px_var(--color-brand-lime)] group relative overflow-hidden italic leading-tight"
-              >
-                <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
-                <span className="relative z-10 flex items-center justify-center gap-4">
-                  {fc('GET STARTED', 'GET STARTED')}
-                  <ChevronRight className="w-8 h-8 md:w-12 md:h-12" />
-                </span>
-              </button>
-              
-              <button 
-                onClick={handleSignInClick}
-                className="flex-1 px-10 py-10 border-2 border-on-surface bg-white text-on-surface font-display font-bold text-4xl md:text-6xl uppercase tracking-tight hover:bg-brand-lime transition-all active:translate-x-1 active:translate-y-1 active:shadow-none shadow-[20px_20px_0px_var(--color-brand-cyan)] group relative overflow-hidden italic leading-tight"
-              >
-                <div className="absolute inset-0 bg-on-surface translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
-                <span className="relative z-10 group-hover:text-white transition-colors">{fc('LOG IN', 'SIGN IN')}</span>
-              </button>
+
+              {/* Explicit Sign In Alternative Link */}
+              <div className="text-center pt-4">
+                <button 
+                  onClick={handleSignInClick}
+                  className="font-mono text-xs font-black text-on-surface/60 hover:text-brand-orange uppercase tracking-widest underline decoration-2 underline-offset-4"
+                >
+                  Already an explorer? Log In instead
+                </button>
+              </div>
             </div>
+
+            {/* How It Works Popup Modal */}
+            <AnimatePresence>
+              {showHowItWorks && (
+                <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+                  {/* Backdrop */}
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setShowHowItWorks(false)}
+                    className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                  />
+                  
+                  {/* Body */}
+                  <motion.div
+                    initial={{ scale: 0.9, opacity: 0, y: 30 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    exit={{ scale: 0.9, opacity: 0, y: 30 }}
+                    className="relative w-full max-w-xl bg-[#FFFDF9] border-[5px] border-on-surface p-6 sm:p-8 shadow-[12px_12px_0px_black] z-10 rotate-[-0.5deg]"
+                  >
+                    <button 
+                      onClick={() => setShowHowItWorks(false)}
+                      className="absolute top-4 right-4 p-1.5 border-2 border-on-surface hover:bg-brand-orange-light bg-white rounded-full text-on-surface active:translate-y-0.5"
+                    >
+                      <X className="w-5 h-5 stroke-[2.5]" />
+                    </button>
+                    
+                    <h3 className="font-display font-black text-3xl sm:text-4xl italic text-on-surface uppercase tracking-tight mb-6">
+                      HOW FIELDTRIP WORKS
+                    </h3>
+                    
+                    <div className="space-y-4 font-mono text-[11px] text-left">
+                      {[
+                        { step: "01", title: "OPEN APP", text: "Tune in daily for fresh, simple photo challenges curated for summer vibes." },
+                        { step: "02", title: "GET PHOTO " + getDisplayLabel('MISSIONS').toUpperCase(), text: "Browse your desk and draw a mission card detailing the photo requirement." },
+                        { step: "03", title: "TAKE PHOTO", text: "Point your lens, capture the summer evidence, and add a quick caption receipt." },
+                        { step: "04", title: "SUBMIT TO CREW", text: "Your photos instant-post onto your friends' Crew Memories Feed." },
+                        { step: "05", title: "EARN POINTS", text: "Rack up points and complete summer boards to help decide the ultimate winner of the season!" }
+                      ].map((item, idx) => (
+                        <div key={idx} className="flex gap-4 items-start p-3 bg-white border-2 border-on-surface/10 rounded-lg hover:border-brand-orange/40 transition-colors">
+                          <span className="font-sans font-black text-xs px-2 py-0.5 bg-brand-orange text-white rounded-sm">{item.step}</span>
+                          <div>
+                            <p className="font-sans font-black text-sm text-on-surface leading-tight uppercase tracking-tight mb-1">{item.title}</p>
+                            <p className="text-on-surface/70 leading-relaxed text-[10px]">{item.text}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-6 pt-4 border-t-2 border-on-surface/10 flex justify-end">
+                      <button 
+                        onClick={() => setShowHowItWorks(false)}
+                        className="px-6 py-2.5 bg-on-surface text-brand-lime border-2 border-on-surface shadow-[4px_4px_0px_black] active:translate-y-0.5 active:shadow-none font-display text-xs font-black uppercase italic tracking-wider"
+                      >
+                        Let's Play!
+                      </button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
           </motion.div>
         ) : authMode === 'access_code' ? (
 

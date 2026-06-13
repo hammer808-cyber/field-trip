@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import { PRODUCT_PERSONAS, ProductPersonaLensId } from '../constants';
-import { Card } from '../components/UI';
+import { Card, FieldBadge } from '../components/UI';
 import { 
   ShieldCheck, 
   Eye, 
@@ -120,7 +120,7 @@ export default function AdminQALensesPage() {
              >
                <ArrowLeft className="w-4 h-4" />
              </button>
-            <div className="bureau-tag bg-brand-orange text-white text-[10px]">INTERNAL_QA_SYSTEM_V1</div>
+            <FieldBadge variant="tab" color="orange" size="sm">INTERNAL_QA_SYSTEM_V1</FieldBadge>
             <p className="micro-label">PROTOCOL: [AUDIT_LENS_ALPHA]</p>
           </div>
           
@@ -168,7 +168,7 @@ export default function AdminQALensesPage() {
               >
                 <div className="flex justify-between items-start">
                   <Icon className={cn("w-6 h-6", isActive ? "text-paper" : "text-brand-orange")} />
-                  {isActive && <div className="text-[10px] bg-brand-orange text-white px-2 py-0.5">ACTIVE_LENS</div>}
+                  {isActive && <FieldBadge variant="sticker" color="orange" size="xs">ACTIVE_LENS</FieldBadge>}
                 </div>
                 <div className="mt-2">
                   <h3 className="font-display text-xl leading-none uppercase">{persona.name}</h3>

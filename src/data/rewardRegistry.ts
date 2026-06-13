@@ -58,10 +58,10 @@ export const REWARD_REGISTRY: Record<string, RewardMetadata> = {
     fallbackEmoji: '📝',
     betaCritical: true
   },
-  'summer-starter': {
-    id: 'summer-starter',
+  'heatwave-starter': {
+    id: 'heatwave-starter',
     type: 'sticker',
-    label: 'Summer Starter',
+    label: 'Heatwave Starter',
     description: 'Began the seasonal expedition.',
     rarity: 'common',
     fallbackEmoji: '☀️',
@@ -94,13 +94,13 @@ export const REWARD_REGISTRY: Record<string, RewardMetadata> = {
     fallbackEmoji: '👑',
     betaCritical: true
   },
-  'persona-lost-camper': {
-    id: 'persona-lost-camper',
+  'persona-the-gobbler': {
+    id: 'persona-the-gobbler',
     type: 'sticker',
-    label: 'Lost Camper',
-    description: 'Unlock trait: Nature survivor.',
+    label: 'The Gobbler',
+    description: 'Unlock trait: Insatiable hoarder.',
     rarity: 'uncommon',
-    fallbackEmoji: '🏕️',
+    fallbackEmoji: '👾',
     betaCritical: true
   },
   'persona-bigfoot': {
@@ -112,6 +112,30 @@ export const REWARD_REGISTRY: Record<string, RewardMetadata> = {
     fallbackEmoji: '👣',
     betaCritical: true
   },
+  // Discovery Stickers
+  'basecamp-found': { id: 'basecamp-found', type: 'sticker', label: 'Basecamp Found', description: 'You found the heart of the operation.', rarity: 'common' },
+  'rival-spotted': { id: 'rival-spotted', type: 'sticker', label: 'Rival Spotted', description: "You checked who's just ahead and who's sneaking up behind you.", rarity: 'common' },
+  'signal-reader': { id: 'signal-reader', type: 'sticker', label: 'Signal Reader', description: "You found this week's hidden scoring weather.", rarity: 'common' },
+  'first-draw': { id: 'first-draw', type: 'sticker', label: 'First Draw', description: 'You pulled your first mission. The shelf has officially noticed you.', rarity: 'common' },
+  'camera-ready': { id: 'camera-ready', type: 'sticker', label: 'Camera Ready', description: "The viewfinder is live. Time to catch proof in the wild.", rarity: 'common' },
+  'proof-pirate': { id: 'proof-pirate', type: 'sticker', label: 'Proof Pirate', description: "You found it, it didn’t find you! A photo plus field note makes stronger proof, adds lore, and could enhance your end-of-season zine.", rarity: 'uncommon' },
+  'signal-fragment-missing': { id: 'signal-fragment-missing', type: 'sticker', label: 'Signal Fragment Missing', description: 'Almost full. Some signals have a final piece hiding in the static.', rarity: 'rare' },
+  'scoreboard-goblin': { id: 'scoreboard-goblin', type: 'sticker', label: 'Scoreboard Goblin', description: 'Checking the standings?', rarity: 'common' },
+  'public-evidence': { id: 'public-evidence', type: 'sticker', label: 'Public Evidence', description: 'Reviewed field recordings.', rarity: 'common' },
+  'stat-rat': { id: 'stat-rat', type: 'sticker', label: 'Stat Rat', description: 'Diving deep into the efficiency metrics.', rarity: 'uncommon' },
+  'ballot-gremlin': { id: 'ballot-gremlin', type: 'sticker', label: 'Ballot Gremlin', description: 'Your voice is heard.', rarity: 'common' },
+  'jury-duty': { id: 'jury-duty', type: 'sticker', label: 'Jury Duty', description: 'Found where disputed proof goes.', rarity: 'common' },
+  'field-judge': { id: 'field-judge', type: 'sticker', label: 'Field Judge', description: 'Cast a deciding vote.', rarity: 'uncommon' },
+  'verdict-viewer': { id: 'verdict-viewer', type: 'sticker', label: 'Verdict Viewer', description: 'Checking the final calls.', rarity: 'common' },
+  'votinghub-found': { id: 'votinghub-found', type: 'sticker', label: 'Ballot Box Discovered', description: 'Found the center of field consensus.', rarity: 'common' },
+  'tiny-applause': { id: 'tiny-applause', type: 'sticker', label: 'Tiny Applause', description: 'Gave another explorer a little signal.', rarity: 'common' },
+  'red-string-energy': { id: 'red-string-energy', type: 'sticker', label: 'Red String Energy', description: 'Diving into the details.', rarity: 'common' },
+  'challenge-flag': { id: 'challenge-flag', type: 'sticker', label: 'Challenge Flag', description: 'Called out a suspected signal error.', rarity: 'rare' },
+  'first-flip': { id: 'first-flip', type: 'sticker', label: 'First Flip', description: 'Found it! Choose a mission from the shelf and start documenting.', rarity: 'common' },
+  'binder-goblin': { id: 'binder-goblin', type: 'sticker', label: 'Binder Goblin', description: 'You found the sticker binder. Everything you earn lands here.', rarity: 'common' },
+  'photo-witness': { id: 'photo-witness', type: 'sticker', label: 'Photo Witness', description: 'Captured first visual evidence.', rarity: 'common' },
+  'ink-witness': { id: 'ink-witness', type: 'sticker', label: 'Ink Witness', description: 'Logged first written field report.', rarity: 'common' },
+  'empty-slot-syndrome': { id: 'empty-slot-syndrome', type: 'sticker', label: 'Empty Slot Syndrome', description: 'A blank spot with opinions. Some stickers only reveal themselves after the right move.', rarity: 'legendary' },
   // Badges
   badge_first_mission: {
     id: 'badge_first_mission',

@@ -1,10 +1,11 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
-import { Card, Sticker } from './UI';
+import { Card, FieldBadge } from './UI';
 import { Lock, Clock, GraduationCap, Users } from 'lucide-react';
 import { motion } from 'motion/react';
-import { formatSafeDateOnly } from '../lib/utils';
+import { formatSafeDateOnly, cn } from '../lib/utils';
 
 export function GameWrapper({ children }: { children: React.ReactNode }) {
   const { 
@@ -15,7 +16,8 @@ export function GameWrapper({ children }: { children: React.ReactNode }) {
     profile, 
     gameConfig,
     onboardingCompletedCount,
-    isOnboardingComplete
+    isOnboardingComplete,
+    onboardingCompleted
   } = useApp();
   const { t, isAdmin } = useTheme();
 
@@ -59,7 +61,7 @@ export function GameWrapper({ children }: { children: React.ReactNode }) {
             <Lock className="w-8 h-8 opacity-40" />
           </div>
           <h2 className="text-huge text-4xl tracking-tighter uppercase font-black">{activeSeason.title}</h2>
-          <Sticker color="orange" className="mx-auto">{activeSeason.status.toUpperCase()}</Sticker>
+          <FieldBadge variant="sticker" color="orange" className="mx-auto">{activeSeason.status.toUpperCase()}</FieldBadge>
           <p className="text-sm opacity-60">
             {activeSeason.status === 'pre-season' 
               ? "The season is currently being mapped. Check back soon for deployment orders."
@@ -83,35 +85,28 @@ export function GameWrapper({ children }: { children: React.ReactNode }) {
 
   // Onboarding Stage
   if (profile && !isOnboardingComplete) {
-    const remaining = 3 - onboardingCompletedCount;
-    if (remaining > 0) {
+    const ONBOARDING_ROUTE_PREFIXES = [
+      '/onboarding',
+      '/classification',
+      '/field-kit',
+      '/permissions',
+      '/field-type',
+      '/persona',
+      '/quiz',
+      '/setup',
+      '/welcome',
+      '/vibe-check',
+      '/field-id'
+    ];
+
+    const isOnboardingRoute = ONBOARDING_ROUTE_PREFIXES.some((prefix) =>
+      location.pathname.startsWith(prefix)
+    );
+
+    if (!isOnboardingRoute) {
       return (
         <div className="relative min-h-screen">
           {children}
-          {/* Onboarding Banner */}
-          <motion.div 
-            initial={{ y: 100 }}
-            animate={{ y: 0 }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-on-surface text-paper p-4 border-t-4 border-brand-orange"
-          >
-            <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <GraduationCap className="w-5 h-5 text-brand-orange" />
-                <div>
-                  <p className="text-[10px] uppercase font-bold tracking-widest">Training Protocol Active</p>
-                  <p className="text-xs opacity-60 font-mono">Complete {remaining} more onboarding mission{remaining > 1 ? 's' : ''} to unlock Crew access.</p>
-                </div>
-              </div>
-              <div className="flex gap-1">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div 
-                    key={i} 
-                    className={`w-3 h-3 border-2 ${i < onboardingCompletedCount ? 'bg-brand-orange border-brand-orange' : 'border-paper/20'}`} 
-                  />
-                ))}
-              </div>
-            </div>
-          </motion.div>
         </div>
       );
     }
@@ -121,9 +116,9 @@ export function GameWrapper({ children }: { children: React.ReactNode }) {
     <>
       {(isAdmin || import.meta.env.DEV) && (!isSeasonActive || activeSeason?.status !== 'active' || activeSeason?.id === 'dev-season-2026') && (
         <div className="fixed top-2 sm:top-20 right-2 sm:right-4 z-[100] pointer-events-none flex flex-row sm:flex-col items-center sm:items-end gap-1 sm:gap-2">
-          <Sticker color="black" className="text-[6px] sm:text-[8px] opacity-70 border-dashed border border-brand-orange py-0.5 px-1 sm:py-1 sm:px-2 leading-none">
+          <FieldBadge variant="sticker" color="black" className="text-[6px] sm:text-[8px] opacity-70 border-dashed border border-brand-orange py-0.5 px-1 sm:py-1 sm:px-2 leading-none">
             {isAdmin ? 'ADMIN_BYPASS' : 'DEV_ACTIVE'}
-          </Sticker>
+          </FieldBadge>
           {activeSeason?.id === 'dev-season-2026' && (
             <div className="bg-brand-orange text-white text-[5px] sm:text-[7px] px-1 sm:px-2 py-0.5 font-bold uppercase tracking-widest leading-none">
               FALLBACK_MODE

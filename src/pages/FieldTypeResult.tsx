@@ -2,20 +2,32 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useApp } from '../context/AppContext';
+import { LAUNCH_MISSION_ID } from '../data/specialMissions';
 import { RewardIntensity } from '../types/feedback';
 import { useTheme } from '../context/ThemeContext';
 import { FIELD_TYPES, MOCK_TRIPS } from '../constants';
-import { Sticker } from '../components/UI';
+import { FieldBadge } from '../components/UI';
 import { cn } from '../lib/utils';
 import { Hibiscus, ChromeStar, GlossOverlay } from '../components/BajaBratzAssets';
 import { DiamondStar, Sparkle, SunFlare, GlossOverlay as DiamondGloss } from '../components/SkinAssets';
+import { getDisplayLabel } from '../utils/labelUtils';
 
 export default function FieldTypeResult() {
-  const { fieldType, completeOnboarding, queueReward } = useApp();
+  const { fieldType, user, updateProfile, queueReward, hasCompletedGuidedFirstEntry } = useApp();
   const { skin, frankieMode } = useTheme();
   const navigate = useNavigate();
 
+  // Determine if we should show the sticky footer vs inline content
+  // Unify under a single concept of "Guided Sequence"
+  const isGuidedActive = !hasCompletedGuidedFirstEntry;
+
+  const isGuidedReIntro = !hasCompletedGuidedFirstEntry && !!fieldType;
+
   useEffect(() => {
+    if (isGuidedReIntro) {
+       // Silent for re-intro
+       return;
+    }
     if (fieldType) {
       const typeData = FIELD_TYPES[fieldType];
       queueReward({
@@ -27,11 +39,32 @@ export default function FieldTypeResult() {
         iconName: 'Fingerprint'
       });
     }
-  }, [fieldType]);
+  }, [fieldType, isGuidedReIntro, queueReward]);
+
+  const [isNavigating, setIsNavigating] = React.useState(false);
 
   const handleStartApp = async () => {
-    await completeOnboarding();
-    navigate('/deck');
+    if (isNavigating) return;
+    setIsNavigating(true);
+    
+    console.log('[FieldTypeResult] Accept tapped. Setting onboarding progress...');
+    try {
+      if (user) {
+        await updateProfile(user.uid, {
+          hasSeenFieldTypeResults: true,
+          onboardingCurrentStep: 0,
+          onboardingStarted: true,
+          // Ensure starting guided mission
+          activeTrip: null
+        });
+      }
+      
+      console.log('[FieldTypeResult] Routing to /deck...');
+      navigate('/deck');
+    } catch (err) {
+      console.error('[FieldTypeResult] Navigation failed:', err);
+      setIsNavigating(false);
+    }
   };
 
   const isBaja = skin.id === 'baja-bratz';
@@ -45,25 +78,13 @@ export default function FieldTypeResult() {
 
   return (
     <div className={cn(
-      "min-h-screen p-6 pb-32 flex flex-col items-center space-y-12 relative overflow-hidden",
+      "page-scroll p-6 flex flex-col items-center space-y-12 relative",
       isBaja ? "bg-baja-sand text-baja-pink" : 
       isDiamond ? "bg-black text-white" :
-      isHeat ? "bg-heat-yellow text-white" : "bg-white text-on-surface"
+      isHeat ? "bg-heat-yellow text-white" : "bg-transparent text-on-surface"
     )}>
-      {isDefault && (
-        <>
-          <div className="fixed inset-0 pointer-events-none z-[100] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.02)_50%)] bg-[length:100%_2px] opacity-[0.03]" />
-          <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.05]" 
-               style={{ 
-                 backgroundImage: 'linear-gradient(var(--color-on-surface) 1.5px, transparent 1.5px), linear-gradient(90deg, var(--color-on-surface) 1.5px, transparent 1.5px)', 
-                 backgroundSize: '32px 32px' 
-               }} 
-          />
-        </>
-      )}
-
       <header className={cn(
-        "fixed top-0 w-full z-[110] py-4 px-6 flex justify-between items-center transition-all",
+        "sticky top-0 w-full z-[110] py-4 px-6 flex justify-between items-center transition-all",
         isBaja ? "bg-white/80 backdrop-blur-md border-b-2 border-baja-pink/20" : 
         isDiamond ? "bg-black/60 backdrop-blur-3xl border-b border-white/10" :
         isHeat ? "bg-heat-pink/90 backdrop-blur-md border-b-2 border-white" :
@@ -106,31 +127,46 @@ export default function FieldTypeResult() {
         </>
       )}
 
-      <div className="pt-24 flex flex-col items-center space-y-10 w-full max-w-md relative z-10">
-        <Sticker color={isBaja ? "white" : isDiamond ? "white" : isHeat ? "white" : "lime"} className={cn(
-          "px-10 py-5 text-xl uppercase font-display font-bold italic shadow-[8px_8px_0px_black]",
-          isDiamond ? "rounded-none font-mono not-italic" : (i: any) => i ? "-rotate-2" : "rotate-1"
-        )}>
-          {isBaja ? 'BABE_VERIFIED' : isDiamond ? 'PRISM_UNLOCKED' : isHeat ? 'SPLASH_READY' : 'ASSIGNED_UNIT'}
-        </Sticker>
+      <div className={cn(
+        "pt-8 flex flex-col items-center space-y-12 w-full max-w-md relative z-10 mx-auto",
+        isGuidedActive && "max-w-none px-0 space-y-8"
+      )}>
+        <div className={cn("text-center space-y-4 w-full", isGuidedActive && "px-6")}>
+          <FieldBadge variant="sticker" color={isBaja ? "white" : isDiamond ? "white" : isHeat ? "white" : "lime"} className={cn(
+            "px-10 py-5 text-xl uppercase font-display font-bold italic shadow-[8px_8px_0px_black] mx-auto block w-fit pointer-events-none",
+            isDiamond ? "rounded-none font-mono not-italic" : (i: any) => i ? "-rotate-2" : "rotate-1"
+          )}>
+            {isGuidedActive ? getDisplayLabel('PERSONA_IDENTIFIED') : (isBaja ? getDisplayLabel('BABE_VERIFIED') : isDiamond ? getDisplayLabel('PRISM_UNLOCKED') : isHeat ? getDisplayLabel('SPLASH_READY') : getDisplayLabel('ASSIGNED_UNIT'))}
+          </FieldBadge>
+          
+          {isGuidedActive && (
+            <div className="pt-4 space-y-2">
+              <h2 className="text-4xl xs:text-5xl font-display font-black uppercase italic tracking-tighter leading-none">Almost ready.</h2>
+              <p className="text-sm font-serif italic opacity-60 px-4 mx-auto max-w-[320px] font-bold">
+                Your first mission will show you exactly how Fieldtrip works.
+              </p>
+            </div>
+          )}
+        </div>
         
-        <div className="relative group/card w-full flex justify-center px-4">
+        <div className={cn("relative group/card w-full flex justify-center", isGuidedActive ? "px-0" : "px-4")}>
           <motion.div 
             initial={{ scale: 0.9, y: 20 }}
             animate={{ scale: 1, y: 0 }}
             className={cn(
-              "w-full max-w-[18rem] xs:max-w-[20rem] h-[28rem] xs:h-[30rem] p-6 pb-16 shadow-[20px_20px_0px_rgba(0,0,0,0.1)] relative overflow-hidden transition-all duration-500",
+              "w-full h-[28rem] xs:h-[30rem] p-6 pb-16 shadow-[20px_20px_0px_rgba(0,0,0,0.1)] relative overflow-hidden transition-all duration-500",
+              isGuidedActive ? "max-w-none border-x-0 sm:border-x-2" : "max-w-[18rem] xs:max-w-[20rem]",
               isBaja ? "bg-white rounded-[3rem] border-4 border-baja-pink" : 
               isDiamond ? "bg-white/10 rounded-none border border-white/40 backdrop-blur-xl" :
               isHeat ? "bg-white rounded-full border-8 border-white p-8" :
-              "bg-white border-2 border-on-surface shadow-[16px_16px_0px_black] rounded-none group-hover/card:shadow-[24px_24px_0px_var(--color-brand-orange)]"
+              "bg-white border-2 border-on-surface shadow-[16px_16px_0px_black] rounded-none"
             )}
           >
             {(isBaja || isDiamond) && <GlossOverlay opacity={isDiamond ? 0.3 : 0.4} />}
             
             {!isBaja && !isDiamond && !isHeat && (
               <div className="absolute top-0 left-0 w-full bg-on-surface text-brand-lime px-6 py-2 flex justify-between items-center z-10 italic">
-                <span className="text-[10px] font-black tracking-[0.2em] uppercase">FIELD_DOSSIER // HV-LE</span>
+                <span className="text-[10px] font-black tracking-[0.2em] uppercase">MISSION BRIEFING // HV-LE</span>
                 <span className="text-[9px] font-mono opacity-60">REF_704_B</span>
               </div>
             )}
@@ -139,14 +175,17 @@ export default function FieldTypeResult() {
               "w-full h-full border-2 border-on-surface overflow-hidden relative group",
               !isBaja && !isDiamond && !isHeat && "bg-black mt-4"
             )}>
-               <img 
-                 src={data.image} 
-                 alt={data.name} 
-                 className={cn(
-                   "w-full h-full object-cover transition-all duration-700 group-hover:scale-110",
-                   isBaja ? "rounded-[2rem]" : isDiamond ? "grayscale opacity-80" : isHeat ? "rounded-full" : "grayscale contrast-[1.2] brightness-110 sepia-[0.1] opacity-90 group-hover:grayscale-0 group-hover:sepia-0"
-                 )} 
-               />
+                <img 
+                  src={data.image} 
+                  alt={data.name} 
+                  className={cn(
+                    "w-full h-full object-cover transition-all duration-700 group-hover:scale-110",
+                    isBaja ? "rounded-[2rem]" : isDiamond ? "grayscale opacity-80" : isHeat ? "rounded-full" : "grayscale contrast-[1.2] brightness-110 sepia-[0.1] opacity-90 group-hover:grayscale-0 group-hover:sepia-0"
+                  )} 
+                  onError={(e) => {
+                    console.error(`[FieldTypeResult] Failed to load character results image for ${data.name}: ${data.image}`);
+                  }}
+                />
                <div className="absolute inset-0 bg-brand-lime/10 mix-blend-overlay opacity-30 pointer-events-none" />
             </div>
 
@@ -177,7 +216,9 @@ export default function FieldTypeResult() {
           <p className={cn(
             "micro-label uppercase tracking-widest font-bold opacity-50",
             isDiamond ? "text-white" : "text-on-surface"
-          )}>Identification Sequence Complete</p>
+          )}>
+            {isGuidedActive ? 'RE-ENTRY SEQUENCE INITIATED' : 'Identification Sequence Complete'}
+          </p>
           <div className="flex flex-col items-center">
              <h2 className={cn(
                "leading-[0.85] uppercase tracking-tight font-bold italic",
@@ -185,29 +226,31 @@ export default function FieldTypeResult() {
                isDiamond ? "text-6xl text-white font-sans font-bold tracking-[-0.05em]" :
                isHeat ? "text-6xl text-heat-pink font-display" :
                "text-7xl md:text-8xl text-on-surface font-display"
-             )}>{data.name}</h2>
+             )}>{isGuidedActive ? 'YOU’RE BACK' : data.name}</h2>
              <div className="h-2 w-full bg-brand-orange mt-4 max-w-[200px]" />
           </div>
           <div className="pt-6">
             <span className={cn(
-              "px-10 py-3 font-bold uppercase tracking-wider text-sm border-2 italic",
-              isBaja ? "text-baja-pink/60 font-serif border-baja-pink/20" : 
-              isDiamond ? "text-xs text-white/40 font-mono tracking-widest border-white/10" :
-              isHeat ? "text-lg text-white font-display border-white" :
-              "bg-brand-lime text-on-surface border-on-surface shadow-[6px_6px_0px_black] rotate-[-1deg] inline-block"
-            )}>
-              {data.campRole}
+               "px-10 py-3 font-bold uppercase tracking-wider text-sm border-2 italic",
+               isBaja ? "text-baja-pink/60 font-serif border-baja-pink/20" : 
+               isDiamond ? "text-xs text-white/40 font-mono tracking-widest border-white/10" :
+               isHeat ? "text-lg text-white font-display border-white" :
+               "bg-brand-lime text-on-surface border-on-surface shadow-[6px_6px_0px_black] rotate-[-1deg] inline-block"
+             )}>
+              {isGuidedActive ? 'In the Field' : data.campRole}
             </span>
           </div>
         </div>
 
         <div className={cn(
           "w-full space-y-0 relative group/panel",
-          !isBaja && !isDiamond && !isHeat && "shadow-[20px_20px_0px_var(--color-brand-lime)] border-2 border-on-surface transition-all hover:shadow-[24px_24px_0px_var(--color-brand-orange)]"
+          isGuidedActive ? "max-w-none px-0" : "max-w-md",
+          !isBaja && !isDiamond && !isHeat && "border-y-2 sm:border-2 border-on-surface transition-all"
         )}>
           {/* Modular Result Panel Implementation */}
           <div className={cn(
-            "w-full p-10 space-y-10 relative",
+            "w-full p-4 xs:p-8 sm:p-10 space-y-10 relative",
+            isGuidedActive && "rounded-none",
             isBaja ? "bg-white border-4 border-baja-pink rounded-[2.5rem] rotate-1" :
             isDiamond ? "bg-white/5 border border-white/20 rounded-none backdrop-blur-sm" :
             isHeat ? "bg-white border-8 border-white rounded-[3rem] -rotate-2" :
@@ -229,14 +272,41 @@ export default function FieldTypeResult() {
                    <ChromeStar className="w-16 h-16" />
                 </div>
                <p className={cn("text-2xl leading-tight font-medium relative z-10", isDiamond ? "font-mono text-white/80" : "font-serif text-on-surface")}>
-                 "{data.description}"
+                 {isGuidedActive 
+                   ? "Take one photo. Add one short note. Submit it for review."
+                   : `"${data.description}"`}
                </p>
              </div>
 
-             <div className="bg-brand-lime text-black p-8 border-2 border-on-surface shadow-[8px_8px_0px_black] relative rotate-1 group-hover/panel:rotate-0 transition-transform">
-               <p className="text-sm font-bold leading-relaxed uppercase tracking-wider italic">{data.narration}</p>
-               <div className="absolute -top-3 -left-3 w-6 h-6 bg-on-surface rotate-45" />
-             </div>
+             {isGuidedActive ? (
+               <div className="space-y-6 pt-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-on-surface rounded-full flex items-center justify-center shrink-0 shadow-[4px_4px_0px_var(--color-brand-lime)]">
+                      <span className="text-brand-lime font-black">01</span>
+                    </div>
+                    <p className="text-base font-black uppercase tracking-tight italic text-on-surface">Find the target in the real world.</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-on-surface rounded-full flex items-center justify-center shrink-0 shadow-[4px_4px_0px_var(--color-brand-orange)]">
+                      <span className="text-brand-orange font-black">02</span>
+                    </div>
+                    <p className="text-base font-black uppercase tracking-tight italic text-on-surface">Take one photo as proof.</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-on-surface rounded-full flex items-center justify-center shrink-0 shadow-[4px_4px_0px_var(--color-brand-cyan)]">
+                      <span className="text-brand-cyan font-black">03</span>
+                    </div>
+                    <p className="text-base font-black uppercase tracking-tight italic text-on-surface">Add a note and submit.</p>
+                  </div>
+               </div>
+             ) : (
+               <div className="bg-brand-lime text-black p-8 border-2 border-on-surface shadow-[8px_8px_0px_black] relative rotate-1 group-hover/panel:rotate-0 transition-transform">
+                 <p className="text-sm font-bold leading-relaxed uppercase tracking-wider italic">
+                   {data.narration}
+                 </p>
+                 <div className="absolute -top-3 -left-3 w-6 h-6 bg-on-surface rotate-45" />
+               </div>
+             )}
 
              <div className="space-y-12 pt-6">
                 <div className="grid grid-cols-2 gap-8">
@@ -273,13 +343,15 @@ export default function FieldTypeResult() {
                    </div>
                 </div>
 
-                <div className="p-8 border-2 border-on-surface bg-paper-dark relative shadow-inner">
-                  <div className="absolute -top-4 left-8 px-4 bg-on-surface text-brand-lime border-2 border-on-surface text-[11px] font-black uppercase italic shadow-[3px_3px_0px_black]">STRATEGY_DEBRIEF</div>
-                  <p className={cn(
-                    "text-lg leading-relaxed font-medium pt-4 italic",
-                    isDiamond ? "text-white/60 font-mono" : "text-on-surface/90 font-serif"
-                  )}>{data.howToPlay}</p>
-                </div>
+                {!isGuidedActive && (
+                  <div className="p-8 border-2 border-on-surface bg-paper-dark relative shadow-inner">
+                    <div className="absolute -top-4 left-8 px-4 bg-on-surface text-brand-lime border-2 border-on-surface text-[11px] font-black uppercase italic shadow-[3px_3px_0px_black]">STRATEGY_DEBRIEF</div>
+                    <p className={cn(
+                      "text-lg leading-relaxed font-medium pt-4 italic",
+                      isDiamond ? "text-white/60 font-mono" : "text-on-surface/90 font-serif"
+                    )}>{data.howToPlay}</p>
+                  </div>
+                )}
 
                 <div className="pt-8 border-t-4 border-on-surface/10 space-y-4">
                    <div className="flex items-center gap-3">
@@ -301,25 +373,67 @@ export default function FieldTypeResult() {
           </div>
         </div>
 
+          {/* Unified Primary CTA Logic: Inline button is hidden on mobile if guided, or always hidden if re-intro */}
+          <div className={cn(
+            "w-full pt-10 pb-20 px-4",
+            isGuidedActive ? "md:block hidden" : "block"
+          )}>
+            <button 
+              id="primary-mission-cta"
+              onClick={handleStartApp}
+              disabled={isNavigating}
+              className={cn(
+                "w-full py-10 font-bold text-3xl sm:text-4xl transition-all active:translate-x-2 active:translate-y-2 active:shadow-none uppercase tracking-tight border-2 italic",
+                isNavigating && "opacity-80 grayscale pointer-events-none",
+                isBaja ? "bg-baja-pink text-white rounded-full font-display border-baja-pink" : 
+                isDiamond ? "bg-white text-black font-sans border-white" :
+                isHeat ? "bg-heat-pink text-white rounded-full font-display border-white" :
+                "bg-brand-orange text-white border-on-surface shadow-[16px_16px_0px_black] hover:bg-on-surface hover:text-brand-lime hover:shadow-[20px_20px_0px_var(--color-brand-orange)]"
+              )}
+            >
+              {isNavigating ? 'Opening mission...' : (isBaja ? 'START THE BEACH VACAY' : isDiamond ? 'INITIATE DEPLOYMENT' : isHeat ? 'TAKE THE PLUNGE' : (isGuidedActive ? 'Start First Mission' : 'Enter the Field'))}
+            </button>
+          </div>
+
+          {!isGuidedActive && (
+            <button onClick={() => navigate('/onboarding')} className={cn(
+              "text-sm font-black opacity-40 hover:opacity-100 transition-opacity uppercase tracking-[0.5em] p-10 italic",
+              isDiamond ? "font-mono text-white/40" : "text-on-surface"
+            )}>
+              &lt; {isBaja ? 'Re-Choose Role' : getDisplayLabel('RE_AUDIT_SIGNAL')}
+            </button>
+          )}
+
+          {isGuidedActive && (
+             <div className="flex flex-col items-center gap-4 md:pb-10">
+                <p className="text-[10px] font-mono font-black uppercase text-on-surface/30 tracking-widest italic">
+                  This will open your first required starter mission.
+                </p>
+                <button 
+                  onClick={() => navigate('/onboarding')}
+                  className="text-[10px] font-black underline underline-offset-4 decoration-current opacity-30 hover:opacity-100 uppercase tracking-widest"
+                >
+                  Need help?
+                </button>
+             </div>
+          )}
+      </div>
+
+      {/* Show sticky footer for guided entry on mobile only */}
+      {isGuidedActive && (
+        <div className="sticky bottom-0 left-0 w-full p-4 bg-white/90 backdrop-blur-xl border-t-2 border-on-surface z-[120] pb-[calc(1rem+env(safe-area-inset-bottom))] md:hidden">
           <button 
             onClick={handleStartApp}
+            disabled={isNavigating}
             className={cn(
-              "w-full py-12 font-bold text-4xl transition-all active:translate-x-2 active:translate-y-2 active:shadow-none uppercase tracking-tight border-2 italic",
-              isBaja ? "bg-baja-pink text-white rounded-full font-display border-baja-pink" : 
-              isDiamond ? "bg-white text-black font-sans border-white" :
-              isHeat ? "bg-heat-pink text-white rounded-full font-display border-white" :
-              "bg-brand-orange text-white border-on-surface shadow-[16px_16px_0px_black] hover:bg-on-surface hover:text-brand-lime hover:shadow-[20px_20px_0px_var(--color-brand-orange)]"
+               "w-full h-16 bg-brand-orange text-white font-display font-black text-2xl uppercase tracking-widest shadow-[6px_6px_0px_black] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all italic rounded-xl",
+               isNavigating && "opacity-80 grayscale pointer-events-none"
             )}
           >
-            {isBaja ? 'START THE BEACH VACAY' : isDiamond ? 'INITIATE DEPLOYMENT' : isHeat ? 'TAKE THE PLUNGE' : 'BEGIN_DEEP_AUDIT'}
+            {isNavigating ? 'Opening mission...' : 'Start First Mission'}
           </button>
-          <button onClick={() => navigate('/onboarding')} className={cn(
-            "text-sm font-black opacity-40 hover:opacity-100 transition-opacity uppercase tracking-[0.5em] p-10 italic",
-            isDiamond ? "font-mono text-white/40" : "text-on-surface"
-          )}>
-            &lt; {isBaja ? 'RE-CHOOSE ROLE' : 'RE-AUDIT_SIGNAL'}
-          </button>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

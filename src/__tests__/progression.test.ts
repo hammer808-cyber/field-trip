@@ -4,6 +4,7 @@ import { FieldTypeId } from '../constants';
 const mockState = (overrides: Partial<GameState> = {}): GameState => ({
   userId: 'test-user',
   email: 'test@example.com',
+  xp: 0,
   points: 0,
   soloTripsCount: 0,
   completedCoreChallenges: 0,

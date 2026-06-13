@@ -28,21 +28,26 @@ export default function AdminLeaderboard() {
     }
 
     async function loadData() {
-      const config = await getAppConfig();
-      if (config?.activeSeasonId) {
-        const s = await getActiveSeason(config.activeSeasonId);
-        setSeason(s);
-        
-        if (s) {
-          const summaryMap: Record<number, WeeklySummary | null> = {};
-          for (const week of s.weeks) {
-            const summary = await getWeeklySummary(s.id, week.number);
-            summaryMap[week.number] = summary;
+      try {
+        const config = await getAppConfig();
+        if (config?.activeSeasonId) {
+          const s = await getActiveSeason(config.activeSeasonId);
+          setSeason(s);
+          
+          if (s) {
+            const summaryMap: Record<number, WeeklySummary | null> = {};
+            for (const week of s.weeks) {
+              const summary = await getWeeklySummary(s.id, week.number);
+              summaryMap[week.number] = summary;
+            }
+            setSummaries(summaryMap);
           }
-          setSummaries(summaryMap);
         }
+      } catch (err) {
+        console.error("[AdminLeaderboard] Failed to load layout data:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     loadData();
   }, [isAdmin]);
@@ -168,6 +173,19 @@ export default function AdminLeaderboard() {
                          <p className="micro-label opacity-40">CREWS_AGGREGATED</p>
                          <p className="font-mono text-[10px] font-bold">
                            {Object.keys(summary.crewStats || {}).length} UNITS
+                         </p>
+                      </div>
+                    )}
+
+                    {isCalculated && (
+                      <div className="space-y-1">
+                         <p className="micro-label opacity-40">ACCOLADES & PAID STATUS</p>
+                         <p className="font-mono text-[10px] font-bold">
+                           {summary.voteWinners && Object.keys(summary.voteWinners).length > 0 ? (
+                             <span className="text-brand-green uppercase">● FINALIZED & PAID</span>
+                           ) : (
+                             <span className="text-brand-orange uppercase">○ READY TO FINALIZE</span>
+                           )}
                          </p>
                       </div>
                     )}

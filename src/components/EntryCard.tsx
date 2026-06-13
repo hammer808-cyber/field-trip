@@ -2,13 +2,16 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Entry } from '../constants';
 import { cn } from '../lib/utils';
-import { CheckCircle2, AlertCircle, Clock, ShieldAlert, Flag } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Clock, ShieldAlert, Flag, Book, Sparkles } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
+import { FieldBadge } from './UI';
 import { AvatarPreview } from './AvatarPreview';
 import { DEFAULT_AVATAR } from '../constants/avatarAssets';
 import { adminOverrideReview } from '../services/proofService';
+import { ProofImage } from './ProofImage';
 import { FieldCheckModal } from './FieldCheckModal';
+import { normalizeEntryStatus } from '../logic/entryLogic';
 
 interface EntryCardProps {
   entry: Entry;
@@ -23,21 +26,20 @@ export function EntryCard({ entry, className }: EntryCardProps) {
 
   const isPlain = frankieMode;
   const isOwnEntry = user?.uid === entry.userId;
-  const isApproved = entry.status === 'approved' || entry.status === 'approved_by_admin';
+  const normalizedStatus = normalizeEntryStatus(entry.status);
+  const isApproved = normalizedStatus === 'approved';
 
   const getStatusInfo = () => {
-    switch (entry.status) {
+    switch (normalizedStatus) {
       case 'approved':
-      case 'approved_by_admin':
-        return { icon: CheckCircle2, text: fc('Verified', 'Verified'), color: 'text-on-surface', stickerColor: 'lime' };
-      case 'needs-more-proof':
-      case 'needs_review':
-        return { icon: AlertCircle, text: fc('Needs More Proof', 'Needs Proof'), color: 'text-brand-orange', stickerColor: 'orange' };
+        return { icon: CheckCircle2, text: fc('Verified', 'Verified'), color: 'text-on-surface', stickerColor: 'lime' as const };
+      case 'needs_more_proof':
+        return { icon: AlertCircle, text: fc('Needs More Proof', 'Needs Proof'), color: 'text-brand-orange', stickerColor: 'orange' as const };
       case 'rejected':
-        return { icon: ShieldAlert, text: fc('Rejected', 'Rejected'), color: 'text-error', stickerColor: 'black' };
-      case 'pending':
+        return { icon: ShieldAlert, text: fc('Rejected', 'Rejected'), color: 'text-error', stickerColor: 'charcoal' as const };
+      case 'pending_review':
       default:
-        return { icon: Clock, text: fc('Field Check Pending', 'Pending Review'), color: 'opacity-40', stickerColor: 'white' };
+        return { icon: Clock, text: fc('Field Check Pending', 'Pending Review'), color: 'opacity-40', stickerColor: 'white' as const };
     }
   };
 
@@ -55,31 +57,36 @@ export function EntryCard({ entry, className }: EntryCardProps) {
 
   return (
     <div className={cn(
-      "min-w-[340px] flex-shrink-0 p-10 transition-all hover:-translate-y-2 bg-white relative group border-4 border-on-surface shadow-[16px_16px_0px_var(--color-brand-orange)] hover:shadow-[24px_24px_0px_black]",
+      "min-w-[320px] sm:min-w-[380px] flex-shrink-0 p-6 pb-12 transition-all hover:rotate-1 bg-[#FFFDF8] relative group border-[4.5px] border-on-surface shadow-[10px_12px_0px_black] hover:shadow-[14px_16px_0px_black]",
       className
     )}>
-      <div className="relative aspect-video mb-8 overflow-hidden border-4 border-on-surface shadow-[8px_8px_0px_black] group-hover:rotate-1 transition-transform">
-        <img 
-          src={entry.proofImage || undefined} 
-          alt="" 
-          loading="lazy"
-          className="w-full h-full object-cover transition-all duration-1000 group-hover:scale-110 sepia-[0.1] contrast-125" 
+      {/* Tape on top anchoring this Polaroid entry */}
+      <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-28 h-8 bg-[#FEFC9C]/90 border-[1.5px] border-dashed border-on-surface/30 rotate-[-1.5deg] z-40 shadow-[2px_2px_0px_rgba(0,0,0,0.05)] pointer-events-none mix-blend-multiply" />
+      <div className="absolute top-2 right-2 w-7 h-7 border-[2.5px] border-on-surface/30 rounded-full flex items-center justify-center opacity-40 z-40 bg-white shadow-sm select-none pointer-events-none text-xs">📌</div>
+      
+      {/* Main Image Viewport */}
+      <div className="relative aspect-[4/3] mb-8 overflow-hidden border-[4px] border-on-surface shadow-[6px_6px_0px_rgba(0,0,0,0.1)] group-hover:rotate-0.5 transition-transform bg-[#ECE9E0]">
+        <ProofImage 
+          entry={entry} 
+          className="group-hover:scale-105 sepia-[0.1] contrast-125 transition-all duration-1000 grayscale-[10%]" 
         />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
         <div className="absolute inset-0 bg-brand-lime/10 mix-blend-overlay pointer-events-none" />
+        <div className="absolute inset-0 opacity-[0.12] pointer-events-none mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')]" />
         
         {isAdmin && (
           <div className="absolute inset-0 bg-on-surface/90 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-6 p-6 backdrop-blur-sm z-30">
-            <p className="text-white micro-label mb-2 font-black tracking-[0.4em] italic">ADMIN_OVERRIDE_PROTOCOL</p>
+            <p className="text-white font-mono text-[9px] mb-2 font-black tracking-[0.4em] uppercase italic">ADMIN_OVERRIDE_PROTOCOL</p>
             <div className="flex gap-4">
               <button 
                 onClick={() => handleAdminAction('approved')}
-                className="bg-brand-lime text-black px-8 py-3 text-sm font-display uppercase font-black border-2 border-on-surface hover:bg-white transition-all shadow-[6px_6px_0px_black] italic"
+                className="bg-brand-lime text-on-surface px-6 py-3 text-xs font-display uppercase font-black border-[3px] border-on-surface hover:bg-white transition-all shadow-[6px_6px_0px_black] active:shadow-none active:translate-y-1 italic"
               >
-                AUTHO_VERIFY
+                VERIFY_DATA
               </button>
               <button 
                 onClick={() => handleAdminAction('rejected')}
-                className="bg-error text-white px-8 py-3 text-sm font-display uppercase font-black border-2 border-on-surface hover:bg-on-surface transition-all shadow-[6px_6px_0px_black] italic"
+                className="bg-brand-orange text-white px-6 py-3 text-xs font-display uppercase font-black border-[3px] border-on-surface hover:bg-on-surface transition-all shadow-[6px_6px_0px_black] active:shadow-none active:translate-y-1 italic"
               >
                 REJECT_VIBE
               </button>
@@ -87,40 +94,81 @@ export function EntryCard({ entry, className }: EntryCardProps) {
           </div>
         )}
 
-        <div className="absolute top-2 left-2 bg-on-surface text-brand-lime px-2 py-0.5 text-[8px] font-black uppercase tracking-widest italic z-20">{fc('LENS_ARCHIVE', 'ENTRY')}</div>
-      </div>
-      <div className="flex justify-between items-start mb-8">
-        <div className="flex items-center gap-5">
-          <AvatarPreview 
-            avatar={entry.userAvatar || DEFAULT_AVATAR} 
-            size="lg" 
-            className="border-2 border-on-surface bg-white shadow-[4px_4px_0px_black] rounded-none" 
-          />
-          <div className="space-y-1.5 text-left">
-            <p className="micro-label opacity-40 font-black tracking-[0.2em] italic">{fc(`FILED_BY_${entry.userName?.toUpperCase() || 'ANON_AGENT'}`, `By ${entry.userName || 'Agent'}`)}</p>
-            <h4 className="font-display text-2xl uppercase tracking-tighter text-on-surface font-black italic leading-[0.8]">{entry.tripTitle}</h4>
-          </div>
+        <FieldBadge 
+          variant="label" 
+          color="charcoal" 
+          size="xs" 
+          rotation={-1} 
+          className="absolute top-2 left-2 z-20 font-black italic shadow-[3px_3px_0px_black]"
+        >
+          {fc('LENS_CAPTURE', 'FIELD_DATA')}
+        </FieldBadge>
+
+        <div className="absolute bottom-2 right-2 z-20">
+           <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center">
+              <div className="w-1.5 h-1.5 bg-brand-lime rounded-full animate-pulse" />
+           </div>
         </div>
-        <div className="bureau-tag shadow-[4px_4px_0px_black] border-2 border-on-surface bg-brand-lime text-black font-black italic">ID_{entry.id?.substring(0,4).toUpperCase() || 'XXXX'}</div>
-      </div>
-      
-      <div className="bg-paper-dark p-6 border-l-8 border-on-surface italic shadow-inner mb-8 text-left group-hover:bg-brand-lime/5 transition-colors">
-        <p className="font-serif text-xl leading-relaxed line-clamp-3 font-medium text-on-surface/80">"{entry.fieldNote}"</p>
       </div>
 
-      <div className="flex justify-between items-end border-t-4 border-on-surface/5 pt-8">
+      {/* Origin Info */}
+      <div className="flex justify-between items-start mb-8">
+        <div className="flex items-center gap-5">
+          <div className="relative">
+            <AvatarPreview 
+              avatar={entry.userAvatar || DEFAULT_AVATAR} 
+              size="lg" 
+              className="border-[3px] border-on-surface bg-white shadow-[4px_4px_0px_black] rounded-none group-hover:rotate-3 transition-transform" 
+            />
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-brand-cyan border-2 border-on-surface rounded-full z-10" />
+          </div>
+          <div className="space-y-1 to-left">
+            <p className="text-[9px] font-mono opacity-40 font-black tracking-[0.2em] italic uppercase leading-none">{fc(`SOURCE // ${entry.userName?.toUpperCase() || 'ANON_AGENT'}`, `By ${entry.userName || 'Agent'}`)}</p>
+            <h4 className="font-display text-3xl uppercase tracking-tighter text-on-surface font-black italic leading-[0.8] mt-1">
+              {entry.tripTitle || entry.challengeTitle || 'Retired Mission'}
+            </h4>
+          </div>
+        </div>
+        <FieldBadge 
+          variant="ticket" 
+          color="lime" 
+          size="sm" 
+          rotation={2} 
+          className="shadow-[5px_5px_0px_black] font-black italic border-[2.5px]"
+        >
+          ID_{entry.id?.substring(0,4).toUpperCase() || 'XXXX'}
+        </FieldBadge>
+      </div>
+      
+      {/* Field Note Content */}
+      <div className="bg-[#FAF9F4] p-6 border-l-[10px] border-on-surface italic shadow-[inset_4px_4px_12px_rgba(0,0,0,0.03)] mb-8 text-left group-hover:bg-brand-cyan/[0.03] transition-colors relative">
+        <div className="absolute top-2 right-2 opacity-5 scale-125 rotate-12">
+           <Book className="w-10 h-10" />
+        </div>
+        <p className="font-serif text-xl sm:text-2xl leading-relaxed line-clamp-3 font-medium text-on-surface/80 relative z-10">"{entry.fieldNote}"</p>
+      </div>
+
+      {/* Footer / Status */}
+      <div className="flex justify-between items-end border-t-[3.5px] border-on-surface/5 pt-8">
         <div className="flex flex-col gap-4">
           <div className={cn("flex items-center gap-3", status.color)}>
-            <div className={cn("p-1.5 border-2 shadow-[2px_2px_0px_black]", status.stickerColor === 'lime' ? 'bg-brand-lime' : 'bg-white')}>
-              <StatusIcon className={cn("w-5 h-5", entry.status === 'approved' ? "text-on-surface stroke-[3]" : "stroke-[3]")} />
-            </div>
-            <span className="micro-label font-black text-sm italic uppercase tracking-widest">{isPlain ? status.text : status.text.replace(/ /g, '_')}</span>
+            <FieldBadge 
+              variant={status.stickerColor === 'lime' ? 'glossy' : 'stamp'} 
+              color={status.stickerColor} 
+              size="md" 
+              className="px-4 py-1.5 shadow-[4px_4px_0px_black]"
+            >
+              <div className="flex items-center gap-2">
+                <StatusIcon className="w-4 h-4" />
+                <span className="text-[11px] font-black tracking-tight">{isPlain ? status.text : status.text.replace(/ /g, '_')}</span>
+              </div>
+            </FieldBadge>
           </div>
           
           {isApproved && !isOwnEntry && (
             <button
               onClick={() => setIsFieldCheckOpen(true)}
-              className="flex items-center gap-2 text-[10px] font-black uppercase italic tracking-[0.2em] text-on-surface/40 hover:text-brand-orange transition-colors"
+              className="flex items-center gap-2 text-[10px] font-black uppercase italic tracking-[0.2em] text-on-surface/30 hover:text-brand-orange transition-colors"
             >
               <Flag className="w-3 h-3" />
               {fc('REQUEST_FIELD_CHECK', 'Request Field Check')}
@@ -128,7 +176,12 @@ export function EntryCard({ entry, className }: EntryCardProps) {
           )}
         </div>
         <div className="text-right">
-          <span className="font-display text-3xl text-brand-orange font-black italic drop-shadow-[4px_4px_0_var(--color-on-surface)]">+{entry.pointsAwarded}_XP</span>
+          <div className="relative inline-block">
+            <span className="font-display text-4xl text-brand-orange font-black italic drop-shadow-[5px_5px_0_var(--color-on-surface)]">+{entry.pointsAwarded}_XP</span>
+            <div className="absolute -top-1 -right-1">
+               <Sparkles className="w-4 h-4 text-brand-orange animate-pulse" />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -136,9 +189,9 @@ export function EntryCard({ entry, className }: EntryCardProps) {
         isOpen={isFieldCheckOpen}
         onClose={() => setIsFieldCheckOpen(false)}
         submissionId={entry.id}
-        missionId={entry.tripId}
+        missionId={entry.tripId || entry.missionId || entry.challengeId || 'unknown'}
         reportedUserId={entry.userId}
-        reportedUserName={entry.userName || 'Field Agent'}
+        reportedUserName={entry.userName || entry.displayName || 'Field Agent'}
       />
     </div>
   );

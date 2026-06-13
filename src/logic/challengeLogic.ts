@@ -86,7 +86,7 @@ export function applyFieldTypeModifier(challenge: TripCard, fieldTypeId: string 
     'mallRat': ['urban', 'social', 'culture', 'public', 'commercial', 'overheard'],
     'mascota': ['hype', 'event', 'social', 'bold', 'group', 'celebration'],
     'elondra': ['aesthetic', 'drama', 'fashion', 'glam', 'mood', 'visual'],
-    'lostCamper': ['exploration', 'strange', 'detour', 'liminal', 'unexpected'],
+    'theGobbler': ['exploration', 'strange', 'detour', 'liminal', 'unexpected'],
     'bigfoot': ['observation', 'solo', 'nature', 'hidden', 'trail']
   };
 
@@ -111,11 +111,11 @@ export function applyFieldTypeModifier(challenge: TripCard, fieldTypeId: string 
           text = 'Receipts Department: +25 for detailed mission profile.';
         }
         break;
-      case 'lostCamper':
-        // Wrong Turn Bonus: Serendipity (50% chance if not matched otherwise)
+      case 'theGobbler':
+        // Insatiable Index: (50% chance if not matched otherwise)
         if (Math.random() > 0.5) {
           bonus = 25;
-          text = 'Wrong Turn Bonus: +25 for accidental discovery!';
+          text = 'Insatiable Index: +25 for hoarded evidence!';
         }
         break;
       case 'bigfoot':

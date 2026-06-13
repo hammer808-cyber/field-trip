@@ -11,8 +11,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Season, AppConfig } from '../types/game';
-import { SUMMER_SEASON } from '../constants';
-import { deploySummer2026Manifest } from './adminGameService';
+import { HEATWAVE_SEASON } from '../constants';
+import { deployHeatwave2026Manifest } from './adminGameService';
 
 export async function getAppConfig(): Promise<AppConfig | null> {
   const docRef = doc(db, 'appConfig', 'game');
@@ -23,7 +23,7 @@ export async function getAppConfig(): Promise<AppConfig | null> {
 
 export async function initializeDefaultSeason(): Promise<void> {
   // Use the high-fidelity admin deployment if possible
-  await deploySummer2026Manifest();
+  await deployHeatwave2026Manifest();
 }
 
 export function subscribeToAppConfig(callback: (config: AppConfig) => void) {
@@ -31,6 +31,8 @@ export function subscribeToAppConfig(callback: (config: AppConfig) => void) {
     if (doc.exists()) {
       callback(doc.data() as AppConfig);
     }
+  }, (error) => {
+    console.warn("[SeasonService] AppConfig subscription skipped:", error.message);
   });
 }
 
@@ -49,5 +51,8 @@ export function subscribeToActiveSeason(seasonId: string, callback: (season: Sea
     } else {
       callback(null);
     }
+  }, (error) => {
+    console.warn("[SeasonService] Active Season subscription skipped:", error.message);
+    callback(null);
   });
 }

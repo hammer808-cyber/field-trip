@@ -2,6 +2,7 @@ import {
   collection, 
   addDoc, 
   updateDoc, 
+  setDoc,
   doc, 
   serverTimestamp, 
   increment,
@@ -12,10 +13,13 @@ import {
   Timestamp,
   orderBy,
   limit,
-  deleteField
+  deleteField,
+  arrayUnion,
+  arrayRemove
 } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { logAdminAction } from './moderationService';
+import { ReviewStatus } from '../types/proof';
 import { Entry, FIELD_TYPES } from '../constants';
 import { evaluateProof } from './proofService';
 import { awardPoints } from './scoringService';
@@ -23,9 +27,11 @@ import { addMemory } from './memoryService';
 import { TripCard, ChallengeLevel } from '../types/challenges';
 import { uploadBase64Image } from './storageService';
 import { calculateSubmissionPoints } from '../logic/scoringLogic';
+import { getCatalystForWeek, evaluateProofForCatalyst } from './weeklyCatalystService';
 import { requestFieldCheck as createFieldCheckObj, resolveFieldCheck as resolveFieldCheckObj, applyFieldTypeModifier } from '../logic/challengeLogic';
 import { FieldCheckReason, FieldCheckStatus, Season } from '../types/game';
-import { getWeekWindows, getServerTime as getWeeklyServerTime } from '../logic/weeklyLogic';
+import { LAUNCH_MISSION_ID } from '../data/specialMissions';
+import { getWeekWindows, getServerTime as getWeeklyServerTime, getCurrentSeasonWeek } from '../logic/weeklyLogic';
 import { getServerTime as getSyncedTime, getServerDate } from './timeService';
 
 export async function submitTripEntry(
@@ -34,6 +40,11 @@ export async function submitTripEntry(
   trip: TripCard,
   entryData: {
     proofImage: string;
+    photoUrl?: string;
+    imageUrl?: string;
+    photoStoragePath?: string;
+    imageStoragePath?: string;
+    storagePath?: string;
     originalImageUrl?: string;
     fieldNote: string;
     selectedLevel: ChallengeLevel;
@@ -53,9 +64,22 @@ export async function submitTripEntry(
     captureTrustLevel?: 'live' | 'verifiedCameraRoll' | 'unverifiedCameraRoll';
     filterUsed?: string;
     filterIntensity?: number;
-    reviewStatus?: 'approved' | 'pending' | 'pendingReview' | 'rejected' | 'autoRejected' | 'needsMoreProof';
+    latitude?: number | null;
+    longitude?: number | null;
+    reviewStatus?: ReviewStatus;
     userAvatar?: any;
     hintUsed?: boolean;
+    fastFindAttempt?: any;
+    isRetry?: boolean;
+    originalEntryId?: string | null;
+    retryPointMultiplier?: number | null;
+    reviewerNote?: string | null;
+    fieldType?: string;
+    fieldTypeName?: string;
+    existingEntryId?: string | null;
+    findingType?: string;
+    aiAnalysisResult?: any;
+    proofCheckResult?: any;
   },
   activeSeason?: Season | null
 ) {
@@ -73,7 +97,7 @@ export async function submitTripEntry(
       collection(db, 'entries'),
       where('userId', '==', userId),
       where('tripId', '==', trip.id),
-      where('status', '==', 'approved'),
+      where('status', 'in', ['approved', 'pending_review', 'needs_more_proof']),
       orderBy('createdAt', 'desc'),
       limit(1)
     );
@@ -102,18 +126,49 @@ export async function submitTripEntry(
     const timestamp = getSyncedTime();
     const filename = `proof_${trip.id}_${timestamp}.jpg`;
     
-    let imageUrl = entryData.proofImage;
-    let imagePath = '';
+    let imageUrl = entryData.photoUrl || entryData.imageUrl || entryData.proofImage;
+    let imagePath = entryData.photoStoragePath || entryData.imageStoragePath || entryData.storagePath || '';
     
-    if (entryData.proofImage.length > 500) {
+    // Diagnostic logging for Requirement 9
+    console.log(`[SUBMISSION_PIPELINE] Initializing upload check for entry. Source: ${entryData.uploadSource || 'unknown'}, Current URL Length: ${imageUrl?.length}`);
+
+    // STRICTION: Every proof must be in Storage (Requirement 1)
+    // If it's a base64 string (> 500 chars) or a temporary blob/data URL, we must upload it.
+    const needsUpload = !imageUrl || 
+                       imageUrl.length > 500 || 
+                       imageUrl.startsWith('data:') || 
+                       imageUrl.startsWith('blob:') || 
+                       imageUrl.startsWith('file:') || 
+                       imageUrl.startsWith('capacitor:');
+
+    if (needsUpload) {
       try {
-        const storageResult = await uploadBase64Image(userId, 'proofs/processed', filename, entryData.proofImage);
+        console.log(`[SUBMISSION_PIPELINE] Uploading evidence to Storage: ${filename}`);
+        const storageResult = await uploadBase64Image(userId, 'proofUploads', filename, imageUrl);
         imageUrl = storageResult.url;
         imagePath = storageResult.path;
+        console.log(`[SUBMISSION_PIPELINE] Upload success. Permanent URL: ${imageUrl.substring(0, 50)}...`);
       } catch (uploadErr) {
-        console.warn("[Storage Fallback] Processed proof upload failed, retaining base64 data:", uploadErr);
+        console.error("[SUBMISSION_PIPELINE] FATAL: Storage upload failed. Persistence integrity compromised:", uploadErr);
+        // If upload fails, we are in a bad state, but for beta, we might allow fallback to base64 if it's small enough,
+        // though the user said "NEVER use local preview URLs".
+        // However, if we throw, the user sees an error. Let's throw if it's a blob as it won't persist.
+        if (imageUrl.startsWith('blob:')) {
+          throw new Error("COMMUNICATION_FAULT: Temporary image data could not be stabilized in storage. Please try again.");
+        }
       }
     }
+
+    // UPDATE entryData fields so evaluateProof (Requirement 7) receives the permanent URLs
+    const updatedEntryData = {
+      ...entryData,
+      proofImage: imageUrl,
+      imageUrl: imageUrl,
+      photoUrl: imageUrl,
+      storagePath: imagePath,
+      imageStoragePath: imagePath,
+      photoStoragePath: imagePath
+    };
 
     // Determine lateness
     let daysLate = 0;
@@ -127,58 +182,216 @@ export async function submitTripEntry(
       }
     }
 
+    // 1.5 Calculate Estimated Points
+    let tripToPass = trip;
+    let entryToPassPredraw = { ...entryData, hintUsed: hintWasUsed } as any;
+
+    if (entryData.fastFindAttempt && entryData.fastFindAttempt.mode === 'fastFind') {
+      const resolvedIntensity = (() => {
+        const intensity = entryData.fastFindAttempt.selectedIntensity;
+        if (!intensity) return 'Standard';
+        const lower = intensity.toLowerCase();
+        if (lower === 'standard') return 'Standard';
+        if (lower === 'advanced') return 'Advanced';
+        if (lower === 'certified') return 'Certified';
+        return intensity;
+      })();
+
+      tripToPass = {
+        ...trip,
+        baseXP: entryData.fastFindAttempt.lockedBasePoints,
+        basePoints: entryData.fastFindAttempt.lockedBasePoints,
+        levels: undefined as any
+      };
+      entryToPassPredraw.selectedLevel = resolvedIntensity;
+    }
+
+    const activeWeekNum = activeSeason ? getCurrentSeasonWeek(activeSeason) : (trip.weekNumber || 1);
+    const seasonId = activeSeason?.id || 'dev-season-2026';
+    const catalyst = await getCatalystForWeek(seasonId, activeWeekNum);
+
+    const estimatedScoring = calculateSubmissionPoints(
+      entryToPassPredraw,
+      tripToPass,
+      {
+        isFirstSubmission: (userData?.approvedEntriesCount || 0) === 0,
+        daysLate: daysLate,
+        hintUsed: hintWasUsed,
+        weekNumber: activeWeekNum,
+        catalyst: catalyst || undefined
+      }
+    );
+
+    const evResult = catalyst ? evaluateProofForCatalyst(entryToPassPredraw, catalyst, {
+      challengeTags: tripToPass.tags || [],
+      challengeTitle: tripToPass.title || '',
+      challengeDescription: tripToPass.description || ''
+    }) : { qualified: false, reason: 'No active catalyst' };
+
     // 2. Create Entry
-    const entryRef = await addDoc(collection(db, 'entries'), {
-      ...entryData,
-      proofImage: imageUrl,
-      imageStoragePath: imagePath,
-      userId,
-      userName,
-      tripId: trip.id,
-      tripTitle: trip.title,
-      status: 'pending', // Starts in pending audit state
-      pointsAwarded: 0,
-      createdAt: serverTimestamp(),
+    let entryRef;
+    let entryId = entryData.existingEntryId || null;
+    
+    // Check if this is the guided launch mission
+    const isGuidedLaunchMission = trip.id === LAUNCH_MISSION_ID; 
+    
+    const finalEntryData = {
+      // Identity
+      id: entryId || 'TBD', // Placeholder, updated later
+      uid: userId,
+      userId,              // Legacy
+      displayName: userName || userData?.name || 'Agent',
+      userName: userName || userData?.name || 'Agent', // Legacy
+      
+      // Context
+      missionId: trip.id,
+      challengeId: trip.id,
+      tripId: trip.id,           // Legacy
+      challengeTitle: trip.title,
+      tripTitle: trip.title,     // Legacy
+      deckId: trip.deckId || userData?.activeDeckId || 'starter-signals',
+      seasonId: seasonId,
+      
+      // Status & Evidence
+      status: 'pending_review',
+      reviewStatus: 'pending_review',
+      firebaseUid: userId,
+      missionTitle: trip.title,
+      photoUrl: imageUrl,
+      thumbnailUrl: imageUrl,
+      isPublicEligible: true,
+      imageUrl: imageUrl,        // Canonical
+      photoUrl_legacy: imageUrl,  // Mirror
+      proofUrl: imageUrl,        // Mirror
+      proofImage: imageUrl,        // Legacy
+      photoStoragePath: imagePath,
+      imageStoragePath: imagePath, // Legacy
+      storagePath: imagePath,      // Legacy
+      note: entryData.fieldNote || '',
+      fieldNote: entryData.fieldNote || '', // Legacy
+      caption: entryData.fieldNote || '',   // Mapping note to caption
+      selectedCategory: (entryData as any).selectedCategory || entryData.selectedLevel || 'Standard',
+      selectedLevel: entryData.selectedLevel || 'Standard', // Legacy
+      findingType: entryData.findingType || null,
+
+      // Catalyst Meta
+      catalystId: catalyst ? catalyst.id : null,
+      catalystTitle: catalyst ? catalyst.title : null,
+      catalystType: catalyst ? catalyst.catalystType : null,
+      catalystQualified: evResult.qualified,
+      catalystMultiplier: evResult.qualified ? catalyst!.multiplier : 1.0,
+      catalystReason: evResult.reason,
+
+      // Points
+      estimatedPoints: estimatedScoring.totalPoints,
+      awardedXP: 0,
+      awardedPoints: 0,            // Legacy
+      pointsAwarded: 0,            // Legacy
+      
+      // Logic Meta
       submittedAt: serverTimestamp(),
+      createdAt: serverTimestamp(), // Legacy
+      updatedAt: serverTimestamp(),
+      reviewedAt: null,
+      reviewedBy: null,            // Legacy reviewer id
+      reviewerId: null,            // Canonical reviewer id
+      showInUserLogbook: true,
+      showInCommunityFeed: false,
+      isPublic: false,             // Sync with showInCommunityFeed for beginning
+      communityVisible: false,      // Legacy
+
+      // Profile Context
+      fieldType: entryData.fieldType || fieldType || null,
+      fieldTypeName: entryData.fieldTypeName || null,
+
+      // Metadata from entryData
+      uploadSource: entryData.uploadSource,
+      photoTakenAt: entryData.photoTakenAt,
+      fileLastModifiedAt: entryData.fileLastModifiedAt,
+      latitude: entryData.latitude !== undefined ? entryData.latitude : null,
+      longitude: entryData.longitude !== undefined ? entryData.longitude : null,
+      metadataStatus: entryData.metadataStatus,
+      captureTrustLevel: entryData.captureTrustLevel,
+      filterUsed: entryData.filterUsed,
+      filterIntensity: entryData.filterIntensity,
+      hintUsed: hintWasUsed,
+      userAvatar: entryData.userAvatar,
+      aiAnalysisResult: entryData.aiAnalysisResult || null,
+      proofCheckResult: entryData.proofCheckResult || null
+    };
+
+    if (entryId) {
+      entryRef = doc(db, 'entries', entryId);
+      await setDoc(entryRef, { ...finalEntryData, id: entryId }, { merge: true });
+    } else {
+      const entryRefDoc = await addDoc(collection(db, 'entries'), finalEntryData);
+      entryRef = entryRefDoc;
+      entryId = entryRefDoc.id;
+      // Self-heal id field
+      await updateDoc(entryRef, { id: entryId, entryId: entryId }); // Keeping both for safety
+    }
+
+    // Consolidate user locking logic
+    const userUpdate: any = {
+      activeTrip: null,
+      submittedChallengeIds: arrayUnion(trip.id.toLowerCase()),
+      needsMoreProofChallengeIds: arrayRemove(trip.id.toLowerCase()),
       updatedAt: serverTimestamp()
-    });
+    };
 
-    const entryId = entryRef.id;
+    if (isGuidedLaunchMission) {
+      userUpdate.forcedLaunchMissionCompleted = true;
+      userUpdate.hasCompletedFirstMission = true;
+      userUpdate.hasCompletedGuidedFirstEntry = true;
+      userUpdate.onboardingCompleted = true;
+      userUpdate.onboardingStarted = true;
+      userUpdate.hasSeenFieldTypeResults = true;
+      userUpdate.selectedDeckId = "starter-signals"; // Unlock starter deck
+    }
 
-    // 3. AI Evaluate Proof (Pre-classification check)
+    await updateDoc(userRef, userUpdate);
+
+    // Requirement Part 4: AI Evaluate Proof (Pre-classification check)
+    // This now handles both document creation and AI analysis in one flow
     const review = await evaluateProof(
       userId,
       trip.id,
       trip.title,
       trip.theAsk,
-      { ...entryData, id: entryId, note: entryData.fieldNote },
-      entryData.proofImage 
+      { ...updatedEntryData, id: entryId, note: entryData.fieldNote },
+      imageUrl 
     );
 
     const entryUpdate: any = {
-      status: 'pending', // Explicitly keep as pending to restrict self-approvals
+      status: 'pending_review', // Explicitly keep as pending_review to restrict self-approvals
+      reviewStatus: 'pending_review', // Same
       proofCheckId: review.id,
       aiRecommendation: review.status,
       adminNotes: review.reviewNotes,
-      updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp(),
+      
+      // Save all multi-signal pipeline variables
+      proofTrustScore: (review as any).proofTrustScore !== undefined ? (review as any).proofTrustScore : 70,
+      aiRiskScore: (review as any).aiRiskScore !== undefined ? (review as any).aiRiskScore : 20,
+      riskLevel: (review as any).riskLevel || 'low',
+      riskReasons: (review as any).riskReasons || [],
+      metadataSummary: (review as any).metadataSummary || '',
+      duplicateWarning: (review as any).duplicateWarning || null,
+      duplicateReusedDesc: (review as any).duplicateReusedDesc || null,
+      receiptChallengeResult: (review as any).receiptChallengeResult || 'unverified',
+      imageHash: (review as any).imageHash || 'no-image',
+      perceptualHash: (review as any).perceptualHash || '',
+      cameraMake: (review as any).cameraMake || null,
+      cameraModel: (review as any).cameraModel || null,
+      editingSoftware: (review as any).editingSoftware || null,
+      missionMatchScore: (review as any).missionMatchScore || 100
     };
 
     await updateDoc(doc(db, 'entries', entryId), entryUpdate);
 
-    // Track the temporary calculated projection points for display on success frames
-    const estimatedScoring = calculateSubmissionPoints(
-      { ...entryData, id: entryId, hintUsed: hintWasUsed } as any,
-      trip,
-      {
-        isFirstSubmission: (userData?.approvedEntriesCount || 0) === 0,
-        daysLate: daysLate,
-        hintUsed: hintWasUsed
-      }
-    );
-
     return { 
       entryId, 
-      status: 'pending', 
+      status: 'pending_review', 
       review,
       scoring: estimatedScoring,
       ftBonus: 0,
@@ -294,7 +507,8 @@ export async function checkOnboardingState(userId: string) {
   const userRef = doc(db, 'users', userId);
   
   // 1. Fetch relevant entries to check for specific starter IDs
-  const starterIds = ["starter-1", "starter-2", "starter-3"];
+  // STRICTION: Only count APPROVED missions for onboarding completion!
+  const starterIds = ["template_03_ignored_place", "starter-2", "starter-3"];
   const q = query(
     collection(db, 'entries'),
     where('userId', '==', userId),
@@ -304,21 +518,23 @@ export async function checkOnboardingState(userId: string) {
   
   try {
     const snapshot = await getDocs(q);
-    const completedStarterIds = new Set(snapshot.docs.map(doc => {
+    const loggedStarterIds = new Set(snapshot.docs.map(doc => {
       const tid = doc.data().tripId;
       return tid ? tid.toLowerCase() : '';
     }));
     
-    const allStartersDone = starterIds.every(id => completedStarterIds.has(id.toLowerCase()));
+    const allStartersLogged = starterIds.every(id => loggedStarterIds.has(id.toLowerCase()));
 
-    if (allStartersDone) {
+    if (allStartersLogged) {
       const userSnap = await getDoc(userRef);
       if (userSnap.exists()) {
         const data = userSnap.data();
         if (!data.onboardingCompleted || !data.crewModeUnlocked) {
+          console.log(`[Onboarding Check] All starters logged for ${userId}. Unlocking decks.`);
           await updateDoc(userRef, {
             crewModeUnlocked: true,
             onboardingCompleted: true,
+            starterDeckComplete: true, // Specific flag requested by user
             updatedAt: serverTimestamp()
           });
           return true;

@@ -10,7 +10,7 @@ import {
   increment,
   onSnapshot
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType, logFirestoreError } from '../lib/firebase';
 import { Badge, BADGE_DEFINITIONS, UserBadgeProgress } from '../types/badges';
 import { getUserRank, getTotalUserCount, updateProfile } from './userService';
 import { getServerDate } from './timeService';
@@ -126,19 +126,23 @@ async function awardBadgeFragment(userId: string, badgeId: string, entryId: stri
 }
 
 export async function checkRankBadges(userId: string, currentPoints: number, previousPoints: number, previousRank?: number) {
-  if (currentPoints <= previousPoints) return;
+  try {
+    if (currentPoints <= previousPoints) return;
 
-  const currentRank = await getUserRank(currentPoints);
-  const totalUsers = await getTotalUserCount();
+    const currentRank = await getUserRank(currentPoints);
+    const totalUsers = await getTotalUserCount();
 
-  // Comeback Creature: From bottom half to top 3
-  if (previousRank && previousRank > (totalUsers / 2) && currentRank <= 3) {
-    await awardBadgeFragment(userId, 'comeback-creature', 'rank-jump');
-  }
+    // Comeback Creature: From bottom half to top 3
+    if (previousRank && previousRank > (totalUsers / 2) && currentRank <= 3) {
+      await awardBadgeFragment(userId, 'comeback-creature', 'rank-jump');
+    }
 
-  // Update previous rank for next time
-  if (currentRank !== previousRank) {
-    await updateProfile(userId, { previousRank: currentRank });
+    // Update previous rank for next time
+    if (currentRank !== previousRank) {
+      await updateProfile(userId, { previousRank: currentRank });
+    }
+  } catch (err) {
+    console.warn("[BadgeService] checkRankBadges failed:", err);
   }
 }
 
@@ -151,6 +155,6 @@ export function subscribeToUserBadgeProgress(userId: string, callback: (progress
   return onSnapshot(q, (snapshot) => {
     callback(snapshot.docs.map(doc => doc.data() as UserBadgeProgress));
   }, (error) => {
-    handleFirestoreError(error, OperationType.LIST, PROGRESS_COLLECTION);
+    logFirestoreError(error, OperationType.LIST, PROGRESS_COLLECTION);
   });
 }

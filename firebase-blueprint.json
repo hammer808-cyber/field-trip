@@ -162,9 +162,199 @@
         "crewStats": { "type": "object" },
         "lastCalculatedAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "TribunalCase": {
+      "title": "TribunalCase",
+      "description": "A field report submission called into question by the community.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "entryId": { "type": "string" },
+        "reporterId": { "type": "string" },
+        "targetId": { "type": "string" },
+        "weekNumber": { "type": "number" },
+        "seasonId": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "closed"] },
+        "agreeVotes": { "type": "number" },
+        "disagreeVotes": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "proofImage": { "type": "string" },
+        "playerName": { "type": "string" },
+        "fieldNote": { "type": "string" },
+        "deckName": { "type": "string" },
+        "outcome": { "type": "string", "enum": ["called_out", "upheld"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["entryId", "reporterId", "targetId", "weekNumber", "seasonId", "status"]
+    },
+    "TribunalVote": {
+      "title": "TribunalVote",
+      "description": "A peer review vote on a Tribunal case.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "caseId": { "type": "string" },
+        "vote": { "type": "string", "enum": ["agree", "disagree"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "caseId", "vote"]
+    },
+    "BallotCandidate": {
+      "title": "BallotCandidate",
+      "description": "An approved field entry promoted to the weekly voting ballot.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "entryId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "tripId": { "type": "string" },
+        "tripTitle": { "type": "string" },
+        "proofImage": { "type": "string" },
+        "fieldNote": { "type": "string" },
+        "weekNumber": { "type": "number" },
+        "seasonId": { "type": "string" },
+        "addedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["entryId", "userId", "weekNumber", "seasonId"]
+    },
+    "WeeklyBallot": {
+      "title": "WeeklyBallot",
+      "description": "Canonical weekly voting session and metadata.",
+      "type": "object",
+      "properties": {
+        "seasonId": { "type": "string" },
+        "weekNumber": { "type": "number" },
+        "cycleStartAt": { "type": "string", "format": "date-time" },
+        "votingOpensAt": { "type": "string", "format": "date-time" },
+        "votingClosesAt": { "type": "string", "format": "date-time" },
+        "awardsReleaseAt": { "type": "string", "format": "date-time" },
+        "phase": { "type": "string", "enum": ["submission", "voting", "awards"] },
+        "candidateEntryIds": { "type": "array", "items": { "type": "string" } },
+        "categoryCandidateMap": { "type": "object" },
+        "totalCandidates": { "type": "number" },
+        "isGenerated": { "type": "boolean" },
+        "isLocked": { "type": "boolean" },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "lockedAt": { "type": "string", "format": "date-time" },
+        "finalizedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["seasonId", "weekNumber", "phase"]
+    },
+    "WeeklyBallotCandidate": {
+      "title": "WeeklyBallotCandidate",
+      "description": "An approved field entry promoted to the weekly voting ballot subcollection.",
+      "type": "object",
+      "properties": {
+        "entryId": { "type": "string" },
+        "userId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "thumbnailUrl": { "type": "string" },
+        "missionId": { "type": "string" },
+        "missionTitle": { "type": "string" },
+        "deckId": { "type": "string" },
+        "fieldType": { "type": "string" },
+        "caption": { "type": "string" },
+        "fieldNote": { "type": "string" },
+        "approvedAt": { "type": "string", "format": "date-time" },
+        "submittedAt": { "type": "string", "format": "date-time" },
+        "eligibleWeekNumber": { "type": "number" },
+        "seasonId": { "type": "string" },
+        "categories": { "type": "array", "items": { "type": "string" } },
+        "voteCountByCategory": { "type": "object" },
+        "totalVotes": { "type": "number" },
+        "isEligible": { "type": "boolean" },
+        "isDisqualified": { "type": "boolean" },
+        "disqualifiedReason": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["entryId", "userId", "photoUrl", "missionId", "eligibleWeekNumber", "seasonId", "totalVotes", "isEligible"]
+    },
+    "DrawnMissionCard": {
+      "title": "DrawnMissionCard",
+      "description": "A user-owned record of a drawn mission card.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "uid_missionId" },
+        "uid": { "type": "string" },
+        "missionId": { "type": "string" },
+        "challengeId": { "type": "string" },
+        "deckId": { "type": "string" },
+        "missionTitle": { "type": "string" },
+        "missionSummary": { "type": "string" },
+        "cardImageUrl": { "type": "string" },
+        "drawnAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["drawn", "saved_for_later", "active", "pending_review", "needs_more_proof", "approved", "rejected"] },
+        "isActive": { "type": "boolean" },
+        "attemptNumber": { "type": "number" }
+      },
+      "required": ["uid", "missionId", "status", "drawnAt"]
+    },
+    "Proof": {
+      "title": "Proof",
+      "description": "Cached AI analysis result for a unique captured photo.",
+      "type": "object",
+      "properties": {
+        "aiAnalysisStatus": { "type": "string" },
+        "aiAnalysisResult": { "type": "object" },
+        "aiAnalyzedAt": { "type": "string", "format": "date-time" },
+        "aiModelUsed": { "type": "string" },
+        "aiMissionMatchScore": { "type": "number" },
+        "aiDetectedItems": { "type": "array" },
+        "aiMissingItems": { "type": "array" },
+        "aiConfidence": { "type": "number" },
+        "aiScanCount": { "type": "number" }
+      }
+    },
+    "AIUsageLog": {
+      "title": "AIUsageLog",
+      "description": "Detailed persistent log of all attempted and completed AI calls.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "proofId": { "type": "string" },
+        "missionId": { "type": "string" },
+        "deckId": { "type": "string" },
+        "feature": { "type": "string" },
+        "model": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "estimatedCostUnits": { "type": "number" },
+        "imageSize": { "type": "number" },
+        "retryAttempt": { "type": "number" },
+        "reason": { "type": "string" }
+      }
+    },
+    "AIDailyCounter": {
+      "title": "AIDailyCounter",
+      "description": "Per-user track of daily scanned images against configured daily limits.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "scanCount": { "type": "number" },
+        "lastScanDate": { "type": "string" }
+      }
     }
   },
   "firestore": {
+    "/weeklyBallots/{seasonId_weekNumber}": {
+      "schema": "WeeklyBallot",
+      "description": "Metadata config and candidate mappings for weekly voting rounds."
+    },
+    "/weeklyBallots/{seasonId_weekNumber}/candidates/{entryId}": {
+      "schema": "WeeklyBallotCandidate",
+      "description": "Approved candidate photos within a specific weekly ballot."
+    },
+    "/ballotCandidates/{candidateId}": {
+      "schema": "BallotCandidate",
+      "description": "Approved submission photos placed into the weekly voting pool."
+    },
     "/users/{userId}": {
       "schema": "User",
       "description": "Player profiles."
@@ -172,6 +362,10 @@
     "/usernames/{username}": {
       "schema": { "type": "object", "properties": { "userId": { "type": "string" } } },
       "description": "Username uniqueness registry."
+    },
+    "/users/{userId}/drawnMissionCards/{missionId}": {
+      "schema": "DrawnMissionCard",
+      "description": "User-owned mission card records."
     },
     "/entries/{entryId}": {
       "schema": "Entry",
@@ -274,8 +468,28 @@
       "description": "Beta invite codes."
     },
     "/activeSabotages/{sabId}": {
-      "schema": { "type": "object" },
+      "schema": "ActiveSabotage",
       "description": "Active in-game interference events."
+    },
+    "/tribunalCases/{caseId}": {
+      "schema": "TribunalCase",
+      "description": "Court cases for suspicious field reports."
+    },
+    "/tribunalVotes/{voteId}": {
+      "schema": "TribunalVote",
+      "description": "User verdicts for tribunal cases."
+    },
+    "/proofs/{proofId}": {
+      "schema": "Proof",
+      "description": "Cached AI analysis result for a unique captured photo."
+    },
+    "/aiUsageLogs/{logId}": {
+      "schema": "AIUsageLog",
+      "description": "Detailed persistent log of all attempted and completed AI calls."
+    },
+    "/aiDailyCounters/{userId}": {
+      "schema": "AIDailyCounter",
+      "description": "Per-user track of daily scanned images against configured daily limits."
     }
   }
 }

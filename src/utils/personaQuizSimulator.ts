@@ -13,7 +13,7 @@ import { formatSafeDate } from '../lib/utils';
 export function validateQuestionIntegrity() {
   console.group('🔍 Persona Quiz: Question Integrity Check');
   const errors: string[] = [];
-  const validFieldTypes = ['captainClipboard', 'mallRat', 'elondra', 'mascota', 'lostCamper', 'bigfoot'];
+  const validFieldTypes = ['captainClipboard', 'mallRat', 'elondra', 'mascota', 'theGobbler', 'bigfoot'];
   let totalAnswers = 0;
 
   QUIZ_QUESTIONS.forEach((q, qIndex) => {
@@ -70,14 +70,15 @@ export function validateQuestionIntegrity() {
 // 2. validateQuizReachability()
 export function validateQuizReachability() {
   console.group('🎯 Persona Quiz: Reachability & Fair Win States');
-  const fieldTypes: FieldTypeId[] = ['captainClipboard', 'mallRat', 'elondra', 'mascota', 'lostCamper', 'bigfoot'];
+  const fieldTypes: FieldTypeId[] = ['captainClipboard', 'mallRat', 'elondra', 'mascota', 'theGobbler', 'bigfoot'];
   const reachable: Record<FieldTypeId, boolean> = {
     captainClipboard: false,
     mallRat: false,
     elondra: false,
     mascota: false,
-    lostCamper: false,
-    bigfoot: false
+    theGobbler: false,
+    bigfoot: false,
+    unclassified: false
   };
 
   // For each field type, try to construct a "perfect path"
@@ -109,7 +110,7 @@ export function validateQuizReachability() {
     }
   });
 
-  const allReachable = Object.values(reachable).every(v => v);
+  const allReachable = fieldTypes.every(t => reachable[t]);
   console.groupEnd();
   return { allReachable, reachable };
 }
@@ -122,8 +123,9 @@ export function runRandomPersonaSimulation(iterations: number = 1000) {
     mallRat: 0,
     elondra: 0,
     mascota: 0,
-    lostCamper: 0,
-    bigfoot: 0
+    theGobbler: 0,
+    bigfoot: 0,
+    unclassified: 0
   };
 
   for (let i = 0; i < iterations; i++) {
@@ -133,7 +135,7 @@ export function runRandomPersonaSimulation(iterations: number = 1000) {
       randomAnswers[q.id] = q.answers[randomIndex].id;
     });
 
-    const winner = assignFieldType(randomAnswers);
+    const winner = assignFieldType(randomAnswers, `sim-user-${i}`);
     winCounts[winner]++;
   }
 
@@ -147,16 +149,17 @@ export function runRandomPersonaSimulation(iterations: number = 1000) {
 
   // Health checks
   const warnings: string[] = [];
-  const maxFreq = Math.max(...results.map(r => parseFloat(r.frequency)));
-  const minFreq = Math.min(...results.map(r => parseFloat(r.frequency)));
+  const playableResults = results.filter(r => r.type !== 'unclassified');
+  const maxFreq = Math.max(...playableResults.map(r => parseFloat(r.frequency)));
+  const minFreq = Math.min(...playableResults.map(r => parseFloat(r.frequency)));
 
   if (maxFreq > 40) {
-    const msg = `⚠️ BIAS DETECTED: ${results[0].type} is dominating with ${maxFreq}% wins.`;
+    const msg = `⚠️ BIAS DETECTED: ${playableResults[0].type} is dominating with ${maxFreq}% wins.`;
     console.warn(msg);
     warnings.push(msg);
   }
   if (minFreq < 5) {
-    const msg = `⚠️ RARITY DETECTED: ${results[results.length - 1].type} is critically rare with only ${minFreq}% wins.`;
+    const msg = `⚠️ RARITY DETECTED: ${playableResults[playableResults.length - 1].type} is critically rare with only ${minFreq}% wins.`;
     console.warn(msg);
     warnings.push(msg);
   }
@@ -247,7 +250,7 @@ export function runFullPersonaAudit(): AuditSummary {
   const iterations = 5000;
   const sim = runRandomPersonaSimulation(iterations);
   
-  const fieldTypes: FieldTypeId[] = ['captainClipboard', 'mallRat', 'elondra', 'mascota', 'lostCamper', 'bigfoot'];
+  const fieldTypes: FieldTypeId[] = ['captainClipboard', 'mallRat', 'elondra', 'mascota', 'theGobbler', 'bigfoot'];
   const testResults = fieldTypes.map(t => ({ type: t, ...testFieldTypePath(t) }));
   
   const allWarnings = [...sim.warnings];

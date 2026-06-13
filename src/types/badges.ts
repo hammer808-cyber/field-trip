@@ -254,7 +254,7 @@ export const BADGE_DEFINITIONS: Badge[] = [
   },
   {
     id: 'season-crown',
-    title: 'SUMMER_CROWN_LEGEND',
+    title: 'HEATWAVE_CROWN_LEGEND',
     description: 'Completion of the final Season Challenge.',
     requiredFragments: 1,
     unlockReward: 'Golden Crown Avatar Frame',

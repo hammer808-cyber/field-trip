@@ -1,14 +1,16 @@
 
+import { HEATWAVE_SEASON_START_DATE, HEATWAVE_SEASON_END_DATE } from '../constants';
+
 export interface SeasonState {
   label: string;
   daysRemaining: number | null;
   status: 'upcoming' | 'active' | 'ended';
+  noiseLevel: 'none' | 'low' | 'medium' | 'high' | 'critical';
 }
 
 export function getSummerCountdown(today: Date = new Date()): SeasonState {
-  const year = today.getFullYear();
-  const summerStart = new Date(year, 4, 30); // May 30 (Months are 0-indexed)
-  const summerEnd = new Date(year, 7, 31);   // August 31
+  const summerStart = new Date(HEATWAVE_SEASON_START_DATE);
+  const summerEnd = new Date(HEATWAVE_SEASON_END_DATE);
 
   // Normalize to start of day for accurate day counting
   const t = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
@@ -19,25 +21,46 @@ export function getSummerCountdown(today: Date = new Date()): SeasonState {
 
   if (t < sStart) {
     const diff = Math.ceil((sStart - t) / msPerDay);
+    const diffExactMs = summerStart.getTime() - today.getTime();
+    const hoursRemaining = Math.floor(diffExactMs / (1000 * 60 * 60));
+    
+    let noiseLevel: SeasonState['noiseLevel'] = 'none';
+    let label = `Heatwave Receipts starts in ${diff} day${diff === 1 ? '' : 's'}`;
+
+    if (hoursRemaining <= 24) {
+      noiseLevel = 'critical';
+      label = "Heatwave starts tomorrow!";
+    } else if (diff <= 3) {
+      noiseLevel = 'high';
+      label = "Heatwave starts Saturday!";
+    } else if (diff <= 6) {
+      noiseLevel = 'medium';
+    } else if (diff <= 10) {
+      noiseLevel = 'low';
+    }
+
     return {
-      label: `Summer Season starts in ${diff} day${diff === 1 ? '' : 's'}`,
+      label,
       daysRemaining: diff,
-      status: 'upcoming'
+      status: 'upcoming',
+      noiseLevel
     };
   }
 
   if (t <= sEnd) {
     const diff = Math.ceil((sEnd - t) / msPerDay);
     return {
-      label: `Summer Season ends in ${diff} day${diff === 1 ? '' : 's'}`,
+      label: `Heatwave Receipts ends in ${diff} day${diff === 1 ? '' : 's'}`,
       daysRemaining: diff,
-      status: 'active'
+      status: 'active',
+      noiseLevel: 'critical'
     };
   }
 
   return {
-    label: 'Summer Season ended',
+    label: 'Heatwave Receipts ended',
     daysRemaining: null,
-    status: 'ended'
+    status: 'ended',
+    noiseLevel: 'none'
   };
 }

@@ -3,6 +3,7 @@ import { FieldTypeId } from '../constants';
 
 interface DevOverrides {
   date: string | null;
+  xp: number | null;
   points: number | null;
   soloCount: number | null;
   fieldType: FieldTypeId | null;
@@ -21,6 +22,7 @@ const DevContext = createContext<DevContextType | undefined>(undefined);
 export function DevProvider({ children }: { children: ReactNode }) {
   const [overrides, setOverrides] = useState<DevOverrides>({
     date: null,
+    xp: null,
     points: null,
     soloCount: null,
     fieldType: null,

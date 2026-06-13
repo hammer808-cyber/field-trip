@@ -14,16 +14,22 @@ export default function SnitchCouncilPage() {
           <div className="space-y-1">
              <div className="flex items-center gap-2">
                 <span className="w-2 h-2 bg-brand-magenta animate-pulse" />
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-magenta">AUDIT_MODE</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-magenta">AUDIT MODE</p>
              </div>
-             <p className="text-[10px] font-mono opacity-40 uppercase tracking-widest">Field_Audit // Snitch_Council</p>
+             <p className="text-[10px] font-mono opacity-40 uppercase tracking-widest">Field Audit // Snitch Council</p>
           </div>
         </div>
         
         <div className="space-y-4">
-          <h1 className="text-[6rem] md:text-[8rem] font-display uppercase tracking-tighter italic leading-[0.8] font-black text-on-surface">
-            Snitch Council
-          </h1>
+          <div className="field-label-wrapper">
+             <div className="field-label-white-on-blue">
+                <div className="field-label-white-on-blue-inner">
+                   <h1 className="text-[4rem] sm:text-[6rem] md:text-[8rem] leading-[0.8] mb-0">
+                      Snitch Council
+                   </h1>
+                </div>
+             </div>
+          </div>
           <div className="bg-brand-magenta/5 p-6 border-l-4 border-brand-magenta max-w-2xl">
             <p className="font-serif italic text-2xl opacity-90 leading-tight">
               "Arbitrate disputes flagged by field ops. Consensus determines the finality of evidence."
@@ -43,7 +49,7 @@ export default function SnitchCouncilPage() {
           <div className="space-y-4 relative z-10">
             <div className="flex items-center justify-center gap-2 mb-4">
                <span className="h-[2px] w-8 bg-on-surface/10" />
-               <h2 className="font-display text-5xl uppercase tracking-tighter leading-none">Council_Dormant</h2>
+               <h2 className="font-display text-5xl uppercase tracking-tighter leading-none">Council Dormant</h2>
                <span className="h-[2px] w-8 bg-on-surface/10" />
             </div>
             <p className="font-serif italic text-xl opacity-70 max-w-xl mx-auto leading-relaxed">

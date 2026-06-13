@@ -34,46 +34,62 @@ export async function getCrewLore(crewId: string): Promise<CrewLore | null> {
 export function subscribeToCrewLore(crewId: string, callback: (lore: CrewLore | null) => void) {
   return onSnapshot(doc(db, LORE_COLLECTION, crewId), (docSnap) => {
     callback(docSnap.exists() ? (docSnap.data() as CrewLore) : null);
+  }, (error) => {
+    console.warn("[CrewService] Crew Lore subscription skipped:", error.message);
+    callback(null);
   });
 }
 
 export async function addInsideJoke(crewId: string, joke: string) {
-  const docRef = doc(db, LORE_COLLECTION, crewId);
-  await updateDoc(docRef, {
-    insideJokes: arrayUnion(joke)
-  });
+  try {
+    const docRef = doc(db, LORE_COLLECTION, crewId);
+    await updateDoc(docRef, {
+      insideJokes: arrayUnion(joke)
+    });
+  } catch (error) {
+    console.error("[CrewService] addInsideJoke failed:", error);
+  }
 }
 
 /**
  * Automatically update lore based on entry outcome
  */
 export async function processLoreForEntry(crewId: string, entry: Entry, loreTags: string[] = []) {
-  const loreRef = doc(db, LORE_COLLECTION, crewId);
-  const loreSnap = await getDoc(loreRef);
-  const lore = loreSnap.exists() ? (loreSnap.data() as CrewLore) : null;
-  
-  if (!lore) return;
-
-  const seasonId = 'S1'; // Fixed for now
-  const statsUpdate: Record<string, any> = {};
-
-  if (entry.status === 'auto_approved' || entry.status === 'approved_by_admin') {
-    statsUpdate[`seasonStats.${seasonId}.totalApprovedEntries`] = increment(1);
-    statsUpdate[`seasonStats.${seasonId}.totalCompletedChallenges`] = increment(1);
+  try {
+    const loreRef = doc(db, LORE_COLLECTION, crewId);
+    const loreSnap = await getDoc(loreRef);
+    const lore = loreSnap.exists() ? (loreSnap.data() as CrewLore) : null;
     
-    // Add suggested lore tags
-    if (loreTags.length > 0) {
-      statsUpdate['tags'] = arrayUnion(...loreTags);
-    }
-  } else if (entry.status === 'rejected') {
-    statsUpdate[`seasonStats.${seasonId}.totalRejectedEntries`] = increment(1);
-    // Potential for "Most Suspicious Entry"
-    if (!lore.highlights.mostSuspiciousEntry) {
-      statsUpdate['highlights.mostSuspiciousEntry'] = entry.id;
-    }
-  }
+    if (!lore) return;
 
-  await updateDoc(loreRef, statsUpdate);
+    const seasonId = 'S1'; // Fixed for now
+    const statsUpdate: Record<string, any> = {};
+
+    const status = (entry.status as string);
+    const isApproved = ['approved', 'auto_approved', 'approved_by_admin', 'retry-approved'].includes(status);
+    
+    if (isApproved) {
+      statsUpdate[`seasonStats.${seasonId}.totalApprovedEntries`] = increment(1);
+      statsUpdate[`seasonStats.${seasonId}.totalCompletedChallenges`] = increment(1);
+      
+      // Add suggested lore tags
+      if (loreTags.length > 0) {
+        statsUpdate['tags'] = arrayUnion(...loreTags);
+      }
+    } else if (entry.status === 'rejected') {
+      statsUpdate[`seasonStats.${seasonId}.totalRejectedEntries`] = increment(1);
+      // Potential for "Most Suspicious Entry"
+      if (!lore.highlights.mostSuspiciousEntry) {
+        statsUpdate['highlights.mostSuspiciousEntry'] = entry.id;
+      }
+    }
+
+    if (Object.keys(statsUpdate).length > 0) {
+      await updateDoc(loreRef, statsUpdate);
+    }
+  } catch (error) {
+    console.warn("[CrewService] processLoreForEntry skipped/failed:", error);
+  }
 }
 
 export async function getLatestDispatch(crewId: string): Promise<CrewDispatch | null> {

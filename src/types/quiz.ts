@@ -33,6 +33,7 @@ export interface QuizScore {
   mallRat: number;
   mascota: number;
   elondra: number;
-  lostCamper: number;
+  theGobbler: number;
   bigfoot: number;
+  unclassified: number;
 }

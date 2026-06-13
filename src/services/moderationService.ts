@@ -69,6 +69,9 @@ export function subscribeToBlocks(userId: string, callback: (blockedIds: string[
   const q = collection(db, 'users', userId, 'blocks');
   return onSnapshot(q, (snap) => {
     callback(snap.docs.map(doc => doc.id));
+  }, (error) => {
+    console.warn("[ModerationService] Block subscription status unavailable:", error.message);
+    callback([]);
   });
 }
 
@@ -115,6 +118,9 @@ export function subscribeToAdminLogs(limitCount: number = 50, callback: (logs: a
   );
   return onSnapshot(q, (snap) => {
     callback(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+  }, (error) => {
+    console.warn("[ModerationService] Admin Logs subscription skipped (likely missing admin permissions):", error.message);
+    callback([]);
   });
 }
 
@@ -161,5 +167,8 @@ export function subscribeToPendingReports(callback: (reports: Report[]) => void)
   const q = query(collection(db, 'reports'), where('status', 'in', ['pending', 'under_review']));
   return onSnapshot(q, (snap) => {
     callback(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Report)));
+  }, (error) => {
+    console.warn("[ModerationService] Pending Reports subscription skipped:", error.message);
+    callback([]);
   });
 }

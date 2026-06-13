@@ -1,61 +1,119 @@
-import { Link, useLocation } from 'react-router-dom';
-import { Layers, History, Camera, Trophy, Settings, Users } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Layers, History, Camera, Trophy, Settings, Users, Home, Target, LayoutGrid, Package, Lock } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';
+import { useApp } from '../context/AppContext';
 
 export function BottomNav() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { skin, frankieMode, fc } = useTheme();
+  const { mustCompleteStarterMission, isAdmin, starterState, fieldGuideAssistEnabled } = useApp();
+
+  const [isNavActive, setIsNavActive] = useState(false);
+  const [lockedFeatureModal, setLockedFeatureModal] = useState<{
+    isOpen: boolean;
+    feature: 'crew' | 'leaderboard';
+  } | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const triggerTimedActive = () => {
+    setIsNavActive(true);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => {
+      setIsNavActive(false);
+    }, 2500);
+  };
+
+  useEffect(() => {
+    // Briefly light up the nav bar on route changes to guide user focus
+    triggerTimedActive();
+    window.scrollTo(0, 0); // Ensure scroll reset on every route change
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [location.pathname]);
+
+  const handleInteraction = () => {
+    triggerTimedActive();
+  };
 
   const isBaja = skin.id === 'baja-bratz';
   const isDiamond = skin.id === 'slippery-diamond';
   const isHeat = skin.id === 'heatwave';
   
   const navItems = [
-    { icon: Layers, label: fc('DECK', 'DECK'), path: '/deck' },
-    { icon: Trophy, label: fc('BIG BOARD', 'SCORES'), path: '/big-board' },
-    { icon: Camera, label: fc('PHOTO', 'CAPTURE'), path: '/capture', special: true },
-    { icon: Users, label: fc('VOTING', 'VOTE'), path: '/voting' },
-    { icon: Settings, label: fc('PROFILE', 'PROFILE'), path: '/profile' }
+    { icon: Home, label: 'BASECAMP', path: '/basecamp' },
+    { icon: Target, label: 'MISSIONS', path: '/deck' },
+    { icon: LayoutGrid, label: 'MEMORIES', path: '/collection', special: true },
+    { icon: Users, label: 'CREW', path: '/voting' },
+    { icon: Trophy, label: 'STANDINGS', path: '/big-board' }
   ];
 
   return (
-    <nav className={cn(
-      "fixed bottom-0 left-0 w-full z-50 px-4 pb-safe h-18 grid grid-cols-5 items-center transition-all md:max-w-xl md:left-1/2 md:-translate-x-1/2 md:bottom-2 md:rounded-2xl md:border-x-4 md:shadow-2xl",
-      isBaja ? "bg-white/80 backdrop-blur-md border-t-2 border-baja-pink md:border-b-2" : 
-      isDiamond ? "bg-black/80 backdrop-blur-xl border-t border-white/10 md:border-b" :
-      isHeat ? "bg-heat-pink/95 backdrop-blur-md border-t-4 border-white md:border-b-4" :
-      "bg-white border-t-4 border-on-surface shadow-[0_-8px_0px_rgba(0,0,0,0.01)]"
-    )}>
-      {/* Scanline overlay for the nav bar */}
+    <nav 
+      onTouchStart={handleInteraction}
+      onMouseDown={handleInteraction}
+      className={cn(
+        "fixed bottom-0 left-0 w-full z-100 px-3 pb-[env(safe-area-inset-bottom,0px)] h-[calc(80px+env(safe-area-inset-bottom,0px))] grid grid-cols-5 items-center md:max-w-xl md:left-1/2 md:-translate-x-1/2 md:bottom-6 md:rounded-[2.5rem] md:h-22",
+        // Soft opacity transition with automatic full interaction overrides
+        "transition-all duration-300 ease-in-out",
+        isNavActive 
+          ? "opacity-100" 
+          : "opacity-85 hover:opacity-100 focus-within:opacity-100",
+        isBaja ? "bg-white/80 backdrop-blur-md border-t-2 border-baja-pink md:border-b-2 md:shadow-xl" : 
+        isDiamond ? "bg-black/80 backdrop-blur-xl border-t border-white/10 md:border-b md:shadow-[0_0_30px_rgba(255,255,255,0.15)]" :
+        isHeat ? "bg-heat-pink/95 backdrop-blur-md border-t-4 border-white md:border-b-4 md:shadow-lg" :
+        "bg-white border-t-[8px] border-on-surface shadow-[0_-12px_32px_rgba(0,0,0,0.15)] md:border-[8px] md:shadow-[14px_14px_0px_rgba(0,0,0,1)] rounded-t-[2.5rem] md:rounded-[2.5rem]"
+      )}
+    >
+      {/* Scanline overlay & Paper Grain texture for the nav bar */}
       {!isBaja && !isDiamond && !isHeat && (
-        <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%)] bg-[length:100%_2px]" />
+        <>
+          <div className="absolute inset-0 pointer-events-none opacity-[0.06] bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')] mix-blend-multiply rounded-t-[2.5rem] md:rounded-[2.5rem]" />
+          <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%)] bg-[length:100%_2px]" />
+        </>
       )}
       {navItems.map((item) => {
         const isActive = location.pathname === item.path;
+        let dataOnboarding = undefined;
+        if (item.path === '/deck') dataOnboarding = 'deck-nav';
+        else if (item.path === '/big-board') dataOnboarding = 'big-board-nav';
+        else if (item.path === '/profile') dataOnboarding = 'profile-nav';
+        else if (item.path === '/collection') dataOnboarding = 'dex-nav';
         
         if (item.special) {
           return (
             <Link
               key={item.path}
               to={item.path}
-              className="relative -translate-y-5 group flex justify-center"
+              data-onboarding={dataOnboarding}
+              className="relative -translate-y-6 group flex justify-center z-40"
             >
               <div className={cn(
-                "w-15 h-15 bg-white border-4 flex items-center justify-center shadow-xl active:scale-95 transition-all group-hover:scale-105",
-                isBaja ? "border-baja-pink text-baja-pink rounded-[1.25rem]" : 
-                isDiamond ? "border-white text-black rounded-none shadow-[0_0_20px_rgba(255,255,255,0.3)]" :
-                isHeat ? "border-white text-heat-pink rounded-full shadow-md" :
-                "border-on-surface text-on-surface rounded-none shadow-[6px_6px_0px_0px_var(--color-brand-orange)] active:shadow-none translate-y-0 active:translate-y-1"
+                "w-16 h-16 flex items-center justify-center border-4 flex-col shadow-2xl active:scale-90 transition-all group-hover:scale-110",
+                isBaja ? "bg-white border-baja-pink text-baja-pink rounded-[1.25rem]" : 
+                isDiamond ? "bg-black border-white text-white rounded-none shadow-[0_0_20px_rgba(255,255,255,0.3)]" :
+                isHeat ? "bg-white border-white text-heat-pink rounded-full shadow-md" :
+                "bg-brand-orange text-white border-[4px] border-on-surface rounded-[1.5rem] shadow-[6px_6px_0px_rgba(0,0,0,1)] active:shadow-none translate-y-0 active:translate-y-0.5 hover:rotate-[-2deg]"
               )}>
-                <item.icon className="w-7 h-7 stroke-[2.5]" />
+                <item.icon className={cn("w-8 h-8 stroke-[3]", !isBaja && !isDiamond && !isHeat && "text-white")} />
+                {/* Vintage stamp highlight shine */}
+                {!isBaja && !isDiamond && !isHeat && (
+                  <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/25 to-transparent pointer-events-none rounded-t-xl" />
+                )}
               </div>
               <div className={cn(
-                "absolute -bottom-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 text-[8px] uppercase tracking-[0.2em] shadow-[2px_2px_0px_black] transition-all font-black border-2 border-on-surface",
+                "absolute -bottom-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 text-[9px] uppercase tracking-[0.2em] shadow-[3px_3px_0px_black] transition-all font-black border-2 border-on-surface whitespace-nowrap",
                 isBaja ? "bg-baja-aqua text-white rounded-full font-display" : 
                 isDiamond ? "bg-white text-black font-mono skew-x-0" :
                 isHeat ? "bg-heat-yellow text-heat-pink rounded-full font-display skew-x-0" :
-                "bg-brand-orange text-white italic"
+                "bg-brand-cyan text-on-surface italic rotate-[1.5deg]"
               )}>
                 {item.label}
               </div>
@@ -63,33 +121,146 @@ export function BottomNav() {
           );
         }
 
+        const isLockedTab = (item.path === '/voting' || item.path === '/big-board') && !starterState?.starterComplete && !isAdmin;
+        const handleClick = (e: React.MouseEvent) => {
+          if (isLockedTab) {
+            e.preventDefault();
+            setLockedFeatureModal({
+              isOpen: true,
+              feature: item.path === '/voting' ? 'crew' : 'leaderboard'
+            });
+          }
+        };
+
         return (
           <Link
             key={item.path}
-            to={item.path}
+            to={isLockedTab ? '#' : item.path}
+            onClick={handleClick}
+            data-onboarding={dataOnboarding}
             className={cn(
-              "flex flex-col items-center justify-center flex-1 transition-all py-1",
+              "flex flex-col items-center justify-center flex-1 h-full py-1 relative select-none",
               isActive 
-                ? (isBaja ? "text-baja-pink scale-105" : isDiamond ? "text-white scale-105" : isHeat ? "text-white scale-105" : "text-on-surface scale-105") 
-                : (isBaja ? "text-baja-pink/30 hover:text-baja-pink" : isDiamond ? "text-white/20 hover:text-white" : isHeat ? "text-white/40 hover:text-white" : "text-on-surface/40 hover:text-on-surface")
+                ? (isBaja ? "text-baja-pink scale-105" : isDiamond ? "text-white scale-105" : isHeat ? "text-white scale-105" : "text-on-surface") 
+                : (isBaja ? "text-baja-pink/40 hover:text-baja-pink" : isDiamond ? "text-white/25 hover:text-white" : isHeat ? "text-white/40 hover:text-white" : "text-on-surface/50 hover:text-on-surface")
             )}
           >
-            <item.icon className={cn("w-5 h-5 mb-1 transition-transform", isActive ? "stroke-[2.5px] -translate-y-0.5" : "stroke-[2px] opacity-40")} />
-            <span className={cn(
-              "font-mono text-[9px] uppercase tracking-wider font-bold transition-all",
-              isActive && (
-                isBaja ? "bg-baja-pink text-white px-2 py-0.5 rounded-full" :
-                isDiamond ? "bg-white text-black px-2 py-0.5" :
-                isHeat ? "bg-white text-heat-pink px-2 py-0.5 rounded-full" :
-                "bg-brand-lime text-black px-2.5 py-0.5 rounded-none border-2 border-on-surface shadow-[2px_2px_0px_black] italic font-black"
-              )
-            )}>
-              {!isActive && item.label.slice(0, 3)}
-              {isActive && item.label}
-            </span>
+            {isActive && !isBaja && !isDiamond && !isHeat ? (
+              <div 
+                className={cn(
+                  "absolute inset-x-1 sm:inset-x-1.5 py-4 sm:py-5 flex flex-col items-center justify-center border-[4px] border-on-surface shadow-[6px_6px_0px_rgba(0,0,0,1)] transition-all",
+                  item.path === '/basecamp' ? 'bg-brand-yellow text-on-surface rotate-[2deg]' :
+                  item.path === '/deck' ? 'bg-brand-lime text-on-surface rotate-[-2deg]' :
+                  item.path === '/big-board' ? 'bg-brand-cyan text-on-surface rotate-[1.5deg]' :
+                  item.path === '/voting' ? 'bg-brand-magenta text-white rotate-[-1.5deg]' :
+                  'bg-brand-cyan text-on-surface rotate-[2deg]'
+                )}
+              >
+                <item.icon className="w-5 h-5 sm:w-[22px] sm:h-[22px] mb-0.5 stroke-[4px]" />
+                <span className="font-display text-[7px] sm:text-[9px] uppercase tracking-tighter font-black italic leading-none truncate font-semibold">
+                  {item.label}
+                </span>
+              </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <item.icon className={cn(
+                    "w-5 h-5 sm:w-6 sm:h-6 mb-1 transition-transform", 
+                    isActive ? "stroke-[2.5px]" : "stroke-[2px] opacity-40 hover:scale-110"
+                  )} />
+                  {isLockedTab && (
+                    <div className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-md z-40">
+                      <Lock className="w-2.5 h-2.5" />
+                    </div>
+                  )}
+                </div>
+                <span className={cn(
+                  "font-mono text-[8px] sm:text-[10px] uppercase tracking-tighter font-bold transition-all flex items-center gap-0.5",
+                  isActive && (
+                    isBaja ? "bg-baja-pink text-white px-2 py-0.5 rounded-full" :
+                    isDiamond ? "bg-white text-black px-2 py-0.5" :
+                    isHeat ? "bg-white text-heat-pink px-2 py-0.5 rounded-full" :
+                    ""
+                  )
+                )}>
+                  {item.label}
+                </span>
+              </>
+            )}
           </Link>
         );
       })}
+
+      {/* Locked Feature Modal */}
+      {lockedFeatureModal && lockedFeatureModal.isOpen && (
+        <div className="fixed inset-0 z-200 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white border-[8px] border-on-surface shadow-[14px_14px_0px_rgba(0,0,0,1)] rounded-3xl max-w-sm w-full p-6 text-on-surface relative overflow-hidden">
+            {/* Retro header line */}
+            <div className="absolute top-0 inset-x-0 h-4 bg-brand-orange" />
+            
+            <div className="flex flex-col items-center text-center mt-2">
+              <div className="w-16 h-16 rounded-full border-4 border-on-surface flex items-center justify-center bg-brand-orange mb-4 shadow-[4px_4px_0px_rgba(0,0,0,1)]">
+                <Lock className="w-8 h-8 text-white stroke-[3]" />
+              </div>
+              
+              <h3 className="font-display font-black uppercase text-xl italic tracking-tight mb-1 text-brand-orange">
+                Access Restricted
+              </h3>
+              <p className="font-mono text-[9.5px] uppercase font-bold tracking-wider text-on-surface/50 mb-4">
+                BUREAU PROTOCOL G-04
+              </p>
+
+              <div className="bg-paper border-2 border-on-surface rounded-xl p-4 font-mono text-xs text-left mb-6 shadow-[3px_3px_0px_rgba(0,0,0,1)]">
+                {lockedFeatureModal.feature === 'crew' ? (
+                  <p className="leading-relaxed">
+                    "Crew dispatch and real-time feed channels are restricted to certified scouts. Log <span className="font-bold text-brand-orange">3 Starter Pack approvals</span> to gain authorization."
+                  </p>
+                ) : (
+                  <p className="leading-relaxed">
+                    "Scout Standings are protected! Validate your profile across <span className="font-bold text-brand-orange">3 unique Starter Pack missions</span> before competing on the leaderboard."
+                  </p>
+                )}
+              </div>
+
+              {/* Progress Tracker */}
+              <div className="w-full bg-[#FAFAFA] border-2 border-on-surface rounded-lg p-3 mb-6 flex flex-col items-center">
+                <span className="font-display font-black uppercase text-[10px] tracking-widest text-on-surface/60 mb-1.5">
+                  Starter Deck Progress
+                </span>
+                <div className="w-full bg-white border-2 border-on-surface h-5 rounded-full overflow-hidden relative shadow-[2px_2px_0px_rgba(0,0,0,1)]">
+                  <div 
+                    className="bg-brand-lime h-full transition-all duration-500 ease-out border-r-2 border-on-surface"
+                    style={{ width: `${Math.min(100, Math.max(0, ((starterState?.starterApprovedCount || 0) / 3) * 100))}%` }}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center font-mono text-[10px] font-black uppercase">
+                    {(starterState?.starterApprovedCount || 0)} / 3 APPROVED
+                  </div>
+                </div>
+              </div>
+
+              {/* CTAs */}
+              <div className="flex flex-col gap-2 w-full">
+                <button 
+                  onClick={() => {
+                    setLockedFeatureModal(null);
+                    navigate('/deck');
+                  }}
+                  className="bg-brand-lime hover:bg-brand-lime/90 font-display font-black uppercase italic tracking-wider py-3 px-4 border-4 border-on-surface rounded-xl shadow-[4px_4px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-1 active:translate-y-1 transition-all text-on-surface"
+                >
+                  GO TO MISSIONS
+                </button>
+                <button 
+                  onClick={() => setLockedFeatureModal(null)}
+                  className="font-mono text-[10px] uppercase font-bold text-on-surface/60 hover:text-on-surface/90 underline cursor-pointer"
+                >
+                  DISMISS
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </nav>
   );
 }

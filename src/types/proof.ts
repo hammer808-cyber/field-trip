@@ -1,20 +1,67 @@
 export type MetadataStatus = 'verified' | 'missing' | 'mismatch' | 'unverified';
 export type CaptureTrustLevel = 'live' | 'verifiedCameraRoll' | 'unverifiedCameraRoll';
-export type ReviewStatus = 'approved' | 'pending' | 'pendingReview' | 'rejected' | 'autoRejected' | 'needsMoreProof';
+export type ReviewStatus = 'approved' | 'pending_review' | 'rejected' | 'needs_more_proof';
 export type UploadSource = 'camera' | 'cameraRoll';
 
 export interface ProofReview {
-  id: string;
+  reviewId: string;
+  entryId: string;
+  userId: string;
+  challengeId: string;
+  deckId: string;
+
   status: ReviewStatus;
-  notes?: string;
+  photoUrl: string;
+  imageUrl: string;
+  storagePath: string | null;
+  fieldNote: string;
+
+  missionDrawnAt: string | null;
+  capturedAt: string | null;
+  uploadedAt: string;
+  captureSource: string;
+
+  proofChallengeCode: string | null;
+  proofChallengeInstruction: string | null;
+  proofChallengeConfirmed: boolean;
+
+  metadata: {
+    hasExif: boolean;
+    cameraMake: string | null;
+    cameraModel: string | null;
+    createdAt: string | null;
+    editingSoftware: string | null;
+    gpsPresent: boolean;
+    width: number;
+    height: number;
+  };
+
+  verification: {
+    aiRiskScore: number;
+    proofTrustScore: number;
+    riskLevel: string;
+    riskReasons: string[];
+    duplicateStatus: string;
+    imageHash: string;
+    perceptualHash: string;
+    missionMatchScore: number;
+    receiptChallengeResult?: any;
+  };
+
+  xpAwarded: boolean;
+  confidenceScore?: number;
+  missingRequirements?: string[];
+  metadataSummary?: string;
+  receiptChallengeResult?: any;
+  findingType?: string | null;
+  createdAt: any;
+  updatedAt: any;
+  
+  // Legacy fields for compatibility
+  id: string;
   reviewNotes?: string;
   reviewedBy?: string;
   reviewedAt?: string;
-  entryId: string;
-  challengeId: string;
-  userId: string;
-  confidenceScore?: number;
-  missingRequirements?: string[];
 }
 
 export interface ProofRequirement {
@@ -32,7 +79,7 @@ export interface ProofRequirement {
   requiresObjectDetection?: boolean;
 }
 
-export type ProofStatus = 'approved' | 'pending' | 'rejected' | 'needsMoreProof';
+export type ProofStatus = ReviewStatus;
 
 export interface ProofCheck {
   id?: string;
@@ -51,11 +98,22 @@ export interface ProofCheck {
 }
 
 export interface AIAnalysis {
-  labels: string[];
+  // Common detector state fields
+  status: "idle" | "analyzing" | "detected" | "not_detected" | "error" | "skipped" | "manual_review_required";
+  requiredSubject: string;
+  detectedSubject: boolean;
   confidence: number;
-  flagged: boolean;
-  contains_required_subject?: boolean;
-  missing_evidence?: string[];
+  detectedItems: string[];
+  missingItems: string[];
+  displayTitle: string;
+  displayDetail: string;
+  missionMatchScore: number;
+  analyzedAt?: any; // timestamp
+  modelUsed?: string;
+  
+  // Legacy or auxiliary fields
+  labels?: string[];
+  flagged?: boolean;
   reason?: string;
   visible_evidence?: string[];
   suggested_lore_tags?: string[];
@@ -68,6 +126,11 @@ export interface ImageMetadata {
   fileLastModified?: number;
   photoTakenAt?: string;
   metadataStatus: MetadataStatus;
+  latitude?: number | null;
+  longitude?: number | null;
+  make?: string;
+  model?: string;
+  software?: string;
 }
 
 export interface FilterSettings {

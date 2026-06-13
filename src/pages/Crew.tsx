@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import { 
@@ -21,13 +21,16 @@ import { cn, formatSafeDateOnly } from '../lib/utils';
 import { getCrew, getCrewLore, subscribeToCrewLore, getLatestDispatch } from '../services/crewService';
 import { getWeeklySummary } from '../services/summaryService';
 import { Crew, CrewLore, CrewDispatch } from '../types/crew';
-import { Card, Sticker } from '../components/UI';
+import { Card } from '../components/UI';
 import { CrewArtifactsGallery } from '../components/CrewArtifactsGallery';
+import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
 
 export default function CrewPage() {
   const { skin } = useTheme();
   const { user, profile, crewArtifacts, activeSeason, currentWeekNumber } = useApp();
-  const [activeTab, setActiveTab] = useState<'home' | 'lore' | 'members' | 'stats' | 'dispatch'>('home');
+  const [searchParams] = useSearchParams();
+  const initialTab = (searchParams.get('tab') as any) || 'home';
+  const [activeTab, setActiveTab ] = useState<'home' | 'memories' | 'lore' | 'members' | 'stats' | 'dispatch'>(initialTab);
   const [crew, setCrew] = useState<Crew | null>(null);
   const [lore, setLore] = useState<CrewLore | null>(null);
   const [dispatch, setDispatch] = useState<CrewDispatch | null>(null);
@@ -45,20 +48,25 @@ export default function CrewPage() {
       return;
     }
     async function init() {
-      const c = await getCrew(crewId!);
-      if (c) {
-        setCrew(c);
-        const l = await getCrewLore(crewId!);
-        setLore(l);
-        const d = await getLatestDispatch(crewId!);
-        setDispatch(d);
-        
-        if (activeSeason?.id) {
-           const summary = await getWeeklySummary(activeSeason.id, currentWeekNumber);
-           setWeeklySummary(summary);
+      try {
+        const c = await getCrew(crewId!);
+        if (c) {
+          setCrew(c);
+          const l = await getCrewLore(crewId!);
+          setLore(l);
+          const d = await getLatestDispatch(crewId!);
+          setDispatch(d);
+          
+          if (activeSeason?.id) {
+             const summary = await getWeeklySummary(activeSeason.id, currentWeekNumber);
+             setWeeklySummary(summary);
+          }
         }
+      } catch (err) {
+        console.warn("[Crew] init error:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     init();
 
@@ -90,6 +98,7 @@ export default function CrewPage() {
 
   const tabs = [
     { id: 'home', label: 'Identity', icon: Users },
+    { id: 'memories', label: 'Memories', icon: History },
     { id: 'lore', label: 'Lore', icon: MessageSquare },
     { id: 'stats', label: 'Stats', icon: BarChart3 },
     { id: 'dispatch', label: 'Dispatch', icon: FileText },
@@ -142,6 +151,12 @@ export default function CrewPage() {
 
       {/* Tab Content */}
       <div className="min-h-[40vh]">
+        {activeTab === 'memories' && (
+          <div className="animate-in fade-in slide-in-from-bottom-6 duration-500">
+            <CrewMemoriesFeed />
+          </div>
+        )}
+
         {activeTab === 'home' && (
           <div className="space-y-20 animate-in fade-in slide-in-from-bottom-6 duration-500">
             <section className="space-y-8">

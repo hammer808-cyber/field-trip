@@ -1,15 +1,13 @@
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
+import { Auth } from 'firebase/auth';
 import { 
-  getFirestore, 
-  initializeFirestore,
   doc, 
   getDocFromServer,
   Firestore
 } from 'firebase/firestore';
-import { getStorage, FirebaseStorage } from 'firebase/storage';
-import { initializeAppCheck, ReCaptchaV3Provider, getToken, AppCheck } from 'firebase/app-check';
+import { FirebaseStorage } from 'firebase/storage';
+import { getToken, AppCheck } from 'firebase/app-check';
 import firebaseConfig from '../../firebase-applet-config.json';
+import { initializeFirebase } from './firebaseInit';
 
 // Basic validation of config from file
 const REQUIRED_CONFIG = ['apiKey', 'authDomain', 'projectId', 'appId'];
@@ -30,90 +28,33 @@ if (!firebaseErrorValue && firebaseConfig.projectId !== TARGET_PROJECT_ID) {
 export const firebaseError = firebaseErrorValue;
 export const getFirebaseInitError = () => firebaseInitError;
 
-// Safe Initialization
-let app: FirebaseApp;
+// Initialize as soon as this module is loaded to ensure exports are populated
+// unless there's a configuration error.
 let auth: Auth = null as any;
 let storage: FirebaseStorage = null as any;
 let db: Firestore = null as any;
-let appCheck: AppCheck | null = null;
 
 if (!firebaseErrorValue) {
   try {
-    app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-    
-    // Log project info as requested (no API key)
-    console.log(`[Firebase] Initialized for Project: ${firebaseConfig.projectId}, App ID: ${firebaseConfig.appId}`);
-
-    // Initialize Services
-    auth = getAuth(app);
-    storage = getStorage(app);
-    
-    // Use initializeFirestore with long polling to bypass potential proxy/websocket issues
-    const firestoreSettings = {
-      experimentalForceLongPolling: true,
-      useFetchStreams: false, // Can help with some corporate/environment proxies
-    };
-    const databaseId = (firebaseConfig as any).firestoreDatabaseId;
-    
-    console.log(`[Firebase] Initializing Firestore. Database: ${databaseId || '(default)'}`);
-    
-    if (databaseId) {
-      db = initializeFirestore(app, firestoreSettings, databaseId);
-    } else {
-      db = initializeFirestore(app, firestoreSettings);
-    }
-
-    // Initialize App Check
-    const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
-    if (typeof window !== 'undefined') {
-      const hostname = window.location.hostname;
-      const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
-      const isAISPreview = hostname.includes('ais-dev-') || hostname.includes('ais-pre-');
-      const isDevEnv = import.meta.env.DEV;
-
-      // In development or AIS preview, support the Debug Provider
-      if (isLocalhost || isAISPreview) {
-        console.log("[Firebase] AIS/Local environment detected. Skipping App Check to ensure connectivity.");
-        // We skip App Check here because it can cause timeouts if ReCaptcha is blocked or misconfigured
-      } else if (RECAPTCHA_SITE_KEY) {
-        // Production initialization
-        const G = window as any;
-        if (!G.FIREBASE_APP_CHECK_INITIALIZED) {
-          try {
-            appCheck = initializeAppCheck(app, {
-              provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
-              isTokenAutoRefreshEnabled: true,
-            });
-            G.FIREBASE_APP_CHECK_INITIALIZED = true;
-            console.log("[Firebase] App Check initialized (Production Mode).");
-          } catch (acErr) {
-            console.warn("[Firebase] App Check initialization failed:", acErr);
-          }
-        }
-      }
+    const instances = initializeFirebase();
+    if (instances) {
+      auth = instances.auth;
+      db = instances.db;
+      storage = instances.storage;
     }
   } catch (err: any) {
-    console.error("[Firebase] Initialization error:", err);
     firebaseInitError = err.message || String(err);
-    // Don't overwrite if they were already set
-    if (!auth) auth = null as any;
-    if (!storage) storage = null as any;
-    if (!db) db = null as any;
   }
-} else {
-  // Provide null as any to satisfy imports during broken config state
-  auth = null as any;
-  storage = null as any;
-  db = null as any;
 }
 
 export async function getAppCheckToken(): Promise<string | null> {
+  const appCheck = typeof window !== 'undefined' ? (window as any).FIREBASE_APP_CHECK_INSTANCE as AppCheck : null;
   if (!appCheck) return null;
   try {
     const result = await getToken(appCheck, false);
     return result.token;
   } catch (err) {
-    console.error("[Firebase] Failed to get App Check token:", err);
+    console.warn("[Firebase] Failed to get App Check token:", err);
     return null;
   }
 }
@@ -125,23 +66,56 @@ export { auth, storage, db };
  */
 async function testConnection() {
   if (!db) return;
+  
+  let timeoutId: any;
+
   try {
     const connectionRef = doc(db, 'test', 'connection');
-    await getDocFromServer(connectionRef);
+
+    const getDocPromise = getDocFromServer(connectionRef).then(
+      (res) => ({ isTimeout: false, isError: false, data: res }),
+      (err) => ({ isTimeout: false, isError: true, error: err })
+    );
+
+    const timeoutPromise = new Promise<{ isTimeout: boolean; isError: boolean; data?: any; error?: any }>((resolve) => {
+      timeoutId = setTimeout(() => {
+        resolve({ isTimeout: true, isError: false });
+      }, 5000);
+    });
+
+    const result = await Promise.race([
+      getDocPromise,
+      timeoutPromise
+    ]);
+
+    if (result.isTimeout) {
+      throw new Error('Connection check timed out');
+    }
+
+    if (result.isError) {
+      throw (result as any).error;
+    }
+
     console.log("[Firebase] Firestore connection verified.");
   } catch (error: any) {
     // Silencing these warnings as they are common in the preview environment and often transient
     // We only log to console.info to keep the developer informed without scaring the user with warnings or errors
-    if (error.code === 'unavailable' || (error.message && error.message.includes('the client is offline'))) {
+    if (error.code === 'unavailable' || error.message?.includes('timed out') || (error.message && error.message.includes('the client is offline'))) {
       console.info("[Firebase] Status: Offline mode or transient connectivity interruption.");
     } else {
       console.info("[Firebase] Connectivity hint (non-fatal):", error.code, error.message);
     }
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
-if (import.meta.env.DEV && !firebaseErrorValue) {
-  testConnection();
+const isDevMode = typeof import.meta !== 'undefined' && import.meta.env 
+  ? import.meta.env.DEV 
+  : process.env.NODE_ENV !== 'production';
+
+if (isDevMode && !firebaseErrorValue) {
+  testConnection().catch(() => {});
 }
 
 // Error handling types and helper
@@ -171,8 +145,19 @@ interface FirestoreErrorInfo {
   }
 }
 
+export function logFirestoreError(error: unknown, operationType: OperationType, path: string | null): void {
+  try {
+    handleFirestoreError(error, operationType, path);
+  } catch (e) {
+    // We already logged it in handleFirestoreError, and by catching we prevent the throw
+  }
+}
+
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
   const currentAuth = auth;
+  const isOffline = error instanceof Error && 
+    (error.message.includes('offline') || (error as any).code === 'unavailable');
+  
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -190,6 +175,11 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     path
   };
   
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  if (isOffline) {
+    console.info(`[Firebase] Firestore ${operationType} at "${path}": Client is currently offline or connection is transiently unavailable. The SDK will retry/use cache if available.`);
+  } else {
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+  }
+  
   throw new Error(JSON.stringify(errInfo));
 }

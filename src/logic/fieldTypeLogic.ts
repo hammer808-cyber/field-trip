@@ -6,18 +6,20 @@ import { QuizScore } from '../types/quiz';
  * Assigns a field type based on quiz answers.
  * Uses weighted scoring from personaQuiz data and respects tie-breaker priority.
  */
-export function assignFieldType(answers: Record<string, string>): FieldTypeId {
+export function assignFieldType(answers: Record<string, string>, seed?: string): FieldTypeId {
   const scores: QuizScore = {
     captainClipboard: 0,
     mallRat: 0,
     mascota: 0,
     elondra: 0,
-    lostCamper: 0,
-    bigfoot: 0
+    theGobbler: 0,
+    bigfoot: 0,
+    unclassified: 0
   };
 
   const selectedAnswers: { qId: string; answerId: string; timestamp: number }[] = [];
   let index = 0;
+  let answeredCount = 0;
 
   QUIZ_QUESTIONS.forEach(q => {
     const selectedAnswerId = answers[q.id];
@@ -26,6 +28,7 @@ export function assignFieldType(answers: Record<string, string>): FieldTypeId {
       return;
     }
 
+    answeredCount++;
     selectedAnswers.push({ qId: q.id, answerId: selectedAnswerId, timestamp: index });
     const answer = q.answers.find(a => a.id === selectedAnswerId);
     if (answer) {
@@ -38,6 +41,11 @@ export function assignFieldType(answers: Record<string, string>): FieldTypeId {
     index++;
   });
 
+  // If no answers provided, return unclassified
+  if (answeredCount === 0) {
+    return 'unclassified';
+  }
+
   // Find winner(s)
   let maxScore = -1;
   let winners: FieldTypeId[] = [];
@@ -46,10 +54,16 @@ export function assignFieldType(answers: Record<string, string>): FieldTypeId {
     if (score > maxScore) {
       maxScore = score;
       winners = [id as FieldTypeId];
-    } else if (score === maxScore) {
+    } else if (score === maxScore && score > 0) {
+      // Only include as winner if score > 0
       winners.push(id as FieldTypeId);
     }
   });
+
+  // If still no winners (all scores zero despite answeredCount > 0)
+  if (winners.length === 0) {
+    return 'unclassified';
+  }
 
   // Handle tie or single winner
   if (winners.length === 1) {
@@ -72,17 +86,39 @@ export function assignFieldType(answers: Record<string, string>): FieldTypeId {
     }
   }
 
-  // Fallback priority: captainClipboard, mallRat, mascota, elondra, lostCamper, bigfoot
+  // Final deterministic but user-specific tie-breaker when still tied
+  // Construct a stable string based on answer inputs and optional seed
+  const answerString = Object.keys(answers)
+    .sort()
+    .map(k => `${k}:${answers[k]}`)
+    .join(',') + (seed ? `:${seed}` : '');
+
+  // DJB2 hash of the answer pattern + seed
+  let hash = 5381;
+  for (let i = 0; i < answerString.length; i++) {
+    hash = (hash * 33) ^ answerString.charCodeAt(i);
+  }
+  const absoluteHash = Math.abs(hash);
+
   const fallbackPriority: FieldTypeId[] = [
     'captainClipboard',
     'mallRat',
     'mascota',
     'elondra',
-    'lostCamper',
+    'theGobbler',
     'bigfoot'
   ];
 
-  return fallbackPriority.find(p => winners.includes(p)) || winners[0];
+  // Pull only tied winners in fallbackPriority order to ensure stable order
+  const sortedWinners = fallbackPriority.filter(p => winners.includes(p));
+
+  // Exclude unclassified from tie-breaks just in case
+  const filteredWinners = sortedWinners.filter(w => w !== 'unclassified');
+  if (filteredWinners.length > 0) {
+    return filteredWinners[absoluteHash % filteredWinners.length];
+  }
+
+  return sortedWinners[0] || winners[0];
 }
 
 export function getScores(answers: Record<string, string>): QuizScore {
@@ -91,8 +127,9 @@ export function getScores(answers: Record<string, string>): QuizScore {
     mallRat: 0,
     mascota: 0,
     elondra: 0,
-    lostCamper: 0,
-    bigfoot: 0
+    theGobbler: 0,
+    bigfoot: 0,
+    unclassified: 0
   };
 
   QUIZ_QUESTIONS.forEach(q => {

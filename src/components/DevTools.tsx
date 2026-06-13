@@ -1,16 +1,59 @@
 import { useState } from 'react';
 import { useDev } from '../context/DevContext';
+import { useApp } from '../context/AppContext';
 import { FieldTypeId, FIELD_TYPES } from '../constants';
-import { X, Settings, Calendar, Shield, Zap, User, Microscope, ClipboardCopy, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
+import { X, Settings, Calendar, Shield, Zap, User, Microscope, ClipboardCopy, AlertTriangle, CheckCircle2, XCircle, Database, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { runFullPersonaAudit, AuditSummary } from '../utils/personaQuizSimulator';
+import { repairGlobalConfig } from '../services/adminGameService';
+import { resetMyMissionState } from '../services/adminResetService';
 
 export function DevTools() {
   const { overrides, setOverrides, isDevMode } = useDev();
+  const { 
+    isAdmin, 
+    user, 
+    activeSeason, 
+    isOnboardingComplete, 
+    isHeatwaveDeckUnlocked 
+  } = useApp();
   const [isOpen, setIsOpen] = useState(false);
   const [auditResult, setAuditResult] = useState<AuditSummary | null>(null);
+  const [isRepairing, setIsRepairing] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   if (!isDevMode) return null;
+
+  const handleResetMissions = async () => {
+    if (!user?.uid) return;
+    if (!window.confirm("RESET MISSION STATE?\nThis will clear your drawn cards and progress, but keep your persona/onboarding.")) return;
+    
+    setIsResetting(true);
+    try {
+      await resetMyMissionState(user.uid);
+      alert("Mission state reset. Go back to Missions and draw again.");
+      window.location.reload(); // Force reload to clear context states
+    } catch (err) {
+      console.error("Reset failed:", err);
+      alert("Reset failed: " + (err as any).message);
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  const handleRepairConfig = async () => {
+    if (!isAdmin && !import.meta.env.DEV) return;
+    setIsRepairing(true);
+    try {
+      await repairGlobalConfig();
+      alert("Bureau System Repair Successful: Global documents seeded with Heatwave Receipts defaults.");
+    } catch (err) {
+      console.error("Repair failed:", err);
+      alert("Repair failed. Check console.");
+    } finally {
+      setIsRepairing(false);
+    }
+  };
 
   const updateOverride = (key: string, value: any) => {
     setOverrides(prev => ({ ...prev, [key]: value }));
@@ -51,7 +94,7 @@ Verdict: ${auditResult.verdict}
   };
 
   return (
-    <div className="fixed bottom-20 right-6 z-[9999] pointer-events-none">
+    <div className="fixed bottom-[calc(6.5rem+env(safe-area-inset-bottom))] right-6 z-[9999] pointer-events-none">
       <div className="pointer-events-auto relative">
         <button
           onClick={() => setIsOpen(!isOpen)}
@@ -224,6 +267,36 @@ Verdict: ${auditResult.verdict}
               </div>
             </div>
 
+            {/* Season Mechanics Intel */}
+            <div className="space-y-3 p-3 bg-brand-orange/5 border-2 border-brand-orange/20 rounded-lg">
+              <label className="micro-label flex items-center gap-2 text-brand-orange font-bold uppercase">
+                <Calendar className="w-3 h-3" /> SEASON_MECHANICS_INTEL
+              </label>
+              
+              <div className="space-y-2 font-mono text-[10px]">
+                <div className="flex justify-between items-center">
+                  <span className="opacity-60">ACTIVE_SEASON:</span>
+                  <span className="font-bold text-brand-orange">{activeSeason?.id || 'NULL'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="opacity-60">ONBOARDING:</span>
+                  <span className={cn("font-bold", isOnboardingComplete ? "text-brand-green" : "text-error")}>
+                    {isOnboardingComplete ? 'COMPLETE' : 'GATED'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="opacity-60">HEATWAVE_DECK:</span>
+                  <span className={cn("font-bold", isHeatwaveDeckUnlocked ? "text-brand-green" : "text-error")}>
+                    {isHeatwaveDeckUnlocked ? 'UNLOCKED' : 'LOCKED'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center border-t border-on-surface/5 pt-1 mt-1">
+                  <span className="opacity-60">SEASON_STATUS:</span>
+                  <span className="uppercase text-[9px] font-bold">{activeSeason?.status || 'UNKNOWN'}</span>
+                </div>
+              </div>
+            </div>
+
             {/* Flags */}
             <div className="space-y-2 pt-2 border-t border-on-surface/10">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -244,9 +317,35 @@ Verdict: ${auditResult.verdict}
               </label>
             </div>
 
-            <div className="space-y-4">
+            {/* System Repair */}
+            {(isAdmin || import.meta.env.DEV) && (
+              <div className="pt-4 border-t border-on-surface/10">
+                <button
+                  onClick={handleRepairConfig}
+                  disabled={isRepairing}
+                  className="w-full py-3 bg-brand-green text-white text-[10px] font-mono uppercase tracking-widest hover:bg-on-surface transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
+                >
+                  <Database className={cn("w-3 h-3 transition-transform group-hover:scale-125", isRepairing && "animate-spin")} />
+                  {isRepairing ? 'REPAIRING_SYSTEM...' : 'REPAIR_GLOBAL_CONFIG'}
+                </button>
+                <p className="text-[8px] font-mono text-on-surface/40 mt-2 leading-tight">
+                  SEEDS: appConfig/global, appConfig/game, and seasons/heatwave-receipts.
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-4 pt-4 border-t border-on-surface/10">
               <button 
-                onClick={() => setOverrides({ date: null, points: null, soloCount: null, fieldType: null, isAdmin: null, forceUnlocked: false })}
+                onClick={handleResetMissions}
+                disabled={isResetting}
+                className="w-full py-3 bg-brand-orange text-white text-[10px] font-mono uppercase tracking-widest hover:bg-on-surface transition-all flex items-center justify-center gap-2 group disabled:opacity-50"
+              >
+                <RefreshCw className={cn("w-3 h-3", isResetting && "animate-spin")} />
+                {isResetting ? 'RESETTING_STATE...' : 'RESET_MY_MISSION_STATE'}
+              </button>
+
+              <button 
+                onClick={() => setOverrides({ date: null, points: null, xp: null, soloCount: null, fieldType: null, isAdmin: null, forceUnlocked: false })}
                 className="w-full py-2 bg-error/10 text-error text-[10px] font-mono uppercase tracking-widest hover:bg-error hover:text-white transition-colors"
               >
                 RESET_ALL_OVERRIDES

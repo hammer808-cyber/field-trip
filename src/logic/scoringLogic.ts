@@ -1,5 +1,8 @@
 import { Entry, Season, ScoreEvent } from '../types/game';
 import { TripCard, ChallengeLevel } from '../types/challenges';
+import { getWeeklyBonusForWeek } from '../data/weeklyBonuses';
+import { calculateWeeklyBonusReward, getActiveWeeklyBonus } from '../services/weeklyBonusService';
+import { WeeklyCatalyst, evaluateProofForCatalyst } from '../services/weeklyCatalystService';
 
 export function calculateSubmissionPoints(
   entry: Entry,
@@ -14,66 +17,99 @@ export function calculateSubmissionPoints(
     isFinalCrown?: boolean;
     daysLate?: number;
     hintUsed?: boolean;
+    weekNumber?: number;
+    skipWeeklyBonus?: boolean;
+    catalyst?: WeeklyCatalyst;
+    catalystMultiplier?: number;
+    catalystTitle?: string;
   }
 ) {
   let scoreEvents: Omit<ScoreEvent, 'id' | 'userId' | 'userName' | 'createdAt'>[] = [];
   
-  // Base Points from Level or baseXP
-  let levelPoints = 0;
-  const multipliers = {
-    'Standard': 1,
-    'Advanced': 1.5,
-    'Certified': 2
-  };
-
-  const selectedMultiplier = multipliers[entry.selectedLevel as ChallengeLevel || 'Standard'];
+  // 1. Base points
+  const baseMissionPoints = challenge.baseXP || challenge.basePoints || 100;
   
-  if (challenge.levels && challenge.levels[entry.selectedLevel as ChallengeLevel]) {
-    levelPoints = challenge.levels[entry.selectedLevel as ChallengeLevel].points;
-  } else {
-    // Fallback to baseXP with standard multipliers
-    const base = challenge.baseXP || challenge.basePoints || 100;
-    levelPoints = Math.round(base * selectedMultiplier);
-  }
+  // 2. Define quality-based multipliers to replace manually high chosen tiers
+  const proofQualityBonus = entry.proofImage || entry.imageUrl || entry.photoUrl ? 1.25 : 1.0;
+  const fieldNoteBonus = (entry.fieldNote || entry.note || '').trim().length >= 10 ? 1.25 : 1.0;
+  const optionalStickerBonus = 1.0; // static 1.0 for now, placeholder for any future custom sticker boosts
 
-  // HINT PENALTY: Block Certified tier if hint was used
-  if (options.hintUsed && entry.selectedLevel === 'Certified') {
-    // Force reduction to Advanced level points if they tried to claim Certified with a hint
-    const base = challenge.baseXP || challenge.basePoints || 100;
-    const advancedPoints = challenge.levels?.['Advanced']?.points || Math.round(base * 1.5);
-    levelPoints = Math.round(advancedPoints * 0.85); // Further 15% reduction for using a hint
-  } else if (options.hintUsed) {
-    // Small reduction for other tiers
-    levelPoints = Math.round(levelPoints * 0.85);
-  }
-
+  // Base Mission points event
+  let accumulatedPoints = baseMissionPoints;
   scoreEvents.push({
     type: 'trip_approved',
-    points: levelPoints,
+    points: baseMissionPoints,
     entryId: entry.id,
     tripId: challenge.id,
-    description: options.hintUsed 
-      ? `Challenge Completion: ${challenge.title} (${entry.selectedLevel}) [Hint Penalty Applied]`
-      : `Challenge Completion: ${challenge.title} (${entry.selectedLevel})`
+    description: `Mission Uplink Base`
   });
 
-  // Photo Proof Bonus
-  if (entry.proofImage) {
+  // Photo quality bonus (multiplicative style displayed as bonus sum)
+  if (proofQualityBonus > 1.0) {
+    const qBonus = Math.round(accumulatedPoints * (proofQualityBonus - 1.0));
+    accumulatedPoints += qBonus;
     scoreEvents.push({
       type: 'quality_bonus',
-      points: 25,
+      points: qBonus,
       entryId: entry.id,
-      description: 'Valid Photo Proof'
+      description: 'Proof Quality Boost (1.25x)'
     });
   }
 
-  // Field Note Bonus
-  if (entry.fieldNote && entry.fieldNote.length >= 10) {
+  // Field log documentation bonus
+  if (fieldNoteBonus > 1.0) {
+    const fnBonus = Math.round(accumulatedPoints * (fieldNoteBonus - 1.0));
+    accumulatedPoints += fnBonus;
     scoreEvents.push({
       type: 'field_note_bonus',
-      points: 25,
+      points: fnBonus,
       entryId: entry.id,
-      description: 'Field Note Documentation'
+      description: 'Field Log Description Boost (1.25x)'
+    });
+  }
+
+  // Active Weekly Catalyst application
+  let catalystQualified = false;
+  let catalystMultiplier = 1.0;
+  let catalystTitle = '';
+
+  if (options.catalyst) {
+    const evResult = evaluateProofForCatalyst(entry, options.catalyst, {
+      challengeTags: challenge.tags || [],
+      challengeTitle: challenge.title || '',
+      challengeDescription: challenge.description || ''
+    });
+    catalystQualified = evResult.qualified;
+    if (catalystQualified) {
+      catalystMultiplier = options.catalyst.multiplier;
+      catalystTitle = options.catalyst.shortLabel;
+    }
+  } else if (options.catalystMultiplier) {
+    catalystMultiplier = options.catalystMultiplier;
+    catalystQualified = catalystMultiplier > 1.0;
+    catalystTitle = options.catalystTitle || 'Catalyst';
+  }
+
+  if (catalystQualified && catalystMultiplier > 1.0) {
+    const catBonus = Math.round(accumulatedPoints * (catalystMultiplier - 1.0));
+    accumulatedPoints += catBonus;
+    scoreEvents.push({
+      type: 'weekly_bonus_booster',
+      points: catBonus,
+      entryId: entry.id,
+      description: `[Catalyst Boost: ${catalystTitle} ${catalystMultiplier}x] +${catBonus} XP`
+    });
+  }
+
+  // Hint penalty check
+  if (options.hintUsed) {
+    const hintPenaltyPoints = Math.round(accumulatedPoints * -0.15);
+    accumulatedPoints += hintPenaltyPoints;
+    scoreEvents.push({
+      type: 'admin_adjustment',
+      points: hintPenaltyPoints,
+      entryId: entry.id,
+      description: `Hint Usage Adjustment (-15%)`
     });
   }
 
@@ -136,6 +172,66 @@ export function calculateSubmissionPoints(
       entryId: entry.id,
       description: 'Certified Icon'
     });
+  }
+
+  // --- Dynamic Rotating Weekly Boosts Scoring Wiring ---
+  const activeWeekNum = options.weekNumber || challenge.weekNumber || 1;
+  const weeklyBonus = getActiveWeeklyBonus(activeWeekNum);
+  if (weeklyBonus && !options.skipWeeklyBonus) {
+    const bonusReward = calculateWeeklyBonusReward(
+      weeklyBonus.id,
+      entry,
+      challenge,
+      accumulatedPoints,
+      !!options.isFirstSubmission
+    );
+
+    if (bonusReward.applied) {
+      if (bonusReward.multiplier > 1.0) {
+        // Multiplier bonus (e.g. urban uplink 2x, photo-proof 1.2x)
+        const baseSum = scoreEvents.reduce((acc, ev) => acc + ev.points, 0);
+        const pointsReward = Math.round(baseSum * (bonusReward.multiplier - 1.0));
+        if (pointsReward > 0) {
+          scoreEvents.push({
+            type: 'weekly_bonus_booster',
+            points: pointsReward,
+            entryId: entry.id,
+            description: `[${bonusReward.bonusTitle} ${bonusReward.multiplier}X] Multiplier expansion: +${pointsReward} XP`
+          });
+        }
+      } else if (bonusReward.xp > 0) {
+        // XP bonus
+        scoreEvents.push({
+          type: 'weekly_bonus_booster',
+          points: bonusReward.xp,
+          entryId: entry.id,
+          description: `[${bonusReward.bonusTitle}] +${bonusReward.xp} XP Signal Alignment`
+        });
+      } else if (bonusReward.points > 0) {
+        // Point bonus
+        scoreEvents.push({
+          type: 'weekly_bonus_booster',
+          points: bonusReward.points,
+          entryId: entry.id,
+          description: `[${bonusReward.bonusTitle}] +${bonusReward.points} Points Signal Alignment`
+        });
+      } else if (bonusReward.tokens > 0) {
+        // Tokens bonus
+        scoreEvents.push({
+          type: 'weekly_bonus_booster',
+          points: bonusReward.tokens,
+          entryId: entry.id,
+          description: `[${bonusReward.bonusTitle}] +${bonusReward.tokens} Tokens Synced`
+        });
+      } else if (bonusReward.shield) {
+        scoreEvents.push({
+          type: 'weekly_bonus_booster',
+          points: 5,
+          entryId: entry.id,
+          description: `[${bonusReward.bonusTitle}] Multiplier Shield Calibration Complete`
+        });
+      }
+    }
   }
 
   // Late Penalty

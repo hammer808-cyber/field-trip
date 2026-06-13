@@ -7,7 +7,7 @@ export type ChallengeLane = 'core' | 'weekly' | 'persona_spiced' | 'wildcard' | 
 
 export type TripType = 'Field Challenge' | 'Evidence Challenge' | 'Crew Challenge' | 'Leave the House' | 'Social Spark' | 'Explore the Map' | 'Taste Test' | 'Proof Goblin' | 'Crew Chaos' | 'Onboarding' | 'Bonus' | 'Final';
 export type TripMode = 'solo' | 'crew' | 'flexible';
-export type TripStatus = 'draft' | 'approved' | 'scheduled' | 'active' | 'archived' | 'available' | 'locked' | 'in-progress' | 'submitted' | 'rejected' | 'needs_fix';
+export type TripStatus = 'draft' | 'approved' | 'scheduled' | 'active' | 'archived' | 'available' | 'locked' | 'in-progress' | 'submitted' | 'rejected' | 'needs_fix' | 'pending_review' | 'needs_more_proof' | 'approved_by_admin' | 'checking';
 export type ChallengeStatus = TripStatus;
 export type BrandFit = 'approved' | 'needs_review' | 'rejected';
 export type ChallengeLevel = 'Standard' | 'Advanced' | 'Certified';
@@ -28,6 +28,9 @@ export interface TripCard {
   // --- CORE IDENTITY ---
   /** Unique identifier for the challenge */
   id: string;
+  missionId?: string;
+  challengeId?: string;
+  isStarter?: boolean;
   /** Public-facing name of the challenge */
   title: string;
   /** Broad classification (e.g. Field Challenge, Evidence Challenge) */
@@ -91,6 +94,21 @@ export interface TripCard {
   slowDownTags: string[];
   /** General tags for filtering and discovery */
   tags: string[];
+  /** Optional deck association */
+  deckId?: string;
+  findingTypes?: string[];
+  cardType?: 'Signal' | 'Proof' | 'Crew' | 'Receipt' | 'Lore';
+  deckName?: string;
+  deckSubtitle?: string;
+  season?: string;
+  mission?: string;
+  proofRequired?: string;
+  allowedProof?: string[];
+  bonusPrompt?: string;
+  safetyNote?: string;
+  baseXp?: number;
+  bonusXp?: number;
+  isActive?: boolean;
 
   // --- LEGACY & METADATA ---
   /** @deprecated use lane */
@@ -136,6 +154,13 @@ export interface TripCard {
   plainModePrompt?: string;
   shortDescription?: string;
   fullInstructions?: string;
+
+  // --- EXTENDED METADATA & DIALOGUE ---
+  briefing?: string;
+  trevorLine?: string;
+  taskDescription?: string;
+  submitMessage?: string;
+  isRequired?: boolean;
 
   // --- PLAIN LANGUAGE MODE (FRANKIE MODE) ---
   plainTitle?: string;

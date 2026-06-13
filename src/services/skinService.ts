@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, getDocs, serverTimestamp, deleteDoc } from 'firebase/firestore';
-import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, auth, handleFirestoreError, OperationType, logFirestoreError } from '../lib/firebase';
 import { logAdminAction } from './moderationService';
 import { Skin, SkinSettings, UserThemePreference } from '../types/skin';
 
@@ -30,7 +30,7 @@ export function subscribeToSkinSettings(callback: (settings: SkinSettings) => vo
       callback(snap.data() as SkinSettings);
     }
   }, (error) => {
-    handleFirestoreError(error, OperationType.GET, `${COLLECTION}/${DOC_ID}`);
+    logFirestoreError(error, OperationType.GET, `${COLLECTION}/${DOC_ID}`);
   });
 }
 
@@ -43,7 +43,7 @@ export function subscribeToSkin(skinId: string, callback: (skin: Skin) => void) 
       callback({ id: snap.id, ...snap.data() } as Skin);
     }
   }, (error) => {
-    handleFirestoreError(error, OperationType.GET, `skins/${skinId}`);
+    logFirestoreError(error, OperationType.GET, `skins/${skinId}`);
   });
 }
 
@@ -59,7 +59,7 @@ export function subscribeToSkins(callback: (skins: Skin[]) => void, isAdminMode 
   return onSnapshot(q, (snap) => {
     callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as Skin)));
   }, (error) => {
-    handleFirestoreError(error, OperationType.LIST, 'skins');
+    logFirestoreError(error, OperationType.LIST, 'skins');
   });
 }
 
@@ -104,7 +104,7 @@ export function subscribeToAdmins(callback: (adminIds: string[]) => void) {
   return onSnapshot(collection(db, 'admins'), (snap) => {
     callback(snap.docs.map(d => d.id));
   }, (error) => {
-    handleFirestoreError(error, OperationType.LIST, 'admins');
+    logFirestoreError(error, OperationType.LIST, 'admins');
   });
 }
 

@@ -1,6 +1,6 @@
 import { useApp } from '../context/AppContext';
 import { auth } from '../lib/firebase';
-import { Card, Sticker } from '../components/UI';
+import { Card, FieldBadge } from '../components/UI';
 import { ShieldAlert, Timer, Trophy, Send, Sparkles, Waves, Sun, Flame, MoreHorizontal, Shield, MessageSquare } from 'lucide-react';
 import { cn, safeToDate, formatSafeDate } from '../lib/utils';
 import { calculateLeaderboard } from '../logic/scoringLogic';
@@ -19,13 +19,14 @@ import { AvatarPreview } from '../components/AvatarPreview';
 import { DEFAULT_AVATAR } from '../constants/avatarAssets';
 import { SabotageHub } from '../components/SabotageHub';
 import { getServerDate } from '../services/timeService';
+import { StickerBackground } from '../components/StickerBackground';
 
 export default function FrontlinesPage() {
   const { 
-    isFieldCheckUnlocked, isCrewUnlocked, points, useFieldCheck, 
+    isFieldCheckUnlocked, isCrewUnlocked, points, xp, useFieldCheck, 
     canFieldCheckNow, fieldCheckEvents, standings, soloTripsCount, 
     fieldType, user, profile, currentWeekNumber, canCallFieldCheck,
-    activeSeason, completedCoreChallenges
+    activeSeason, completedCoreChallenges, isAdmin
   } = useApp();
 
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummary | null>(null);
@@ -33,8 +34,12 @@ export default function FrontlinesPage() {
   useEffect(() => {
     if (!user || !activeSeason?.id || !currentWeekNumber) return;
     async function loadSummary() {
-       const summary = await getWeeklySummary(activeSeason!.id, currentWeekNumber);
-       setWeeklySummary(summary);
+       try {
+         const summary = await getWeeklySummary(activeSeason!.id, currentWeekNumber);
+         setWeeklySummary(summary);
+       } catch (err) {
+         console.warn("[Frontlines] loadSummary error:", err);
+       }
     }
     loadSummary();
   }, [user, activeSeason?.id, currentWeekNumber]);
@@ -45,11 +50,12 @@ export default function FrontlinesPage() {
     userId: user?.uid || null,
     email: user?.email || null,
     points,
+    xp,
     soloTripsCount: soloTripsCount || 0,
     completedCoreChallenges: completedCoreChallenges || 0,
     onboardingComplete: !!fieldType,
     fieldType,
-    isAdmin: false, // Will be checked in helper
+    isAdmin: !!isAdmin,
     currentDate: getServerDate(),
   });
   const [fieldCheckSent, setFieldCheckSent] = useState(false);
@@ -119,6 +125,7 @@ export default function FrontlinesPage() {
 
   return (
     <div className="pb-40 px-6 pt-12 space-y-24 max-w-5xl mx-auto overflow-hidden relative">
+      <StickerBackground density={5} variant="general" className="opacity-30" seed="frontlines-feed" />
       {!visible ? (
         <div className="flex flex-col items-center justify-center p-12 py-24 text-center space-y-12 bg-white min-h-[70vh] border-8 border-on-surface shadow-[24px_24px_0px_var(--color-brand-orange)] relative overflow-hidden">
            {/* Decorative Background Elements */}
@@ -246,9 +253,9 @@ export default function FrontlinesPage() {
           </h2>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-brand-lime" />
-            <Sticker color="black" className="micro-label shadow-[2px_2px_0px_var(--color-brand-lime)]">
+            <FieldBadge variant="sticker" color="black" size="xs" className="shadow-[2px_2px_0px_var(--color-brand-lime)] px-3">
               {isBaja ? 'SUNKISSED' : isDiamond ? 'POLISHED' : isHeat ? 'WET' : 'SIGNAL STABLE'}
-            </Sticker>
+            </FieldBadge>
           </div>
         </div>
 
@@ -460,7 +467,7 @@ export default function FrontlinesPage() {
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
           {Object.entries(FIELD_TYPES).filter(([id]) => id !== 'unclassified').map(([id, type]) => {
             const usersOfType = fullBoard.filter(u => u.fieldType === id);
-            const totalPoints = usersOfType.reduce((acc, u) => acc + u.points, 0);
+            const totalPoints = usersOfType.reduce((acc, u) => acc + ((u as any).xp || (u as any).points || 0), 0);
             const avgPoints = usersOfType.length > 0 ? Math.round(totalPoints / usersOfType.length) : 0;
             
             return (
@@ -502,8 +509,12 @@ export default function FrontlinesPage() {
                <button 
                 onClick={async () => {
                   if(!user || !profile) return;
-                  const { updateProfile } = await import('../services/userService');
-                  await updateProfile(user.uid, { quietCrewMode: false });
+                  try {
+                    const { updateProfile } = await import('../services/userService');
+                    await updateProfile(user.uid, { quietCrewMode: false });
+                  } catch (err) {
+                    console.error("[Frontlines] Failed to authorize social uplink:", err);
+                  }
                 }}
                 className="bureau-btn-sm"
                >

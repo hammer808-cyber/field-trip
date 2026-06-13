@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Card, Sticker } from './UI';
+import { Card } from './UI';
 import { AlertCircle, X, ShieldAlert, CheckCircle2, ChevronRight } from 'lucide-react';
 import { ReportTargetType } from '../types/game';
 import { createReport } from '../services/moderationService';

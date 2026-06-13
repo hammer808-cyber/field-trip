@@ -14,7 +14,11 @@ export async function getLatestConsent(userId: string): Promise<LegalConsent | n
     const snap = await getDoc(docRef);
     if (!snap.exists()) return null;
     return snap.data() as LegalConsent;
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'unavailable' || error?.message?.includes('offline')) {
+      console.warn("[LegalService] Firestore unreachable. Proceeding with offline/null state.");
+      return null;
+    }
     handleFirestoreError(error, OperationType.GET, `users/${userId}/legalConsents/current`);
     return null;
   }

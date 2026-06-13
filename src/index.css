@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Inter:wght@100..900&family=Kalam:wght@300;400;700&family=Newsreader:opsz,wght@6..72,200..800&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Anton&family=Outfit:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Inter:wght@100..900&family=Kalam:wght@300;400;700&family=Newsreader:opsz,wght@6..72,200..800&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Anton&family=Outfit:wght@100..900&family=Permanent+Marker&family=Bebas+Neue&family=JetBrains+Mono:wght@100..800&family=Space+Grotesk:wght@300..700&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -6,42 +6,343 @@
   --font-serif: "Newsreader", "Georgia", serif;
   --font-accent: "Newsreader", serif;
   --font-mono: "Courier Prime", "Courier New", monospace;
-  --font-display: "Anton", sans-serif;
+  --font-display: "Bebas Neue", sans-serif;
   --font-outfit: "Outfit", sans-serif;
+  --font-kalam: "Kalam", cursive;
+  --font-marker: "Permanent Marker", cursive;
+  --font-anton: "Anton", sans-serif;
 
-  /* High-Voltage Light Edition Palette */
-  --color-brand-lime: #BFFF00; /* Electric Acid Lime */
-  --color-brand-orange: #FF6B00; /* Safety Orange */
-  --color-brand-magenta: #FF00FF; /* High-Voltage Magenta */
-  --color-brand-cyan: #00F0FF; /* Electric Cyan */
-  --color-brand-purple: #9D00FF; /* Deep Purple Accent */
-  
-  --color-paper: #FFFFFF;
-  --color-paper-dark: #F0F2F5;
+  /* High-Contrast Fieldtrip Tokens */
+  --color-brand-orange: #FF5C00;
+  --color-paper: #FCF9F2;
   --color-on-surface: #000000;
-  --color-on-surface-variant: #111111;
-  --color-on-surface-subtle: #444444;
-  --color-outline: #000000;
-  --color-outline-variant: #E5E5E5;
-  --color-error: #FF003C;
+  --color-brand-lime: #CCFF00;
+  --color-brand-magenta: #FF00FF;
+  --color-brand-cyan: #00F0FF;
+  --color-brand-blue: #0047FF;
+  --color-brand-yellow: #F0FF00;
+  --color-brand-purple: #9D00FF;
+  --color-brand-teal: #00A3A3;
+  
+  --color-paper-dark: #F5F1E8;
+  --color-error: #FF003D;
 
-  --color-chrome: linear-gradient(135deg, #f5f5f5 0%, #ffffff 40%, #dcdcdc 50%, #ffffff 60%, #e0e0e0 100%);
-  --color-prism: linear-gradient(90deg, #FF00FF, #00F0FF, #BFFF00, #FF6B00, #FF00FF);
-  --color-glass: rgba(255, 255, 255, 0.85);
+  --font-display: var(--font-heading, "Bebas Neue"), sans-serif;
+  --font-sans: var(--font-body, "Inter"), ui-sans-serif, system-ui, sans-serif;
 
-  --animate-scan: scan 6s linear infinite;
-  --animate-shimmer: shimmer 3s infinite linear;
-  --animate-pulse-fast: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --color-baja-pink: #FF4D94;
+  --color-baja-sand: #F7E9D7;
+  --color-heat-yellow: #FFB300;
+  --color-heat-mango: #FF7D00;
+  --color-heat-pink: #FF4D94;
+}
+
+:root {
+  --app-height: 100dvh;
+  --field-cream: #fff8df;
+  --field-paper: #fdf4d0;
+  --field-orange: #ff5a1f;
+  --field-pink: #ff2fb3;
+  --field-lime: #c8ff1a;
+  --field-blue: #184cff;
+  --field-purple: #7b2cff;
+  --field-black: #111111;
+  --field-shadow: rgba(0, 0, 0, 0.28);
+}
+
+.sticker-card {
+  position: relative;
+  border: 3px solid var(--field-black);
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.72), rgba(255,255,255,0.08) 38%, rgba(0,0,0,0.04)),
+    radial-gradient(circle at 20% 0%, rgba(255,255,255,0.8), transparent 34%),
+    var(--field-cream);
+  box-shadow:
+    0 8px 0 var(--field-black),
+    0 14px 22px var(--field-shadow),
+    inset 0 1px 0 rgba(255,255,255,0.9),
+    inset 0 -3px 0 rgba(0,0,0,0.08);
+  overflow: hidden;
+}
+
+.sticker-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(115deg, rgba(255,255,255,0.45), transparent 28%, transparent 64%, rgba(255,255,255,0.22)),
+    repeating-linear-gradient(
+      0deg,
+      rgba(0,0,0,0.025) 0px,
+      rgba(0,0,0,0.025) 1px,
+      transparent 1px,
+      transparent 5px
+    );
+  mix-blend-mode: soft-light;
+}
+
+.glossy-card {
+  position: relative;
+  border: 3px solid var(--field-black);
+  border-radius: 20px;
+  box-shadow:
+    0 6px 0 var(--field-black),
+    0 12px 18px rgba(0,0,0,0.25),
+    inset 0 2px 0 rgba(255,255,255,0.7);
+  overflow: hidden;
+}
+
+.glossy-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -20%;
+  width: 140%;
+  height: 42%;
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,0.55),
+    rgba(255,255,255,0.12),
+    transparent
+  );
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+.cta-card {
+  background:
+    linear-gradient(135deg, #ff7a1c 0%, #ff4a16 55%, #f02d00 100%) !important;
+  color: white !important;
+}
+
+.pulse-card {
+  background:
+    radial-gradient(circle at 10% 15%, rgba(255,255,255,0.42), transparent 25%),
+    linear-gradient(135deg, #3317ff 0%, #1726c9 55%, #12007a 100%) !important;
+  color: white !important;
+}
+
+.boost-card {
+  background:
+    radial-gradient(circle at 10% 0%, rgba(255,255,255,0.65), transparent 26%),
+    linear-gradient(135deg, #ff4fd8 0%, #d84cff 45%, #ffe6fb 100%) !important;
+  color: var(--field-black) !important;
+}
+
+.stat-card {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.78), rgba(255,255,255,0.15)),
+    var(--field-paper) !important;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--field-black);
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  font-weight: 800;
+  font-size: 0.72rem;
+  box-shadow:
+    0 3px 0 var(--field-black),
+    inset 0 1px 0 rgba(255,255,255,0.75);
+}
+
+.status-chip.approved {
+  background: var(--field-lime);
+}
+
+.status-chip.review {
+  background: #ffd02a;
+}
+
+.status-chip.needs-proof {
+  background: var(--field-pink);
+  color: white;
+}
+
+.status-chip.locked {
+  background: #ff4b65;
+  color: white;
+}
+
+.sticker-badge {
+  border: 3px solid var(--field-black);
+  border-radius: 18px;
+  background: var(--field-lime);
+  box-shadow:
+    0 4px 0 var(--field-black),
+    0 8px 12px rgba(0,0,0,0.25);
+  transform: rotate(-2deg);
+}
+
+.card-sheen {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-sheen::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 45%,
+    rgba(255, 255, 255, 0.4) 50%,
+    rgba(255, 255, 255, 0.1) 55%,
+    transparent 100%
+  );
+  transform: rotate(-45deg);
+  pointer-events: none;
+  animation: card-sheen-sweep 6s infinite ease-in-out;
+}
+
+@keyframes card-sheen-sweep {
+  0% { transform: translate(-30%, -30%) rotate(-45deg); }
+  25% { transform: translate(30%, 30%) rotate(-45deg); }
+  100% { transform: translate(30%, 30%) rotate(-45deg); }
+}
+
+.field-card {
+  padding: 1.5rem;
+}
+
+.laminated-panel {
+  background-color: white;
+}
+
+html, body, #root {
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+  width: 100%;
+}
+
+.page-scroll {
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(140px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+}
+
+.min-h-screen {
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+}
+
+.h-screen {
+  height: var(--app-height);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+.pl-safe {
+  padding-left: env(safe-area-inset-left);
+}
+
+.pr-safe {
+  padding-right: env(safe-area-inset-right);
+}
+
+
+/* Journal Aesthetic Classes */
+.journal-card {
+  @apply bg-white border-2 border-on-surface relative overflow-hidden transition-all duration-300;
+  box-shadow: 6px 6px 0px 0px #000000;
+}
+
+.journal-card:hover {
+  @apply -translate-y-1;
+  box-shadow: 10px 10px 0px 0px #000000;
+}
+
+.paper-texture {
+  background-image: url("https://www.transparenttextures.com/patterns/handmade-paper.png");
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+
+.stamped-text {
+  @apply font-display text-on-surface/80 uppercase tracking-tight italic font-black;
+  mask-image: url("https://www.transparenttextures.com/patterns/splatter.png");
+}
+
+/* Physical Label Styles */
+.field-label-wrapper {
+  @apply relative inline-flex items-center transition-transform duration-300;
+  filter: drop-shadow(2px 2px 0px rgba(0,0,0,0.15));
+}
+
+.field-label-blue {
+  @apply relative bg-brand-cyan px-4 py-1 sm:px-8 sm:py-3 rotate-[-1deg] hover:rotate-0;
+  clip-path: polygon(1px 2px, 100% 0, 98% 100%, 0 96%);
+  box-shadow: 2px 2px 0px black;
+}
+
+.field-label-blue-text {
+  @apply font-display text-on-surface italic uppercase tracking-tighter leading-none;
+}
+
+.field-label-white-on-blue {
+  @apply relative bg-on-surface p-[2px] sm:p-[4px] rotate-[0.5deg] hover:rotate-0;
+  clip-path: polygon(0 0, 100% 2px, 99% 100%, 2px 98%);
+  box-shadow: 2px 2px 0px rgba(0,0,0,0.2);
+}
+
+.field-label-white-on-blue-inner {
+  @apply bg-white px-3 py-1 sm:px-8 sm:py-3 text-on-surface font-display italic uppercase tracking-tighter leading-none;
+  box-shadow: inset 1px 1px 0px rgba(0,0,0,0.05);
+  clip-path: polygon(1px 1px, 99% 0, 100% 100%, 0 99%);
 }
 
 body {
   @apply bg-paper text-on-surface font-sans antialiased;
   background-image: 
-    linear-gradient(rgba(0,0,0,0.03) 1.5px, transparent 1.5px),
-    linear-gradient(90deg, rgba(0,0,0,0.03) 1.5px, transparent 1.5px);
-  background-size: 32px 32px;
+    var(--bg-texture, none),
+    linear-gradient(rgba(0,0,0,0.04) 1.5px, transparent 1.5px),
+    linear-gradient(90deg, rgba(0,0,0,0.04) 1.5px, transparent 1.5px);
+  background-size: cover, 32px 32px, 32px 32px;
   background-attachment: fixed;
   position: relative;
+  min-height: 100dvh;
+}
+
+/* Touch targets and safe area utility */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+button, 
+[role="button"],
+.ft-button-primary,
+.ft-button-secondary,
+.ft-chip-interactive {
+  touch-action: manipulation;
+  min-height: 44px;
+  min-width: 44px;
 }
 
 body::before {
@@ -49,17 +350,26 @@ body::before {
   @apply fixed inset-0 pointer-events-none z-[100];
   background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.05) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
   background-size: 100% 3px, 3px 100%;
-  opacity: 0.15;
+  opacity: 0.1;
 }
 
 body::after {
   content: "";
-  @apply fixed inset-0 pointer-events-none opacity-[0.02];
+  @apply fixed inset-0 pointer-events-none opacity-[0.03];
   background-image: url("https://www.transparenttextures.com/patterns/micro-carbon.png");
   z-index: 50;
+  background-attachment: fixed;
 }
 
-/* Bureau Typography - High Voltage Edition */
+.starburst-clip {
+  mask-image: radial-gradient(circle, black 100%, transparent 100%);
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+
+.clip-path-clipped {
+  clip-path: polygon(0 0, 100% 0, 100% 85%, 85% 100%, 0 100%);
+}
+
 .text-huge {
   font-family: var(--font-display);
   font-size: clamp(4rem, 18vw, 12rem);
@@ -89,13 +399,13 @@ body::after {
 
 /* Card & Panel Styles - Modular High Contrast */
 .notice-card {
-  @apply bg-white border-2 border-on-surface relative p-0 overflow-hidden transition-all duration-300;
-  box-shadow: 12px 12px 0px 0px var(--color-on-surface);
+  @apply bg-white border-[3px] border-on-surface relative p-0 overflow-hidden transition-all duration-300;
+  box-shadow: 12px 12px 0px 0px #000000;
 }
 
 .notice-card::before {
   content: "";
-  @apply absolute top-0 left-0 w-full h-1 bg-brand-lime;
+  @apply absolute top-0 left-0 w-full h-1.5 bg-brand-lime;
 }
 
 .notice-card:hover {
@@ -378,3 +688,457 @@ body::after {
   font-size: 2.5rem !important;
   font-weight: 800 !important;
 }
+
+/* ==========================================================================
+   FIELDTRIP TACTILE & AFFORDANCE REUSABLE CLASS SYSTEM
+   ========================================================================== */
+
+/* 1. PAPER & BOARD BACKGROUND TEXTURE */
+.ft-paper-texture {
+  background-image: 
+    linear-gradient(rgba(0, 0, 0, 0.035) 1.5px, transparent 1.5px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.035) 1.5px, transparent 1.5px);
+  background-size: 16px 16px;
+  background-color: var(--color-paper, #FCF9F2);
+  position: relative;
+}
+
+/* Extra decorative notebook rings or spiral bindings indicator */
+.ft-notebook-spiral {
+  background-image: radial-gradient(circle, rgba(0,0,0,0.15) 4px, transparent 4px);
+  background-size: 24px 100%;
+  height: 12px;
+  width: 100%;
+  opacity: 0.7;
+}
+
+/* 2. CORE SURFACES */
+.ft-surface {
+  @apply bg-paper border-[3px] border-on-surface relative overflow-hidden;
+  box-shadow: 4px 4px 0px 0px #000000;
+}
+
+/* 3. PHYSICAL CARDS */
+.ft-card {
+  @apply bg-white border-[3px] border-on-surface relative p-5 transition-all duration-200 select-none;
+  box-shadow: 5px 5px 0px 0px #000000;
+  background-image: radial-gradient(rgba(0,0,0,0.015) 1px, transparent 0);
+  background-size: 8px 8px;
+}
+
+.ft-card-raised {
+  @apply bg-white border-[3px] border-on-surface relative p-6 transition-all duration-300;
+  box-shadow: 10px 10px 0px 0px #000000;
+}
+
+.ft-card-raised:hover {
+  @apply -translate-y-1 -translate-x-0.5;
+  box-shadow: 14px 14px 0px 0px var(--color-brand-lime, #CCFF00);
+}
+
+/* 4. NEON STICKERS */
+.ft-sticker {
+  @apply relative inline-block p-1.5 border-[3px] border-white bg-white text-on-surface select-none transition-transform duration-300 font-marker text-xs;
+  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.25);
+  transform: rotate(var(--sticker-rot, -3deg));
+  filter: drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.15));
+}
+.ft-sticker:hover {
+  transform: scale(1.08) rotate(3deg) !important;
+  z-index: 10;
+}
+
+/* 5. DYNAMIC GLOSSY BUTTONS */
+.ft-button-primary {
+  @apply bg-brand-lime text-on-surface px-6 py-3.5 font-display uppercase tracking-wider text-xl md:text-2xl border-[3px] border-on-surface font-extrabold cursor-pointer transition-all duration-150 inline-flex items-center justify-center gap-2 relative overflow-hidden select-none active:translate-y-[4px] active:translate-x-[4px];
+  box-shadow: 6px 6px 0px 0px #000000;
+  text-shadow: 1px 1px 0px rgba(255, 255, 255, 0.45);
+}
+.ft-button-primary::after {
+  content: "";
+  @apply absolute top-0 left-0 w-full h-[35%] bg-white/30 pointer-events-none;
+}
+.ft-button-primary:hover {
+  @apply -translate-y-0.5 -translate-x-0.5 bg-brand-lime/90;
+  box-shadow: 8px 8px 0px 0px #000000;
+}
+.ft-button-primary:active {
+  transform: translate(6px, 6px) !important;
+  box-shadow: 0px 0px 0px 0px #000000 !important;
+}
+
+.ft-button-secondary {
+  @apply bg-white text-on-surface px-5 py-2.5 font-display uppercase tracking-wide text-lg border-[3px] border-on-surface font-black cursor-pointer transition-all duration-150 inline-flex items-center justify-center gap-1.5 relative overflow-hidden select-none active:translate-y-[2px] active:translate-x-[2px];
+  box-shadow: 4px 4px 0px 0px #000000;
+}
+.ft-button-secondary::after {
+  content: "";
+  @apply absolute top-0 left-0 w-full h-[30%] bg-white/20 pointer-events-none;
+}
+.ft-button-secondary:hover {
+  @apply bg-paper-dark -translate-y-0.5 -translate-x-0.5;
+  box-shadow: 6px 6px 0px 0px #000000;
+}
+.ft-button-secondary:active {
+  transform: translate(4px, 4px) !important;
+  box-shadow: 0px 0px 0px 0px #000000 !important;
+}
+
+.ft-button-ghost {
+  @apply text-on-surface hover:bg-black/5 font-mono text-xs uppercase tracking-wider font-bold py-2.5 px-3.5 transition-colors inline-flex items-center justify-center gap-1 cursor-pointer rounded-none relative active:top-[1px];
+}
+
+/* 6. LABEL-MAKER CHIPS */
+.ft-chip-status {
+  @apply inline-flex items-center justify-center px-3 py-1 border-2 border-on-surface font-mono text-[10px] font-black uppercase tracking-wider select-none leading-none rounded-none;
+  box-shadow: 2px 2px 0px 0px #000000;
+  background-color: var(--chip-bg, #ffffff);
+  color: var(--chip-fg, #000000);
+}
+
+.ft-chip-interactive {
+  @apply inline-flex items-center justify-center px-3 py-1 border-2 border-on-surface font-mono text-[10px] font-black uppercase tracking-wider select-none leading-none rounded-none cursor-pointer transition-all active:translate-x-[1px] active:translate-y-[1px];
+  box-shadow: 2px 2px 0px 0px #000000;
+  background-color: var(--chip-bg, #ffffff);
+  color: var(--chip-fg, #000000);
+}
+.ft-chip-interactive:hover {
+  @apply -translate-y-0.5 bg-brand-orange text-white;
+  box-shadow: 3.5px 3.5px 0px 0px #000000;
+}
+.ft-chip-interactive:active {
+  transform: translate(2px, 2px) !important;
+  box-shadow: 0px 0px 0px 0px #000000 !important;
+}
+
+/* 7. AUTHENTIC LAMINATED / LOCKED STATE STAMP */
+.ft-locked-overlay {
+  @apply absolute inset-0 bg-paper-dark/85 backdrop-blur-[2.5px] flex flex-col items-center justify-center p-4 z-30 select-none text-center border-2 border-on-surface;
+  background-image: repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.04) 0px, rgba(0, 0, 0, 0.04) 10px, transparent 10px, transparent 20px);
+}
+
+/* 8. PRESSABLE OBJECT TRIGGER */
+.ft-pressable {
+  @apply cursor-pointer transition-all duration-150 active:translate-y-[2px] active:translate-x-[1px];
+}
+.ft-pressable:hover {
+  @apply -translate-y-0.5;
+  box-shadow: 8px 8px 0px 0px #000000 !important;
+}
+.ft-pressable:active {
+  transform: translate(3px, 3px) !important;
+  box-shadow: 2px 2px 0px 0px #000000 !important;
+}
+
+/* 9. PURELY DECORATIVE STYLING */
+.ft-decorative {
+  @apply pointer-events-none opacity-85 filter brightness-95 select-none;
+}
+
+/* 10. GLOSSY OVERLAYS */
+.ft-gloss-highlight {
+  @apply relative overflow-hidden;
+}
+/* Mobile Containment & Flow */
+img, video, canvas, svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.scroll-x-auto {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.scroll-x-auto::-webkit-scrollbar {
+  display: none;
+}
+
+.safe-pb {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-pt {
+  padding-top: env(safe-area-inset-top);
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --app-height: 100dvh;
+  }
+  .h-dvh {
+    height: 100dvh;
+  }
+  .min-h-dvh {
+    min-height: 100dvh;
+  }
+}
+
+/* Fix for mobile menu bar clipping */
+.bottom-nav-outer {
+  padding-bottom: env(safe-area-inset-bottom);
+  background: white;
+  border-top: 4px solid black;
+}
+
+/* Responsive Grid Adjustments */
+@media (max-width: 640px) {
+  .bureau-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .ft-card {
+    padding: 1.25rem;
+  }
+}
+
+/* ==========================================================================
+   FIELDTRIP EXPANDED MATERIAL-OBJECT & TACTILE STYLING PASS
+   ========================================================================== */
+
+.field-paper-shadow {
+  box-shadow: 10px 12px 24px rgba(0,0,0,0.12), 5px 6px 0px 0px #000000;
+}
+
+.field-paper-shadow-lg {
+  box-shadow: 14px 18px 32px rgba(0,0,0,0.15), 8px 10px 0px 0px #000000;
+}
+
+.field-paper-shadow-sm {
+  box-shadow: 4px 6px 12px rgba(0,0,0,0.08), 3px 3px 0px 0px #000000;
+}
+
+/* 1. Field Card Base - Tactical Thick Outline & Stacking */
+.field-card {
+  @apply relative rounded-none border-[3.5px] border-on-surface bg-white transition-all duration-300;
+  box-shadow: 8px 10px 0px 0px #000000;
+  position: relative;
+}
+
+.field-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: 
+    linear-gradient(rgba(0,0,0,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,.035) 1px, transparent 1px);
+  background-size: 18px 18px;
+  pointer-events: none;
+  opacity: .35;
+}
+
+/* 2. Paper / Manila Cardstock */
+.field-card--paper {
+  @apply relative rounded-none border-[3.5px] border-on-surface bg-[#FFFDF6] transition-all duration-300;
+  box-shadow: 8px 10px 0px 0px #000000;
+}
+
+.field-card--paper::after {
+  content: "";
+  @apply absolute inset-0 pointer-events-none opacity-[0.04];
+  background-image: url("https://www.transparenttextures.com/patterns/felt.png");
+}
+
+/* Primary CTA Action Cards */
+.field-card--urgent {
+  @apply border-[4px] border-on-surface;
+  box-shadow: 10px 12px 0px 0px #000000;
+  background: linear-gradient(180deg, #FFFFFF, #FFF5E6);
+}
+
+.field-card--success {
+  @apply border-[3px] border-on-surface bg-[#F6FFEE];
+  box-shadow: 6px 8px 0px 0px #111;
+}
+
+/* 3. Ticket Stub with Scallop Punch Edges */
+.field-card--ticket {
+  @apply relative border-[3.5px] border-on-surface bg-[#F2F6F8] p-6 transition-all duration-300;
+  box-shadow: 8px 10px 0px 0px #000000;
+}
+.field-card--ticket::before, .field-card--ticket::after {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background-color: var(--color-paper, #FCF9F2);
+  border: 3.5px solid var(--color-on-surface);
+  border-radius: 999px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+}
+.field-card--ticket::before {
+  left: -12.5px;
+}
+.field-card--ticket::after {
+  right: -12.5px;
+}
+
+/* 4. Glossy Sticker Seal Overlay/Object */
+.field-card--sticker {
+  @apply relative border-[3px] border-white text-on-surface font-display shadow-lg select-none transition-transform duration-300 transform;
+  outline: 3px solid var(--color-on-surface);
+  box-shadow: 6px 8px 16px rgba(0,0,0,0.15), 4px 6px 0px 0px var(--color-on-surface);
+}
+.field-card--sticker::after {
+  content: "";
+  @apply absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-white/40 pointer-events-none z-15;
+}
+
+/* 5. Character ID Credentials / Laminated Badges */
+.field-card--id {
+  @apply relative rounded-none border-[3.5px] border-on-surface bg-[#FFFDFB] transition-all duration-300 p-6;
+  box-shadow: 8px 10px 0px 0px #000000;
+  background-image: radial-gradient(rgba(0,0,0,0.01) 1px, transparent 0);
+  background-size: 10px 10px;
+}
+.field-card--id::before {
+  content: "";
+  @apply absolute top-0 left-0 right-0 h-4 bg-brand-cyan border-b-[3.5px] border-on-surface z-10;
+}
+
+/* 6. Tall Thermal Receipte Printouts */
+.field-card--receipt {
+  @apply border-t-[3.5px] border-x-[3.5px] border-b-0 border-on-surface bg-[#FAFAF7] p-5 font-mono text-xs text-on-surface/90 relative;
+  box-shadow: 6px 8px 0px 0px rgba(0,0,0,0.15);
+}
+/* Receipts jagged zig zag edge at bottom */
+.field-card--receipt-jagged {
+  content: "";
+  display: block;
+  height: 12px;
+  width: 100%;
+  background-size: 12px 12px;
+  background-repeat: repeat-x;
+  background-image: linear-gradient(-45deg, transparent 6px, #FAFAF7 6px), linear-gradient(45deg, transparent 6px, #FAFAF7 6px);
+  position: relative;
+  bottom: -4px;
+  z-index: 10;
+  border-bottom: 3.5px solid var(--color-on-surface); /* Gives a border line to the zig zag */
+}
+
+/* 7. Polaroid Mounted Snapshots */
+.field-card--photo {
+  @apply border-[3.5px] border-on-surface bg-white p-3.5 pb-12 shadow-md relative inline-block text-center transition-all duration-300;
+  box-shadow: 8px 10px 16px rgba(0,0,0,0.1), 5px 6px 0px 0px #000055;
+}
+.field-card--photo .photo-image-slot {
+  @apply bg-[#ECE9E0] border-[2.5px] border-on-surface aspect-square overflow-hidden relative filter saturate-90 contrast-95;
+}
+
+/* 8. Admin Folders / Paperwork */
+.field-card--admin {
+  @apply relative rounded-none border-[3.5px] border-on-surface bg-[#FFF9F2] transition-all duration-300 p-6;
+  box-shadow: 8px 10px 0px 0px #000000;
+  border-left-width: 8px; /* thicker visual edge */
+}
+
+/* 9. Collectible merit patches / Round sticker badges */
+.field-badge {
+  @apply p-2 sm:p-2.5 border-[3.5px] border-on-surface font-display uppercase tracking-widest text-xs font-black inline-flex items-center justify-center gap-1.5 select-none;
+  box-shadow: 3px 4px 0px 0px #000000;
+}
+
+/* Glossy highlight shield */
+.field-badge--glossy {
+  @apply relative overflow-hidden p-2 sm:p-2.5 border-[3.5px] border-on-surface font-display uppercase tracking-widest text-xs font-black inline-flex items-center justify-center gap-1.5 select-none;
+  box-shadow: 3px 4px 0px 0px #000000;
+}
+.field-badge--glossy::after {
+  content: "";
+  @apply absolute inset-0 bg-gradient-to-b from-white/45 to-transparent pointer-events-none;
+}
+
+/* 10. Heavy Solid Black Utility label strings  */
+.field-label {
+  @apply font-mono text-[10px] leading-none text-white bg-on-surface px-2.5 py-1.5 select-none font-black uppercase tracking-widest inline-block;
+  box-shadow: 2px 2px 0px 0px rgba(0,0,0,0.15);
+}
+
+/* 10b. Field CTA Button - Premium Gradient & Depth */
+.field-cta {
+  background: linear-gradient(135deg, #ff5a00, #ff2fa8);
+  color: white;
+  border: 3px solid #111;
+  box-shadow: 6px 8px 0 #111;
+  font-weight: 900;
+  text-transform: uppercase;
+  transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 1.5rem;
+  letter-spacing: -0.02em;
+  position: relative;
+  overflow: hidden;
+}
+
+.field-cta::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 35%;
+  background: white;
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.field-cta:active {
+  transform: translate(3px, 4px);
+  box-shadow: 2px 3px 0 #111;
+}
+
+.field-cta:hover {
+  filter: brightness(1.05);
+  box-shadow: 8px 10px 0 #111;
+  transform: translate(-1px, -1px);
+}
+
+.field-shield {
+  @apply border-[3px] border-on-surface bg-[#00D8FF] text-on-surface font-black uppercase italic p-2 text-xs shadow-[4px_4px_0px_black];
+}
+
+/* 11. Jagged Translucent Tape Stripes */
+.field-tape {
+  @apply h-6 bg-[#FEFC9C]/80 border-y border-dashed border-on-surface/20 relative rotate-[-6deg] shadow-sm pointer-events-none mix-blend-multiply;
+  width: 70px;
+}
+
+/* 12. Splattered / Grunge Stamp accents */
+.field-stamp {
+  @apply border-2 border-dashed px-3 py-1 text-center font-display uppercase italic text-xs font-black select-none pointer-events-none tracking-widest;
+  mask-image: url("https://www.transparenttextures.com/patterns/splatter.png");
+}
+
+/* 13. Slanted File Folder tab indicators */
+.field-tab {
+  @apply relative inline-block px-4 py-2 font-display uppercase font-black text-sm border-t-[3.5px] border-x-[3.5px] border-on-surface bg-white -mb-[3.5px] cursor-pointer;
+  clip-path: polygon(0 0, 85% 0, 100% 100%, 0% 100%);
+}
+.field-tab--active {
+  @apply bg-[#CCFF00] z-20;
+}
+
+/* Persona Quiz Mobile-friendly styles */
+.persona-question-title {
+  font-size: clamp(26px, 7.5vw, 42px);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  max-width: 100%;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+@media (min-width: 768px) {
+  .persona-question-title {
+    font-size: clamp(40px, 5.5vw, 64px);
+  }
+}
+
+
+

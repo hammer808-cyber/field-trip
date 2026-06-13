@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Sticker } from './UI';
+import { Card } from './UI';
 import { Lock, Clock, Calendar, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 

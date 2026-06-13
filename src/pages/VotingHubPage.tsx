@@ -1,6 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { useTheme } from '../context/ThemeContext';
 import { 
   Trophy, 
   ShieldAlert, 
@@ -8,241 +7,406 @@ import {
   Lock,
   Clock,
   ChevronRight,
-  Eye,
-  AlertCircle
+  ChevronLeft,
+  Users,
+  Info,
+  Award,
+  HelpCircle,
+  X,
+  Zap,
+  Sparkles,
+  ArrowRight,
+  Gavel,
+  ThumbsUp,
+  ThumbsDown,
+  History
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { Card, Sticker } from '../components/UI';
-import { motion } from 'motion/react';
-import { Link } from 'react-router-dom';
+import { Card } from '../components/UI';
+import { motion, AnimatePresence } from 'motion/react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { VotingHub as VotingModule } from '../components/VotingHub';
+import { FIELD_MATERIALS } from '../utils/styleHelpers';
+import { 
+  getTribunalCases, 
+  getResolvedTribunalCases, 
+  castTribunalVote, 
+  getTribunalVotesForUser 
+} from '../services/tribunalService';
+import { TribunalCase, TribunalVote } from '../types/game';
+import { getServerDate } from '../services/timeService';
+import { 
+  getCurrentVotingCycle, 
+  getVotingPhase, 
+  getDaysLeftInSubmissionWindow, 
+  getVotingHoursLeft 
+} from '../services/votingCycleService';
 
-type VotingStatus = 'locked' | 'active' | 'coming soon' | 'results ready';
+type VotingTab = 'vote' | 'tribunal' | 'results';
 
-interface SectionProps {
-  id: string;
-  title: string;
-  description: string;
-  status: VotingStatus;
-  icon: React.ElementType;
-  children?: React.ReactNode;
-  isEmpty?: boolean;
-}
+import { FieldPageHero } from '../components/FieldPageHero';
 
-const VotingHubSection: React.FC<SectionProps> = ({ 
-  title, 
-  description, 
-  status, 
-  icon: Icon, 
-  children,
-  isEmpty = false
-}) => {
-  const getStatusColor = (s: VotingStatus) => {
-    switch (s) {
-      case 'active': return 'text-on-surface bg-brand-lime border-on-surface';
-      case 'results ready': return 'text-white bg-on-surface border-on-surface';
-      case 'locked': return 'text-on-surface/40 bg-on-surface/5 border-on-surface/10';
-      default: return 'text-on-surface bg-brand-orange/10 border-on-surface/20';
+export default function VotingHubPage() {
+  const { user, currentWeekNumber, activeSeason, isVotingWindowOpen, unlockDiscoverySticker, isTribunalUnlocked } = useApp();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const activeTab = (searchParams.get('tab') as VotingTab) || 'vote';
+  const [showFullRules, setShowFullRules] = useState(false);
+  
+  const [tribunalCases, setTribunalCases] = useState<TribunalCase[]>([]);
+  const [resolvedCases, setResolvedCases] = useState<TribunalCase[]>([]);
+  const [userTribunalVotes, setUserTribunalVotes] = useState<Record<string, 'agree' | 'disagree'>>({});
+  const [isLoading, setIsLoading] = useState(true);
+
+  const [clockInfo, setClockInfo] = useState(() => {
+    const now = getServerDate();
+    const cycle = getCurrentVotingCycle(now);
+    const phase = getVotingPhase(now, cycle);
+    const daysLeft = getDaysLeftInSubmissionWindow(now, cycle);
+    const hoursLeft = getVotingHoursLeft(now, cycle);
+    return { phase, daysLeft, hoursLeft };
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = getServerDate();
+      const cycle = getCurrentVotingCycle(now);
+      const phase = getVotingPhase(now, cycle);
+      const daysLeft = getDaysLeftInSubmissionWindow(now, cycle);
+      const hoursLeft = getVotingHoursLeft(now, cycle);
+      setClockInfo({ phase, daysLeft, hoursLeft });
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'tribunal') {
+      unlockDiscoverySticker('tribunal_view', 'voting');
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    const loadTribunalData = async () => {
+      if (!user || !activeSeason) return;
+      setIsLoading(true);
+      try {
+        const [cases, resolved, votes] = await Promise.all([
+          getTribunalCases(currentWeekNumber, activeSeason.id),
+          getResolvedTribunalCases(currentWeekNumber, activeSeason.id),
+          getTribunalVotesForUser(user.uid)
+        ]);
+        setTribunalCases(cases);
+        setResolvedCases(resolved);
+        const voteMap: Record<string, 'agree' | 'disagree'> = {};
+        votes.forEach(v => {
+          voteMap[v.caseId] = v.vote;
+        });
+        setUserTribunalVotes(voteMap);
+      } catch (err) {
+        console.error("Failed to load tribunal", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    if (user && activeSeason) {
+      loadTribunalData();
+    }
+  }, [user, activeSeason, currentWeekNumber]);
+
+  const handleTribunalVote = async (caseId: string, vote: 'agree' | 'disagree') => {
+    if (!user || !activeSeason) return;
+    try {
+      await castTribunalVote(user.uid, caseId, vote);
+      setUserTribunalVotes(prev => ({ ...prev, [caseId]: vote }));
+      const updatedCases = await getTribunalCases(currentWeekNumber, activeSeason.id);
+      setTribunalCases(updatedCases);
+    } catch (err) {
+      console.error("Vote failed", err);
     }
   };
 
-  return (
-    <Card className="overflow-hidden border-8 border-on-surface bg-white shadow-[16px_16px_0px_black] hover:shadow-[24px_24px_0px_var(--color-brand-cyan)] transition-all group relative">
-      {/* Decorative Shimmer Edge */}
-      <div className="absolute top-0 left-0 w-2 h-full bg-brand-lime opacity-30" />
-      
-      <div className="p-10 space-y-8 relative z-10">
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-8">
-          <div className="flex items-start gap-6">
-            <div className="p-5 bg-on-surface text-brand-lime border-4 border-on-surface shadow-[8px_8px_0px_var(--color-brand-orange)] group-hover:rotate-6 transition-transform">
-              <Icon className="w-10 h-10 stroke-[2.5]" />
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <span className="bg-brand-orange text-white px-2 py-1 border-2 border-on-surface font-bold text-[10px] uppercase tracking-wider italic shadow-[3px_3px_0px_black]">PROTOCOL_SECURE</span>
-                <div className={cn(
-                  "inline-flex items-center gap-2 px-4 py-2 text-[11px] font-bold uppercase tracking-widest border-2 shadow-[4px_4px_0px_black] italic",
-                  getStatusColor(status)
-                )}>
-                  {status === 'active' && <span className="w-2 h-2 rounded-full bg-on-surface animate-pulse" />}
-                  {status.replace(' ', '_')}
-                </div>
-              </div>
-              <h2 className="font-display text-5xl uppercase tracking-tight leading-tight italic font-bold text-on-surface">{title}</h2>
-            </div>
-          </div>
-          <div className="bg-on-surface/5 p-6 border-l-8 border-brand-lime max-w-sm group-hover:bg-brand-lime/10 transition-colors">
-            <p className="font-display text-lg italic leading-relaxed uppercase font-bold tracking-normal opacity-75">
-              "{description}"
-            </p>
-          </div>
-        </div>
-
-        <div className="pt-8 border-t-4 border-dashed border-on-surface/10">
-          {isEmpty ? (
-            <div className="py-12 text-center space-y-4 bg-paper-dark border-2 border-on-surface shadow-inner">
-              {status === 'locked' ? (
-                <Lock className="w-12 h-12 mx-auto text-on-surface opacity-10" />
-              ) : status === 'coming soon' ? (
-                <Clock className="w-12 h-12 mx-auto text-on-surface opacity-10" />
-              ) : (
-                <Eye className="w-12 h-12 mx-auto text-on-surface opacity-10" />
-              )}
-              <div className="space-y-1">
-                <p className="font-display text-sm uppercase">Data_Silos_Empty</p>
-                <p className="text-[10px] uppercase font-mono opacity-40">No records found for active cycle.</p>
-              </div>
-            </div>
-          ) : (
-            children
-          )}
-        </div>
-      </div>
-    </Card>
-  );
-};
-
-export default function VotingHubPage() {
-  const { currentWeekNumber, isVotingWindowOpen, isWeekLocked } = useApp();
-  const { skin } = useTheme();
-
-  const isVotingOpen = isVotingWindowOpen(currentWeekNumber);
-  const isLocked = isWeekLocked(currentWeekNumber);
-
-  const zineStatus: VotingStatus = isLocked ? 'results ready' : isVotingOpen ? 'active' : 'locked';
-  const snitchStatus: VotingStatus = 'coming soon'; // Coming soon as per request
-  const awardsStatus: VotingStatus = isLocked ? 'results ready' : 'coming soon';
+  const setActiveTab = (tab: VotingTab) => {
+    setSearchParams({ tab });
+  };
 
   return (
-    <div className="min-h-screen bg-white pb-40 px-6 pt-16 space-y-20 max-w-7xl mx-auto relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="fixed top-0 right-0 p-12 opacity-[0.02] pointer-events-none select-none overflow-hidden h-full z-0">
-        <h1 className="text-[25vw] font-display uppercase tracking-tight leading-none italic rotate-90 origin-top-right font-bold text-on-surface">
-          THE_TRIBUNAL
-        </h1>
+    <div className="min-h-screen bg-paper pb-56 sm:pb-64 relative overflow-hidden ft-paper-texture">
+      {/* Visual Spiral Notebook Rings at the top */}
+      <div className="w-full flex justify-center py-1 opacity-55 z-20 relative select-none pointer-events-none mb-3 pt-3">
+        <div className="h-4 w-60 border-y-2 border-on-surface bg-[#EAE5D8] flex justify-between px-4 rounded-full shadow-[inset_0_2px_4.5px_rgba(0,0,0,0.15)]">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="w-2.5 h-6 bg-slate-400 border-2 border-on-surface rounded-full -mt-1 shadow" />
+          ))}
+        </div>
       </div>
 
-      <header className="space-y-10 relative z-10">
-        <div className="flex items-center gap-10 relative z-10">
-          <Link to="/deck" className="p-4 bg-white border-4 border-on-surface shadow-[6px_6px_0px_black] hover:bg-brand-lime transition-all active:translate-x-0.5 active:translate-y-0.5 active:shadow-none -rotate-3 hover:rotate-0">
-            <ChevronRight className="w-8 h-8 rotate-180 stroke-[4]" />
-          </Link>
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <div className="w-3 h-3 bg-brand-orange animate-pulse shadow-[0_0_8px_var(--color-brand-orange)]" />
-              <p className="font-display text-xs font-bold uppercase tracking-widest text-brand-orange italic">DEMOCRATIC_VOTE_ACTIVE</p>
-            </div>
-            <p className="font-display text-[11px] font-bold opacity-40 uppercase tracking-widest italic">Voting Cycle // 00{currentWeekNumber}</p>
-          </div>
-        </div>
-        
-        <div className="space-y-6">
-          <h1 className="text-[6rem] md:text-[8rem] font-display uppercase tracking-tight leading-tight font-bold text-on-surface italic drop-shadow-[8px_8px_0_var(--color-brand-lime)]">
-            Voting_Hub
-          </h1>
-          <div className="bg-on-surface text-brand-lime p-8 border-4 border-on-surface shadow-[12px_12px_0px_var(--color-brand-orange)] max-w-3xl rotate-1">
-             <p className="font-display text-3xl italic uppercase font-bold leading-tight tracking-normal">
-              "Consensus_is_truth."
-            </p>
-            <p className="font-display text-lg italic opacity-75 uppercase font-bold tracking-widest mt-6 leading-relaxed">
-              Democratic consensus is the ultimate filter for objective truth. Document the vibe with prejudice.
-            </p>
-          </div>
-        </div>
-      </header>
+      <FieldPageHero
+        eyebrow="WEEKLY_COMMUNITY_MATCHUP"
+        title="PEER VOTE"
+        subtitle="Sector 7-B // Field Headquarters"
+        backLabel="My_Findings"
+        backTo="/deck"
+        backgroundIcon={<Trophy className="w-64 h-64" />}
+        infoCardLabel="STATION_CLOCK"
+        infoCardValue={
+          clockInfo.phase === 'submission' 
+            ? `${clockInfo.daysLeft}D` 
+            : clockInfo.phase === 'voting' 
+              ? `${clockInfo.hoursLeft}H` 
+              : 'LIVE'
+        }
+        infoCardSubtext={
+          clockInfo.phase === 'submission' 
+            ? 'DAYS LEFT // SUBMISSION WINDOW ACTIVE' 
+            : clockInfo.phase === 'voting' 
+              ? 'HOURS LEFT // CAST MATCHUP BALLOTS' 
+              : 'WEEKLY RESULTS RELEASED'
+        }
+        infoCardAccent={
+          clockInfo.phase === 'submission' 
+            ? 'blue' 
+            : clockInfo.phase === 'voting' 
+              ? 'orange' 
+              : 'lime'
+        }
+        tabs={[
+          { id: 'vote', label: 'Weekly Votes' },
+          { id: 'tribunal', label: 'Tribunal', locked: !isTribunalUnlocked },
+          { id: 'results', label: 'Results' }
+        ]}
+        activeTab={activeTab}
+        onTabChange={(id) => setActiveTab(id as VotingTab)}
+      />
 
-      <div className="flex flex-col gap-16 relative z-10">
-        {/* 1. Zine Ballot */}
-        <VotingHubSection
-          id="zine-ballot"
-          title="Zine_Ballot"
-          description="Cast your voice for the weekly field journal. HQ honors the most evocative evidence."
-          status={zineStatus}
-          icon={Newspaper}
-          isEmpty={!isVotingOpen && !isLocked}
-        >
-          {isVotingOpen && (
-            <div className="flex flex-col md:flex-row items-center justify-between gap-10 p-12 bg-brand-orange text-white border-8 border-on-surface shadow-[20px_20px_0px_black] relative overflow-hidden group">
-               <div className="absolute top-0 right-0 w-48 h-full bg-white/20 -skew-x-12 translate-x-12 group-hover:translate-x-0 transition-transform duration-1000" />
-              <div className="space-y-4 relative z-10 text-left">
-                <div className="inline-block bg-white text-on-surface p-2 px-6 border-2 border-on-surface font-bold text-[11px] tracking-widest uppercase italic shadow-[4px_4px_0px_black]">ELECTION_WINDOW_OPEN</div>
-                <p className="font-display text-6xl uppercase tracking-tight leading-tight italic font-bold">Council_Chamber</p>
-                <p className="font-display text-xl italic text-white/95 max-w-lg uppercase tracking-normal font-bold leading-relaxed">Review transmissions from fellow players and designate your picks for the Cycle {currentWeekNumber} digest.</p>
-              </div>
-              <Link 
-                to="/voting/ballot" 
-                className="relative z-10 whitespace-nowrap px-12 py-8 bg-white text-on-surface font-display uppercase tracking-widest text-lg shadow-[8px_8px_0px_black] hover:shadow-[12px_12px_0px_black] hover:-translate-y-1 transition-all active:translate-y-0 active:shadow-none font-bold italic border-4 border-on-surface"
+      {/* 3. MAIN CONTENT */}
+      <main className="max-w-6xl mx-auto p-4 sm:p-8 overflow-hidden">
+
+         <AnimatePresence mode="wait">
+            {activeTab === 'vote' && (
+              <motion.div 
+                key="vote-tab"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-12"
               >
-                ENTER BALLOT_AREA
-              </Link>
-            </div>
-          )}
-          {isLocked && (
-            <div className="flex flex-col md:flex-row items-center justify-between gap-10 p-12 bg-on-surface text-brand-lime border-8 border-on-surface shadow-[20px_20px_0px_black] relative overflow-hidden group">
-               <div className="absolute inset-0 bg-brand-lime/10 animate-pulse" />
-              <div className="space-y-4 relative z-10 text-left">
-                <div className="inline-block bg-brand-orange text-white p-2 px-6 border-2 border-on-surface font-bold text-[11px] tracking-widest uppercase italic shadow-[4px_4px_0px_black]">CONSENSUS_REACHED</div>
-                <p className="font-display text-6xl uppercase tracking-tight leading-tight italic font-bold">Weekly_Digest_Compiled</p>
-                <p className="font-display text-xl italic text-white/75 max-w-lg uppercase tracking-normal font-bold leading-relaxed">The consensus has been reached. View the honored players for this cycle.</p>
-              </div>
-              <Link 
-                to="/voting/ballot" 
-                className="relative z-10 whitespace-nowrap px-12 py-8 bg-brand-lime text-on-surface font-display uppercase tracking-widest text-lg shadow-[8px_8px_0px_var(--color-brand-magenta)] hover:-translate-y-1 transition-all active:translate-y-0 active:shadow-none font-bold italic border-4 border-on-surface"
+                 <div className="bg-brand-lime border-4 border-on-surface p-6 shadow-[10px_10px_0px_black] flex items-center justify-between group overflow-hidden relative">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(255,255,255,0.4),transparent)] opacity-50" />
+                    <div className="flex items-center gap-4 relative z-10">
+                       <Zap className="w-8 h-8 text-on-surface animate-bounce" />
+                       <div className="space-y-0.5 text-left">
+                          <h4 className="text-2xl font-display font-black uppercase italic tracking-tighter">Participation Bonus</h4>
+                          <p className="text-[10px] font-mono font-black uppercase tracking-widest text-on-surface/60">Uplink confirmed // +5 XP per category casted</p>
+                       </div>
+                    </div>
+                    <div className="bg-on-surface text-brand-lime px-6 py-2 font-display text-3xl font-black italic border-2 border-white shadow-[4px_4px_0px_black] relative z-10">
+                       +50 XP MAX
+                    </div>
+                 </div>
+
+                 <VotingModule noCard />
+              </motion.div>
+            )}
+
+             {activeTab === 'tribunal' && (
+              <motion.div 
+                key="tribunal-tab"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="space-y-12"
               >
-                VIEW HUB_RESULTS
-              </Link>
-            </div>
-          )}
-        </VotingHubSection>
+                 <div className="text-left space-y-2">
+                    <h2 className="text-5xl font-display font-black uppercase italic text-on-surface leading-none">The Tribunal</h2>
+                    <p className="text-sm font-serif italic text-on-surface/40 leading-none tracking-widest pl-1 font-bold">
+                       // PEER_MODERATION_CHANNEL
+                    </p>
+                 </div>
 
-        {/* 2. Snitch Council */}
-        <VotingHubSection
-          id="snitch-council"
-          title="Snitch_Council"
-          description="Arbitrate disputes flagged by field ops. Consensus determines the finality of evidence."
-          status={snitchStatus}
-          icon={ShieldAlert}
-          isEmpty={false}
-        >
-          <div className="flex flex-col md:flex-row items-center justify-between gap-10 p-12 bg-white border-8 border-on-surface shadow-[20px_20px_0px_black] group hover:bg-on-surface/5 transition-colors">
-            <div className="space-y-4 text-left">
-              <div className="inline-block bg-on-surface/5 text-on-surface p-2 px-6 border-2 border-on-surface/10 font-bold text-[11px] tracking-widest uppercase italic">FIELD_ARBITRATION</div>
-              <p className="font-display text-5xl uppercase tracking-tight leading-tight italic font-bold">Tribunal_Chamber</p>
-              <p className="font-display text-xl italic text-on-surface/75 max-w-lg uppercase tracking-normal font-bold leading-relaxed">Monitor active disputes and prepare for upcoming arbitration cycles.</p>
-            </div>
-            <Link 
-              to="/voting/council" 
-              className="whitespace-nowrap px-12 py-8 bg-on-surface text-white font-display uppercase tracking-widest text-lg shadow-[8px_8px_0px_var(--color-brand-cyan)] hover:-translate-y-1 transition-all active:translate-y-0 active:shadow-none font-bold italic border-4 border-on-surface"
-            >
-              ACCESS CHAMBER
-            </Link>
-          </div>
-        </VotingHubSection>
+                 {!isTribunalUnlocked ? (
+                    <div className="py-32 border-4 border-on-surface rounded-[3rem] bg-white text-center space-y-6 shadow-[10px_10px_0px_black]">
+                       <div className="w-20 h-20 bg-brand-orange text-white rounded-3xl mx-auto flex items-center justify-center border-4 border-on-surface shadow-[4px_4px_0px_black] rotate-2">
+                          <Lock className="w-10 h-10" />
+                       </div>
+                       <div className="space-y-2">
+                          <h3 className="font-display text-4xl uppercase italic font-black">Docket Locked</h3>
+                          <p className="font-serif italic text-xl text-on-surface/50 font-bold">Complete all 3 Starter Missions to access the Tribunal.</p>
+                       </div>
+                       <button onClick={() => navigate('/deck')} className="px-8 py-3 bg-on-surface text-white rounded-xl font-display text-xl font-black uppercase italic shadow-[6px_6px_0px_var(--color-brand-orange)] active:shadow-none hover:bg-brand-magenta transition-all">Go to Missions</button>
+                    </div>
+                 ) : tribunalCases.length === 0 ? (
+                    <div className="py-32 border-4 border-dashed border-on-surface/10 rounded-[3rem] text-center space-y-6">
+                       <Gavel className="w-16 h-16 mx-auto opacity-10" />
+                       <p className="font-display text-2xl uppercase italic font-black opacity-30">Docket is Clear</p>
+                    </div>
+                 ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                       {tribunalCases.map(c => (
+                         <Card key={c.id} className="bg-white border-4 border-on-surface p-8 rounded-[2.5rem] shadow-[12px_12px_0px_black] flex flex-col space-y-6 text-left relative overflow-hidden group">
+                             <div className="flex items-start justify-between">
+                                <div className="space-y-1">
+                                   <div className="bg-brand-magenta text-white px-2 py-0.5 text-[8px] font-mono font-black uppercase tracking-widest border border-on-surface shadow-[2px_2px_0px_black] mb-2 inline-block">
+                                      OPEN_CASE_{c.id.slice(-4).toUpperCase()}
+                                   </div>
+                                   <h3 className="text-2xl font-display font-black uppercase italic text-on-surface leading-none truncate">{c.title}</h3>
+                                   <p className="text-[10px] font-mono font-black text-on-surface/40 uppercase">Operative: {c.playerName}</p>
+                                </div>
+                                <div className="w-12 h-12 bg-paper-dark border-2 border-on-surface rounded-xl flex items-center justify-center shrink-0">
+                                   <Gavel className="w-6 h-6 text-on-surface opacity-30" />
+                                </div>
+                             </div>
 
-        {/* 3. Weekly Awards */}
-        <VotingHubSection
-          id="weekly-awards"
-          title="Weekly_Awards"
-          description="Ceremonial recognition for exceptional field performance across various categories."
-          status={awardsStatus}
-          icon={Trophy}
-          isEmpty={false}
-        >
-          <div className="flex flex-col md:flex-row items-center justify-between gap-10 p-12 bg-white border-8 border-on-surface shadow-[20px_20px_0px_black] group hover:bg-brand-orange/5 transition-colors">
-            <div className="space-y-4 text-left">
-              <div className="inline-block bg-brand-orange text-white p-2 px-6 border-2 border-on-surface font-bold text-[11px] tracking-widest uppercase italic shadow-[4px_4px_0px_black]">RECORD_OF_EXCELLENCE</div>
-              <p className="font-display text-5xl uppercase tracking-tight leading-tight italic font-bold">Honors_&_Accolades</p>
-              <p className="font-display text-xl italic text-on-surface/75 max-w-lg uppercase tracking-normal font-bold leading-relaxed">Review the hall of records and current cycle laureate projections.</p>
-            </div>
-            <Link 
-              to="/voting/awards" 
-              className="whitespace-nowrap px-12 py-8 bg-brand-orange text-white font-display uppercase tracking-widest text-lg shadow-[8px_8px_0px_black] hover:-translate-y-1 transition-all active:translate-y-0 active:shadow-none font-bold italic border-4 border-on-surface"
+                             <div className="aspect-video bg-on-surface/5 border-2 border-on-surface overflow-hidden rounded-2xl relative">
+                                <img src={c.proofImage} alt={c.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
+                                   <p className="text-xs text-white font-serif italic line-clamp-2">"{c.fieldNote}"</p>
+                                </div>
+                             </div>
+
+                             <div className="space-y-4">
+                                <p className="text-[10px] font-mono font-bold uppercase text-on-surface/40 tracking-widest">CAST YOUR VERDICT</p>
+                                <div className="grid grid-cols-2 gap-4">
+                                   <button 
+                                     onClick={() => handleTribunalVote(c.id, 'disagree')}
+                                     className={cn(
+                                       "flex items-center justify-center gap-3 py-4 border-4 border-on-surface font-display text-lg font-black uppercase italic shadow-[4px_4px_0px_black] active:shadow-none active:translate-y-1 transition-all",
+                                       userTribunalVotes[c.id] === 'disagree' 
+                                         ? "bg-brand-lime text-on-surface" 
+                                         : "bg-white text-on-surface hover:bg-brand-lime/10"
+                                     )}
+                                   >
+                                      <ThumbsUp className="w-5 h-5" />
+                                      Valid
+                                      <span className="ml-1 opacity-40">({c.disagreeVotes})</span>
+                                   </button>
+                                   <button 
+                                     onClick={() => handleTribunalVote(c.id, 'agree')}
+                                     className={cn(
+                                       "flex items-center justify-center gap-3 py-4 border-4 border-on-surface font-display text-lg font-black uppercase italic shadow-[4px_4px_0px_black] active:shadow-none active:translate-y-1 transition-all",
+                                       userTribunalVotes[c.id] === 'agree' 
+                                         ? "bg-brand-magenta text-white" 
+                                         : "bg-white text-brand-magenta hover:bg-brand-magenta/10"
+                                     )}
+                                   >
+                                      <ThumbsDown className="w-5 h-5" />
+                                      Fake
+                                      <span className="ml-1 opacity-40">({c.agreeVotes})</span>
+                                   </button>
+                                </div>
+                             </div>
+                         </Card>
+                       ))}
+                    </div>
+                 )}
+              </motion.div>
+            )}
+
+            {activeTab === 'results' && (
+              <motion.div 
+                key="results-tab"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-12"
+              >
+                  <div className="text-left space-y-2">
+                    <h2 className="text-5xl font-display font-black uppercase italic text-on-surface leading-none">Outcome Log</h2>
+                    <p className="text-sm font-serif italic text-on-surface/40 leading-none tracking-widest pl-1 font-bold">
+                       // RESOLVED_CASE_HISTORY
+                    </p>
+                 </div>
+
+                 {resolvedCases.length === 0 ? (
+                    <div className="py-32 border-4 border-dashed border-on-surface/10 rounded-[3rem] text-center space-y-6">
+                       <History className="w-16 h-16 mx-auto opacity-10" />
+                       <p className="font-display text-2xl uppercase italic font-black opacity-30">No Historic Data</p>
+                    </div>
+                 ) : (
+                    <div className="space-y-6">
+                       {resolvedCases.map(c => (
+                         <div key={c.id} className="bg-white border-4 border-on-surface p-6 rounded-[2rem] shadow-[8px_8px_0px_black] flex items-center gap-6 text-left group hover:scale-[1.01] transition-transform">
+                             <div className="w-20 h-20 bg-paper-dark border-2 border-on-surface rounded-2xl overflow-hidden shrink-0">
+                                <img src={c.proofImage} alt={c.title} className="w-full h-full object-cover grayscale" />
+                             </div>
+                             <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-3 mb-1">
+                                   <h4 className="text-xl font-display font-black uppercase italic text-on-surface truncate">{c.title}</h4>
+                                   <span className={cn(
+                                      "px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-full border-2 border-on-surface shadow-[2px_2px_0px_black]",
+                                      c.outcome === 'called_out' ? "bg-brand-magenta text-white" : "bg-brand-lime text-on-surface"
+                                   )}>
+                                      {c.outcome === 'called_out' ? 'FAKE' : 'REAL'}
+                                   </span>
+                                </div>
+                                <p className="text-xs font-serif italic text-on-surface/50 font-bold">
+                                   Verdict: {c.outcome === 'called_out' ? 'Called out by the field.' : 'Upheld by the field.'}
+                                </p>
+                             </div>
+                             <div className="shrink-0 text-right space-y-1">
+                                <p className="text-[10px] font-mono font-black text-on-surface/40 uppercase">VOTES</p>
+                                <p className="text-lg font-display font-black text-on-surface leading-none">{c.agreeVotes + c.disagreeVotes}</p>
+                             </div>
+                         </div>
+                       ))}
+                    </div>
+                 )}
+              </motion.div>
+            )}
+         </AnimatePresence>
+      </main>
+
+      {/* Floating Rules Action */}
+      <button 
+        onClick={() => setShowFullRules(true)}
+        className="fixed bottom-32 right-8 w-16 h-16 bg-brand-yellow text-on-surface border-4 border-on-surface rounded-full flex items-center justify-center shadow-[6px_6px_0px_black] hover:rotate-[360deg] transition-all duration-700 active:scale-95 group z-50 shadow-[10px_10px_0px_black]"
+      >
+        <HelpCircle className="w-8 h-8 group-hover:scale-110 transition-transform" />
+      </button>
+
+      {/* Rules Modal Overlay */}
+      <AnimatePresence>
+        {showFullRules && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowFullRules(false)}
+              className="absolute inset-0 bg-on-surface/90 backdrop-blur-xl"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, y: 100, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 100, opacity: 0 }}
+              className="relative w-full max-w-xl bg-paper border-[6px] border-on-surface shadow-[32px_32px_0px_black] overflow-hidden flex flex-col"
             >
-              VIEW LAUREATES
-            </Link>
+               <div className="p-10 space-y-8 text-left">
+                  <div className="flex justify-between items-start">
+                     <div className="space-y-1">
+                        <span className="text-[10px] font-mono font-black text-brand-orange uppercase tracking-[0.3em]">FIELD_RULES_V4.2</span>
+                        <h2 className="text-6xl font-display font-black uppercase italic tracking-tighter text-on-surface drop-shadow-[4px_4px_0px_var(--color-brand-cyan)]">THE RULES</h2>
+                     </div>
+                     <button onClick={() => setShowFullRules(false)} className="p-3 bg-on-surface text-brand-lime hover:bg-brand-magenta hover:text-white transition-colors border-2 border-on-surface"><X className="w-6 h-6" /></button>
+                  </div>
+
+                  <div className="space-y-6 font-serif text-lg italic text-on-surface/80">
+                     <p>01. You can't vote for your own findings.</p>
+                     <p>02. Every vote earns you 5 XP immediately.</p>
+                     <p>03. Win a 2.5x XP bonus if your pick wins the category!</p>
+                     <p>04. Results are final at the end of the week.</p>
+                  </div>
+
+                  <button 
+                    onClick={() => setShowFullRules(false)}
+                    className="w-full py-4 bg-on-surface text-white font-display text-xl font-black uppercase italic tracking-widest shadow-[inset_0_-4px_0_rgba(0,0,0,0.2)]"
+                  >
+                    I UNDERSTAND
+                  </button>
+               </div>
+            </motion.div>
           </div>
-        </VotingHubSection>
-      </div>
+        )}
+      </AnimatePresence>
     </div>
-
   );
 }

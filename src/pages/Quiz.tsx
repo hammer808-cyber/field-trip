@@ -10,6 +10,18 @@ export default function Quiz() {
   const navigate = useNavigate();
   const [step, setStep] = useState<QuizStep>('INTRO');
 
+  // Reset scroll on step changes
+  React.useEffect(() => {
+    const resetScroll = () => {
+      window.scrollTo({ top: 0, behavior: 'instant' as any });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+    resetScroll();
+    const rafId = requestAnimationFrame(resetScroll);
+    return () => cancelAnimationFrame(rafId);
+  }, [step]);
+
   const handleSequenceComplete = () => {
     setStep('QUIZ');
   };
@@ -19,12 +31,7 @@ export default function Quiz() {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      {/* Background Grid */}
-      <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.03]" 
-           style={{ backgroundImage: 'radial-gradient(circle, #000 1px, transparent 1px)', backgroundSize: '32px 32px' }} 
-      />
-      
+    <div className="min-h-screen bg-transparent flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden">
       <AnimatePresence mode="wait">
         {step === 'INTRO' ? (
           <motion.div

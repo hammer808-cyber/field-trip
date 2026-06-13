@@ -10,9 +10,9 @@ export function validateChallengeBrandFit(challenge: Partial<ChallengeCard>): { 
     return { status: 'needs_review', reason: 'Missing core identity fields (Title/Ask).' };
   }
 
-  // Rule: Feelings - mysterious, playful, summery, evidence-based
+  // Rule: Feelings - mysterious, playful, heatwave, evidence-based
   // (Heuristic check on tags or content)
-  const brandKeywords = ['mysterious', 'playful', 'summer', 'evidence', 'urban', 'nature', 'secret', 'clue', 'survey', 'audit'];
+  const brandKeywords = ['mysterious', 'playful', 'heatwave', 'summer', 'evidence', 'urban', 'nature', 'secret', 'clue', 'survey', 'audit', 'receipt'];
   const content = (title + ' ' + theAsk).toLowerCase();
   const hasBrandVibe = brandKeywords.some(k => content.includes(k)) || tags?.some(t => brandKeywords.includes(t));
 

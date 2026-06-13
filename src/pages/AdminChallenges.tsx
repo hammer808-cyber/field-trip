@@ -15,8 +15,9 @@ import {
   subscribeToChallenges 
 } from '../services/challengeService';
 import { useApp } from '../context/AppContext';
-import { updateFeatureFlags, deploySummer2026Manifest, updateChallengeStatus } from '../services/adminGameService';
+import { updateFeatureFlags, deployHeatwave2026Manifest, updateChallengeStatus } from '../services/adminGameService';
 import { validateChallengeBrandFit } from '../services/brandService';
+import { getDisplayLabel } from '../utils/labelUtils';
 import { 
   Plus, 
   Search, 
@@ -35,7 +36,7 @@ import {
   CloudUpload
 } from 'lucide-react';
 
-import { Card, Sticker } from '../components/UI';
+import { Card } from '../components/UI';
 import { MissionCard } from '../components/ChallengeCard';
 import { cn } from '../lib/utils';
 import { useNavigate } from 'react-router-dom';
@@ -45,7 +46,7 @@ const CATEGORIES: TripType[] = ['Field Challenge', 'Evidence Challenge', 'Crew C
 const MODES: TripMode[] = ['solo', 'crew', 'flexible'];
 const PROOF_TYPES: ProofType[] = ['photo', 'note', 'location', 'group-confirmation', 'audio', 'video'];
 const STATUSES: TripStatus[] = ['draft', 'approved', 'scheduled', 'active', 'archived'];
-const ARCHETYPES: FieldTypeId[] = ['captainClipboard', 'mallRat', 'mascota', 'elondra', 'lostCamper', 'bigfoot'];
+const ARCHETYPES: FieldTypeId[] = ['captainClipboard', 'mallRat', 'mascota', 'elondra', 'theGobbler', 'bigfoot'];
 
 const PROOF_MODES: ProofType[] = ['photo', 'note', 'location'];
 
@@ -56,14 +57,14 @@ export default function AdminChallengesPage() {
   const [isDeploying, setIsDeploying] = useState(false);
 
   const handleDeployManifest = async () => {
-    if (!window.confirm("BUREAU_UPLINK: This will synchronize the 14-week Summer of Field Trip manifest to Firestore. Existing challenges with matching IDs will be merged. Continue?")) return;
+    if (!window.confirm("This will synchronize the 14-week Heatwave Receipts manifest to Firestore. Existing challenges with matching IDs will be merged. Continue?")) return;
     
     setIsDeploying(true);
     try {
-      const result = await deploySummer2026Manifest();
-      alert(`BUREAU_SUCCESS: Deployed ${result.weeks} weeks and ${result.templates} templates to the registry. Active season set to ${result.seasonId}.`);
+      const result = await deployHeatwave2026Manifest();
+      alert(`Success: Deployed ${result.weeks} weeks and ${result.templates} templates to the registry. Active season set to ${result.seasonId}.`);
     } catch (err: any) {
-      alert(`BUREAU_ERROR: Deployment failed. ${err.message}`);
+      alert(`Error: Deployment failed. ${err.message}`);
     } finally {
       setIsDeploying(false);
     }
@@ -78,8 +79,14 @@ export default function AdminChallengesPage() {
 
   const toggleFieldEffects = async () => {
     setToggling(true);
-    await updateFeatureFlags({ fieldTypeEffectsEnabled: !fieldEffectEnabled });
-    setToggling(false);
+    try {
+      await updateFeatureFlags({ fieldTypeEffectsEnabled: !fieldEffectEnabled });
+    } catch (err: any) {
+      console.error("Failed to toggle field effects:", err);
+      alert(`Error: Failed to update flag. ${err.message}`);
+    } finally {
+      setToggling(false);
+    }
   };
 
   useEffect(() => {
@@ -91,7 +98,7 @@ export default function AdminChallengesPage() {
     return () => unsub();
   }, [isAdmin]);
 
-  if (themeLoading || (loading && isAdmin)) return <div className="flex items-center justify-center min-h-screen font-mono">SYNCHRONIZING_DATABASE...</div>;
+  if (themeLoading || (loading && isAdmin)) return <div className="flex items-center justify-center min-h-screen font-mono">{getDisplayLabel('SYNCHRONIZING_DATABASE')}...</div>;
   
   if (!isAdmin) {
     return (
@@ -123,8 +130,13 @@ export default function AdminChallengesPage() {
       isRepeatableTemplate: editingChallenge.repeatable !== undefined ? editingChallenge.repeatable : editingChallenge.isRepeatableTemplate
     };
     
-    await saveChallenge(updated);
-    setEditingChallenge(null);
+    try {
+      await saveChallenge(updated);
+      setEditingChallenge(null);
+    } catch (err: any) {
+      console.error("Failed to save challenge:", err);
+      alert(`BUREAU_ERROR: Save failed. ${err.message}`);
+    }
   };
 
   return (
@@ -135,8 +147,8 @@ export default function AdminChallengesPage() {
              <button onClick={() => navigate('/profile')} className="p-2 hover:bg-on-surface/5 rounded-full">
                <ArrowLeft className="w-4 h-4" />
              </button>
-            <div className="bureau-tag bg-brand-orange text-white text-[10px]">OPS_REGISTRY_V2</div>
-            <p className="micro-label">PROTOCOL: [TRIP_MGMT_BETA]</p>
+            <div className="bureau-tag bg-brand-orange text-white text-[10px]">{getDisplayLabel('OPS_REGISTRY_V2')}</div>
+            <p className="micro-label">Protocol: {getDisplayLabel('TRIP_MGMT_BETA')}</p>
           </div>
           <h2 className="text-huge text-6xl text-on-surface leading-none uppercase tracking-tighter">Control Booth</h2>
           <p className="bureau-subhead max-w-xl">Centralized registry for Bureau operations. Author, edit, and archive the trips that define the Field Trip.</p>
@@ -148,7 +160,7 @@ export default function AdminChallengesPage() {
             className="bureau-btn text-xl flex items-center gap-2 group bg-mustard border-on-surface text-on-surface"
           >
             <CloudUpload className={cn("w-6 h-6 transition-transform", isDeploying && "animate-bounce")} />
-            {isDeploying ? 'DEPLOYING...' : 'DEPLOY_SUMMER_SURGE'}
+            {isDeploying ? 'Deploying...' : getDisplayLabel('DEPLOY_HEATWAVE_RECEIPTS')}
           </button>
           <button 
             onClick={() => setEditingChallenge({
@@ -179,7 +191,7 @@ export default function AdminChallengesPage() {
             className="bureau-btn text-xl flex items-center gap-2 group"
           >
             <Plus className="w-6 h-6 transition-transform group-hover:rotate-90" />
-            AUTHOR_NEW_MISSION
+            {getDisplayLabel('AUTHOR_NEW_MISSION')}
           </button>
         </div>
       </header>
@@ -193,7 +205,7 @@ export default function AdminChallengesPage() {
           { label: 'CREW_REQUIRED', value: (challenges?.filter(c => c.mode === 'crew').length || 0) },
         ].map(stat => (
           <div key={stat.label} className="notice-card p-4">
-            <p className="micro-label opacity-40">{stat.label}</p>
+            <p className="micro-label opacity-40">{getDisplayLabel(stat.label)}</p>
             <p className="font-display text-4xl">{stat.value}</p>
           </div>
         ))}
@@ -203,9 +215,9 @@ export default function AdminChallengesPage() {
           <div>
             <p className="micro-label text-brand-orange flex items-center gap-1 font-bold">
               <Settings className="w-3 h-3" />
-              SYSTEM_CONFIG
+              {getDisplayLabel('SYSTEM_CONFIG')}
             </p>
-            <p className="text-sm font-mono mt-1 opacity-60">FIELD_TYPE effects</p>
+            <p className="text-sm font-mono mt-1 opacity-60">Field Type Effects</p>
           </div>
           <button 
             disabled={toggling}
@@ -226,7 +238,7 @@ export default function AdminChallengesPage() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 opacity-40" />
           <input 
             type="text"
-            placeholder="SEARCH_MISSION_REGISTRY..."
+            placeholder={`${getDisplayLabel('SEARCH_MISSION_REGISTRY')}...`}
             className="w-full bg-paper border-4 border-on-surface p-4 pl-12 text-xl font-display uppercase tracking-tighter outline-none focus:bg-on-surface/5"
             value={search}
             onChange={(e) => setSearch(e.target.value)}

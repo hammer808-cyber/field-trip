@@ -3,7 +3,7 @@ import { FieldTypeId, FIELD_TYPES } from '../constants';
 import { PERSONAS } from '../data/personaQuiz';
 import { cn } from '../lib/utils';
 import { motion } from 'motion/react';
-import { Zap, Shield, Target, Eye, Compass, Star, ShoppingBag, Sparkles } from 'lucide-react';
+import { Zap, Shield, Target, Eye, Compass, Star, ShoppingBag, Sparkles, AlertCircle } from 'lucide-react';
 
 interface FieldTypeCardProps {
   type: FieldTypeId;
@@ -21,8 +21,9 @@ export const FieldTypeCard: React.FC<FieldTypeCardProps> = ({ type, compact = fa
     mallRat: <ShoppingBag className="w-6 h-6" />,
     mascota: <Sparkles className="w-6 h-6" />,
     elondra: <Star className="w-6 h-6" />,
-    lostCamper: <Compass className="w-6 h-6" />,
-    bigfoot: <Eye className="w-6 h-6" />
+    theGobbler: <Compass className="w-6 h-6" />,
+    bigfoot: <Eye className="w-6 h-6" />,
+    unclassified: <AlertCircle className="w-6 h-6" />
   };
 
   if (compact) {
