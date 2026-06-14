@@ -4,6 +4,7 @@ import { Entry } from '../types/game';
 import { normalizeEntryStatus } from '../logic/entryLogic';
 import { awardPoints } from './scoringService';
 import { resolveXPFields } from '../utils/canonicalEntry';
+import { getCanonicalStarterMissionIds, STARTER_REQUIRED_APPROVALS } from '../utils/starterProgress';
 
 export async function getApprovedSubmissionsForUser(userId: string): Promise<Entry[]> {
   const q1 = query(
@@ -104,9 +105,13 @@ export async function awardSubmissionPointsOnce(submissionId: string, notes: str
       const nextCompletedChallengeIds = completedChallengeIds.filter(id => id.toLowerCase().trim() !== missionIdCanonical);
       nextCompletedChallengeIds.push(missionIdCanonical);
       const submittedPendingChallengeIds = Array.isArray(uData.submittedPendingChallengeIds) ? uData.submittedPendingChallengeIds.filter((id: string) => id.toLowerCase().trim() !== missionIdCanonical) : [];
-      const STARTER_MISSION_IDS = ['starter-1', 'starter-2', 'starter-3', 'starter-signals'];
-      const approvedStarters = nextApprovedCompletedChallengeIds.filter(id => STARTER_MISSION_IDS.includes(id) || id.startsWith('starter-')).length;
-      const isStarterComplete = approvedStarters >= 3;
+      const starterMissionIds = getCanonicalStarterMissionIds();
+      const approvedStarters = new Set(
+        nextApprovedCompletedChallengeIds
+          .map(id => id.toLowerCase().trim())
+          .filter(id => starterMissionIds.includes(id))
+      );
+      const isStarterComplete = approvedStarters.size >= STARTER_REQUIRED_APPROVALS;
 
       transaction.update(userRef, {
         approvedCompletedChallengeIds: nextApprovedCompletedChallengeIds,
