@@ -9,7 +9,7 @@ export interface NormalizedProof {
   missionTitle: string;
   photoUrl: string;
   storagePath: string;
-  imageSource: 'entry' | 'entry + proofReview' | 'orphaned proofReview' | 'missing';
+  imageSource: 'proofReview' | 'linkedEntry' | 'missing';
   diagnosticLabel: string;
 }
 
@@ -76,17 +76,15 @@ export function getNormalizedProof(entry: any, proofReview: any): NormalizedProo
   const storagePath = entryStoragePath || reviewStoragePath;
   const hasReviewMetadata = !!(r.id || r.entryId || r.reviewId || r.status || r.reviewNotes);
   const imageSource = entryPhotoUrl || entryStoragePath
-    ? (hasReviewMetadata ? 'entry + proofReview' : 'entry')
+    ? 'linkedEntry'
     : reviewPhotoUrl || reviewStoragePath
-      ? 'orphaned proofReview'
+      ? 'proofReview'
       : 'missing';
-  const diagnosticLabel = imageSource === 'entry + proofReview'
-    ? 'Source: entry + proofReview'
-    : imageSource === 'entry'
-      ? 'Source: entry'
-      : imageSource === 'orphaned proofReview'
-        ? 'Source: orphaned proofReview'
-        : 'Image missing from review; checked linked entry';
+  const diagnosticLabel = entryPhotoUrl || entryStoragePath
+    ? (hasReviewMetadata ? 'Source: entry + proofReview' : 'Source: entry')
+    : reviewPhotoUrl || reviewStoragePath
+      ? 'Source: orphaned proofReview'
+      : 'Image missing from review; checked linked entry';
 
   return {
     entryId,
