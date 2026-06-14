@@ -1283,7 +1283,10 @@ export async function adminOverrideReview(reviewId: string, entryId: string, new
                 );
                 const bonusApplied = rewardDetails.applied && !skipWeeklyBonus;
 
-                entryUpdate.pointsAwarded = totalPointsToAward;
+                entryUpdate.xpAwarded = true;
+                entryUpdate.awardedXP = finalTotalXP;
+                entryUpdate.pointsAwarded = true;
+                entryUpdate.awardedPoints = finalTotalXP;
                 entryUpdate.awardedXP = finalTotalXP;
                 entryUpdate.awardedPoints = finalTotalXP;
                 entryUpdate.xpAwarded = true;
