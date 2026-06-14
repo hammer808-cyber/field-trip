@@ -144,12 +144,15 @@ export function resolveStoragePath(entry: unknown, proofReview?: unknown): Resol
 
 export function resolveXPFields(entry: unknown): ResolvedXPFields {
   const e = asRecord(entry);
-  const estimatedXP = readNumber(e, 'estimatedXP') ?? readNumber(e, 'estimatedPoints') ?? readNumber(e, 'xpValue') ?? readNumber(e, 'baseXP') ?? readNumber(e, 'basePoints') ?? 0;
-  const awardedXP = readNumber(e, 'awardedXP') ?? readNumber(e, 'finalXPAwarded') ?? readNumber(e, 'xp') ?? 0;
-  const legacyPoints = readNumber(e, 'awardedPoints') ?? readNumber(e, 'finalPointsAwarded') ?? readNumber(e, 'points') ?? 0;
   const legacyRaw = e.pointsAwarded;
+  const legacyNumericAward = typeof legacyRaw === 'number' && Number.isFinite(legacyRaw) ? legacyRaw : null;
+  const legacyBooleanAward = legacyRaw === true;
+
+  const estimatedXP = readNumber(e, 'estimatedXP') ?? readNumber(e, 'estimatedPoints') ?? readNumber(e, 'xpValue') ?? readNumber(e, 'baseXP') ?? readNumber(e, 'basePoints') ?? 0;
+  const awardedXP = readNumber(e, 'awardedXP') ?? readNumber(e, 'finalXPAwarded') ?? legacyNumericAward ?? readNumber(e, 'xp') ?? 0;
+  const legacyPoints = readNumber(e, 'awardedPoints') ?? readNumber(e, 'finalPointsAwarded') ?? legacyNumericAward ?? readNumber(e, 'points') ?? 0;
   const legacyPointsAwarded = typeof legacyRaw === 'boolean' || typeof legacyRaw === 'number' ? legacyRaw : null;
-  const xpAwarded = readBoolean(e, 'xpAwarded') ?? (awardedXP > 0);
+  const xpAwarded = readBoolean(e, 'xpAwarded') ?? legacyBooleanAward ?? (awardedXP > 0);
 
   return {
     estimatedXP,
