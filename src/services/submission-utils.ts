@@ -3,12 +3,8 @@ import { collection, query, where, getDocs, doc, runTransaction, serverTimestamp
 import { Entry } from '../types/game';
 import { normalizeEntryStatus } from '../logic/entryLogic';
 import { awardPoints } from './scoringService';
+import { resolveXPFields } from '../utils/canonicalEntry';
 
-/**
- * Fetches all approved submissions for a specific user.
- * Discovers the documents via query, then validates and reads their canonical
- * state inside of a Firestore transaction to ensure truth of state.
- */
 export async function getApprovedSubmissionsForUser(userId: string): Promise<Entry[]> {
   const q1 = query(
     collection(db, 'entries'),
@@ -43,15 +39,9 @@ export async function getApprovedSubmissionsForUser(userId: string): Promise<Ent
   });
 }
 
-/**
- * Award Points EXACTLY ONCE upon manual admin approval.
- * Implements full Firestore Transaction safety over the entry and user profile documents
- * to guarantee that dual updates and score checks remain perfectly atomic and canonical.
- */
 export async function awardSubmissionPointsOnce(submissionId: string, notes: string = ''): Promise<{ success: boolean; points?: number; reason?: string }> {
   const entryRef = doc(db, 'entries', submissionId);
 
-  // Fetch linked review doc outside of transaction to keep transactions strictly read-before-write and query-free
   let reviewDocRef: any = null;
   try {
     const reviewCollection = collection(db, 'proofReviews');
@@ -71,36 +61,34 @@ export async function awardSubmissionPointsOnce(submissionId: string, notes: str
     }
 
     const data = entrySnap.data() as Entry;
-    const pointsAwardedRaw = data.pointsAwarded as any;
-    if (pointsAwardedRaw === true || pointsAwardedRaw > 0) {
-      return { success: false, reason: 'ALREADY_AWARDED', points: data.awardedXP || (data.pointsAwarded as any) };
+    const resolvedXP = resolveXPFields(data);
+    if (resolvedXP.xpAwarded || resolvedXP.awardedXP > 0) {
+      return { success: false, reason: 'ALREADY_AWARDED', points: resolvedXP.awardedXP || resolvedXP.legacyPoints };
     }
 
-    // Calculate Points
-    const rawData = data as any;
-    const xpAward = data.xpValue || data.awardedXP || (data as any).estimatedPoints || 100;
+    const xpAward = resolvedXP.estimatedXP || data.xpValue || data.awardedXP || (data as any).estimatedPoints || 100;
     const userId = data.userId || data.uid;
     const userName = data.displayName || data.userName || (data as any).username || 'Agent';
 
     const userRef = doc(db, 'users', userId);
     const userSnap = await transaction.get(userRef);
 
-    // Canonical execution of state locks inside transaction
     transaction.update(entryRef, {
       xpAwarded: true,
-      pointsAwarded: true, // compatibility mirror
-      awardedXP: xpAward,  // compatibility mirror
+      awardedXP: xpAward,
+      pointsAwarded: true,
+      awardedPoints: xpAward,
       reviewedAt: serverTimestamp(),
       reviewedBy: auth.currentUser?.uid || 'system',
       status: 'approved',
       updatedAt: serverTimestamp()
     });
 
-    // Update ProofReview too
     if (reviewDocRef) {
       transaction.update(reviewDocRef, {
         status: 'approved',
         xpAwarded: true,
+        awardedXP: xpAward,
         updatedAt: serverTimestamp()
       });
     }
@@ -111,27 +99,22 @@ export async function awardSubmissionPointsOnce(submissionId: string, notes: str
       const uData = userSnap.data();
       const approvedCompletedChallengeIds = Array.isArray(uData.approvedCompletedChallengeIds) ? [...uData.approvedCompletedChallengeIds] : [];
       const completedChallengeIds = Array.isArray(uData.completedChallengeIds) ? [...uData.completedChallengeIds] : [];
-      
       const nextApprovedCompletedChallengeIds = approvedCompletedChallengeIds.filter(id => id.toLowerCase().trim() !== missionIdCanonical);
       nextApprovedCompletedChallengeIds.push(missionIdCanonical);
-
       const nextCompletedChallengeIds = completedChallengeIds.filter(id => id.toLowerCase().trim() !== missionIdCanonical);
       nextCompletedChallengeIds.push(missionIdCanonical);
-
       const submittedPendingChallengeIds = Array.isArray(uData.submittedPendingChallengeIds) ? uData.submittedPendingChallengeIds.filter((id: string) => id.toLowerCase().trim() !== missionIdCanonical) : [];
-
-      // Calculate starter completeness
-      const STARTER_MISSION_IDS = ["starter-1", "starter-2", "starter-3", "starter-signals"];
+      const STARTER_MISSION_IDS = ['starter-1', 'starter-2', 'starter-3', 'starter-signals'];
       const approvedStarters = nextApprovedCompletedChallengeIds.filter(id => STARTER_MISSION_IDS.includes(id) || id.startsWith('starter-')).length;
       const isStarterComplete = approvedStarters >= 3;
 
       transaction.update(userRef, {
         approvedCompletedChallengeIds: nextApprovedCompletedChallengeIds,
-        completedChallengeIds: nextCompletedChallengeIds, // KEEP IN SYNC
-        completedMissionIds: nextCompletedChallengeIds, // KEEP IN SYNC
+        completedChallengeIds: nextCompletedChallengeIds,
+        completedMissionIds: nextCompletedChallengeIds,
         submittedPendingChallengeIds,
         starterDeckComplete: isStarterComplete,
-        onboardingCompleted: isStarterComplete, // mirror for lock logic
+        onboardingCompleted: isStarterComplete,
         updatedAt: serverTimestamp()
       });
     }
@@ -139,7 +122,7 @@ export async function awardSubmissionPointsOnce(submissionId: string, notes: str
     return { 
       success: true, 
       points: xpAward,
-      _awardingPayload: { // Pass back to outer scope
+      _awardingPayload: {
         userId,
         userName,
         xpAward,
@@ -149,7 +132,6 @@ export async function awardSubmissionPointsOnce(submissionId: string, notes: str
       }
     };
   }).then(async (result: any) => {
-    // AWARD POINTS OUTSIDE TRANSACTION
     if (result.success && result._awardingPayload) {
       const p = result._awardingPayload;
       try {
@@ -165,8 +147,7 @@ export async function awardSubmissionPointsOnce(submissionId: string, notes: str
           }
         );
       } catch (err) {
-        console.error('[awardSubmissionPointsOnce] Point awarding failed post-transaction. Entry is approved but points might be missing. Idempotency will catch retries.', err);
-        // We don't throw here because the transaction already committed.
+        console.error('[awardSubmissionPointsOnce] XP award failed after entry update. Entry is approved and the operation can be retried safely.', err);
       }
     }
     return result;
