@@ -45,7 +45,6 @@ export async function reviewSubmission(
   const reviewNotes = notes || `Manual admin review: ${verdict}`;
   const now = serverTimestamp();
   const resolvedXP = resolveXPFields(entry);
-  const estimatedXP = resolvedXP.estimatedXP || entry.xpValue || entry.estimatedPoints || 100;
 
   const entryUpdates: Record<string, any> = {
     status: verdict,
@@ -64,10 +63,10 @@ export async function reviewSubmission(
     entryUpdates.isPublic = true;
     entryUpdates.communityVisible = true;
     entryUpdates.approvedAt = now;
-    entryUpdates.awardedXP = resolvedXP.awardedXP || estimatedXP;
-    entryUpdates.awardedPoints = resolvedXP.awardedXP || estimatedXP;
     entryUpdates.xpAwarded = resolvedXP.xpAwarded;
+    entryUpdates.awardedXP = resolvedXP.awardedXP;
     entryUpdates.pointsAwarded = resolvedXP.xpAwarded;
+    entryUpdates.awardedPoints = resolvedXP.awardedXP || resolvedXP.legacyPoints;
   }
 
   if (verdict === 'needs_more_proof') {
@@ -110,7 +109,9 @@ export async function reviewSubmission(
     storagePath: entry.storagePath || entry.photoStoragePath || entry.imageStoragePath || null,
     fieldNote: entry.fieldNote || entry.note || '',
     xpAwarded: verdict === 'approved' ? resolvedXP.xpAwarded : false,
-    awardedXP: verdict === 'approved' ? resolvedXP.awardedXP : 0
+    awardedXP: verdict === 'approved' ? resolvedXP.awardedXP : 0,
+    pointsAwarded: verdict === 'approved' ? resolvedXP.xpAwarded : false,
+    awardedPoints: verdict === 'approved' ? (resolvedXP.awardedXP || resolvedXP.legacyPoints) : 0
   }, { merge: true });
 
   if (userId && missionId && verdict !== 'approved') {
