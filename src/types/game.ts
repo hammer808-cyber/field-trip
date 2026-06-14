@@ -195,7 +195,8 @@ export interface CrewLeaderboard {
     rank: number;
     participationRate: number;
   }[];
-}\n
+}
+
 export interface WeeklySummary {
   id: string;
   seasonId: string;
