@@ -32,6 +32,67 @@ function logDev(message: string, ...args: any[]) {
   }
 }
 
+function firstString(...values: any[]): string {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+  return '';
+}
+
+function resolveAdminImageFields(reviewData: any = {}, entryData: any = {}) {
+  const reviewUrl = firstString(
+    reviewData.photoUrl,
+    reviewData.imageUrl,
+    reviewData.mediaUrl,
+    reviewData.proofImageUrl,
+    reviewData.proofImage,
+    Array.isArray(reviewData.imageUrls) ? reviewData.imageUrls[0] : ''
+  );
+  const entryUrl = firstString(
+    entryData.photoUrl,
+    entryData.imageUrl,
+    entryData.mediaUrl,
+    entryData.proofImageUrl,
+    entryData.proofImage,
+    Array.isArray(entryData.imageUrls) ? entryData.imageUrls[0] : ''
+  );
+  const reviewPath = firstString(
+    reviewData.storagePath,
+    reviewData.imageStoragePath,
+    reviewData.photoStoragePath,
+    reviewData.proofImageRef,
+    reviewData.proofStoragePath
+  );
+  const entryPath = firstString(
+    entryData.storagePath,
+    entryData.imageStoragePath,
+    entryData.photoStoragePath,
+    entryData.proofImageRef,
+    entryData.proofStoragePath
+  );
+  const photoUrl = reviewUrl || entryUrl;
+  const storagePath = reviewPath || entryPath;
+  const source = reviewUrl || reviewPath ? 'proofReview' : entryUrl || entryPath ? 'linkedEntry' : 'missing';
+  return {
+    photoUrl,
+    imageUrl: photoUrl,
+    mediaUrl: photoUrl,
+    proofImage: photoUrl,
+    proofImageUrl: photoUrl,
+    storagePath,
+    imageStoragePath: storagePath,
+    photoStoragePath: storagePath,
+    imageResolutionSource: source,
+    imageDiagnosticLabel: source === 'linkedEntry'
+      ? 'Image resolved from linked entry'
+      : source === 'proofReview'
+        ? 'Image resolved from review'
+        : 'Image missing from review; checked linked entry'
+  };
+}
+
 export async function uploadSubmissionPhoto(userId: string, missionId: string, base64Image: string): Promise<{ url: string; path: string }> {
   logDev(`Uploading photo for mission: ${missionId}, user: ${userId}`);
   const filename = `proof_${missionId}_${Date.now()}.jpg`;
@@ -43,11 +104,7 @@ export async function uploadSubmissionPhoto(userId: string, missionId: string, b
 export async function createAdminReview(reviewId: string, entryId: string, reviewData: any) {
   logDev(`Creating admin review doc. Review ID: ${reviewId}, Entry ID: ${entryId}`);
   const reviewRef = doc(db, REVIEWS_COLLECTION, reviewId);
-  const canonicalFields = {
-    photoUrl: reviewData.photoUrl || reviewData.imageUrl || reviewData.proofImage || '',
-    imageUrl: reviewData.imageUrl || reviewData.photoUrl || reviewData.proofImage || '',
-    storagePath: reviewData.storagePath || reviewData.photoStoragePath || reviewData.imageStoragePath || reviewData.proofImageRef || null,
-  };
+  const canonicalFields = resolveAdminImageFields(reviewData, reviewData);
 
   const data = {
     reviewId,
@@ -174,7 +231,11 @@ export async function createSubmission(
       status: 'pending_review',
       imageUrl: canonicalEntry.imageUrl,
       photoUrl: canonicalEntry.photoUrl,
+      mediaUrl: canonicalEntry.mediaUrl,
+      proofImage: canonicalEntry.proofImage,
       storagePath: canonicalEntry.storagePath,
+      imageStoragePath: canonicalEntry.imageStoragePath,
+      photoStoragePath: canonicalEntry.photoStoragePath,
       fieldNote: canonicalEntry.fieldNote,
       capturedAt: canonicalEntry.createdAt,
       submittedAt: new Date().toISOString(),
@@ -216,7 +277,11 @@ export async function createSubmission(
       status: 'pending_review',
       imageUrl: canonicalEntry.imageUrl,
       photoUrl: canonicalEntry.photoUrl,
+      mediaUrl: canonicalEntry.mediaUrl,
+      proofImage: canonicalEntry.proofImage,
       storagePath: canonicalEntry.storagePath,
+      imageStoragePath: canonicalEntry.imageStoragePath,
+      photoStoragePath: canonicalEntry.photoStoragePath,
       fieldNote: canonicalEntry.fieldNote,
       capturedAt: canonicalEntry.createdAt,
       submittedAt: new Date().toISOString(),
@@ -347,9 +412,9 @@ export function subscribeToAdminPendingReviews(
   console.log('[AdminQueue] statuses included', statusVariants);
   const q = query(collection(db, ENTRIES_COLLECTION), where('status', 'in', statusVariants), orderBy('createdAt', 'desc'), limit(200));
 
-  return onSnapshot(q, (snap) => {
+  return onSnapshot(q, async (snap) => {
     const rawEntries = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Entry));
-    console.log('[AdminQueue] documents returned', rawEntries.length);
+    console.log('[AdminQueue] entry documents returned', rawEntries.length);
     let filteredOutCount = 0;
     const entries = rawEntries.filter(e => {
       const isArchived = e.archived === true;
@@ -359,9 +424,76 @@ export function subscribeToAdminPendingReviews(
       }
       return !isArchived;
     });
+
+    const entryMap = new Map<string, Entry>();
+    entries.forEach(entry => {
+      const imageFields = resolveAdminImageFields({}, entry);
+      entryMap.set(entry.id, {
+        ...entry,
+        ...imageFields,
+        proofReview: (entry as any).proofReview || null
+      } as any);
+    });
+
+    try {
+      const reviewQuery = query(collection(db, REVIEWS_COLLECTION), where('status', 'in', statusVariants), limit(200));
+      const reviewSnap = await getDocs(reviewQuery);
+      const reviewDocs = reviewSnap.docs.map(reviewDoc => ({ id: reviewDoc.id, ...reviewDoc.data() } as any));
+      console.log('[AdminQueue] proofReview documents returned', reviewDocs.length);
+
+      await Promise.all(reviewDocs.map(async (review) => {
+        const linkedEntryId = review.entryId || review.id;
+        let linkedEntry: any = null;
+
+        if (linkedEntryId) {
+          const existing = entryMap.get(linkedEntryId);
+          if (existing) {
+            linkedEntry = existing;
+          } else {
+            try {
+              const entrySnap = await getDoc(doc(db, ENTRIES_COLLECTION, linkedEntryId));
+              if (entrySnap.exists()) {
+                linkedEntry = { id: entrySnap.id, ...entrySnap.data() };
+              }
+            } catch (err: any) {
+              console.warn('[AdminQueue] linked entry fetch failed', linkedEntryId, err.message || err);
+            }
+          }
+        }
+
+        const imageFields = resolveAdminImageFields(review, linkedEntry || {});
+        const mergedEntry = {
+          ...(linkedEntry || {}),
+          id: linkedEntry?.id || linkedEntryId || review.id,
+          entryId: linkedEntry?.id || linkedEntryId || review.entryId || review.id,
+          userId: linkedEntry?.userId || linkedEntry?.uid || review.userId || '',
+          uid: linkedEntry?.uid || linkedEntry?.userId || review.userId || '',
+          userName: linkedEntry?.userName || linkedEntry?.displayName || review.userName || review.displayName || 'Agent',
+          displayName: linkedEntry?.displayName || linkedEntry?.userName || review.displayName || review.userName || 'Agent',
+          missionId: linkedEntry?.missionId || linkedEntry?.tripId || linkedEntry?.challengeId || review.missionId || review.challengeId || '',
+          challengeId: linkedEntry?.challengeId || linkedEntry?.missionId || linkedEntry?.tripId || review.challengeId || review.missionId || '',
+          tripId: linkedEntry?.tripId || linkedEntry?.missionId || linkedEntry?.challengeId || review.missionId || review.challengeId || '',
+          deckId: linkedEntry?.deckId || review.deckId || 'starter-signals',
+          status: linkedEntry?.status || review.status || statusFilter,
+          fieldNote: linkedEntry?.fieldNote || linkedEntry?.note || review.fieldNote || review.reviewNotes || '',
+          note: linkedEntry?.fieldNote || linkedEntry?.note || review.fieldNote || review.reviewNotes || '',
+          createdAt: linkedEntry?.createdAt || review.createdAt || review.submittedAt,
+          submittedAt: linkedEntry?.submittedAt || review.submittedAt || review.createdAt,
+          proofCheckId: linkedEntry?.proofCheckId || review.id,
+          proofReview: review,
+          ...imageFields
+        } as Entry;
+
+        if (mergedEntry.archived === true) return;
+        entryMap.set(mergedEntry.id, mergedEntry);
+      }));
+    } catch (err: any) {
+      console.warn('[AdminQueue] proofReviews fallback query skipped:', err.message || err);
+    }
+
     console.log('[AdminQueue] filtered out count', filteredOutCount);
-    logDev(`Admin queue snapshot loaded. Size: ${entries.length}`);
-    callback(entries);
+    logDev(`Admin queue snapshot loaded. Size: ${entryMap.size}`);
+    callback(Array.from(entryMap.values()));
   }, (err) => {
     console.error('[SUBMISSION_PIPELINE] Error loading admin reviews:', err);
   });
