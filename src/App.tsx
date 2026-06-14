@@ -336,6 +336,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const isFieldTypePage = location.pathname === '/field-type' || location.pathname === '/persona';
   const isDeckPage = location.pathname === '/deck';
   const isCapturePage = location.pathname.startsWith('/capture');
+  const isMissionSubmittedPage = location.pathname === '/mission-submitted';
   const isProfilePage = location.pathname === '/profile';
   const isBigBoardPage = location.pathname === '/big-board';
   const isBasecampPage = location.pathname === '/basecamp';
@@ -390,7 +391,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Step 3: Resume guided onboarding or mission at correct saved step.
   // Allow all pages used in the tour: Deck, Capture, Profile, Big Board, and Field Type.
-  const isAllowedOnboardingPage = isDeckPage || isCapturePage || isProfilePage || isBigBoardPage || isFieldTypePage || isBasecampPage;
+  const isAllowedOnboardingPage = isDeckPage || isCapturePage || isMissionSubmittedPage || isProfilePage || isBigBoardPage || isFieldTypePage || isBasecampPage;
   if (user && hasConfirmedLegal && fieldClassificationComplete && hasSeenFieldTypeResults && !onboardingCompleted && !isAllowedOnboardingPage && !isBypassingGuards) {
     return <Navigate to="/deck" replace />;
   }

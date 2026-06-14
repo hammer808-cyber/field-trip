@@ -321,7 +321,15 @@ export default function CapturePage() {
     const isNeedsMore = needsMoreProofChallengeIds?.has(lowerId) || isRepairMode;
 
     // If it's already in a final/pending state and NOT specifically requested for resubmission
-    if ((isCompleted || isPending) && !isNeedsMore && fcState !== 'result' && submissionStatus !== 'submitted') {
+    if (
+      (isCompleted || isPending) &&
+      !isNeedsMore &&
+      fcState !== 'result' &&
+      fcState !== 'submitting' &&
+      submissionStatus !== 'saving' &&
+      submissionStatus !== 'syncing' &&
+      submissionStatus !== 'submitted'
+    ) {
        console.log(`[Capture Guard] Mission ${lowerId} already submitted/approved. Redirecting back to Deck.`);
        // Use replace: true to prevent back-button loops
        navigate('/deck', { replace: true });
@@ -1176,6 +1184,7 @@ export default function CapturePage() {
 
         setFcState('result'); // MOVE TO SUCCESS STEP
         setSubmissionStatus('submitted');
+        navigate(`/mission-submitted?id=${currentTrip.id}`, { replace: true });
         if (currentTrip?.id) {
           localStorage.removeItem(`ft_challenge_${currentTrip.id}`);
         }
