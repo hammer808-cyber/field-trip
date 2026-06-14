@@ -140,7 +140,7 @@ export interface SabotageCard {
   description: string;
   restriction: string;
   severity: 'minor' | 'major';
-  points: number; // Points awarded to target if survived
+  points: number;
   icon: string;
 }
 
@@ -158,14 +158,14 @@ export interface ActiveSabotage {
 }
 
 export interface WeeklyLeaderboard {
-  id: string; // seasonId_weekNumber
+  id: string;
   seasonId: string;
   weekNumber: number;
   rankings: {
     userId: string;
     userName: string;
     xp: number;
-    points: number; // legacy
+    points: number;
     rank: number;
     entriesCount: number;
   }[];
@@ -178,7 +178,7 @@ export interface SeasonLeaderboard {
     userId: string;
     userName: string;
     xp: number;
-    totalPoints: number; // legacy
+    totalPoints: number;
     rank: number;
     badgesCount: number;
   }[];
@@ -195,15 +195,14 @@ export interface CrewLeaderboard {
     rank: number;
     participationRate: number;
   }[];
-}
-
+}\n
 export interface WeeklySummary {
-  id: string; // seasonId_weekNumber
+  id: string;
   seasonId: string;
   weekNumber: number;
   playerStats: Record<string, {
     xp: number;
-    points: number; // legacy
+    points: number;
     entriesCount: number;
     userName: string;
     crewId?: string;
@@ -254,16 +253,16 @@ export interface Report {
 export type TripStatus = 'locked' | 'available' | 'in-progress' | 'submitted' | 'approved' | 'needs_fix' | 'under_field_check' | 'rejected' | 'expired' | 'archived' | 'pending' | 'checking' | 'needs-more-proof' | 'needs_more_proof' | 'auto_approved' | 'needs_review' | 'resubmit_requested' | 'approved_by_admin' | 'draft' | 'retry-submitted' | 'retry-approved' | 'auto_rejected' | 'pending_review';
 
 export type DrawnMissionCardStatus =
-  | "drawn"
-  | "saved_for_later"
-  | "active"
-  | "pending_review"
-  | "needs_more_proof"
-  | "approved"
-  | "rejected";
+  | 'drawn'
+  | 'saved_for_later'
+  | 'active'
+  | 'pending_review'
+  | 'needs_more_proof'
+  | 'approved'
+  | 'rejected';
 
 export interface DrawnMissionCard {
-  id: string; // Composite ID: uid_missionId
+  id: string;
   uid: string;
   missionId: string;
   challengeId: string;
@@ -271,8 +270,8 @@ export interface DrawnMissionCard {
   missionTitle: string;
   missionSummary: string;
   cardImageUrl?: string;
-  drawnAt: any; // Timestamp
-  updatedAt?: any; // Timestamp
+  drawnAt: any;
+  updatedAt?: any;
   status: DrawnMissionCardStatus;
   isActive?: boolean;
   attemptNumber?: number;
@@ -280,11 +279,11 @@ export interface DrawnMissionCard {
 
 export interface Entry {
   id: string;
-  entryId: string;           // canonical entryId field
-  uid: string;                 // canonical userId field (mapped to uid for firebase storage rules compatibility)
-  userId: string;              // canonical userId field
-  displayName: string | null;  // user snapshot
-  username: string | null;     // user snapshot
+  entryId: string;
+  uid: string;
+  userId: string;
+  displayName: string | null;
+  username: string | null;
   challengeId: string;
   deckId: string;
   status: TripStatus;
@@ -295,25 +294,24 @@ export interface Entry {
   
   xpValue: number;
   xpAwarded: boolean;
+  awardedXP?: number;
   
-  createdAt: any;              // serverTimestamp()
-  updatedAt: any;              // serverTimestamp()
-  reviewedAt?: any;            // timestamp
-  reviewedBy?: string;         // admin userId
+  createdAt: any;
+  updatedAt: any;
+  reviewedAt?: any;
+  reviewedBy?: string;
   
-  // Mirror fields for broad compatibility
   userName?: string;
   photoUrl?: string; 
   mediaUrl?: string;
-  proofImage?: string;      // legacy
-  photoStoragePath?: string; // canonical
-  imageStoragePath?: string; // legacy
-  awardedXP?: number;
+  proofImage?: string;
+  photoStoragePath?: string;
+  imageStoragePath?: string;
   submittedAt?: any;
   missionId?: string;
   tripId?: string;
   tripTitle?: string;
-  pointsAwarded?: number;
+  pointsAwarded?: boolean | number;
   awardedPoints?: number;
   estimatedPoints?: number;
   selectedLevel?: string;
@@ -361,13 +359,13 @@ export interface ModerationAudit {
   createdAt: Timestamp;
 }
 
-export type Challenge = any; // Simple fallback to avoid complex circular imports or just use TripCard where needed
+export type Challenge = any;
 
 export interface TribunalCase {
-  id: string; // usually same as entryId
+  id: string;
   entryId: string;
   reporterId: string;
-  targetId: string; // The user who submitted the proof
+  targetId: string;
   weekNumber: number;
   seasonId: string;
   status: 'open' | 'closed';
@@ -384,7 +382,7 @@ export interface TribunalCase {
 }
 
 export interface TribunalVote {
-  id: string; // userId_caseId
+  id: string;
   userId: string;
   caseId: string;
   vote: 'agree' | 'disagree';
@@ -392,7 +390,7 @@ export interface TribunalVote {
 }
 
 export interface BallotCandidate {
-  id: string; // unique candidate ID
+  id: string;
   entryId: string;
   userId: string;
   userName: string;
@@ -402,6 +400,5 @@ export interface BallotCandidate {
   fieldNote: string;
   weekNumber: number;
   seasonId: string;
-  addedAt: any; // Timestamp
+  addedAt: any;
 }
-
