@@ -286,7 +286,7 @@ export async function submitTripEntry(
       estimatedPoints: estimatedScoring.totalPoints,
       awardedXP: 0,
       awardedPoints: 0,            // Legacy
-      pointsAwarded: 0,            // Legacy
+      pointsAwarded: false,        // Legacy boolean mirror
       
       // Logic Meta
       submittedAt: serverTimestamp(),
