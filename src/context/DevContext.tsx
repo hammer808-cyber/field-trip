@@ -30,7 +30,7 @@ export function DevProvider({ children }: { children: ReactNode }) {
     forceUnlocked: false,
   });
 
-  const isDevMode = process.env.NODE_ENV === 'development';
+  const isDevMode = import.meta.env.DEV;
 
   return (
     <DevContext.Provider value={{ overrides, setOverrides, isDevMode }}>
