@@ -82,7 +82,7 @@ export function getStarterProgressFromEntries(
   const submitted = new Set<string>();
 
   for (const rawEntry of entries) {
-    const entry = rawEntry && typeof rawEntry === 'object' ? entry as Record<string, unknown> : {};
+    const entry = rawEntry && typeof rawEntry === 'object' ? rawEntry as Record<string, unknown> : {};
     if (userId && resolveEntryUserId(entry) !== userId) continue;
     if (entry.archived === true || entry.countsTowardStarter === false) continue;
     if (options.starterResetVersion && entry.starterResetVersion !== options.starterResetVersion) continue;
