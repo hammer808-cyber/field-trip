@@ -75,6 +75,7 @@ import { awardDiscoverySticker } from '../services/discoveryService';
 import { DISCOVERY_STICKERS, DiscoverySticker } from '../constants/discoveryStickers';
 import { castVote, getVotesForUser } from '../services/voteService';
 import { calculateStarterState, StarterCompletionState } from '../utils/starterHelper';
+import { getCanonicalStarterMissionIds } from '../utils/starterProgress';
 
 import { evaluateEntryForBadges, subscribeToUserBadgeProgress, checkRankBadges } from '../services/badgeService';
 import { BADGE_DEFINITIONS, UserBadgeProgress } from '../types/badges';
@@ -425,7 +426,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const fieldTokens = completedChallengeIds.size;
 
   // 2. Onboarding Requirements (The Ignored Place, Starter-2, Starter-3 / Any Unique Completed Missions)
-  const ONBOARDING_IDS = React.useMemo(() => ["starter-1", "starter-2", "starter-3"], []);
+  const ONBOARDING_IDS = React.useMemo(() => getCanonicalStarterMissionIds(), []);
 
   const completedOnboardingMissionIds = React.useMemo(() => {
     // STRICTION: For Summer unlock, only use APPROVED completed challenges
@@ -438,36 +439,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const activeMissionId = profile?.activeMissionId || profile?.activeTrip?.id || null;
   const activeSubmissionStatus = (profile?.activeSubmissionStatus || profile?.activeTrip?.status || null) as 'pending_review' | 'needs_more_proof' | 'rejected' | 'approved' | null;
 
-  // Canonical Starter Deck Gating State Calculation
-  const starterState = React.useMemo(() => {
-    // Merge real-time entries with profile canonical approved IDs to prevent truncation issues
-    const mergedEntries = [...pendingEntries, ...entries];
-    
-    // Ensure missions from profile are represented if missing from entries (rare but happens with truncation)
-    if (profile?.completedChallengeIds) {
-      profile.completedChallengeIds.forEach((id: string) => {
-        const idLower = id.toLowerCase();
-        if (!mergedEntries.some(e => (e.missionId || e.challengeId || e.tripId || '').toLowerCase() === idLower)) {
-          // Synthetic entry for completion check
-          (mergedEntries as any).push({
-            missionId: idLower,
-            status: 'approved',
-            userId: user?.uid,
-            deckId: 'starter-signals'
-          });
-        }
-      });
-    }
+// Canonical Starter Deck Gating State Calculation
+const starterState = React.useMemo(() => {
+  const mergedEntries = [...pendingEntries, ...entries];
 
-    return calculateStarterState(
-      user?.uid || '',
-      mergedEntries,
-      activeMissionId,
-      activeSubmissionStatus,
-      gameConfig?.starterResetVersion,
-      gameConfig?.activeStarterDeckId
-    );
-  }, [user?.uid, entries, pendingEntries, activeMissionId, activeSubmissionStatus, gameConfig?.starterResetVersion, gameConfig?.activeStarterDeckId, profile?.completedChallengeIds]);
+  return calculateStarterState(
+    user?.uid || '',
+    mergedEntries,
+    activeMissionId,
+    activeSubmissionStatus,
+    gameConfig?.starterResetVersion,
+    gameConfig?.activeStarterDeckId
+  );
+}, [user?.uid, entries, pendingEntries, activeMissionId, activeSubmissionStatus, gameConfig?.starterResetVersion, gameConfig?.activeStarterDeckId]);
 
   const starterApprovedCount = starterState.starterApprovedCount;
   const isOnboardingComplete = starterState.starterComplete;
