@@ -36,6 +36,7 @@ import { addMemory } from './memoryService';
 import { getActiveWeeklyBonus, hasUserEarnedWeeklyBonusThisWeek, calculateWeeklyBonusReward } from './weeklyBonusService';
 import { getCatalystForWeek, evaluateProofForCatalyst, awardCatalystRewardsIfEligible } from './weeklyCatalystService';
 import { calculateAverageHash, calculateHammingDistance } from '../utils/hashUtils';
+import { resolveXPFields } from '../utils/canonicalEntry';
 
 const REQUIREMENTS_COLLECTION = 'proofRequirements';
 const REVIEWS_COLLECTION = 'proofReviews';
@@ -991,7 +992,10 @@ export async function adminOverrideReview(reviewId: string, entryId: string, new
                 tripId: resolvedChallengeId,
                 tripTitle: 'Field Trip Mission',
                 status: 'pending',
-                pointsAwarded: 0,
+                xpAwarded: false,
+                awardedXP: 0,
+                pointsAwarded: false,
+                awardedPoints: 0,  
                 createdAt: serverTimestamp(),
                 submittedAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
@@ -1021,7 +1025,8 @@ export async function adminOverrideReview(reviewId: string, entryId: string, new
         const isRejected = newStatus === 'rejected';
         const isNeedsMoreProof = newStatus === 'needs_more_proof' || (newStatus as string) === 'needs-more-proof' || (newStatus as string) === 'needsMoreProof';
         const isPendingReview = newStatus === 'pending_review' || (newStatus as string) === 'pending' || (newStatus as string) === 'pendingReview' || (newStatus as string) === 'submitted_pending_review' || (newStatus as string) === 'resubmitted_pending_review';
-        const totalPointsToAward = entry.estimatedPoints || entry.pointsAwarded || entry.awardedPoints || 100;
+        const resolvedXP = resolveXPFields(entry);
+        const totalPointsToAward = resolvedXP.estimatedXP || resolvedXP.awardedXP || resolvedXP.legacyPoints || 100;
         
         const updateStatusValue = isApproving ? 'approved' : isRejected ? 'rejected' : isNeedsMoreProof ? 'needs_more_proof' : 'pending_review';
 
@@ -1081,9 +1086,10 @@ export async function adminOverrideReview(reviewId: string, entryId: string, new
         const entryUpdate: any = {
             status: updateStatusValue,
             reviewStatus: updateStatusValue,
+            xpAwarded: isApproving,
             awardedXP: isApproving ? (totalPointsToAward || 0) : 0,
+            pointsAwarded: isApproving,
             awardedPoints: isApproving ? (totalPointsToAward || 0) : 0, // Legacy
-            pointsAwarded: isApproving ? (totalPointsToAward || 0) : 0, // Legacy
             adminNotes: notes,
             reviewNotes: notes,
             reviewNote: notes,
@@ -1186,8 +1192,10 @@ export async function adminOverrideReview(reviewId: string, entryId: string, new
                     console.log(`[proofService] Duplicate prevented: Challenge ${trip.id} is already completed.`);
                     
                     // Mark this specific submission as approved, but award 0 points to prevent duplicate payout
-                    entryUpdate.pointsAwarded = 0;
-                    entryUpdate.xpAwarded = true; // Mark as awarded (0 points)
+                    entryUpdate.xpAwarded = true;
+                    entryUpdate.awardedXP = 0;
+                    entryUpdate.pointsAwarded = true;
+                    entryUpdate.awardedPoints = 0;
                     batch.update(entryRef, {
                         ...entryUpdate,
                         adminNotes: notes + " (Duplicate completed challenge prevented double awarding)"
