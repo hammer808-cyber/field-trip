@@ -9,7 +9,7 @@ export interface NormalizedProof {
   missionTitle: string;
   photoUrl: string;
   storagePath: string;
-  imageSource: 'proofReview' | 'linkedEntry' | 'missing';
+  imageSource: 'entry' | 'entry + proofReview' | 'orphaned proofReview' | 'missing';
   diagnosticLabel: string;
 }
 
@@ -24,8 +24,7 @@ function firstString(...values: any[]): string {
 
 /**
  * Normalizes an entry and proofReview pair into a single standard form.
- * Adheres to direct Fieldtrip requirement for canonical photo references on:
- * Admin Review, Logbook, Community Feed, and Memories.
+ * Entries are the source of truth. proofReviews may supply review metadata or image fallback only.
  */
 export function getNormalizedProof(entry: any, proofReview: any): NormalizedProof {
   const e = entry || {};
@@ -38,15 +37,6 @@ export function getNormalizedProof(entry: any, proofReview: any): NormalizedProo
   const fieldNote = e.fieldNote || e.note || r.fieldNote || r.reviewNotes || '';
   const missionTitle = e.tripTitle || e.challengeTitle || e.missionTitle || r.missionTitle || r.challengeTitle || 'Untitled Mission';
 
-  const reviewPhotoUrl = firstString(
-    r.photoUrl,
-    r.imageUrl,
-    r.mediaUrl,
-    r.proofImageUrl,
-    r.proofImage,
-    Array.isArray(r.imageUrls) ? r.imageUrls[0] : ''
-  );
-
   const entryPhotoUrl = firstString(
     e.photoUrl,
     e.imageUrl,
@@ -56,15 +46,16 @@ export function getNormalizedProof(entry: any, proofReview: any): NormalizedProo
     Array.isArray(e.imageUrls) ? e.imageUrls[0] : ''
   );
 
-  const photoUrl = reviewPhotoUrl || entryPhotoUrl;
-
-  const reviewStoragePath = firstString(
-    r.storagePath,
-    r.imageStoragePath,
-    r.photoStoragePath,
-    r.proofImageRef,
-    r.proofStoragePath
+  const reviewPhotoUrl = firstString(
+    r.photoUrl,
+    r.imageUrl,
+    r.mediaUrl,
+    r.proofImageUrl,
+    r.proofImage,
+    Array.isArray(r.imageUrls) ? r.imageUrls[0] : ''
   );
+
+  const photoUrl = entryPhotoUrl || reviewPhotoUrl;
 
   const entryStoragePath = firstString(
     e.storagePath,
@@ -74,13 +65,28 @@ export function getNormalizedProof(entry: any, proofReview: any): NormalizedProo
     e.proofStoragePath
   );
 
-  const storagePath = reviewStoragePath || entryStoragePath;
-  const imageSource = reviewPhotoUrl || reviewStoragePath ? 'proofReview' : entryPhotoUrl || entryStoragePath ? 'linkedEntry' : 'missing';
-  const diagnosticLabel = imageSource === 'linkedEntry'
-    ? 'Image resolved from linked entry'
-    : imageSource === 'proofReview'
-      ? 'Image resolved from review'
-      : 'Image missing from review; checked linked entry';
+  const reviewStoragePath = firstString(
+    r.storagePath,
+    r.imageStoragePath,
+    r.photoStoragePath,
+    r.proofImageRef,
+    r.proofStoragePath
+  );
+
+  const storagePath = entryStoragePath || reviewStoragePath;
+  const hasReviewMetadata = !!(r.id || r.entryId || r.reviewId || r.status || r.reviewNotes);
+  const imageSource = entryPhotoUrl || entryStoragePath
+    ? (hasReviewMetadata ? 'entry + proofReview' : 'entry')
+    : reviewPhotoUrl || reviewStoragePath
+      ? 'orphaned proofReview'
+      : 'missing';
+  const diagnosticLabel = imageSource === 'entry + proofReview'
+    ? 'Source: entry + proofReview'
+    : imageSource === 'entry'
+      ? 'Source: entry'
+      : imageSource === 'orphaned proofReview'
+        ? 'Source: orphaned proofReview'
+        : 'Image missing from review; checked linked entry';
 
   return {
     entryId,
@@ -98,7 +104,7 @@ export function getNormalizedProof(entry: any, proofReview: any): NormalizedProo
 
 /**
  * Resolves the canonical photo URL for an entry or proof review document.
- * Fallback order mirrors getNormalizedProof.
+ * Entries are checked before proofReview fallbacks.
  */
 export function getProofImageUrl(item: any): string | null {
   if (!item) return null;
@@ -113,18 +119,6 @@ export function getProofImageUrl(item: any): string | null {
   );
   if (direct) return direct;
 
-  if (item.proofReview) {
-    const reviewUrl = firstString(
-      item.proofReview.photoUrl,
-      item.proofReview.imageUrl,
-      item.proofReview.mediaUrl,
-      item.proofReview.proofImageUrl,
-      item.proofReview.proofImage,
-      Array.isArray(item.proofReview.imageUrls) ? item.proofReview.imageUrls[0] : ''
-    );
-    if (reviewUrl) return reviewUrl;
-  }
-
   if (item.entry) {
     const entryUrl = firstString(
       item.entry.photoUrl,
@@ -135,6 +129,18 @@ export function getProofImageUrl(item: any): string | null {
       Array.isArray(item.entry.imageUrls) ? item.entry.imageUrls[0] : ''
     );
     if (entryUrl) return entryUrl;
+  }
+
+  if (item.proofReview) {
+    const reviewUrl = firstString(
+      item.proofReview.photoUrl,
+      item.proofReview.imageUrl,
+      item.proofReview.mediaUrl,
+      item.proofReview.proofImageUrl,
+      item.proofReview.proofImage,
+      Array.isArray(item.proofReview.imageUrls) ? item.proofReview.imageUrls[0] : ''
+    );
+    if (reviewUrl) return reviewUrl;
   }
 
   if (item.proof) {
