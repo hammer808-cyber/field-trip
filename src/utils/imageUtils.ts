@@ -9,6 +9,17 @@ export interface NormalizedProof {
   missionTitle: string;
   photoUrl: string;
   storagePath: string;
+  imageSource: 'proofReview' | 'linkedEntry' | 'missing';
+  diagnosticLabel: string;
+}
+
+function firstString(...values: any[]): string {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+  return '';
 }
 
 /**
@@ -27,21 +38,49 @@ export function getNormalizedProof(entry: any, proofReview: any): NormalizedProo
   const fieldNote = e.fieldNote || e.note || r.fieldNote || r.reviewNotes || '';
   const missionTitle = e.tripTitle || e.challengeTitle || e.missionTitle || r.missionTitle || r.challengeTitle || 'Untitled Mission';
 
-  const photoUrl =
-    e.photoUrl ||
-    e.imageUrl ||
-    r.photoUrl ||
-    r.imageUrl ||
-    r.mediaUrl ||
-    e.proofImage ||
-    e.proofImageUrl ||
-    '';
+  const reviewPhotoUrl = firstString(
+    r.photoUrl,
+    r.imageUrl,
+    r.mediaUrl,
+    r.proofImageUrl,
+    r.proofImage,
+    Array.isArray(r.imageUrls) ? r.imageUrls[0] : ''
+  );
 
-  const storagePath =
-    e.storagePath ||
-    r.storagePath ||
-    e.photoStoragePath ||
-    '';
+  const entryPhotoUrl = firstString(
+    e.photoUrl,
+    e.imageUrl,
+    e.mediaUrl,
+    e.proofImageUrl,
+    e.proofImage,
+    Array.isArray(e.imageUrls) ? e.imageUrls[0] : ''
+  );
+
+  const photoUrl = reviewPhotoUrl || entryPhotoUrl;
+
+  const reviewStoragePath = firstString(
+    r.storagePath,
+    r.imageStoragePath,
+    r.photoStoragePath,
+    r.proofImageRef,
+    r.proofStoragePath
+  );
+
+  const entryStoragePath = firstString(
+    e.storagePath,
+    e.imageStoragePath,
+    e.photoStoragePath,
+    e.proofImageRef,
+    e.proofStoragePath
+  );
+
+  const storagePath = reviewStoragePath || entryStoragePath;
+  const imageSource = reviewPhotoUrl || reviewStoragePath ? 'proofReview' : entryPhotoUrl || entryStoragePath ? 'linkedEntry' : 'missing';
+  const diagnosticLabel = imageSource === 'linkedEntry'
+    ? 'Image resolved from linked entry'
+    : imageSource === 'proofReview'
+      ? 'Image resolved from review'
+      : 'Image missing from review; checked linked entry';
 
   return {
     entryId,
@@ -51,50 +90,64 @@ export function getNormalizedProof(entry: any, proofReview: any): NormalizedProo
     fieldNote,
     missionTitle,
     photoUrl,
-    storagePath
+    storagePath,
+    imageSource,
+    diagnosticLabel
   };
 }
 
 /**
  * Resolves the canonical photo URL for an entry or proof review document.
- * Adheres to strict Fieldtrip fallback priority:
- * 1. entry.photoUrl
- * 2. entry.imageUrl
- * 3. review.photoUrl
- * 4. review.imageUrl
- * 5. proof.photoUrl
- * 6. proof.imageUrl
+ * Fallback order mirrors getNormalizedProof.
  */
 export function getProofImageUrl(item: any): string | null {
   if (!item) return null;
 
-  // Level 1: Standard Fieldtrip Priority
-  if (item.photoUrl) return item.photoUrl;
-  if (item.imageUrl) return item.imageUrl;
-  
-  // Level 2: Nested Entry Reference
-  if (item.entry) {
-    if (item.entry.photoUrl) return item.entry.photoUrl;
-    if (item.entry.imageUrl) return item.entry.imageUrl;
-  }
+  const direct = firstString(
+    item.photoUrl,
+    item.imageUrl,
+    item.mediaUrl,
+    item.proofImageUrl,
+    item.proofImage,
+    Array.isArray(item.imageUrls) ? item.imageUrls[0] : ''
+  );
+  if (direct) return direct;
 
-  // Level 3: ProofReview Reference
   if (item.proofReview) {
-    if (item.proofReview.photoUrl) return item.proofReview.photoUrl;
-    if (item.proofReview.imageUrl) return item.proofReview.imageUrl;
+    const reviewUrl = firstString(
+      item.proofReview.photoUrl,
+      item.proofReview.imageUrl,
+      item.proofReview.mediaUrl,
+      item.proofReview.proofImageUrl,
+      item.proofReview.proofImage,
+      Array.isArray(item.proofReview.imageUrls) ? item.proofReview.imageUrls[0] : ''
+    );
+    if (reviewUrl) return reviewUrl;
   }
 
-  // Level 4: Parent Proof Reference
+  if (item.entry) {
+    const entryUrl = firstString(
+      item.entry.photoUrl,
+      item.entry.imageUrl,
+      item.entry.mediaUrl,
+      item.entry.proofImageUrl,
+      item.entry.proofImage,
+      Array.isArray(item.entry.imageUrls) ? item.entry.imageUrls[0] : ''
+    );
+    if (entryUrl) return entryUrl;
+  }
+
   if (item.proof) {
-    if (item.proof.photoUrl) return item.proof.photoUrl;
-    if (item.proof.imageUrl) return item.proof.imageUrl;
+    const proofUrl = firstString(
+      item.proof.photoUrl,
+      item.proof.imageUrl,
+      item.proof.mediaUrl,
+      item.proof.proofImageUrl,
+      item.proof.proofImage,
+      Array.isArray(item.proof.imageUrls) ? item.proof.imageUrls[0] : ''
+    );
+    if (proofUrl) return proofUrl;
   }
-
-  // Level 5: Legacy/Alternative Fields
-  if (item.mediaUrl) return item.mediaUrl;
-  if (item.proofImage) return item.proofImage;
-  if (item.proofImageUrl) return item.proofImageUrl;
-  if (Array.isArray(item.imageUrls) && item.imageUrls.length > 0) return item.imageUrls[0];
 
   return null;
 }
