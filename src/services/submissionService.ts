@@ -19,6 +19,7 @@ import { uploadBase64Image } from './storageService';
 import { evaluateProof } from './proofService';
 import { reviewSubmission } from './adminReviewService';
 import { awardSubmissionPointsOnce } from './submission-utils';
+import { normalizeEntryStatus } from '../logic/entryLogic';
 
 export { awardSubmissionPointsOnce, reviewSubmission };
 
@@ -41,15 +42,7 @@ function firstString(...values: any[]): string {
   return '';
 }
 
-function resolveAdminImageFields(reviewData: any = {}, entryData: any = {}) {
-  const reviewUrl = firstString(
-    reviewData.photoUrl,
-    reviewData.imageUrl,
-    reviewData.mediaUrl,
-    reviewData.proofImageUrl,
-    reviewData.proofImage,
-    Array.isArray(reviewData.imageUrls) ? reviewData.imageUrls[0] : ''
-  );
+function resolveAdminImageFields(entryData: any = {}, reviewData: any = {}) {
   const entryUrl = firstString(
     entryData.photoUrl,
     entryData.imageUrl,
@@ -58,12 +51,13 @@ function resolveAdminImageFields(reviewData: any = {}, entryData: any = {}) {
     entryData.proofImage,
     Array.isArray(entryData.imageUrls) ? entryData.imageUrls[0] : ''
   );
-  const reviewPath = firstString(
-    reviewData.storagePath,
-    reviewData.imageStoragePath,
-    reviewData.photoStoragePath,
-    reviewData.proofImageRef,
-    reviewData.proofStoragePath
+  const reviewUrl = firstString(
+    reviewData.photoUrl,
+    reviewData.imageUrl,
+    reviewData.mediaUrl,
+    reviewData.proofImageUrl,
+    reviewData.proofImage,
+    Array.isArray(reviewData.imageUrls) ? reviewData.imageUrls[0] : ''
   );
   const entryPath = firstString(
     entryData.storagePath,
@@ -72,9 +66,20 @@ function resolveAdminImageFields(reviewData: any = {}, entryData: any = {}) {
     entryData.proofImageRef,
     entryData.proofStoragePath
   );
-  const photoUrl = reviewUrl || entryUrl;
-  const storagePath = reviewPath || entryPath;
-  const source = reviewUrl || reviewPath ? 'proofReview' : entryUrl || entryPath ? 'linkedEntry' : 'missing';
+  const reviewPath = firstString(
+    reviewData.storagePath,
+    reviewData.imageStoragePath,
+    reviewData.photoStoragePath,
+    reviewData.proofImageRef,
+    reviewData.proofStoragePath
+  );
+  const photoUrl = entryUrl || reviewUrl;
+  const storagePath = entryPath || reviewPath;
+  const source = entryUrl || entryPath
+    ? (reviewData?.id || reviewData?.entryId ? 'entry + proofReview' : 'entry')
+    : reviewUrl || reviewPath
+      ? 'orphaned proofReview'
+      : 'missing';
   return {
     photoUrl,
     imageUrl: photoUrl,
@@ -84,13 +89,34 @@ function resolveAdminImageFields(reviewData: any = {}, entryData: any = {}) {
     storagePath,
     imageStoragePath: storagePath,
     photoStoragePath: storagePath,
+    adminQueueSource: source,
     imageResolutionSource: source,
-    imageDiagnosticLabel: source === 'linkedEntry'
-      ? 'Image resolved from linked entry'
-      : source === 'proofReview'
-        ? 'Image resolved from review'
-        : 'Image missing from review; checked linked entry'
+    imageDiagnosticLabel: source === 'entry + proofReview'
+      ? 'Source: entry + proofReview'
+      : source === 'entry'
+        ? 'Source: entry'
+        : source === 'orphaned proofReview'
+          ? 'Source: orphaned proofReview'
+          : 'Image missing from review; checked linked entry'
   };
+}
+
+function makeReviewLookupKeys(review: any): string[] {
+  return [
+    review.entryId,
+    review.id,
+    typeof review.id === 'string' ? review.id.replace(/^rev_/, '') : '',
+    review.reviewId,
+  ].filter(Boolean);
+}
+
+function findReviewForEntry(entry: any, reviews: any[]): any | null {
+  const entryId = entry.id;
+  const proofCheckId = entry.proofCheckId;
+  return reviews.find(review => {
+    const keys = makeReviewLookupKeys(review);
+    return keys.includes(entryId) || (!!proofCheckId && keys.includes(proofCheckId));
+  }) || null;
 }
 
 export async function uploadSubmissionPhoto(userId: string, missionId: string, base64Image: string): Promise<{ url: string; path: string }> {
@@ -402,15 +428,11 @@ export function subscribeToAdminPendingReviews(
   statusFilter: 'pending_review' | 'approved' | 'rejected' | 'needs_more_proof',
   callback: (submissions: Entry[]) => void
 ) {
-  logDev(`Subscribing to administrative entries queue for filtered status: ${statusFilter}`);
-  const statusVariants: string[] = [statusFilter];
-  if (statusFilter === 'pending_review') {
-    statusVariants.push('pending', 'checking', 'awaiting_review', 'needs_review', 'manual_review_required');
-  }
+  logDev(`Subscribing to administrative entries queue for normalized status: ${statusFilter}`);
 
-  console.log('[AdminQueue] query started');
-  console.log('[AdminQueue] statuses included', statusVariants);
-  const q = query(collection(db, ENTRIES_COLLECTION), where('status', 'in', statusVariants), orderBy('createdAt', 'desc'), limit(200));
+  console.log('[AdminQueue] entries source-of-truth query started');
+  console.log('[AdminQueue] normalized status filter', statusFilter);
+  const q = query(collection(db, ENTRIES_COLLECTION), orderBy('createdAt', 'desc'), limit(200));
 
   return onSnapshot(q, async (snap) => {
     const rawEntries = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Entry));
@@ -418,84 +440,56 @@ export function subscribeToAdminPendingReviews(
     let filteredOutCount = 0;
     const entries = rawEntries.filter(e => {
       const isArchived = e.archived === true;
-      if (isArchived) {
+      const normalized = normalizeEntryStatus(e.status);
+      const isStatusMatch = normalized === statusFilter;
+      if (isArchived || !isStatusMatch) {
         filteredOutCount++;
-        console.log('[AdminQueue] reason filtered out', `Entry ${e.id} matches query but is filtered out because it is archived.`);
       }
-      return !isArchived;
+      return !isArchived && isStatusMatch;
     });
 
-    const entryMap = new Map<string, Entry>();
-    entries.forEach(entry => {
-      const imageFields = resolveAdminImageFields({}, entry);
-      entryMap.set(entry.id, {
-        ...entry,
-        ...imageFields,
-        proofReview: (entry as any).proofReview || null
-      } as any);
-    });
-
+    let proofReviewDocs: any[] = [];
     try {
-      const reviewQuery = query(collection(db, REVIEWS_COLLECTION), where('status', 'in', statusVariants), limit(200));
+      const reviewQuery = query(collection(db, REVIEWS_COLLECTION), orderBy('createdAt', 'desc'), limit(300));
       const reviewSnap = await getDocs(reviewQuery);
-      const reviewDocs = reviewSnap.docs.map(reviewDoc => ({ id: reviewDoc.id, ...reviewDoc.data() } as any));
-      console.log('[AdminQueue] proofReview documents returned', reviewDocs.length);
-
-      await Promise.all(reviewDocs.map(async (review) => {
-        const linkedEntryId = review.entryId || review.id;
-        let linkedEntry: any = null;
-
-        if (linkedEntryId) {
-          const existing = entryMap.get(linkedEntryId);
-          if (existing) {
-            linkedEntry = existing;
-          } else {
-            try {
-              const entrySnap = await getDoc(doc(db, ENTRIES_COLLECTION, linkedEntryId));
-              if (entrySnap.exists()) {
-                linkedEntry = { id: entrySnap.id, ...entrySnap.data() };
-              }
-            } catch (err: any) {
-              console.warn('[AdminQueue] linked entry fetch failed', linkedEntryId, err.message || err);
-            }
-          }
-        }
-
-        const imageFields = resolveAdminImageFields(review, linkedEntry || {});
-        const mergedEntry = {
-          ...(linkedEntry || {}),
-          id: linkedEntry?.id || linkedEntryId || review.id,
-          entryId: linkedEntry?.id || linkedEntryId || review.entryId || review.id,
-          userId: linkedEntry?.userId || linkedEntry?.uid || review.userId || '',
-          uid: linkedEntry?.uid || linkedEntry?.userId || review.userId || '',
-          userName: linkedEntry?.userName || linkedEntry?.displayName || review.userName || review.displayName || 'Agent',
-          displayName: linkedEntry?.displayName || linkedEntry?.userName || review.displayName || review.userName || 'Agent',
-          missionId: linkedEntry?.missionId || linkedEntry?.tripId || linkedEntry?.challengeId || review.missionId || review.challengeId || '',
-          challengeId: linkedEntry?.challengeId || linkedEntry?.missionId || linkedEntry?.tripId || review.challengeId || review.missionId || '',
-          tripId: linkedEntry?.tripId || linkedEntry?.missionId || linkedEntry?.challengeId || review.missionId || review.challengeId || '',
-          deckId: linkedEntry?.deckId || review.deckId || 'starter-signals',
-          status: linkedEntry?.status || review.status || statusFilter,
-          fieldNote: linkedEntry?.fieldNote || linkedEntry?.note || review.fieldNote || review.reviewNotes || '',
-          note: linkedEntry?.fieldNote || linkedEntry?.note || review.fieldNote || review.reviewNotes || '',
-          createdAt: linkedEntry?.createdAt || review.createdAt || review.submittedAt,
-          submittedAt: linkedEntry?.submittedAt || review.submittedAt || review.createdAt,
-          proofCheckId: linkedEntry?.proofCheckId || review.id,
-          proofReview: review,
-          ...imageFields
-        } as Entry;
-
-        if (mergedEntry.archived === true) return;
-        entryMap.set(mergedEntry.id, mergedEntry);
-      }));
+      proofReviewDocs = reviewSnap.docs.map(reviewDoc => ({ id: reviewDoc.id, ...reviewDoc.data() } as any));
+      console.log('[AdminQueue] proofReview metadata documents returned', proofReviewDocs.length);
     } catch (err: any) {
-      console.warn('[AdminQueue] proofReviews fallback query skipped:', err.message || err);
+      console.warn('[AdminQueue] proofReview metadata join skipped:', err.message || err);
     }
 
-    console.log('[AdminQueue] filtered out count', filteredOutCount);
-    logDev(`Admin queue snapshot loaded. Size: ${entryMap.size}`);
-    callback(Array.from(entryMap.values()));
+    const hydratedEntries = entries.map(entry => {
+      const linkedReview = findReviewForEntry(entry, proofReviewDocs);
+      const imageFields = resolveAdminImageFields(entry, linkedReview || {});
+      return {
+        ...entry,
+        status: normalizeEntryStatus(entry.status),
+        proofReview: linkedReview || null,
+        proofReviewId: linkedReview?.id || null,
+        reviewId: linkedReview?.id || null,
+        reviewNotes: linkedReview?.reviewNotes || (entry as any).adminNotes || (entry as any).reviewNotes || '',
+        confidenceScore: linkedReview?.confidenceScore || (entry as any).confidenceScore || (entry as any).aiScore || 100,
+        aiAnalysisResult: (entry as any).aiAnalysisResult || linkedReview?.aiAnalysisResult || null,
+        missingRequirements: (entry as any).missingRequirements || linkedReview?.missingRequirements || linkedReview?.aiAnalysisResult?.missingItems || [],
+        ...imageFields
+      } as any;
+    });
+
+    const hydratedEntryIds = new Set(hydratedEntries.map(entry => entry.id));
+    const orphanedProofReviews = proofReviewDocs.filter(review => {
+      const linkedEntryId = review.entryId || review.id;
+      return linkedEntryId && !hydratedEntryIds.has(linkedEntryId) && normalizeEntryStatus(review.status) === statusFilter;
+    });
+
+    if (orphanedProofReviews.length > 0) {
+      console.warn('[AdminQueue] orphaned proofReviews excluded from main queue', orphanedProofReviews.map(r => ({ id: r.id, entryId: r.entryId, status: r.status })));
+    }
+
+    console.log('[AdminQueue] filtered out entry count', filteredOutCount);
+    logDev(`Admin queue snapshot loaded from entries. Size: ${hydratedEntries.length}`);
+    callback(hydratedEntries);
   }, (err) => {
-    console.error('[SUBMISSION_PIPELINE] Error loading admin reviews:', err);
+    console.error('[SUBMISSION_PIPELINE] Error loading admin entries queue:', err);
   });
 }
 
