@@ -412,6 +412,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               noteAdded={data.note.length >= 10}
               detectedSubject={aiAnalysisResult?.status === 'detected'}
               missionMatchScore={aiAnalysisResult?.missionMatchScore}
+              maxStrength={mission.baseXP || (mission as any).basePoints || 100}
               variant="compact"
             />
 

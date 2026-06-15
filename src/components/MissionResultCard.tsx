@@ -29,7 +29,7 @@ export function MissionResultCard({ trip, scoringData, evidence, showMathWizard,
   const { frankieMode, fc } = useTheme();
   const fPref = { frankieMode };
   const { scoring, ftBonus = 0, ftText = '', tokenAwarded, totalTokens } = scoringData;
-  const totalXP = (scoring?.totalPoints || 0) + ftBonus;
+  const totalXP = (scoring?.totalPoints || trip.baseXP || (trip as any).basePoints || 100) + ftBonus;
 
   const containerVariants = {
     hidden: { opacity: 0, y: 30 },
@@ -74,7 +74,7 @@ export function MissionResultCard({ trip, scoringData, evidence, showMathWizard,
             </motion.h2>
             
             <motion.div variants={itemVariants} className="text-right shrink-0 flex flex-col items-end">
-              <span className="text-[10px] font-mono font-black uppercase tracking-widest text-[#FFFDF8]/40 mb-1">{getDisplayLabel('XP_YIELD')}</span>
+              <span className="text-[10px] font-mono font-black uppercase tracking-widest text-[#FFFDF8]/40 mb-1">Estimated XP</span>
               <div className="flex flex-col items-end relative">
                 <span className="font-display text-5xl sm:text-6xl font-black text-brand-orange tracking-tighter leading-none italic">+{totalXP}</span>
                 {tokenAwarded && (
@@ -219,7 +219,7 @@ export function MissionResultCard({ trip, scoringData, evidence, showMathWizard,
               <Zap className="w-16 h-16" />
             </div>
             
-            <p className="text-[10px] font-black text-brand-orange uppercase tracking-[0.3em] mb-5">{fc(getDisplayLabel('SIGNAL_ANALYSIS'), getDisplayLabel('MATH_WIZARD_BREAKDOWN'))}</p>
+            <p className="text-[10px] font-black text-brand-orange uppercase tracking-[0.3em] mb-5">{fc(getDisplayLabel('SIGNAL_ANALYSIS'), 'PENDING ADMIN SCORE')}</p>
             <div className="space-y-2.5 text-[10px] uppercase font-bold">
               {scoring.scoreEvents?.map((ev: any, idx: number) => (
                 <div key={idx} className="flex justify-between items-center gap-4">
@@ -234,9 +234,12 @@ export function MissionResultCard({ trip, scoringData, evidence, showMathWizard,
                 </div>
               )}
               <div className="flex justify-between items-center pt-4 border-t-2 border-brand-orange/40 text-[11px] font-black text-brand-orange mt-2">
-                <span>FINAL_YIELD</span>
+                <span>PENDING_ESTIMATE</span>
                 <span className="text-2xl italic tracking-tighter">{totalXP} XP</span>
               </div>
+              <p className="pt-2 text-[9px] leading-relaxed text-white/45 normal-case">
+                Final XP is awarded only after admin approval.
+              </p>
             </div>
           </motion.div>
         )}

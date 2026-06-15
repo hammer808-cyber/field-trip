@@ -20,7 +20,6 @@ import type { ViewfinderCameraHandle } from '../components/ViewfinderCamera';
 import { evaluateProof } from '../services/proofService';
 import { uploadBase64Image } from '../services/storageService';
 import { getGlobalConfig } from '../services/configService';
-import { calculateSubmissionPoints } from '../logic/scoringLogic';
 import { getCatalystForWeek } from '../services/weeklyCatalystService';
 import { analyzeSubmissionImage } from '../services/geminiService';
 
@@ -999,45 +998,35 @@ export default function CapturePage() {
     
     // 0. Calculate Rewards
     const isFirstTime = !completedChallengeIds.has(currentTrip.id);
-    const draftForScoring = {
-      id: 'draft',
-      proofImage: captureData?.filteredImageUrl || '',
-      imageUrl: captureData?.filteredImageUrl || '',
-      photoUrl: captureData?.filteredImageUrl || '',
-      note: fcData.note || '',
-      fieldNote: fcData.note || ''
-    } as any;
-
-    const scoringResult = calculateSubmissionPoints(
-      draftForScoring,
-      currentTrip,
-      {
-        isFirstSubmission: (profile?.approvedEntriesCount || 0) === 0,
-        daysLate: 0,
-        hintUsed: hintUsed,
-        weekNumber: currentTrip.weekNumber || currentWeekNumber || 1,
-        catalyst: catalyst || undefined
-      }
-    );
-
-    let awardedXP = scoringResult.totalPoints;
-    if (isRetry) awardedXP = Math.round(awardedXP * 0.5);
+    const baseMissionXP = lockedBasePoints || currentTrip.baseXP || currentTrip.basePoints || 100;
+    let estimatedXP = baseMissionXP;
+    if (isRetry) estimatedXP = Math.round(estimatedXP * 0.7);
+    const pendingScoring = {
+      totalPoints: estimatedXP,
+      scoreEvents: [{
+        type: 'trip_pending_review',
+        points: estimatedXP,
+        entryId: 'draft',
+        tripId: currentTrip.id,
+        description: isRetry ? 'Mission Base Estimate (Retry)' : 'Mission Base Estimate'
+      }]
+    };
     
     const awardedTokenCount = isFirstTime ? 1 : 0;
 
     // 1. OPTIMISTIC UPDATE IMMEDIATELY
-    registerPendingSubmissionLocally(awardedXP, currentTrip.id, {
+    registerPendingSubmissionLocally(estimatedXP, currentTrip.id, {
       title: currentTrip.title,
       photo: captureData.filteredImageUrl,
-      awardedXP: awardedXP
+      awardedXP: estimatedXP
     });
 
     // 2. Prepare Local Result Record
     const localResult = {
       tripId: currentTrip.id,
       title: currentTrip.title,
-      awardedXP: awardedXP,
-      baseXP: awardedXP,
+      awardedXP: estimatedXP,
+      baseXP: baseMissionXP,
       note: fcData.note,
       photo: captureData.filteredImageUrl,
       proofType: currentTrip.proofType || currentTrip.requiredProof || ['photo'],
@@ -1045,9 +1034,9 @@ export default function CapturePage() {
       completedAt: new Date().toISOString(),
       syncStatus: 'pending' as 'pending' | 'synced' | 'sync_failed',
       scoringData: {
-        scoring: { totalPoints: awardedXP },
+        scoring: pendingScoring,
         ftBonus: 0,
-        ftText: 'Uplink Pending...',
+        ftText: 'Admin Review Pending',
         tokenAwarded: isFirstTime,
         totalTokens: (fieldTokens || 0) + awardedTokenCount
       }
@@ -1156,17 +1145,15 @@ export default function CapturePage() {
           return;
         }
 
-        const finalXP = (result.scoring?.totalPoints || 0) + (result.ftBonus || 0);
-
         setCompleteRecord({
           ...localResult,
           photo: filteredUrl,
-          awardedXP: finalXP || awardedXP,
+          awardedXP: estimatedXP,
           syncStatus: 'synced',
           scoringData: {
-            scoring: result.scoring,
-            ftBonus: result.ftBonus,
-            ftText: result.ftText,
+            scoring: pendingScoring,
+            ftBonus: 0,
+            ftText: 'Admin Review Pending',
             newRewards: result.newRewards,
             tokenAwarded: isFirstTime,
             totalTokens: (fieldTokens || 0) + awardedTokenCount
@@ -1174,9 +1161,9 @@ export default function CapturePage() {
         });
 
         setScoringData({
-          scoring: result.scoring,
-          ftBonus: result.ftBonus,
-          ftText: result.ftText,
+          scoring: pendingScoring,
+          ftBonus: 0,
+          ftText: 'Admin Review Pending',
           newRewards: result.newRewards,
           tokenAwarded: isFirstTime,
           totalTokens: (fieldTokens || 0) + awardedTokenCount
