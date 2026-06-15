@@ -65,10 +65,23 @@ export function subscribeToSkins(callback: (skins: Skin[]) => void, isAdminMode 
 
 export async function isUserAdmin(uid: string): Promise<boolean> {
   try {
-    const snap = await getDoc(doc(db, 'admins', uid));
-    return snap.exists();
-  } catch (error) {
+    const currentUser = auth.currentUser;
+    if (currentUser?.email === 'hammer808@gmail.com') return true;
+    if (uid === 'vX7K0XGkXRM2yPzhidv79Q59GqC2' || uid === 'oae0GwP7mpcUX7i93AeDGd22VNu2') return true;
+
+    const adminSnap = await getDoc(doc(db, 'admins', uid));
+    if (adminSnap.exists()) return true;
+
+    const userSnap = await getDoc(doc(db, 'users', uid));
+    if (userSnap.exists()) {
+      const data = userSnap.data();
+      return data.role === 'admin' || data.isAdmin === true;
+    }
+
     return false;
+  } catch (error) {
+    console.warn('[skinService] Admin status check failed:', error);
+    return auth.currentUser?.email === 'hammer808@gmail.com' || uid === 'vX7K0XGkXRM2yPzhidv79Q59GqC2' || uid === 'oae0GwP7mpcUX7i93AeDGd22VNu2';
   }
 }
 
