@@ -1,6 +1,6 @@
 import { TripCard as TripType } from '../types/challenges';
 import { DeckPack } from '../types/deckPacks';
-import { getCanonicalStarterMissionIds, isCanonicalStarterMissionId } from '../utils/starterProgress';
+import { getCanonicalStarterMissionIds } from '../utils/starterProgress';
 
 export type DrawPoolReason = 
   | 'onboarding_active' 
@@ -90,12 +90,12 @@ export function getEligibleDrawPool({
     const starterMissions = missions.filter(m => onboardingIds.includes((m.id || '').toLowerCase().trim()));
     const nextStarter = starterMissions.find(m => {
       const mid = m.id.toLowerCase().trim();
-      return !completedMissionIds.has(mid) && !pendingMissionIds.has(mid);
+      return !completedMissionIds.has(mid) && !pendingMissionIds.has(mid) && !needsMoreProofMissionIds.has(mid) && !rejectedMissionIds.has(mid);
     });
 
     pool = nextStarter ? [nextStarter] : starterMissions;
     reason = 'onboarding_active';
-    console.log(`[deckLogic] Onboarding active. Next sequential starter: ${nextStarter?.id}. Pool size: ${pool.length}`);
+    console.log(`[deckLogic] Onboarding active. Next unsubmitted starter: ${nextStarter?.id}. Pool size: ${pool.length}`);
   } else {
     pool = missions.filter(m => {
       const isHeatwaveMission = (m.deckId || '').toLowerCase() === 'heatwave-receipts';
@@ -116,7 +116,6 @@ export function getEligibleDrawPool({
       return false;
     }
 
-    const isStarterMission = isCanonicalStarterMissionId(missionIdLower);
     const isCompleted = completedMissionIds.has(missionIdLower);
     const isPending = pendingMissionIds.has(missionIdLower);
     const isNeedsMoreProof = needsMoreProofMissionIds.has(missionIdLower);
@@ -128,18 +127,14 @@ export function getEligibleDrawPool({
     else if (isCompleted) excludedCards.push({ id: m.id, reason: 'completed' });
     else if (isPending) excludedCards.push({ id: m.id, reason: 'pending' });
     else if (isNeedsMoreProof) excludedCards.push({ id: m.id, reason: 'needs_more_proof' });
-    else if (isRejected && !isStarterMission) excludedCards.push({ id: m.id, reason: 'rejected' });
+    else if (isRejected) excludedCards.push({ id: m.id, reason: 'rejected' });
 
-    let ok = isAllowedStatus && !isCompleted && !isPending && !isNeedsMoreProof;
-    if (isRejected) {
-      ok = isStarterMission;
-    }
-
-    return ok;
+    return isAllowedStatus && !isCompleted && !isPending && !isNeedsMoreProof && !isRejected;
   });
 
-  if (activePack?.packId === 'heatwave-receipts') {
-    console.log('[deckLogic] Heatwave Receipts Availability Summary:', {
+  if (activePack?.packId === 'heatwave-receipts' || activePack?.packId === 'starter-signals') {
+    console.log('[deckLogic] Deck Availability Summary:', {
+      deckId: activePack.packId,
       availableCount: eligibleMissions.length,
       excludedCount: excludedCards.length,
       excludedDetails: excludedCards,
