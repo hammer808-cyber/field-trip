@@ -614,15 +614,45 @@ const starterState = React.useMemo(() => {
 
   const mustCompleteStarterMission = React.useMemo(() => {
     if (!profile || !user) return false;
-    
-    // Core check for the Guided Launch sequence
-    // ONLY force it if it hasn't been submitted (pending, approved, or needs_more_proof)
-    if (profile.hasCompletedGuidedFirstEntry === false && !submittedPendingChallengeIds.has(LAUNCH_MISSION_ID) && !completedChallengeIds.has(LAUNCH_MISSION_ID)) {
-      return true;
+
+    const starterIds = getCanonicalStarterMissionIds().map(id => id.toLowerCase());
+    const hasStarterActivity =
+      starterIds.some(id =>
+        submittedPendingChallengeIds.has(id) ||
+        completedChallengeIds.has(id) ||
+        needsMoreProofChallengeIds.has(id) ||
+        rejectedChallengeIds.has(id)
+      ) ||
+      entries.some(entry => {
+        const missionId = (entry.missionId || entry.challengeId || entry.tripId || '').toLowerCase().trim();
+        const status = normalizeEntryStatus(entry.status);
+        return starterIds.includes(missionId) && [
+          'pending_review',
+          'approved',
+          'needs_more_proof',
+          'rejected'
+        ].includes(status);
+      }) ||
+      pendingEntries.some(entry => {
+        const missionId = ((entry as any).missionId || entry.challengeId || entry.tripId || '').toLowerCase().trim();
+        return starterIds.includes(missionId);
+      });
+
+    if (profile.hasCompletedGuidedFirstEntry === false && hasStarterActivity) {
+      return false;
     }
 
-    return false;
-  }, [profile, user, submittedPendingChallengeIds, completedChallengeIds]);
+    return profile.hasCompletedGuidedFirstEntry === false;
+  }, [
+    profile,
+    user,
+    submittedPendingChallengeIds,
+    completedChallengeIds,
+    needsMoreProofChallengeIds,
+    rejectedChallengeIds,
+    entries,
+    pendingEntries
+  ]);
 
   // 4. Game State & Unlocks
   const gameState: GameState = {
