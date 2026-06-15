@@ -4,7 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
-import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
+import { initializeApp, getApps, cert, applicationDefault, App, ServiceAccount } from 'firebase-admin/app';
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { getAppCheck } from 'firebase-admin/app-check';
@@ -42,6 +42,59 @@ const isProduction = process.env.NODE_ENV === 'production';
 let adminApp: App | null = null;
 let dbAdmin: FirebaseFirestore.Firestore | null = null;
 let firebaseConfig: any = null;
+let storageAdmin: ReturnType<typeof getStorage> | null = null;
+let authAdmin: ReturnType<typeof getAuth> | null = null;
+let adminCredentialSource: 'service_account_json' | 'google_application_credentials' | 'default' | 'missing' = 'missing';
+let adminInitError: string | null = null;
+let resolvedStorageBucket: string | null = null;
+
+function parseServiceAccountFromEnv(): ServiceAccount | null {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed.private_key && typeof parsed.private_key === 'string') {
+      parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
+    }
+    return parsed as ServiceAccount;
+  } catch (err: any) {
+    console.error('[BUREAU_ADMIN] Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON:', err.message || err);
+    adminInitError = `Invalid FIREBASE_SERVICE_ACCOUNT_JSON: ${err.message || err}`;
+    return null;
+  }
+}
+
+function getAdminInitOptions(config: any = {}) {
+  const storageBucket = config.storageBucket || process.env.FIREBASE_STORAGE_BUCKET || (config.projectId ? `${config.projectId}.firebasestorage.app` : undefined);
+  resolvedStorageBucket = storageBucket || null;
+
+  const serviceAccount = parseServiceAccountFromEnv();
+  if (serviceAccount) {
+    const serviceAccountProjectId = serviceAccount.projectId || (serviceAccount as any).project_id;
+    adminCredentialSource = 'service_account_json';
+    return {
+      credential: cert(serviceAccount),
+      projectId: config.projectId || serviceAccountProjectId,
+      storageBucket
+    };
+  }
+
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    adminCredentialSource = 'google_application_credentials';
+    return {
+      credential: applicationDefault(),
+      projectId: config.projectId || process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT,
+      storageBucket
+    };
+  }
+
+  adminCredentialSource = process.env.NODE_ENV === 'production' ? 'default' : 'missing';
+  return {
+    projectId: config.projectId || process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT,
+    storageBucket
+  };
+}
 
 async function initAdmin() {
   try {
@@ -53,10 +106,7 @@ async function initAdmin() {
       console.log(`[BUREAU_ADMIN] Attempting initialization for project: ${config.projectId}`);
       
       if (getApps().length === 0) {
-        adminApp = initializeApp({
-          projectId: config.projectId,
-          storageBucket: config.storageBucket || `${config.projectId}.firebasestorage.app`
-        });
+        adminApp = initializeApp(getAdminInitOptions(config));
       } else {
         adminApp = getApps()[0];
       }
@@ -83,8 +133,18 @@ async function initAdmin() {
       }
     } else {
       console.log(`[BUREAU_ADMIN] No config file found. Using default internal credentials.`);
-      adminApp = getApps().length === 0 ? initializeApp() : getApps()[0];
+      adminApp = getApps().length === 0 ? initializeApp(getAdminInitOptions({})) : getApps()[0];
       dbAdmin = getFirestore(adminApp);
+    }
+
+    if (adminApp) {
+      storageAdmin = getStorage(adminApp);
+      authAdmin = getAuth(adminApp);
+      try {
+        resolvedStorageBucket = storageAdmin.bucket().name || resolvedStorageBucket;
+      } catch (bucketErr: any) {
+        console.warn('[BUREAU_ADMIN] Storage bucket resolution failed:', bucketErr.message || bucketErr);
+      }
     }
 
     // Final sanity check
@@ -98,6 +158,7 @@ async function initAdmin() {
     }
   } catch (e: any) {
     console.error("[BUREAU_ADMIN] FATAL: Firebase Admin initialization failed:", e.message);
+    adminInitError = e.message || String(e);
     if (e.stack) console.error(e.stack);
   }
 }
@@ -105,11 +166,8 @@ async function initAdmin() {
 // Kick off initialization
 initAdmin().catch(err => {
   console.error("[BUREAU_ADMIN] Initial kick-off failed:", err);
+  adminInitError = err.message || String(err);
 });
-
-// Ensure we pass the app instance to getStorage
-const storageAdmin = adminApp ? getStorage(adminApp) : null;
-const authAdmin = adminApp ? getAuth(adminApp) : null;
 
 /**
  * DAILY PURGE JOB (Billing Protection)
@@ -636,6 +694,30 @@ async function startServer() {
     res.json(health);
   });
 
+  app.get("/api/health/storage", async (req, res) => {
+    let bucketResolved = false;
+    let bucketName = resolvedStorageBucket;
+
+    if (storageAdmin) {
+      try {
+        bucketName = storageAdmin.bucket().name || bucketName;
+        bucketResolved = !!bucketName;
+      } catch (err: any) {
+        adminInitError = adminInitError || err.message || String(err);
+      }
+    }
+
+    res.json({
+      adminAppInitialized: !!adminApp,
+      storageInitialized: !!storageAdmin,
+      storageBucketResolved: bucketResolved,
+      bucketName: bucketName || null,
+      credentialSource: adminCredentialSource,
+      adminInitError,
+      nodeEnv: process.env.NODE_ENV || 'development'
+    });
+  });
+
   app.get("/api/time", (req, res) => {
     res.json({ serverTime: Date.now() });
   });
@@ -646,7 +728,17 @@ async function startServer() {
    * This is necessary when environment-level storage rule propagation is unstable.
    */
   app.post("/api/storage/upload", authenticate, async (req: any, res) => {
-    if (!storageAdmin) return res.status(500).json({ error: "STORAGE_ADMIN_NOT_READY" });
+    if (!storageAdmin) {
+      const isMissingDevCreds = process.env.NODE_ENV !== 'production' && adminCredentialSource === 'missing';
+      return res.status(500).json({
+        error: isMissingDevCreds ? "STORAGE_CREDENTIALS_MISSING" : "STORAGE_ADMIN_NOT_READY",
+        message: isMissingDevCreds
+          ? "Firebase Admin Storage credentials are missing. Set FIREBASE_SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS."
+          : "Firebase Admin Storage is not initialized.",
+        credentialSource: adminCredentialSource,
+        adminInitError
+      });
+    }
 
     try {
       const { userId, type, filename, base64Data, metadata } = req.body;
@@ -667,6 +759,13 @@ async function startServer() {
 
       // 2. Prepare File Path
       const storagePath = `${type}/${userId}/${filename}`;
+      if (process.env.NODE_ENV !== 'production' && adminCredentialSource === 'missing') {
+        return res.status(500).json({
+          error: "STORAGE_CREDENTIALS_MISSING",
+          message: "Firebase Admin Storage credentials are missing in development. Set FIREBASE_SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS.",
+          credentialSource: adminCredentialSource
+        });
+      }
       const bucket = storageAdmin.bucket();
       const file = bucket.file(storagePath);
 
