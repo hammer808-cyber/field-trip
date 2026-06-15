@@ -322,13 +322,26 @@ export async function submitTripEntry(
 
     if (entryId) {
       entryRef = doc(db, 'entries', entryId);
-      await setDoc(entryRef, { ...finalEntryData, id: entryId }, { merge: true });
+      console.log(`[SUBMIT_ENTRY] durable entry write started entries/${entryId}`);
+      try {
+        await setDoc(entryRef, { ...finalEntryData, id: entryId, entryId }, { merge: true });
+        console.log(`[SUBMIT_ENTRY] durable entry write success entries/${entryId}`);
+      } catch (writeErr) {
+        console.error('[SUBMIT_ENTRY] durable entry write failed', writeErr);
+        throw writeErr;
+      }
     } else {
-      const entryRefDoc = await addDoc(collection(db, 'entries'), finalEntryData);
+      const entryRefDoc = doc(collection(db, 'entries'));
       entryRef = entryRefDoc;
       entryId = entryRefDoc.id;
-      // Self-heal id field
-      await updateDoc(entryRef, { id: entryId, entryId: entryId }); // Keeping both for safety
+      console.log(`[SUBMIT_ENTRY] durable entry write started entries/${entryId}`);
+      try {
+        await setDoc(entryRef, { ...finalEntryData, id: entryId, entryId });
+        console.log(`[SUBMIT_ENTRY] durable entry write success entries/${entryId}`);
+      } catch (writeErr) {
+        console.error('[SUBMIT_ENTRY] durable entry write failed', writeErr);
+        throw writeErr;
+      }
     }
 
     // Consolidate user locking logic
