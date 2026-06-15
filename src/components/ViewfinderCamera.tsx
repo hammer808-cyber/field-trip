@@ -502,7 +502,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
           muted
           style={{ filter: FILTER_CSS[selectedFilter] }}
           className={cn(
-            "w-full h-full object-cover transition-all duration-700",
+            "w-full h-full object-contain transition-all duration-700",
             isInitializing ? "opacity-0" : "opacity-100",
             !isBaja && !isHeat && "brightness-110 contrast-125",
             isBaja && "sepia hue-rotate-[320deg] saturate-150",

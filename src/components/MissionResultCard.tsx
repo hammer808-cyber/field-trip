@@ -95,7 +95,7 @@ export function MissionResultCard({ trip, scoringData, evidence, showMathWizard,
         {/* 2. Visual Proof with Sticker Feel */}
         <motion.div variants={itemVariants} className="relative">
           <div className="aspect-[4/3] bg-[#EAE5D8] border-4 border-on-surface shadow-[10px_10px_0px_black] overflow-hidden rotate-[-1.5deg] transition-transform hover:rotate-0 duration-500 relative group">
-            <img src={evidence.photo} alt="Mission Proof" className="w-full h-full object-cover grayscale-[0.3] brightness-110 contrast-[1.1]" />
+            <img src={evidence.photo} alt="Mission Proof" className="w-full h-full object-contain grayscale-[0.3] brightness-110 contrast-[1.1]" />
             
             {/* Filter Overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-80" />

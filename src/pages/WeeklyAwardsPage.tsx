@@ -146,7 +146,7 @@ export default function WeeklyAwardsPage() {
 
                         {winner.proofImage && (
                           <div className="aspect-[16/10] overflow-hidden bg-on-surface relative rounded-lg border-2 border-on-surface">
-                            <img src={winner.proofImage} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                            <img src={winner.proofImage} alt="" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(255,255,255,0.15),transparent)] pointer-events-none" />
                           </div>
                         )}

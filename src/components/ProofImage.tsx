@@ -29,7 +29,7 @@ function getFallbackSvgDataUrl(id: string): string {
  * Resolves both direct URLs and Firebase Storage paths.
  * Provides detailed debug info in Admin/Dev mode on failure.
  */
-export function ProofImage({ entry, proofReview, className, alt = "Proof Evidence", objectFit = 'cover', isCommunityFeed = false }: ProofImageProps) {
+export function ProofImage({ entry, proofReview, className, alt = "Proof Evidence", objectFit, isCommunityFeed = false }: ProofImageProps) {
   const { isAdmin, user, profile } = useApp();
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -283,6 +283,8 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
 
   const stamp = getStampData();
   const isReal = isPermanentStorageUrl(url);
+  const effectiveObjectFit = objectFit || (isCommunityFeed ? 'cover' : 'contain');
+  const sanitizedClassName = className?.replace(/\bobject-(cover|contain)\b/g, '').trim();
 
   return (
     <div className="relative w-full h-full overflow-hidden group select-none bg-neutral-900">
@@ -291,8 +293,8 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
         alt={alt} 
         className={cn(
           "w-full h-full transition-all duration-700",
-          objectFit === 'cover' ? 'object-cover' : 'object-contain',
-          className
+          effectiveObjectFit === 'cover' ? 'object-cover' : 'object-contain',
+          sanitizedClassName
         )}
         referrerPolicy="no-referrer"
         onLoad={() => {

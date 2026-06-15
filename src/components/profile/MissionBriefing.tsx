@@ -416,7 +416,7 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
 
             {photoCaptured && photoUrl ? (
               <div className="relative aspect-square w-full rounded-xl overflow-hidden border-4 border-on-surface field-paper-shadow group bg-neutral-900 shadow-[6px_6px_0px_black]">
-                <img src={photoUrl} className="w-full h-full object-cover" alt="Proof captured receipt" />
+                <img src={photoUrl} className="w-full h-full object-contain" alt="Proof captured receipt" />
                 
                 <button 
                   onClick={onStartCapture}
