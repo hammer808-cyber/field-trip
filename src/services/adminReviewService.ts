@@ -3,6 +3,7 @@ import { db, auth } from '../lib/firebase';
 import { normalizeEntryStatus, resolveEntryMissionId, resolveEntryUserId, resolveXPFields } from '../utils/canonicalEntry';
 import { awardSubmissionPointsOnce } from './submission-utils';
 import { logAdminAction } from './moderationService';
+import { ProofScoringSelections } from '../utils/proofScoring';
 
 export type AdminReviewVerdict = 'approved' | 'needs_more_proof' | 'rejected';
 
@@ -29,7 +30,8 @@ function getUserName(entry: Record<string, any>): string {
 export async function reviewSubmission(
   entryId: string,
   verdict: AdminReviewVerdict,
-  notes: string = ''
+  notes: string = '',
+  scoringSelections?: ProofScoringSelections
 ): Promise<ReviewSubmissionResult> {
   const entryRef = doc(db, ENTRIES_COLLECTION, entryId);
   const entrySnap = await getDoc(entryRef);
@@ -142,7 +144,7 @@ export async function reviewSubmission(
 
   let awardResult: { success: boolean; points?: number; reason?: string } | undefined;
   if (verdict === 'approved') {
-    awardResult = await awardSubmissionPointsOnce(entryId, reviewNotes);
+    awardResult = await awardSubmissionPointsOnce(entryId, reviewNotes, scoringSelections);
 
     const refreshedSnap = await getDoc(entryRef);
     const refreshedEntry = refreshedSnap.exists() ? refreshedSnap.data() : entry;
@@ -153,6 +155,7 @@ export async function reviewSubmission(
       awardedXP: refreshedXP.awardedXP,
       pointsAwarded: refreshedXP.xpAwarded,
       awardedPoints: refreshedXP.awardedXP || refreshedXP.legacyPoints,
+      scoringBreakdown: (refreshedEntry as any).scoringBreakdown || null,
       updatedAt: serverTimestamp()
     }, { merge: true });
   }

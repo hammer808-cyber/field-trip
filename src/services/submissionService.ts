@@ -20,6 +20,7 @@ import { evaluateProof } from './proofService';
 import { reviewSubmission } from './adminReviewService';
 import { awardSubmissionPointsOnce } from './submission-utils';
 import { normalizeEntryStatus } from '../logic/entryLogic';
+import { ProofScoringSelections } from '../utils/proofScoring';
 
 export { awardSubmissionPointsOnce, reviewSubmission };
 
@@ -402,9 +403,9 @@ export async function updateSubmissionStatus(
   }
 }
 
-export async function approveSubmission(submissionId: string, notes: string) {
+export async function approveSubmission(submissionId: string, notes: string, scoringSelections?: ProofScoringSelections) {
   logDev(`Approving submission ${submissionId}`);
-  return reviewSubmission(submissionId, 'approved', notes);
+  return reviewSubmission(submissionId, 'approved', notes, scoringSelections);
 }
 
 export async function requestMoreProof(submissionId: string, notes: string) {

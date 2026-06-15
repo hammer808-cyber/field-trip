@@ -28,6 +28,175 @@ import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { normalizeEntryStatus } from '../logic/entryLogic';
+import {
+  calculateProofScore,
+  ProofScoringBreakdown,
+  ProofScoringSelections,
+  ProofMatchRating,
+  PhotoQualityRating,
+  FieldNoteRating,
+  AdventureRating
+} from '../utils/proofScoring';
+
+const PROOF_MATCH_OPTIONS: { value: ProofMatchRating; label: string }[] = [
+  { value: 'weak', label: 'Weak' },
+  { value: 'good', label: 'Good' },
+  { value: 'perfect', label: 'Perfect' }
+];
+
+const PHOTO_QUALITY_OPTIONS: { value: PhotoQualityRating; label: string }[] = [
+  { value: 'usable', label: 'Usable' },
+  { value: 'clear', label: 'Clear' },
+  { value: 'iconic', label: 'Iconic' }
+];
+
+const FIELD_NOTE_OPTIONS: { value: FieldNoteRating; label: string }[] = [
+  { value: 'none', label: 'None' },
+  { value: 'basic', label: 'Basic' },
+  { value: 'specific', label: 'Specific' },
+  { value: 'legendary', label: 'Legendary' }
+];
+
+const ADVENTURE_OPTIONS: { value: AdventureRating; label: string }[] = [
+  { value: 'simple', label: 'Simple' },
+  { value: 'outside', label: 'Outside' },
+  { value: 'adventure', label: 'Adventure' },
+  { value: 'social', label: 'Social' }
+];
+
+function inferAdminFieldNoteRating(entry: any): FieldNoteRating {
+  const note = (entry?.fieldNote || entry?.note || '').trim();
+  return note.length > 0 ? 'basic' : 'none';
+}
+
+function getDefaultAdminScoring(entry: any): ProofScoringSelections {
+  return {
+    proofMatchRating: 'good',
+    photoQualityRating: 'clear',
+    fieldNoteRating: inferAdminFieldNoteRating(entry),
+    adventureRating: 'simple',
+    weeklyCatalystApplied: false
+  };
+}
+
+function ScoringOptionGroup<T extends string>({
+  label,
+  value,
+  options,
+  onChange
+}: {
+  label: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="text-[8px] font-mono font-black uppercase tracking-widest text-on-surface/45">{label}</p>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1">
+        {options.map(option => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            className={cn(
+              "px-2 py-1.5 rounded border text-[9px] font-mono font-black uppercase tracking-tight transition-all",
+              value === option.value
+                ? "bg-brand-orange text-white border-on-surface shadow-[2px_2px_0px_black]"
+                : "bg-white text-on-surface/55 border-on-surface/15 hover:border-brand-orange/50"
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProofScoringControls({
+  selections,
+  breakdown,
+  onChange
+}: {
+  selections: Required<ProofScoringSelections>;
+  breakdown: ProofScoringBreakdown;
+  onChange: (updates: ProofScoringSelections) => void;
+}) {
+  return (
+    <div className="bg-[#FCF9F2] border-2 border-brand-orange/25 rounded-2xl p-4 space-y-4 font-mono text-left">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-brand-orange">Variable Proof Scoring</p>
+          <p className="text-[8px] text-on-surface/45 uppercase tracking-wider">Final XP is awarded only on approval.</p>
+        </div>
+        <div className="bg-on-surface text-brand-lime border-2 border-on-surface px-3 py-2 rounded-xl shadow-[3px_3px_0px_black] text-right">
+          <p className="text-[7px] uppercase text-white/50 tracking-widest">Final XP</p>
+          <p className="text-2xl font-black leading-none">+{breakdown.finalXP}</p>
+        </div>
+      </div>
+
+      <ScoringOptionGroup
+        label="Proof Match"
+        value={selections.proofMatchRating}
+        options={PROOF_MATCH_OPTIONS}
+        onChange={(proofMatchRating) => onChange({ proofMatchRating })}
+      />
+      <ScoringOptionGroup
+        label="Photo Quality"
+        value={selections.photoQualityRating}
+        options={PHOTO_QUALITY_OPTIONS}
+        onChange={(photoQualityRating) => onChange({ photoQualityRating })}
+      />
+      <ScoringOptionGroup
+        label="Field Note"
+        value={selections.fieldNoteRating}
+        options={FIELD_NOTE_OPTIONS}
+        onChange={(fieldNoteRating) => onChange({ fieldNoteRating })}
+      />
+      <ScoringOptionGroup
+        label="Adventure / Social"
+        value={selections.adventureRating}
+        options={ADVENTURE_OPTIONS}
+        onChange={(adventureRating) => onChange({ adventureRating })}
+      />
+
+      <div className="space-y-1">
+        <p className="text-[8px] font-mono font-black uppercase tracking-widest text-on-surface/45">Weekly Catalyst</p>
+        <div className="grid grid-cols-2 gap-1">
+          {[false, true].map(flag => (
+            <button
+              key={String(flag)}
+              type="button"
+              onClick={() => onChange({ weeklyCatalystApplied: flag })}
+              className={cn(
+                "px-2 py-1.5 rounded border text-[9px] font-mono font-black uppercase tracking-tight transition-all",
+                selections.weeklyCatalystApplied === flag
+                  ? "bg-brand-orange text-white border-on-surface shadow-[2px_2px_0px_black]"
+                  : "bg-white text-on-surface/55 border-on-surface/15 hover:border-brand-orange/50"
+              )}
+            >
+              {flag ? 'Yes' : 'No'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="border-t border-on-surface/10 pt-3 space-y-1 text-[9px] text-on-surface/65">
+        <div className="flex justify-between"><span>Base XP</span><span>+{breakdown.baseXP}</span></div>
+        <div className="flex justify-between"><span>Proof Match</span><span>+{breakdown.proofMatchBonus}</span></div>
+        <div className="flex justify-between"><span>Photo Quality</span><span>+{breakdown.photoQualityBonus}</span></div>
+        <div className="flex justify-between"><span>Field Note</span><span>+{breakdown.fieldNoteBonus}</span></div>
+        <div className="flex justify-between"><span>Adventure / Social</span><span>+{breakdown.adventureBonus}</span></div>
+        <div className="flex justify-between"><span>Weekly Catalyst</span><span>+{breakdown.weeklyCatalystBonus}</span></div>
+        <div className="flex justify-between text-amber-700"><span>Penalties</span><span>{breakdown.subtotalXP - breakdown.finalXP > 0 ? `-${breakdown.subtotalXP - breakdown.finalXP}` : '0'}</span></div>
+        <div className="flex justify-between border-t border-on-surface/10 pt-2 text-[11px] font-black text-on-surface">
+          <span>Final XP</span><span>+{breakdown.finalXP}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminProofReview() {
   const [reviews, setReviews] = useState<(ProofReview & { entry?: Entry })[]>([]);
@@ -90,6 +259,57 @@ export default function AdminProofReview() {
   const [isProcessingSwipe, setIsProcessingSwipe] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [dragDirection, setDragDirection] = useState<'left' | 'right' | 'up' | 'none'>('none');
+  const [scoringByEntryId, setScoringByEntryId] = useState<Record<string, ProofScoringSelections>>({});
+
+  const getScoringSource = (review: ProofReview & { entry?: Entry }) => {
+    const entry: any = review.entry || {};
+    const missionId = entry.missionId || entry.challengeId || entry.tripId || review.challengeId;
+    const mission = trips.find(t => t.id === missionId || t.missionId === missionId || t.challengeId === missionId);
+    return { ...(mission || {}), ...entry };
+  };
+
+  const getScoringSelections = (review: ProofReview & { entry?: Entry }): Required<ProofScoringSelections> => {
+    const entryId = review.entryId || review.entry?.id || review.id;
+    return {
+      ...getDefaultAdminScoring(review.entry),
+      ...(scoringByEntryId[entryId] || {})
+    } as Required<ProofScoringSelections>;
+  };
+
+  const updateScoringSelections = (entryId: string, updates: ProofScoringSelections) => {
+    setScoringByEntryId(prev => ({
+      ...prev,
+      [entryId]: {
+        ...(prev[entryId] || {}),
+        ...updates
+      }
+    }));
+  };
+
+  const getScorePreview = (review: ProofReview & { entry?: Entry }) => {
+    const source = getScoringSource(review);
+    return calculateProofScore({
+      missionOrEntry: source,
+      fieldNote: source.fieldNote || source.note || '',
+      hintUsed: source.hintUsed === true,
+      lateSubmission: false,
+      retrySubmission: source.isRetry === true || source.retrySubmission === true || !!source.originalEntryId,
+      retryMultiplier: typeof source.retryPointMultiplier === 'number' ? source.retryPointMultiplier : null,
+      duplicateProof: ['duplicate', 'reused', 'matched', 'repeat'].includes(String(source.verification?.duplicateStatus || source.duplicateStatus || '').toLowerCase()),
+      ...getScoringSelections(review)
+    });
+  };
+
+  const renderScoringControls = (review: ProofReview & { entry?: Entry }) => {
+    const entryId = review.entryId || review.entry?.id || review.id;
+    return (
+      <ProofScoringControls
+        selections={getScoringSelections(review)}
+        breakdown={getScorePreview(review)}
+        onChange={(updates) => updateScoringSelections(entryId, updates)}
+      />
+    );
+  };
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message, type });
@@ -556,7 +776,7 @@ export default function AdminProofReview() {
     try {
       const notesWithAudit = notes || `Manual override by admin at ${new Date().toISOString()}`;
       if (verdict === 'approved') {
-        await approveSubmission(review.entryId, notesWithAudit);
+        await approveSubmission(review.entryId, notesWithAudit, getScoringSelections(review));
       } else if (verdict === 'rejected') {
         await rejectSubmission(review.entryId, notesWithAudit);
       } else if (verdict === 'needs_more_proof') {
@@ -1225,6 +1445,8 @@ export default function AdminProofReview() {
                               </div>
                             </div>
 
+                            {currentSwipeItem.status === 'pending_review' && renderScoringControls(currentSwipeItem)}
+
                             {/* AI analysis report */}
                             <div className="space-y-1 bg-[#EEF2F6] border border-brand-blue/15 p-3 rounded-xl">
                               <div className="flex items-center justify-between">
@@ -1533,6 +1755,7 @@ export default function AdminProofReview() {
                 onRestore={() => handleAction(r, 'pending_review').catch(err => console.error("Archive restoration failed:", err))}
                 onRerunAI={() => handleRerunAI(r).catch(err => console.error("Archive AI rerun failed:", err))}
                 isRerunning={rerunningId === r.id}
+                scoringControls={r.status === 'pending_review' ? renderScoringControls(r) : null}
               />
             ))}
           </div>
@@ -2412,10 +2635,11 @@ interface ProofReviewCardProps {
   onRestore: () => Promise<void> | void;
   onRerunAI: () => Promise<void> | void;
   isRerunning?: boolean;
+  scoringControls?: React.ReactNode;
   key?: string | number;
 }
 
-function ProofReviewCard({ review, onApprove, onReject, onResubmit, onRestore, onRerunAI, isRerunning }: ProofReviewCardProps) {
+function ProofReviewCard({ review, onApprove, onReject, onResubmit, onRestore, onRerunAI, isRerunning, scoringControls }: ProofReviewCardProps) {
   const [showAnalysis, setShowAnalysis] = useState(false);
   const isCached = review.id.startsWith('cached_');
 
@@ -2663,6 +2887,8 @@ function ProofReviewCard({ review, onApprove, onReject, onResubmit, onRestore, o
                 ⚙️ Metadata Hardware: {metadataSummaryText}
               </div>
             )}
+
+            {review.status === 'pending_review' && scoringControls}
           </div>
 
           {/* Admin actions (Specs: Approve, Needs More Proof, Reject) */}
@@ -2716,4 +2942,3 @@ function ProofReviewCard({ review, onApprove, onReject, onResubmit, onRestore, o
     </Card>
   );
 }
-
