@@ -5,6 +5,7 @@ import { getCanonicalStarterMissionIds } from '../utils/starterProgress';
 export type DrawPoolReason = 
   | 'onboarding_active' 
   | 'onboarding_complete' 
+  | 'all_starters_submitted_waiting_review'
   | 'season_locked' 
   | 'pack_exhausted' 
   | 'loading' 
@@ -108,7 +109,9 @@ export function getEligibleDrawPool({
     console.log(`[deckLogic] No specific active pack. Fallback pool size: ${pool.length}`);
   }
 
+  const isStarterPack = activePack?.packId?.toLowerCase() === 'starter-signals';
   const excludedCards: { id: string, reason: string }[] = [];
+
   const eligibleMissions = pool.filter(m => {
     const missionIdLower = (m.id || m.missionId || m.challengeId || '').toString().toLowerCase().trim();
     if (!missionIdLower) {
@@ -121,7 +124,7 @@ export function getEligibleDrawPool({
     const isNeedsMoreProof = needsMoreProofMissionIds.has(missionIdLower);
     const isRejected = rejectedMissionIds.has(missionIdLower);
     const status = (m.status || 'available').toLowerCase();
-    const isAllowedStatus = ['available', 'approved', 'active', 'auto_approved', 'approved_by_admin'].includes(status);
+    const isAllowedStatus = isStarterPack || ['available', 'approved', 'active', 'auto_approved', 'approved_by_admin'].includes(status);
 
     if (!isAllowedStatus) excludedCards.push({ id: m.id, reason: `disallowed_status:${status}` });
     else if (isCompleted) excludedCards.push({ id: m.id, reason: 'completed' });
@@ -131,6 +134,37 @@ export function getEligibleDrawPool({
 
     return isAllowedStatus && !isCompleted && !isPending && !isNeedsMoreProof && !isRejected;
   });
+
+  if (isStarterPack) {
+    const starterRows = pool.map(m => {
+      const id = (m.id || m.missionId || m.challengeId || '').toString().toLowerCase().trim();
+      const isCompleted = completedMissionIds.has(id);
+      const isPending = pendingMissionIds.has(id);
+      const isNeedsMoreProof = needsMoreProofMissionIds.has(id);
+      const isRejected = rejectedMissionIds.has(id);
+      const finalEligible = !!id && !isCompleted && !isPending && !isNeedsMoreProof && !isRejected;
+      let exclusionReason = 'eligible';
+      if (!id) exclusionReason = 'missing_id';
+      else if (isCompleted) exclusionReason = 'completed';
+      else if (isPending) exclusionReason = 'pending';
+      else if (isNeedsMoreProof) exclusionReason = 'needs_more_proof';
+      else if (isRejected) exclusionReason = 'rejected';
+
+      return {
+        id: id || 'unknown',
+        templateStatus: (m.status || 'available').toString(),
+        isCompleted,
+        isPending,
+        isNeedsMoreProof,
+        isRejected,
+        finalEligible,
+        exclusionReason
+      };
+    });
+    console.table(starterRows);
+    console.log('[StarterPool] eligible starter ids', eligibleMissions.map(m => m.id));
+    console.log('[StarterPool] excluded starter cards', starterRows.filter(row => !row.finalEligible));
+  }
 
   if (activePack?.packId === 'heatwave-receipts' || activePack?.packId === 'starter-signals') {
     console.log('[deckLogic] Deck Availability Summary:', {
@@ -148,13 +182,19 @@ export function getEligibleDrawPool({
   console.log(`[deckLogic] Final eligible pool size: ${eligibleMissions.length}`);
 
   if (eligibleMissions.length === 0) {
-    if (!isOnboardingComplete && !isAdmin) {
+    if (isStarterPack) {
+      const allStarterApproved = onboardingIds.every(id => completedMissionIds.has(id));
+      reason = allStarterApproved || isOnboardingComplete ? 'onboarding_complete' : 'all_starters_submitted_waiting_review';
+      console.log('[StarterPool] final reason', reason);
+    } else if (!isOnboardingComplete && !isAdmin) {
       reason = 'onboarding_complete';
       console.log('[deckLogic] Reason: onboarding_complete');
     } else {
       reason = 'pack_exhausted';
       console.log('[deckLogic] Reason: pack_exhausted');
     }
+  } else if (isStarterPack) {
+    console.log('[StarterPool] final reason', reason || 'starter_cards_available');
   }
 
   return { eligibleMissions, reason, excludedCards };
