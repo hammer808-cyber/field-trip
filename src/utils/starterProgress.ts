@@ -120,7 +120,12 @@ export function getStarterProgressFromEntries(
     rejected.delete(id);
   });
 
-  const availableIds = starterMissionIds.filter(id => !approved.has(id) && !pending.has(id));
+  const availableIds = starterMissionIds.filter(id =>
+    !approved.has(id) &&
+    !pending.has(id) &&
+    !needsMoreProof.has(id) &&
+    !rejected.has(id)
+  );
   const approvedCount = approved.size;
   const pendingCount = pending.size;
   const needsMoreProofCount = needsMoreProof.size;
@@ -134,6 +139,12 @@ export function getStarterProgressFromEntries(
   if (isComplete) {
     status = 'COMPLETE';
     nextAction = 'starter_complete';
+  } else if (availableIds.length > 0) {
+    status = approvedCount === 0 && pendingCount === 0 && needsMoreProofCount === 0 && rejectedCount === 0 && !activeMissionId ? 'NOT_STARTED' : 'IN_PROGRESS';
+    nextMissionId = activeMissionId && starterMissionSet.has(activeMissionId) && !approved.has(activeMissionId) && !pending.has(activeMissionId) && !needsMoreProof.has(activeMissionId) && !rejected.has(activeMissionId)
+      ? activeMissionId
+      : availableIds[0] || null;
+    nextAction = 'start_starter_mission';
   } else if (needsMoreProofCount > 0) {
     status = 'NEEDS_MORE_PROOF';
     nextMissionId = Array.from(needsMoreProof)[0] || null;
@@ -142,12 +153,6 @@ export function getStarterProgressFromEntries(
     status = 'REJECTED_RETRY_AVAILABLE';
     nextMissionId = Array.from(rejected)[0] || null;
     nextAction = 'retry_rejected_mission';
-  } else if (availableIds.length > 0) {
-    status = approvedCount === 0 && pendingCount === 0 && !activeMissionId ? 'NOT_STARTED' : 'IN_PROGRESS';
-    nextMissionId = activeMissionId && starterMissionSet.has(activeMissionId) && !approved.has(activeMissionId) && !pending.has(activeMissionId)
-      ? activeMissionId
-      : availableIds[0] || null;
-    nextAction = 'start_starter_mission';
   } else if (pendingCount > 0) {
     status = 'PENDING_REVIEW';
     nextMissionId = Array.from(pending)[0] || null;
