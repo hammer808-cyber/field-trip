@@ -120,13 +120,21 @@ function findReviewForEntry(entry: any, reviews: any[]): any | null {
   }) || null;
 }
 
-function getReviewStatus(review: any): string {
-  return review?.status || review?.reviewStatus || review?.aiRecommendation || '';
+function getReviewQueueStatus(review: any): string {
+  const reviewStatus = review?.reviewStatus;
+  if (reviewStatus && reviewStatus !== 'completed') return reviewStatus;
+
+  const aiRecommendation = review?.aiRecommendation;
+  if (aiRecommendation && aiRecommendation !== 'completed') return aiRecommendation;
+
+  if (review?.needsManualReview === true) return 'pending_review';
+
+  return review?.status || reviewStatus || aiRecommendation || '';
 }
 
 function getStatusSummary(records: any[], label: 'entry' | 'proofReview'): Record<string, number> {
   return records.reduce((summary, record) => {
-    const rawStatus = label === 'proofReview' ? getReviewStatus(record) : record?.status;
+    const rawStatus = label === 'proofReview' ? getReviewQueueStatus(record) : record?.status;
     const key = `${String(rawStatus || 'missing')} -> ${normalizeEntryStatus(rawStatus)}`;
     summary[key] = (summary[key] || 0) + 1;
     return summary;
@@ -136,7 +144,7 @@ function getStatusSummary(records: any[], label: 'entry' | 'proofReview'): Recor
 function hydrateAdminQueueEntry(entry: any, linkedReview: any | null): any {
   const imageFields = resolveAdminImageFields(entry, linkedReview || {});
   const normalizedEntryStatus = normalizeEntryStatus(entry.status);
-  const normalizedReviewStatus = linkedReview ? normalizeEntryStatus(getReviewStatus(linkedReview)) : null;
+  const normalizedReviewStatus = linkedReview ? normalizeEntryStatus(getReviewQueueStatus(linkedReview)) : null;
   return {
     ...entry,
     status: normalizedReviewStatus || normalizedEntryStatus,
@@ -155,7 +163,7 @@ function hydrateAdminQueueEntry(entry: any, linkedReview: any | null): any {
 
 function hydrateOrphanedProofReview(review: any): any {
   const entryId = review.entryId || (typeof review.id === 'string' ? review.id.replace(/^rev_/, '') : review.id);
-  const normalizedStatus = normalizeEntryStatus(getReviewStatus(review));
+  const normalizedStatus = normalizeEntryStatus(getReviewQueueStatus(review));
   const imageFields = resolveAdminImageFields({}, review);
   return {
     ...review,
@@ -512,7 +520,7 @@ export function subscribeToAdminPendingReviews(
       const linkedReview = findReviewForEntry(e, proofReviewDocs);
       const isArchived = e.archived === true;
       const entryStatus = normalizeEntryStatus(e.status);
-      const linkedReviewStatus = linkedReview ? normalizeEntryStatus(getReviewStatus(linkedReview)) : null;
+      const linkedReviewStatus = linkedReview ? normalizeEntryStatus(getReviewQueueStatus(linkedReview)) : null;
       const isStatusMatch = entryStatus === statusFilter || linkedReviewStatus === statusFilter;
       if (isArchived || !isStatusMatch) {
         filteredOutCount++;
@@ -527,11 +535,11 @@ export function subscribeToAdminPendingReviews(
 
     const orphanedProofReviews = proofReviewDocs.filter(review => {
       const hasLinkedEntry = rawEntries.some(entry => findReviewForEntry(entry, [review]));
-      return !hasLinkedEntry && normalizeEntryStatus(getReviewStatus(review)) === statusFilter;
+      return !hasLinkedEntry && normalizeEntryStatus(getReviewQueueStatus(review)) === statusFilter;
     });
 
     if (orphanedProofReviews.length > 0) {
-      console.warn('[AdminQueue] orphaned proofReviews included as review-backed queue items', orphanedProofReviews.map(r => ({ id: r.id, entryId: r.entryId, status: getReviewStatus(r) })));
+      console.warn('[AdminQueue] orphaned proofReviews included as review-backed queue items', orphanedProofReviews.map(r => ({ id: r.id, entryId: r.entryId, status: getReviewQueueStatus(r) })));
     }
 
     const queueEntries = [
