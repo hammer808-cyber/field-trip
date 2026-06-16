@@ -157,6 +157,63 @@ function getReviewQueueStatus(review: any): string {
   return review?.status || reviewStatus || aiRecommendation || '';
 }
 
+function hasProofMedia(record: any): boolean {
+  return !!firstString(
+    record?.photoUrl,
+    record?.imageUrl,
+    record?.mediaUrl,
+    record?.proofImageUrl,
+    record?.proofImage,
+    record?.originalImageUrl,
+    Array.isArray(record?.imageUrls) ? record.imageUrls[0] : '',
+    record?.storagePath,
+    record?.imageStoragePath,
+    record?.photoStoragePath,
+    record?.proofImageRef,
+    record?.proofStoragePath
+  );
+}
+
+function isXpAwarded(record: any): boolean {
+  if (record?.xpAwarded === true) return true;
+  if (record?.pointsAwarded === true) return true;
+  if (typeof record?.pointsAwarded === 'number' && record.pointsAwarded > 0) return true;
+  if (typeof record?.awardedXP === 'number' && record.awardedXP > 0) return true;
+  if (typeof record?.awardedPoints === 'number' && record.awardedPoints > 0) return true;
+  return false;
+}
+
+function isExplicitFinalStatus(status: unknown): boolean {
+  const s = typeof status === 'string' ? status.toLowerCase().trim() : '';
+  return [
+    'approved',
+    'approved_by_admin',
+    'auto_approved',
+    'verified',
+    'rejected',
+    'denied',
+    'auto_rejected',
+    'needs_more_proof',
+    'needs-more-proof',
+    'needs_more_proof_requested',
+    'resubmit_requested',
+    'awaiting_purge',
+    'purged',
+    'archived'
+  ].includes(s);
+}
+
+function shouldShowAsPendingUnawardedProof(entry: any, linkedReview: any | null): boolean {
+  if (entry?.archived === true) return false;
+  if (isXpAwarded(entry) || isXpAwarded(linkedReview)) return false;
+
+  const entryStatusRaw = entry?.status;
+  const reviewStatusRaw = linkedReview ? getReviewQueueStatus(linkedReview) : '';
+  if (isExplicitFinalStatus(entryStatusRaw) || isExplicitFinalStatus(reviewStatusRaw)) return false;
+
+  return hasProofMedia(entry) || hasProofMedia(linkedReview);
+}
+
 function getStatusSummary(records: any[], label: 'entry' | 'proofReview'): Record<string, number> {
   return records.reduce((summary, record) => {
     const rawStatus = label === 'proofReview' ? getReviewQueueStatus(record) : record?.status;
@@ -541,12 +598,17 @@ export function subscribeToAdminPendingReviews(
     }
 
     let filteredOutCount = 0;
+    let unawardedProofRescueCount = 0;
     const entries = rawEntries.filter(e => {
       const linkedReview = findReviewForEntry(e, proofReviewDocs);
       const isArchived = e.archived === true;
       const entryStatus = normalizeEntryStatus(e.status);
       const linkedReviewStatus = linkedReview ? normalizeEntryStatus(getReviewQueueStatus(linkedReview)) : null;
-      const isStatusMatch = entryStatus === statusFilter || linkedReviewStatus === statusFilter;
+      const shouldRescuePending = statusFilter === 'pending_review' && shouldShowAsPendingUnawardedProof(e, linkedReview);
+      const isStatusMatch = entryStatus === statusFilter || linkedReviewStatus === statusFilter || shouldRescuePending;
+      if (shouldRescuePending && entryStatus !== statusFilter && linkedReviewStatus !== statusFilter) {
+        unawardedProofRescueCount++;
+      }
       if (isArchived || !isStatusMatch) {
         filteredOutCount++;
       }
@@ -573,6 +635,7 @@ export function subscribeToAdminPendingReviews(
     ];
 
     console.log('[AdminQueue] filtered out entry count', filteredOutCount);
+    console.log('[AdminQueue] unawarded proof rescue count', unawardedProofRescueCount);
     logDev(`Admin queue snapshot loaded. Size: ${queueEntries.length}`);
     callback(queueEntries);
   }, (err) => {
