@@ -971,6 +971,36 @@ export default function AdminProofReview() {
     return isMatch && !isHidden;
   });
 
+  useEffect(() => {
+    if (activeTab !== 'submissions' || reviews.length === 0) return;
+
+    const matchingReviewIds = reviews
+      .filter(r => normalizeEntryStatus((r as any).reviewStatus || r.status || r.entry?.status) === subFilter)
+      .map(r => r.id)
+      .filter(Boolean);
+
+    if (matchingReviewIds.length === 0) return;
+
+    const allMatchingHidden = matchingReviewIds.every(id => hiddenIds.has(id));
+    const allMatchingSkipped = matchingReviewIds.every(id => skippedIds.has(id));
+
+    if (allMatchingHidden) {
+      console.warn('[AdminReviewUI] Restoring queue hidden by stale local hiddenIds', {
+        filter: subFilter,
+        restoredCount: matchingReviewIds.length
+      });
+      setHiddenIds(new Set());
+    }
+
+    if (allMatchingSkipped) {
+      console.warn('[AdminReviewUI] Restoring queue hidden by stale local skippedIds', {
+        filter: subFilter,
+        restoredCount: matchingReviewIds.length
+      });
+      setSkippedIds(new Set());
+    }
+  }, [activeTab, reviews, subFilter, hiddenIds, skippedIds]);
+
   const activeSwipeQueue = activeReviews.filter(r => !skippedIds.has(r.id));
   const hiddenOrSkippedCount = hiddenIds.size + skippedIds.size;
   const queueCount = activeReviews.length;
