@@ -214,6 +214,13 @@ function shouldShowAsPendingUnawardedProof(entry: any, linkedReview: any | null)
   return hasProofMedia(entry) || hasProofMedia(linkedReview);
 }
 
+function shouldShowReviewAsPendingUnawardedProof(review: any): boolean {
+  if (review?.archived === true) return false;
+  if (isXpAwarded(review)) return false;
+  if (isExplicitFinalStatus(getReviewQueueStatus(review))) return false;
+  return hasProofMedia(review);
+}
+
 function getStatusSummary(records: any[], label: 'entry' | 'proofReview'): Record<string, number> {
   return records.reduce((summary, record) => {
     const rawStatus = label === 'proofReview' ? getReviewQueueStatus(record) : record?.status;
@@ -620,22 +627,35 @@ export function subscribeToAdminPendingReviews(
       return hydrateAdminQueueEntry(entry, linkedReview);
     });
 
-    const orphanedProofReviews = proofReviewDocs.filter(review => {
+    const reviewBackedPendingProofs = proofReviewDocs.filter(review => {
       const hasLinkedEntry = rawEntries.some(entry => findReviewForEntry(entry, [review]));
-      return !hasLinkedEntry && normalizeEntryStatus(getReviewQueueStatus(review)) === statusFilter;
+      const reviewStatusMatches = normalizeEntryStatus(getReviewQueueStatus(review)) === statusFilter;
+      const reviewNeedsPendingRescue = statusFilter === 'pending_review' && shouldShowReviewAsPendingUnawardedProof(review);
+      return (!hasLinkedEntry && reviewStatusMatches) || reviewNeedsPendingRescue;
     });
 
-    if (orphanedProofReviews.length > 0) {
-      console.warn('[AdminQueue] orphaned proofReviews included as review-backed queue items', orphanedProofReviews.map(r => ({ id: r.id, entryId: r.entryId, status: getReviewQueueStatus(r) })));
+    if (reviewBackedPendingProofs.length > 0) {
+      console.warn('[AdminQueue] review-backed proofReviews included in queue', reviewBackedPendingProofs.map(r => ({ id: r.id, entryId: r.entryId, status: getReviewQueueStatus(r), rescued: shouldShowReviewAsPendingUnawardedProof(r) })));
     }
+
+    const seenQueueIds = new Set(hydratedEntries.flatMap(entry => [entry.id, entry.entryId, entry.proofReviewId, entry.reviewId].filter(Boolean)));
+    const reviewBackedEntries = reviewBackedPendingProofs
+      .map(hydrateOrphanedProofReview)
+      .filter(entry => {
+        const keys = [entry.id, entry.entryId, entry.proofReviewId, entry.reviewId].filter(Boolean);
+        const alreadySeen = keys.some(key => seenQueueIds.has(key));
+        keys.forEach(key => seenQueueIds.add(key));
+        return !alreadySeen;
+      });
 
     const queueEntries = [
       ...hydratedEntries,
-      ...orphanedProofReviews.map(hydrateOrphanedProofReview)
+      ...reviewBackedEntries
     ];
 
     console.log('[AdminQueue] filtered out entry count', filteredOutCount);
     console.log('[AdminQueue] unawarded proof rescue count', unawardedProofRescueCount);
+    console.log('[AdminQueue] review-backed rescue count', reviewBackedEntries.length);
     logDev(`Admin queue snapshot loaded. Size: ${queueEntries.length}`);
     callback(queueEntries);
   }, (err) => {
