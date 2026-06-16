@@ -75,7 +75,6 @@ import { awardDiscoverySticker } from '../services/discoveryService';
 import { DISCOVERY_STICKERS, DiscoverySticker } from '../constants/discoveryStickers';
 import { castVote, getVotesForUser } from '../services/voteService';
 import { calculateStarterState, StarterCompletionState } from '../utils/starterHelper';
-import { getCanonicalStarterMissionIds } from '../utils/starterProgress';
 
 import { evaluateEntryForBadges, subscribeToUserBadgeProgress, checkRankBadges } from '../services/badgeService';
 import { BADGE_DEFINITIONS, UserBadgeProgress } from '../types/badges';
@@ -426,7 +425,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const fieldTokens = completedChallengeIds.size;
 
   // 2. Onboarding Requirements (The Ignored Place, Starter-2, Starter-3 / Any Unique Completed Missions)
-  const ONBOARDING_IDS = React.useMemo(() => getCanonicalStarterMissionIds(), []);
+  const ONBOARDING_IDS = React.useMemo(() => ["starter-1", "starter-2", "starter-3"], []);
 
   const completedOnboardingMissionIds = React.useMemo(() => {
     // STRICTION: For Summer unlock, only use APPROVED completed challenges
@@ -439,19 +438,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const activeMissionId = profile?.activeMissionId || profile?.activeTrip?.id || null;
   const activeSubmissionStatus = (profile?.activeSubmissionStatus || profile?.activeTrip?.status || null) as 'pending_review' | 'needs_more_proof' | 'rejected' | 'approved' | null;
 
-// Canonical Starter Deck Gating State Calculation
-const starterState = React.useMemo(() => {
-  const mergedEntries = [...pendingEntries, ...entries];
+  // Canonical Starter Deck Gating State Calculation
+  const starterState = React.useMemo(() => {
+    // Merge real-time entries with profile canonical approved IDs to prevent truncation issues
+    const mergedEntries = [...pendingEntries, ...entries];
+    
+    // Ensure missions from profile are represented if missing from entries (rare but happens with truncation)
+    if (profile?.completedChallengeIds) {
+      profile.completedChallengeIds.forEach((id: string) => {
+        const idLower = id.toLowerCase();
+        if (!mergedEntries.some(e => (e.missionId || e.challengeId || e.tripId || '').toLowerCase() === idLower)) {
+          // Synthetic entry for completion check
+          (mergedEntries as any).push({
+            missionId: idLower,
+            status: 'approved',
+            userId: user?.uid,
+            deckId: 'starter-signals'
+          });
+        }
+      });
+    }
 
-  return calculateStarterState(
-    user?.uid || '',
-    mergedEntries,
-    activeMissionId,
-    activeSubmissionStatus,
-    gameConfig?.starterResetVersion,
-    gameConfig?.activeStarterDeckId
-  );
-}, [user?.uid, entries, pendingEntries, activeMissionId, activeSubmissionStatus, gameConfig?.starterResetVersion, gameConfig?.activeStarterDeckId]);
+    return calculateStarterState(
+      user?.uid || '',
+      mergedEntries,
+      activeMissionId,
+      activeSubmissionStatus,
+      gameConfig?.starterResetVersion,
+      gameConfig?.activeStarterDeckId
+    );
+  }, [user?.uid, entries, pendingEntries, activeMissionId, activeSubmissionStatus, gameConfig?.starterResetVersion, gameConfig?.activeStarterDeckId, profile?.completedChallengeIds]);
 
   const starterApprovedCount = starterState.starterApprovedCount;
   const isOnboardingComplete = starterState.starterComplete;
@@ -614,45 +630,15 @@ const starterState = React.useMemo(() => {
 
   const mustCompleteStarterMission = React.useMemo(() => {
     if (!profile || !user) return false;
-
-    const starterIds = getCanonicalStarterMissionIds().map(id => id.toLowerCase());
-    const hasStarterActivity =
-      starterIds.some(id =>
-        submittedPendingChallengeIds.has(id) ||
-        completedChallengeIds.has(id) ||
-        needsMoreProofChallengeIds.has(id) ||
-        rejectedChallengeIds.has(id)
-      ) ||
-      entries.some(entry => {
-        const missionId = (entry.missionId || entry.challengeId || entry.tripId || '').toLowerCase().trim();
-        const status = normalizeEntryStatus(entry.status);
-        return starterIds.includes(missionId) && [
-          'pending_review',
-          'approved',
-          'needs_more_proof',
-          'rejected'
-        ].includes(status);
-      }) ||
-      pendingEntries.some(entry => {
-        const missionId = ((entry as any).missionId || entry.challengeId || entry.tripId || '').toLowerCase().trim();
-        return starterIds.includes(missionId);
-      });
-
-    if (profile.hasCompletedGuidedFirstEntry === false && hasStarterActivity) {
-      return false;
+    
+    // Core check for the Guided Launch sequence
+    // ONLY force it if it hasn't been submitted (pending, approved, or needs_more_proof)
+    if (profile.hasCompletedGuidedFirstEntry === false && !submittedPendingChallengeIds.has(LAUNCH_MISSION_ID) && !completedChallengeIds.has(LAUNCH_MISSION_ID)) {
+      return true;
     }
 
-    return profile.hasCompletedGuidedFirstEntry === false;
-  }, [
-    profile,
-    user,
-    submittedPendingChallengeIds,
-    completedChallengeIds,
-    needsMoreProofChallengeIds,
-    rejectedChallengeIds,
-    entries,
-    pendingEntries
-  ]);
+    return false;
+  }, [profile, user, submittedPendingChallengeIds, completedChallengeIds]);
 
   // 4. Game State & Unlocks
   const gameState: GameState = {

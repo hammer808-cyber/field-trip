@@ -19,31 +19,16 @@ export function initializeFirebase() {
 
   const currentHostname = isBrowser ? window.location.hostname : 'localhost';
   
-  // Use Vite-safe env access in browser/runtime previews.
-// Never reference process.env directly in the browser because process may not exist.
-const getEnv = (key: string): string | undefined => {
-  const viteEnv =
-    typeof import.meta !== 'undefined' && import.meta.env
-      ? (import.meta.env as Record<string, string | undefined>)
-      : {};
+  // Use fallbacks for import.meta.env
+  const getEnv = (key: string) => {
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) return import.meta.env[key];
+    return process.env[key];
+  };
 
-  const nodeEnv =
-    typeof globalThis !== 'undefined' &&
-    'process' in globalThis &&
-    (globalThis as any).process?.env
-      ? ((globalThis as any).process.env as Record<string, string | undefined>)
-      : {};
-
-  return viteEnv[key] ?? nodeEnv[key];
-};
-
-const RECAPTCHA_SITE_KEY = getEnv('VITE_RECAPTCHA_SITE_KEY');
-const DEBUG_FLAG = getEnv('VITE_FIREBASE_APPCHECK_DEBUG') === 'true';
-const IS_PROD =
-  typeof import.meta !== 'undefined' && import.meta.env
-    ? import.meta.env.PROD
-    : getEnv('NODE_ENV') === 'production';
-const IS_DEV_PREVIEW = !IS_PROD;
+  const RECAPTCHA_SITE_KEY = getEnv('VITE_RECAPTCHA_SITE_KEY');
+  const DEBUG_FLAG = getEnv('VITE_FIREBASE_APPCHECK_DEBUG') === 'true';
+  const IS_PROD = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.PROD : process.env.NODE_ENV === 'production';
+  const IS_DEV_PREVIEW = !IS_PROD;
   
   // App Check is only initialized if a real reCAPTCHA site key exists, or if debug mode is explicitly set to true.
   // In the preview environment, skipping initializeAppCheck when the site key is missing prevents 10-second backend connection timeouts.

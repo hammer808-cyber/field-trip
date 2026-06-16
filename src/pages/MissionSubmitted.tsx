@@ -2,10 +2,9 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { CheckCircle, Home, LayoutGrid, Camera, Sparkles, Zap, FileText } from 'lucide-react';
+import { CheckCircle, Home, LayoutGrid, Camera, Sparkles } from 'lucide-react';
 import { Confetti } from '../components/Confetti';
 import { FieldTape } from '../components/UI';
-import { isCanonicalStarterMissionId } from '../utils/starterProgress';
 
 export default function MissionSubmittedPage() {
   const navigate = useNavigate();
@@ -14,12 +13,6 @@ export default function MissionSubmittedPage() {
   const { trips } = useApp();
 
   const mission = trips.find(t => t.id === missionId);
-  const isStarterMission = isCanonicalStarterMissionId(missionId);
-
-  const handleDrawNextStarter = () => {
-    sessionStorage.setItem('fieldtrip_draw_next_starter', 'true');
-    navigate('/deck');
-  };
 
   return (
     <div className="min-h-screen bg-[#FCF8F2] flex flex-col items-center justify-center p-6 relative overflow-hidden">
@@ -69,14 +62,14 @@ export default function MissionSubmittedPage() {
             <div className="bg-[#FFFCEB] border-2 border-dashed border-on-surface/15 p-4 rounded-xl space-y-1.5 text-center relative">
               <p className="text-[9px] font-mono font-black uppercase tracking-wider text-brand-orange-dark">AWAITING REVIEW</p>
               <p className="text-xs font-serif italic text-on-surface leading-normal">
-                "Your photo is being verified. This card is locked for review, but any remaining starter cards are still available."
+                "Your photo is being verified. Once approved, it will be added to your crew feed and earn points toward the season!"
               </p>
             </div>
           </div>
 
           {mission && (
             <div className="mt-5 bg-on-surface/[0.02] border-2 border-on-surface/5 p-4 rounded-xl">
-              <span className="text-[8px] font-mono font-black uppercase tracking-widest text-on-surface/30 block mb-1">SUBMITTED MISSION</span>
+              <span className="text-[8px] font-mono font-black uppercase tracking-widest text-on-surface/30 block mb-1">COMPLETED MISSION</span>
               <p className="text-xs font-bold text-on-surface flex items-center justify-center gap-1.5">
                 <Camera className="w-4 h-4 text-brand-orange" />
                 {mission.title}
@@ -87,34 +80,16 @@ export default function MissionSubmittedPage() {
           {/* End of Season Banner Quote */}
           <div className="mt-6 pt-4 border-t-2 border-dashed border-on-surface/10">
             <p className="font-mono text-[9px] uppercase tracking-wider leading-relaxed text-on-surface/40">
-              Pending does not mean parked. Keep the starter signals moving.
+              Take photos. Earn points. Make the summer reel. Win the season!
             </p>
           </div>
         </div>
 
         {/* Dynamic Nav CTAs */}
         <div className="space-y-4">
-          {isStarterMission && (
-            <button
-              onClick={handleDrawNextStarter}
-              className="w-full py-4 bg-brand-lime text-on-surface border-[4px] border-on-surface shadow-[6px_6px_0px_black] hover:bg-brand-lime/95 hover:-translate-y-1 hover:shadow-[8px_8px_0px_black] active:translate-y-0.5 active:shadow-none transition-all font-display text-xl font-black uppercase italic tracking-wide flex items-center justify-center gap-3"
-            >
-              <Zap className="w-5 h-5 stroke-[2.5]" />
-              <span>Draw Next Starter</span>
-            </button>
-          )}
-
-          <button
-            onClick={() => navigate('/profile?tab=history')}
-            className="w-full py-4 bg-white text-on-surface border-[4px] border-on-surface shadow-[6px_6px_0px_black] hover:bg-on-surface/[0.02] hover:-translate-y-1 hover:shadow-[8px_8px_0px_black] active:translate-y-0.5 active:shadow-none transition-all font-display text-xl font-black uppercase italic tracking-wide flex items-center justify-center gap-3"
-          >
-            <FileText className="w-5 h-5 stroke-[2.5]" />
-            <span>View Logbook</span>
-          </button>
-
           <button
             onClick={() => navigate('/collection')}
-            className="w-full py-4 bg-white text-on-surface border-[4px] border-on-surface shadow-[6px_6px_0px_black] hover:bg-on-surface/[0.02] hover:-translate-y-1 hover:shadow-[8px_8px_0px_black] active:translate-y-0.5 active:shadow-none transition-all font-display text-xl font-black uppercase italic tracking-wide flex items-center justify-center gap-3"
+            className="w-full py-4 bg-brand-lime text-on-surface border-[4px] border-on-surface shadow-[6px_6px_0px_black] hover:bg-brand-lime/95 hover:-translate-y-1 hover:shadow-[8px_8px_0px_black] active:translate-y-0.5 active:shadow-none transition-all font-display text-xl font-black uppercase italic tracking-wide flex items-center justify-center gap-3"
           >
             <LayoutGrid className="w-5 h-5 stroke-[2.5]" />
             <span>View My Memories</span>

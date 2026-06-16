@@ -4,7 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
-import { initializeApp, getApps, cert, applicationDefault, App, ServiceAccount } from 'firebase-admin/app';
+import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { getAppCheck } from 'firebase-admin/app-check';
@@ -42,74 +42,6 @@ const isProduction = process.env.NODE_ENV === 'production';
 let adminApp: App | null = null;
 let dbAdmin: FirebaseFirestore.Firestore | null = null;
 let firebaseConfig: any = null;
-let storageAdmin: ReturnType<typeof getStorage> | null = null;
-let authAdmin: ReturnType<typeof getAuth> | null = null;
-let adminCredentialSource: 'service_account_json' | 'service_account_base64' | 'google_application_credentials' | 'default' | 'missing' = 'missing';
-let adminInitError: string | null = null;
-let resolvedStorageBucket: string | null = null;
-
-function parseServiceAccountFromEnv(): ServiceAccount | null {
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
-    || (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64
-      ? Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf8')
-      : '');
-  if (!raw) return null;
-
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed.private_key && typeof parsed.private_key === 'string') {
-      parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
-    }
-    return parsed as ServiceAccount;
-  } catch (err: any) {
-    console.error('[BUREAU_ADMIN] Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON:', err.message || err);
-    adminInitError = `Invalid FIREBASE_SERVICE_ACCOUNT_JSON: ${err.message || err}`;
-    return null;
-  }
-}
-
-function getAdminInitOptions(config: any = {}) {
-  const storageBucket = config.storageBucket || process.env.FIREBASE_STORAGE_BUCKET || (config.projectId ? `${config.projectId}.firebasestorage.app` : undefined);
-  resolvedStorageBucket = storageBucket || null;
-
-  const serviceAccount = parseServiceAccountFromEnv();
-  if (serviceAccount) {
-    const serviceAccountProjectId = serviceAccount.projectId || (serviceAccount as any).project_id;
-    adminCredentialSource = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 ? 'service_account_base64' : 'service_account_json';
-    return {
-      credential: cert(serviceAccount),
-      projectId: config.projectId || serviceAccountProjectId,
-      storageBucket
-    };
-  }
-
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    adminCredentialSource = 'google_application_credentials';
-    return {
-      credential: applicationDefault(),
-      projectId: config.projectId || process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT,
-      storageBucket
-    };
-  }
-
-  adminCredentialSource = process.env.NODE_ENV === 'production' ? 'default' : 'missing';
-  return {
-    projectId: config.projectId || process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT,
-    storageBucket
-  };
-}
-
-function getAdminCredentialSetupMessage() {
-  if (adminCredentialSource !== 'missing' && adminCredentialSource !== 'default') return null;
-  return 'Firebase Admin credentials are not configured for this Codespace. Add FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT_BASE64 to Codespaces secrets, then restart the dev server.';
-}
-
-function assertAdminCredentialsReady() {
-  const setupMessage = getAdminCredentialSetupMessage();
-  if (setupMessage) {
-    throw new Error(setupMessage);
-  }
-}
 
 async function initAdmin() {
   try {
@@ -121,7 +53,10 @@ async function initAdmin() {
       console.log(`[BUREAU_ADMIN] Attempting initialization for project: ${config.projectId}`);
       
       if (getApps().length === 0) {
-        adminApp = initializeApp(getAdminInitOptions(config));
+        adminApp = initializeApp({
+          projectId: config.projectId,
+          storageBucket: config.storageBucket || `${config.projectId}.firebasestorage.app`
+        });
       } else {
         adminApp = getApps()[0];
       }
@@ -148,18 +83,8 @@ async function initAdmin() {
       }
     } else {
       console.log(`[BUREAU_ADMIN] No config file found. Using default internal credentials.`);
-      adminApp = getApps().length === 0 ? initializeApp(getAdminInitOptions({})) : getApps()[0];
+      adminApp = getApps().length === 0 ? initializeApp() : getApps()[0];
       dbAdmin = getFirestore(adminApp);
-    }
-
-    if (adminApp) {
-      storageAdmin = getStorage(adminApp);
-      authAdmin = getAuth(adminApp);
-      try {
-        resolvedStorageBucket = storageAdmin.bucket().name || resolvedStorageBucket;
-      } catch (bucketErr: any) {
-        console.warn('[BUREAU_ADMIN] Storage bucket resolution failed:', bucketErr.message || bucketErr);
-      }
     }
 
     // Final sanity check
@@ -173,7 +98,6 @@ async function initAdmin() {
     }
   } catch (e: any) {
     console.error("[BUREAU_ADMIN] FATAL: Firebase Admin initialization failed:", e.message);
-    adminInitError = e.message || String(e);
     if (e.stack) console.error(e.stack);
   }
 }
@@ -181,8 +105,11 @@ async function initAdmin() {
 // Kick off initialization
 initAdmin().catch(err => {
   console.error("[BUREAU_ADMIN] Initial kick-off failed:", err);
-  adminInitError = err.message || String(err);
 });
+
+// Ensure we pass the app instance to getStorage
+const storageAdmin = adminApp ? getStorage(adminApp) : null;
+const authAdmin = adminApp ? getAuth(adminApp) : null;
 
 /**
  * DAILY PURGE JOB (Billing Protection)
@@ -535,8 +462,6 @@ async function startServer() {
     }
 
     try {
-      assertAdminCredentialsReady();
-
       let userId = targetUserId;
       let userRef: FirebaseFirestore.DocumentReference | null = null;
       let userData: any = null;
@@ -578,22 +503,15 @@ async function startServer() {
 
       for (const colName of archiveCollections) {
         const colRef = dbAdmin.collection(colName);
-        const [userIdSnap, uidSnap] = await Promise.all([
-          colRef.where('userId', '==', userId).get(),
-          colRef.where('uid', '==', userId).get()
-        ]);
-
-        const docMap = new Map<string, any>();
-        userIdSnap.docs.forEach(doc => docMap.set(doc.ref.path, doc));
-        uidSnap.docs.forEach(doc => docMap.set(doc.ref.path, doc));
-        const docs = Array.from(docMap.values());
+        const q = colRef.where('userId', '==', userId);
+        const snapshot = await q.get();
         
-        report.archivedCounts[colName] = docs.length;
+        report.archivedCounts[colName] = snapshot.size;
 
-        if (docs.length > 0) {
+        if (!snapshot.empty) {
           const chunks = [];
-          for (let i = 0; i < docs.length; i += 500) {
-            chunks.push(docs.slice(i, i + 500));
+          for (let i = 0; i < snapshot.docs.length; i += 500) {
+            chunks.push(snapshot.docs.slice(i, i + 500));
           }
 
           for (const chunk of chunks) {
@@ -718,30 +636,6 @@ async function startServer() {
     res.json(health);
   });
 
-  app.get("/api/health/storage", async (req, res) => {
-    let bucketResolved = false;
-    let bucketName = resolvedStorageBucket;
-
-    if (storageAdmin) {
-      try {
-        bucketName = storageAdmin.bucket().name || bucketName;
-        bucketResolved = !!bucketName;
-      } catch (err: any) {
-        adminInitError = adminInitError || err.message || String(err);
-      }
-    }
-
-    res.json({
-      adminAppInitialized: !!adminApp,
-      storageInitialized: !!storageAdmin,
-      storageBucketResolved: bucketResolved,
-      bucketName: bucketName || null,
-      credentialSource: adminCredentialSource,
-      adminInitError,
-      nodeEnv: process.env.NODE_ENV || 'development'
-    });
-  });
-
   app.get("/api/time", (req, res) => {
     res.json({ serverTime: Date.now() });
   });
@@ -752,17 +646,7 @@ async function startServer() {
    * This is necessary when environment-level storage rule propagation is unstable.
    */
   app.post("/api/storage/upload", authenticate, async (req: any, res) => {
-    if (!storageAdmin) {
-      const isMissingDevCreds = process.env.NODE_ENV !== 'production' && adminCredentialSource === 'missing';
-      return res.status(500).json({
-        error: isMissingDevCreds ? "STORAGE_CREDENTIALS_MISSING" : "STORAGE_ADMIN_NOT_READY",
-        message: isMissingDevCreds
-          ? "Firebase Admin Storage credentials are missing. Set FIREBASE_SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS."
-          : "Firebase Admin Storage is not initialized.",
-        credentialSource: adminCredentialSource,
-        adminInitError
-      });
-    }
+    if (!storageAdmin) return res.status(500).json({ error: "STORAGE_ADMIN_NOT_READY" });
 
     try {
       const { userId, type, filename, base64Data, metadata } = req.body;
@@ -783,13 +667,6 @@ async function startServer() {
 
       // 2. Prepare File Path
       const storagePath = `${type}/${userId}/${filename}`;
-      if (process.env.NODE_ENV !== 'production' && adminCredentialSource === 'missing') {
-        return res.status(500).json({
-          error: "STORAGE_CREDENTIALS_MISSING",
-          message: "Firebase Admin Storage credentials are missing in development. Set FIREBASE_SERVICE_ACCOUNT_JSON or GOOGLE_APPLICATION_CREDENTIALS.",
-          credentialSource: adminCredentialSource
-        });
-      }
       const bucket = storageAdmin.bucket();
       const file = bucket.file(storagePath);
 
@@ -2310,25 +2187,16 @@ async function startServer() {
     }
   });
 
-  async function repairStrandedStarterUsers(dryRun: boolean, adminUid: string, softReset: boolean = false) {
+  async function repairStrandedStarterUsers(dryRun: boolean, adminUid: string) {
     if (!dbAdmin) throw new Error("DB_ADMIN_NOT_READY");
-    assertAdminCredentialsReady();
 
-    const STARTER_IDS = ["starter-1", "starter-2", "starter-3", "template_03_ignored_place", "starter-signals"];
-    const isStarterRecord = (record: any) => {
-      const missionId = String(record?.missionId || record?.challengeId || record?.tripId || '').toLowerCase().trim();
-      const deckId = String(record?.deckId || record?.activeDeckId || record?.deckPackId || '').toLowerCase().trim();
-      return STARTER_IDS.includes(missionId) || deckId === 'starter' || deckId === 'starter-signals';
-    };
-
+    const STARTER_IDS = ["starter-1", "starter-2", "starter-3"];
     const usersSnap = await dbAdmin.collection('users').get();
     const totalUsers = usersSnap.size;
 
     let totalStrandedDetected = 0;
     let totalUsersUpdated = 0;
     let totalEntriesUpdated = 0;
-    let totalEntriesArchived = 0;
-    let totalProofReviewsArchived = 0;
 
     const warnings: string[] = [];
     const errors: string[] = [];
@@ -2355,7 +2223,10 @@ async function startServer() {
         const pendingStarterIds = new Set<string>();
         const needsMoreStarterIds = new Set<string>();
 
-        const starterEntries = entries.filter(isStarterRecord);
+        const starterEntries = entries.filter(e => {
+          const mId = (e.missionId || e.challengeId || e.tripId)?.toLowerCase().trim();
+          return mId && STARTER_IDS.includes(mId);
+        });
 
         for (const entry of starterEntries) {
           const mId = (entry.missionId || entry.challengeId || entry.tripId)?.toLowerCase().trim();
@@ -2399,81 +2270,6 @@ async function startServer() {
 
         if (isStranded) {
           totalStrandedDetected++;
-
-          if (softReset) {
-            const reviewsRef = dbAdmin.collection('proofReviews');
-            const [reviewUserIdSnap, reviewUidSnap] = await Promise.all([
-              reviewsRef.where('userId', '==', uid).get(),
-              reviewsRef.where('uid', '==', uid).get()
-            ]);
-            const reviewMap = new Map<string, any>();
-            reviewUserIdSnap.docs.forEach(d => reviewMap.set(d.ref.path, d));
-            reviewUidSnap.docs.forEach(d => reviewMap.set(d.ref.path, d));
-            const starterReviews = Array.from(reviewMap.values()).filter(d => isStarterRecord(d.data()));
-
-            if (!dryRun) {
-              const batch = dbAdmin.batch();
-
-              batch.update(userDoc.ref, {
-                starterDeckComplete: false,
-                onboardingCompleted: false,
-                activePlayableDeckId: 'starter-signals',
-                activeDeckPackId: 'starter-signals',
-                activeDeckId: 'starter-signals',
-                currentDeckId: 'starter-signals',
-                selectedDeckId: 'starter-signals',
-                starterApprovedCount: 0,
-                starterPendingCount: 0,
-                completedMissionIds: [],
-                completedChallengeIds: [],
-                approvedCompletedChallengeIds: [],
-                submittedChallengeIds: [],
-                submittedPendingChallengeIds: [],
-                rejectedChallengeIds: [],
-                needsMoreProofChallengeIds: [],
-                retryableChallengeIds: [],
-                activeMissionId: null,
-                activeTripId: null,
-                lastDrawnMissionId: null,
-                "starterState.starterApprovedCount": 0,
-                "starterState.starterComplete": false,
-                "starterState.starterSignalsCompleted": [],
-                updatedAt: FieldValue.serverTimestamp(),
-                starterSoftResetAt: FieldValue.serverTimestamp(),
-                starterSoftResetBy: adminUid
-              });
-
-              for (const entry of starterEntries) {
-                batch.update(dbAdmin.collection('entries').doc(entry.id), {
-                  archived: true,
-                  archivedAt: FieldValue.serverTimestamp(),
-                  archiveReason: 'stranded_starter_soft_reset',
-                  excludedFromProgress: true,
-                  countsTowardStarter: false,
-                  countsTowardLiveStats: false,
-                  updatedAt: FieldValue.serverTimestamp()
-                });
-              }
-
-              for (const reviewDoc of starterReviews) {
-                batch.update(reviewDoc.ref, {
-                  archived: true,
-                  archivedAt: FieldValue.serverTimestamp(),
-                  archiveReason: 'stranded_starter_soft_reset',
-                  excludedFromProgress: true,
-                  updatedAt: FieldValue.serverTimestamp()
-                });
-              }
-
-              await batch.commit();
-            }
-
-            totalEntriesArchived += starterEntries.length;
-            totalProofReviewsArchived += starterReviews.length;
-            totalUsersUpdated++;
-            updatedUserIds.push(uid);
-            continue;
-          }
 
           const updatedSubmitted = (userData.submittedChallengeIds || []).filter(
             (id: string) => !STARTER_IDS.includes(id) || approvedStarterIds.has(id) || pendingStarterIds.has(id) || needsMoreStarterIds.has(id)
@@ -2541,18 +2337,15 @@ async function startServer() {
 
     if (!dryRun) {
       await dbAdmin.collection('adminRepairLogs').add({
-        actionType: softReset ? 'soft_reset_stranded_starter' : 'repair_stranded_starter',
+        actionType: 'repair_stranded_starter',
         adminUid,
         timestamp: FieldValue.serverTimestamp(),
         dryRun: false,
-        softReset,
         countsChanged: {
           totalUsersScanned: totalUsers,
           strandedDetected: totalStrandedDetected,
           usersRepaired: totalUsersUpdated,
-          entriesUpdated: totalEntriesUpdated,
-          entriesArchived: totalEntriesArchived,
-          proofReviewsArchived: totalProofReviewsArchived
+          entriesUpdated: totalEntriesUpdated
         },
         warnings,
         errors,
@@ -2560,18 +2353,15 @@ async function startServer() {
       });
     } else {
       await dbAdmin.collection('adminRepairLogs').add({
-        actionType: softReset ? 'soft_reset_stranded_starter_dry_run' : 'repair_stranded_starter_dry_run',
+        actionType: 'repair_stranded_starter_dry_run',
         adminUid,
         timestamp: FieldValue.serverTimestamp(),
         dryRun: true,
-        softReset,
         countsChanged: {
           totalUsersScanned: totalUsers,
           strandedDetected: totalStrandedDetected,
           usersRepaired: totalUsersUpdated,
-          entriesUpdated: totalEntriesUpdated,
-          entriesArchived: totalEntriesArchived,
-          proofReviewsArchived: totalProofReviewsArchived
+          entriesUpdated: totalEntriesUpdated
         },
         warnings,
         errors,
@@ -2585,12 +2375,9 @@ async function startServer() {
       strandedDetected: totalStrandedDetected,
       usersRepaired: totalUsersUpdated,
       entriesUpdated: totalEntriesUpdated,
-      entriesArchived: totalEntriesArchived,
-      proofReviewsArchived: totalProofReviewsArchived,
       warnings,
       errors,
-      dryRun,
-      softReset
+      dryRun
     };
   }
 
@@ -2602,12 +2389,12 @@ async function startServer() {
       return res.status(403).json({ error: "ADMIN_REQUIRED" });
     }
 
-    const { dryRun = true, softReset = false } = req.body;
+    const { dryRun = true } = req.body;
 
-    console.log(`[STRANDED_REPAIR_API] Repairing stranded starter users. DryRun: ${dryRun}, SoftReset: ${softReset} by admin: ${req.user.uid}`);
+    console.log(`[STRANDED_REPAIR_API] Repairing stranded starter users. DryRun: ${dryRun} by admin: ${req.user.uid}`);
 
     try {
-      const summary = await repairStrandedStarterUsers(dryRun, req.user.uid, softReset === true);
+      const summary = await repairStrandedStarterUsers(dryRun, req.user.uid);
       return res.json(summary);
     } catch (error: any) {
       console.error(`[STRANDED_REPAIR_API_ERROR] Fail:`, error);
@@ -3246,8 +3033,6 @@ async function startServer() {
     }
 
     try {
-      assertAdminCredentialsReady();
-
       let firestoreTest = "failing";
       try {
         const testRef = dbAdmin.collection('_system').doc('diagnostics');

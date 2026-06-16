@@ -504,7 +504,6 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
           className={cn(
             "w-full h-full object-cover transition-all duration-700",
             isInitializing ? "opacity-0" : "opacity-100",
-            facingMode === 'user' && "scale-x-[-1]",
             !isBaja && !isHeat && "brightness-110 contrast-125",
             isBaja && "sepia hue-rotate-[320deg] saturate-150",
             isHeat && "invert hue-rotate-180 saturate-200 contrast-200 brightness-150"
@@ -540,17 +539,6 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
           </div>
           <div className="mt-1 text-brand-orange">FLTR_{VIEWFINDER_FILTERS.find(f => f.id === selectedFilter)?.name.toUpperCase()}</div>
         </div>
-
-        <button
-          type="button"
-          onClick={toggleCamera}
-          disabled={isProcessing || isInitializing}
-          className="absolute top-20 right-6 z-50 flex items-center gap-2 rounded-full border border-white/20 bg-black/55 px-3 py-2 font-mono text-[8px] font-black uppercase tracking-widest text-white/80 backdrop-blur-md transition-all hover:bg-black/75 hover:text-white disabled:opacity-35"
-          title="Flip camera"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          Flip
-        </button>
 
         {/* Brackets */}
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-12">

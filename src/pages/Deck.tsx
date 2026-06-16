@@ -664,29 +664,8 @@ export default function DeckPage() {
   // Use dynamic countdown
   const countdown = getSummerCountdown(currentDate);
 
-  const shouldUseGuidedStarterMode =
-    mustCompleteStarterMission &&
-    !isAdmin &&
-    (starterState?.submittedUniqueCount || 0) === 0 &&
-    (starterState?.pendingStarterCount || 0) === 0 &&
-    (starterState?.starterApprovedCount || 0) === 0 &&
-    (starterState?.retryStarterCount || 0) === 0 &&
-    (starterState?.needsMoreProofStarterCount || 0) === 0;
-
-  console.log("[StarterGate]", {
-    mustCompleteStarterMission,
-    starterSubmittedCount,
-    pendingStarterCount: starterState?.pendingStarterCount || 0,
-    starterApproved,
-    retryStarterCount: starterState?.retryStarterCount || 0,
-    activePackId,
-    reason: shouldUseGuidedStarterMode
-      ? "guided_first_mission_no_starter_activity"
-      : "normal_starter_deck_allowed"
-  });
-
   // Guided Starter Mission Mode for Launch
-  if (shouldUseGuidedStarterMode) {
+  if (mustCompleteStarterMission && !isAdmin) {
     const launchMission = trips.find(t => t.id.toLowerCase() === LAUNCH_MISSION_ID.toLowerCase()) || LAUNCH_MISSION;
     
     return (

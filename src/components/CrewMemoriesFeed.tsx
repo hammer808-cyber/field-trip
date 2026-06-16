@@ -323,7 +323,6 @@ export function CrewMemoriesFeed() {
                   <ProofImage 
                     entry={entry} 
                     alt={entry.tripTitle || "Crew Memory Snapshot"}
-                    isCommunityFeed={true}
                     className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-500 ease-out"
                   />
                   

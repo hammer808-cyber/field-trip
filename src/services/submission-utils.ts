@@ -3,10 +3,12 @@ import { collection, query, where, getDocs, doc, runTransaction, serverTimestamp
 import { Entry } from '../types/game';
 import { normalizeEntryStatus } from '../logic/entryLogic';
 import { awardPoints } from './scoringService';
-import { resolveXPFields } from '../utils/canonicalEntry';
-import { getCanonicalStarterMissionIds, STARTER_REQUIRED_APPROVALS } from '../utils/starterProgress';
-import { calculateProofScore, ProofScoringSelections } from '../utils/proofScoring';
 
+/**
+ * Fetches all approved submissions for a specific user.
+ * Discovers the documents via query, then validates and reads their canonical
+ * state inside of a Firestore transaction to ensure truth of state.
+ */
 export async function getApprovedSubmissionsForUser(userId: string): Promise<Entry[]> {
   const q1 = query(
     collection(db, 'entries'),
@@ -41,27 +43,15 @@ export async function getApprovedSubmissionsForUser(userId: string): Promise<Ent
   });
 }
 
-function isLateSubmission(entry: any): boolean {
-  const deadline = entry.dueAt || entry.expiresAt || entry.challengeEndsAt || entry.missionEndsAt;
-  if (!deadline) return false;
-  const deadlineDate = typeof deadline?.toDate === 'function' ? deadline.toDate() : new Date(deadline);
-  if (Number.isNaN(deadlineDate.getTime())) return false;
-  return Date.now() > deadlineDate.getTime();
-}
-
-function isDuplicateProof(entry: any): boolean {
-  const duplicateStatus = entry.verification?.duplicateStatus || entry.duplicateStatus || entry.proofDuplicateStatus;
-  const normalized = String(duplicateStatus || '').toLowerCase().trim();
-  return ['duplicate', 'reused', 'matched', 'repeat'].includes(normalized);
-}
-
-export async function awardSubmissionPointsOnce(
-  submissionId: string,
-  notes: string = '',
-  scoringSelections?: ProofScoringSelections
-): Promise<{ success: boolean; points?: number; reason?: string }> {
+/**
+ * Award Points EXACTLY ONCE upon manual admin approval.
+ * Implements full Firestore Transaction safety over the entry and user profile documents
+ * to guarantee that dual updates and score checks remain perfectly atomic and canonical.
+ */
+export async function awardSubmissionPointsOnce(submissionId: string, notes: string = ''): Promise<{ success: boolean; points?: number; reason?: string }> {
   const entryRef = doc(db, 'entries', submissionId);
 
+  // Fetch linked review doc outside of transaction to keep transactions strictly read-before-write and query-free
   let reviewDocRef: any = null;
   try {
     const reviewCollection = collection(db, 'proofReviews');
@@ -81,48 +71,36 @@ export async function awardSubmissionPointsOnce(
     }
 
     const data = entrySnap.data() as Entry;
-    const rawEntry = data as any;
-    const resolvedXP = resolveXPFields(data);
-    if (resolvedXP.xpAwarded || resolvedXP.awardedXP > 0) {
-      return { success: false, reason: 'ALREADY_AWARDED', points: resolvedXP.awardedXP || resolvedXP.legacyPoints };
+    const pointsAwardedRaw = data.pointsAwarded as any;
+    if (pointsAwardedRaw === true || pointsAwardedRaw > 0) {
+      return { success: false, reason: 'ALREADY_AWARDED', points: data.awardedXP || (data.pointsAwarded as any) };
     }
 
-    const scoringBreakdown = calculateProofScore({
-      missionOrEntry: rawEntry,
-      fieldNote: data.fieldNote || rawEntry.note || '',
-      hintUsed: rawEntry.hintUsed === true,
-      lateSubmission: isLateSubmission(data),
-      retrySubmission: rawEntry.isRetry === true || rawEntry.retrySubmission === true || !!rawEntry.originalEntryId,
-      retryMultiplier: typeof rawEntry.retryPointMultiplier === 'number' ? rawEntry.retryPointMultiplier : null,
-      duplicateProof: isDuplicateProof(data),
-      ...scoringSelections
-    });
-    const xpAward = scoringBreakdown.finalXP;
+    // Calculate Points
+    const rawData = data as any;
+    const xpAward = data.xpValue || data.awardedXP || (data as any).estimatedPoints || 100;
     const userId = data.userId || data.uid;
     const userName = data.displayName || data.userName || (data as any).username || 'Agent';
 
     const userRef = doc(db, 'users', userId);
     const userSnap = await transaction.get(userRef);
 
+    // Canonical execution of state locks inside transaction
     transaction.update(entryRef, {
       xpAwarded: true,
-      awardedXP: xpAward,
-      pointsAwarded: true,
-      awardedPoints: xpAward,
-      scoringBreakdown,
+      pointsAwarded: true, // compatibility mirror
+      awardedXP: xpAward,  // compatibility mirror
       reviewedAt: serverTimestamp(),
       reviewedBy: auth.currentUser?.uid || 'system',
-      approvedAt: serverTimestamp(),
       status: 'approved',
       updatedAt: serverTimestamp()
     });
 
+    // Update ProofReview too
     if (reviewDocRef) {
       transaction.update(reviewDocRef, {
         status: 'approved',
         xpAwarded: true,
-        awardedXP: xpAward,
-        scoringBreakdown,
         updatedAt: serverTimestamp()
       });
     }
@@ -133,26 +111,27 @@ export async function awardSubmissionPointsOnce(
       const uData = userSnap.data();
       const approvedCompletedChallengeIds = Array.isArray(uData.approvedCompletedChallengeIds) ? [...uData.approvedCompletedChallengeIds] : [];
       const completedChallengeIds = Array.isArray(uData.completedChallengeIds) ? [...uData.completedChallengeIds] : [];
+      
       const nextApprovedCompletedChallengeIds = approvedCompletedChallengeIds.filter(id => id.toLowerCase().trim() !== missionIdCanonical);
       nextApprovedCompletedChallengeIds.push(missionIdCanonical);
+
       const nextCompletedChallengeIds = completedChallengeIds.filter(id => id.toLowerCase().trim() !== missionIdCanonical);
       nextCompletedChallengeIds.push(missionIdCanonical);
+
       const submittedPendingChallengeIds = Array.isArray(uData.submittedPendingChallengeIds) ? uData.submittedPendingChallengeIds.filter((id: string) => id.toLowerCase().trim() !== missionIdCanonical) : [];
-      const starterMissionIds = getCanonicalStarterMissionIds();
-      const approvedStarters = new Set(
-        nextApprovedCompletedChallengeIds
-          .map(id => id.toLowerCase().trim())
-          .filter(id => starterMissionIds.includes(id))
-      );
-      const isStarterComplete = approvedStarters.size >= STARTER_REQUIRED_APPROVALS;
+
+      // Calculate starter completeness
+      const STARTER_MISSION_IDS = ["starter-1", "starter-2", "starter-3", "starter-signals"];
+      const approvedStarters = nextApprovedCompletedChallengeIds.filter(id => STARTER_MISSION_IDS.includes(id) || id.startsWith('starter-')).length;
+      const isStarterComplete = approvedStarters >= 3;
 
       transaction.update(userRef, {
         approvedCompletedChallengeIds: nextApprovedCompletedChallengeIds,
-        completedChallengeIds: nextCompletedChallengeIds,
-        completedMissionIds: nextCompletedChallengeIds,
+        completedChallengeIds: nextCompletedChallengeIds, // KEEP IN SYNC
+        completedMissionIds: nextCompletedChallengeIds, // KEEP IN SYNC
         submittedPendingChallengeIds,
         starterDeckComplete: isStarterComplete,
-        onboardingCompleted: isStarterComplete,
+        onboardingCompleted: isStarterComplete, // mirror for lock logic
         updatedAt: serverTimestamp()
       });
     }
@@ -160,7 +139,7 @@ export async function awardSubmissionPointsOnce(
     return { 
       success: true, 
       points: xpAward,
-      _awardingPayload: {
+      _awardingPayload: { // Pass back to outer scope
         userId,
         userName,
         xpAward,
@@ -170,9 +149,9 @@ export async function awardSubmissionPointsOnce(
       }
     };
   }).then(async (result: any) => {
+    // AWARD POINTS OUTSIDE TRANSACTION
     if (result.success && result._awardingPayload) {
       const p = result._awardingPayload;
-      console.log('[ProofScoring] approved entry', { entryId: p.entryId, finalXP: p.xpAward });
       try {
         await awardPoints(
           p.userId,
@@ -186,7 +165,8 @@ export async function awardSubmissionPointsOnce(
           }
         );
       } catch (err) {
-        console.error('[awardSubmissionPointsOnce] XP award failed after entry update. Entry is approved and the operation can be retried safely.', err);
+        console.error('[awardSubmissionPointsOnce] Point awarding failed post-transaction. Entry is approved but points might be missing. Idempotency will catch retries.', err);
+        // We don't throw here because the transaction already committed.
       }
     }
     return result;

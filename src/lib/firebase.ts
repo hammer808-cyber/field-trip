@@ -112,7 +112,7 @@ async function testConnection() {
 
 const isDevMode = typeof import.meta !== 'undefined' && import.meta.env 
   ? import.meta.env.DEV 
-  : !import.meta.env.PROD;
+  : process.env.NODE_ENV !== 'production';
 
 if (isDevMode && !firebaseErrorValue) {
   testConnection().catch(() => {});

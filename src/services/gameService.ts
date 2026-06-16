@@ -286,7 +286,7 @@ export async function submitTripEntry(
       estimatedPoints: estimatedScoring.totalPoints,
       awardedXP: 0,
       awardedPoints: 0,            // Legacy
-      pointsAwarded: false,        // Legacy boolean mirror
+      pointsAwarded: 0,            // Legacy
       
       // Logic Meta
       submittedAt: serverTimestamp(),
@@ -322,26 +322,13 @@ export async function submitTripEntry(
 
     if (entryId) {
       entryRef = doc(db, 'entries', entryId);
-      console.log(`[SUBMIT_ENTRY] durable entry write started entries/${entryId}`);
-      try {
-        await setDoc(entryRef, { ...finalEntryData, id: entryId, entryId }, { merge: true });
-        console.log(`[SUBMIT_ENTRY] durable entry write success entries/${entryId}`);
-      } catch (writeErr) {
-        console.error('[SUBMIT_ENTRY] durable entry write failed', writeErr);
-        throw writeErr;
-      }
+      await setDoc(entryRef, { ...finalEntryData, id: entryId }, { merge: true });
     } else {
-      const entryRefDoc = doc(collection(db, 'entries'));
+      const entryRefDoc = await addDoc(collection(db, 'entries'), finalEntryData);
       entryRef = entryRefDoc;
       entryId = entryRefDoc.id;
-      console.log(`[SUBMIT_ENTRY] durable entry write started entries/${entryId}`);
-      try {
-        await setDoc(entryRef, { ...finalEntryData, id: entryId, entryId });
-        console.log(`[SUBMIT_ENTRY] durable entry write success entries/${entryId}`);
-      } catch (writeErr) {
-        console.error('[SUBMIT_ENTRY] durable entry write failed', writeErr);
-        throw writeErr;
-      }
+      // Self-heal id field
+      await updateDoc(entryRef, { id: entryId, entryId: entryId }); // Keeping both for safety
     }
 
     // Consolidate user locking logic

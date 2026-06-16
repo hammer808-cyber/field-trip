@@ -336,12 +336,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const isFieldTypePage = location.pathname === '/field-type' || location.pathname === '/persona';
   const isDeckPage = location.pathname === '/deck';
   const isCapturePage = location.pathname.startsWith('/capture');
-  const isMissionSubmittedPage = location.pathname === '/mission-submitted';
   const isProfilePage = location.pathname === '/profile';
   const isBigBoardPage = location.pathname === '/big-board';
   const isBasecampPage = location.pathname === '/basecamp';
   const isVotingPage = location.pathname.startsWith('/voting');
-  const isCollectionPage = location.pathname === '/collection' || location.pathname === '/memories';
 
   // Centralized login/returning destination selector
   let correctDestination = "/basecamp";
@@ -392,7 +390,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Step 3: Resume guided onboarding or mission at correct saved step.
   // Allow all pages used in the tour: Deck, Capture, Profile, Big Board, and Field Type.
-  const isAllowedOnboardingPage = isDeckPage || isCapturePage || isMissionSubmittedPage || isProfilePage || isBigBoardPage || isFieldTypePage || isBasecampPage || isCollectionPage;
+  const isAllowedOnboardingPage = isDeckPage || isCapturePage || isProfilePage || isBigBoardPage || isFieldTypePage || isBasecampPage;
   if (user && hasConfirmedLegal && fieldClassificationComplete && hasSeenFieldTypeResults && !onboardingCompleted && !isAllowedOnboardingPage && !isBypassingGuards) {
     return <Navigate to="/deck" replace />;
   }
@@ -448,7 +446,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     '/deck',
     '/missions',
     '/collection',
-    '/memories',
     '/voting',
     '/big-board',
     '/crews',
@@ -619,7 +616,6 @@ export default function App() {
                     <Route path="/admin/ops" element={<AdminDevTools />} />
                     <Route path="/admin/archive" element={<AdminArchiveSubmissions />} />
                     <Route path="/collection" element={<Collection />} />
-                    <Route path="/memories" element={<Collection />} />
                     <Route path="/banned" element={<Banned />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>

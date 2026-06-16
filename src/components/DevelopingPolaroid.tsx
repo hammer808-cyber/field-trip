@@ -33,7 +33,7 @@ export const DevelopingPolaroid: React.FC<DevelopingPolaroidProps> = ({
               initial={isDeveloping ? { filter: 'brightness(2) contrast(0.5) blur(10px)', opacity: 0 } : {}}
               animate={isDeveloping ? { filter: 'brightness(1) contrast(1) blur(0px)', opacity: 1 } : {}}
               transition={{ duration: 4, ease: "easeOut" }}
-              className="w-full h-full object-contain"
+              className="w-full h-full object-cover"
             />
           )}
           {/* Chemical Shimmer Overlay */}
