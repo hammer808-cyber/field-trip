@@ -44,12 +44,15 @@ let dbAdmin: FirebaseFirestore.Firestore | null = null;
 let firebaseConfig: any = null;
 let storageAdmin: ReturnType<typeof getStorage> | null = null;
 let authAdmin: ReturnType<typeof getAuth> | null = null;
-let adminCredentialSource: 'service_account_json' | 'google_application_credentials' | 'default' | 'missing' = 'missing';
+let adminCredentialSource: 'service_account_json' | 'service_account_base64' | 'google_application_credentials' | 'default' | 'missing' = 'missing';
 let adminInitError: string | null = null;
 let resolvedStorageBucket: string | null = null;
 
 function parseServiceAccountFromEnv(): ServiceAccount | null {
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
+    || (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64
+      ? Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf8')
+      : '');
   if (!raw) return null;
 
   try {
@@ -72,7 +75,7 @@ function getAdminInitOptions(config: any = {}) {
   const serviceAccount = parseServiceAccountFromEnv();
   if (serviceAccount) {
     const serviceAccountProjectId = serviceAccount.projectId || (serviceAccount as any).project_id;
-    adminCredentialSource = 'service_account_json';
+    adminCredentialSource = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 ? 'service_account_base64' : 'service_account_json';
     return {
       credential: cert(serviceAccount),
       projectId: config.projectId || serviceAccountProjectId,
@@ -94,6 +97,18 @@ function getAdminInitOptions(config: any = {}) {
     projectId: config.projectId || process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT,
     storageBucket
   };
+}
+
+function getAdminCredentialSetupMessage() {
+  if (adminCredentialSource !== 'missing' && adminCredentialSource !== 'default') return null;
+  return 'Firebase Admin credentials are not configured for this Codespace. Add FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT_BASE64 to Codespaces secrets, then restart the dev server.';
+}
+
+function assertAdminCredentialsReady() {
+  const setupMessage = getAdminCredentialSetupMessage();
+  if (setupMessage) {
+    throw new Error(setupMessage);
+  }
 }
 
 async function initAdmin() {
@@ -520,6 +535,8 @@ async function startServer() {
     }
 
     try {
+      assertAdminCredentialsReady();
+
       let userId = targetUserId;
       let userRef: FirebaseFirestore.DocumentReference | null = null;
       let userData: any = null;
@@ -2295,6 +2312,7 @@ async function startServer() {
 
   async function repairStrandedStarterUsers(dryRun: boolean, adminUid: string, softReset: boolean = false) {
     if (!dbAdmin) throw new Error("DB_ADMIN_NOT_READY");
+    assertAdminCredentialsReady();
 
     const STARTER_IDS = ["starter-1", "starter-2", "starter-3", "template_03_ignored_place", "starter-signals"];
     const isStarterRecord = (record: any) => {
@@ -3228,6 +3246,8 @@ async function startServer() {
     }
 
     try {
+      assertAdminCredentialsReady();
+
       let firestoreTest = "failing";
       try {
         const testRef = dbAdmin.collection('_system').doc('diagnostics');
