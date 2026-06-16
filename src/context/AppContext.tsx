@@ -853,6 +853,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               clearTimeout(profileTimeoutId);
               return res;
             }).catch(err => {
+              clearTimeout(profileTimeoutId);
               console.warn("[AppContext] Profile fetch/creation failed or timed out (offline?):", err);
               // Fallback to a localized safe profile to bypass fatal offline gate crashes
               const fallback: UserProfile = {

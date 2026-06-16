@@ -20,6 +20,7 @@ import { useTheme } from '../context/ThemeContext';
 import { AdminReviewPanel } from '../components/AdminReviewPanel';
 import { cn } from '../lib/utils';
 import { executeGlobalUserReset, runOneTimePhotoBackfill } from '../services/adminService';
+import { getDeckCoverImage, BASE_DECK_PLACEHOLDER } from '../lib/deckUtils';
 
 export default function AdminBoard() {
   const { profile, loading } = useApp();

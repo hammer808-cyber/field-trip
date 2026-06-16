@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="100%" height="100%">
+  <defs>
+    <linearGradient id="warmYellow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFDD00" />
+      <stop offset="100%" stop-color="#FFC400" />
+    </linearGradient>
+    <pattern id="sprockets" width="10" height="40" patternUnits="userSpaceOnUse">
+      <rect x="2" y="10" width="6" height="20" rx="2" fill="#000" />
+    </pattern>
+  </defs>
+
+  <!-- Frame -->
+  <rect x="0" y="0" width="400" height="600" rx="24" fill="url(#warmYellow)" stroke="#111" stroke-width="6" />
+
+  <!-- Film-strip Black Side Borders -->
+  <rect x="0" y="0" width="22" height="600" fill="#1C1A17" />
+  <rect x="378" y="0" width="22" height="600" fill="#1C1A17" />
+
+  <!-- Sprocket Holes in Side Borders (Left and Right) -->
+ pattern repeating
+  <rect x="6" y="20" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="6" y="60" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="6" y="100" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="6" y="140" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="6" y="180" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="6" y="220" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="6" y="260" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="6" y="300" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="6" y="340" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="6" y="380" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="6" y="420" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="6" y="460" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="6" y="500" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="6" y="540" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+
+  <rect x="384" y="20" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="384" y="60" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="384" y="100" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="384" y="140" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="384" y="180" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="384" y="220" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="384" y="260" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="384" y="300" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="384" y="340" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="384" y="380" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="384" y="420" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="384" y="460" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="384" y="500" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+  <rect x="384" y="540" width="10" height="15" rx="2" fill="url(#warmYellow)" />
+
+  <!-- Inner design boundary -->
+  <rect x="34" y="12" width="332" height="576" rx="6" fill="none" stroke="#1C1A17" stroke-width="2.5" />
+
+  <!-- Left Ribbon Badge FT-04 (Typewriter Black) -->
+  <g transform="translate(38, -2)">
+    <path d="M 0,0 L 56,0 L 56,100 L 28,84 L 0,100 Z" fill="#1C1A17" />
+    <!-- Three mountain peaks logo -->
+    <path d="M 12,30 L 20,18 L 28,30 M 24,30 L 32,14 L 40,30 M 18,30 L 25,22" fill="none" stroke="#FFDD00" stroke-width="2.5" stroke-linecap="round" />
+    <text x="28" y="54" fill="#FFDD00" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="900" text-anchor="middle" letter-spacing="1">FT-04</text>
+    <!-- Little star -->
+    <path d="M 28,68 L 30,73 L 35,73 L 31,76 L 33,81 L 28,78 L 23,81 L 25,76 L 21,73 L 26,73 Z" fill="#FFDD00" />
+  </g>
+
+  <!-- Film technical markers inside side borders -->
+  <text x="35" y="210" fill="#1C1A17" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="bold" transform="rotate(90 35 210)" opacity="0.8">41</text>
+  <text x="35" y="410" fill="#1C1A17" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="bold" transform="rotate(90 35 410)" opacity="0.8">TRA 400</text>
+  <text x="365" y="210" fill="#1C1A17" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="bold" transform="rotate(270 365 210)" opacity="0.8">41</text>
+  <text x="365" y="410" fill="#1C1A17" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="bold" transform="rotate(270 365 410)" opacity="0.8">TRA 400</text>
+
+  <path d="M 34,44 L 28,48 L 34,52" fill="#1C1A17" />
+  <path d="M 366,44 L 372,48 L 366,52" fill="#1C1A17" />
+  <path d="M 34,544 L 28,548 L 34,552" fill="#1C1A17" />
+  <path d="M 366,544 L 372,548 L 366,552" fill="#1C1A17" />
+
+  <!-- Errand Bag Minimalist Icon (Central Placement) -->
+  <g transform="translate(200, 210) scale(1.1)">
+    <!-- Bag Handles (Two arcs) -->
+    <path d="M -24,-30 C -24,-90 24,-90 24,-35" fill="none" stroke="#1C1A17" stroke-width="5" stroke-linecap="round" />
+    <path d="M -18,-30 C -18,-80 18,-80 18,-35" fill="none" stroke="#1C1A17" stroke-width="4" stroke-linecap="round" />
+    
+    <!-- Paper Bag Silhouette Body -->
+    <path d="M -45,-30 L 45,-30 L 35,80 L -35,80 Z" fill="#FFF8DC" stroke="#1C1A17" stroke-width="5.5" stroke-linejoin="round" />
+    
+    <!-- Folded side panels of paper bag -->
+    <path d="M 45,-30 L 32,80 L 35,80 Q 20,40 45,-30 Z" fill="#E8DDBC" stroke="#1C1A17" stroke-width="1.5" stroke-linejoin="round" />
+    
+    <!-- Handle anchors (circles on the bag) -->
+    <circle cx="-23" cy="-20" r="4.5" fill="#FFF8DC" stroke="#1C1A17" stroke-width="3" />
+    <circle cx="23" cy="-20" r="4.5" fill="#FFF8DC" stroke="#1C1A17" stroke-width="3" />
+    
+    <!-- Bag creases, depth shading (minimal sketches) -->
+    <path d="M -23,-15 L -23,40" fill="none" stroke="#1C1A17" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="2,3" />
+    <path d="M -10,65 L 18,25" fill="none" stroke="#1C1A17" stroke-width="1.5" stroke-linecap="round" />
+    <path d="M 12,72 L 32,15" fill="none" stroke="#1C1A17" stroke-width="1.5" stroke-linecap="round" />
+  </g>
+
+  <!-- Typography with distressed typewriter look -->
+  <g transform="translate(200, 410)">
+    <text x="0" y="0" fill="#1C1A17" font-family="'Space Grotesk', 'Helvetica Neue', sans-serif" font-size="12" font-weight="950" letter-spacing="3" text-anchor="middle">FIELDTRIP</text>
+    
+    <!-- "ERRAND" distressed slab styled text string -->
+    <text x="0" y="52" fill="#1C1A17" font-family="'Space Grotesk', Arial Black, sans-serif" font-size="44" font-weight="950" letter-spacing="-1.5" text-anchor="middle" transform="scale(1, 1.15)">ERRAND</text>
+    
+    <!-- "RUNNER" distressed text -->
+    <text x="0" y="100" fill="#1C1A17" font-family="'Space Grotesk', Arial Black, sans-serif" font-size="44" font-weight="950" letter-spacing="-1.5" text-anchor="middle" transform="scale(1, 1.15)">RUNNER</text>
+    
+    <!-- Subtitle border lane -->
+    <line x1="-100" y1="120" x2="100" y2="120" stroke="#1C1A17" stroke-width="3" />
+    <text x="-95" y="117" font-family="sans-serif" font-size="12" font-weight="bold">_</text>
+    <text x="95" y="117" font-family="sans-serif" font-size="12" font-weight="bold">_</text>
+
+    <text x="0" y="138" fill="#1C1A17" font-family="'JetBrains Mono', monospace" font-size="10.5" font-weight="900" letter-spacing="2" text-anchor="middle">TASKS. STOPS. CHECK 'EM OFF.</text>
+  </g>
+</svg>

@@ -34,6 +34,7 @@ import { cn } from '../lib/utils';
 import { StickerDecal } from '../components/StickerDecals';
 import { getRewardsByType } from '../data/rewardRegistry';
 import { getDeckPackById, getDefaultDeckPack } from '../data/deckPacks';
+import { getDeckCoverImage, BASE_DECK_PLACEHOLDER } from '../lib/deckUtils';
 import { IOSHomeScreenPrompt } from '../components/profile/IOSHomeScreenPrompt';
 import { getDisplayLabel } from '../utils/labelUtils';
 

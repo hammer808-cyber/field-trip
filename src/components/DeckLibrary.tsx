@@ -272,6 +272,26 @@ function ChallengePreviewModal({ challenge, uiStatus, onClose, onStart }: { chal
   const isCompleted = uiStatus === 'completed';
   const canStart = uiStatus === 'eligible' || uiStatus === 'in-progress';
   
+  const [activeObjectiveHint, setActiveObjectiveHint] = useState<string | null>(null);
+
+  const hintTexts: Record<string, { title: string; desc: string; tip: string }> = {
+    photo: {
+      title: "CAMERA INTEL",
+      desc: "A clear photographic proof is required to verify this mission.",
+      tip: "Use the Viewfinder camera to capture the requested subject. Avoid cropped closeups or blurry lighting."
+    },
+    field_note: {
+      title: "FIELD REPORT",
+      desc: "A written note or description detailing the observation is required.",
+      tip: "Write a compelling field note/anecdote answering the prompt. This will build your zine entry."
+    },
+    location: {
+      title: "GPS VERIFICATION",
+      desc: "Physical environment coordinates signature verification required.",
+      tip: "Open the field capture tool to record location tags automatically. Location permissions must be enabled."
+    }
+  };
+
   const progress = profile?.tripProgress?.[challenge.id] || {};
   const hintUsed = !!progress.hintUsed;
 
@@ -364,23 +384,59 @@ function ChallengePreviewModal({ challenge, uiStatus, onClose, onStart }: { chal
             </div>
           </div>
  
-          <div className="space-y-3">
-            <h5 className="micro-label opacity-40 font-black italic uppercase text-[8px]">Required Evidence</h5>
-            <div className="flex flex-wrap gap-2">
-              {evidenceRequirements.map(req => {
-                const isDone = !!progress[req.key as keyof typeof progress];
-                return (
-                  <div key={req.key} className={cn(
-                    "flex items-center gap-2 px-3 py-1.5 border transition-all",
-                    isDone ? "bg-brand-lime/10 border-brand-lime" : "bg-on-surface/5 border-on-surface/10"
-                  )}>
-                    <req.icon className={cn("w-3 h-3", isDone ? "text-brand-lime" : "opacity-30")} />
-                    <span className="text-[9px] font-black uppercase tracking-widest">{req.label}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+           <div className="space-y-3">
+             <div className="flex justify-between items-baseline">
+               <h5 className="micro-label opacity-40 font-black italic uppercase text-[8px]">Required Evidence</h5>
+               <span id="library-checklist-interactive-indicator" className="text-[7px] opacity-75 text-brand-orange font-black tracking-normal animate-pulse select-none">(HOVER/TAP ICONS FOR PROTOCOL)</span>
+             </div>
+             <div className="flex flex-wrap gap-2">
+               {evidenceRequirements.map(req => {
+                 const isDone = !!progress[req.key as keyof typeof progress];
+                 const isHoveredOrTapped = activeObjectiveHint === req.key;
+                 return (
+                   <div 
+                     key={req.key} 
+                     id={`library-objective-icon-btn-${req.key}`}
+                     onMouseEnter={() => setActiveObjectiveHint(req.key)}
+                     onMouseLeave={() => setActiveObjectiveHint(null)}
+                     onClick={() => setActiveObjectiveHint(activeObjectiveHint === req.key ? null : req.key)}
+                     className={cn(
+                       "flex items-center gap-2 px-3 py-1.5 border transition-all cursor-pointer select-none rounded-lg",
+                       isDone ? "bg-brand-lime/10 border-brand-lime" : "bg-on-surface/5 border-on-surface/10",
+                       isHoveredOrTapped && "bg-brand-orange/5 border-brand-orange shadow-[2px_2px_0px_black] -translate-y-0.5"
+                     )}
+                   >
+                     <req.icon className={cn("w-3 h-3 transition-transform", isDone ? "text-brand-lime" : "opacity-30", isHoveredOrTapped && "text-brand-orange scale-110 opacity-100")} />
+                     <span className={cn("text-[9px] font-black uppercase tracking-widest", isHoveredOrTapped && "text-brand-orange")}>{req.label}</span>
+                   </div>
+                 );
+               })}
+             </div>
+
+             {/* Dynamic Custom Tooltip / Hint view */}
+             {activeObjectiveHint && (
+               <motion.div
+                 id={`library-objective-tooltip-${activeObjectiveHint}`}
+                 initial={{ opacity: 0, scale: 0.95, y: 3 }}
+                 animate={{ opacity: 1, scale: 1, y: 0 }}
+                 exit={{ opacity: 0, scale: 0.95, y: 3 }}
+                 className="mt-3 p-4 bg-on-surface text-[#FFFDF4] border-2 border-on-surface rounded-xl flex items-start gap-3 relative shadow-[4px_4px_0px_black]"
+               >
+                 <div className="space-y-1 relative z-10 text-left">
+                   <div className="flex items-center gap-1.5 text-brand-lime font-mono text-[9px] font-black uppercase tracking-widest">
+                     <Info className="w-3.5 h-3.5 text-brand-lime shrink-0" />
+                     <span>{hintTexts[activeObjectiveHint]?.title || 'OBJECTIVE PROTOCOL'}</span>
+                   </div>
+                   <p className="text-xs font-black font-sans text-white leading-normal">
+                     {hintTexts[activeObjectiveHint]?.desc}
+                   </p>
+                   <p className="text-[10px] text-brand-lime/80 font-sans italic opacity-90 leading-tight">
+                     💡 {hintTexts[activeObjectiveHint]?.tip}
+                   </p>
+                 </div>
+               </motion.div>
+             )}
+           </div>
 
           {hintUsed && (
             <div className="p-3 border-2 border-brand-orange bg-brand-orange/5 text-brand-orange flex items-center gap-3">

@@ -7,6 +7,13 @@ import { HEATWAVE_SEASON_START_DATE, HEATWAVE_SEASON_END_DATE } from '../constan
 export const DECK_PACKS: DeckPack[] = [
   {
     packId: 'starter-signals',
+    id: 'starter-signals',
+    title: 'Starter Signals',
+    deckCode: 'FT-SS',
+    artworkKey: 'starter-signals',
+    coverImage: '/assets/decks/starter-signals.png',
+    isStarter: true,
+    isEvergreen: true,
     packName: 'Starter: First Signals',
     shortName: 'Starter',
     description: 'Essential signals for new Bureau scouts. Calibrate your sensors and cross the threshold.',
@@ -17,7 +24,6 @@ export const DECK_PACKS: DeckPack[] = [
     visibility: 'public',
     isActive: true,
     fallbackIcon: 'Zap',
-    coverImage: '/assets/ui/starter_deck.svg',
     sortOrder: 1,
     difficultyRange: ['easy', 'medium'],
     tags: ['essential', 'onboarding'],
@@ -36,6 +42,12 @@ export const DECK_PACKS: DeckPack[] = [
   },
   {
     packId: 'socal-summer',
+    id: 'socal-summer',
+    title: 'Summer SoCal',
+    deckCode: 'FT-03',
+    artworkKey: 'summer-socal',
+    coverImage: '/assets/decks/summer-socal.png',
+    isSeasonal: true,
     packName: 'SoCal Summer',
     shortName: 'SoCal',
     description: 'A sun-baked Southern California field deck for beach days, neighborhood walks, boardwalk snacks, golden hour sightings, local landmarks, and summer micro-adventures.',
@@ -46,7 +58,6 @@ export const DECK_PACKS: DeckPack[] = [
     visibility: 'public',
     isActive: true,
     fallbackIcon: 'Waves',
-    coverImage: '/assets/ui/socal_deck.png',
     sortOrder: 2,
     difficultyRange: ['easy', 'medium', 'hard'],
     
@@ -72,6 +83,12 @@ export const DECK_PACKS: DeckPack[] = [
   },
   {
     packId: 'heatwave-receipts',
+    id: 'heatwave-receipts',
+    title: 'Heatwave Receipts',
+    deckCode: 'FT-01',
+    artworkKey: 'heatwave-receipts',
+    coverImage: '/assets/decks/heatwave-receipts.png',
+    isSeasonal: true,
     packName: 'Heatwave Receipts',
     shortName: 'Heatwave',
     description: 'Everyday thermal surveillance and hot transactions. Locate heat signatures, protective gear, group oases, and financial cooling logs.',
@@ -84,7 +101,6 @@ export const DECK_PACKS: DeckPack[] = [
     visibility: 'public',
     isActive: true,
     fallbackIcon: 'Sun',
-    coverImage: '/assets/ui/heatwave_deck.png',
     sortOrder: 2,
     difficultyRange: ['easy', 'medium', 'hard'],
     
@@ -111,6 +127,12 @@ export const DECK_PACKS: DeckPack[] = [
   },
   {
     packId: 'errand-runs',
+    id: 'errand-runs',
+    title: 'Errand Runner',
+    deckCode: 'FT-04',
+    artworkKey: 'errand-runner',
+    coverImage: '/assets/decks/errand-runner.png',
+    isEvergreen: true,
     packName: 'Errand Runs',
     shortName: 'Errands',
     description: 'Everyday missions transformed into tactical surveillance. Locate signatures at checkpoints, queues, and aisles.',
@@ -134,6 +156,7 @@ export const DECK_PACKS: DeckPack[] = [
   },
   {
     packId: 'baja-bratz',
+    id: 'baja-bratz',
     packName: 'Baja Bratz',
     shortName: 'Baja',
     description: 'Future drop. High-speed, high-heat signals from the coastal dunes.',
@@ -148,6 +171,7 @@ export const DECK_PACKS: DeckPack[] = [
   },
   {
     packId: 'urban-recon',
+    id: 'urban-recon',
     packName: 'Urban Recon',
     shortName: 'Recon',
     description: 'Future drop. Tactical navigation of the concrete jungle.',
@@ -162,6 +186,7 @@ export const DECK_PACKS: DeckPack[] = [
   },
   {
     packId: 'wildlife-witness',
+    id: 'wildlife-witness',
     packName: 'Wildlife Witness',
     shortName: 'Wildlife',
     description: 'Future drop. Monitoring the non-human residents of the sprawl.',
@@ -175,6 +200,8 @@ export const DECK_PACKS: DeckPack[] = [
     isFutureDrop: true,
   }
 ];
+
+export { BASE_DECK_PLACEHOLDER, getDeckCoverImage } from '../lib/deckUtils';
 
 export const getAllDeckPacks = (): DeckPack[] => {
   return DECK_PACKS;

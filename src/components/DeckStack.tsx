@@ -8,6 +8,8 @@ import * as Icons from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { getFrankieTitle, getFrankieDescription } from '../logic/frankieModeLogic';
 
+import { getDeckCoverImage, BASE_DECK_PLACEHOLDER } from '../lib/deckUtils';
+
 interface DeckStackProps {
   onDraw: () => void;
   isDrawing: boolean;
@@ -122,15 +124,17 @@ export function DeckStack({
                   {/* Inset shadow for depth */}
                   <div className="absolute inset-0 shadow-[inset_2px_2px_8px_rgba(0,0,0,0.1)] pointer-events-none" />
                   
-                  {activePack?.coverImage && !imageError ? (
+                  {activePack ? (
                     <div className="w-full h-full relative p-2">
                        <div className="w-full h-full border-2 border-on-surface/10 overflow-hidden relative field-card p-0 shadow-none">
                          <img 
-                           src={activePack.coverImage} 
-                           alt="" 
+                           src={getDeckCoverImage(activePack)} 
+                           alt={`${activePack?.title || activePack?.packName || 'Deck'} cover`} 
                            className="w-full h-full object-cover grayscale-[10%] group-hover:grayscale-0 transition-all duration-500"
                            referrerPolicy="no-referrer"
-                           onError={() => setImageError(true)}
+                           onError={(event) => {
+                             event.currentTarget.src = BASE_DECK_PLACEHOLDER;
+                           }}
                          />
                          {/* Stamp effect on decal */}
                          <div className="absolute bottom-2 right-2 bg-white/80 border-2 border-on-surface text-[7px] font-black px-2 py-0.5 shadow-[2px_2px_0px_black] rotate-[-2deg]">S01_DECAL</div>

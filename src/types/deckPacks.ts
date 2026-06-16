@@ -34,6 +34,14 @@ export interface DeckPack {
   isFutureDrop?: boolean;
 
   // Seasonal/Canonical fields
+  id?: string;
+  title?: string;
+  deckCode?: string;
+  artworkKey?: string;
+  isStarter?: boolean;
+  isSeasonal?: boolean;
+  isEvergreen?: boolean;
+  
   deckId?: string;
   deckSubtitle?: string;
   status?: string;

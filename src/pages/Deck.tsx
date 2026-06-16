@@ -21,6 +21,7 @@ import { EntryCard } from '../components/EntryCard';
 import { DeckLibrary } from '../components/DeckLibrary';
 import { DeckStack } from '../components/DeckStack';
 import { getDefaultDeckPack, getDeckPackById, DECK_PACKS } from '../data/deckPacks';
+import { getDeckCoverImage, BASE_DECK_PLACEHOLDER } from '../lib/deckUtils';
 import { getWeeklyBonusForWeek } from '../data/weeklyBonuses';
 import { StickerBackground } from '../components/StickerBackground';
 import { StickerDecal, StickerCorner, StickerScatter } from '../components/StickerDecals';
@@ -807,13 +808,17 @@ export default function DeckPage() {
             )}
           >
             <div className="absolute inset-0 bg-on-surface/5 border border-on-surface/10 rounded translate-x-1 translate-y-1" />
-            <div className="absolute inset-0 bg-white border-2 border-on-surface rounded flex items-center justify-center p-1 overflow-hidden shadow-sm">
-               {activePack?.coverImage ? (
-                 <img src={activePack.coverImage} className="w-full h-full object-cover grayscale-[20%]" alt="" />
-               ) : (
-                 <FileText className="w-6 h-6 text-on-surface/20" />
-               )}
-            </div>
+             <div className="absolute inset-0 bg-white border-2 border-on-surface rounded flex items-center justify-center p-1 overflow-hidden shadow-sm">
+               <img 
+                 src={getDeckCoverImage(activePack)} 
+                 className="w-full h-full object-cover grayscale-[20%]" 
+                 alt={`${activePack?.title || 'Active deck'} cover`}
+                 onError={(event) => {
+                   event.currentTarget.src = BASE_DECK_PLACEHOLDER;
+                 }}
+                 referrerPolicy="no-referrer"
+               />
+             </div>
             {/* Status dot */}
             <div className="absolute -top-1 -right-1 w-3 h-3 bg-brand-lime rounded-full border-2 border-on-surface shadow-sm z-20" />
           </div>
@@ -1234,11 +1239,15 @@ export default function DeckPage() {
                              "w-10 h-10 border-2 border-on-surface flex items-center justify-center shrink-0 overflow-hidden relative shadow-[2px_2px_0px_black]",
                              isSelected ? "bg-brand-lime" : "bg-neutral-100"
                            )}>
-                              {pack.coverImage ? (
-                                <img src={pack.coverImage} className="w-full h-full object-cover" alt="" />
-                              ) : (
-                                <FileText className="w-5 h-5 text-on-surface/30" />
-                              )}
+                              <img 
+                                src={getDeckCoverImage(pack)} 
+                                className="w-full h-full object-cover" 
+                                alt={`${pack?.title || pack?.packName || 'Deck'} cover`}
+                                onError={(event) => {
+                                  event.currentTarget.src = BASE_DECK_PLACEHOLDER;
+                                }}
+                                referrerPolicy="no-referrer"
+                              />
                            </div>
 
                            <div className="flex-grow min-w-0">

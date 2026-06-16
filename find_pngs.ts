@@ -5,7 +5,7 @@ function walk(dir: string, callback: (filepath: string) => void) {
   try {
     const files = fs.readdirSync(dir);
     for (const file of files) {
-      if (['node_modules', '.git', 'proc', 'sys', 'dev', 'lib', 'usr', 'var', 'etc', 'usr', 'bin', 'sbin', 'boot', 'home', 'root'].includes(file)) continue;
+      if (['node_modules', '.git', 'dist'].includes(file)) continue;
       const filepath = path.join(dir, file);
       const stat = fs.statSync(filepath);
       if (stat.isDirectory()) {
@@ -19,21 +19,13 @@ function walk(dir: string, callback: (filepath: string) => void) {
   }
 }
 
-console.log('Searching for files modified in the last 2 hours...');
-const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+console.log('Searching /app for all PNG, JPG, and SVG files...');
 walk('/app', (filepath) => {
-  try {
-    const stat = fs.statSync(filepath);
-    if (stat.mtimeMs > twoHoursAgo) {
-      console.log(`${filepath} - Modified At: ${new Date(stat.mtime).toISOString()}`);
-    }
-  } catch (err) {}
+  const ext = path.extname(filepath).toLowerCase();
+  if (['.png', '.jpg', '.jpeg', '.svg'].includes(ext)) {
+    console.log(filepath);
+  }
 });
-walk('/tmp', (filepath) => {
-  try {
-    const stat = fs.statSync(filepath);
-    if (stat.mtimeMs > twoHoursAgo) {
-      console.log(`${filepath} - Modified At: ${new Date(stat.mtime).toISOString()}`);
-    }
-  } catch (err) {}
-});
+
+
+

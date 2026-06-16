@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { DeckPack } from '../types/deckPacks';
 import { getActiveDeckPacks, getMissionsForPack } from '../data/deckPacks';
+import { getDeckCoverImage, BASE_DECK_PLACEHOLDER } from '../lib/deckUtils';
 import { HEATWAVE_CHALLENGE_BANK } from '../data/heatwaveChallengeBank';
 import { SOCAL_SUMMER_CHALLENGE_BANK } from '../data/socalSummerChallengeBank';
 import { FEATURE_FLAGS } from '../config/featureFlags';
@@ -156,16 +157,16 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
             <div className="w-[32px] h-[32px] flex items-center justify-center border-[2px] border-on-surface/50 bg-[#F2EDE2] shrink-0 relative mt-0.5 select-none overflow-hidden">
               {locked ? (
                 <Lock className="w-4 h-4 text-error" />
-              ) : (pack.coverImage && !failedImages[pack.packId]) ? (
+              ) : (
                 <img 
-                  src={pack.coverImage} 
+                  src={getDeckCoverImage(pack)} 
                   alt={pack.packName} 
                   className="w-full h-full object-cover transition-transform group-hover:scale-105"
                   referrerPolicy="no-referrer"
-                  onError={() => setFailedImages(prev => ({ ...prev, [pack.packId]: true }))}
+                  onError={(e) => {
+                    e.currentTarget.src = BASE_DECK_PLACEHOLDER;
+                  }}
                 />
-              ) : (
-                renderIcon(pack.fallbackIcon, cn("w-4 h-4 transition-transform group-hover:scale-105", isSelected ? "text-brand-orange" : "text-on-surface/60"))
               )}
             </div>
 
@@ -290,17 +291,15 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
         <div className="relative z-10 flex items-center gap-4">
           {/* Card Icon / Decal Inset */}
           <div className="w-16 h-16 bg-white flex items-center justify-center border-2 border-on-surface shrink-0 overflow-hidden relative shadow-[inset_2px_2px_4px_rgba(0,0,0,0.1),2px_2px_0px_black] rotate-[-1deg]">
-            {(currentPack.coverImage && !failedImages[currentPack.packId]) ? (
-              <img 
-                src={currentPack.coverImage} 
-                alt={currentPack.packName} 
-                className="w-full h-full object-cover grayscale-[10%]"
-                referrerPolicy="no-referrer"
-                onError={() => setFailedImages(prev => ({ ...prev, [currentPack.packId]: true }))}
-              />
-            ) : (
-              renderIcon(currentPack.fallbackIcon, "w-8 h-8 text-brand-orange")
-            )}
+            <img 
+              src={getDeckCoverImage(currentPack)} 
+              alt={currentPack.packName} 
+              className="w-full h-full object-cover grayscale-[10%]"
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                e.currentTarget.src = BASE_DECK_PLACEHOLDER;
+              }}
+            />
             {/* Gloss on the icon */}
             <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-white/40 pointer-events-none" />
           </div>

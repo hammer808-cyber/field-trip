@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" width="100%" height="100%">
+  <defs>
+    <linearGradient id="sandGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FCF8EB" />
+      <stop offset="35%" stop-color="#F3E9CD" />
+      <stop offset="100%" stop-color="#E5D6AE" />
+    </linearGradient>
+    <linearGradient id="oceanGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1A3E54" />
+      <stop offset="100%" stop-color="#0E2333" />
+    </linearGradient>
+    <linearGradient id="pinGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#142C3D" />
+      <stop offset="100%" stop-color="#1B425C" />
+    </linearGradient>
+  </defs>
+
+  <!-- Base Card Frame -->
+  <rect x="0" y="0" width="400" height="600" rx="24" fill="url(#sandGrad)" stroke="#111" stroke-width="6" />
+  
+  <!-- Outer Border Design Line -->
+  <rect x="12" y="12" width="376" height="576" rx="16" fill="none" stroke="#2D4656" stroke-width="1.5" stroke-opacity="0.3" stroke-dasharray="5,5" />
+
+  <!-- Topographic Curvy Lines (Background) -->
+  <path d="M 0,160 C 100,140 180,180 250,150 C 320,120 370,160 400,180" fill="none" stroke="#1A3E54" stroke-width="1.5" stroke-opacity="0.12" />
+  <path d="M 0,220 C 120,190 200,240 280,200 C 350,160 380,220 400,230" fill="none" stroke="#1A3E54" stroke-width="1.5" stroke-opacity="0.12" />
+  <path d="M 0,280 C 80,260 160,320 240,290 C 320,260 360,310 400,320" fill="none" stroke="#1A3E54" stroke-width="1.5" stroke-opacity="0.1" />
+
+  <!-- Ocean Topographic Layer (Bottom Half Cover) -->
+  <path d="M 0,350 Q 100,390 200,340 T 400,360 L 400,600 L 0,600 Z" fill="url(#oceanGrad)" />
+  <path d="M 0,350 Q 100,390 200,340 T 400,360" fill="none" stroke="#4AA4B5" stroke-width="3" stroke-opacity="0.4" />
+  
+  <!-- Subtle inner topo lines on ocean -->
+  <path d="M 0,390 Q 90,430 190,380 T 400,410" fill="none" stroke="#ffffff" stroke-width="1" stroke-opacity="0.1" />
+  <path d="M 0,440 Q 110,480 210,430 T 400,460" fill="none" stroke="#ffffff" stroke-width="1" stroke-opacity="0.08" />
+
+  <!-- Left Ribbon Badge FT-00 -->
+  <g transform="translate(16, -2)">
+    <path d="M 0,0 L 80,0 L 80,48 L 40,32 L 0,48 Z" fill="#142C3D" stroke="#111" stroke-width="2.5" />
+    <text x="40" y="24" fill="#FCF8EB" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="900" text-anchor="middle" letter-spacing="1">FT-00</text>
+  </g>
+
+  <!-- Central Pin Icon -->
+  <g transform="translate(200, 210) scale(1.1)">
+    <!-- Pin shadow -->
+    <path d="M 0,65 C 45,20 60,-15 60,-50 C 60,-85 30,-110 0,-110 C -30,-110 -60,-85 -60,-50 C -60,-15 -45,20 0,65 Z" fill="#000" fill-opacity="0.18" transform="translate(4, 6)" />
+    <!-- Pin outline -->
+    <path d="M 0,65 C 45,20 60,-15 60,-50 C 60,-85 30,-110 0,-110 C -30,-110 -60,-85 -60,-50 C -60,-15 -45,20 0,65 Z" fill="url(#pinGrad)" stroke="#111" stroke-width="4.5" />
+    
+    <!-- White Inner badge outline -->
+    <path d="M 0,55 C 38,15 50,-12 50,-46 C 50,-77 26,-98 0,-98 C -26,-98 -50,-77 -50,-46 C -50,-12 -38,15 0,55 Z" fill="none" stroke="#FCF8EB" stroke-width="2" stroke-opacity="0.8" />
+
+    <!-- Mountain minimal silhouette inside pin -->
+    <path d="M -35,-25 L -10,-55 L 12,-35 L 35,-60 L 50,-40 C 47,-15 36,15 0,55 C -36,15 -47,-15 -42,-25 Z" fill="#1B425C" />
+    <path d="M -35,-25 L -10,-55 L 10,-35" fill="none" stroke="#FCF8EB" stroke-width="2" />
+    <path d="M 5,-40 L 25,-60 L 42,-42" fill="none" stroke="#4AA4B5" stroke-width="2" />
+
+    <!-- Wave lines inside pin bottom -->
+    <path d="M -45,-15 Q -15,-5 15,-15 T 45,-15" fill="none" stroke="#4AA4B5" stroke-width="3" />
+    <path d="M -40,-5 Q -15,5 15,-5 T 40,-5" fill="none" stroke="#FCF8EB" stroke-width="2" />
+
+    <!-- Compass Star center -->
+    <g transform="translate(0, -50) scale(1.1)">
+      <circle cx="0" cy="0" r="28" fill="#142C3D" stroke="#FCF8EB" stroke-width="2" />
+      <circle cx="0" cy="0" r="24" fill="none" stroke="#4AA4B5" stroke-width="1.5" stroke-dasharray="3,3" />
+      <!-- Vertical Spire -->
+      <path d="M 0,-22 L 3,0 L 0,4 L -3,0 Z" fill="#FCF8EB" />
+      <path d="M 0,22 L 3,0 L 0,-4 L -3,0 Z" fill="#4AA4B5" />
+      <!-- Horizontal Spire -->
+      <path d="M 22,0 L 0,3 L -4,0 L 0,-3 Z" fill="#FCF8EB" />
+      <path d="M -22,0 L 0,3 L 4,0 L 0,-3 Z" fill="#4AA4B5" />
+      <!-- Diagonals -->
+      <path d="M 12,-12 L 0,0 L -12,12 Z" stroke="#FCF8EB" stroke-width="1.5" />
+      <path d="M -12,-12 L 0,0 L 12,12 Z" stroke="#FCF8EB" stroke-width="1.5" />
+      <circle cx="0" cy="0" r="4" fill="#FCF8EB" />
+    </g>
+  </g>
+
+  <!-- Typography Area -->
+  <g id="text-container" transform="translate(200, 470)">
+    <!-- Minimalist Line styling support -->
+    <line x1="-120" y1="-26" x2="-80" y2="-26" stroke="#FCF8EB" stroke-width="2" stroke-linecap="round" stroke-opacity="0.6" />
+    <text x="0" y="-20" fill="#FCF8EB" font-family="'Space Grotesk', 'Inter', sans-serif" font-size="15" font-weight="bold" letter-spacing="4" text-anchor="middle" italic="true">FIELDTRIP</text>
+    <line x1="80" y1="-26" x2="120" y2="-26" stroke="#FCF8EB" stroke-width="2" stroke-linecap="round" stroke-opacity="0.6" />
+    
+    <text x="0" y="-2" fill="#4AA4B5" font-family="'Space Grotesk', 'Inter', sans-serif" font-size="10" font-weight="900" letter-spacing="6" text-anchor="middle">EXPEDITIONS</text>
+    
+    <!-- Large slab header -->
+    <text x="0" y="55" fill="#FCF8EB" font-family="'Space Grotesk', 'Helvetica Neue', sans-serif" font-size="44" font-weight="900" letter-spacing="1" text-anchor="middle">BASE DECK</text>
+    
+    <!-- Small sub description -->
+    <rect x="-100" y="78" width="200" height="2" fill="#4AA4B5" fill-opacity="0.3" />
+    <text x="0" y="94" fill="#FCF8EB" fill-opacity="0.6" font-family="'JetBrains Mono', monospace" font-size="9" font-weight="500" letter-spacing="2" text-anchor="middle">FIELDTRIP • EXPEDITIONS</text>
+  </g>
+</svg>

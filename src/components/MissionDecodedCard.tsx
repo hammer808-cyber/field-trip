@@ -59,6 +59,26 @@ export function MissionDecodedCard({
   const { frankieMode, fc } = useTheme();
   const fPref = { frankieMode };
   
+  const [activeObjectiveHint, setActiveObjectiveHint] = React.useState<string | null>(null);
+
+  const hintTexts: Record<string, { title: string; desc: string; tip: string }> = {
+    photo: {
+      title: "CAMERA INTEL",
+      desc: "A clear photographic proof is required to verify this mission.",
+      tip: "Use the Viewfinder camera to capture the requested subject. Avoid cropped closeups or blurry lighting."
+    },
+    note: {
+      title: "FIELD REPORT",
+      desc: "A written note or description detailing the observation is required.",
+      tip: "Write a compelling field note/anecdote answering the prompt. This will build your zine entry."
+    },
+    location: {
+      title: "GPS VERIFICATION",
+      desc: "Physical environment coordinates signature verification required.",
+      tip: "Open the field capture tool to record location tags automatically. Location permissions must be enabled."
+    }
+  };
+  
   const evidenceRequirements = [
     { key: 'photo', label: getFrankieEvidenceLabel(mission, 'photo', fPref), icon: Camera, required: (mission.proofType || mission.requiredProof || []).includes('photo') },
     { key: 'note', label: getFrankieEvidenceLabel(mission, 'field_note', fPref), icon: Zap, required: (mission.proofType || mission.requiredProof || []).includes('note') },
@@ -220,7 +240,10 @@ export function MissionDecodedCard({
           {/* Evidence Grid */}
           <div id="tour-card-proof" className="space-y-4 relative z-10">
              <div className="flex justify-between items-center text-[10px] font-mono font-black uppercase italic tracking-widest opacity-40">
-                <span>{fc('Core_Evidence_Checklist', 'PROOF CHECKLIST')}</span>
+                <span className="flex items-center gap-1.5">
+                  <span>{fc('Core_Evidence_Checklist', 'PROOF CHECKLIST')}</span>
+                  <span id="proof-checklist-interactive-indicator" className="text-[8px] opacity-75 not-italic text-brand-orange-dark font-black tracking-normal animate-pulse">(HOVER/TAP FOR DETAIL)</span>
+                </span>
                 <span className="flex items-center gap-1.5 text-brand-cyan">
                   <Sparkles className="w-4 h-4" />
                   {fc('Zine_Seed_Eligible', 'BONUS')}
@@ -230,22 +253,55 @@ export function MissionDecodedCard({
                 {evidenceRequirements.map((r, i) => {
                   const Icon = r.icon;
                   const collected = isCollected(r.key);
+                  const isHoveredOrTapped = activeObjectiveHint === r.key;
                   return (
-                    <div key={i} className={cn(
-                      "flex items-center gap-3 px-4 py-3 border-2 transition-all rounded-2xl",
-                      collected 
-                        ? "bg-brand-lime border-on-surface shadow-[4px_4px_0px_black] -translate-y-1" 
-                        : "border-on-surface/10 bg-on-surface/[0.04]"
-                    )}>
-                      <Icon className={cn("w-4 h-4", collected ? "text-on-surface" : "opacity-20")} />
+                    <div 
+                      key={i} 
+                      id={`objective-icon-btn-${r.key}`}
+                      onMouseEnter={() => setActiveObjectiveHint(r.key)}
+                      onMouseLeave={() => setActiveObjectiveHint(null)}
+                      onClick={() => setActiveObjectiveHint(activeObjectiveHint === r.key ? null : r.key)}
+                      className={cn(
+                        "flex items-center gap-3 px-4 py-3 border-2 transition-all rounded-2xl cursor-pointer select-none",
+                        collected 
+                          ? "bg-brand-lime border-on-surface shadow-[4px_4px_0px_black] -translate-y-1" 
+                          : "border-on-surface/10 bg-on-surface/[0.04]",
+                        isHoveredOrTapped && "border-brand-orange bg-brand-orange/5 shadow-[4px_4px_0px_black] -translate-y-1"
+                      )}
+                    >
+                      <Icon className={cn("w-4 h-4 transition-transform", collected ? "text-on-surface" : "opacity-20", isHoveredOrTapped && "text-brand-orange scale-110 opacity-100")} />
                       <div className="flex flex-col">
                         <span className="text-[11px] font-black uppercase tracking-tight leading-none">{r.label}</span>
                       </div>
-                      {collected && <CheckCircle2 className="w-3.5 h-3.5 text-on-surface ml-1 shadow-[1px_1px_0px_black] rounded-full bg-white" />}
+                      {collected && !isHoveredOrTapped && <CheckCircle2 className="w-3.5 h-3.5 text-on-surface ml-1 shadow-[1px_1px_0px_black] rounded-full bg-white" />}
                     </div>
                   );
                 })}
              </div>
+
+             {/* Dynamic Custom Tooltip / Hint view */}
+             {activeObjectiveHint && (
+               <motion.div
+                 id={`objective-tooltip-${activeObjectiveHint}`}
+                 initial={{ opacity: 0, scale: 0.95, y: 5 }}
+                 animate={{ opacity: 1, scale: 1, y: 0 }}
+                 exit={{ opacity: 0, scale: 0.95, y: 5 }}
+                 className="p-4 bg-on-surface text-[#FFFDF4] border-2 border-on-surface rounded-2xl flex items-start gap-3 relative shadow-[6px_6px_0px_black] transition-all"
+               >
+                 <div className="space-y-1 relative z-10 text-left">
+                   <div className="flex items-center gap-1.5 text-brand-lime font-mono text-[9px] font-black uppercase tracking-widest">
+                     <Info className="w-3.5 h-3.5 text-brand-lime shrink-0" />
+                     <span>{hintTexts[activeObjectiveHint]?.title || 'OBJECTIVE PROTOCOL'}</span>
+                   </div>
+                   <p className="text-xs font-black font-sans text-white leading-normal">
+                     {hintTexts[activeObjectiveHint]?.desc}
+                   </p>
+                   <p className="text-[10px] text-brand-lime/80 font-sans italic opacity-90 leading-tight">
+                     💡 {hintTexts[activeObjectiveHint]?.tip}
+                   </p>
+                 </div>
+               </motion.div>
+             )}
           </div>
 
           {/* Instruction Footer */}
