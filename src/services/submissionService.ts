@@ -187,20 +187,13 @@ function isXpAwarded(record: any): boolean {
   return false;
 }
 
-function isExplicitFinalStatus(status: unknown): boolean {
+function isTerminalAwardStatus(status: unknown): boolean {
   const s = typeof status === 'string' ? status.toLowerCase().trim() : '';
   return [
     'approved',
     'approved_by_admin',
     'auto_approved',
     'verified',
-    'rejected',
-    'denied',
-    'auto_rejected',
-    'needs_more_proof',
-    'needs-more-proof',
-    'needs_more_proof_requested',
-    'resubmit_requested',
     'awaiting_purge',
     'purged',
     'archived'
@@ -213,7 +206,7 @@ function shouldShowAsPendingUnawardedProof(entry: any, linkedReview: any | null)
 
   const entryStatusRaw = entry?.status;
   const reviewStatusRaw = linkedReview ? getReviewQueueStatus(linkedReview) : '';
-  if (isExplicitFinalStatus(entryStatusRaw) || isExplicitFinalStatus(reviewStatusRaw)) return false;
+  if (isTerminalAwardStatus(entryStatusRaw) || isTerminalAwardStatus(reviewStatusRaw)) return false;
 
   return hasProofMedia(entry) || hasProofMedia(linkedReview);
 }
@@ -222,8 +215,8 @@ function shouldShowReviewAsPendingUnawardedProof(review: any, linkedEntry: any |
   if (review?.archived === true) return false;
   if (linkedEntry?.archived === true) return false;
   if (isXpAwarded(review) || isXpAwarded(linkedEntry)) return false;
-  if (isExplicitFinalStatus(getReviewQueueStatus(review))) return false;
-  if (linkedEntry && isExplicitFinalStatus(linkedEntry.status)) return false;
+  if (isTerminalAwardStatus(getReviewQueueStatus(review))) return false;
+  if (linkedEntry && isTerminalAwardStatus(linkedEntry.status)) return false;
   return hasProofMedia(review) || hasProofMedia(linkedEntry);
 }
 
@@ -236,15 +229,17 @@ function getStatusSummary(records: any[], label: 'entry' | 'proofReview'): Recor
   }, {} as Record<string, number>);
 }
 
-function hydrateAdminQueueEntry(entry: any, linkedReview: any | null): any {
+function hydrateAdminQueueEntry(entry: any, linkedReview: any | null, queueStatus?: string): any {
   const imageFields = resolveAdminImageFields(entry, linkedReview || {});
   const normalizedEntryStatus = normalizeEntryStatus(entry.status);
   const normalizedReviewStatus = linkedReview ? normalizeEntryStatus(getReviewQueueStatus(linkedReview)) : null;
   return {
     ...entry,
-    status: normalizedReviewStatus || normalizedEntryStatus,
+    status: queueStatus || normalizedReviewStatus || normalizedEntryStatus,
+    originalStatus: entry.status,
+    originalReviewStatus: linkedReview ? getReviewQueueStatus(linkedReview) : null,
     entryStatus: normalizedEntryStatus,
-    reviewStatus: normalizedReviewStatus || entry.reviewStatus || normalizedEntryStatus,
+    reviewStatus: queueStatus || normalizedReviewStatus || entry.reviewStatus || normalizedEntryStatus,
     proofReview: linkedReview || null,
     proofReviewId: linkedReview?.id || null,
     reviewId: linkedReview?.id || null,
@@ -256,7 +251,7 @@ function hydrateAdminQueueEntry(entry: any, linkedReview: any | null): any {
   };
 }
 
-function hydrateOrphanedProofReview(review: any, linkedEntry: any | null = null): any {
+function hydrateOrphanedProofReview(review: any, linkedEntry: any | null = null, queueStatus?: string): any {
   const entryId = review.entryId || (typeof review.id === 'string' ? review.id.replace(/^rev_/, '') : review.id);
   const normalizedStatus = normalizeEntryStatus(getReviewQueueStatus(review));
   const imageFields = resolveAdminImageFields(linkedEntry || {}, review);
@@ -271,9 +266,11 @@ function hydrateOrphanedProofReview(review: any, linkedEntry: any | null = null)
     missionId: linkedEntry?.missionId || linkedEntry?.tripId || linkedEntry?.challengeId || review.missionId || review.tripId || review.challengeId || '',
     challengeId: linkedEntry?.challengeId || linkedEntry?.missionId || linkedEntry?.tripId || review.challengeId || review.missionId || review.tripId || '',
     tripId: linkedEntry?.tripId || linkedEntry?.missionId || linkedEntry?.challengeId || review.tripId || review.missionId || review.challengeId || '',
-    status: normalizedStatus,
+    status: queueStatus || normalizedStatus,
+    originalStatus: linkedEntry?.status || null,
+    originalReviewStatus: getReviewQueueStatus(review),
     entryStatus: linkedEntry ? normalizeEntryStatus(linkedEntry.status) : null,
-    reviewStatus: normalizedStatus,
+    reviewStatus: queueStatus || normalizedStatus,
     proofReview: review,
     proofReviewId: review.id,
     reviewId: review.id,
@@ -637,7 +634,8 @@ export function subscribeToAdminPendingReviews(
 
     const hydratedEntries = entries.map(entry => {
       const linkedReview = findReviewForEntry(entry, proofReviewDocs);
-      return hydrateAdminQueueEntry(entry, linkedReview);
+      const shouldRescuePending = statusFilter === 'pending_review' && shouldShowAsPendingUnawardedProof(entry, linkedReview);
+      return hydrateAdminQueueEntry(entry, linkedReview, shouldRescuePending ? 'pending_review' : undefined);
     });
 
     const reviewBackedPendingProofs = proofReviewDocs.filter(review => {
@@ -657,7 +655,11 @@ export function subscribeToAdminPendingReviews(
 
     const seenQueueIds = new Set(hydratedEntries.flatMap(entry => [entry.id, entry.entryId, entry.proofReviewId, entry.reviewId].filter(Boolean)));
     const reviewBackedEntries = reviewBackedPendingProofs
-      .map(review => hydrateOrphanedProofReview(review, findEntryForReview(review, rawEntries)))
+      .map(review => {
+        const linkedEntry = findEntryForReview(review, rawEntries);
+        const reviewNeedsPendingRescue = statusFilter === 'pending_review' && shouldShowReviewAsPendingUnawardedProof(review, linkedEntry);
+        return hydrateOrphanedProofReview(review, linkedEntry, reviewNeedsPendingRescue ? 'pending_review' : undefined);
+      })
       .filter(entry => {
         const keys = [entry.id, entry.entryId, entry.proofReviewId, entry.reviewId].filter(Boolean);
         const alreadySeen = keys.some(key => seenQueueIds.has(key));
