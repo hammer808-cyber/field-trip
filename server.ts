@@ -41,6 +41,8 @@ const isProduction = process.env.NODE_ENV === 'production';
 // Initialize Firebase Admin for background tasks
 let adminApp: App | null = null;
 let dbAdmin: FirebaseFirestore.Firestore | null = null;
+let storageAdmin: any = null;
+let authAdmin: any = null;
 let firebaseConfig: any = null;
 
 async function initAdmin() {
@@ -87,6 +89,12 @@ async function initAdmin() {
       dbAdmin = getFirestore(adminApp);
     }
 
+    // Ensure storage and auth admins are populated
+    if (adminApp) {
+      storageAdmin = getStorage(adminApp);
+      authAdmin = getAuth(adminApp);
+    }
+
     // Final sanity check
     if (dbAdmin) {
       const dbSnap = await dbAdmin.collection('_system').doc('warmup').get().catch(() => null);
@@ -106,10 +114,6 @@ async function initAdmin() {
 initAdmin().catch(err => {
   console.error("[BUREAU_ADMIN] Initial kick-off failed:", err);
 });
-
-// Ensure we pass the app instance to getStorage
-const storageAdmin = adminApp ? getStorage(adminApp) : null;
-const authAdmin = adminApp ? getAuth(adminApp) : null;
 
 /**
  * DAILY PURGE JOB (Billing Protection)
@@ -503,22 +507,15 @@ async function startServer() {
 
       for (const colName of archiveCollections) {
         const colRef = dbAdmin.collection(colName);
-        const [userIdSnap, uidSnap] = await Promise.all([
-          colRef.where('userId', '==', userId).get(),
-          colRef.where('uid', '==', userId).get()
-        ]);
-
-        const docMap = new Map<string, any>();
-        userIdSnap.docs.forEach(doc => docMap.set(doc.ref.path, doc));
-        uidSnap.docs.forEach(doc => docMap.set(doc.ref.path, doc));
-        const docs = Array.from(docMap.values());
+        const q = colRef.where('userId', '==', userId);
+        const snapshot = await q.get();
         
-        report.archivedCounts[colName] = docs.length;
+        report.archivedCounts[colName] = snapshot.size;
 
-        if (docs.length > 0) {
+        if (!snapshot.empty) {
           const chunks = [];
-          for (let i = 0; i < docs.length; i += 500) {
-            chunks.push(docs.slice(i, i + 500));
+          for (let i = 0; i < snapshot.docs.length; i += 500) {
+            chunks.push(snapshot.docs.slice(i, i + 500));
           }
 
           for (const chunk of chunks) {
@@ -2194,24 +2191,16 @@ async function startServer() {
     }
   });
 
-  async function repairStrandedStarterUsers(dryRun: boolean, adminUid: string, softReset: boolean = false) {
+  async function repairStrandedStarterUsers(dryRun: boolean, adminUid: string) {
     if (!dbAdmin) throw new Error("DB_ADMIN_NOT_READY");
 
-    const STARTER_IDS = ["starter-1", "starter-2", "starter-3", "template_03_ignored_place", "starter-signals"];
-    const isStarterRecord = (record: any) => {
-      const missionId = String(record?.missionId || record?.challengeId || record?.tripId || '').toLowerCase().trim();
-      const deckId = String(record?.deckId || record?.activeDeckId || record?.deckPackId || '').toLowerCase().trim();
-      return STARTER_IDS.includes(missionId) || deckId === 'starter' || deckId === 'starter-signals';
-    };
-
+    const STARTER_IDS = ["starter-1", "starter-2", "starter-3"];
     const usersSnap = await dbAdmin.collection('users').get();
     const totalUsers = usersSnap.size;
 
     let totalStrandedDetected = 0;
     let totalUsersUpdated = 0;
     let totalEntriesUpdated = 0;
-    let totalEntriesArchived = 0;
-    let totalProofReviewsArchived = 0;
 
     const warnings: string[] = [];
     const errors: string[] = [];
@@ -2238,7 +2227,10 @@ async function startServer() {
         const pendingStarterIds = new Set<string>();
         const needsMoreStarterIds = new Set<string>();
 
-        const starterEntries = entries.filter(isStarterRecord);
+        const starterEntries = entries.filter(e => {
+          const mId = (e.missionId || e.challengeId || e.tripId)?.toLowerCase().trim();
+          return mId && STARTER_IDS.includes(mId);
+        });
 
         for (const entry of starterEntries) {
           const mId = (entry.missionId || entry.challengeId || entry.tripId)?.toLowerCase().trim();
@@ -2282,81 +2274,6 @@ async function startServer() {
 
         if (isStranded) {
           totalStrandedDetected++;
-
-          if (softReset) {
-            const reviewsRef = dbAdmin.collection('proofReviews');
-            const [reviewUserIdSnap, reviewUidSnap] = await Promise.all([
-              reviewsRef.where('userId', '==', uid).get(),
-              reviewsRef.where('uid', '==', uid).get()
-            ]);
-            const reviewMap = new Map<string, any>();
-            reviewUserIdSnap.docs.forEach(d => reviewMap.set(d.ref.path, d));
-            reviewUidSnap.docs.forEach(d => reviewMap.set(d.ref.path, d));
-            const starterReviews = Array.from(reviewMap.values()).filter(d => isStarterRecord(d.data()));
-
-            if (!dryRun) {
-              const batch = dbAdmin.batch();
-
-              batch.update(userDoc.ref, {
-                starterDeckComplete: false,
-                onboardingCompleted: false,
-                activePlayableDeckId: 'starter-signals',
-                activeDeckPackId: 'starter-signals',
-                activeDeckId: 'starter-signals',
-                currentDeckId: 'starter-signals',
-                selectedDeckId: 'starter-signals',
-                starterApprovedCount: 0,
-                starterPendingCount: 0,
-                completedMissionIds: [],
-                completedChallengeIds: [],
-                approvedCompletedChallengeIds: [],
-                submittedChallengeIds: [],
-                submittedPendingChallengeIds: [],
-                rejectedChallengeIds: [],
-                needsMoreProofChallengeIds: [],
-                retryableChallengeIds: [],
-                activeMissionId: null,
-                activeTripId: null,
-                lastDrawnMissionId: null,
-                "starterState.starterApprovedCount": 0,
-                "starterState.starterComplete": false,
-                "starterState.starterSignalsCompleted": [],
-                updatedAt: FieldValue.serverTimestamp(),
-                starterSoftResetAt: FieldValue.serverTimestamp(),
-                starterSoftResetBy: adminUid
-              });
-
-              for (const entry of starterEntries) {
-                batch.update(dbAdmin.collection('entries').doc(entry.id), {
-                  archived: true,
-                  archivedAt: FieldValue.serverTimestamp(),
-                  archiveReason: 'stranded_starter_soft_reset',
-                  excludedFromProgress: true,
-                  countsTowardStarter: false,
-                  countsTowardLiveStats: false,
-                  updatedAt: FieldValue.serverTimestamp()
-                });
-              }
-
-              for (const reviewDoc of starterReviews) {
-                batch.update(reviewDoc.ref, {
-                  archived: true,
-                  archivedAt: FieldValue.serverTimestamp(),
-                  archiveReason: 'stranded_starter_soft_reset',
-                  excludedFromProgress: true,
-                  updatedAt: FieldValue.serverTimestamp()
-                });
-              }
-
-              await batch.commit();
-            }
-
-            totalEntriesArchived += starterEntries.length;
-            totalProofReviewsArchived += starterReviews.length;
-            totalUsersUpdated++;
-            updatedUserIds.push(uid);
-            continue;
-          }
 
           const updatedSubmitted = (userData.submittedChallengeIds || []).filter(
             (id: string) => !STARTER_IDS.includes(id) || approvedStarterIds.has(id) || pendingStarterIds.has(id) || needsMoreStarterIds.has(id)
@@ -2424,18 +2341,15 @@ async function startServer() {
 
     if (!dryRun) {
       await dbAdmin.collection('adminRepairLogs').add({
-        actionType: softReset ? 'soft_reset_stranded_starter' : 'repair_stranded_starter',
+        actionType: 'repair_stranded_starter',
         adminUid,
         timestamp: FieldValue.serverTimestamp(),
         dryRun: false,
-        softReset,
         countsChanged: {
           totalUsersScanned: totalUsers,
           strandedDetected: totalStrandedDetected,
           usersRepaired: totalUsersUpdated,
-          entriesUpdated: totalEntriesUpdated,
-          entriesArchived: totalEntriesArchived,
-          proofReviewsArchived: totalProofReviewsArchived
+          entriesUpdated: totalEntriesUpdated
         },
         warnings,
         errors,
@@ -2443,18 +2357,15 @@ async function startServer() {
       });
     } else {
       await dbAdmin.collection('adminRepairLogs').add({
-        actionType: softReset ? 'soft_reset_stranded_starter_dry_run' : 'repair_stranded_starter_dry_run',
+        actionType: 'repair_stranded_starter_dry_run',
         adminUid,
         timestamp: FieldValue.serverTimestamp(),
         dryRun: true,
-        softReset,
         countsChanged: {
           totalUsersScanned: totalUsers,
           strandedDetected: totalStrandedDetected,
           usersRepaired: totalUsersUpdated,
-          entriesUpdated: totalEntriesUpdated,
-          entriesArchived: totalEntriesArchived,
-          proofReviewsArchived: totalProofReviewsArchived
+          entriesUpdated: totalEntriesUpdated
         },
         warnings,
         errors,
@@ -2468,12 +2379,9 @@ async function startServer() {
       strandedDetected: totalStrandedDetected,
       usersRepaired: totalUsersUpdated,
       entriesUpdated: totalEntriesUpdated,
-      entriesArchived: totalEntriesArchived,
-      proofReviewsArchived: totalProofReviewsArchived,
       warnings,
       errors,
-      dryRun,
-      softReset
+      dryRun
     };
   }
 
@@ -2485,12 +2393,12 @@ async function startServer() {
       return res.status(403).json({ error: "ADMIN_REQUIRED" });
     }
 
-    const { dryRun = true, softReset = false } = req.body;
+    const { dryRun = true } = req.body;
 
-    console.log(`[STRANDED_REPAIR_API] Repairing stranded starter users. DryRun: ${dryRun}, SoftReset: ${softReset} by admin: ${req.user.uid}`);
+    console.log(`[STRANDED_REPAIR_API] Repairing stranded starter users. DryRun: ${dryRun} by admin: ${req.user.uid}`);
 
     try {
-      const summary = await repairStrandedStarterUsers(dryRun, req.user.uid, softReset === true);
+      const summary = await repairStrandedStarterUsers(dryRun, req.user.uid);
       return res.json(summary);
     } catch (error: any) {
       console.error(`[STRANDED_REPAIR_API_ERROR] Fail:`, error);

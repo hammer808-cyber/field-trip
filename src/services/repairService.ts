@@ -40,12 +40,9 @@ export interface StrandedStarterRepairReport {
   strandedDetected: number;
   usersRepaired: number;
   entriesUpdated: number;
-  entriesArchived?: number;
-  proofReviewsArchived?: number;
   warnings: string[];
   errors: string[];
   dryRun: boolean;
-  softReset?: boolean;
 }
 
 export interface DiagnosticsReport {
@@ -176,12 +173,12 @@ export async function repairAllUserOrphans(dryRun: boolean = true): Promise<{
 /**
  * Automatically detects stranded starter users and repairs them.
  */
-export async function repairStrandedStarterUsers(dryRun: boolean = true, softReset: boolean = false): Promise<StrandedStarterRepairReport> {
+export async function repairStrandedStarterUsers(dryRun: boolean = true): Promise<StrandedStarterRepairReport> {
   try {
     const response = await authenticatedFetch('/api/admin/repair-stranded-starter', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dryRun, softReset })
+      body: JSON.stringify({ dryRun })
     });
 
     if (!response.ok) {
@@ -198,12 +195,9 @@ export async function repairStrandedStarterUsers(dryRun: boolean = true, softRes
       strandedDetected: 0,
       usersRepaired: 0,
       entriesUpdated: 0,
-      entriesArchived: 0,
-      proofReviewsArchived: 0,
       warnings: [],
       errors: [err.message || String(err)],
-      dryRun,
-      softReset
+      dryRun
     };
   }
 }

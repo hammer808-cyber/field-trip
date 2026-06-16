@@ -46,7 +46,6 @@ export default function AdminProofReview() {
   const [bulkDryRun, setBulkDryRun] = useState(true);
   const [bulkReport, setBulkReport] = useState<any>(null);
   const [strandedStarterDryRun, setStrandedStarterDryRun] = useState(true);
-  const [strandedStarterSoftReset, setStrandedStarterSoftReset] = useState(false);
   const [strandedStarterReport, setStrandedStarterReport] = useState<StrandedStarterRepairReport | null>(null);
   const [healthReport, setHealthReport] = useState<any>(null);
   const [loadingHealth, setLoadingHealth] = useState(false);
@@ -523,12 +522,12 @@ export default function AdminProofReview() {
     setBulkReport(null);
     setStrandedStarterReport(null);
     try {
-      const result = await repairStrandedStarterUsers(strandedStarterDryRun, strandedStarterSoftReset);
+      const result = await repairStrandedStarterUsers(strandedStarterDryRun);
       setStrandedStarterReport(result);
       if (result.errors.length > 0) {
          showToast(`Stranded starter repair completed with errors`, "error");
       } else {
-         showToast(strandedStarterDryRun ? "Stranded dry run completed successfully" : strandedStarterSoftReset ? "Stranded users soft reset successfully" : `Stranded starter repair complete.`);
+         showToast(strandedStarterDryRun ? "Stranded dry run completed successfully" : `Stranded starter repair complete.`);
       }
       await fetchDiagnostics();
     } catch (err: any) {
@@ -1700,7 +1699,7 @@ export default function AdminProofReview() {
                        </div>
 
                        <p className="text-xs font-serif italic font-bold opacity-65 leading-relaxed text-on-surface">
-                          This scans all agents, locating those with &lt; 3 approved starter missions whose decks have been marked exhausted. Standard repair makes rejected starter missions retryable. Soft reset archives stale starter proofs and returns stranded agents to a clean Starter deck.
+                          This scans all agents, locating those with &lt; 3 approved starter missions whose decks have been marked exhausted. It flushes rejected starter missions out of submitted locks, sets them back to active/retryable status, resets activePlayableDeckId to 'starter-signals' and recalibrates deck state.
                        </p>
 
                        <div className="flex items-center gap-3 bg-white/50 p-2.5 rounded-xl border border-brand-cyan/25">
@@ -1716,30 +1715,12 @@ export default function AdminProofReview() {
                           </label>
                        </div>
 
-                       <div className="flex items-center gap-3 bg-rose-50 p-2.5 rounded-xl border border-rose-200">
-                          <input
-                             type="checkbox"
-                             id="strandedSoftResetCheck"
-                             checked={strandedStarterSoftReset}
-                             onChange={(e) => setStrandedStarterSoftReset(e.target.checked)}
-                             className="w-4 h-4 rounded text-rose-600 border-rose-500 focus:ring-0 cursor-pointer"
-                          />
-                          <label htmlFor="strandedSoftResetCheck" className="text-[10px] font-mono uppercase font-bold tracking-wider cursor-pointer select-none text-rose-700">
-                             Soft reset stranded users
-                          </label>
-                       </div>
-
                        <button 
                           onClick={handleRepairStrandedStarter}
                           disabled={isRepairing}
-                          className={cn(
-                             "w-full py-4 font-display font-black uppercase tracking-widest text-xs rounded-xl shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none transition-all disabled:opacity-50",
-                             strandedStarterSoftReset
-                                ? "bg-rose-600 hover:bg-rose-700 text-white"
-                                : "bg-brand-cyan hover:bg-brand-cyan/80 text-on-surface"
-                          )}
+                          className="w-full py-4 bg-brand-cyan hover:bg-brand-cyan/80 text-on-surface font-display font-black uppercase tracking-widest text-[#004D40] text-xs rounded-xl shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none transition-all disabled:opacity-50"
                        >
-                          {isRepairing ? 'RECONFIGURING_DECKS...' : strandedStarterSoftReset ? 'Preview / Run Soft Reset' : 'Execute Stranded Repair'}
+                          {isRepairing ? 'RECONFIGURING_DECKS...' : 'Execute Stranded Repair'}
                        </button>
                     </div>
                  </Card>
@@ -1873,7 +1854,7 @@ export default function AdminProofReview() {
                                          ? "bg-amber-100 text-amber-800 border-amber-300" 
                                          : "bg-emerald-100 text-emerald-800 border-emerald-300"
                                    )}>
-                                      {strandedStarterReport.dryRun ? 'DRY_RUN (SIMULATED)' : strandedStarterReport.softReset ? 'LIVE COMMIT (SOFT RESET)' : 'LIVE COMMIT (REPAIRED)'}
+                                      {strandedStarterReport.dryRun ? 'DRY_RUN (SIMULATED)' : 'LIVE COMMIT (REPAIRED)'}
                                    </span>
                                 </div>
 
@@ -1882,9 +1863,7 @@ export default function AdminProofReview() {
                                       { label: 'Scanned Agents', value: strandedStarterReport.totalUsersScanned },
                                       { label: 'Stranded Detected', value: strandedStarterReport.strandedDetected },
                                       { label: 'Agents Repaired', value: strandedStarterReport.usersRepaired },
-                                      { label: 'Entries Updated', value: strandedStarterReport.entriesUpdated },
-                                      { label: 'Entries Archived', value: strandedStarterReport.entriesArchived || 0 },
-                                      { label: 'Reviews Archived', value: strandedStarterReport.proofReviewsArchived || 0 }
+                                      { label: 'Entries Updated', value: strandedStarterReport.entriesUpdated }
                                    ].map((st, i) => (
                                       <div key={i} className="space-y-0.5">
                                          <p className="text-[8px] font-mono font-black opacity-40 uppercase text-on-surface">{st.label}</p>
