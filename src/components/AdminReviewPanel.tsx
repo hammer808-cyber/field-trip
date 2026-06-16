@@ -169,7 +169,7 @@ export function AdminReviewPanel() {
             <div className="flex gap-4 relative z-10">
               <div className="w-20 h-20 bg-on-surface/5 border-2 border-on-surface rounded-none overflow-hidden shrink-0 shadow-[2px_2px_0px_black]">
                 {entry.proofImage ? (
-                  <img src={entry.proofImage} alt="Proof" className="w-full h-full object-cover grayscale" />
+                  <img src={entry.proofImage} alt="Proof" className="w-full h-full object-contain grayscale" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <Camera className="w-6 h-6 opacity-20" />
@@ -292,7 +292,7 @@ export function AdminReviewPanel() {
                       <img 
                         src={selectedEntry.proofImage || (selectedEntry as any).photoUrl} 
                         alt="Proof" 
-                        className="w-full h-full object-cover group-hover:grayscale-0 transition-all duration-500" 
+                        className="w-full h-full object-contain group-hover:grayscale-0 transition-all duration-500" 
                       />
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center gap-3 opacity-20">

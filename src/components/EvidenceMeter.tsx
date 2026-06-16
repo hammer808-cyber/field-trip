@@ -27,6 +27,9 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
 }) => {
   const { unlockDiscoverySticker } = useApp();
   const [displayStrength, setDisplayStrength] = useState(0);
+  const proofPoints = Math.max(1, Math.round(maxStrength * 0.7));
+  const notePoints = Math.max(1, Math.round(maxStrength * 0.2));
+  const bonusPoints = Math.max(0, maxStrength - proofPoints - notePoints);
 
   // Trigger discovery sticker
   useEffect(() => {
@@ -35,14 +38,11 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
     }
   }, [photoCaptured, noteAdded, unlockDiscoverySticker]);
   
-  // Calculate Strength based on exact specs:
-  // Photo/proof: +150
-  // Note added: +30
-  // Bonus (e.g. high mission match or special detection): +20
+  // Scale evidence potential to the mission's base XP so the meter agrees with the mission card.
   const targetStrength = 
-    (photoCaptured ? 150 : 0) + 
-    (noteAdded ? 30 : 0) + 
-    (detectedSubject ? 20 : 0);
+    (photoCaptured ? proofPoints : 0) + 
+    (noteAdded ? notePoints : 0) + 
+    (detectedSubject ? bonusPoints : 0);
 
   // Simple counting animation for Strength
   useEffect(() => {
@@ -96,9 +96,9 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
         {/* Compact Horizontal Bonus Chips */}
         <div className="grid grid-cols-3 gap-1.5 relative z-10">
           {[
-            { icon: <Camera className="w-3 h-3" />, label: 'Proof', pts: '+150', fulfilled: photoCaptured },
-            { icon: <FileText className="w-3 h-3" />, label: 'Note', pts: '+30', fulfilled: noteAdded },
-            { icon: detectedSubject ? <Zap className="w-3 h-3 fill-on-surface" /> : <Lock className="w-3 h-3" />, label: 'Bonus', pts: '+20', fulfilled: detectedSubject, locked: !detectedSubject }
+            { icon: <Camera className="w-3 h-3" />, label: 'Proof', pts: `+${proofPoints}`, fulfilled: photoCaptured },
+            { icon: <FileText className="w-3 h-3" />, label: 'Note', pts: `+${notePoints}`, fulfilled: noteAdded },
+            { icon: detectedSubject ? <Zap className="w-3 h-3 fill-on-surface" /> : <Lock className="w-3 h-3" />, label: 'Bonus', pts: `+${bonusPoints}`, fulfilled: detectedSubject, locked: !detectedSubject }
           ].map((chip, i) => (
             <div key={i} className={cn(
               "flex flex-col items-center justify-center gap-0.5 py-1.5 px-0.5 rounded-xl border-2 transition-all",
@@ -176,19 +176,19 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
         <StatusChip 
           icon={<Camera className="w-5 h-5" />} 
           label="Visual Proof" 
-          pts="+150" 
+          pts={`+${proofPoints}`} 
           active={photoCaptured} 
         />
         <StatusChip 
           icon={<FileText className="w-5 h-5" />} 
           label="Field Note" 
-          pts="+30" 
+          pts={`+${notePoints}`} 
           active={noteAdded} 
         />
         <StatusChip 
           icon={detectedSubject ? <Zap className="w-5 h-5 fill-on-surface" /> : <Lock className="w-5 h-5" />} 
           label="Signal Bonus" 
-          pts="+20" 
+          pts={`+${bonusPoints}`} 
           active={detectedSubject} 
           locked={!detectedSubject}
         />

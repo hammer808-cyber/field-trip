@@ -20,7 +20,6 @@ import type { ViewfinderCameraHandle } from '../components/ViewfinderCamera';
 import { evaluateProof } from '../services/proofService';
 import { uploadBase64Image } from '../services/storageService';
 import { getGlobalConfig } from '../services/configService';
-import { calculateSubmissionPoints } from '../logic/scoringLogic';
 import { getCatalystForWeek } from '../services/weeklyCatalystService';
 import { analyzeSubmissionImage } from '../services/geminiService';
 
@@ -90,6 +89,7 @@ export default function CapturePage() {
   const isRepairMode = params.get('mode') === 'addMoreProof';
   const entryIdParam = params.get('entryId');
   const reviewIdParam = params.get('reviewId');
+  const isRetryOrRepairFlow = isRetry || isResubmit || isRepairMode || !!originalEntryId || !!entryIdParam || !!reviewIdParam;
   const navigate = useNavigate();
   const submitLockRef = useRef(false);
 
@@ -321,12 +321,21 @@ export default function CapturePage() {
     const isNeedsMore = needsMoreProofChallengeIds?.has(lowerId) || isRepairMode;
 
     // If it's already in a final/pending state and NOT specifically requested for resubmission
-    if ((isCompleted || isPending) && !isNeedsMore && fcState !== 'result' && submissionStatus !== 'submitted') {
+    if (
+      (isCompleted || isPending) &&
+      !isNeedsMore &&
+      !isRetryOrRepairFlow &&
+      fcState !== 'result' &&
+      fcState !== 'submitting' &&
+      submissionStatus !== 'saving' &&
+      submissionStatus !== 'syncing' &&
+      submissionStatus !== 'submitted'
+    ) {
        console.log(`[Capture Guard] Mission ${lowerId} already submitted/approved. Redirecting back to Deck.`);
        // Use replace: true to prevent back-button loops
        navigate('/deck', { replace: true });
     }
-  }, [tripIdParam, completedChallengeIds, submittedPendingChallengeIds, needsMoreProofChallengeIds, user, navigate, fcState, submissionStatus]);
+  }, [tripIdParam, completedChallengeIds, submittedPendingChallengeIds, needsMoreProofChallengeIds, user, navigate, fcState, submissionStatus, isRetryOrRepairFlow]);
 
   // Gating properties needed early
   const isLaunchMission = !!(currentTrip?.id && currentTrip.id.toLowerCase() === LAUNCH_MISSION_ID.toLowerCase());
@@ -338,7 +347,7 @@ export default function CapturePage() {
     LAUNCH_MISSION_ID.toLowerCase()
   ].includes(currentTrip.id.toLowerCase()));
   const isStarterTrainingActive = !isOnboardingComplete && isStarterMission;
-  const isUnavailable = !!(currentTrip && (completedChallengeIds.has(currentTrip.id.toLowerCase()) || submittedPendingChallengeIds.has(currentTrip.id.toLowerCase())));
+  const isUnavailable = !!(currentTrip && !isRetryOrRepairFlow && (completedChallengeIds.has(currentTrip.id.toLowerCase()) || submittedPendingChallengeIds.has(currentTrip.id.toLowerCase())));
 
   // Page load triggers
   useEffect(() => {
@@ -350,6 +359,7 @@ export default function CapturePage() {
   // STRICTION: Detect if this mission is ALREADY submitted via entries context
   // This solves the "dead end" where a refresh or navigation back shows the review screen again
   useEffect(() => {
+    if (isRetryOrRepairFlow) return;
     if (submissionStatus === 'submitted' || fcState === 'result') return;
     if (!tripIdParam || entries.length === 0) return;
 
@@ -381,7 +391,7 @@ export default function CapturePage() {
       setFcState('result');
       setSubmissionStatus('submitted');
     }
-  }, [tripIdParam, entries, submissionStatus, fcState, fieldTokens]);
+  }, [tripIdParam, entries, submissionStatus, fcState, fieldTokens, isRetryOrRepairFlow]);
 
   // Handle successful submission navigation timer
   useEffect(() => {
@@ -418,6 +428,7 @@ export default function CapturePage() {
 
   // Handle fallback redirect for already submitted missions
   useEffect(() => {
+    if (isRetryOrRepairFlow) return;
     // Recovery redirect logic
     if ((!currentTrip && !completeRecord && (fcState as string) !== 'result') || (isUnavailable && !completeRecord && (fcState as string) !== 'result' && submissionStatus !== 'submitted')) {
       const timer = setTimeout(() => {
@@ -428,7 +439,7 @@ export default function CapturePage() {
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [currentTrip, completeRecord, fcState, completedChallengeIds, submittedPendingChallengeIds, navigate, submissionStatus, isUnavailable]);
+  }, [currentTrip, completeRecord, fcState, completedChallengeIds, submittedPendingChallengeIds, navigate, submissionStatus, isUnavailable, isRetryOrRepairFlow]);
 
   // Reset scroll on step changes
   useEffect(() => {
@@ -991,45 +1002,35 @@ export default function CapturePage() {
     
     // 0. Calculate Rewards
     const isFirstTime = !completedChallengeIds.has(currentTrip.id);
-    const draftForScoring = {
-      id: 'draft',
-      proofImage: captureData?.filteredImageUrl || '',
-      imageUrl: captureData?.filteredImageUrl || '',
-      photoUrl: captureData?.filteredImageUrl || '',
-      note: fcData.note || '',
-      fieldNote: fcData.note || ''
-    } as any;
-
-    const scoringResult = calculateSubmissionPoints(
-      draftForScoring,
-      currentTrip,
-      {
-        isFirstSubmission: (profile?.approvedEntriesCount || 0) === 0,
-        daysLate: 0,
-        hintUsed: hintUsed,
-        weekNumber: currentTrip.weekNumber || currentWeekNumber || 1,
-        catalyst: catalyst || undefined
-      }
-    );
-
-    let awardedXP = scoringResult.totalPoints;
-    if (isRetry) awardedXP = Math.round(awardedXP * 0.5);
+    const baseMissionXP = lockedBasePoints || currentTrip.baseXP || currentTrip.basePoints || 100;
+    let estimatedXP = baseMissionXP;
+    if (isRetry) estimatedXP = Math.round(estimatedXP * 0.7);
+    const pendingScoring = {
+      totalPoints: estimatedXP,
+      scoreEvents: [{
+        type: 'trip_pending_review',
+        points: estimatedXP,
+        entryId: 'draft',
+        tripId: currentTrip.id,
+        description: isRetry ? 'Mission Base Estimate (Retry)' : 'Mission Base Estimate'
+      }]
+    };
     
     const awardedTokenCount = isFirstTime ? 1 : 0;
 
     // 1. OPTIMISTIC UPDATE IMMEDIATELY
-    registerPendingSubmissionLocally(awardedXP, currentTrip.id, {
+    registerPendingSubmissionLocally(estimatedXP, currentTrip.id, {
       title: currentTrip.title,
       photo: captureData.filteredImageUrl,
-      awardedXP: awardedXP
+      awardedXP: estimatedXP
     });
 
     // 2. Prepare Local Result Record
     const localResult = {
       tripId: currentTrip.id,
       title: currentTrip.title,
-      awardedXP: awardedXP,
-      baseXP: awardedXP,
+      awardedXP: estimatedXP,
+      baseXP: baseMissionXP,
       note: fcData.note,
       photo: captureData.filteredImageUrl,
       proofType: currentTrip.proofType || currentTrip.requiredProof || ['photo'],
@@ -1037,9 +1038,9 @@ export default function CapturePage() {
       completedAt: new Date().toISOString(),
       syncStatus: 'pending' as 'pending' | 'synced' | 'sync_failed',
       scoringData: {
-        scoring: { totalPoints: awardedXP },
+        scoring: pendingScoring,
         ftBonus: 0,
-        ftText: 'Uplink Pending...',
+        ftText: 'Admin Review Pending',
         tokenAwarded: isFirstTime,
         totalTokens: (fieldTokens || 0) + awardedTokenCount
       }
@@ -1148,17 +1149,15 @@ export default function CapturePage() {
           return;
         }
 
-        const finalXP = (result.scoring?.totalPoints || 0) + (result.ftBonus || 0);
-
         setCompleteRecord({
           ...localResult,
           photo: filteredUrl,
-          awardedXP: finalXP || awardedXP,
+          awardedXP: estimatedXP,
           syncStatus: 'synced',
           scoringData: {
-            scoring: result.scoring,
-            ftBonus: result.ftBonus,
-            ftText: result.ftText,
+            scoring: pendingScoring,
+            ftBonus: 0,
+            ftText: 'Admin Review Pending',
             newRewards: result.newRewards,
             tokenAwarded: isFirstTime,
             totalTokens: (fieldTokens || 0) + awardedTokenCount
@@ -1166,9 +1165,9 @@ export default function CapturePage() {
         });
 
         setScoringData({
-          scoring: result.scoring,
-          ftBonus: result.ftBonus,
-          ftText: result.ftText,
+          scoring: pendingScoring,
+          ftBonus: 0,
+          ftText: 'Admin Review Pending',
           newRewards: result.newRewards,
           tokenAwarded: isFirstTime,
           totalTokens: (fieldTokens || 0) + awardedTokenCount
@@ -1176,6 +1175,7 @@ export default function CapturePage() {
 
         setFcState('result'); // MOVE TO SUCCESS STEP
         setSubmissionStatus('submitted');
+        navigate(`/mission-submitted?id=${currentTrip.id}`, { replace: true });
         if (currentTrip?.id) {
           localStorage.removeItem(`ft_challenge_${currentTrip.id}`);
         }

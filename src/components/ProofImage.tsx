@@ -4,7 +4,7 @@ import { storage } from '../lib/firebase';
 import { CameraOff, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useApp } from '../context/AppContext';
-import { getProofImageUrl, isPermanentStorageUrl, getNormalizedProof } from '../utils/imageUtils';
+import { isPermanentStorageUrl, getNormalizedProof } from '../utils/imageUtils';
 
 interface ProofImageProps {
   entry: any;
@@ -29,7 +29,7 @@ function getFallbackSvgDataUrl(id: string): string {
  * Resolves both direct URLs and Firebase Storage paths.
  * Provides detailed debug info in Admin/Dev mode on failure.
  */
-export function ProofImage({ entry, proofReview, className, alt = "Proof Evidence", objectFit = 'cover', isCommunityFeed = false }: ProofImageProps) {
+export function ProofImage({ entry, proofReview, className, alt = "Proof Evidence", objectFit, isCommunityFeed = false }: ProofImageProps) {
   const { isAdmin, user, profile } = useApp();
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,12 +39,14 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
   // Adheres to requirement: Use the normalized proof resolver object
   const norm = getNormalizedProof(entry, proofReview || entry?.proofReview || entry?.review || entry);
   const selectedImageUrl = norm.photoUrl || null;
+  const selectedStoragePath = norm.storagePath || null;
   const showDiagnostics = import.meta.env.DEV || isAdmin;
+  const hasAnyImageReference = !!(selectedImageUrl || selectedStoragePath);
 
   const renderDiagnostics = () => {
     if (!showDiagnostics) return null;
-    const statusText = selectedImageUrl 
-      ? (imageLoadState === 'success' ? 'SUCCESS' : imageLoadState === 'failure' ? 'FAILURE' : 'LOADING') 
+    const statusText = hasAnyImageReference
+      ? (imageLoadState === 'success' ? 'SUCCESS' : imageLoadState === 'failure' ? 'FAILURE' : 'LOADING')
       : 'MISSING';
     
     return (
@@ -60,9 +62,10 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
             {statusText}
           </span>
         </div>
-        <div className="text-[7.5px] font-mono text-neutral-200 break-all leading-tight max-h-[36px] overflow-y-auto pr-1">
-          <span className="text-neutral-500 font-bold mr-1">URL:</span>
-          {selectedImageUrl || 'None'}
+        <div className="text-[7.5px] font-mono text-neutral-200 break-all leading-tight max-h-[52px] overflow-y-auto pr-1 space-y-0.5">
+          <div><span className="text-neutral-500 font-bold mr-1">SRC:</span>{norm.diagnosticLabel}</div>
+          <div><span className="text-neutral-500 font-bold mr-1">URL:</span>{selectedImageUrl || 'None'}</div>
+          <div><span className="text-neutral-500 font-bold mr-1">PATH:</span>{selectedStoragePath || 'None'}</div>
         </div>
       </div>
     );
@@ -99,6 +102,9 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
       const storagePathVal = norm.storagePath || entry.photoStoragePath || entry.storagePath || entry.imageStoragePath || entry.proofImageRef || entry.proofStoragePath;
 
       try {
+        setImageLoadState('loading');
+        setError(null);
+
         // Priority 1: Direct URL
         if (resolvedUrl && (resolvedUrl.startsWith('http') || resolvedUrl.startsWith('data:'))) {
           if (isMounted) {
@@ -121,6 +127,7 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
           if (isMounted) {
             setUrl(getFallbackSvgDataUrl(entry.id));
             setLoading(false);
+            setImageLoadState('failure');
           }
         }
       } catch (err: any) {
@@ -150,13 +157,13 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
   }
 
   // Render order & failures
-  if (!selectedImageUrl) {
+  if (!hasAnyImageReference) {
     return (
       <div className={cn("w-full h-full flex flex-col items-center justify-center gap-2 p-4 bg-neutral-900 text-center border-2 border-dashed border-red-500/30 relative", className)}>
         <div className="flex flex-col items-center justify-center gap-2 mb-10">
           <CameraOff className="w-4 h-4 text-red-500/40 animate-pulse mb-1" />
           <p className="text-[10px] font-mono font-bold text-red-400">
-            Missing photoUrl on this approved entry.
+            Image missing from review; checked linked entry.
           </p>
           <p className="text-[8.5px] font-mono text-neutral-500">ID: {entry?.id}</p>
         </div>
@@ -171,7 +178,7 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
         <div className="flex flex-col items-center justify-center gap-2 mb-10">
           <CameraOff className="w-4 h-4 text-orange-500/40 animate-pulse mb-1" />
           <p className="text-[10px] font-mono font-bold text-orange-400">
-            Photo URL exists but failed to load.
+            Photo reference exists but failed to load.
           </p>
           <p className="text-[8.5px] font-mono text-neutral-500 max-w-full truncate">ID: {entry?.id}</p>
         </div>
@@ -276,6 +283,8 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
 
   const stamp = getStampData();
   const isReal = isPermanentStorageUrl(url);
+  const effectiveObjectFit = objectFit || (isCommunityFeed ? 'cover' : 'contain');
+  const sanitizedClassName = className?.replace(/\bobject-(cover|contain)\b/g, '').trim();
 
   return (
     <div className="relative w-full h-full overflow-hidden group select-none bg-neutral-900">
@@ -284,8 +293,8 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
         alt={alt} 
         className={cn(
           "w-full h-full transition-all duration-700",
-          objectFit === 'cover' ? 'object-cover' : 'object-contain',
-          className
+          effectiveObjectFit === 'cover' ? 'object-cover' : 'object-contain',
+          sanitizedClassName
         )}
         referrerPolicy="no-referrer"
         onLoad={() => {
@@ -309,13 +318,23 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
       />
       
       {/* REQUIREMENT: Debug Label */}
-      <div className="absolute top-2 left-2 z-30 pointer-events-none">
+      <div className="absolute top-2 left-2 z-30 pointer-events-none space-y-1">
         <div className={cn(
           "px-1.5 py-0.5 rounded text-[7px] font-mono font-black uppercase tracking-widest shadow-sm border",
           isReal ? "bg-brand-lime text-black border-black/20" : "bg-brand-orange text-white border-white/20"
         )}>
-          PHOTO: {isReal ? 'REAL' : 'PLACEHOLDER - MISSING photoUrl'}
+          PHOTO: {isReal ? 'REAL' : 'PLACEHOLDER'}
         </div>
+        {isAdmin && (
+          <div className={cn(
+            "px-1.5 py-0.5 rounded text-[6.5px] font-mono font-black uppercase tracking-tight shadow-sm border max-w-[160px] truncate",
+            norm.imageSource === 'linkedEntry' ? "bg-brand-lime text-black border-black/20" :
+            norm.imageSource === 'proofReview' ? "bg-brand-blue text-white border-white/20" :
+            "bg-error text-white border-white/20"
+          )}>
+            {norm.diagnosticLabel}
+          </div>
+        )}
       </div>
 
       {isAdmin && (
@@ -323,6 +342,7 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
           <span>id: {entry.id?.substring(0,8)}</span>
           <span className={cn(entry.photoUrl ? "text-brand-lime" : "text-error")}>pu: {entry.photoUrl ? 'YES' : 'NO'}</span>
           <span className={cn(entry.imageUrl ? "text-brand-lime" : "text-error")}>iu: {entry.imageUrl ? 'YES' : 'NO'}</span>
+          <span className={cn(norm.imageSource === 'linkedEntry' ? "text-brand-lime" : norm.imageSource === 'proofReview' ? "text-brand-blue" : "text-error")}>from: {norm.imageSource}</span>
           <span className={cn(url?.startsWith('data:') ? "text-brand-orange" : "text-brand-lime")}>src: {url?.startsWith('data:') ? 'LOCAL' : 'REMOTE'}</span>
         </div>
       )}
@@ -347,4 +367,3 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
     </div>
   );
 }
-

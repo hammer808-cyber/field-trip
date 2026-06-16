@@ -257,7 +257,7 @@ export default function VotingHubPage() {
                              </div>
 
                              <div className="aspect-video bg-on-surface/5 border-2 border-on-surface overflow-hidden rounded-2xl relative">
-                                <img src={c.proofImage} alt={c.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                <img src={c.proofImage} alt={c.title} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
                                    <p className="text-xs text-white font-serif italic line-clamp-2">"{c.fieldNote}"</p>
                                 </div>
@@ -326,7 +326,7 @@ export default function VotingHubPage() {
                        {resolvedCases.map(c => (
                          <div key={c.id} className="bg-white border-4 border-on-surface p-6 rounded-[2rem] shadow-[8px_8px_0px_black] flex items-center gap-6 text-left group hover:scale-[1.01] transition-transform">
                              <div className="w-20 h-20 bg-paper-dark border-2 border-on-surface rounded-2xl overflow-hidden shrink-0">
-                                <img src={c.proofImage} alt={c.title} className="w-full h-full object-cover grayscale" />
+                                <img src={c.proofImage} alt={c.title} className="w-full h-full object-contain grayscale" />
                              </div>
                              <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-3 mb-1">

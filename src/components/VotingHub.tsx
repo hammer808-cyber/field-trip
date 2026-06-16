@@ -334,7 +334,7 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
                           )}
                         >
                           <div className="aspect-[3/4] overflow-hidden bg-on-surface relative flex flex-col justify-end rounded-lg border-[3px] border-on-surface">
-                            <img src={entry.proofImage} alt="" className="w-full h-full object-cover" />
+                            <img src={entry.proofImage} alt="" className="w-full h-full object-contain" />
                             {isWinner && (
                                <div className="absolute inset-x-0 bottom-0 bg-brand-yellow text-on-surface py-3 px-4 flex items-center justify-between border-t-4 border-on-surface z-20">
                                  <span className="font-display text-[10px] font-black uppercase tracking-widest italic font-bold">CHAMPION_SEED</span>
@@ -373,7 +373,7 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
 
                    <div className="border-4 border-on-surface rounded-xl overflow-hidden shadow-[6px_6px_0px_black] bg-paper-dark">
                      <div className="aspect-[4/3] overflow-hidden bg-on-surface">
-                       <img src={votedEntry.proofImage} alt="" className="w-full h-full object-cover" />
+                       <img src={votedEntry.proofImage} alt="" className="w-full h-full object-contain" />
                      </div>
                      <div className="p-6 space-y-3 bg-white border-t-4 border-on-surface">
                        <p className="font-display text-4xl font-black uppercase leading-none italic tracking-tighter text-on-surface">{votedEntry.userName}</p>
@@ -433,7 +433,7 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
                        <div className="w-full bg-white border-4 border-on-surface rounded-2xl overflow-hidden shadow-[12px_12px_0px_black] bg-white relative animate-fade-in group">
                          {/* Giant high quality visual proof image */}
                          <div className="aspect-square sm:aspect-[4/5] bg-on-surface relative overflow-hidden border-b-4 border-on-surface">
-                           <img src={candidate.proofImage} alt="" className="w-full h-full object-cover" />
+                           <img src={candidate.proofImage} alt="" className="w-full h-full object-contain" />
                            <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-sm text-brand-lime font-mono text-[9px] font-black px-3 py-1 border-2 border-brand-lime rounded uppercase tracking-widest">
                              TRIBUNAL NOMINEE
                            </div>

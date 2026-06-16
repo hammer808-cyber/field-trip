@@ -28,6 +28,238 @@ import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { normalizeEntryStatus } from '../logic/entryLogic';
+import {
+  calculateProofScore,
+  ProofScoringBreakdown,
+  ProofScoringSelections,
+  ProofMatchRating,
+  PhotoQualityRating,
+  FieldNoteRating,
+  AdventureRating
+} from '../utils/proofScoring';
+
+const PROOF_MATCH_OPTIONS: { value: ProofMatchRating; label: string }[] = [
+  { value: 'weak', label: 'Weak' },
+  { value: 'good', label: 'Good' },
+  { value: 'perfect', label: 'Perfect' }
+];
+
+const PHOTO_QUALITY_OPTIONS: { value: PhotoQualityRating; label: string }[] = [
+  { value: 'usable', label: 'Usable' },
+  { value: 'clear', label: 'Clear' },
+  { value: 'iconic', label: 'Iconic' }
+];
+
+const FIELD_NOTE_OPTIONS: { value: FieldNoteRating; label: string }[] = [
+  { value: 'none', label: 'None' },
+  { value: 'basic', label: 'Basic' },
+  { value: 'specific', label: 'Specific' },
+  { value: 'legendary', label: 'Legendary' }
+];
+
+const ADVENTURE_OPTIONS: { value: AdventureRating; label: string }[] = [
+  { value: 'simple', label: 'Simple' },
+  { value: 'outside', label: 'Outside' },
+  { value: 'adventure', label: 'Adventure' },
+  { value: 'social', label: 'Social' }
+];
+
+const NEEDS_MORE_PROOF_REASONS = [
+  'Image unclear',
+  'Prompt not fully answered',
+  'Need wider shot',
+  'Need user/object visible',
+  'Need field note',
+  'Wrong mission proof'
+];
+
+const REJECT_REASONS = [
+  'Duplicate proof',
+  'Not related to mission',
+  'Unsafe/inappropriate',
+  'No usable image',
+  'Test/spam submission'
+];
+
+function formatAdminDate(value: any): string {
+  if (!value) return 'Not recorded';
+  const date = value?.toDate?.() || (value instanceof Date ? value : new Date(value));
+  return Number.isNaN(date.getTime()) ? 'Not recorded' : date.toLocaleString();
+}
+
+function getReviewImageDebug(review: ProofReview & { entry?: Entry }) {
+  const entry: any = review.entry || {};
+  return [
+    ['photoUrl', entry.photoUrl || (review as any).photoUrl],
+    ['imageUrl', entry.imageUrl || (review as any).imageUrl],
+    ['mediaUrl', entry.mediaUrl || (review as any).mediaUrl],
+    ['proofImage', entry.proofImage || (review as any).proofImage],
+    ['storagePath', entry.storagePath || entry.photoStoragePath || (review as any).storagePath],
+    ['linked entry image fields', `${entry.photoUrl ? 'photoUrl ' : ''}${entry.imageUrl ? 'imageUrl ' : ''}${entry.proofImage ? 'proofImage ' : ''}`.trim()]
+  ];
+}
+
+function getReviewImageUrl(review: ProofReview & { entry?: Entry }): string {
+  const entry: any = review.entry || {};
+  return entry.photoUrl || entry.imageUrl || entry.mediaUrl || entry.proofImage || (review as any).photoUrl || (review as any).imageUrl || (review as any).proofImage || '';
+}
+
+function getImageSourceLabel(review: ProofReview & { entry?: Entry }): string {
+  const source = (review.entry as any)?.imageDiagnosticLabel || (review.entry as any)?.adminQueueSource || (review as any).imageDiagnosticLabel || (review as any).adminQueueSource || '';
+  if (source) return source;
+  const hasEntryImage = !!((review.entry as any)?.photoUrl || (review.entry as any)?.imageUrl || (review.entry as any)?.proofImage);
+  const hasReviewImage = !!((review as any).photoUrl || (review as any).imageUrl || (review as any).proofImage);
+  if (hasEntryImage && hasReviewImage) return 'Source: entry + proofReview';
+  if (hasEntryImage) return 'Source: entry';
+  if (hasReviewImage) return 'Source: proofReview fallback';
+  return 'Source: missing';
+}
+
+function StatusPill({ label, count, active }: { label: string; count: number; active?: boolean }) {
+  return (
+    <span className={cn(
+      "inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[10px] font-mono font-black uppercase whitespace-nowrap",
+      active ? "border-on-surface bg-on-surface text-white" : "border-on-surface/15 bg-white/80 text-on-surface/70"
+    )}>
+      {label}
+      <span className={cn("rounded-md px-1.5 py-0.5", active ? "bg-white/20" : "bg-on-surface/10")}>{count}</span>
+    </span>
+  );
+}
+
+function inferAdminFieldNoteRating(entry: any): FieldNoteRating {
+  const note = (entry?.fieldNote || entry?.note || '').trim();
+  return note.length > 0 ? 'basic' : 'none';
+}
+
+function getDefaultAdminScoring(entry: any): ProofScoringSelections {
+  return {
+    proofMatchRating: 'good',
+    photoQualityRating: 'clear',
+    fieldNoteRating: inferAdminFieldNoteRating(entry),
+    adventureRating: 'simple',
+    weeklyCatalystApplied: false
+  };
+}
+
+function ScoringOptionGroup<T extends string>({
+  label,
+  value,
+  options,
+  onChange
+}: {
+  label: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="space-y-1">
+      <p className="text-[8px] font-mono font-black uppercase tracking-widest text-on-surface/45">{label}</p>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1">
+        {options.map(option => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            className={cn(
+              "px-2 py-1.5 rounded border text-[9px] font-mono font-black uppercase tracking-tight transition-all",
+              value === option.value
+                ? "bg-brand-orange text-white border-on-surface shadow-[2px_2px_0px_black]"
+                : "bg-white text-on-surface/55 border-on-surface/15 hover:border-brand-orange/50"
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProofScoringControls({
+  selections,
+  breakdown,
+  onChange
+}: {
+  selections: Required<ProofScoringSelections>;
+  breakdown: ProofScoringBreakdown;
+  onChange: (updates: ProofScoringSelections) => void;
+}) {
+  return (
+    <div className="bg-[#FCF9F2] border-2 border-brand-orange/25 rounded-2xl p-4 space-y-4 font-mono text-left">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-brand-orange">Variable Proof Scoring</p>
+          <p className="text-[8px] text-on-surface/45 uppercase tracking-wider">Final XP is awarded only on approval.</p>
+        </div>
+        <div className="bg-on-surface text-brand-lime border-2 border-on-surface px-3 py-2 rounded-xl shadow-[3px_3px_0px_black] text-right">
+          <p className="text-[7px] uppercase text-white/50 tracking-widest">Final XP</p>
+          <p className="text-2xl font-black leading-none">+{breakdown.finalXP}</p>
+        </div>
+      </div>
+
+      <ScoringOptionGroup
+        label="Proof Match"
+        value={selections.proofMatchRating}
+        options={PROOF_MATCH_OPTIONS}
+        onChange={(proofMatchRating) => onChange({ proofMatchRating })}
+      />
+      <ScoringOptionGroup
+        label="Photo Quality"
+        value={selections.photoQualityRating}
+        options={PHOTO_QUALITY_OPTIONS}
+        onChange={(photoQualityRating) => onChange({ photoQualityRating })}
+      />
+      <ScoringOptionGroup
+        label="Field Note"
+        value={selections.fieldNoteRating}
+        options={FIELD_NOTE_OPTIONS}
+        onChange={(fieldNoteRating) => onChange({ fieldNoteRating })}
+      />
+      <ScoringOptionGroup
+        label="Adventure / Social"
+        value={selections.adventureRating}
+        options={ADVENTURE_OPTIONS}
+        onChange={(adventureRating) => onChange({ adventureRating })}
+      />
+
+      <div className="space-y-1">
+        <p className="text-[8px] font-mono font-black uppercase tracking-widest text-on-surface/45">Weekly Catalyst</p>
+        <div className="grid grid-cols-2 gap-1">
+          {[false, true].map(flag => (
+            <button
+              key={String(flag)}
+              type="button"
+              onClick={() => onChange({ weeklyCatalystApplied: flag })}
+              className={cn(
+                "px-2 py-1.5 rounded border text-[9px] font-mono font-black uppercase tracking-tight transition-all",
+                selections.weeklyCatalystApplied === flag
+                  ? "bg-brand-orange text-white border-on-surface shadow-[2px_2px_0px_black]"
+                  : "bg-white text-on-surface/55 border-on-surface/15 hover:border-brand-orange/50"
+              )}
+            >
+              {flag ? 'Yes' : 'No'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="border-t border-on-surface/10 pt-3 space-y-1 text-[9px] text-on-surface/65">
+        <div className="flex justify-between"><span>Base XP</span><span>+{breakdown.baseXP}</span></div>
+        <div className="flex justify-between"><span>Proof Match</span><span>+{breakdown.proofMatchBonus}</span></div>
+        <div className="flex justify-between"><span>Photo Quality</span><span>+{breakdown.photoQualityBonus}</span></div>
+        <div className="flex justify-between"><span>Field Note</span><span>+{breakdown.fieldNoteBonus}</span></div>
+        <div className="flex justify-between"><span>Adventure / Social</span><span>+{breakdown.adventureBonus}</span></div>
+        <div className="flex justify-between"><span>Weekly Catalyst</span><span>+{breakdown.weeklyCatalystBonus}</span></div>
+        <div className="flex justify-between text-amber-700"><span>Penalties</span><span>{breakdown.subtotalXP - breakdown.finalXP > 0 ? `-${breakdown.subtotalXP - breakdown.finalXP}` : '0'}</span></div>
+        <div className="flex justify-between border-t border-on-surface/10 pt-2 text-[11px] font-black text-on-surface">
+          <span>Final XP</span><span>+{breakdown.finalXP}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminProofReview() {
   const [reviews, setReviews] = useState<(ProofReview & { entry?: Entry })[]>([]);
@@ -46,6 +278,7 @@ export default function AdminProofReview() {
   const [bulkDryRun, setBulkDryRun] = useState(true);
   const [bulkReport, setBulkReport] = useState<any>(null);
   const [strandedStarterDryRun, setStrandedStarterDryRun] = useState(true);
+  const [strandedStarterSoftReset, setStrandedStarterSoftReset] = useState(false);
   const [strandedStarterReport, setStrandedStarterReport] = useState<StrandedStarterRepairReport | null>(null);
   const [healthReport, setHealthReport] = useState<any>(null);
   const [loadingHealth, setLoadingHealth] = useState(false);
@@ -80,7 +313,7 @@ export default function AdminProofReview() {
   const { isAdmin } = useTheme();
 
   // --- Swipe View State ---
-  const [viewMode, setViewMode] = useState<'swipe' | 'queue'>('swipe');
+  const [viewMode, setViewMode] = useState<'swipe' | 'queue'>('queue');
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [skippedIds, setSkippedIds] = useState<Set<string>>(new Set());
   const [sessionReviewedCount, setSessionReviewedCount] = useState(0);
@@ -90,6 +323,59 @@ export default function AdminProofReview() {
   const [isProcessingSwipe, setIsProcessingSwipe] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [dragDirection, setDragDirection] = useState<'left' | 'right' | 'up' | 'none'>('none');
+  const [scoringByEntryId, setScoringByEntryId] = useState<Record<string, ProofScoringSelections>>({});
+  const [lastQueueLoadAt, setLastQueueLoadAt] = useState<Date | null>(null);
+  const [activeAction, setActiveAction] = useState<{ id: string; verdict: ProofStatus } | null>(null);
+
+  const getScoringSource = (review: ProofReview & { entry?: Entry }) => {
+    const entry: any = review.entry || {};
+    const missionId = entry.missionId || entry.challengeId || entry.tripId || review.challengeId;
+    const mission = trips.find(t => t.id === missionId || t.missionId === missionId || t.challengeId === missionId);
+    return { ...(mission || {}), ...entry };
+  };
+
+  const getScoringSelections = (review: ProofReview & { entry?: Entry }): Required<ProofScoringSelections> => {
+    const entryId = review.entryId || review.entry?.id || review.id;
+    return {
+      ...getDefaultAdminScoring(review.entry),
+      ...(scoringByEntryId[entryId] || {})
+    } as Required<ProofScoringSelections>;
+  };
+
+  const updateScoringSelections = (entryId: string, updates: ProofScoringSelections) => {
+    setScoringByEntryId(prev => ({
+      ...prev,
+      [entryId]: {
+        ...(prev[entryId] || {}),
+        ...updates
+      }
+    }));
+  };
+
+  const getScorePreview = (review: ProofReview & { entry?: Entry }) => {
+    const source = getScoringSource(review);
+    return calculateProofScore({
+      missionOrEntry: source,
+      fieldNote: source.fieldNote || source.note || '',
+      hintUsed: source.hintUsed === true,
+      lateSubmission: false,
+      retrySubmission: source.isRetry === true || source.retrySubmission === true || !!source.originalEntryId,
+      retryMultiplier: typeof source.retryPointMultiplier === 'number' ? source.retryPointMultiplier : null,
+      duplicateProof: ['duplicate', 'reused', 'matched', 'repeat'].includes(String(source.verification?.duplicateStatus || source.duplicateStatus || '').toLowerCase()),
+      ...getScoringSelections(review)
+    });
+  };
+
+  const renderScoringControls = (review: ProofReview & { entry?: Entry }) => {
+    const entryId = review.entryId || review.entry?.id || review.id;
+    return (
+      <ProofScoringControls
+        selections={getScoringSelections(review)}
+        breakdown={getScorePreview(review)}
+        onChange={(updates) => updateScoringSelections(entryId, updates)}
+      />
+    );
+  };
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message, type });
@@ -100,6 +386,11 @@ export default function AdminProofReview() {
   };
 
   useEffect(() => {
+    setHiddenIds(new Set());
+    setSkippedIds(new Set());
+  }, [subFilter]);
+
+  useEffect(() => {
     if (!isAdmin) return;
 
     if (import.meta.env.DEV) {
@@ -108,13 +399,17 @@ export default function AdminProofReview() {
 
     // Subscribe to entries using our canonical query
     const unsubReviews = subscribeToAdminPendingReviews(subFilter, (pendingEntries) => {
+      console.log('[AdminReviewUI] raw reviews', pendingEntries);
       const mappedReviews = pendingEntries.map(entry => {
+        const normalizedStatus = normalizeEntryStatus((entry as any).reviewStatus || entry.status);
+        const reviewId = (entry as any).reviewId || (entry as any).proofReviewId || `rev_${entry.id}`;
         return {
-          id: `rev_${entry.id}`,
+          id: reviewId,
           entryId: entry.id,
           userId: entry.userId,
           challengeId: entry.tripId || entry.missionId || entry.challengeId || '',
-          status: entry.status as any,
+          status: normalizedStatus as any,
+          reviewStatus: normalizedStatus,
           confidenceScore: (entry as any).aiAnalysisResult?.confidence ? (entry as any).aiAnalysisResult.confidence * 100 : ((entry as any).confidenceScore || (entry as any).aiScore || 100),
           aiAnalysisResult: (entry as any).aiAnalysisResult,
           missingRequirements: (entry as any).aiAnalysisResult?.missingItems || (entry as any).missingRequirements || [],
@@ -126,7 +421,8 @@ export default function AdminProofReview() {
             userId: entry.userId,
             missionId: entry.tripId || entry.missionId || entry.challengeId,
             challengeId: entry.tripId || entry.missionId || entry.challengeId,
-            status: entry.status,
+            status: normalizedStatus,
+            reviewStatus: normalizedStatus,
             photoUrl: entry.photoUrl || entry.proofImage,
             imageUrl: entry.imageUrl || entry.proofImage,
             storagePath: entry.storagePath || entry.photoStoragePath,
@@ -141,6 +437,7 @@ export default function AdminProofReview() {
       });
 
       setReviews(mappedReviews as any);
+      setLastQueueLoadAt(new Date());
       setLoading(false);
     });
 
@@ -522,12 +819,12 @@ export default function AdminProofReview() {
     setBulkReport(null);
     setStrandedStarterReport(null);
     try {
-      const result = await repairStrandedStarterUsers(strandedStarterDryRun);
+      const result = await repairStrandedStarterUsers(strandedStarterDryRun, strandedStarterSoftReset);
       setStrandedStarterReport(result);
       if (result.errors.length > 0) {
          showToast(`Stranded starter repair completed with errors`, "error");
       } else {
-         showToast(strandedStarterDryRun ? "Stranded dry run completed successfully" : `Stranded starter repair complete.`);
+         showToast(strandedStarterDryRun ? "Stranded dry run completed successfully" : strandedStarterSoftReset ? "Stranded users soft reset successfully" : `Stranded starter repair complete.`);
       }
       await fetchDiagnostics();
     } catch (err: any) {
@@ -542,6 +839,18 @@ export default function AdminProofReview() {
     const beforeStatus = review.status;
     const rawStatus = (review.entry as any)?.status || 'unknown';
     const normalized = normalizeEntryStatus(rawStatus);
+    const xpAlreadyAwarded = (review.entry as any)?.xpAwarded === true || (review.entry as any)?.pointsAwarded === true;
+
+    if (verdict === 'approved' && xpAlreadyAwarded) {
+      showToast('XP already awarded', 'info');
+      console.log('[AdminReviewUI] action skipped', {
+        reviewId: review.id,
+        entryId: review.entryId,
+        verdict,
+        reason: 'XP already awarded'
+      });
+      return;
+    }
 
     console.log("[ADMIN_ACTION_INITIATED]", {
       actionName: verdict,
@@ -552,11 +861,13 @@ export default function AdminProofReview() {
       beforeStatus: beforeStatus,
       adminUid: adminUid
     });
+    console.log('[AdminReviewUI] action started', { reviewId: review.id, entryId: review.entryId, verdict });
 
     try {
+      setActiveAction({ id: review.id, verdict });
       const notesWithAudit = notes || `Manual override by admin at ${new Date().toISOString()}`;
       if (verdict === 'approved') {
-        await approveSubmission(review.entryId, notesWithAudit);
+        await approveSubmission(review.entryId, notesWithAudit, getScoringSelections(review));
       } else if (verdict === 'rejected') {
         await rejectSubmission(review.entryId, notesWithAudit);
       } else if (verdict === 'needs_more_proof') {
@@ -594,8 +905,15 @@ export default function AdminProofReview() {
         afterStatus: verdict,
         firestoreUpdateResult: "SUCCESS"
       });
+      console.log('[AdminReviewUI] action success', { reviewId: review.id, entryId: review.entryId, verdict });
 
-      showToast(`Successfully updated status to ${verdict.toUpperCase()}`, 'success');
+      showToast(
+        verdict === 'approved' ? 'Approved and XP awarded.' :
+        verdict === 'needs_more_proof' ? 'Sent back for more proof.' :
+        verdict === 'rejected' ? 'Rejected.' :
+        `Successfully updated status to ${verdict.toUpperCase()}`,
+        'success'
+      );
     } catch (error: any) {
       console.error("[ADMIN_ACTION_FAILED]", {
         reviewId: review.id,
@@ -604,7 +922,11 @@ export default function AdminProofReview() {
         errorMessage: error.message || 'Unknown error',
         error: error
       });
+      console.log('[AdminReviewUI] action failed', { reviewId: review.id, entryId: review.entryId, verdict, error: error.message || error });
       showToast(`Action failed: ${error.message || 'Unknown error'}`, 'error');
+      throw error;
+    } finally {
+      setActiveAction(null);
     }
   };
 
@@ -638,7 +960,7 @@ export default function AdminProofReview() {
 
   // --- Filter active and swipe items ---
   const activeReviews = reviews.filter(r => {
-    const normStatus = normalizeEntryStatus(r.status);
+    const normStatus = normalizeEntryStatus((r as any).reviewStatus || r.status || r.entry?.status);
     const isMatch = normStatus === subFilter;
     const isHidden = hiddenIds.has(r.id);
     
@@ -650,24 +972,66 @@ export default function AdminProofReview() {
     return isMatch && !isHidden;
   });
 
+  useEffect(() => {
+    if (activeTab !== 'submissions' || reviews.length === 0) return;
+
+    const matchingReviewIds = reviews
+      .filter(r => normalizeEntryStatus((r as any).reviewStatus || r.status || r.entry?.status) === subFilter)
+      .map(r => r.id)
+      .filter(Boolean);
+
+    if (matchingReviewIds.length === 0) return;
+
+    const allMatchingHidden = matchingReviewIds.every(id => hiddenIds.has(id));
+    const allMatchingSkipped = matchingReviewIds.every(id => skippedIds.has(id));
+
+    if (allMatchingHidden) {
+      console.warn('[AdminReviewUI] Restoring queue hidden by stale local hiddenIds', {
+        filter: subFilter,
+        restoredCount: matchingReviewIds.length
+      });
+      setHiddenIds(new Set());
+    }
+
+    if (allMatchingSkipped) {
+      console.warn('[AdminReviewUI] Restoring queue hidden by stale local skippedIds', {
+        filter: subFilter,
+        restoredCount: matchingReviewIds.length
+      });
+      setSkippedIds(new Set());
+    }
+  }, [activeTab, reviews, subFilter, hiddenIds, skippedIds]);
+
   const activeSwipeQueue = activeReviews.filter(r => !skippedIds.has(r.id));
+  const hiddenOrSkippedCount = hiddenIds.size + skippedIds.size;
+  const queueCount = activeReviews.length;
+  const rawQueueCount = reviews.length;
 
   useEffect(() => {
     if (import.meta.env.DEV && activeTab === 'submissions') {
+      console.log('[AdminReviewUI] active filter', subFilter);
+      console.log('[AdminReviewUI] visible reviews', activeReviews);
+      console.log('[AdminReviewUI] hidden ids', Array.from(hiddenIds));
       console.log("[ADMIN_VISIBILITY_TRACE]", {
         activeTab,
         activeFilter: subFilter,
         totalLoaded: reviews.length,
         visibleCount: activeReviews.length,
         visibleIds: activeReviews.map(r => r.id),
-        hiddenStats: reviews.filter(r => r.status !== subFilter || hiddenIds.has(r.id)).map(r => ({
+        hiddenCount: hiddenIds.size,
+        skippedCount: skippedIds.size,
+        hiddenStats: reviews.filter(r => normalizeEntryStatus((r as any).reviewStatus || r.status || r.entry?.status) !== subFilter || hiddenIds.has(r.id)).map(r => ({
           id: r.id,
+          entryId: r.entryId,
           status: r.status,
-          reason: r.status !== subFilter ? 'FILTER_MISMATCH' : 'USER_HIDDEN'
+          reviewStatus: (r as any).reviewStatus,
+          entryStatus: r.entry?.status,
+          normalizedStatus: normalizeEntryStatus((r as any).reviewStatus || r.status || r.entry?.status),
+          reason: hiddenIds.has(r.id) ? 'USER_HIDDEN' : 'FILTER_MISMATCH'
         }))
       });
     }
-  }, [activeReviews, subFilter, reviews, hiddenIds, activeTab]);
+  }, [activeReviews, subFilter, reviews, hiddenIds, skippedIds, activeTab]);
 
   // --- Swipe Action Triggers ---
   const handleSwipeApprove = async (review: ProofReview & { entry?: Entry }) => {
@@ -820,12 +1184,19 @@ export default function AdminProofReview() {
         )}
       </AnimatePresence>
 
-      <header className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl uppercase tracking-tighter italic">Control_Booth</h1>
-          <p className="micro-label opacity-40">Field Check & Entry Vetting Subsystem</p>
+      <header className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <h1 className="font-display text-3xl sm:text-4xl uppercase tracking-tight italic text-on-surface leading-none">Admin Review Queue</h1>
+          <p className="mt-2 text-sm font-mono text-on-surface/60">Review submitted field proof before XP is awarded.</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <StatusPill label="Pending" count={totalCounts.pending_review} active={subFilter === 'pending_review'} />
+            <StatusPill label="Needs More Proof" count={totalCounts.needs_more_proof} active={subFilter === 'needs_more_proof'} />
+            <StatusPill label="Approved" count={totalCounts.approved} active={subFilter === 'approved'} />
+            <StatusPill label="Rejected" count={totalCounts.rejected} active={subFilter === 'rejected'} />
+            <StatusPill label="Queue Count" count={queueCount} active />
+          </div>
         </div>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4 lg:gap-6">
           <div className="hidden md:flex gap-6 border-r border-on-surface/10 pr-6">
             <div className="text-right">
               <p className="micro-label opacity-40 uppercase">Awaiting Purge</p>
@@ -971,6 +1342,26 @@ export default function AdminProofReview() {
       )}
 
       {activeTab === 'submissions' && !loading && (
+        <Card className="mb-4 border-2 border-on-surface/10 bg-white/85 p-4 rounded-2xl">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-2 font-display text-sm font-black uppercase italic text-on-surface">
+              <Database className="w-4 h-4 text-brand-orange" />
+              Queue Diagnostics
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-[10px] font-mono sm:grid-cols-3 lg:flex lg:flex-wrap lg:justify-end">
+              <span className="rounded-lg bg-on-surface/5 px-2 py-1">Filter: <strong>{subFilter}</strong></span>
+              <span className="rounded-lg bg-on-surface/5 px-2 py-1">Raw: <strong>{rawQueueCount}</strong></span>
+              <span className="rounded-lg bg-on-surface/5 px-2 py-1">Visible: <strong>{queueCount}</strong></span>
+              <span className="rounded-lg bg-on-surface/5 px-2 py-1">Hidden/skipped: <strong>{hiddenOrSkippedCount}</strong></span>
+              <span className="rounded-lg bg-on-surface/5 px-2 py-1">Last refresh: <strong>{lastQueueLoadAt ? lastQueueLoadAt.toLocaleTimeString() : 'waiting'}</strong></span>
+              <span className="rounded-lg bg-on-surface/5 px-2 py-1">Source: <strong>entries source-of-truth</strong></span>
+              <span className={cn("rounded-lg px-2 py-1", isAdmin ? "bg-emerald-500/10 text-emerald-700" : "bg-red-500/10 text-red-700")}>Admin access: <strong>{isAdmin ? 'yes' : 'no'}</strong></span>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {activeTab === 'submissions' && !loading && (
         <AdminDiagnosticsPanel />
       )}
 
@@ -980,7 +1371,7 @@ export default function AdminProofReview() {
             <RefreshCw className="w-8 h-8 animate-spin opacity-20" />
           </div>
         ) : (activeReviews?.length || 0) === 0 ? (
-          <Card className="p-12 text-center opacity-85 border-2 border-dashed border-on-surface/20 bg-[#F2EEE8]/30 max-w-lg mx-auto rounded-3xl shadow-sm my-8">
+          <Card className="p-6 sm:p-10 text-center border-2 border-dashed border-on-surface/20 bg-[#F2EEE8]/30 max-w-2xl mx-auto rounded-3xl shadow-sm my-8">
             <CheckCircle className="w-8 h-8 text-[#16A34A] mx-auto mb-3 opacity-60" />
             <h3 className="font-display text-lg uppercase italic font-black text-on-surface mb-1">
               {subFilter === 'pending_review' ? 'REVIEW QUEUE CLEAR' : `NO ${subFilter.toUpperCase()} RECORDS`}
@@ -988,15 +1379,21 @@ export default function AdminProofReview() {
             <p className="font-mono text-[10px] text-on-surface/50 max-w-sm mx-auto leading-relaxed">
               {subFilter === 'pending_review' ? (
                 <>
-                  All pending proofs have been vetted. 
-                  {(totalCounts.rejected > 0 || totalCounts.needs_more_proof > 0) && (
+                  No visible pending proofs right now.
+                  {rawQueueCount > 0 && queueCount === 0 && (
                     <span className="block mt-2 font-bold text-brand-orange">
-                      Note: {totalCounts.needs_more_proof} items in 'Needs More Proof' and {totalCounts.rejected} in 'Rejected' are not in the pending queue.
+                      Entries exist but are being filtered out. Check status normalization or hiddenIds.
                     </span>
                   )}
                 </>
               ) : `No proofs found in the current ${subFilter} selection.`}
             </p>
+            <div className="mt-5 grid grid-cols-1 gap-2 text-left font-mono text-[10px] sm:grid-cols-2">
+              <div className="rounded-lg bg-white/70 p-2">Raw pending entries found: <strong>{rawQueueCount}</strong></div>
+              <div className="rounded-lg bg-white/70 p-2">Visible after filters: <strong>{queueCount}</strong></div>
+              <div className="rounded-lg bg-white/70 p-2">Hidden/skipped: <strong>{hiddenOrSkippedCount}</strong></div>
+              <div className="rounded-lg bg-white/70 p-2">Last queue load: <strong>{lastQueueLoadAt ? lastQueueLoadAt.toLocaleString() : 'not loaded'}</strong></div>
+            </div>
           </Card>
         ) : viewMode === 'swipe' ? (
           // --- STUNNING SWIPE REVIEW INTERFACE ---
@@ -1224,6 +1621,8 @@ export default function AdminProofReview() {
                                 "{currentSwipeItem.entry?.fieldNote || 'No notes provided by agent.'}"
                               </div>
                             </div>
+
+                            {currentSwipeItem.status === 'pending_review' && renderScoringControls(currentSwipeItem)}
 
                             {/* AI analysis report */}
                             <div className="space-y-1 bg-[#EEF2F6] border border-brand-blue/15 p-3 rounded-xl">
@@ -1527,12 +1926,23 @@ export default function AdminProofReview() {
               <ProofReviewCard 
                 key={r.id} 
                 review={r} 
-                onApprove={() => handleAction(r, 'approved').catch(err => console.error("Archive approval failed:", err))}
-                onReject={() => handleAction(r, 'rejected').catch(err => console.error("Archive rejection failed:", err))}
-                onResubmit={() => handleAction(r, 'needs_more_proof').catch(err => console.error("Archive resubmission failed:", err))}
+                onApprove={async () => {
+                  await handleAction(r, 'approved');
+                  setHiddenIds(prev => new Set([...prev, r.id]));
+                }}
+                onReject={async (notes?: string) => {
+                  await handleAction(r, 'rejected', notes);
+                  setHiddenIds(prev => new Set([...prev, r.id]));
+                }}
+                onResubmit={async (notes?: string) => {
+                  await handleAction(r, 'needs_more_proof', notes);
+                  setHiddenIds(prev => new Set([...prev, r.id]));
+                }}
                 onRestore={() => handleAction(r, 'pending_review').catch(err => console.error("Archive restoration failed:", err))}
                 onRerunAI={() => handleRerunAI(r).catch(err => console.error("Archive AI rerun failed:", err))}
                 isRerunning={rerunningId === r.id}
+                scoringControls={r.status === 'pending_review' ? renderScoringControls(r) : null}
+                activeAction={activeAction}
               />
             ))}
           </div>
@@ -1699,7 +2109,7 @@ export default function AdminProofReview() {
                        </div>
 
                        <p className="text-xs font-serif italic font-bold opacity-65 leading-relaxed text-on-surface">
-                          This scans all agents, locating those with &lt; 3 approved starter missions whose decks have been marked exhausted. It flushes rejected starter missions out of submitted locks, sets them back to active/retryable status, resets activePlayableDeckId to 'starter-signals' and recalibrates deck state.
+                          This scans all agents, locating those with &lt; 3 approved starter missions whose decks have been marked exhausted. Standard repair makes rejected starter missions retryable. Soft reset archives stale starter proofs and returns stranded agents to a clean Starter deck.
                        </p>
 
                        <div className="flex items-center gap-3 bg-white/50 p-2.5 rounded-xl border border-brand-cyan/25">
@@ -1715,12 +2125,30 @@ export default function AdminProofReview() {
                           </label>
                        </div>
 
+                       <div className="flex items-center gap-3 bg-rose-50 p-2.5 rounded-xl border border-rose-200">
+                          <input
+                             type="checkbox"
+                             id="strandedSoftResetCheck"
+                             checked={strandedStarterSoftReset}
+                             onChange={(e) => setStrandedStarterSoftReset(e.target.checked)}
+                             className="w-4 h-4 rounded text-rose-600 border-rose-500 focus:ring-0 cursor-pointer"
+                          />
+                          <label htmlFor="strandedSoftResetCheck" className="text-[10px] font-mono uppercase font-bold tracking-wider cursor-pointer select-none text-rose-700">
+                             Soft reset stranded users
+                          </label>
+                       </div>
+
                        <button 
                           onClick={handleRepairStrandedStarter}
                           disabled={isRepairing}
-                          className="w-full py-4 bg-brand-cyan hover:bg-brand-cyan/80 text-on-surface font-display font-black uppercase tracking-widest text-[#004D40] text-xs rounded-xl shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none transition-all disabled:opacity-50"
+                          className={cn(
+                             "w-full py-4 font-display font-black uppercase tracking-widest text-xs rounded-xl shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none transition-all disabled:opacity-50",
+                             strandedStarterSoftReset
+                                ? "bg-rose-600 hover:bg-rose-700 text-white"
+                                : "bg-brand-cyan hover:bg-brand-cyan/80 text-on-surface"
+                          )}
                        >
-                          {isRepairing ? 'RECONFIGURING_DECKS...' : 'Execute Stranded Repair'}
+                          {isRepairing ? 'RECONFIGURING_DECKS...' : strandedStarterSoftReset ? 'Preview / Run Soft Reset' : 'Execute Stranded Repair'}
                        </button>
                     </div>
                  </Card>
@@ -1854,7 +2282,7 @@ export default function AdminProofReview() {
                                          ? "bg-amber-100 text-amber-800 border-amber-300" 
                                          : "bg-emerald-100 text-emerald-800 border-emerald-300"
                                    )}>
-                                      {strandedStarterReport.dryRun ? 'DRY_RUN (SIMULATED)' : 'LIVE COMMIT (REPAIRED)'}
+                                      {strandedStarterReport.dryRun ? 'DRY_RUN (SIMULATED)' : strandedStarterReport.softReset ? 'LIVE COMMIT (SOFT RESET)' : 'LIVE COMMIT (REPAIRED)'}
                                    </span>
                                 </div>
 
@@ -1863,7 +2291,9 @@ export default function AdminProofReview() {
                                       { label: 'Scanned Agents', value: strandedStarterReport.totalUsersScanned },
                                       { label: 'Stranded Detected', value: strandedStarterReport.strandedDetected },
                                       { label: 'Agents Repaired', value: strandedStarterReport.usersRepaired },
-                                      { label: 'Entries Updated', value: strandedStarterReport.entriesUpdated }
+                                      { label: 'Entries Updated', value: strandedStarterReport.entriesUpdated },
+                                      { label: 'Entries Archived', value: strandedStarterReport.entriesArchived || 0 },
+                                      { label: 'Reviews Archived', value: strandedStarterReport.proofReviewsArchived || 0 }
                                    ].map((st, i) => (
                                       <div key={i} className="space-y-0.5">
                                          <p className="text-[8px] font-mono font-black opacity-40 uppercase text-on-surface">{st.label}</p>
@@ -2406,16 +2836,207 @@ function FieldCheckAdminCard({ check, onResolve }: { check: FieldCheck & { entry
 
 interface ProofReviewCardProps {
   review: ProofReview & { entry?: Entry };
-  onApprove: () => Promise<void> | void;
-  onReject: () => Promise<void> | void;
-  onResubmit: () => Promise<void> | void;
+  onApprove: (notes?: string) => Promise<void> | void;
+  onReject: (notes?: string) => Promise<void> | void;
+  onResubmit: (notes?: string) => Promise<void> | void;
   onRestore: () => Promise<void> | void;
   onRerunAI: () => Promise<void> | void;
   isRerunning?: boolean;
+  scoringControls?: React.ReactNode;
+  activeAction?: { id: string; verdict: ProofStatus } | null;
   key?: string | number;
 }
 
-function ProofReviewCard({ review, onApprove, onReject, onResubmit, onRestore, onRerunAI, isRerunning }: ProofReviewCardProps) {
+function ProofReviewCard({ review, onApprove, onReject, onResubmit, onRestore, onRerunAI, isRerunning, scoringControls, activeAction }: ProofReviewCardProps) {
+  const [reasonMode, setReasonMode] = useState<'needs_more_proof' | 'rejected' | null>(null);
+  const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
+  const [customReason, setCustomReason] = useState('');
+  const [reasonError, setReasonError] = useState('');
+
+  const entry: any = review.entry || {};
+  const normalizedStatus = normalizeEntryStatus((review as any).reviewStatus || review.status || entry.status);
+  const isBusy = activeAction?.id === review.id;
+  const isPending = normalizedStatus === 'pending_review';
+  const imageUrl = getReviewImageUrl(review);
+  const imageSource = getImageSourceLabel(review);
+  const reasonOptions = reasonMode === 'needs_more_proof' ? NEEDS_MORE_PROOF_REASONS : REJECT_REASONS;
+  const missionId = entry.missionId || entry.challengeId || review.challengeId || 'Unknown mission';
+  const missionTitle = entry.tripTitle || entry.missionTitle || entry.title || missionId;
+  const userLabel = entry.displayName || entry.userName || entry.username || (review as any).userEmail || review.userId || 'Unknown user';
+  const proofReviewId = (review as any).proofReviewId || (review as any).reviewId || review.id;
+
+  const toggleReason = (reason: string) => {
+    setReasonError('');
+    setSelectedReasons(prev => prev.includes(reason) ? prev.filter(item => item !== reason) : [...prev, reason]);
+  };
+
+  const submitReasonAction = async () => {
+    if (!reasonMode) return;
+    const finalReasons = [...selectedReasons, customReason.trim()].filter(Boolean);
+    if (finalReasons.length === 0) {
+      setReasonError('Choose a quick reason or add a custom note.');
+      return;
+    }
+    const note = finalReasons.join('; ');
+    if (reasonMode === 'needs_more_proof') {
+      await onResubmit(note);
+    } else {
+      await onReject(note);
+    }
+    setReasonMode(null);
+    setSelectedReasons([]);
+    setCustomReason('');
+    setReasonError('');
+  };
+
+  return (
+    <Card className="overflow-hidden border-2 border-on-surface/15 bg-paper rounded-3xl shadow-[6px_6px_0px_black]">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(320px,0.95fr)_minmax(360px,1.05fr)]">
+        <section className="bg-black p-3 sm:p-4">
+          <div className="relative min-h-[240px] md:min-h-[320px] overflow-hidden rounded-2xl border-2 border-white/15 bg-black">
+            {imageUrl ? (
+              <ProofImage entry={entry} className="h-full min-h-[240px] md:min-h-[320px] w-full object-contain" />
+            ) : (
+              <div className="flex min-h-[240px] md:min-h-[320px] flex-col justify-center gap-4 p-5 text-white">
+                <CameraOff className="h-10 w-10 text-brand-orange" />
+                <div>
+                  <h4 className="font-display text-2xl font-black uppercase italic">Image missing</h4>
+                  <p className="mt-1 text-[11px] font-mono text-white/65">Checked image fields before rendering.</p>
+                </div>
+                <div className="grid gap-1 text-[10px] font-mono">
+                  {getReviewImageDebug(review).map(([field, value]) => (
+                    <div key={field} className="flex justify-between gap-3 rounded bg-white/5 px-2 py-1">
+                      <span className="text-white/55">{field}</span>
+                      <span className={value ? 'text-brand-lime' : 'text-red-300'}>{value ? 'present' : 'missing'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="absolute left-3 top-3 max-w-[calc(100%-1.5rem)] rounded-xl bg-black/80 px-3 py-2 text-[10px] font-mono font-black uppercase text-white backdrop-blur">
+              {imageSource}
+            </div>
+          </div>
+        </section>
+
+        <section className="flex min-w-0 flex-col gap-5 p-4 sm:p-6">
+          <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <h3 className="break-words font-display text-2xl font-black uppercase italic leading-tight text-on-surface">{missionTitle}</h3>
+              <p className="mt-1 break-all text-[11px] font-mono text-on-surface/55">Mission ID: {missionId}</p>
+            </div>
+            <span className={cn(
+              "w-fit rounded-xl border px-3 py-2 text-[10px] font-mono font-black uppercase",
+              normalizedStatus === 'pending_review' ? "border-brand-orange bg-brand-orange/10 text-brand-orange" :
+              normalizedStatus === 'approved' ? "border-emerald-500 bg-emerald-500/10 text-emerald-700" :
+              normalizedStatus === 'needs_more_proof' ? "border-blue-500 bg-blue-500/10 text-blue-700" :
+              "border-red-500 bg-red-500/10 text-red-700"
+            )}>
+              {normalizedStatus.replace(/_/g, ' ')}
+            </span>
+          </header>
+
+          <div className="grid grid-cols-1 gap-2 text-[11px] font-mono sm:grid-cols-2">
+            <div className="rounded-xl bg-on-surface/5 p-3"><span className="block text-on-surface/45">User</span><strong className="break-words">{userLabel}</strong></div>
+            <div className="rounded-xl bg-on-surface/5 p-3"><span className="block text-on-surface/45">Submitted</span><strong>{formatAdminDate(entry.submittedAt || entry.createdAt || (review as any).createdAt)}</strong></div>
+            <div className="rounded-xl bg-on-surface/5 p-3"><span className="block text-on-surface/45">Deck ID</span><strong className="break-all">{entry.deckId || (review as any).deckId || 'Not set'}</strong></div>
+            <div className="rounded-xl bg-on-surface/5 p-3"><span className="block text-on-surface/45">Confidence</span><strong>{review.confidenceScore ?? 100}%</strong></div>
+            <div className="rounded-xl bg-on-surface/5 p-3 sm:col-span-2"><span className="block text-on-surface/45">Entry ID</span><strong className="break-all">{review.entryId || entry.id}</strong></div>
+            <div className="rounded-xl bg-on-surface/5 p-3 sm:col-span-2"><span className="block text-on-surface/45">Proof Review ID</span><strong className="break-all">{proofReviewId}</strong></div>
+          </div>
+
+          <div className="rounded-2xl border border-on-surface/10 bg-white/70 p-4">
+            <p className="text-[10px] font-mono font-black uppercase text-on-surface/45">Field note / caption</p>
+            <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-on-surface/80">{entry.fieldNote || entry.note || (review as any).fieldNote || 'No field note provided.'}</p>
+          </div>
+
+          <div className="rounded-2xl border border-on-surface/10 bg-white/70 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[10px] font-mono font-black uppercase text-on-surface/45">AI / proof check result</p>
+              <button onClick={onRerunAI} disabled={isRerunning || isBusy} className="rounded-lg border border-on-surface/15 px-2 py-1 text-[10px] font-mono font-black uppercase disabled:opacity-40">
+                {isRerunning ? 'Rerunning...' : 'Rerun AI'}
+              </button>
+            </div>
+            <p className="mt-2 break-words text-xs leading-relaxed text-on-surface/70">{review.reviewNotes || 'No automatic review notes.'}</p>
+            {(review.missingRequirements?.length || 0) > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1">
+                {review.missingRequirements?.map(req => (
+                  <span key={req} className="rounded-md bg-red-500/10 px-2 py-1 text-[10px] font-mono font-bold text-red-600">{req}</span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {isPending && scoringControls}
+
+          {reasonMode && (
+            <div className="rounded-2xl border-2 border-brand-orange/25 bg-brand-orange/5 p-4">
+              <p className="text-[11px] font-mono font-black uppercase text-brand-orange">
+                {reasonMode === 'needs_more_proof' ? 'Reason for more proof' : 'Reason for rejection'}
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {reasonOptions.map(reason => (
+                  <button
+                    key={reason}
+                    type="button"
+                    onClick={() => toggleReason(reason)}
+                    className={cn(
+                      "rounded-xl border px-3 py-2 text-[10px] font-mono font-black uppercase",
+                      selectedReasons.includes(reason) ? "border-on-surface bg-on-surface text-white" : "border-on-surface/15 bg-white text-on-surface/65"
+                    )}
+                  >
+                    {reason}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                value={customReason}
+                onChange={(event) => {
+                  setReasonError('');
+                  setCustomReason(event.target.value);
+                }}
+                placeholder="Add custom note..."
+                className="mt-3 min-h-[88px] w-full rounded-xl border-2 border-on-surface/15 bg-white p-3 text-sm outline-none focus:border-brand-orange"
+              />
+              {reasonError && <p className="mt-2 text-[11px] font-mono font-bold text-red-600">{reasonError}</p>}
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <button onClick={() => setReasonMode(null)} disabled={isBusy} className="rounded-xl border-2 border-on-surface/20 bg-white px-4 py-3 text-xs font-mono font-black uppercase disabled:opacity-40">Cancel</button>
+                <button onClick={submitReasonAction} disabled={isBusy} className="rounded-xl border-2 border-on-surface bg-on-surface px-4 py-3 text-xs font-mono font-black uppercase text-white disabled:opacity-40">
+                  {isBusy ? (activeAction?.verdict === 'needs_more_proof' ? 'Requesting more proof...' : 'Rejecting...') : 'Submit reason'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="sticky bottom-0 -mx-4 -mb-4 border-t border-on-surface/10 bg-paper/95 p-4 backdrop-blur sm:-mx-6 sm:-mb-6 sm:p-6 lg:static lg:m-0 lg:border-0 lg:bg-transparent lg:p-0">
+            {isPending ? (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <button onClick={() => setReasonMode('needs_more_proof')} disabled={isBusy} className="min-h-12 rounded-xl border-2 border-blue-500 bg-blue-500/10 px-4 py-3 text-sm font-mono font-black uppercase text-blue-700 disabled:opacity-40">
+                  {isBusy && activeAction?.verdict === 'needs_more_proof' ? 'Requesting more proof...' : 'Needs More Proof'}
+                </button>
+                <button onClick={() => setReasonMode('rejected')} disabled={isBusy} className="min-h-12 rounded-xl border-2 border-red-500 bg-red-500/10 px-4 py-3 text-sm font-mono font-black uppercase text-red-700 disabled:opacity-40">
+                  {isBusy && activeAction?.verdict === 'rejected' ? 'Rejecting...' : 'Reject Proof'}
+                </button>
+                <button onClick={() => onApprove()} disabled={isBusy} className="min-h-12 rounded-xl border-2 border-on-surface bg-brand-orange px-4 py-3 text-sm font-mono font-black uppercase text-white shadow-[4px_4px_0px_black] disabled:opacity-40">
+                  {isBusy && activeAction?.verdict === 'approved' ? 'Approving...' : 'Approve Proof'}
+                </button>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-on-surface/10 bg-on-surface/5 p-3 text-center text-[11px] font-mono font-black uppercase text-on-surface/55">
+                Review finalized
+                {normalizedStatus !== 'approved' && (
+                  <button onClick={onRestore} className="ml-3 text-brand-orange underline">Restore to pending</button>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+    </Card>
+  );
+}
+
+function LegacyProofReviewCard({ review, onApprove, onReject, onResubmit, onRestore, onRerunAI, isRerunning, scoringControls }: ProofReviewCardProps) {
   const [showAnalysis, setShowAnalysis] = useState(false);
   const isCached = review.id.startsWith('cached_');
 
@@ -2663,6 +3284,8 @@ function ProofReviewCard({ review, onApprove, onReject, onResubmit, onRestore, o
                 ⚙️ Metadata Hardware: {metadataSummaryText}
               </div>
             )}
+
+            {review.status === 'pending_review' && scoringControls}
           </div>
 
           {/* Admin actions (Specs: Approve, Needs More Proof, Reject) */}
@@ -2674,19 +3297,19 @@ function ProofReviewCard({ review, onApprove, onReject, onResubmit, onRestore, o
               {review.status === 'pending_review' ? (
                 <>
                   <button 
-                    onClick={onResubmit}
+                    onClick={() => onResubmit()}
                     className="flex items-center justify-center gap-1.5 p-3.5 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-white transition-all text-xs font-mono uppercase tracking-wider border-2 border-amber-500/20 font-bold rounded-lg cursor-pointer max-sm:text-[10px]"
                   >
                     <RefreshCw className="w-3.5 h-3.5 shrink-0" /> Needs More Proof
                   </button>
                   <button 
-                    onClick={onReject}
+                    onClick={() => onReject()}
                     className="flex items-center justify-center gap-1.5 p-3.5 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all text-xs font-mono uppercase tracking-wider border-2 border-red-500/20 font-bold rounded-lg cursor-pointer max-sm:text-[10px]"
                   >
                     <X className="w-3.5 h-3.5 shrink-0" /> Reject
                   </button>
                   <button 
-                    onClick={onApprove}
+                    onClick={() => onApprove()}
                     className="flex items-center justify-center gap-1.5 p-3.5 bg-brand-orange text-white hover:scale-[1.03] active:scale-95 hover:bg-emerald-600 transition-all text-xs font-mono uppercase tracking-wider font-extrabold rounded-lg shadow-[4px_4px_0px_black] border-2 border-on-surface/90 cursor-pointer max-sm:text-[10px]"
                   >
                     <Check className="w-3.5 h-3.5 shrink-0" /> Approve
@@ -2716,4 +3339,3 @@ function ProofReviewCard({ review, onApprove, onReject, onResubmit, onRestore, o
     </Card>
   );
 }
-

@@ -353,7 +353,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               <div className="bg-white p-3 pb-10 shadow-[0_15px_35px_rgba(0,0,0,0.15)] border border-black/5 rotate-[1deg] relative">
                  <div className="w-64 h-64 bg-on-surface/5 relative overflow-hidden">
                    {data.photoUrl ? (
-                     <img src={data.photoUrl} alt="Captured Proof" className="w-full h-full object-cover" />
+                     <img src={data.photoUrl} alt="Captured Proof" className="w-full h-full object-contain" />
                    ) : (
                      <div className="w-full h-full flex flex-col items-center justify-center text-on-surface/20">
                        <Camera size={48} strokeWidth={1} />
@@ -412,6 +412,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               noteAdded={data.note.length >= 10}
               detectedSubject={aiAnalysisResult?.status === 'detected'}
               missionMatchScore={aiAnalysisResult?.missionMatchScore}
+              maxStrength={mission.baseXP || (mission as any).basePoints || 100}
               variant="compact"
             />
 

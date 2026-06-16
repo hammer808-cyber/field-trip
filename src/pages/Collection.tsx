@@ -17,7 +17,7 @@ import {
   Heart,
   Calendar
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { StickerDecal } from '../components/StickerDecals';
 import { Card, FieldBadge } from '../components/UI';
@@ -48,7 +48,14 @@ export default function CollectionPage() {
   } = useApp();
   const { skin: currentSkin, allSkins, setSkin } = useTheme();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<CollectionTab>('stickers');
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const getInitialTab = (): CollectionTab => {
+    const requestedTab = searchParams.get('tab') as CollectionTab | null;
+    if (requestedTab && ['stickers', 'badges', 'skins', 'decks', 'missions', 'crew_memories'].includes(requestedTab)) return requestedTab;
+    return location.pathname === '/memories' ? 'crew_memories' : 'stickers';
+  };
+  const [activeTab, setActiveTab] = useState<CollectionTab>(getInitialTab);
 
   const activePacks = getActiveDeckPacks();
 
@@ -89,8 +96,13 @@ export default function CollectionPage() {
     unlockDiscoverySticker('dex_open', 'dex');
   }, []);
 
+  useEffect(() => {
+    setActiveTab(getInitialTab());
+  }, [location.pathname, searchParams]);
+
   const handleTabChange = (id: CollectionTab) => {
     setActiveTab(id);
+    setSearchParams(id === 'stickers' ? {} : { tab: id });
     if (id === 'stickers') {
       unlockDiscoverySticker('sticker_collection_view', 'dex');
     }

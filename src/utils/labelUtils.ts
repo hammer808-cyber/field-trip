@@ -163,7 +163,7 @@ export function getDisplayLabel(key: string): string {
   
   if (ACTION_LABELS[cleanKey]) return ACTION_LABELS[cleanKey];
 
-  if (process.env.NODE_ENV === "development") {
+  if (import.meta.env.DEV) {
     console.warn("Missing display label for key:", key);
   }
 
