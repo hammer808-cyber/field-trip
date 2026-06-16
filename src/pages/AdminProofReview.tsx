@@ -385,6 +385,11 @@ export default function AdminProofReview() {
   };
 
   useEffect(() => {
+    setHiddenIds(new Set());
+    setSkippedIds(new Set());
+  }, [subFilter]);
+
+  useEffect(() => {
     if (!isAdmin) return;
 
     if (import.meta.env.DEV) {

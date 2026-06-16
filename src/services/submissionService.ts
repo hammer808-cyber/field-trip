@@ -208,7 +208,7 @@ function shouldShowAsPendingUnawardedProof(entry: any, linkedReview: any | null)
   const reviewStatusRaw = linkedReview ? getReviewQueueStatus(linkedReview) : '';
   if (isTerminalAwardStatus(entryStatusRaw) || isTerminalAwardStatus(reviewStatusRaw)) return false;
 
-  return hasProofMedia(entry) || hasProofMedia(linkedReview);
+  return hasProofMedia(entry) || hasProofMedia(linkedReview) || !!linkedReview?.id;
 }
 
 function shouldShowReviewAsPendingUnawardedProof(review: any, linkedEntry: any | null = null): boolean {
@@ -217,7 +217,7 @@ function shouldShowReviewAsPendingUnawardedProof(review: any, linkedEntry: any |
   if (isXpAwarded(review) || isXpAwarded(linkedEntry)) return false;
   if (isTerminalAwardStatus(getReviewQueueStatus(review))) return false;
   if (linkedEntry && isTerminalAwardStatus(linkedEntry.status)) return false;
-  return hasProofMedia(review) || hasProofMedia(linkedEntry);
+  return hasProofMedia(review) || hasProofMedia(linkedEntry) || !!review?.id;
 }
 
 function getStatusSummary(records: any[], label: 'entry' | 'proofReview'): Record<string, number> {
@@ -643,7 +643,7 @@ export function subscribeToAdminPendingReviews(
       const hasLinkedEntry = !!linkedEntry;
       const reviewStatusMatches = normalizeEntryStatus(getReviewQueueStatus(review)) === statusFilter;
       const reviewNeedsPendingRescue = statusFilter === 'pending_review' && shouldShowReviewAsPendingUnawardedProof(review, linkedEntry);
-      return (!hasLinkedEntry && reviewStatusMatches) || reviewNeedsPendingRescue;
+      return reviewNeedsPendingRescue || (reviewStatusMatches && (!hasLinkedEntry || statusFilter !== 'approved'));
     });
 
     if (reviewBackedPendingProofs.length > 0) {
