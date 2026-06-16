@@ -111,12 +111,37 @@ function makeReviewLookupKeys(review: any): string[] {
   ].filter(Boolean);
 }
 
+function getEntryMissionKey(entry: any): string {
+  return String(entry?.tripId || entry?.missionId || entry?.challengeId || '').toLowerCase().trim();
+}
+
+function getReviewMissionKey(review: any): string {
+  return String(review?.tripId || review?.missionId || review?.challengeId || '').toLowerCase().trim();
+}
+
+function getEntryUserKey(entry: any): string {
+  return String(entry?.userId || entry?.uid || entry?.firebaseUid || '').toLowerCase().trim();
+}
+
+function getReviewUserKey(review: any): string {
+  return String(review?.userId || review?.uid || review?.firebaseUid || '').toLowerCase().trim();
+}
+
 function findReviewForEntry(entry: any, reviews: any[]): any | null {
   const entryId = entry.id;
   const proofCheckId = entry.proofCheckId;
-  return reviews.find(review => {
+  const directMatch = reviews.find(review => {
     const keys = makeReviewLookupKeys(review);
     return keys.includes(entryId) || (!!proofCheckId && keys.includes(proofCheckId));
+  });
+  if (directMatch) return directMatch;
+
+  const entryMissionKey = getEntryMissionKey(entry);
+  const entryUserKey = getEntryUserKey(entry);
+  if (!entryMissionKey || !entryUserKey) return null;
+
+  return reviews.find(review => {
+    return getReviewMissionKey(review) === entryMissionKey && getReviewUserKey(review) === entryUserKey;
   }) || null;
 }
 
@@ -497,7 +522,7 @@ export function subscribeToAdminPendingReviews(
 
   console.log('[AdminQueue] entries source-of-truth query started');
   console.log('[AdminQueue] normalized status filter', statusFilter);
-  const q = query(collection(db, ENTRIES_COLLECTION), orderBy('createdAt', 'desc'), limit(200));
+  const q = query(collection(db, ENTRIES_COLLECTION), orderBy('createdAt', 'desc'), limit(500));
 
   return onSnapshot(q, async (snap) => {
     const rawEntries = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Entry));
@@ -506,7 +531,7 @@ export function subscribeToAdminPendingReviews(
 
     let proofReviewDocs: any[] = [];
     try {
-      const reviewQuery = query(collection(db, REVIEWS_COLLECTION), orderBy('createdAt', 'desc'), limit(300));
+      const reviewQuery = query(collection(db, REVIEWS_COLLECTION), orderBy('createdAt', 'desc'), limit(1000));
       const reviewSnap = await getDocs(reviewQuery);
       proofReviewDocs = reviewSnap.docs.map(reviewDoc => ({ id: reviewDoc.id, ...reviewDoc.data() } as any));
       console.log('[AdminQueue] proofReview metadata documents returned', proofReviewDocs.length);
