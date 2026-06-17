@@ -23,13 +23,12 @@ dotenv.config();
 // Process-level error tracking for robust operation
 process.on('unhandledRejection', (reason, promise) => {
   console.error('[UNHANDLED_REJECTION] CRITICAL: An asynchronous operation failed without a catch block.');
-  // More detailed info for debugging
-  console.error('Promise Info:', JSON.stringify(promise, (key, value) => 
-    typeof value === 'object' && value !== null ? '[Object]' : value, 2));
-  console.error('Reason:', reason);
+  console.error('Promise:', promise);
   if (reason instanceof Error) {
-    console.error('Error Message:', reason.message);
-    console.error('Stack Trace:', reason.stack);
+    console.error('Reason (Error):', reason.message);
+    console.error('Stack:', reason.stack);
+  } else {
+    console.error('Reason (Non-Error):', reason);
   }
 });
 process.on('uncaughtException', (error) => {
@@ -97,14 +96,7 @@ async function initAdmin() {
           // Capture the working bucket name for later use in storage operations
           workingBucketName = config.storageBucket || `${candidateProjId}.firebasestorage.app`;
           
-          // Test connectivity
-          await dbAdmin.collection('_system').doc('warmup').set({ 
-            lastBoot: FieldValue.serverTimestamp(),
-            env: process.env.NODE_ENV || 'development',
-            initProject: candidateProjId
-          }, { merge: true });
-          
-          console.log(`[BUREAU_ADMIN] Firestore successfully connected to database: ${dbId || '(default)'} in project: ${candidateProjId}`);
+          console.log(`[BUREAU_ADMIN] Firestore successfully initialized for project: ${candidateProjId}`);
           connectionSuccess = true;
         } catch (setErr: any) {
           console.warn(`[BUREAU_ADMIN] Failed connection for project "${candidateProjId}": ${setErr.message}`);
@@ -127,16 +119,6 @@ async function initAdmin() {
     if (adminApp) {
       storageAdmin = getStorage(adminApp);
       authAdmin = getAuth(adminApp);
-    }
-
-    // Final sanity check
-    if (dbAdmin) {
-      const dbSnap = await dbAdmin.collection('_system').doc('warmup').get().catch(() => null);
-      if (dbSnap && dbSnap.exists) {
-        console.log(`[BUREAU_ADMIN] Database verification: OK`);
-      } else {
-        console.log(`[BUREAU_ADMIN] Database verification: READ_FAILED_OR_EMPTY (Expected for new projects)`);
-      }
     }
   } catch (e: any) {
     console.error("[BUREAU_ADMIN] FATAL: Firebase Admin initialization failed:", e.message);
@@ -296,7 +278,7 @@ if (process.env.NODE_ENV !== 'production' && process.env.ENABLE_STARTUP_PURGE ==
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const port = Number(process.env.PORT) || 8080;
 
   // Middleware for parsing JSON with large limits for images
   app.use(express.json({ limit: '10mb' }));
@@ -369,13 +351,9 @@ async function startServer() {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
     
     // Check for admin role
-    const { uid, email } = req.user;
-    let isAdminUser = (email === 'hammer808@gmail.com') || (uid === 'vX7K0XGkXRM2yPzhidv79Q59GqC2') || (uid === 'oae0GwP7mpcUX7i93AeDGd22VNu2');
+    const isAdminUser = await checkIsAdmin(req.user);
     if (!isAdminUser) {
-      const userDoc = await dbAdmin.collection('users').doc(uid).get();
-      if (userDoc.data()?.role !== 'admin') {
-        return res.status(403).json({ error: "ADMIN_ONLY" });
-      }
+      return res.status(403).json({ error: "ADMIN_ONLY" });
     }
 
     try {
@@ -1547,40 +1525,13 @@ async function startServer() {
         contents: {
           parts: [
             { text: analysisPrompt },
-            { 
+            {
               inlineData: {
                 data: base64Data,
                 mimeType: "image/jpeg"
               }
             }
           ]
-        },
-        config: {
-          temperature: 0.2, // Slightly more creative but still grounded
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              status: { type: Type.STRING, description: "Must be 'detected' if the required subject is found in the photo, or 'not_detected' if it's missing." },
-              requiredSubject: { type: Type.STRING, description: "The name of the required subject being checked." },
-              detectedSubject: { type: Type.BOOLEAN, description: "True if the required subject itself was successfully identified in the picture." },
-              confidence: { type: Type.NUMBER, description: "Confidence score between 0 and 1." },
-              detectedItems: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-                description: "List of other relevant items or characteristics detected in the picture."
-              },
-              missingItems: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-                description: "List of key features or required criteria that are missing from the photo."
-              },
-              displayTitle: { type: Type.STRING, description: "A high-tech short heading, like 'Subject Acquired' or 'No Match Detected'." },
-              displayDetail: { type: Type.STRING, description: "A short technical or atmospheric detail describing what was analyzed or why it matches/mismatches." },
-              missionMatchScore: { type: Type.INTEGER, description: "A percentage match score from 0 to 100 based on required subjects, target keywords, and evidence rules." }
-            },
-            required: ["status", "requiredSubject", "detectedSubject", "confidence", "detectedItems", "missingItems", "displayTitle", "displayDetail", "missionMatchScore"]
-          }
         }
       });
 
@@ -3213,14 +3164,17 @@ async function startServer() {
     });
   }
 
-  // Verification log for access codes - only if dbAdmin ready
-  if (dbAdmin) {
-    console.log(`[BUREAU_INIT] Admin SDK ready for background tasks.`);
-  }
-
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[BUREAU_SERVER] Running on http://localhost:${PORT}`);
+  app.listen(port, "0.0.0.0", () => {
+    console.log(`[FIELDTRIP_SERVER] Listening on 0.0.0.0:${port}`);
     console.log(`[BUREAU_SERVER] Mode: ${process.env.NODE_ENV || 'development'}`);
+    
+    // Non-blocking verification after server is listening
+    if (dbAdmin) {
+      dbAdmin.collection('_system').doc('warmup').set({ 
+        lastBoot: FieldValue.serverTimestamp(),
+        env: process.env.NODE_ENV || 'production'
+      }, { merge: true }).catch(err => console.error("[BUREAU_INIT] Post-startup warmup failed:", err));
+    }
   });
 }
 

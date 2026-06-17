@@ -121,7 +121,7 @@ import {
 } from '../services/missionCardService';
 
 import { watchGlobalConfig, getGlobalConfig, GlobalConfig } from '../services/configService';
-import { getEligibleDrawPool as getCanonicalPool } from '../logic/deckLogic';
+import { getEligibleDrawPool as getCanonicalPool, ExclusionAnalysis, EligibleDrawPoolResult } from '../logic/deckLogic';
 
 import { 
   DrawnMissionCard, 
@@ -247,7 +247,7 @@ interface AppContextType {
   requestLocation: () => Promise<boolean>;
   completeFieldKitOnboarding: () => Promise<void>;
   isTribunalUnlocked: boolean;
-  getEligibleDrawPool: (packId?: string) => TripType[];
+  getEligibleDrawPool: (packId?: string) => EligibleDrawPoolResult;
   isHeatwaveDeckUnlocked: boolean;
   isSocalSummerUnlocked: boolean;
   fieldGuideAssistEnabled: boolean;
@@ -1809,7 +1809,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const getEligibleDrawPool = React.useCallback((packId?: string): TripType[] => {
+  const getEligibleDrawPool = React.useCallback((packId?: string): EligibleDrawPoolResult => {
     // 1. Enforce Starter Pack if not complete
     let effectivePackId = packId;
     if (!isOnboardingComplete && !isAdmin && !overrides.forceUnlocked) {
@@ -1820,27 +1820,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     
     // 2. Prevent selecting locked summer deck if not unlocked
     if (effectivePackId === 'heatwave-receipts' && !isHeatwaveDeckUnlocked && !isAdmin && !overrides.forceUnlocked) {
-      return [];
+      return { eligibleMissions: [], reason: 'season_locked' };
     }
     
     if (effectivePackId === 'socal-summer' && !isSocalSummerUnlocked && !isAdmin && !overrides.forceUnlocked) {
-      return [];
+      return { eligibleMissions: [], reason: 'season_locked' };
     }
 
-    console.log('[AppContext] getEligibleDrawPool call:', {
-      profileId: profile?.id,
-      fieldClassificationComplete,
-      isOnboardingComplete,
-      activePackId: packId,
-      isHeatwaveDeckUnlocked,
-      completedChallengeIdsCount: completedChallengeIds.size,
-      submittedPendingChallengeIdsCount: submittedPendingChallengeIds.size,
-      needsMoreProofChallengeIdsCount: needsMoreProofChallengeIds.size,
-      rejectedChallengeIdsCount: rejectedChallengeIds.size,
-      tripsCount: trips.length
-    });
-
-    const { eligibleMissions, reason, excludedCards } = getCanonicalPool({
+    const result = getCanonicalPool({
       missions: trips,
       completedMissionIds: completedChallengeIds,
       pendingMissionIds: submittedPendingChallengeIds,
@@ -1853,18 +1840,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       isAdmin,
     });
     
-    // DEEP DEBUG LOGGING
-    if (pack?.packId === 'heatwave-receipts' || !isOnboardingComplete) {
-      console.log(`[DEEP_TRACE] Status for ${pack?.packId}:`, {
-        eligible: eligibleMissions.length,
-        reason,
-        missions: trips.length,
-        excluded: (excludedCards || []).length
-      });
-    }
-
-    return eligibleMissions;
-  }, [trips, completedChallengeIds, submittedPendingChallengeIds, needsMoreProofChallengeIds, rejectedChallengeIds, isOnboardingComplete, isHeatwaveDeckUnlocked, isAdmin, profile?.id]);
+    return result;
+  }, [trips, completedChallengeIds, submittedPendingChallengeIds, needsMoreProofChallengeIds, rejectedChallengeIds, isOnboardingComplete, isHeatwaveDeckUnlocked, isAdmin]);
 
   const drawTrip = async (tripId?: string, packId?: string): Promise<TripType | null> => {
     if (!user || trips.length === 0) return null;
@@ -1908,7 +1885,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // 1. Get the current eligible pool for the pack
     const effectivePackId = packId || (isOnboardingComplete ? (localStorage.getItem('active_deck_pack_id') || 'urban-recon') : 'starter-signals');
-    const eligiblePool = getEligibleDrawPool(effectivePackId);
+    const poolResult = getEligibleDrawPool(effectivePackId);
+    const eligiblePool = poolResult.eligibleMissions;
     
     // 2. Identify previous mission to avoid immediate repeat (Summer rule)
     const lastEntryId = profile?.submittedChallengeIds?.[profile.submittedChallengeIds.length - 1];

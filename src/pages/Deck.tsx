@@ -344,7 +344,9 @@ export default function DeckPage() {
     : 0;
 
   // Calculate exhaustion state dynamically
-  const eligiblePool = getEligibleDrawPool(activePackId);
+  const poolResult = getEligibleDrawPool(activePackId);
+  const eligiblePool = poolResult.eligibleMissions;
+  const drawPoolAnalysis = poolResult.analysis || [];
   
   // Rule 1 & Rule 2 for Starter Deck:
   // - Pending review should only show if ALL starters are submitted but not yet 3 approved.
@@ -385,10 +387,11 @@ export default function DeckPage() {
         maxActivePendingPerDeck: maxSeasonalPending,
         isBlocked: isWaitingForReview,
         isStarterPending,
-        blockReason: isPendingReviewLimit ? 'pending_limit_reached' : (eligiblePool.length === 0 && !isStarter ? 'deck_exhausted' : 'none')
+        blockReason: isPendingReviewLimit ? 'pending_limit_reached' : (eligiblePool.length === 0 && !isStarter ? 'deck_exhausted' : 'none'),
+        analysis: drawPoolAnalysis
       });
     }
-  }, [activePackId, approvedDeckChallengesCount, pendingDeckChallengesCount, starterSubmittedCount, eligiblePool.length, isWaitingForReview, isPendingReviewLimit, isExhausted, isStarterPending, maxSeasonalPending, needsMoreProofDeckChallengesCount, rejectedDeckChallengesCount]);
+  }, [activePackId, approvedDeckChallengesCount, pendingDeckChallengesCount, starterSubmittedCount, eligiblePool.length, isWaitingForReview, isPendingReviewLimit, isExhausted, isStarterPending, maxSeasonalPending, needsMoreProofDeckChallengesCount, rejectedDeckChallengesCount, drawPoolAnalysis]);
 
   const starterHasNeedsMoreProof = isStarter && starterNeedsMoreProofId;
   const starterHasRejected = isStarter && starterRejectedId;
@@ -407,16 +410,6 @@ export default function DeckPage() {
               (isStarter ? "STARTER_SIGNALS_READY" : getDisplayLabel("UPLINK_READY_FOR_HAND_OFF")))),
     status: starterHasNeedsMoreProof || starterHasRejected || isPendingReviewLimit || isWaitingForReview ? "PENDING" : (isExhausted ? "EXHAUSTED" : "READY")
   };
-
-  const excludedCardIdsWithReasons = activePack ? activePack.missionIds.reduce((acc, mId) => {
-    const idLower = mId.toLowerCase();
-    if (completedChallengeIds.has(idLower)) acc[mId] = 'approved';
-    else if (submittedPendingChallengeIds.has(idLower)) acc[mId] = 'pending';
-    else if (needsMoreProofChallengeIds.has(idLower)) acc[mId] = 'needs_more_proof';
-    else if (rejectedChallengeIds.has(idLower)) acc[mId] = 'rejected';
-    else acc[mId] = 'available_but_filtered_or_missing';
-    return acc;
-  }, {} as Record<string, string>) : {};
 
   // Real automatically rotating weekly bonus selector
   const currentWeeklyBonus = getWeeklyBonusForWeek(currentWeekNumber);
@@ -887,14 +880,39 @@ export default function DeckPage() {
               {eligiblePool.length === 0 && <span className="text-red-500">NONE</span>}
             </div>
 
-            <div className="mt-3 text-neutral-400 border-t border-white/10 pt-2">Deck Exclusion Analysis:</div>
-            <div className="max-h-32 overflow-auto mt-1 space-y-0.5">
-              {Object.entries(excludedCardIdsWithReasons).map(([id, reason]) => (
-                <div key={id} className="flex justify-between items-center gap-4">
-                  <span className="truncate">{id}</span>
-                  <span className={`flex-shrink-0 ${reason === 'available_but_filtered_or_missing' ? 'text-red-400' : 'text-neutral-500'}`}>{reason}</span>
-                </div>
-              ))}
+            <div className="mt-3 text-neutral-400 border-t border-white/10 pt-2 text-[8px] uppercase font-bold text-neutral-500">Deck Inventory Analyzer:</div>
+            <div className="max-h-48 overflow-auto mt-1 space-y-0.5 border border-white/5 rounded-md bg-white/5">
+              <table className="w-full text-left">
+                <thead className="bg-white/10 text-neutral-400 uppercase tracking-tighter">
+                  <tr>
+                    <th className="px-1 py-0.5">ID</th>
+                    <th className="px-1 py-0.5">STAT</th>
+                    <th className="px-1 py-0.5">SUB?</th>
+                    <th className="px-1 py-0.5">DRAW</th>
+                    <th className="px-1 py-0.5">REASON</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {drawPoolAnalysis.sort((a,b) => a.cardId.localeCompare(b.cardId)).map(a => (
+                    <tr key={a.cardId} className={`${a.isDrawable ? 'bg-green-500/5' : ''}`}>
+                      <td className="px-1 py-0.5 text-white/80">{a.cardId}</td>
+                      <td className="px-1 py-0.5 text-blue-400">{a.status}</td>
+                      <td className="px-1 py-0.5">
+                        {a.isApproved && "APV"}
+                        {a.isPending && "PND"}
+                        {a.isNeedsMoreProof && "NMP"}
+                        {a.isRejected && "REJ"}
+                      </td>
+                      <td className={`px-1 py-0.5 font-bold ${a.isDrawable ? 'text-green-500' : 'text-neutral-600'}`}>
+                        {a.isDrawable ? 'YES' : 'NO'}
+                      </td>
+                      <td className={`px-1 py-0.5 ${a.exclusionReason === 'missing_from_missions_bank' ? 'text-red-500' : 'text-neutral-500 italic'}`}>
+                        {a.exclusionReason || '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}

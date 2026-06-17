@@ -9,10 +9,24 @@ export type DrawPoolReason =
   | 'loading' 
   | 'no_missions';
 
+export interface ExclusionAnalysis {
+  cardId: string;
+  deckId: string;
+  isApproved: boolean;
+  isPending: boolean;
+  isRejected: boolean;
+  isNeedsMoreProof: boolean;
+  isAlreadySubmitted: boolean;
+  isDrawable: boolean;
+  exclusionReason: string | null;
+  status: string;
+}
+
 export interface EligibleDrawPoolResult {
   eligibleMissions: TripType[];
   reason: DrawPoolReason | null;
   excludedCards?: { id: string, reason: string }[];
+  analysis?: ExclusionAnalysis[];
 }
 
 /**
@@ -43,10 +57,10 @@ export function getEligibleDrawPool({
 }): EligibleDrawPoolResult {
   console.log('[deckLogic] getEligibleDrawPool input:', {
     missionsCount: missions?.length,
-    completedMissionIds: Array.from(completedMissionIds),
-    pendingMissionIds: Array.from(pendingMissionIds),
-    needsMoreProofMissionIds: Array.from(needsMoreProofMissionIds),
-    rejectedMissionIds: Array.from(rejectedMissionIds),
+    completedMissionIdsSize: completedMissionIds.size,
+    pendingMissionIdsSize: pendingMissionIds.size,
+    needsMoreProofMissionIdsSize: needsMoreProofMissionIds.size,
+    rejectedMissionIdsSize: rejectedMissionIds.size,
     isOnboardingComplete,
     activePackId: activePack?.packId,
     isHeatwaveDeckUnlocked,
@@ -85,7 +99,7 @@ export function getEligibleDrawPool({
 
     packMissionIdsNormalized = new Set(activePack.missionIds.map(id => id.toString().toLowerCase().trim()));
     pool = missions.filter(m => {
-      const mid = (m.id || m.missionId || m.challengeId || '').toString().toLowerCase().trim();
+      const mid = (m.id || (m as any).missionId || (m as any).challengeId || '').toString().toLowerCase().trim();
       return packMissionIdsNormalized!.has(mid);
     });
     
@@ -125,73 +139,106 @@ export function getEligibleDrawPool({
     console.log(`[deckLogic] No specific active pack. Fallback pool size: ${pool.length}`);
   }
 
-  const excludedCards: { id: string, reason: string }[] = [];
+  const analysis: ExclusionAnalysis[] = [];
+  const eligibleMissions: TripType[] = [];
 
-  // Filter out completed missions, pending missions, and ensure available status
-  const eligibleMissions = pool.filter(m => {
-    const missionIdLower = (m.id || m.missionId || m.challengeId || '').toString().toLowerCase().trim();
-    if (!missionIdLower) {
-      excludedCards.push({ id: 'unknown', reason: 'missing_id' });
-      return false;
-    }
-    const isStarterMission = ONBOARDING_IDS.includes(missionIdLower);
+  // If we are in an active pack, ensure we account for ALL missions in the pack even if they are missing from the trips bank
+  const analyzedIds = new Set<string>();
+
+  const processMission = (m: TripType) => {
+    const missionIdLower = (m.id || (m as any).missionId || (m as any).challengeId || '').toString().toLowerCase().trim();
+    if (!missionIdLower) return;
     
-    const isCompleted = completedMissionIds.has(missionIdLower);
+    analyzedIds.add(missionIdLower);
+
+    const isStarterMission = ONBOARDING_IDS.includes(missionIdLower);
+    const isApproved = completedMissionIds.has(missionIdLower);
     const isPending = pendingMissionIds.has(missionIdLower);
     const isNeedsMoreProof = needsMoreProofMissionIds.has(missionIdLower);
     const isRejected = rejectedMissionIds.has(missionIdLower);
+    const isAlreadySubmitted = isApproved || isPending || isNeedsMoreProof || isRejected;
     
-    // Status normalization: Treat all active/available/approved as drawable
     const status = (m.status || 'available').toLowerCase();
     const isAllowedStatus = ['available', 'approved', 'active', 'auto_approved', 'approved_by_admin'].includes(status);
     
-    if (!isAllowedStatus) excludedCards.push({ id: m.id, reason: `disallowed_status:${status}` });
-    else if (isCompleted) excludedCards.push({ id: m.id, reason: 'completed' });
-    else if (isPending) excludedCards.push({ id: m.id, reason: 'pending' });
-    else if (isNeedsMoreProof) excludedCards.push({ id: m.id, reason: 'needs_more_proof' });
-    else if (isRejected && !isStarterMission) excludedCards.push({ id: m.id, reason: 'rejected' });
+    let isDrawable = isAllowedStatus && !isApproved && !isPending && !isNeedsMoreProof;
+    let exclusionReason: string | null = null;
 
-    // Core Rules:
-    // 1. Must be an allowed status
-    // 2. Must NOT be already completed (Approved)
-    // 3. Must NOT be currently pending review
-    // 4. Must NOT be in "Needs More Proof" or "Rejected" state (handled via Logbook)
-    // EXCEPTION: Rejected starter missions can be redrawn/retried.
-    let ok = isAllowedStatus && !isCompleted && !isPending && !isNeedsMoreProof;
-    if (isRejected) {
+    if (!isAllowedStatus) exclusionReason = `disallowed_status:${status}`;
+    else if (isApproved) exclusionReason = 'approved';
+    else if (isPending) exclusionReason = 'pending';
+    else if (isNeedsMoreProof) exclusionReason = 'needs_more_proof';
+    else if (isRejected) {
       if (isStarterMission) {
-        ok = true; // Allow retry
+        isDrawable = true;
+        exclusionReason = null; // Re-drawable
       } else {
-        ok = false;
+        isDrawable = false;
+        exclusionReason = 'rejected';
       }
     }
 
-    return ok;
-  });
+    if (isDrawable) {
+      eligibleMissions.push(m);
+    }
+
+    analysis.push({
+      cardId: m.id,
+      deckId: m.deckId || 'unknown',
+      isApproved,
+      isPending,
+      isRejected,
+      isNeedsMoreProof,
+      isAlreadySubmitted,
+      isDrawable,
+      exclusionReason,
+      status
+    });
+  };
+
+  pool.forEach(processMission);
+
+  // If we have an active pack, check if any of its missionIds are missing from the trips bank
+  if (packMissionIdsNormalized) {
+    packMissionIdsNormalized.forEach(id => {
+      if (!analyzedIds.has(id)) {
+        analysis.push({
+          cardId: id,
+          deckId: activePack?.packId || 'unknown',
+          isApproved: completedMissionIds.has(id),
+          isPending: pendingMissionIds.has(id),
+          isRejected: rejectedMissionIds.has(id),
+          isNeedsMoreProof: needsMoreProofMissionIds.has(id),
+          isAlreadySubmitted: completedMissionIds.has(id) || pendingMissionIds.has(id) || rejectedMissionIds.has(id) || needsMoreProofMissionIds.has(id),
+          isDrawable: false,
+          exclusionReason: 'missing_from_missions_bank',
+          status: 'missing'
+        });
+      }
+    });
+  }
 
   if (activePack?.packId === 'heatwave-receipts') {
     console.log('[deckLogic] Heatwave Receipts Availability Summary:', {
       availableCount: eligibleMissions.length,
-      excludedCount: excludedCards.length,
-      excludedDetails: excludedCards,
-      approvedIds: Array.from(completedMissionIds).filter(id => packMissionIdsNormalized?.has(id)),
-      pendingIds: Array.from(pendingMissionIds).filter(id => packMissionIdsNormalized?.has(id)),
-      needsMoreIds: Array.from(needsMoreProofMissionIds).filter(id => packMissionIdsNormalized?.has(id)),
-      rejectedIds: Array.from(rejectedMissionIds).filter(id => packMissionIdsNormalized?.has(id))
+      analysisCount: analysis.length,
+      analysisSummary: analysis.map(a => `${a.cardId}: ${a.isDrawable ? 'DRAWABLE' : 'BLOCKED (' + a.exclusionReason + ')'}`),
     });
   }
 
-  console.log(`[deckLogic] Final eligible pool size: ${eligibleMissions.length}`);
-
   if (eligibleMissions.length === 0) {
     if (!isOnboardingComplete && !isAdmin) {
-      reason = 'onboarding_complete'; // Should trigger progression update
-      console.log('[deckLogic] Reason: onboarding_complete');
+      reason = 'onboarding_complete';
     } else {
       reason = 'pack_exhausted';
-      console.log('[deckLogic] Reason: pack_exhausted');
     }
   }
 
-  return { eligibleMissions, reason, excludedCards };
+  return { 
+    eligibleMissions, 
+    reason, 
+    excludedCards: analysis.filter(a => !a.isDrawable).map(a => ({ id: a.cardId, reason: a.exclusionReason || 'unknown' })),
+    analysis 
+  };
 }
+
