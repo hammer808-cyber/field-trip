@@ -479,7 +479,8 @@ export async function getUserSubmissions(userId: string) {
  */
 export function subscribeToAdminPendingReviews(
   statusFilter: 'pending_review' | 'approved' | 'rejected' | 'needs_more_proof',
-  callback: (submissions: Entry[]) => void
+  callback: (submissions: Entry[]) => void,
+  onError?: (err: any) => void
 ) {
   logDev(`Subscribing to administrative entries queue for filtered status: ${statusFilter}`);
   
@@ -519,6 +520,7 @@ export function subscribeToAdminPendingReviews(
     callback(entries);
   }, (err) => {
     console.error('[SUBMISSION_PIPELINE] Error loading admin reviews:', err);
+    if (onError) onError(err);
   });
 }
 

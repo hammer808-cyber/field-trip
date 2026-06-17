@@ -55,7 +55,6 @@ const FirebaseConfigError = ({ error }: { error: string }) => (
 );
 
 // Lazy load pages for binary size optimization
-const AdminBoard = lazy(() => import('./pages/AdminBoard'));
 const Welcome = lazy(() => import('./pages/Welcome'));
 const Quiz = lazy(() => import('./pages/Quiz'));
 const FieldTypeResult = lazy(() => import('./pages/FieldTypeResult'));
@@ -79,7 +78,12 @@ const AdminUsers = lazy(() => import('./pages/AdminUsers'));
 const AdminLeaderboard = lazy(() => import('./pages/AdminLeaderboard'));
 const AdminQALenses = lazy(() => import('./pages/AdminQALenses'));
 const AdminDevTools = lazy(() => import('./pages/AdminDevTools'));
-const AdminArchiveSubmissions = lazy(() => import('./pages/AdminArchiveSubmissions'));
+const AdminSettings = lazy(() => import('./pages/AdminSettings'));
+const AdminDecks = lazy(() => import('./pages/AdminDecks'));
+const AdminRepair = lazy(() => import('./pages/AdminRepair'));
+const AdminDiagnostics = lazy(() => import('./pages/AdminDiagnostics'));
+const AdminBoard = lazy(() => import('./pages/AdminBoard'));
+const AdminArchive = lazy(() => import('./pages/AdminArchive'));
 const Banned = lazy(() => import('./pages/Banned'));
 const Collection = lazy(() => import('./pages/Collection'));
 const Basecamp = lazy(() => import('./pages/Basecamp'));
@@ -605,16 +609,20 @@ export default function App() {
                       <Route path="awards" element={<StarterGate requiredFeature="voting"><WeeklyAwardsPage /></StarterGate>} />
                     </Route>
                     <Route path="/admin" element={<AdminBoard />} />
-                    <Route path="/admin/skins" element={<AdminSkins />} />
-                    <Route path="/admin/challenges" element={<AdminChallenges />} />
                     <Route path="/admin/proofs" element={<AdminProofReview />} />
-                    <Route path="/admin/moderation" element={<AdminModeration />} />
                     <Route path="/admin/users" element={<AdminUsers />} />
+                    <Route path="/admin/decks" element={<AdminDecks />} />
+                    <Route path="/admin/repair" element={<AdminRepair />} />
+                    <Route path="/admin/archive" element={<AdminArchive />} />
+                    <Route path="/admin/diagnostics" element={<AdminDiagnostics />} />
+                    <Route path="/admin/settings" element={<AdminSettings />} />
+                    <Route path="/admin/dev-tools" element={<AdminDevTools />} />
+                    <Route path="/admin/challenges" element={<AdminChallenges />} />
+                    <Route path="/admin/skins" element={<AdminSkins />} />
+                    <Route path="/admin/moderation" element={<AdminModeration />} />
                     <Route path="/admin/leaderboard" element={<AdminLeaderboard />} />
                     <Route path="/admin/qa" element={<AdminQALenses />} />
-                    <Route path="/admin/dev-tools" element={<AdminDevTools />} />
                     <Route path="/admin/ops" element={<AdminDevTools />} />
-                    <Route path="/admin/archive" element={<AdminArchiveSubmissions />} />
                     <Route path="/collection" element={<Collection />} />
                     <Route path="/banned" element={<Banned />} />
                     <Route path="*" element={<Navigate to="/" replace />} />

@@ -212,7 +212,8 @@ service cloud.firestore {
                (data.fieldNote == null || data.fieldNote.size() <= 1000);
       }
 
-      allow read: if isApproved() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow read: if isAdmin() || isApproved() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow list: if isAdmin();
       
       allow create: if (isApproved() && isValidId(entryId) && isValidEntry(incoming()) &&
                     incoming().createdAt == requestTime() &&

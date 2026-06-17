@@ -137,119 +137,117 @@ export function MissionDecodedCard({
 
       {/* Main Card Container */}
       <div className="bg-[#FFFDF4] overflow-hidden flex flex-col relative h-full">
-        {/* Step Indicator Header Overlay */}
-        <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-3 py-1 bg-white border-2 border-on-surface shadow-[4px_4px_0px_black] rounded-full rotate-[-1deg] group-hover:rotate-0 transition-transform">
-          <div className="w-2 h-2 rounded-full bg-brand-orange animate-pulse shadow-[0_0_8px_var(--color-brand-orange)]" />
-          <span className="font-mono text-[9px] font-black uppercase tracking-widest text-on-surface whitespace-nowrap">
-            {statusText}
-          </span>
-        </div>
-
-        {/* Top Header Section */}
+        {/* TOP COMPACT SIGNAL HEADER */}
         <div className={cn(
-          "bg-on-surface text-brand-lime py-3 px-6 flex justify-between items-center transition-colors relative z-10 border-b-2 border-on-surface",
-          isLaunchMission && "bg-brand-orange text-white"
+          "bg-on-surface text-[#B7FF00] py-1 px-4 flex justify-between items-center relative z-20 border-b-2 border-on-surface",
+          isLaunchMission && "bg-[#FF5A00] text-white"
         )}>
-          <p className="font-display text-[10px] font-black uppercase tracking-[0.2em] italic">
-            {statusLabel || (isLaunchMission ? 'FIRST MISSION · REQUIRED' : 'MISSION BRIEFING')}
-          </p>
-          <div className="flex items-center gap-1.5">
-            <div className={cn(
-              "w-2 h-2 rounded-full bg-brand-lime animate-pulse",
-              isLaunchMission && "bg-white"
-            )} />
-            <span className="font-mono text-[8px] font-black uppercase opacity-60">
-              {isLaunchMission ? 'PRE-FLIGHT_SYNC' : 'UPLINK_LIVE'}
-            </span>
-          </div>
+           <div className="flex items-center gap-2">
+             <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse shadow-[0_0_8px_currentColor]" />
+             <span className="font-mono text-[8px] font-black uppercase tracking-[0.2em]">{fc('MISSION_SIGNAL', 'MISSION SIGNAL')}</span>
+           </div>
+           <div className="flex items-center gap-3">
+             <span className="font-mono text-[8px] font-black uppercase opacity-60">REF: {mission.id.slice(0, 8)}</span>
+           </div>
         </div>
 
-        {/* Top Visual Section */}
-        <div className="h-56 sm:h-64 relative bg-on-surface/5 overflow-hidden group-hover:bg-on-surface/10 transition-colors border-b-4 border-on-surface">
-          <img 
-            src={mission.image || 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&q=80&w=800'} 
-            alt="" 
-            className="w-full h-full object-cover grayscale transition-all duration-700 group-hover:grayscale-0 group-hover:scale-105" 
-            referrerPolicy="no-referrer"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-on-surface/90 via-on-surface/20 to-transparent" />
+        {/* Header Content Area - Compacted height & No truncation */}
+        <div className="relative bg-on-surface flex flex-col group p-4 sm:p-5 border-b-4 border-on-surface overflow-hidden min-h-[160px] justify-end">
+          {/* Background Image - Subtleized */}
+          <div className="absolute inset-0 z-0">
+            <img 
+              src={mission.image || 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&q=80&w=800'} 
+              alt="" 
+              className="w-full h-full object-cover opacity-40 grayscale contrast-125 transition-all duration-700 group-hover:scale-110 group-hover:opacity-50" 
+              referrerPolicy="no-referrer"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-on-surface via-transparent to-on-surface/40" />
+          </div>
           
-          {/* Mission Title Area */}
-          <div className="absolute bottom-6 left-8 right-8">
-             <h3 id="tour-card-title" className="text-white font-display text-4xl sm:text-5xl font-black uppercase tracking-tighter italic leading-[0.9] drop-shadow-xl truncate">
+          {/* MISSION TITLE - Clear, no truncation, responsive */}
+          <div className="relative z-10">
+             <div className="flex flex-wrap gap-1.5 mb-2">
+               <div className="bg-[#B7FF00] text-on-surface text-[8px] font-black px-1.5 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase italic rotate-[-1deg]">
+                 {mission.category || 'OP'}
+               </div>
+               <div className="bg-white text-on-surface text-[8px] font-black px-1.5 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase italic rotate-[1deg]">
+                 {mission.deckName || 'FIELD'}
+               </div>
+             </div>
+             
+             <h3 id="tour-card-title" className="text-white font-display text-3xl sm:text-4xl font-black uppercase tracking-tighter italic leading-[0.8] drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
                {getFrankieTitle(mission, fPref)}
              </h3>
           </div>
         </div>
 
-        {/* Info Strip */}
-        <div className="px-8 py-4 border-b-2 border-on-surface/10 flex justify-between items-center bg-white relative">
-          {/* Subtle Paper Grain */}
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')] opacity-[0.05] pointer-events-none mix-blend-multiply" />
+        {/* BOTTOM ACTION / STATUS STRIP - Compact & High-Impact */}
+        <div className="px-4 py-3 bg-[#FCFAF5] border-b-4 border-on-surface flex items-center justify-between gap-3 relative z-20">
+           <div className="flex-1 min-w-0">
+             <div className="flex items-center gap-1 text-[9px] font-mono font-black uppercase tracking-wider text-[#FF5A00] animate-pulse">
+               <Sparkles className="w-3 h-3" />
+               <span>{statusLabel || 'READY_FOR_DEPLOYMENT'}</span>
+             </div>
+             <p className="text-[10px] font-bold text-on-surface/40 uppercase truncate">
+               REWARD: +{mission.baseXP || 100} XP_CREDITS
+             </p>
+           </div>
 
-          <div className="flex flex-col relative z-10">
-            <span className="text-[8px] font-mono font-black uppercase text-on-surface/30 tracking-widest">Difficulty</span>
-            <div className="mt-1.5">
-              <span className={cn(
-                "px-3 py-1 text-[10px] font-black uppercase italic border-2 border-on-surface inline-block shadow-[3px_3px_0px_black] rotate-[-1deg]",
-                diff.color,
-                diff.text
-              )}>
-                {diff.label}
-              </span>
-            </div>
-          </div>
-          
-          <div className="flex flex-col items-end relative z-10">
-            <span className="text-[8px] font-mono font-black uppercase text-on-surface/30 tracking-widest">Bureau Reward</span>
-            <div id="tour-card-points" className="text-brand-orange font-display text-3xl font-black italic leading-none mt-1 shadow-glow-orange">
-              +{mission.baseXP || mission.basePoints || 100} XP
-            </div>
-          </div>
+           {showActions && !onRedraw && (
+             <button 
+               id="tour-card-start"
+               data-tour="deploy-mission"
+               data-onboarding="deploy-mission"
+               onClick={() => onStart?.()}
+               className="bg-brand-orange text-white px-6 py-2.5 border-2 border-on-surface shadow-[4px_4px_0px_black] font-display text-base font-black uppercase italic tracking-wider active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all flex items-center gap-2 shrink-0 hover:bg-on-surface hover:text-brand-lime"
+             >
+               <span>{Object.keys(progress).length >= 1 ? 'RESUME' : 'START'}</span>
+               <ArrowRight className="w-5 h-5 stroke-[2.5]" />
+             </button>
+           )}
         </div>
 
-        {/* Content Section */}
-        <div className="p-8 space-y-8 text-left bg-white/50 backdrop-blur-sm relative flex-grow">
+        {/* Content Section - Hidden by default or collapsible? 
+            For now, let's keep it visible but much tighter to reduce overall scroll. */}
+        <div className="p-4 sm:p-5 space-y-4 text-left bg-white/50 backdrop-blur-sm relative flex-grow text-sm">
           {/* Subtle Grid Background */}
           <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(#000_1px,transparent_1px)] bg-[length:16px_16px] pointer-events-none" />
 
           {/* Description */}
-          <div className="space-y-4 relative z-10">
-            <p className="text-[9px] font-mono font-black uppercase tracking-[0.25em] text-on-surface/40 italic">{fc('Mission_Protocol', 'MISSION DETAILS')}</p>
-            <div id="tour-card-directions" className="space-y-5">
+          <div className="space-y-1.5 relative z-10">
+            <p className="text-[7px] font-mono font-black uppercase tracking-[0.2em] text-on-surface/40 italic">{fc('Mission_Objectives', 'MISSION OBJECTIVES')}</p>
+            <div id="tour-card-directions" className="space-y-1.5">
               {directions.map((step, i) => (
-                <p key={i} className="font-serif italic text-lg sm:text-xl leading-snug text-on-surface font-bold">
-                  {directions.length > 1 && <span className="not-italic font-sans text-xs opacity-30 mr-2.5 uppercase tracking-widest">Step {i + 1}</span>}
-                  "{step}"
-                </p>
+                <div key={i} className="flex gap-2.5 items-start">
+                   <div className="w-4 h-4 rounded-full bg-[#2EE7F0]/20 border border-on-surface/10 flex-shrink-0 flex items-center justify-center text-[9px] font-bold">{i + 1}</div>
+                   <p className="font-serif italic text-[15px] leading-tight text-on-surface/80">
+                     {step}
+                   </p>
+                </div>
               ))}
             </div>
           </div>
 
-          {/* Field Note Prompt */}
-          <div className="bg-brand-orange/[0.03] border-4 border-dashed border-on-surface/10 p-6 space-y-3 rounded-2xl relative rotate-[0.5deg]">
-            <div className="flex items-center gap-2 mb-1">
-               <Zap className="w-4 h-4 text-brand-orange fill-brand-orange/20" />
-               <span className="text-[10px] font-mono font-black uppercase tracking-widest text-on-surface/60">{fc('Field Note Request', 'INTEL_REQUEST')}</span>
+
+          {/* Field Note Prompt - More compact */}
+          <div className="bg-[#FF5A00]/[0.03] border-2 border-dashed border-on-surface/10 p-3 space-y-1 rounded-xl relative rotate-[0.5deg]">
+            <div className="flex items-center gap-2 mb-0.5">
+               <Zap className="w-2.5 h-2.5 text-[#FF5A00] fill-[#FF5A00]/20" />
+               <span className="text-[8px] font-mono font-black uppercase tracking-widest text-on-surface/60">{fc('Field Note Request', 'INTEL_REQUEST')}</span>
             </div>
-            <p className="text-[14px] font-medium italic text-on-surface leading-relaxed font-serif">
-              "{getFrankieFieldNotePrompt(mission, fPref)}"
+            <p className="text-[12px] font-medium italic text-on-surface leading-tight font-serif">
+               "{getFrankieFieldNotePrompt(mission, fPref)}"
             </p>
           </div>
 
-          {/* Evidence Grid */}
-          <div id="tour-card-proof" className="space-y-4 relative z-10">
-             <div className="flex justify-between items-center text-[10px] font-mono font-black uppercase italic tracking-widest opacity-40">
-                <span className="flex items-center gap-1.5">
-                  <span>{fc('Core_Evidence_Checklist', 'PROOF CHECKLIST')}</span>
-                  <span id="proof-checklist-interactive-indicator" className="text-[8px] opacity-75 not-italic text-brand-orange-dark font-black tracking-normal animate-pulse">(HOVER/TAP FOR DETAIL)</span>
-                </span>
-                <span className="flex items-center gap-1.5 text-brand-cyan">
-                  <Sparkles className="w-4 h-4" />
-                  {fc('Zine_Seed_Eligible', 'BONUS')}
+          {/* Evidence Grid - Tighter layout */}
+          <div id="tour-card-proof" className="space-y-2 relative z-10">
+             <div className="flex justify-between items-center text-[8px] font-mono font-black uppercase italic tracking-widest opacity-40">
+                <span className="flex items-center gap-1">
+                   <span>{fc('Core_Evidence_Checklist', 'PROOF CHECKLIST')}</span>
                 </span>
              </div>
-             <div className="flex flex-wrap gap-3">
+             <div className="flex flex-wrap gap-1.5">
                 {evidenceRequirements.map((r, i) => {
                   const Icon = r.icon;
                   const collected = isCollected(r.key);
@@ -262,18 +260,18 @@ export function MissionDecodedCard({
                       onMouseLeave={() => setActiveObjectiveHint(null)}
                       onClick={() => setActiveObjectiveHint(activeObjectiveHint === r.key ? null : r.key)}
                       className={cn(
-                        "flex items-center gap-3 px-4 py-3 border-2 transition-all rounded-2xl cursor-pointer select-none",
+                        "flex items-center gap-1.5 px-2.5 py-1.5 border-2 transition-all rounded-lg cursor-pointer select-none",
                         collected 
-                          ? "bg-brand-lime border-on-surface shadow-[4px_4px_0px_black] -translate-y-1" 
+                          ? "bg-[#B7FF00] border-on-surface shadow-[2px_2px_0px_black] -translate-y-0.5" 
                           : "border-on-surface/10 bg-on-surface/[0.04]",
-                        isHoveredOrTapped && "border-brand-orange bg-brand-orange/5 shadow-[4px_4px_0px_black] -translate-y-1"
+                        isHoveredOrTapped && "border-[#FF5A00] bg-[#FF5A00]/5 shadow-[2px_2px_0px_black] -translate-y-0.5"
                       )}
                     >
-                      <Icon className={cn("w-4 h-4 transition-transform", collected ? "text-on-surface" : "opacity-20", isHoveredOrTapped && "text-brand-orange scale-110 opacity-100")} />
+                      <Icon className={cn("w-3 h-3 transition-transform", collected ? "text-on-surface" : "opacity-20", isHoveredOrTapped && "text-[#FF5A00] scale-110 opacity-100")} />
                       <div className="flex flex-col">
-                        <span className="text-[11px] font-black uppercase tracking-tight leading-none">{r.label}</span>
+                        <span className="text-[9px] font-black uppercase tracking-tight leading-none">{r.label}</span>
                       </div>
-                      {collected && !isHoveredOrTapped && <CheckCircle2 className="w-3.5 h-3.5 text-on-surface ml-1 shadow-[1px_1px_0px_black] rounded-full bg-white" />}
+                      {collected && !isHoveredOrTapped && <CheckCircle2 className="w-2.5 h-2.5 text-on-surface ml-0.5 shadow-[1px_1px_0px_black] rounded-full bg-white" />}
                     </div>
                   );
                 })}
@@ -286,34 +284,24 @@ export function MissionDecodedCard({
                  initial={{ opacity: 0, scale: 0.95, y: 5 }}
                  animate={{ opacity: 1, scale: 1, y: 0 }}
                  exit={{ opacity: 0, scale: 0.95, y: 5 }}
-                 className="p-4 bg-on-surface text-[#FFFDF4] border-2 border-on-surface rounded-2xl flex items-start gap-3 relative shadow-[6px_6px_0px_black] transition-all"
+                 className="p-3 bg-on-surface text-[#FFFDF4] border-2 border-on-surface rounded-xl flex items-start gap-3 relative shadow-[4px_4px_0px_black] transition-all"
                >
                  <div className="space-y-1 relative z-10 text-left">
-                   <div className="flex items-center gap-1.5 text-brand-lime font-mono text-[9px] font-black uppercase tracking-widest">
-                     <Info className="w-3.5 h-3.5 text-brand-lime shrink-0" />
+                   <div className="flex items-center gap-1.5 text-[#B7FF00] font-mono text-[8px] font-black uppercase tracking-widest">
+                     <Info className="w-3 h-3 text-[#B7FF00] shrink-0" />
                      <span>{hintTexts[activeObjectiveHint]?.title || 'OBJECTIVE PROTOCOL'}</span>
                    </div>
-                   <p className="text-xs font-black font-sans text-white leading-normal">
+                   <p className="text-[11px] font-black font-sans text-white leading-tight">
                      {hintTexts[activeObjectiveHint]?.desc}
-                   </p>
-                   <p className="text-[10px] text-brand-lime/80 font-sans italic opacity-90 leading-tight">
-                     💡 {hintTexts[activeObjectiveHint]?.tip}
                    </p>
                  </div>
                </motion.div>
              )}
           </div>
 
-          {/* Instruction Footer */}
-          <div className="bg-brand-orange text-white p-4 text-center rounded-2xl shadow-[6px_6px_0px_black] rotate-[-1deg] border-2 border-on-surface">
-            <p className="font-mono text-[10px] font-black uppercase tracking-[0.15em] text-white">
-              {footerHint}
-            </p>
-          </div>
-
-          {/* Actions - CONDITIONALLY SHOWN */}
+          {/* Actions - CONDITIONALLY SHOWN - MOVED UP */}
           {showActions && (
-            <div className="flex flex-col gap-4 pt-4 pb-2 relative z-20">
+            <div className="flex flex-col gap-2 pt-1 pb-1 relative z-20">
               {!onRedraw && (
                 <button 
                   id="tour-card-start"
@@ -322,12 +310,12 @@ export function MissionDecodedCard({
                   onClick={() => {
                     onStart?.();
                   }}
-                  className="w-full field-cta field-cta--primary py-6 text-3xl flex items-center justify-center gap-4 group"
+                  className="w-full field-cta field-cta--primary py-3 text-xl flex items-center justify-center gap-3 group"
                 >
                   <span className="relative z-10">
                     {Object.keys(progress).length >= 1 ? fc('RESUME_MISSION', 'RESUME') : fc('START_MISSION', 'START')}
                   </span>
-                  <ArrowRight className="w-10 h-10 group-hover:translate-x-3 transition-transform duration-300" />
+                  <ArrowRight className="w-6 h-6 group-hover:translate-x-3 transition-transform duration-300" />
                 </button>
               )}
             </div>

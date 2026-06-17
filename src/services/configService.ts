@@ -1,4 +1,4 @@
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 export interface GlobalConfig {
@@ -80,4 +80,12 @@ export async function fetchGlobalConfig(): Promise<GlobalConfig> {
     console.error('[Config] Error fetching config:', err);
     return DEFAULT_CONFIG;
   }
+}
+
+/**
+ * Updates global configuration in Firestore
+ */
+export async function updateGlobalConfig(data: Partial<GlobalConfig>): Promise<void> {
+  const configRef = doc(db, 'appConfig', 'global');
+  await setDoc(configRef, data, { merge: true });
 }

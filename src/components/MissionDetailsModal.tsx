@@ -4,7 +4,7 @@ import { TripCard as TripCardType } from '../types/challenges';
 import { cn } from '../lib/utils';
 import { 
   X, Compass, MapPin, Camera, FileText, 
-  Zap, AlertTriangle, Play, RefreshCw, HelpCircle 
+  Zap, AlertTriangle, Play, RefreshCw, HelpCircle, Sparkles 
 } from 'lucide-react';
 import { getMissionImage } from '../utils/missionImages';
 
@@ -83,22 +83,28 @@ export const MissionDetailsModal: React.FC<MissionDetailsModalProps> = ({
             </div>
 
             {/* Content Body */}
-            <div className="overflow-y-auto p-6 flex-1 space-y-6 custom-scrollbar">
-              {/* Mission Polaroid Image */}
-              <div className="aspect-[16/10] bg-on-surface/5 border-4 border-on-surface relative overflow-hidden shadow-[4px_4px_0px_black]">
+            <div className="overflow-y-auto p-4 sm:p-5 flex-1 space-y-5 custom-scrollbar">
+              {/* Mission Polaroid Image - Compacted */}
+              <div className="aspect-[18/10] bg-on-surface/5 border-2 border-on-surface relative overflow-hidden shadow-[2px_2px_0px_black] rounded-xl mx-auto">
                 <img 
                   src={imageUrl} 
                   alt={mission.title} 
                   className={cn("w-full h-full object-cover", isUnavailable && "grayscale contrast-125 brightness-110")}
                   referrerPolicy="no-referrer"
                 />
-                <div className="absolute top-2 left-2 bg-[#FF5A00] text-white px-2 py-0.5 text-[8px] font-black uppercase tracking-widest italic border border-on-surface shadow-[1px_1px_0px_black]">
-                  {(mission.category || 'FIELD OP').toUpperCase()}
+                {/* Sticker Badges Overlay */}
+                <div className="absolute top-2 left-2 flex gap-1">
+                  <div className="bg-[#FF5A00] text-white px-2 py-0.5 text-[8px] font-black uppercase tracking-widest italic border border-on-surface shadow-[1px_1px_0px_black] rotate-[-2deg]">
+                    {(mission.category || 'FIELD OP').toUpperCase()}
+                  </div>
+                  <div className="bg-[#B7FF00] text-on-surface px-2 py-0.5 text-[8px] font-black uppercase tracking-widest italic border border-on-surface shadow-[1px_1px_0px_black] rotate-[1deg]">
+                    {mission.difficulty?.toUpperCase() || 'MODERATE'}
+                  </div>
                 </div>
                 {isUnavailable && (
                   <div className="absolute inset-0 flex items-center justify-center rotate-[-15deg] pointer-events-none">
                     <div className={cn(
-                      "px-6 py-2 border-4 font-display text-4xl font-black uppercase tracking-tighter opacity-80",
+                      "px-4 py-1 border-2 font-display text-2xl font-black uppercase tracking-tighter opacity-80",
                       isApproved ? "border-brand-lime text-brand-lime bg-white" : "border-brand-orange text-brand-orange bg-white"
                     )}>
                       {isApproved ? 'APPROVED' : 'SUBMITTED'}
@@ -107,30 +113,26 @@ export const MissionDetailsModal: React.FC<MissionDetailsModalProps> = ({
                 )}
               </div>
 
-              {/* Title & Info */}
-              <div className="space-y-2">
-                <h3 id="tour-card-title" className="font-display text-2xl sm:text-3xl font-black uppercase italic tracking-tighter text-on-surface leading-none">
+              {/* Title & Status Strip - NO TRUNCATION */}
+              <div className="space-y-3">
+                <h3 id="tour-card-title" className="font-display text-2xl sm:text-3xl font-black uppercase italic tracking-tighter text-on-surface leading-[0.85] text-wrap">
                   {mission.title}
                 </h3>
-                <div id="tour-card-points" className="flex items-center gap-2">
-                  <span className="text-[9px] font-mono font-bold bg-on-surface/5 px-2 py-0.5 border border-on-surface/10 rounded-sm uppercase tracking-wider text-on-surface/60">
-                    ID: {mission.id}
-                  </span>
-                  {isApproved ? (
-                    <span className="text-[9px] font-mono font-bold bg-brand-lime text-on-surface px-2 py-0.5 border border-on-surface rounded-sm uppercase tracking-wider">
-                      COMPLETE
-                    </span>
-                  ) : isSubmitted ? (
-                    <span className="text-[9px] font-mono font-bold bg-brand-orange text-white px-2 py-0.5 border border-on-surface rounded-sm uppercase tracking-wider">
-                      PENDING REVIEW
-                    </span>
-                  ) : (
-                    mission.difficulty && (
-                      <span className="text-[9px] font-mono font-bold bg-brand-orange/5 px-2 py-0.5 border border-brand-orange/10 rounded-sm text-brand-orange uppercase tracking-wider">
-                        {mission.difficulty}
-                      </span>
-                    )
-                  )}
+                
+                <div className="flex items-center justify-between border-y-2 border-on-surface/10 py-2">
+                   <div className="flex items-center gap-2">
+                     <span className="text-[8px] font-mono font-bold bg-on-surface text-white px-1.5 py-0.5 rounded-sm uppercase tracking-wider">
+                       REF: {mission.id.slice(0, 8)}
+                     </span>
+                     <span className="text-[10px] font-mono font-black text-brand-orange uppercase">
+                       +{mission.baseXP || 100} XP_PTS
+                     </span>
+                   </div>
+                   
+                   <div className="flex items-center gap-1.5 text-brand-lime text-[10px] font-mono font-black uppercase">
+                     <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                     <span>{statusLabel}</span>
+                   </div>
                 </div>
               </div>
 

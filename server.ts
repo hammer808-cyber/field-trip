@@ -4,7 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
-import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
+import { initializeApp, getApps, deleteApp, App } from 'firebase-admin/app';
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { getAppCheck } from 'firebase-admin/app-check';
@@ -22,9 +22,14 @@ dotenv.config();
 
 // Process-level error tracking for robust operation
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('[UNHANDLED_REJECTION] Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error('[UNHANDLED_REJECTION] CRITICAL: An asynchronous operation failed without a catch block.');
+  // More detailed info for debugging
+  console.error('Promise Info:', JSON.stringify(promise, (key, value) => 
+    typeof value === 'object' && value !== null ? '[Object]' : value, 2));
+  console.error('Reason:', reason);
   if (reason instanceof Error) {
-    console.error('Stack:', reason.stack);
+    console.error('Error Message:', reason.message);
+    console.error('Stack Trace:', reason.stack);
   }
 });
 process.on('uncaughtException', (error) => {
@@ -44,6 +49,7 @@ let dbAdmin: FirebaseFirestore.Firestore | null = null;
 let storageAdmin: any = null;
 let authAdmin: any = null;
 let firebaseConfig: any = null;
+let workingBucketName: string | null = null;
 
 async function initAdmin() {
   try {
@@ -52,36 +58,64 @@ async function initAdmin() {
       const config = JSON.parse(fs.readFileSync(firebaseConfigPath, 'utf8'));
       firebaseConfig = config;
       
-      console.log(`[BUREAU_ADMIN] Attempting initialization for project: ${config.projectId}`);
-      
-      if (getApps().length === 0) {
-        adminApp = initializeApp({
-          projectId: config.projectId,
-          storageBucket: config.storageBucket || `${config.projectId}.firebasestorage.app`
-        });
-      } else {
-        adminApp = getApps()[0];
-      }
-      
+      // In AI Studio, the actual project ID might be different from the placeholder in configuration
+      // We should prefer the databaseId prefix if it looks like an AI Studio ID, or standard applet ID patterns
       const dbId = config.firestoreDatabaseId;
-      try {
-        // Try preferred database first
-        dbAdmin = getFirestore(adminApp, dbId);
-        
-        // Test connectivity with a small write
+      const appletId = dbId?.startsWith('ai-studio-') ? dbId.replace('ai-studio-', '') : null;
+      
+      // Candidate project IDs
+      const projIdCandidates = [
+        dbId, // IMPORTANT: In AI Studio, the DB ID is often the actual Project ID
+        config.projectId,
+        appletId,
+        'field-trip-495823' // Fallback
+      ].filter((v, i, a) => v && typeof v === 'string' && a.indexOf(v) === i);
+
+      console.log(`[BUREAU_ADMIN] Attempting initialization for project candidates: ${projIdCandidates.join(', ')}`);
+      
+      let connectionSuccess = false;
+
+      for (const candidateProjId of projIdCandidates) {
+        if (connectionSuccess) break;
+
         try {
+          console.log(`[BUREAU_ADMIN] Trying project: ${candidateProjId}`);
+          
+          // Clear existing apps to avoid conflicts if we are retrying
+          const existingApps = getApps();
+          for (const app of existingApps) {
+            await deleteApp(app).catch(() => {});
+          }
+
+          adminApp = initializeApp({
+            projectId: candidateProjId,
+            storageBucket: config.storageBucket || `${candidateProjId}.firebasestorage.app`
+          });
+          
+          dbAdmin = getFirestore(adminApp, dbId);
+          
+          // Capture the working bucket name for later use in storage operations
+          workingBucketName = config.storageBucket || `${candidateProjId}.firebasestorage.app`;
+          
+          // Test connectivity
           await dbAdmin.collection('_system').doc('warmup').set({ 
             lastBoot: FieldValue.serverTimestamp(),
-            env: process.env.NODE_ENV || 'development'
+            env: process.env.NODE_ENV || 'development',
+            initProject: candidateProjId
           }, { merge: true });
-          console.log(`[BUREAU_ADMIN] Firestore successfully connected to database: ${dbId || '(default)'}`);
+          
+          console.log(`[BUREAU_ADMIN] Firestore successfully connected to database: ${dbId || '(default)'} in project: ${candidateProjId}`);
+          connectionSuccess = true;
         } catch (setErr: any) {
-          console.warn(`[BUREAU_ADMIN] Permission or write fail on database "${dbId}". Fallback to default. Error: ${setErr.message}`);
-          dbAdmin = getFirestore(adminApp);
+          console.warn(`[BUREAU_ADMIN] Failed connection for project "${candidateProjId}": ${setErr.message}`);
+          // Continue to next candidate
         }
-      } catch (dbErr: any) {
-        console.warn(`[BUREAU_ADMIN] Failed to initialize database "${dbId}". Falling back to (default).`, dbErr.message);
-        dbAdmin = getFirestore(adminApp);
+      }
+
+      if (!connectionSuccess) {
+        console.error("[BUREAU_ADMIN] All project candidates failed. Falling back to default app initialization.");
+        adminApp = getApps().length === 0 ? initializeApp() : getApps()[0];
+        dbAdmin = getFirestore(adminApp, dbId);
       }
     } else {
       console.log(`[BUREAU_ADMIN] No config file found. Using default internal credentials.`);
@@ -679,6 +713,8 @@ async function startServer() {
 
       // 4. Save to Storage with Resilient Fallback Buckets
       const projId = firebaseConfig?.projectId || 'field-trip-495823';
+      const dbId = firebaseConfig?.firestoreDatabaseId;
+      const appletId = dbId?.startsWith('ai-studio-') ? dbId.replace('ai-studio-', '') : null;
       
       let defaultBucketName = "";
       try {
@@ -688,15 +724,22 @@ async function startServer() {
       }
 
       const candidates = [
+        workingBucketName, // Use the one found during initialization if valid
         firebaseConfig?.storageBucket,
         defaultBucketName,
+        `${dbId}.firebasestorage.app`,
+        `${dbId}.appspot.com`,
         `${projId}.firebasestorage.app`,
         `${projId}.appspot.com`,
+        `${appletId}.firebasestorage.app`,
+        `${appletId}.appspot.com`,
+        'field-trip-495823.firebasestorage.app',
+        'field-trip-495823.appspot.com',
         projId
       ].filter((v, i, a) => v && typeof v === 'string' && a.indexOf(v) === i);
 
       let uploadSuccess = false;
-      let workingBucketName = "";
+      let usedBucketName = "";
       let lastError: any = null;
 
       console.log(`[STORAGE_PROXY] Candidate buckets for project ${projId}:`, candidates);
@@ -716,7 +759,7 @@ async function startServer() {
               }
             }
           });
-          workingBucketName = bucketName;
+          usedBucketName = bucketName;
           uploadSuccess = true;
           console.log(`[STORAGE_PROXY] Successfully uploaded: ${storagePath} to bucket: ${bucketName}`);
           break;
@@ -733,7 +776,7 @@ async function startServer() {
 
       // 5. Generate public-compatible URL format.
       const encodedPath = encodeURIComponent(storagePath);
-      const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${workingBucketName}/o/${encodedPath}?alt=media`;
+      const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${usedBucketName}/o/${encodedPath}?alt=media`;
 
       console.log(`[STORAGE_PROXY] Successfully generated public URL for: ${storagePath}`);
 

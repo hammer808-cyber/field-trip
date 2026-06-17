@@ -106,49 +106,71 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
 
   return (
     <div className="w-full max-w-md mx-auto space-y-6 px-4 pb-32">
-      {/* PERSISTENT MISSION HEADER */}
-      <div className="relative w-full overflow-hidden border-4 border-on-surface bg-[#FFFDF8] shadow-[8px_8px_0px_black] rounded-2xl animate-fade-in">
-        <div className="h-24 relative overflow-hidden">
-          <img 
-            src={imageUrl} 
-            alt={mission.title}
-            className="w-full h-full object-cover brightness-[0.6] grayscale-[0.3]"
-            referrerPolicy="no-referrer"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-on-surface/80 to-transparent" />
-          <div className="absolute bottom-3 left-4 text-left">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="bg-brand-cyan text-on-surface text-[8px] px-1.5 py-0.5 font-bold uppercase border border-on-surface">
-                {mission.category || 'FIELD_MISSION'}
-              </span>
+      {/* NEW COMPACT MISSION SIGNAL HEADER */}
+      <div className="relative w-full overflow-hidden border-4 border-on-surface bg-[#FFFDF8] shadow-[6px_6px_0px_black] rounded-2xl animate-fade-in mb-4">
+        {/* Signal Strip */}
+        <div className="bg-on-surface text-[#B7FF00] py-1 px-4 flex justify-between items-center relative z-20 border-b-2 border-on-surface">
+           <div className="flex items-center gap-2">
+             <div className="w-1 h-1 rounded-full bg-current animate-pulse shadow-[0_0_8px_currentColor]" />
+             <span className="font-mono text-[7px] font-black uppercase tracking-[0.2em]">MISSION_SIGNAL</span>
+           </div>
+           <span className="font-mono text-[7px] font-black uppercase opacity-60">REF: {mission.id.slice(0, 8)}</span>
+        </div>
+
+        <div className="h-36 relative bg-on-surface flex flex-col group p-4 border-b-2 border-on-surface overflow-hidden">
+          {/* Background Image - Subtleized */}
+          <div className="absolute inset-0 z-0">
+            <img 
+              src={imageUrl} 
+              alt={mission.title}
+              className="w-full h-full object-cover opacity-50 grayscale contrast-125 transition-transform duration-700 group-hover:scale-110 group-hover:opacity-60"
+              referrerPolicy="no-referrer"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-on-surface via-on-surface/40 to-on-surface/60" />
+          </div>
+          
+          {/* Metadata Badges (STICKERS) */}
+          <div className="flex justify-between items-start mb-2 relative z-20 w-full">
+            <div className="flex flex-wrap gap-1.5 max-w-[70%]">
+              <div className="bg-[#2EE7F0] text-on-surface text-[8px] font-black px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase italic leading-none whitespace-nowrap">
+                {mission.category || 'ONBOARDING'}
+              </div>
+              <div className="bg-[#B7FF00] text-on-surface text-[8px] font-black px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase italic leading-none rotate-[-1deg] whitespace-nowrap">
+                {mission.deckName || 'ADVENTURE'}
+              </div>
             </div>
-            <h1 className="font-display text-xl font-black uppercase italic text-white tracking-tight">
+
+            <div className="flex flex-col items-end gap-1.5 shrink-0">
+              <div className="bg-[#FF5A00] text-white px-2 py-1 text-[10px] font-black uppercase italic border-2 border-on-surface shadow-[2px_2px_0px_black]">
+                +{mission.baseXP} XP
+              </div>
+            </div>
+          </div>
+
+          {/* MISSION TITLE AREA - No truncation, clear hierarchy */}
+          <div className="relative z-20 mt-auto">
+            <h1 className="font-display text-2xl sm:text-3xl font-black uppercase italic text-white tracking-tighter leading-[0.85] drop-shadow-2xl">
               {mission.title}
             </h1>
           </div>
-          <div className="absolute top-3 right-4 flex flex-col items-end gap-2">
-            <div className="bg-brand-orange text-white px-2 py-1 text-[10px] font-black uppercase italic border-2 border-on-surface shadow-[2px_2px_0px_black] rotate-[-2deg]">
-              +{mission.baseXP} XP
-            </div>
-            {showCatalystSticker && (
-              <motion.div 
-                initial={{ scale: 0, rotate: -15 }}
-                animate={{ scale: 1, rotate: 5 }}
-                className="bg-brand-lime text-on-surface px-2 py-0.5 text-[9px] font-mono font-black uppercase border-2 border-on-surface shadow-[2px_2px_0px_black] flex items-center gap-1"
-              >
-                <Zap className="w-2.5 h-2.5 fill-on-surface" />
-                {catalyst.shortLabel}
-              </motion.div>
-            )}
-          </div>
         </div>
 
-        <div className="px-4 py-2 flex justify-between items-center text-[10px] font-black font-mono text-on-surface/50">
-           <button onClick={() => setShowBrief(!showBrief)} className="flex items-center gap-1.5 hover:text-on-surface transition-colors">
-             <Info className="w-3.5 h-3.5" />
-             <span>{showBrief ? 'HIDE BRIEF' : 'VIEW BRIEF'}</span>
-           </button>
-           <div className="uppercase">UPLINK_STATUS: {state.toUpperCase()}</div>
+        {/* BOTTOM ACTION STRIP */}
+        <div className="flex border-t-2 border-on-surface divide-x-2 divide-on-surface bg-white relative z-30">
+          <button 
+            onClick={() => setShowBrief(!showBrief)} 
+            className={cn(
+              "flex-1 px-4 py-2 flex items-center justify-center gap-2 font-mono text-[9px] font-black uppercase tracking-wider transition-all",
+              showBrief ? "bg-on-surface text-white" : "hover:bg-on-surface/5"
+            )}
+          >
+            <Info className={cn("w-3 h-3", showBrief ? "text-brand-cyan" : "text-on-surface/40")} />
+            <span>{showBrief ? 'CLOSE BRIEF' : 'OPEN BRIEF'}</span>
+          </button>
+          <div className="flex-1 px-4 py-2 flex items-center justify-center gap-2 text-[#FF5A00] font-mono text-[9px] font-black uppercase tracking-wider">
+            <ArrowRight className="w-3 h-3 animate-pulse" />
+            <span>READY TO START</span>
+          </div>
         </div>
 
         <AnimatePresence>
@@ -157,7 +179,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="px-4 pb-4 font-serif italic text-sm text-on-surface/70 leading-relaxed text-left border-t border-on-surface/5"
+              className="px-6 py-4 bg-brand-orange/[0.03] font-serif italic text-base text-on-surface/80 leading-relaxed text-left border-t-2 border-on-surface/10"
             >
               "{mission.description}"
             </motion.div>
@@ -166,54 +188,88 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
       </div>
 
       <AnimatePresence mode="wait">
-        {/* STEP 1: BRIEF */}
+        {/* STEP 1: BRIEF - REDESIGNED OBJECTIVE CARD */}
         {state === 'brief' && (
           <motion.div 
             key="brief"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="space-y-6"
+            className="space-y-4"
           >
-            <div className="bg-white border-4 border-on-surface p-6 rounded-2xl shadow-[12px_12px_0px_white] text-left space-y-4">
-               <div className="flex items-center gap-2 text-brand-orange">
-                 <ShieldCheck className="w-5 h-5" />
-                 <span className="font-display font-black uppercase italic text-lg leading-none">Mission Objectives</span>
+            <div className="bg-white border-2 border-on-surface p-6 rounded-2xl shadow-[8px_8px_0px_black] text-left space-y-4 overflow-hidden relative">
+               {/* Subtle background strip */}
+               <div className="absolute top-0 left-0 right-0 h-1 bg-brand-orange/10" />
+
+               <div className="flex items-center gap-3">
+                 <div className="w-8 h-8 bg-brand-orange/10 rounded-lg flex items-center justify-center border border-brand-orange/20">
+                   <ShieldCheck className="w-5 h-5 text-brand-orange" />
+                 </div>
+                 <span className="font-display font-black uppercase italic text-xl tracking-tighter text-on-surface">Receipt Checklist</span>
+                 <div className="ml-auto text-[9px] font-mono font-black uppercase text-on-surface/30">3 Steps</div>
                </div>
-               <div className="space-y-3 font-serif text-base leading-relaxed text-on-surface/80">
-                 <p>1. Locating a specimen matching the visual blueprint.</p>
-                 <p>2. Capture a high-fidelity photo from the field.</p>
-                 <p>3. Document findings with an authentic field note.</p>
+
+               <div className="space-y-4 relative z-10 border-t border-dashed border-on-surface/10 pt-4">
+                 <div className="flex gap-4 items-start group">
+                   <div className="w-6 h-6 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-[10px] font-black shadow-[2px_2px_0px_black]">1</div>
+                   <p className="font-serif italic text-base leading-snug text-on-surface/80">Locate a specimen matching the visual blueprint.</p>
+                 </div>
+                 <div className="flex gap-4 items-start group">
+                   <div className="w-6 h-6 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-[10px] font-black shadow-[2px_2px_0px_black]">2</div>
+                   <p className="font-serif italic text-base leading-snug text-on-surface/80">Capture a high-fidelity photo from the field.</p>
+                 </div>
+                 <div className="flex gap-4 items-start group">
+                   <div className="w-6 h-6 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-[10px] font-black shadow-[2px_2px_0px_black]">3</div>
+                   <p className="font-serif italic text-base leading-snug text-on-surface/80">Document findings with an authentic field note.</p>
+                 </div>
                </div>
                
                {receiptChallenge && (
-                 <div className="bg-brand-orange/5 border-2 border-dashed border-brand-orange p-4 rounded-xl space-y-2">
-                   <div className="flex items-center gap-2">
-                     <Zap className="w-4 h-4 text-brand-orange animate-pulse" />
-                     <span className="font-mono text-[10px] font-black uppercase text-brand-orange">Live Verification Boost</span>
+                 <div className="bg-brand-orange/5 border-2 border-dashed border-brand-orange p-5 rounded-2xl space-y-2 relative overflow-hidden">
+                   <div className="absolute top-0 right-0 p-2 opacity-10">
+                      <Zap className="w-12 h-12 text-brand-orange" />
                    </div>
-                   <p className="text-xs font-bold text-on-surface/70 italic leading-snug">{receiptChallenge.instructions}</p>
+                   <div className="flex items-center justify-between">
+                     <div className="flex items-center gap-2">
+                       <Zap className="w-4 h-4 text-brand-orange animate-pulse" />
+                       <span className="font-mono text-[10px] font-black uppercase text-brand-orange tracking-widest">Live Verification Boost</span>
+                     </div>
+                     <div className="bg-white border-2 border-on-surface px-2 py-1 text-[10px] font-black italic shadow-[3px_3px_0px_black] rotate-[-2deg]">
+                        1.25x BOOST
+                     </div>
+                   </div>
+                   <p className="text-sm font-bold text-on-surface/80 italic leading-snug pr-8 pt-1">Today's Field Receipt: {receiptChallenge.instructions}</p>
                  </div>
                )}
 
                {showCatalystSticker && (
-                 <div className="bg-brand-lime/10 border-2 border-dashed border-brand-lime p-4 rounded-xl space-y-2">
-                   <div className="flex items-center gap-2">
-                     <Sparkles className="w-4 h-4 text-brand-lime" />
-                     <span className="font-mono text-[10px] font-black uppercase text-brand-lime">Weekly Catalyst Active</span>
+                 <div className="bg-brand-lime/10 border-2 border-dashed border-brand-lime p-5 rounded-2xl space-y-2 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-2 opacity-10">
+                      <Sparkles className="w-12 h-12 text-brand-lime" />
                    </div>
-                   <p className="text-xs font-bold text-on-surface/70 italic leading-snug">
+                   <div className="flex items-center justify-between">
+                     <div className="flex items-center gap-2">
+                       <Sparkles className="w-4 h-4 text-brand-lime" />
+                       <span className="font-mono text-[10px] font-black uppercase text-brand-lime tracking-widest">Weekly Catalyst Active</span>
+                     </div>
+                     <div className="bg-on-surface text-brand-lime px-2 py-1 text-[10px] font-black italic shadow-[3px_3px_0px_white] rotate-[2deg]">
+                        1.5x CATALYST
+                     </div>
+                   </div>
+                   <p className="text-sm font-bold text-on-surface/80 italic leading-snug pr-8 pt-1">
                      {catalyst.title}: {catalyst.description}
                    </p>
                  </div>
                )}
             </div>
 
+
             <button
               onClick={onStartCapture}
-              className="w-full py-6 bg-brand-orange text-white border-4 border-on-surface rounded-2xl font-display text-4xl font-black uppercase italic tracking-widest shadow-[10px_10px_0px_black] active:translate-y-2 active:shadow-none transition-all hover:bg-on-surface hover:text-brand-lime"
+              className="w-full py-4 bg-brand-orange text-white border-4 border-on-surface rounded-2xl font-display text-3xl font-black uppercase italic tracking-widest shadow-[8px_8px_0px_black] active:translate-y-2 active:shadow-none transition-all hover:bg-on-surface hover:text-brand-lime flex items-center justify-center gap-3 group"
             >
-              START MISSION
+              <Zap className="w-8 h-8 fill-current group-hover:scale-125 transition-transform" />
+              <span>START MISSION</span>
             </button>
           </motion.div>
         )}

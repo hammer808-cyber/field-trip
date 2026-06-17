@@ -674,12 +674,12 @@ export default function DeckPage() {
         {/* Background Grain */}
         <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')] mix-blend-multiply" />
         
-        <div className="text-center space-y-3 relative z-10">
-           <div className="w-fit mx-auto bg-brand-orange text-white text-[10px] font-mono font-black px-3 py-1 border-2 border-on-surface shadow-[3px_3px_0px_black] uppercase rotate-[-2deg] mb-2">
+        <div className="text-center space-y-2 relative z-10">
+           <div className="w-fit mx-auto bg-brand-orange text-white text-[9px] font-mono font-black px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase rotate-[-2deg] mb-1">
              {getDisplayLabel('TRANSMISSION_RECEIVED')}
            </div>
-           <h1 className="font-display text-4xl sm:text-5xl font-black uppercase italic tracking-tighter leading-none">Your Mission</h1>
-           <p className="text-on-surface/50 font-mono text-[10px] uppercase tracking-[0.3em] font-black">Frequency Locked: {LAUNCH_MISSION_ID}</p>
+           <h1 className="font-display text-3xl sm:text-4xl font-black uppercase italic tracking-tighter leading-none">Your Mission</h1>
+           <p className="text-on-surface/50 font-mono text-[8px] uppercase tracking-[0.2em] font-black">Frequency Locked: {LAUNCH_MISSION_ID}</p>
         </div>
 
         <div className="w-full max-w-[320px] sm:max-w-sm relative z-10">

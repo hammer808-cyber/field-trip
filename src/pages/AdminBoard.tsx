@@ -1,101 +1,84 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { 
   Shield, 
   Users, 
   Target, 
-  BarChart3, 
-  Settings, 
   Database, 
-  FileText, 
-  Lock,
-  ArrowLeft,
-  LayoutGrid,
-  ShieldAlert,
-  Terminal
+  Settings, 
+  Terminal,
+  Activity,
+  AlertTriangle,
+  Zap,
+  BarChart3,
+  Clock,
+  LayoutGrid
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { collection, query, onSnapshot, where, limit, orderBy } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
-import { AdminReviewPanel } from '../components/AdminReviewPanel';
-import { cn } from '../lib/utils';
-import { executeGlobalUserReset, runOneTimePhotoBackfill } from '../services/adminService';
-import { getDeckCoverImage, BASE_DECK_PLACEHOLDER } from '../lib/deckUtils';
+import { AdminLayout, ModuleCard, StatusLight } from '../components/admin/AdminShared';
+import { normalizeEntryStatus } from '../logic/entryLogic';
 
 export default function AdminBoard() {
-  const { profile, loading } = useApp();
+  const { profile, loading: appLoading } = useApp();
   const { isAdmin } = useTheme();
   const navigate = useNavigate();
 
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [showResetModal, setShowResetModal] = useState(false);
-  const [typedConfirmation, setTypedConfirmation] = useState('');
-  const [isResetting, setIsResetting] = useState(false);
-  const [isBackfilling, setIsBackfilling] = useState(false);
+  // Dashboard Stats
+  const [counts, setCounts] = useState({
+    pending: 0,
+    activeUsers: 0,
+    totalMissions: 0,
+    storageWaiting: 0,
+    systemErrors: 0
+  });
+  const [loading, setLoading] = useState(true);
 
-  const handlePhotoBackfill = async () => {
-    setIsBackfilling(true);
-    setToast(null);
-    try {
-      const result = await runOneTimePhotoBackfill();
-      if (result.success) {
-        setToast({
-          message: `Backfill Repair completed. Checked: ${result.totalApprovedChecked}, Backfilled: ${result.backfilledCount}, Missing annotated: ${result.markedMissingCount}.`,
-          type: 'success'
-        });
-      } else {
-        setToast({ message: result.error || 'Backfill operation failed.', type: 'error' });
-      }
-    } catch (err: any) {
-      setToast({ message: err.message || 'Backfill execution error.', type: 'error' });
-    } finally {
-      setIsBackfilling(false);
-    }
-  };
+  // Authorization Check
+  const isAdminAuthorized = isAdmin || profile?.role === 'admin' || (profile as any)?.isAdmin;
 
   useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(null), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
+    if (!isAdminAuthorized) return;
 
-  const handleGlobalReset = async () => {
-    if (typedConfirmation !== 'RESET-CORRECTIVE-ACTION') return;
-    setIsResetting(true);
-    setToast(null);
-    try {
-      const adminId = profile?.id || 'system-admin';
-      const result = await executeGlobalUserReset(adminId);
-      
-      if (result.success) {
-        setToast({ message: 'Global reset executed successfully!', type: 'success' });
-        localStorage.clear();
-        sessionStorage.clear();
-        setShowResetModal(false);
-        setTypedConfirmation('');
-        
-        setTimeout(() => {
-          navigate('/admin');
-          window.location.reload();
-        }, 1500);
-      } else {
-        setToast({ message: result.error || 'Reset failed physically.', type: 'error' });
-      }
-    } catch (err: any) {
-      setToast({ message: err.message || 'Reset failed spectacularly.', type: 'error' });
-    } finally {
-      setIsResetting(false);
-    }
-  };
+    // 1. Pending Reviews Count
+    const unsubPending = onSnapshot(query(
+      collection(db, 'entries'),
+      where('status', 'in', ['pending_review', 'submitted_pending_review', 'needs_more_proof'])
+    ), (snap) => {
+      setCounts(prev => ({ ...prev, pending: snap.size }));
+    }, (err) => {
+      console.error('[AdminBoard] Pending reviews query denied:', err);
+    });
 
-  const isAdminAuthorized = isAdmin || profile?.role === 'admin' || (profile as any)?.isAdmin || (profile as any)?.admin;
+    // 2. Active Users Count (Recent)
+    const unsubUsers = onSnapshot(query(
+      collection(db, 'users'),
+      limit(500) // Rough count for now
+    ), (snap) => {
+      setCounts(prev => ({ ...prev, activeUsers: snap.size }));
+    }, (err) => {
+      console.error('[AdminBoard] Users query denied:', err);
+    });
 
-  if (loading) {
+    // 3. System Health (Check for recent errors or stranded users)
+    // For now, we use a mock indicator or check a specific diagnostics collection
+    setCounts(prev => ({ ...prev, totalMissions: 42, systemErrors: 0 }));
+
+    setLoading(false);
+
+    return () => {
+      unsubPending();
+      unsubUsers();
+    };
+  }, [isAdminAuthorized]);
+
+  if (appLoading || loading) {
     return (
-      <div className="min-h-screen bg-surface flex flex-col items-center justify-center p-8">
-        <Database className="w-12 h-12 text-brand-orange animate-pulse mb-4" />
-        <p className="font-mono text-sm uppercase tracking-widest opacity-40">Verifying Bureau Clearance...</p>
+      <div className="min-h-screen bg-[#F0EFED] flex flex-col items-center justify-center p-8">
+        <div className="w-16 h-16 border-8 border-on-surface border-t-brand-orange animate-spin rounded-full mb-6" />
+        <p className="font-mono text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Initializing_Control_Deck...</p>
       </div>
     );
   }
@@ -103,262 +86,241 @@ export default function AdminBoard() {
   if (!isAdminAuthorized) {
     return (
       <div className="min-h-screen bg-on-surface text-white flex flex-col items-center justify-center p-8 text-center space-y-8">
-        <div className="w-24 h-24 bg-error border-4 border-white flex items-center justify-center animate-bounce">
-          <Lock className="w-12 h-12 text-white" />
+        <div className="w-24 h-24 bg-error border-4 border-white flex items-center justify-center animate-bounce shadow-[0_0_50px_rgba(255,49,49,0.5)]">
+          <Shield className="w-12 h-12 text-white" />
         </div>
         <div className="space-y-4">
-          <h1 className="text-4xl font-display font-black uppercase italic tracking-tighter">BUREAU_ACCESS_LOCKED</h1>
-          <p className="font-mono text-xs opacity-60 max-w-md mx-auto leading-relaxed">
-            Your current biometric signature does not match required security clearances for Bureau Operations. Unauthorized entry attempt logged.
+          <h1 className="text-4xl font-display font-black uppercase italic tracking-tighter">BUREAU_ACCESS_DENIED</h1>
+          <p className="font-mono text-xs opacity-60 max-w-md mx-auto leading-relaxed uppercase tracking-widest">
+            Security clearance insufficient. Terminal logged.
           </p>
         </div>
         <button 
           onClick={() => navigate('/basecamp')}
-          className="flex items-center gap-2 px-8 py-4 border-2 border-white font-display font-black uppercase italic hover:bg-white hover:text-on-surface transition-all"
+          className="px-8 py-4 bg-brand-orange text-white border-2 border-white font-display font-black uppercase italic hover:bg-white hover:text-on-surface transition-all shadow-[8px_8px_0px_black]"
         >
-          <ArrowLeft className="w-5 h-5" /> RE-ENTER_SAFE_ZONE
+          Return to Safe Zone
         </button>
       </div>
     );
   }
 
-  const adminModules = [
-    { id: 'proofs', label: 'Evidence Audit', icon: Shield, path: '/admin/proofs', desc: 'Detailed image analysis log' },
-    { id: 'archive', label: 'Archive Submissions', icon: Database, path: '/admin/archive', desc: 'Archive old or test submissions by date range' },
-    { id: 'users', label: 'User Directory', icon: Users, path: '/admin/users', desc: 'Roster and permission sets' },
-    { id: 'challenges', label: 'Mission Deck', icon: Target, path: '/admin/challenges', desc: 'Expedition bank management' },
-    { id: 'leaderboard', label: 'Big Board Ops', icon: BarChart3, path: '/admin/leaderboard', desc: 'Seasonal point controls' },
-    { id: 'moderation', label: 'Council Desk', icon: Settings, path: '/admin/moderation', desc: 'Report and block review' },
-    { id: 'ops', label: 'System Ops', icon: Terminal, path: '/admin/ops', desc: 'Resets, archives, and repair tools' }
-  ];
-
   return (
-    <div className="page-scroll bg-surface p-6">
-      <header className="mb-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-brand-orange border-2 border-on-surface rounded-xl flex items-center justify-center shadow-[4px_4px_0px_black]">
-              <Shield className="w-6 h-6 text-white" />
-            </div>
-            <h1 className="text-4xl font-display font-black uppercase italic tracking-tighter text-on-surface">Bureau_Desk</h1>
-          </div>
-          <p className="text-[10px] font-mono font-black uppercase text-on-surface/30 tracking-[0.2em] ml-1">
-            Station: Alpha-9 // User: {profile?.name || 'System Admin'}
-          </p>
-        </div>
+    <AdminLayout title="Operational_Center">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         
-        <div className="flex gap-2">
-           <button 
-              onClick={() => navigate('/basecamp')}
-              className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-on-surface font-display font-black uppercase italic text-xs shadow-[4px_4px_0px_black] active:shadow-none active:translate-y-1 transition-all"
-           >
-              <ArrowLeft className="w-4 h-4" /> Basecamp
-           </button>
-        </div>
-      </header>
+        {/* Module 1: Proof Review Console */}
+        <ModuleCard
+          title="Proof Review Console"
+          description="Vet field evidence and resolve pending submissions."
+          icon={Shield}
+          status={counts.pending > 0 ? 'yellow' : 'green'}
+          statusLabel={counts.pending > 0 ? `${counts.pending} PENDING` : 'ALL CLEAR'}
+          primaryAction={{
+            label: counts.pending > 0 ? "Resolve Queue" : "Enter Console",
+            onClick: () => navigate('/admin/proofs'),
+            icon: Zap
+          }}
+          lastActivity="Active Session"
+        >
+          <div className="flex gap-4">
+             <div className="flex-1 p-3 bg-on-surface/5 border border-on-surface/5 rounded-lg flex flex-col items-center justify-center">
+                <span className="font-mono text-[8px] font-black opacity-30 uppercase">PENDING</span>
+                <span className="font-display text-2xl font-black italic">{counts.pending}</span>
+             </div>
+             <div className="flex-1 p-3 bg-brand-lime/10 border border-brand-lime/20 rounded-lg flex flex-col items-center justify-center">
+                <span className="font-mono text-[8px] font-black opacity-30 uppercase">STABILITY</span>
+                <span className="font-display text-2xl font-black italic">100%</span>
+             </div>
+          </div>
+        </ModuleCard>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        {/* Left Column: Modules & Stats */}
-        <div className="lg:col-span-1 space-y-10">
-           {/* Primary Actions */}
-           <section className="space-y-4">
-              <h3 className="text-xs font-black uppercase tracking-widest text-on-surface/30 px-1">Operations_Hub</h3>
-              <div className="space-y-3">
-                 {adminModules.map((module) => (
-                    <button
-                      key={module.id}
-                      onClick={() => navigate(module.path)}
-                      className="w-full flex items-center gap-4 p-4 bg-white border-2 border-on-surface rounded-2xl shadow-[4px_4px_0px_black] hover:translate-x-1 hover:shadow-[6px_6px_0px_black] transition-all group text-left"
-                    >
-                       <div className="w-12 h-12 bg-on-surface/5 border-2 border-on-surface/10 rounded-xl flex items-center justify-center group-hover:bg-brand-orange group-hover:border-brand-orange transition-all">
-                          <module.icon className="w-6 h-6 text-on-surface group-hover:text-white" />
-                       </div>
-                       <div>
-                          <p className="font-display font-black uppercase italic text-lg leading-none mb-1 group-hover:text-brand-orange">{module.label}</p>
-                          <p className="text-[9px] font-mono font-bold uppercase opacity-30 tracking-wider font-mono">{module.desc}</p>
-                       </div>
-                    </button>
-                 ))}
+        {/* Module 2: User & Progress Control */}
+        <ModuleCard
+          title="User Control Panel"
+          description="Manage field agents, modify clearance, and override progression."
+          icon={Users}
+          status="blue"
+          statusLabel="SYSTEM_READY"
+          primaryAction={{
+            label: "Agent Directory",
+            onClick: () => navigate('/admin/users')
+          }}
+          lastActivity="Verified: Today"
+        >
+          <div className="space-y-2">
+             <div className="flex justify-between items-center px-1">
+                <span className="font-mono text-[9px] font-bold opacity-40 uppercase">ACTIVE_AGENTS</span>
+                <span className="font-mono text-[11px] font-black">{counts.activeUsers}</span>
+             </div>
+             <div className="h-1 bg-on-surface/5 rounded-full overflow-hidden">
+                <div className="h-full bg-brand-cyan w-[75%]" />
+             </div>
+          </div>
+        </ModuleCard>
+
+        {/* Module 3: Deck Control Panel */}
+        <ModuleCard
+          title="Deck Control Room"
+          description="Modify mission banks, deck packs, and seasonal unlock schedules."
+          icon={Target}
+          status="green"
+          statusLabel="DECK_STABLE"
+          primaryAction={{
+            label: "Mission Bank",
+            onClick: () => navigate('/admin/decks')
+          }}
+          lastActivity="Updated: Season_01"
+        >
+          <div className="grid grid-cols-2 gap-3">
+             <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-brand-lime" />
+                <span className="font-mono text-[8px] font-black uppercase opacity-60">ACTIVE: 32</span>
+             </div>
+             <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-on-surface/20" />
+                <span className="font-mono text-[8px] font-black uppercase opacity-60">DRAFT: 8</span>
+             </div>
+          </div>
+        </ModuleCard>
+
+        {/* Module 4: Archive Console */}
+        <ModuleCard
+          title="Data Archive Matrix"
+          description="Manage cold storage, purge old logs, and clean evidence buffers."
+          icon={Database}
+          status="green"
+          statusLabel="STORAGE_OPTIMAL"
+          primaryAction={{
+            label: "Archive Center",
+            onClick: () => navigate('/admin/archive')
+          }}
+          lastActivity="Next Auto-Purge: 3d"
+        >
+          <div className="p-3 bg-brand-orange/5 border border-brand-orange/10 rounded-lg flex items-center justify-between">
+             <div className="flex items-center gap-2">
+                <Clock className="w-3 h-3 text-brand-orange" />
+                <span className="font-mono text-[9px] font-black uppercase">Buffer_Retention</span>
+             </div>
+             <span className="font-mono text-[10px] font-black italic">14_DAYS</span>
+          </div>
+        </ModuleCard>
+
+        {/* Module 5: System Repair Bay */}
+        <ModuleCard
+          title="System Repair Bay"
+          description="Corrective actions, global resets, and manual recovery protocols."
+          icon={Terminal}
+          status={counts.systemErrors > 0 ? 'red' : 'blue'}
+          statusLabel={counts.systemErrors > 0 ? 'FAILURE_DETECTED' : 'STANDBY'}
+          primaryAction={{
+            label: "Execute Protocols",
+            onClick: () => navigate('/admin/repair'),
+            icon: AlertTriangle
+          }}
+          lastActivity="Stable Boot"
+        >
+          <div className="flex flex-wrap gap-2">
+             <span className="px-2 py-1 bg-on-surface text-white font-mono text-[7px] font-black uppercase rounded">CORE_RESET: READY</span>
+             <span className="px-2 py-1 bg-on-surface/5 font-mono text-[7px] font-black uppercase rounded">BACKFILL: SYNCED</span>
+          </div>
+        </ModuleCard>
+
+        {/* Module 6: Settings & Config */}
+        <ModuleCard
+          title="Operational config"
+          description="Toggle system features, feature flags, and global constants."
+          icon={Settings}
+          status="blue"
+          statusLabel="MOD_AUTHORIZED"
+          primaryAction={{
+            label: "Config Settings",
+            onClick: () => navigate('/admin/settings')
+          }}
+          lastActivity="Last Patch: V1.2.4"
+        >
+          <div className="space-y-1.5 opacity-60">
+             <div className="flex justify-between font-mono text-[8px] font-bold uppercase">
+                <span>Rival_Moments</span>
+                <span className="text-brand-lime">ENABLED</span>
+             </div>
+             <div className="flex justify-between font-mono text-[8px] font-bold uppercase">
+                <span>Crew_Dispatch</span>
+                <span className="text-brand-lime">ENABLED</span>
+             </div>
+          </div>
+        </ModuleCard>
+
+        {/* Module 7: Diagnostics Monitor */}
+        <ModuleCard
+          title="Diagnostics Monitor"
+          description="Live point feed, seasonal leaderboard audit, and pulse check."
+          icon={BarChart3}
+          status="green"
+          statusLabel="DATA_SYNC_LIVE"
+          primaryAction={{
+            label: "Run Diagnostics",
+            onClick: () => navigate('/admin/diagnostics')
+          }}
+          lastActivity="Feed: 0ms Latency"
+        >
+          <div className="flex items-end gap-1 h-8 opacity-20">
+             {[0.4, 0.7, 0.5, 0.9, 0.3, 0.8, 0.6].map((h, i) => (
+               <div key={i} className="flex-1 bg-on-surface rounded-t-sm" style={{ height: `${h * 100}%` }} />
+             ))}
+          </div>
+        </ModuleCard>
+
+        {/* Extra Module: Help / Documentation */}
+        <div className="bg-brand-orange border-4 border-on-surface p-8 shadow-[8px_8px_0px_black] text-white space-y-6 flex flex-col justify-between">
+           <div className="space-y-4">
+              <div className="w-12 h-12 bg-white flex items-center justify-center rounded-xl">
+                 <Zap className="w-6 h-6 text-brand-orange fill-brand-orange" />
               </div>
-           </section>
-
-           {/* Stats Panel */}
-           <section className="p-6 bg-on-surface text-white rounded-3xl shadow-[12px_12px_0px_var(--color-brand-orange)] relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl" />
-              <p className="text-[10px] font-mono font-black uppercase tracking-widest opacity-40 mb-6 flex items-center gap-2">
-                <LayoutGrid className="w-3 h-3" /> System_Vital_Scan
-              </p>
-              
-              <div className="space-y-6">
-                <div>
-                   <p className="text-[9px] font-mono font-bold uppercase opacity-60 mb-2">Network_Traffic</p>
-                   <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                      <div className="h-full bg-brand-lime w-[65%]" />
-                   </div>
-                </div>
-                <div>
-                   <p className="text-[9px] font-mono font-bold uppercase opacity-60 mb-2">Storage_Payload (Beta)</p>
-                   <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                      <div className="h-full bg-brand-orange w-[82%]" />
-                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4 pt-4">
-                   <div className="p-3 bg-white/5 border border-white/10 rounded-xl">
-                      <p className="text-[8px] font-mono font-bold uppercase opacity-40">Uptime</p>
-                      <p className="text-xl font-display font-black italic">99.9%</p>
-                   </div>
-                   <div className="p-3 bg-white/5 border border-white/10 rounded-xl">
-                      <p className="text-[8px] font-mono font-bold uppercase opacity-40">Latent_Ms</p>
-                      <p className="text-xl font-display font-black italic">42ms</p>
-                   </div>
-                </div>
-              </div>
-           </section>
-
-           {/* Emergency Protocols / Danger Zone */}
-           <section className="space-y-4">
-              <h3 className="text-xs font-black uppercase tracking-widest text-error px-1">Emergency_Protocols</h3>
-              <div className="p-6 bg-red-500/5 border-2 border-red-500/20 rounded-3xl space-y-4 text-left">
-                 <p className="text-[10px] font-mono leading-relaxed opacity-60 uppercase text-on-surface">
-                    Wipe progression, active trips, points, and gameplay records for all registered agents. Auth accounts remain safe.
+              <div className="space-y-2">
+                 <h3 className="font-display text-3xl font-black uppercase italic tracking-tighter leading-none">Bureau Protocol</h3>
+                 <p className="font-mono text-[10px] leading-relaxed font-black uppercase tracking-tight opacity-80">
+                   Operational Center Alpha-9 documentation is available for authorized curators. All actions are logged and traceable to service identities.
                  </p>
-                 <button
-                    onClick={() => setShowResetModal(true)}
-                    className="w-full py-4 bg-error text-white font-display font-black uppercase italic rounded-2xl shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none hover:bg-error/90 active:scale-[0.98] transition-all text-sm border-2 border-on-surface"
-                 >
-                    Reset All Users to Start
-                 </button>
-              </div>
-           </section>
-
-           {/* Repair & Diagnostic Protocols */}
-           <section className="space-y-4">
-              <h3 className="text-xs font-black uppercase tracking-widest text-brand-lime px-1">Diagnostic_Protocols</h3>
-              <div className="p-6 bg-emerald-500/5 border-2 border-emerald-500/20 rounded-3xl space-y-4 text-left">
-                 <p className="text-[10px] font-mono leading-relaxed opacity-60 uppercase text-on-surface">
-                    One-time photographic backfill scanner. Resolves approved submissions missing photos by copying from linked reviews.
-                 </p>
-                 <button
-                    disabled={isBackfilling}
-                    onClick={handlePhotoBackfill}
-                    className="w-full py-4 bg-brand-lime text-black font-display font-black uppercase italic rounded-2xl shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none hover:bg-brand-lime/90 active:scale-[0.98] transition-all text-sm border-2 border-on-surface disabled:opacity-50"
-                 >
-                    {isBackfilling ? "Scanning..." : "Execute Photo Backfill Repair"}
-                 </button>
-              </div>
-           </section>
-        </div>
-
-        {/* Right Column: Review Panel */}
-        <div className="lg:col-span-2 space-y-4">
-           <div className="flex items-center justify-between px-1">
-              <h3 className="text-xs font-black uppercase tracking-widest text-on-surface/30">Pending_Evidence_Queue</h3>
-              <div className="flex items-center gap-2">
-                 <div className="w-2 h-2 rounded-full bg-brand-orange animate-pulse" />
-                 <span className="text-[10px] font-mono font-black uppercase text-brand-orange">Live_Feed_Active</span>
               </div>
            </div>
            
-           <div className="bg-paper-dark border-4 border-on-surface rounded-[2.5rem] p-6 lg:p-10 shadow-[inner_0_4px_12px_rgba(0,0,0,0.1)] min-h-[600px] relative">
-              <AdminReviewPanel />
-           </div>
+           <button className="w-full py-4 bg-white text-on-surface font-display font-black uppercase italic text-sm tracking-wider shadow-[4px_4px_0px_black] hover:bg-on-surface hover:text-white transition-all">
+             Protocol Docs
+           </button>
         </div>
+
       </div>
 
-      {/* Floating Toast Notification */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 50 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 50 }}
-            className={cn(
-              "fixed bottom-6 right-6 z-[400] px-6 py-4 border-2 shadow-[8px_8px_0px_black] font-display font-black uppercase italic text-xs tracking-wider",
-              toast.type === 'success' ? "bg-brand-lime text-black border-on-surface" : "bg-error text-white border-on-surface"
-            )}
-          >
-            {toast.message}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Control Deck Footer Monitor */}
+      <footer className="mt-16 bg-white border-4 border-on-surface p-6 shadow-[12px_12px_0px_black] flex flex-col sm:flex-row items-center justify-between gap-6">
+         <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
+               <Activity className="w-5 h-5 text-brand-lime" />
+               <div className="space-y-0.5">
+                  <span className="block font-mono text-[8px] font-black opacity-30 uppercase tracking-[0.2em]">DATABASE_UPTIME</span>
+                  <span className="block font-mono text-[10px] font-black uppercase italic">99.998%_ACCURACY</span>
+               </div>
+            </div>
+            <div className="h-10 w-[2px] bg-on-surface/10 hidden sm:block" />
+            <div className="flex items-center gap-3">
+               <Database className="w-5 h-5 text-brand-orange" />
+               <div className="space-y-0.5">
+                  <span className="block font-mono text-[8px] font-black opacity-30 uppercase tracking-[0.2em]">STORAGE_PAYLOAD</span>
+                  <span className="block font-mono text-[10px] font-black uppercase italic">4.2GB_DEPLOYED</span>
+               </div>
+            </div>
+         </div>
 
-      {/* Global Reset Modal Warning Confirmation */}
-      <AnimatePresence>
-        {showResetModal && (
-          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-paper w-full max-w-lg flex flex-col border-4 border-on-surface shadow-[16px_16px_0px_black] text-on-surface text-left"
-            >
-              <div className="p-6 pt-10 text-center space-y-4 bg-error text-white border-b-4 border-on-surface">
-                <div className="mx-auto w-16 h-16 bg-white/10 flex items-center justify-center border-2 border-white rounded-xl">
-                  <ShieldAlert className="w-10 h-10 text-white" />
-                </div>
-                <div className="space-y-2">
-                  <h3 className="font-display text-4xl font-black uppercase italic tracking-tighter text-white">GLOBAL_CORE_RESET</h3>
-                  <p className="text-[10px] font-mono uppercase tracking-widest opacity-80 text-white">
-                    Caution: This action is permanent and final!
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-8 space-y-6">
-                <div className="p-4 bg-on-surface/5 border border-on-surface/10 rounded-xl space-y-3">
-                  <p className="text-xs leading-relaxed italic text-on-surface">
-                    This resets every user’s Fieldtrip progress, points, decks, onboarding, persona quiz, submissions, stickers, voting, and active missions back to 0. All historic entries, submissions, likes, and feedback will be moved to the archive collection, or completely removed if GLOBAL_RESET_MODE is set to 'delete'.
-                  </p>
-                  <p className="text-xs leading-relaxed text-on-surface/75">
-                    Caution: This action cannot be undone. Authentic login credentials will be kept intact, meaning users can log in, but they will be forced to redo onboarding from the beginning.
-                  </p>
-                  <p className="text-xs font-bold text-error leading-relaxed uppercase tracking-wider">
-                    Are you sure you want to run this global reset?
-                  </p>
-                </div>
-
-                <div className="space-y-3">
-                  <p className="text-[10px] font-mono font-black uppercase opacity-60">
-                    To execute this reset, type the word <span className="text-error font-extrabold select-all">RESET-CORRECTIVE-ACTION</span> below to confirm you understand the scale and consequences of this command.
-                  </p>
-                  <input
-                    type="text"
-                    placeholder="Type confirmation text here..."
-                    value={typedConfirmation}
-                    onChange={(e) => setTypedConfirmation(e.target.value)}
-                    className="w-full bg-on-surface/5 border-2 border-on-surface p-4 text-xs font-mono uppercase tracking-widest outline-none focus:bg-white transition-all font-semibold text-on-surface"
-                    disabled={isResetting}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    onClick={handleGlobalReset}
-                    disabled={typedConfirmation !== 'RESET-CORRECTIVE-ACTION' || isResetting}
-                    className="py-4 bg-error text-white font-display font-black uppercase italic rounded-xl border-2 border-on-surface shadow-[4px_4px_0px_black] hover:bg-error/90 disabled:opacity-30 disabled:pointer-events-none active:translate-y-1 active:shadow-none transition-all text-sm"
-                  >
-                    {isResetting ? 'Resetting State...' : 'Reset All Users to Start'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowResetModal(false);
-                      setTypedConfirmation('');
-                    }}
-                    disabled={isResetting}
-                    className="py-4 bg-white border-2 border-on-surface text-on-surface font-display font-black uppercase italic rounded-xl shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none hover:bg-on-surface/5 transition-all text-sm"
-                  >
-                    Maybe Later
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-4 bg-on-surface/5 text-center border-t border-on-surface/10">
-                <p className="text-[8px] font-mono opacity-40 uppercase tracking-widest">Logged Admin Authorization Signal Check</p>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </div>
+         <div className="flex items-center gap-4 bg-on-surface/5 px-4 py-2 rounded-full border border-on-surface/10">
+            <div className="flex -space-x-2">
+               {[1, 2, 3].map(i => (
+                 <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-on-surface/20 flex items-center justify-center font-mono text-[8px] font-black">OP</div>
+               ))}
+            </div>
+            <span className="font-mono text-[9px] font-black uppercase opacity-60">3_OPS_IN_THE_LOOP</span>
+         </div>
+      </footer>
+    </AdminLayout>
   );
 }
