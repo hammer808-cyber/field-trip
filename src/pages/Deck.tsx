@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
-import { MOCK_TRIPS, FIELD_TYPES } from '../constants';
+import { FIELD_TYPES } from '../constants';
 import { Card } from '../components/UI';
 import { useTheme } from '../context/ThemeContext';
 import { CheckCircle2, MapPin, AlertTriangle, ShieldAlert, Timer, Zap, Camera, Sun, RotateCcw, Info, Users, Lock, HelpCircle, CheckCircle, X, Sparkles, ArrowRight, FileText, Trophy, ChevronDown, Layers, Book } from 'lucide-react';
@@ -26,8 +26,8 @@ import { getWeeklyBonusForWeek } from '../data/weeklyBonuses';
 import { StickerBackground } from '../components/StickerBackground';
 import { StickerDecal, StickerCorner, StickerScatter } from '../components/StickerDecals';
 import { normalizeEntryStatus } from '../logic/entryLogic';
+import { getDeckRuntimeState } from '../logic/deckLogic';
 import { FEATURE_FLAGS } from '../config/featureFlags';
-import { StarterCompletionState } from '../utils/starterHelper';
 import { getSummerCountdown } from '../utils/seasonCountdown';
 import { MARKER_STICKERS } from '../data/markers';
 import { AvatarPreview } from '../components/AvatarPreview';
@@ -148,7 +148,7 @@ export default function DeckPage() {
     currentWeekNumber, activeWeekDrop, getSubmissionPointWindow, isWeekLocked, isReviewWindowOpen,
     updateTripProgress, completedChallengeIds, submittedPendingChallengeIds, fieldTokens, onboardingCompletedCount,
     onboardingRequiredCount, completedOnboardingMissionIds, isOnboardingComplete, trips, starterState,
-    memories, toggleFavoriteMemory, getEligibleDrawPool, updateProfile, blockedIds, unlockDiscoverySticker, currentDate,
+    memories, toggleFavoriteMemory, updateProfile, blockedIds, unlockDiscoverySticker, currentDate,
     isAdmin, isHeatwaveDeckUnlocked, mustCompleteStarterMission,
     needsMoreProofChallengeIds, rejectedChallengeIds,
     drawnMissionCards, updateMissionCardStatus, setActiveMissionCard
@@ -235,19 +235,6 @@ export default function DeckPage() {
     }
   }, [hasUrgentItems]);
 
-  const getPackProgress = (pack: any) => {
-    if (!pack) return { completed: 0, total: 0, percent: 0 };
-    const missionIds = pack.missionIds || [];
-    const total = missionIds.length;
-    if (total === 0) return { completed: 0, total: 0, percent: 0 };
-    const completed = missionIds.filter((mId: string) => {
-      const lowerId = mId.toLowerCase();
-      return completedChallengeIds.has(lowerId);
-    }).length;
-    const percent = Math.min(100, Math.round((completed / total) * 100));
-    return { completed, total, percent };
-  };
-
   const getPackLockState = (pack: any) => {
     if (!pack) return { locked: false, reason: "" };
     const packId = pack.packId;
@@ -308,34 +295,44 @@ export default function DeckPage() {
   const activePack = getDeckPackById(activePackId);
   const activeDeckName = activePack ? activePack.packName : (activePackId === 'starter-signals' ? 'Starter Deck' : 'Themed Deck');
   const activeDeckShortName = activePack ? activePack.shortName : 'DECK';
-  const totalDeckChallenges = activePack ? activePack.missionIds.length : 0;
-  
-  // Starter-specific counts and variables (based on 'starter-signals')
   const isStarter = activePackId === 'starter-signals';
   const starterApproved = starterState?.starterApprovedCount || 0;
-  const starterPendingCount = starterState?.pendingStarterCount || 0;
   const starterSubmittedCount = starterState?.submittedUniqueCount || 0;
-  const starterNeedsMoreProofId = starterState?.needsMoreProofMissionId;
-  const starterRejectedId = starterState?.rejectedMissionId;
-  
-  const isCurrentActiveStarter = activeTrip && ['starter-1', 'starter-2', 'starter-3', 'starter-signals', 'onboarding-mission'].includes(activeTrip.id.toLowerCase().trim());
   
   const isHeatwaveUnlockedForUI = isHeatwaveDeckUnlocked && (isOnboardingComplete || starterApproved >= 3);
 
-  const approvedDeckChallengesCount = activePack
-    ? activePack.missionIds.filter(mId => completedChallengeIds.has(mId.toLowerCase())).length
-    : 0;
-  const pendingDeckChallengesCount = activePack
-    ? activePack.missionIds.filter(mId => submittedPendingChallengeIds.has(mId.toLowerCase())).length
-    : 0;
-  
-  const completedDeckChallengesCount = approvedDeckChallengesCount + pendingDeckChallengesCount;
-  
-  const isDeckCompleted = isStarter && starterApproved < 3 
-    ? false 
-    : (totalDeckChallenges > 0 && approvedDeckChallengesCount === totalDeckChallenges);
-  const isDeckSubmitted = totalDeckChallenges > 0 && completedDeckChallengesCount === totalDeckChallenges;
+  const getDeckCardsForPack = (pack: any) => {
+    if (!pack) return [];
+    const packIds = new Set((pack.missionIds || []).map((id: string) => id.toLowerCase()));
+    return trips.filter(trip => packIds.has(trip.id.toLowerCase()));
+  };
+  const activeDeckCards = getDeckCardsForPack(activePack);
+  const activePackLockState = getPackLockState(activePack);
+  const deckRuntime = getDeckRuntimeState({
+    deckId: activePackId,
+    deckTitle: activeDeckName,
+    deckCards: activeDeckCards,
+    userProgress: {
+      completedMissionIds: completedChallengeIds,
+      pendingMissionIds: submittedPendingChallengeIds,
+      needsMoreProofMissionIds: needsMoreProofChallengeIds,
+      rejectedMissionIds: rejectedChallengeIds
+    },
+    submissions: entries,
+    proofReviews: [],
+    appConfig: {
+      isLocked: activePackLockState.locked,
+      lockReason: activePackLockState.reason,
+      drawLimitReached: false
+    }
+  });
 
+  const totalDeckChallenges = deckRuntime.totalCards;
+  const approvedDeckChallengesCount = deckRuntime.approvedCount;
+  const pendingDeckChallengesCount = deckRuntime.pendingCount;
+  const needsMoreProofDeckChallengesCount = deckRuntime.needsMoreProofCount;
+  const rejectedDeckChallengesCount = deckRuntime.rejectedCount;
+  const isDeckCompleted = deckRuntime.isDeckComplete;
   const deckProgressPercent = totalDeckChallenges > 0 
     ? Math.min(100, Math.round((approvedDeckChallengesCount / totalDeckChallenges) * 100)) 
     : 0;
@@ -343,73 +340,41 @@ export default function DeckPage() {
     ? Math.min(100 - deckProgressPercent, Math.round((pendingDeckChallengesCount / totalDeckChallenges) * 100)) 
     : 0;
 
-  // Calculate exhaustion state dynamically
-  const poolResult = getEligibleDrawPool(activePackId);
-  const eligiblePool = poolResult.eligibleMissions;
-  const drawPoolAnalysis = poolResult.analysis || [];
-  
-  // Rule 1 & Rule 2 for Starter Deck:
-  // - Pending review should only show if ALL starters are submitted but not yet 3 approved.
-  // - allow sequential draws if available cards exist.
-  const isStarterPending = isStarter && starterApproved < 3 && starterSubmittedCount >= 3;
-
-  // Seasonal/Evergreen Rules:
-  // Allow multiple pending missions unless a limit is hit or the deck is actually out of missions.
-  const maxSeasonalPending = 3; 
-  const isPendingReviewLimit = !isStarter && !isDeckCompleted && eligiblePool.length > 0 && pendingDeckChallengesCount >= maxSeasonalPending;
-  
-  const isExhausted = !isStarter 
-    ? (eligiblePool.length === 0 && pendingDeckChallengesCount === 0)
-    : false;
-
-  const isWaitingForReview = !!(isStarter 
-    ? (isStarterPending || isDeckCompleted)
-    : (isPendingReviewLimit || (eligiblePool.length === 0 && !isDeckCompleted && activePack && pendingDeckChallengesCount > 0)));
-
-  const needsMoreProofDeckChallengesCount = activePack
-    ? activePack.missionIds.filter(mId => needsMoreProofChallengeIds.has(mId.toLowerCase())).length
-    : 0;
-  const rejectedDeckChallengesCount = activePack
-    ? activePack.missionIds.filter(mId => rejectedChallengeIds.has(mId.toLowerCase())).length
-    : 0;
-
+  const isExhausted = deckRuntime.displayState === 'EXHAUSTED';
+  const isWaitingForReview = deckRuntime.displayState === 'PENDING_REVIEW';
+  const isPrimaryActionBlocked = !deckRuntime.primaryButtonEnabled;
+  const starterPendingCount = deckRuntime.pendingCount;
+  const starterNeedsMoreProofId = deckRuntime.perCardAnalysis.find(card => card.status === 'needs_more_proof')?.cardId || null;
+  const starterRejectedId = deckRuntime.perCardAnalysis.find(card => card.status === 'rejected')?.cardId || null;
   // Diagnostic Logs for Regression Repair
   useEffect(() => {
-    if (activePackId === 'heatwave-receipts' || activePackId === 'starter-signals') {
+    if (activePackId === 'heatwave-receipts' || activePackId === 'starter-signals' || activePackId === 'socal-summer') {
       console.log(`[Deck Diagnostics] ${activePackId}:`, {
         deckId: activePackId,
-        approvedCount: approvedDeckChallengesCount,
-        pendingCount: pendingDeckChallengesCount,
+        ...deckRuntime,
         starterSubmittedCount,
-        needsMoreProofCount: needsMoreProofDeckChallengesCount,
-        rejectedCount: rejectedDeckChallengesCount,
-        availableCards: eligiblePool.length,
-        maxActivePendingPerDeck: maxSeasonalPending,
-        isBlocked: isWaitingForReview,
-        isStarterPending,
-        blockReason: isPendingReviewLimit ? 'pending_limit_reached' : (eligiblePool.length === 0 && !isStarter ? 'deck_exhausted' : 'none'),
-        analysis: drawPoolAnalysis
       });
     }
-  }, [activePackId, approvedDeckChallengesCount, pendingDeckChallengesCount, starterSubmittedCount, eligiblePool.length, isWaitingForReview, isPendingReviewLimit, isExhausted, isStarterPending, maxSeasonalPending, needsMoreProofDeckChallengesCount, rejectedDeckChallengesCount, drawPoolAnalysis]);
+  }, [activePackId, deckRuntime, starterSubmittedCount]);
 
   const starterHasNeedsMoreProof = isStarter && starterNeedsMoreProofId;
   const starterHasRejected = isStarter && starterRejectedId;
 
   const displayState = {
-    label: starterHasNeedsMoreProof ? "FIX PROOF" : 
-           starterHasRejected ? "RETRY MISSION" :
-           isPendingReviewLimit ? "LIMIT REACHED" : 
-           (isWaitingForReview ? "PENDING REVIEW" : 
-           (isExhausted ? getDisplayLabel("DECK_EXHAUSTED") : getDisplayLabel("START_MISSION"))),
+    label: deckRuntime.primaryButtonLabel.toUpperCase(),
     sublabel: starterHasNeedsMoreProof ? "PHOTO_REJECTED" :
               starterHasRejected ? "RETRY_REQUIRED" :
-              isPendingReviewLimit ? "PENDING_LIMIT_REACHED" : 
-              (isWaitingForReview ? "CALIBRATION_PENDING" : 
-              (isExhausted ? (isDeckCompleted ? "DECK_COMPLETE" : getDisplayLabel("MISSION_LIMIT_REACHED")) : 
+              deckRuntime.displayState === 'LIMIT_REACHED' ? "PENDING_LIMIT_REACHED" :
+              (isWaitingForReview ? "CALIBRATION_PENDING" :
+              (isExhausted ? (isDeckCompleted ? "DECK_COMPLETE" : "DECK_EXHAUSTED") :
               (isStarter ? "STARTER_SIGNALS_READY" : getDisplayLabel("UPLINK_READY_FOR_HAND_OFF")))),
-    status: starterHasNeedsMoreProof || starterHasRejected || isPendingReviewLimit || isWaitingForReview ? "PENDING" : (isExhausted ? "EXHAUSTED" : "READY")
+    status: deckRuntime.displayState
   };
+
+  const excludedCardIdsWithReasons = deckRuntime.perCardAnalysis.reduce((acc, card) => {
+    acc[card.cardId] = card.reasons.join(', ');
+    return acc;
+  }, {} as Record<string, string>);
 
   // Real automatically rotating weekly bonus selector
   const currentWeeklyBonus = getWeeklyBonusForWeek(currentWeekNumber);
@@ -866,53 +831,30 @@ export default function DeckPage() {
               <div>pendingCount: {pendingDeckChallengesCount}</div>
               <div>needsMoreCount: {needsMoreProofDeckChallengesCount}</div>
               <div>rejectedCount: {rejectedDeckChallengesCount}</div>
-              <div>availableCards.length: <span className={eligiblePool.length === 0 ? "text-red-500 font-bold" : "text-green-500"}>{eligiblePool.length}</span></div>
+              <div>drawableCount: <span className={deckRuntime.drawableCount === 0 ? "text-red-500 font-bold" : "text-green-500"}>{deckRuntime.drawableCount}</span></div>
+              <div>retryableCount: {deckRuntime.retryableCount}</div>
               <div>isExhausted: {String(isExhausted)}</div>
-              <div>isBlocked: {String(isWaitingForReview)}</div>
-              <div>blockReason: <span className="text-brand-orange">{isPendingReviewLimit ? 'pending_limit_reached' : (eligiblePool.length === 0 ? 'deck_exhausted' : 'none')}</span></div>
+              <div>isBlocked: {String(deckRuntime.isBlocked)}</div>
+              <div>blockReason: <span className="text-brand-orange">{deckRuntime.blockReason || 'none'}</span></div>
+              <div>displayState: {deckRuntime.displayState}</div>
               <div>displayLabel: {displayState.label}</div>
               <div>displaySub: {displayState.sublabel}</div>
             </div>
             
-            <div className="mt-3 text-neutral-400 border-t border-white/10 pt-2">Available Card IDs:</div>
+            <div className="mt-3 text-neutral-400 border-t border-white/10 pt-2">Next drawable Card IDs:</div>
             <div className="flex flex-wrap gap-1 mt-1">
-              {eligiblePool.map(m => <span key={m.id} className="bg-green-500/20 text-green-400 px-1 rounded">{m.id}</span>)}
-              {eligiblePool.length === 0 && <span className="text-red-500">NONE</span>}
+              {deckRuntime.nextDrawableCardIds.map(id => <span key={id} className="bg-green-500/20 text-green-400 px-1 rounded">{id}</span>)}
+              {deckRuntime.nextDrawableCardIds.length === 0 && <span className="text-red-500">NONE</span>}
             </div>
 
-            <div className="mt-3 text-neutral-400 border-t border-white/10 pt-2 text-[8px] uppercase font-bold text-neutral-500">Deck Inventory Analyzer:</div>
-            <div className="max-h-48 overflow-auto mt-1 space-y-0.5 border border-white/5 rounded-md bg-white/5">
-              <table className="w-full text-left">
-                <thead className="bg-white/10 text-neutral-400 uppercase tracking-tighter">
-                  <tr>
-                    <th className="px-1 py-0.5">ID</th>
-                    <th className="px-1 py-0.5">STAT</th>
-                    <th className="px-1 py-0.5">SUB?</th>
-                    <th className="px-1 py-0.5">DRAW</th>
-                    <th className="px-1 py-0.5">REASON</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {drawPoolAnalysis.sort((a,b) => a.cardId.localeCompare(b.cardId)).map(a => (
-                    <tr key={a.cardId} className={`${a.isDrawable ? 'bg-green-500/5' : ''}`}>
-                      <td className="px-1 py-0.5 text-white/80">{a.cardId}</td>
-                      <td className="px-1 py-0.5 text-blue-400">{a.status}</td>
-                      <td className="px-1 py-0.5">
-                        {a.isApproved && "APV"}
-                        {a.isPending && "PND"}
-                        {a.isNeedsMoreProof && "NMP"}
-                        {a.isRejected && "REJ"}
-                      </td>
-                      <td className={`px-1 py-0.5 font-bold ${a.isDrawable ? 'text-green-500' : 'text-neutral-600'}`}>
-                        {a.isDrawable ? 'YES' : 'NO'}
-                      </td>
-                      <td className={`px-1 py-0.5 ${a.exclusionReason === 'missing_from_missions_bank' ? 'text-red-500' : 'text-neutral-500 italic'}`}>
-                        {a.exclusionReason || '-'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="mt-3 text-neutral-400 border-t border-white/10 pt-2">Deck Runtime Analysis:</div>
+            <div className="max-h-32 overflow-auto mt-1 space-y-0.5">
+              {Object.entries(excludedCardIdsWithReasons).map(([id, reason]) => (
+                <div key={id} className="flex justify-between items-center gap-4">
+                  <span className="truncate">{id}</span>
+                  <span className={`flex-shrink-0 ${reason === 'available_but_filtered_or_missing' ? 'text-red-400' : 'text-neutral-500'}`}>{reason}</span>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -1024,7 +966,7 @@ export default function DeckPage() {
                     <DeckStack 
                       onDraw={() => handleDraw()}
                       isDrawing={isDrawing}
-                      disabled={isDrawing || (isExhausted && !activeTrip) || isWaitingForReview}
+                      disabled={isDrawing || isPrimaryActionBlocked}
                       activeMission={null}
                       activePack={activePack}
                       poolEmpty={isExhausted && !activeTrip}
@@ -1040,10 +982,10 @@ export default function DeckPage() {
                   <div className="w-full space-y-6">
                     <button
                       onClick={() => handleDraw()}
-                      disabled={isDrawing || (isExhausted && !activeTrip) || isWaitingForReview}
+                      disabled={isDrawing || isPrimaryActionBlocked}
                       className={cn(
                         "w-full py-5 bg-on-surface text-white border-[3px] border-on-surface shadow-[0_8px_0px_#B7FF00] active:shadow-none active:translate-y-2 transition-all font-display text-2xl font-black uppercase italic tracking-wide flex items-center justify-center gap-3 cursor-pointer",
-                        (isDrawing || (isExhausted && !activeTrip) || isWaitingForReview) && "opacity-70 cursor-not-allowed grayscale"
+                        (isDrawing || isPrimaryActionBlocked) && "opacity-70 cursor-not-allowed grayscale"
                       )}
                     >
                       {isDrawing ? (
@@ -1218,8 +1160,26 @@ export default function DeckPage() {
               </summary>
               <div className="p-4 pt-0 space-y-3 bg-[#FCFAF5] border-t-2 border-on-surface/5">
                  {DECK_PACKS.map((pack) => {
-                    const { completed, total, percent } = getPackProgress(pack);
                     const { locked, reason } = getPackLockState(pack);
+                    const shelfRuntime = getDeckRuntimeState({
+                      deckId: pack.packId,
+                      deckTitle: pack.packName,
+                      deckCards: getDeckCardsForPack(pack),
+                      userProgress: {
+                        completedMissionIds: completedChallengeIds,
+                        pendingMissionIds: submittedPendingChallengeIds,
+                        needsMoreProofMissionIds: needsMoreProofChallengeIds,
+                        rejectedMissionIds: rejectedChallengeIds
+                      },
+                      submissions: entries,
+                      proofReviews: [],
+                      appConfig: {
+                        isLocked: locked,
+                        lockReason: reason,
+                        drawLimitReached: false
+                      }
+                    });
+                    const percent = shelfRuntime.totalCards > 0 ? Math.round((shelfRuntime.approvedCount / shelfRuntime.totalCards) * 100) : 0;
                     const isSelected = pack.packId === activePackId;
 
                     return (
@@ -1291,7 +1251,7 @@ export default function DeckPage() {
                                 <div className="space-y-1 mt-1">
                                    <div className="flex justify-between items-center text-[8px] font-mono font-black text-on-surface/45">
                                       <span>PROGRESS</span>
-                                      <span>{completed}/{total} COMPLETE</span>
+                                      <span>{shelfRuntime.approvedCount}/{shelfRuntime.totalCards} {shelfRuntime.isDeckComplete ? 'COMPLETE' : shelfRuntime.displayState}</span>
                                    </div>
                                    <div className="h-1.5 bg-on-surface/5 border border-on-surface/10 rounded-full overflow-hidden">
                                       <div 
@@ -1496,4 +1456,3 @@ export default function DeckPage() {
     </div>
   );
 }
-
