@@ -563,7 +563,19 @@ export default function App() {
       console.error('[GLOBAL_ERROR]', event.error || event.message);
     };
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      console.error('[UNHANDLED_REJECTION]', event.reason);
+      const reasonStr = event.reason?.message || event.reason?.toString() || JSON.stringify(event.reason);
+      const isBenign = !reasonStr || 
+                        reasonStr.includes('Firebase') || 
+                        reasonStr.includes('App Check') || 
+                        reasonStr.includes('offline') || 
+                        reasonStr.includes('canceled') || 
+                        reasonStr.includes('aborted');
+
+      if (isBenign) {
+        console.warn('[UNHANDLED_REJECTION_BENIGN]', reasonStr);
+      } else {
+        console.error('[UNHANDLED_REJECTION]', event.reason);
+      }
     };
 
     window.addEventListener('error', handleGlobalError);

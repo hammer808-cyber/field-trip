@@ -54,21 +54,62 @@ async function initAdmin() {
       firebaseConfig = config;
       
       const dbId = config.firestoreDatabaseId;
-      console.log(`[BUREAU_ADMIN] Initializing Firebase Admin with config database ID: ${dbId}`);
+      const appletId = dbId?.startsWith('ai-studio-') ? dbId.replace('ai-studio-', '') : null;
       
-      const existingApps = getApps();
-      if (existingApps.length > 0) {
-        adminApp = existingApps[0];
-      } else {
-        adminApp = initializeApp({
-          projectId: config.projectId,
-          storageBucket: config.storageBucket || `${config.projectId}.firebasestorage.app`
-        });
+      const projIdCandidates = [
+        dbId, // IMPORTANT: In AI Studio, the DB ID is often the actual Project ID
+        config.projectId,
+        appletId,
+        'field-trip-495823'
+      ].filter((v, i, a) => v && typeof v === 'string' && a.indexOf(v) === i);
+
+      console.log(`[BUREAU_ADMIN] Attempting initialization for project candidates: ${projIdCandidates.join(', ')}`);
+      
+      let connectionSuccess = false;
+
+      for (const candidateProjId of projIdCandidates) {
+        if (connectionSuccess) break;
+
+        try {
+          console.log(`[BUREAU_ADMIN] Trying project: ${candidateProjId}`);
+          
+          const existingApps = getApps();
+          for (const app of existingApps) {
+            await deleteApp(app).catch(() => {});
+          }
+
+          adminApp = initializeApp({
+            projectId: candidateProjId,
+            storageBucket: config.storageBucket || `${candidateProjId}.firebasestorage.app`
+          });
+          
+          dbAdmin = getFirestore(adminApp, dbId);
+          
+          // Test Firestore connection on candidate project to prevent false success on invalid candidates
+          await dbAdmin.collection('_temp_warmup_').limit(1).get();
+          
+          workingBucketName = config.storageBucket || `${candidateProjId}.firebasestorage.app`;
+          console.log(`[BUREAU_ADMIN] Firestore successfully verified and initialized for project: ${candidateProjId}`);
+          connectionSuccess = true;
+        } catch (setErr: any) {
+          console.warn(`[BUREAU_ADMIN] Failed connection for project "${candidateProjId}": ${setErr.message}`);
+        }
       }
-      
-      dbAdmin = getFirestore(adminApp, dbId);
-      workingBucketName = config.storageBucket || `${config.projectId}.firebasestorage.app`;
-      console.log(`[BUREAU_ADMIN] Firestore successfully initialized. Project: ${config.projectId}, Database: ${dbId}`);
+
+      if (!connectionSuccess) {
+        console.error("[BUREAU_ADMIN] All project candidates failed. Falling back to configuration values.");
+        const existingApps = getApps();
+        if (existingApps.length > 0) {
+          adminApp = existingApps[0];
+        } else {
+          adminApp = initializeApp({
+            projectId: config.projectId,
+            storageBucket: config.storageBucket || `${config.projectId}.firebasestorage.app`
+          });
+        }
+        dbAdmin = getFirestore(adminApp, dbId);
+        workingBucketName = config.storageBucket || `${config.projectId}.firebasestorage.app`;
+      }
     } else {
       console.log(`[BUREAU_ADMIN] No config file found. Using default internal credentials.`);
       const existingApps = getApps();

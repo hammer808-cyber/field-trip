@@ -7,9 +7,7 @@ import {
   CheckCircle, 
   Database,
   Search,
-  Wrench,
-  Trash2,
-  UserX
+  Wrench
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AdminLayout, StatusLight, ModuleCard } from '../components/admin/AdminShared';
@@ -19,19 +17,14 @@ import {
   repairAllUserOrphans, 
   repairStrandedStarterUsers,
   getRepairDiagnostics,
-  archiveOrphanedProofReviews,
-  resetUserState,
-  lookupAdminUsers,
   RepairReport,
   DiagnosticsReport,
-  StrandedStarterRepairReport,
-  UserResetReport,
-  AdminUserLookupResult
+  StrandedStarterRepairReport
 } from '../services/repairService';
 import { cn } from '../lib/utils';
 
 export default function AdminRepair() {
-  const [activeTab, setActiveTab] = useState<'individual' | 'resets' | 'bulk' | 'diagnostics'>('individual');
+  const [activeTab, setActiveTab] = useState<'individual' | 'bulk' | 'diagnostics'>('individual');
   
   // Individual Repair State
   const [repairUid, setRepairUid] = useState('');
@@ -51,22 +44,6 @@ export default function AdminRepair() {
   // Diagnostics State
   const [diagnostics, setDiagnostics] = useState<DiagnosticsReport | null>(null);
   const [loadingDiagnostics, setLoadingDiagnostics] = useState(false);
-
-  const [cleaningOrphanReviews, setCleaningOrphanReviews] = useState(false);
-  const [orphanCleanupReport, setOrphanCleanupReport] = useState<any>(null);
-
-
-  // User Reset State
-  const [resetTarget, setResetTarget] = useState('');
-  const [resetConfirm, setResetConfirm] = useState(false);
-  const [hardResetPhrase, setHardResetPhrase] = useState('');
-  const [resettingMode, setResettingMode] = useState<'soft' | 'hard' | null>(null);
-  const [resetReport, setResetReport] = useState<UserResetReport | null>(null);
-
-  const [userSearchTerm, setUserSearchTerm] = useState('');
-  const [userLookupLoading, setUserLookupLoading] = useState(false);
-  const [userLookupResults, setUserLookupResults] = useState<AdminUserLookupResult[]>([]);
-  const [userLookupError, setUserLookupError] = useState<string | null>(null);
 
   useEffect(() => {
     if (activeTab === 'diagnostics') {
