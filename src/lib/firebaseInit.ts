@@ -15,16 +15,21 @@ export function initializeFirebase() {
   const isBrowser = typeof window !== 'undefined';
   const globalObj = isBrowser ? (window as any) : (global as any);
   
-  // Use fallbacks for import.meta.env
+  // Browser-safe env reader. Vite client code does not have Node's process object.
   const getEnv = (key: string) => {
-    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) return import.meta.env[key];
-    return process.env[key];
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key] !== undefined) {
+      return import.meta.env[key];
+    }
+    if (typeof process !== 'undefined' && process.env) {
+      return process.env[key];
+    }
+    return undefined;
   };
 
   const RECAPTCHA_SITE_KEY = getEnv('VITE_RECAPTCHA_SITE_KEY');
   const RECAPTCHA_ENTERPRISE_SITE_KEY = getEnv('VITE_RECAPTCHA_ENTERPRISE_SITE_KEY');
   const DEBUG_FLAG = getEnv('VITE_FIREBASE_APPCHECK_DEBUG') === 'true';
-  const IS_PROD = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.PROD : process.env.NODE_ENV === 'production';
+  const IS_PROD = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.PROD : getEnv('NODE_ENV') === 'production';
   const IS_DEV_PREVIEW = !IS_PROD;
   
   if (globalObj.FIREBASE_INITIALIZED) {
