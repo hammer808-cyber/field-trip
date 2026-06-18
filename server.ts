@@ -46,6 +46,25 @@ let authAdmin: any = null;
 let firebaseConfig: any = null;
 let workingBucketName: string | null = null;
 
+
+function getAdminCredentialSetupMessage() {
+  const hasServiceAccountJson = Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 || process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+  const hasCredentialFile = Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS);
+  if (hasServiceAccountJson || hasCredentialFile || process.env.NODE_ENV === 'production') return null;
+  return 'Firebase Admin credentials are not configured for this server. Add FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT_BASE64 to the server environment, then restart the app.';
+}
+
+function assertAdminCredentialsReady() {
+  const setupMessage = getAdminCredentialSetupMessage();
+  if (setupMessage) {
+    throw new Error(setupMessage);
+  }
+  if (!adminApp || !dbAdmin) {
+    throw new Error('DB_ADMIN_NOT_READY: Firebase Admin is not initialized yet. Restart the app after adding Firebase Admin credentials.');
+  }
+}
+
+
 async function initAdmin() {
   try {
     const firebaseConfigPath = path.join(rootPath, 'firebase-applet-config.json');
