@@ -322,30 +322,35 @@ export default function AdminRepair() {
                   <RefreshCw className="w-12 h-12 animate-spin text-brand-orange mb-4" />
                   <p className="text-[10px] font-mono font-black uppercase opacity-40">Probing infrastructure...</p>
                 </div>
-              ) : diagnostics ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <StatItem label="Firebase Link" value={diagnostics.firebaseConnectionStatus} status={diagnostics.firebaseConnectionStatus === 'ok' ? 'success' : 'error'} />
-                  <StatItem label="App Check" value={diagnostics.appCheckStatus} status={diagnostics.appCheckStatus === 'active' ? 'success' : 'warning'} />
-                  <StatItem label="Orphaned Submissions" value={diagnostics.countEntriesNoReviews} status={diagnostics.countEntriesNoReviews === 0 ? 'success' : 'warning'} />
-                  <StatItem label="Orphaned Reviews" value={diagnostics.countReviewsNoEntries} status={diagnostics.countReviewsNoEntries === 0 ? 'success' : 'warning'} />
-                  <StatItem label="Starter Drift" value={diagnostics.countUsersStarterMismatch} status={diagnostics.countUsersStarterMismatch === 0 ? 'success' : 'warning'} />
-                  <StatItem label="Last Scan" value={new Date(diagnostics.lastRepairRunTimestamp).toLocaleTimeString()} status="neutral" />
-                </div>
-                {orphanCleanupReport && (
-                  <div className={cn(
-                    "mt-6 p-4 border rounded-xl font-mono text-[10px] uppercase font-bold",
-                    orphanCleanupReport.success ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-rose-50 border-rose-200 text-rose-700"
-                  )}>
-                    <p className="font-black mb-2">Orphan Review Cleanup</p>
-                    {orphanCleanupReport.success ? (
-                      <p>
-                        Archived {orphanCleanupReport.reviewsArchived} orphaned reviews out of {orphanCleanupReport.orphanedDetected} detected.
-                      </p>
-                    ) : (
-                      <p>{orphanCleanupReport.errors?.[0] || 'Cleanup failed.'}</p>
-                    )}
+                   ) : diagnostics ? (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <StatItem label="Firebase Link" value={diagnostics.firebaseConnectionStatus} status={diagnostics.firebaseConnectionStatus === 'ok' ? 'success' : 'error'} />
+                    <StatItem label="App Check" value={diagnostics.appCheckStatus} status={diagnostics.appCheckStatus === 'active' ? 'success' : 'warning'} />
+                    <StatItem label="Orphaned Submissions" value={diagnostics.countEntriesNoReviews} status={diagnostics.countEntriesNoReviews === 0 ? 'success' : 'warning'} />
+                    <StatItem label="Orphaned Reviews" value={diagnostics.countReviewsNoEntries} status={diagnostics.countReviewsNoEntries === 0 ? 'success' : 'warning'} />
+                    <StatItem label="Starter Drift" value={diagnostics.countUsersStarterMismatch} status={diagnostics.countUsersStarterMismatch === 0 ? 'success' : 'warning'} />
+                    <StatItem label="Last Scan" value={new Date(diagnostics.lastRepairRunTimestamp).toLocaleTimeString()} status="neutral" />
                   </div>
-                )}
+
+                  {orphanCleanupReport && (
+                    <div className={cn(
+                      "mt-6 p-4 border rounded-xl font-mono text-[10px] uppercase font-bold",
+                      orphanCleanupReport.success
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                        : "bg-rose-50 border-rose-200 text-rose-700"
+                    )}>
+                      <p className="font-black mb-2">Orphan Review Cleanup</p>
+                      {orphanCleanupReport.success ? (
+                        <p>
+                          Archived {orphanCleanupReport.reviewsArchived} orphaned reviews out of {orphanCleanupReport.orphanedDetected} detected.
+                        </p>
+                      ) : (
+                        <p>{orphanCleanupReport.errors?.[0] || 'Cleanup failed.'}</p>
+                      )}
+                    </div>
+                  )}
+                </>
               ) : (
                 <p className="text-center text-xs font-mono opacity-40 py-12">Run diagnostics to see system health.</p>
               )}
