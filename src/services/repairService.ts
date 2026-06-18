@@ -59,64 +59,6 @@ export interface DiagnosticsReport {
   lastRepairRunTimestamp: string;
 }
 
-export interface UserResetReport {
-  success: boolean;
-  mode: 'soft' | 'hard';
-  userId: string;
-  username?: string;
-  email?: string | null;
-  archivedCounts: Record<string, number>;
-  errors: string[];
-}
-
-export async function resetUserState(params: {
-  targetUserId?: string;
-  targetUsername?: string;
-  targetEmail?: string;
-  mode: 'soft' | 'hard';
-  confirmReset: boolean;
-  confirmationText?: string;
-}): Promise<UserResetReport> {
-  const endpoint = params.mode === 'hard'
-    ? '/api/admin/hard-reset-user'
-    : '/api/admin/soft-reset-user';
-
-  try {
-    const response = await authenticatedFetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params)
-    });
-
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.message || errData.error || `${params.mode} reset failed with HTTP ${response.status}`);
-    }
-
-    const raw = await response.json();
-    const report = raw.report || raw;
-    return {
-      success: raw.success !== false,
-      mode: params.mode,
-      userId: report.userId || params.targetUserId || params.targetUsername || params.targetEmail || 'unknown',
-      username: report.username,
-      email: report.email || null,
-      archivedCounts: report.archivedCounts || report.countsArchived || {},
-      errors: report.errors || []
-    };
-  } catch (err: any) {
-    console.error(`[resetUserState] ${params.mode} reset failed:`, err);
-    return {
-      success: false,
-      mode: params.mode,
-      userId: params.targetUserId || params.targetUsername || params.targetEmail || 'unknown',
-      username: params.targetUsername,
-      archivedCounts: {},
-      errors: [err.message || String(err)]
-    };
-  }
-}
-
 /**
  * Repairs the mission state for a specific user using the secure backend utility.
  */
