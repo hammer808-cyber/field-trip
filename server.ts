@@ -21,14 +21,10 @@ type ReviewStatus = 'approved' | 'pendingReview' | 'rejected' | 'autoRejected' |
 dotenv.config();
 
 // Process-level error tracking for robust operation
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('[UNHANDLED_REJECTION] CRITICAL: An asynchronous operation failed without a catch block.');
-  console.error('Promise:', promise);
-  if (reason instanceof Error) {
-    console.error('Reason (Error):', reason.message);
+process.on('unhandledRejection', (reason: any, promise) => {
+  console.error('[UNHANDLED_REJECTION] CRITICAL:', reason?.message || reason);
+  if (reason?.stack) {
     console.error('Stack:', reason.stack);
-  } else {
-    console.error('Reason (Non-Error):', reason);
   }
 });
 process.on('uncaughtException', (error) => {
@@ -93,10 +89,13 @@ async function initAdmin() {
           
           dbAdmin = getFirestore(adminApp, dbId);
           
+          // Test Firestore connection on candidate project to prevent false success on invalid candidates
+          await dbAdmin.collection('_temp_warmup_').limit(1).get();
+          
           // Capture the working bucket name for later use in storage operations
           workingBucketName = config.storageBucket || `${candidateProjId}.firebasestorage.app`;
           
-          console.log(`[BUREAU_ADMIN] Firestore successfully initialized for project: ${candidateProjId}`);
+          console.log(`[BUREAU_ADMIN] Firestore successfully verified and initialized for project: ${candidateProjId}`);
           connectionSuccess = true;
         } catch (setErr: any) {
           console.warn(`[BUREAU_ADMIN] Failed connection for project "${candidateProjId}": ${setErr.message}`);
@@ -278,7 +277,7 @@ if (process.env.NODE_ENV !== 'production' && process.env.ENABLE_STARTUP_PURGE ==
 
 async function startServer() {
   const app = express();
-  const port = Number(process.env.PORT) || 8080;
+  const port = 3000;
 
   // Middleware for parsing JSON with large limits for images
   app.use(express.json({ limit: '10mb' }));
@@ -2378,102 +2377,6 @@ async function startServer() {
       dryRun
     };
   }
-
-  app.post("/api/admin/archive-orphan-proof-reviews", authenticate, async (req: any, res) => {
-    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
-
-    const isAdminUser = await checkIsAdmin(req.user);
-    if (!isAdminUser) {
-      return res.status(403).json({ error: "ADMIN_REQUIRED" });
-    }
-
-    const { dryRun = true } = req.body;
-    const warnings: string[] = [];
-    const errors: string[] = [];
-
-    try {
-      assertAdminCredentialsReady();
-
-      const [entriesSnap, reviewsSnap] = await Promise.all([
-        dbAdmin.collection('entries').get(),
-        dbAdmin.collection('proofReviews').get()
-      ]);
-
-      const activeEntryIds = new Set<string>();
-      entriesSnap.docs.forEach(docSnap => {
-        const data = docSnap.data() || {};
-        if (data.archived === true || data.excludedFromProgress === true) return;
-        activeEntryIds.add(docSnap.id);
-        if (data.entryId) activeEntryIds.add(String(data.entryId));
-        if (data.submissionId) activeEntryIds.add(String(data.submissionId));
-        if (data.proofId) activeEntryIds.add(String(data.proofId));
-      });
-
-      const orphanReviews = reviewsSnap.docs.filter(docSnap => {
-        const data = docSnap.data() || {};
-        if (data.archived === true || data.excludedFromProgress === true) return false;
-        const candidates = [
-          docSnap.id,
-          data.entryId,
-          data.submissionId,
-          data.proofId,
-          data.sourceEntryId,
-          data.linkedEntryId
-        ].filter(Boolean).map(String);
-
-        return candidates.length === 0 || candidates.every(id => !activeEntryIds.has(id));
-      });
-
-      if (!dryRun) {
-        for (let i = 0; i < orphanReviews.length; i += 500) {
-          const batch = dbAdmin.batch();
-          orphanReviews.slice(i, i + 500).forEach(docSnap => {
-            batch.set(docSnap.ref, {
-              archived: true,
-              excludedFromProgress: true,
-              archivedAt: FieldValue.serverTimestamp(),
-              archiveReason: "orphan_review_cleanup"
-            }, { merge: true });
-          });
-          await batch.commit();
-        }
-
-        await dbAdmin.collection('adminRepairLogs').add({
-          actionType: 'archive_orphan_proof_reviews',
-          adminUid: req.user.uid,
-          timestamp: FieldValue.serverTimestamp(),
-          dryRun: false,
-          countsChanged: {
-            reviewsScanned: reviewsSnap.size,
-            orphanedDetected: orphanReviews.length,
-            reviewsArchived: orphanReviews.length
-          },
-          sampleReviewIds: orphanReviews.slice(0, 25).map(docSnap => docSnap.id),
-          warnings,
-          errors
-        });
-      }
-
-      res.json({
-        success: true,
-        dryRun,
-        reviewsScanned: reviewsSnap.size,
-        orphanedDetected: orphanReviews.length,
-        reviewsArchived: dryRun ? 0 : orphanReviews.length,
-        sampleReviewIds: orphanReviews.slice(0, 25).map(docSnap => docSnap.id),
-        warnings,
-        errors
-      });
-    } catch (error: any) {
-      console.error("[ORPHAN_REVIEW_CLEANUP] Error:", error);
-      res.status(500).json({
-        error: "ORPHAN_REVIEW_CLEANUP_FAILED",
-        message: error.message,
-        warnings,
-        errors: [error.message || String(error)]
-      });
-    }
-  });
 
   app.post("/api/admin/repair-stranded-starter", authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });

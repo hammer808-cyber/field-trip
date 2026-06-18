@@ -17,7 +17,6 @@ import {
   repairAllUserOrphans, 
   repairStrandedStarterUsers,
   getRepairDiagnostics,
-  archiveOrphanedProofReviews,
   RepairReport,
   DiagnosticsReport,
   StrandedStarterRepairReport
@@ -45,9 +44,6 @@ export default function AdminRepair() {
   // Diagnostics State
   const [diagnostics, setDiagnostics] = useState<DiagnosticsReport | null>(null);
   const [loadingDiagnostics, setLoadingDiagnostics] = useState(false);
-
-  const [cleaningOrphanReviews, setCleaningOrphanReviews] = useState(false);
-  const [orphanCleanupReport, setOrphanCleanupReport] = useState<any>(null);
 
   useEffect(() => {
     if (activeTab === 'diagnostics') {
@@ -101,24 +97,6 @@ export default function AdminRepair() {
       console.error('Stranded repair failed:', err);
     } finally {
       setRepairingStranded(false);
-    }
-  };
-
-
-  const handleArchiveOrphanReviews = async () => {
-    setCleaningOrphanReviews(true);
-    setOrphanCleanupReport(null);
-    try {
-      const report = await archiveOrphanedProofReviews(false);
-      setOrphanCleanupReport(report);
-      await fetchDiagnostics();
-    } catch (err: any) {
-      setOrphanCleanupReport({
-        success: false,
-        errors: [err.message || String(err)]
-      });
-    } finally {
-      setCleaningOrphanReviews(false);
     }
   };
 
@@ -299,22 +277,13 @@ export default function AdminRepair() {
                   <Database className="w-6 h-6 text-brand-orange" />
                   <h3 className="text-xl font-display font-black uppercase italic tracking-tight">System Health Monitor</h3>
                 </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={handleArchiveOrphanReviews}
-                    disabled={cleaningOrphanReviews || !diagnostics || diagnostics.countReviewsNoEntries === 0}
-                    className="px-4 py-2 bg-brand-orange text-white border-2 border-on-surface rounded-lg text-[10px] font-mono font-black uppercase disabled:opacity-40 shadow-[3px_3px_0px_black]"
-                  >
-                    {cleaningOrphanReviews ? 'Archiving...' : 'Archive Orphan Reviews'}
-                  </button>
-                  <button 
-                    onClick={fetchDiagnostics}
-                    disabled={loadingDiagnostics}
-                    className="p-2 border-2 border-on-surface rounded-lg hover:bg-on-surface/5 transition-all"
-                  >
-                    <RefreshCw className={cn("w-4 h-4", loadingDiagnostics && "animate-spin")} />
-                  </button>
-                </div>
+                <button 
+                  onClick={fetchDiagnostics}
+                  disabled={loadingDiagnostics}
+                  className="p-2 border-2 border-on-surface rounded-lg hover:bg-on-surface/5 transition-all"
+                >
+                  <RefreshCw className={cn("w-4 h-4", loadingDiagnostics && "animate-spin")} />
+                </button>
               </div>
 
               {loadingDiagnostics ? (
@@ -322,35 +291,15 @@ export default function AdminRepair() {
                   <RefreshCw className="w-12 h-12 animate-spin text-brand-orange mb-4" />
                   <p className="text-[10px] font-mono font-black uppercase opacity-40">Probing infrastructure...</p>
                 </div>
-                   ) : diagnostics ? (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <StatItem label="Firebase Link" value={diagnostics.firebaseConnectionStatus} status={diagnostics.firebaseConnectionStatus === 'ok' ? 'success' : 'error'} />
-                    <StatItem label="App Check" value={diagnostics.appCheckStatus} status={diagnostics.appCheckStatus === 'active' ? 'success' : 'warning'} />
-                    <StatItem label="Orphaned Submissions" value={diagnostics.countEntriesNoReviews} status={diagnostics.countEntriesNoReviews === 0 ? 'success' : 'warning'} />
-                    <StatItem label="Orphaned Reviews" value={diagnostics.countReviewsNoEntries} status={diagnostics.countReviewsNoEntries === 0 ? 'success' : 'warning'} />
-                    <StatItem label="Starter Drift" value={diagnostics.countUsersStarterMismatch} status={diagnostics.countUsersStarterMismatch === 0 ? 'success' : 'warning'} />
-                    <StatItem label="Last Scan" value={new Date(diagnostics.lastRepairRunTimestamp).toLocaleTimeString()} status="neutral" />
-                  </div>
-
-                  {orphanCleanupReport && (
-                    <div className={cn(
-                      "mt-6 p-4 border rounded-xl font-mono text-[10px] uppercase font-bold",
-                      orphanCleanupReport.success
-                        ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                        : "bg-rose-50 border-rose-200 text-rose-700"
-                    )}>
-                      <p className="font-black mb-2">Orphan Review Cleanup</p>
-                      {orphanCleanupReport.success ? (
-                        <p>
-                          Archived {orphanCleanupReport.reviewsArchived} orphaned reviews out of {orphanCleanupReport.orphanedDetected} detected.
-                        </p>
-                      ) : (
-                        <p>{orphanCleanupReport.errors?.[0] || 'Cleanup failed.'}</p>
-                      )}
-                    </div>
-                  )}
-                </>
+              ) : diagnostics ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <StatItem label="Firebase Link" value={diagnostics.firebaseConnectionStatus} status={diagnostics.firebaseConnectionStatus === 'ok' ? 'success' : 'error'} />
+                  <StatItem label="App Check" value={diagnostics.appCheckStatus} status={diagnostics.appCheckStatus === 'active' ? 'success' : 'warning'} />
+                  <StatItem label="Orphaned Submissions" value={diagnostics.countEntriesNoReviews} status={diagnostics.countEntriesNoReviews === 0 ? 'success' : 'warning'} />
+                  <StatItem label="Orphaned Reviews" value={diagnostics.countReviewsNoEntries} status={diagnostics.countReviewsNoEntries === 0 ? 'success' : 'warning'} />
+                  <StatItem label="Starter Drift" value={diagnostics.countUsersStarterMismatch} status={diagnostics.countUsersStarterMismatch === 0 ? 'success' : 'warning'} />
+                  <StatItem label="Last Scan" value={new Date(diagnostics.lastRepairRunTimestamp).toLocaleTimeString()} status="neutral" />
+                </div>
               ) : (
                 <p className="text-center text-xs font-mono opacity-40 py-12">Run diagnostics to see system health.</p>
               )}

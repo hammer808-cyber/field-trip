@@ -808,6 +808,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   // Auth listener
+  const authUnsubRef = useRef<(() => void) | null>(null);
+  const profileUnsubRef = useRef<(() => void) | null>(null);
+  const blocksUnsubRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     if (!auth) {
       console.warn("[AppContext] Firebase Auth not initialized.");
@@ -815,21 +819,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setProfileLoading(false);
       return;
     }
-    return onAuthStateChanged(auth, async (u) => {
+
+    authUnsubRef.current = onAuthStateChanged(auth, async (u) => {
       console.log('[AppContext] Auth state changed:', u?.uid || 'null');
+      
+      // Clean up existing listeners on state change
+      if (profileUnsubRef.current) {
+        profileUnsubRef.current();
+        profileUnsubRef.current = null;
+      }
+      if (blocksUnsubRef.current) {
+        blocksUnsubRef.current();
+        blocksUnsubRef.current = null;
+      }
+
       try {
         setUser(u);
         setAuthLoading(false);
         
         if (u) {
           setProfileLoading(true);
-          // Parallel fetch for speed
-          // Use a timeout for for the initial profile fetch to avoid hanging for 10s on connectivity issues
           let profileTimeoutId: any;
           let profileTimedOut = false;
           const profileFetch = getOrCreateProfile(u);
 
-          // Guard against unhandled promise rejection if profile fetch rejects after the timeout
           profileFetch.catch(err => {
             if (profileTimedOut) {
               console.info("[AppContext] Profile fetch rejected after timeout occurred:", err.message);
@@ -855,7 +868,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             }).catch(err => {
               clearTimeout(profileTimeoutId);
               console.warn("[AppContext] Profile fetch/creation failed or timed out (offline?):", err);
-              // Fallback to a localized safe profile to bypass fatal offline gate crashes
               const fallback: UserProfile = {
                 id: u.uid,
                 name: u.displayName || 'Field Agent',
@@ -863,10 +875,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 photoURL: u.photoURL || '',
                 fieldType: null,
                 fieldTypeName: null,
-                fieldClassificationComplete: false, // Ensure we don't bypass onboarding on transient profile load failures
+                fieldClassificationComplete: false,
                 productPersonaLens: 'frankie',
                 avatar: DEFAULT_AVATAR,
-                onboardingCompleted: false, // Ensure they do guided tour
+                onboardingCompleted: false,
                 crewModeUnlocked: false,
                 crewModeSeen: false,
                 xp: 0,
@@ -889,23 +901,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           ]);
           clearTimeout(profileTimeoutId);
           
-          console.log('[AppContext] Profile Hydra success:', p.id, { 
-            fieldClassificationComplete: p.fieldClassificationComplete,
-            onboardingCompleted: p.onboardingCompleted 
-          });
+          console.log('[AppContext] Profile Hydra success:', p.id);
           
           setLegalConsent(consent);
-          // If consent is missing, we consider it not confirmed yet, which is fine
           setHasConfirmedLegal(consent ? isConsentValid(consent) : false);
           setProfile(p);
 
           // Blocks subscription
-          const unsubBlocks = subscribeToBlocks(u.uid, setBlockedIds);
+          blocksUnsubRef.current = subscribeToBlocks(u.uid, setBlockedIds);
 
           setProfileLoading(false);
-          return () => {
-            unsubBlocks();
-          };
+          
+          // Profile live updates subscription
+          profileUnsubRef.current = subscribeToProfile(u.uid, (updatedProfile) => {
+            if (updatedProfile) {
+              setProfile(updatedProfile);
+            }
+          });
+
         } else {
           setProfile(null);
           setEntries([]);
@@ -921,6 +934,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setProfileLoading(false);
       }
     });
+
+    return () => {
+      if (authUnsubRef.current) authUnsubRef.current();
+      if (profileUnsubRef.current) profileUnsubRef.current();
+      if (blocksUnsubRef.current) blocksUnsubRef.current();
+    };
   }, []);
 
   useEffect(() => {
