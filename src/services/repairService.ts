@@ -59,6 +59,101 @@ export interface DiagnosticsReport {
   lastRepairRunTimestamp: string;
 }
 
+export interface OrphanReviewCleanupReport {
+  success: boolean;
+  dryRun: boolean;
+  reviewsScanned: number;
+  orphanedDetected: number;
+  reviewsArchived: number;
+  sampleReviewIds: string[];
+  warnings: string[];
+  errors: string[];
+}
+
+export interface UserResetReport {
+  success: boolean;
+  mode: 'soft' | 'hard';
+  userId: string;
+  username?: string;
+  email?: string | null;
+  archivedCounts: Record<string, number>;
+  errors: string[];
+}
+
+export interface AdminUserLookupResult {
+  uid: string;
+  username?: string;
+  displayName?: string;
+  email?: string | null;
+  role?: string;
+  accessStatus?: string;
+}
+
+export async function lookupAdminUsers(search: string): Promise<AdminUserLookupResult[]> {
+  const q = search.trim();
+  if (!q) return [];
+
+  const response = await authenticatedFetch(`/api/admin/user-lookup?q=${encodeURIComponent(q)}`, {
+    method: 'GET'
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.message || errData.error || `User lookup failed with HTTP ${response.status}`);
+  }
+
+  const raw = await response.json();
+  return raw.users || [];
+}
+
+export async function resetUserState(params: {
+  targetUserId?: string;
+  targetUsername?: string;
+  targetEmail?: string;
+  mode: 'soft' | 'hard';
+  confirmReset: boolean;
+  confirmationText?: string;
+}): Promise<UserResetReport> {
+  const endpoint = params.mode === 'hard'
+    ? '/api/admin/hard-reset-user'
+    : '/api/admin/soft-reset-user';
+
+  try {
+    const response = await authenticatedFetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.message || errData.error || `${params.mode} reset failed with HTTP ${response.status}`);
+    }
+
+    const raw = await response.json();
+    const report = raw.report || raw;
+    return {
+      success: raw.success !== false,
+      mode: params.mode,
+      userId: report.userId || params.targetUserId || params.targetUsername || params.targetEmail || 'unknown',
+      username: report.username,
+      email: report.email || null,
+      archivedCounts: report.archivedCounts || report.countsArchived || {},
+      errors: report.errors || []
+    };
+  } catch (err: any) {
+    console.error(`[resetUserState] ${params.mode} reset failed:`, err);
+    return {
+      success: false,
+      mode: params.mode,
+      userId: params.targetUserId || params.targetUsername || params.targetEmail || 'unknown',
+      username: params.targetUsername,
+      archivedCounts: {},
+      errors: [err.message || String(err)]
+    };
+  }
+}
+
 /**
  * Repairs the mission state for a specific user using the secure backend utility.
  */
@@ -198,6 +293,35 @@ export async function repairStrandedStarterUsers(dryRun: boolean = true): Promis
       warnings: [],
       errors: [err.message || String(err)],
       dryRun
+    };
+  }
+}
+
+export async function archiveOrphanedProofReviews(dryRun: boolean = true): Promise<OrphanReviewCleanupReport> {
+  try {
+    const response = await authenticatedFetch('/api/admin/archive-orphan-proof-reviews', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dryRun })
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.message || errData.error || `Orphan review cleanup failed with HTTP ${response.status}`);
+    }
+
+    return response.json();
+  } catch (err: any) {
+    console.error('[archiveOrphanedProofReviews] failed:', err);
+    return {
+      success: false,
+      dryRun,
+      reviewsScanned: 0,
+      orphanedDetected: 0,
+      reviewsArchived: 0,
+      sampleReviewIds: [],
+      warnings: [],
+      errors: [err.message || String(err)]
     };
   }
 }
