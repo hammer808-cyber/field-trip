@@ -22,7 +22,7 @@ dotenv.config();
 
 // Process-level error tracking for robust operation
 process.on('unhandledRejection', (reason: any, promise) => {
-  console.error('[UNHANDLED_REJECTION] CRITICAL:', reason?.message || reason);
+  console.error('[PROMISE_REJECTION] CRITICAL:', reason?.message || reason);
   if (reason?.stack) {
     console.error('Stack:', reason.stack);
   }

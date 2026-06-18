@@ -563,6 +563,11 @@ export default function App() {
       console.error('[GLOBAL_ERROR]', event.error || event.message);
     };
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      // Mark the rejection as handled to suppress standard browser red console errors
+      try {
+        event.preventDefault();
+      } catch (e) {}
+
       const reasonStr = event.reason?.message || event.reason?.toString() || JSON.stringify(event.reason);
       const isBenign = !reasonStr || 
                         reasonStr.includes('Firebase') || 
@@ -572,9 +577,9 @@ export default function App() {
                         reasonStr.includes('aborted');
 
       if (isBenign) {
-        console.warn('[UNHANDLED_REJECTION_BENIGN]', reasonStr);
+        console.warn('[REJECTION_WARN]', reasonStr);
       } else {
-        console.error('[UNHANDLED_REJECTION]', event.reason);
+        console.error('[PROMISE_REJECTION]', event.reason);
       }
     };
 
