@@ -29,6 +29,153 @@ export interface EligibleDrawPoolResult {
   analysis?: ExclusionAnalysis[];
 }
 
+
+export type DeckDisplayState = 'LOCKED' | 'COMPLETE' | 'LIMIT_REACHED' | 'READY' | 'RETRY_AVAILABLE' | 'NEEDS_MORE_PROOF' | 'PENDING_REVIEW' | 'EXHAUSTED' | 'EMPTY';
+
+export interface DeckRuntimeCardAnalysis {
+  cardId: string;
+  status: 'approved' | 'pending_review' | 'needs_more_proof' | 'rejected' | 'unplayed';
+  drawable: boolean;
+  retryable: boolean;
+  reasons: string[];
+}
+
+export interface DeckRuntimeState {
+  deckId: string;
+  deckTitle: string;
+  totalCards: number;
+  approvedCount: number;
+  pendingCount: number;
+  needsMoreProofCount: number;
+  rejectedCount: number;
+  unplayedCount: number;
+  drawableCount: number;
+  retryableCount: number;
+  isDeckComplete: boolean;
+  isLocked: boolean;
+  isBlocked: boolean;
+  blockReason: string | null;
+  displayState: DeckDisplayState;
+  primaryButtonLabel: string;
+  primaryButtonEnabled: boolean;
+  nextDrawableCardIds: string[];
+  retryableCardIds: string[];
+  perCardAnalysis: DeckRuntimeCardAnalysis[];
+}
+
+const cleanDeckId = (value: unknown) => String(value || '').toLowerCase().trim();
+
+const idsFrom = (value?: Set<string> | string[]) => new Set(Array.from(value || []).map(cleanDeckId).filter(Boolean));
+
+export function getDeckRuntimeState({
+  deckId,
+  deckTitle,
+  deckCards,
+  userProgress,
+  appConfig = {}
+}: {
+  deckId: string;
+  deckTitle?: string;
+  deckCards: TripType[];
+  userProgress?: {
+    completedMissionIds?: Set<string> | string[];
+    approvedIds?: Set<string> | string[];
+    pendingMissionIds?: Set<string> | string[];
+    needsMoreProofMissionIds?: Set<string> | string[];
+    rejectedMissionIds?: Set<string> | string[];
+  };
+  appConfig?: { isLocked?: boolean; lockReason?: string; drawLimitReached?: boolean; drawLimitReason?: string };
+}): DeckRuntimeState {
+  const approved = new Set([...idsFrom(userProgress?.completedMissionIds), ...idsFrom(userProgress?.approvedIds)]);
+  const pending = idsFrom(userProgress?.pendingMissionIds);
+  const needsMore = idsFrom(userProgress?.needsMoreProofMissionIds);
+  const rejected = idsFrom(userProgress?.rejectedMissionIds);
+  const cardIds = deckCards.map(card => cleanDeckId((card as any).id || (card as any).missionId || (card as any).challengeId)).filter(Boolean);
+
+  approved.forEach(id => { pending.delete(id); needsMore.delete(id); rejected.delete(id); });
+  needsMore.forEach(id => { pending.delete(id); rejected.delete(id); });
+  rejected.forEach(id => pending.delete(id));
+
+  const perCardAnalysis = cardIds.map(cardId => {
+    let status: DeckRuntimeCardAnalysis['status'] = 'unplayed';
+    let drawable = true;
+    let retryable = false;
+    const reasons: string[] = [];
+
+    if (approved.has(cardId)) {
+      status = 'approved'; drawable = false; reasons.push('approved_complete');
+    } else if (pending.has(cardId)) {
+      status = 'pending_review'; drawable = false; reasons.push('pending_temporarily_unavailable');
+    } else if (needsMore.has(cardId)) {
+      status = 'needs_more_proof'; drawable = false; retryable = true; reasons.push('needs_more_proof_retryable');
+    } else if (rejected.has(cardId)) {
+      status = 'rejected'; drawable = false; retryable = true; reasons.push('rejected_retryable');
+    } else {
+      reasons.push('unplayed_drawable');
+    }
+
+    if (appConfig.isLocked) {
+      drawable = false; retryable = false; reasons.push(`deck_locked:${appConfig.lockReason || 'locked'}`);
+    }
+
+    return { cardId, status, drawable, retryable, reasons };
+  });
+
+  const nextDrawableCardIds = perCardAnalysis.filter(card => card.drawable).map(card => card.cardId);
+  const retryableCardIds = perCardAnalysis.filter(card => card.retryable).map(card => card.cardId);
+  const approvedCount = perCardAnalysis.filter(card => card.status === 'approved').length;
+  const pendingCount = perCardAnalysis.filter(card => card.status === 'pending_review').length;
+  const needsMoreProofCount = perCardAnalysis.filter(card => card.status === 'needs_more_proof').length;
+  const rejectedCount = perCardAnalysis.filter(card => card.status === 'rejected').length;
+  const unplayedCount = perCardAnalysis.filter(card => card.status === 'unplayed').length;
+  const totalCards = cardIds.length;
+  const isDeckComplete = totalCards > 0 && approvedCount === totalCards;
+
+  let displayState: DeckDisplayState = totalCards === 0 ? 'EMPTY' : 'READY';
+  let primaryButtonLabel = 'Start Mission';
+  let primaryButtonEnabled = nextDrawableCardIds.length > 0;
+  let blockReason: string | null = null;
+
+  if (appConfig.isLocked) {
+    displayState = 'LOCKED'; primaryButtonLabel = 'Locked'; primaryButtonEnabled = false; blockReason = appConfig.lockReason || 'deck_locked';
+  } else if (isDeckComplete) {
+    displayState = 'COMPLETE'; primaryButtonLabel = 'Deck Complete'; primaryButtonEnabled = false; blockReason = 'deck_complete';
+  } else if (appConfig.drawLimitReached) {
+    displayState = 'LIMIT_REACHED'; primaryButtonLabel = 'Limit Reached'; primaryButtonEnabled = false; blockReason = appConfig.drawLimitReason || 'draw_limit_reached';
+  } else if (retryableCardIds.length > 0) {
+    displayState = needsMoreProofCount > 0 ? 'NEEDS_MORE_PROOF' : 'RETRY_AVAILABLE'; primaryButtonLabel = needsMoreProofCount > 0 ? 'Fix Proof' : 'Retry Mission'; primaryButtonEnabled = true;
+  } else if (nextDrawableCardIds.length > 0) {
+    displayState = 'READY';
+  } else if (pendingCount > 0) {
+    displayState = 'PENDING_REVIEW'; primaryButtonLabel = 'Pending Review'; primaryButtonEnabled = false; blockReason = 'all_remaining_cards_pending_review';
+  } else {
+    displayState = 'EXHAUSTED'; primaryButtonLabel = 'Deck Exhausted'; primaryButtonEnabled = false; blockReason = 'all_cards_unavailable';
+  }
+
+  return {
+    deckId: cleanDeckId(deckId),
+    deckTitle: deckTitle || deckId,
+    totalCards,
+    approvedCount,
+    pendingCount,
+    needsMoreProofCount,
+    rejectedCount,
+    unplayedCount,
+    drawableCount: nextDrawableCardIds.length,
+    retryableCount: retryableCardIds.length,
+    isDeckComplete,
+    isLocked: appConfig.isLocked === true,
+    isBlocked: !primaryButtonEnabled,
+    blockReason,
+    displayState,
+    primaryButtonLabel,
+    primaryButtonEnabled,
+    nextDrawableCardIds,
+    retryableCardIds,
+    perCardAnalysis
+  };
+}
+
 /**
  * The canonical source of truth for which missions a user can currently draw.
  */

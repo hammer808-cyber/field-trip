@@ -356,7 +356,7 @@ export default function DeckPage() {
   // Seasonal/Evergreen Rules:
   // Allow multiple pending missions unless a limit is hit or the deck is actually out of missions.
   const maxSeasonalPending = 3; 
-  const isPendingReviewLimit = !isStarter && !isDeckCompleted && eligiblePool.length > 0 && pendingDeckChallengesCount >= maxSeasonalPending;
+  const isPendingReviewLimit = false; // Only a real daily/weekly draw cap should set LIMIT_REACHED.
   
   const isExhausted = !isStarter 
     ? (eligiblePool.length === 0 && pendingDeckChallengesCount === 0)
@@ -399,6 +399,7 @@ export default function DeckPage() {
   const displayState = {
     label: starterHasNeedsMoreProof ? "FIX PROOF" : 
            starterHasRejected ? "RETRY MISSION" :
+           isDeckCompleted ? "DECK COMPLETE" :
            isPendingReviewLimit ? "LIMIT REACHED" : 
            (isWaitingForReview ? "PENDING REVIEW" : 
            (isExhausted ? getDisplayLabel("DECK_EXHAUSTED") : getDisplayLabel("START_MISSION"))),
@@ -408,7 +409,7 @@ export default function DeckPage() {
               (isWaitingForReview ? "CALIBRATION_PENDING" : 
               (isExhausted ? (isDeckCompleted ? "DECK_COMPLETE" : getDisplayLabel("MISSION_LIMIT_REACHED")) : 
               (isStarter ? "STARTER_SIGNALS_READY" : getDisplayLabel("UPLINK_READY_FOR_HAND_OFF")))),
-    status: starterHasNeedsMoreProof || starterHasRejected || isPendingReviewLimit || isWaitingForReview ? "PENDING" : (isExhausted ? "EXHAUSTED" : "READY")
+    status: isDeckCompleted ? "COMPLETE" : (starterHasNeedsMoreProof || starterHasRejected || isPendingReviewLimit || isWaitingForReview ? "PENDING" : (isExhausted ? "EXHAUSTED" : "READY"))
   };
 
   // Real automatically rotating weekly bonus selector

@@ -1,22 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Shield, 
-  Zap, 
-  RefreshCw, 
-  AlertCircle, 
-  CheckCircle, 
+import {
+  AlertTriangle,
+  CheckCircle,
   Database,
+  RefreshCw,
   Search,
-  Wrench,
+  Shield,
   Trash2,
-  UserX
+  UserX,
+  Wrench
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AdminLayout, StatusLight, ModuleCard } from '../components/admin/AdminShared';
 import { Card } from '../components/UI';
-import { 
-  repairUserMissionState, 
-  repairAllUserOrphans, 
+import {
+  repairUserMissionState,
+  repairAllUserOrphans,
   repairStrandedStarterUsers,
   getRepairDiagnostics,
   archiveOrphanedProofReviews,
@@ -30,33 +29,27 @@ import {
 } from '../services/repairService';
 import { cn } from '../lib/utils';
 
+type TabKey = 'individual' | 'users' | 'bulk' | 'diagnostics';
+
 export default function AdminRepair() {
-  const [activeTab, setActiveTab] = useState<'individual' | 'resets' | 'bulk' | 'diagnostics'>('individual');
-  
-  // Individual Repair State
+  const [activeTab, setActiveTab] = useState<TabKey>('individual');
   const [repairUid, setRepairUid] = useState('');
   const [individualDryRun, setIndividualDryRun] = useState(true);
   const [repairingIndividual, setRepairingIndividual] = useState(false);
   const [individualReport, setIndividualReport] = useState<RepairReport | null>(null);
 
-  // Bulk Repair State
   const [bulkDryRun, setBulkDryRun] = useState(true);
   const [repairingBulk, setRepairingBulk] = useState(false);
   const [bulkReport, setBulkReport] = useState<any>(null);
 
-  // Stranded Repair State
   const [repairingStranded, setRepairingStranded] = useState(false);
   const [strandedReport, setStrandedReport] = useState<StrandedStarterRepairReport | null>(null);
 
-  // Diagnostics State
   const [diagnostics, setDiagnostics] = useState<DiagnosticsReport | null>(null);
   const [loadingDiagnostics, setLoadingDiagnostics] = useState(false);
-
   const [cleaningOrphanReviews, setCleaningOrphanReviews] = useState(false);
   const [orphanCleanupReport, setOrphanCleanupReport] = useState<any>(null);
 
-
-  // User Reset State
   const [resetTarget, setResetTarget] = useState('');
   const [resetConfirm, setResetConfirm] = useState(false);
   const [hardResetPhrase, setHardResetPhrase] = useState('');
@@ -69,18 +62,27 @@ export default function AdminRepair() {
   const [userLookupError, setUserLookupError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (activeTab === 'diagnostics') {
-      fetchDiagnostics();
-    }
+    if (activeTab === 'diagnostics') fetchDiagnostics();
   }, [activeTab]);
 
   const fetchDiagnostics = async () => {
     setLoadingDiagnostics(true);
     try {
-      const data = await getRepairDiagnostics();
-      setDiagnostics(data);
-    } catch (err) {
-      console.error('Failed to fetch diagnostics:', err);
+      setDiagnostics(await getRepairDiagnostics());
+    } catch (err: any) {
+      setDiagnostics({
+        firebaseConnectionStatus: 'error',
+        currentAdminUid: '',
+        adminPermissionStatus: 'unknown',
+        appCheckStatus: 'unknown',
+        firestoreTestStatus: err.message || 'failed',
+        storageTestStatus: 'unknown',
+        countPendingProofReviews: 0,
+        countEntriesNoReviews: 0,
+        countReviewsNoEntries: 0,
+        countUsersStarterMismatch: 0,
+        lastRepairRunTimestamp: new Date().toISOString()
+      });
     } finally {
       setLoadingDiagnostics(false);
     }
@@ -89,11 +91,9 @@ export default function AdminRepair() {
   const handleRepairIndividual = async () => {
     if (!repairUid.trim()) return;
     setRepairingIndividual(true);
+    setIndividualReport(null);
     try {
-      const report = await repairUserMissionState(repairUid, individualDryRun);
-      setIndividualReport(report);
-    } catch (err) {
-      console.error('Individual repair failed:', err);
+      setIndividualReport(await repairUserMissionState(repairUid.trim(), individualDryRun));
     } finally {
       setRepairingIndividual(false);
     }
@@ -101,11 +101,9 @@ export default function AdminRepair() {
 
   const handleRepairBulk = async () => {
     setRepairingBulk(true);
+    setBulkReport(null);
     try {
-      const report = await repairAllUserOrphans(bulkDryRun);
-      setBulkReport(report);
-    } catch (err) {
-      console.error('Bulk repair failed:', err);
+      setBulkReport(await repairAllUserOrphans(bulkDryRun));
     } finally {
       setRepairingBulk(false);
     }
@@ -113,208 +111,221 @@ export default function AdminRepair() {
 
   const handleRepairStranded = async () => {
     setRepairingStranded(true);
+    setStrandedReport(null);
     try {
-      const report = await repairStrandedStarterUsers(false);
-      setStrandedReport(report);
-    } catch (err) {
-      console.error('Stranded repair failed:', err);
+      setStrandedReport(await repairStrandedStarterUsers(false));
     } finally {
       setRepairingStranded(false);
     }
   };
 
+  const getResetTargetPayload = () => {
+    const value = resetTarget.trim();
+    if (!value) return null;
+    if (value.includes('@')) return { targetEmail: value };
+    if (value.length > 20 && !value.includes(' ')) return { targetUserId: value };
+    return { targetUsername: value };
+  };
+
+  const handleUserReset = async (mode: 'soft' | 'hard') => {
+    const target = getResetTargetPayload();
+    if (!target || !resetConfirm) return;
+    setResettingMode(mode);
+    setResetReport(null);
+    try {
+      setResetReport(await resetUserState({
+        ...target,
+        mode,
+        confirmReset: true,
+        confirmationText: mode === 'hard' ? hardResetPhrase : undefined
+      }));
+    } finally {
+      setResettingMode(null);
+    }
+  };
+
+  const handleUserLookup = async () => {
+    if (!userSearchTerm.trim()) return;
+    setUserLookupLoading(true);
+    setUserLookupError(null);
+    try {
+      const results = await lookupAdminUsers(userSearchTerm);
+      setUserLookupResults(results);
+      if (results.length === 0) setUserLookupError('No matching users found.');
+    } catch (err: any) {
+      setUserLookupResults([]);
+      setUserLookupError(err.message || String(err));
+    } finally {
+      setUserLookupLoading(false);
+    }
+  };
+
+  const selectLookupUser = (result: AdminUserLookupResult, destination: 'repair' | 'reset') => {
+    if (destination === 'repair') {
+      setRepairUid(result.uid);
+      setActiveTab('individual');
+    } else {
+      setResetTarget(result.uid);
+      setActiveTab('users');
+    }
+  };
+
+  const handleArchiveOrphanReviews = async () => {
+    setCleaningOrphanReviews(true);
+    setOrphanCleanupReport(null);
+    try {
+      const report = await archiveOrphanedProofReviews(false);
+      setOrphanCleanupReport(report);
+      await fetchDiagnostics();
+    } finally {
+      setCleaningOrphanReviews(false);
+    }
+  };
+
+  const tabs: Array<[TabKey, string]> = [
+    ['individual', 'Individual Repair'],
+    ['users', 'User Lookup + Resets'],
+    ['bulk', 'Bulk Operations'],
+    ['diagnostics', 'System Diagnostics']
+  ];
+
   return (
-    <AdminLayout 
-      title="System Repair Bay" 
-      description="Mission control for internal database consistency and agent profile reconstruction."
+    <AdminLayout
+      title="System Repair Bay"
+      description="Functional repair console for users, proof records, deck drift, and reset workflows."
     >
       <div className="flex flex-col gap-8">
-        {/* Navigation Tabs */}
-        <div className="flex border-b-2 border-on-surface/10 gap-8">
-          <button 
-            onClick={() => setActiveTab('individual')}
-            className={cn(
-              "pb-4 text-xs font-mono font-black uppercase tracking-widest transition-all relative",
-              activeTab === 'individual' ? "text-brand-orange" : "text-on-surface/40 hover:text-on-surface"
-            )}
-          >
-            Individual Repair
-            {activeTab === 'individual' && <motion.div layoutId="repair-tab" className="absolute bottom-0 left-0 right-0 h-1 bg-brand-orange" />}
-          </button>
-          <button 
-            onClick={() => setActiveTab('bulk')}
-            className={cn(
-              "pb-4 text-xs font-mono font-black uppercase tracking-widest transition-all relative",
-              activeTab === 'bulk' ? "text-brand-orange" : "text-on-surface/40 hover:text-on-surface"
-            )}
-          >
-            Bulk Operations
-            {activeTab === 'bulk' && <motion.div layoutId="repair-tab" className="absolute bottom-0 left-0 right-0 h-1 bg-brand-orange" />}
-          </button>
-          <button 
-            onClick={() => setActiveTab('diagnostics')}
-            className={cn(
-              "pb-4 text-xs font-mono font-black uppercase tracking-widest transition-all relative",
-              activeTab === 'diagnostics' ? "text-brand-orange" : "text-on-surface/40 hover:text-on-surface"
-            )}
-          >
-            System Diagnostics
-            {activeTab === 'diagnostics' && <motion.div layoutId="repair-tab" className="absolute bottom-0 left-0 right-0 h-1 bg-brand-orange" />}
-          </button>
+        <div className="flex border-b-2 border-on-surface/10 gap-8 overflow-x-auto">
+          {tabs.map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={cn(
+                "pb-4 text-xs font-mono font-black uppercase tracking-widest transition-all relative whitespace-nowrap",
+                activeTab === key ? "text-brand-orange" : "text-on-surface/40 hover:text-on-surface"
+              )}
+            >
+              {label}
+              {activeTab === key && <motion.div layoutId="repair-tab" className="absolute bottom-0 left-0 right-0 h-1 bg-brand-orange" />}
+            </button>
+          ))}
         </div>
 
-        {/* Individual Repair */}
         {activeTab === 'individual' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <Card className="p-8 border-2 border-on-surface shadow-[8px_8px_0px_black] space-y-6">
-              <div className="flex items-center gap-3">
-                <Shield className="w-6 h-6 text-brand-orange" />
-                <h3 className="text-xl font-display font-black uppercase italic tracking-tight">Agent Re-Sync Protocol</h3>
-              </div>
-              <p className="text-xs font-mono text-on-surface/60 leading-relaxed uppercase">
-                Reconstructs mission completion lists, XP totals, and deck unlocked states based on verified proof history.
-              </p>
-              
-              <div className="space-y-4 pt-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-mono font-black uppercase opacity-40">Target Agent UID</label>
-                  <div className="relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface/30" />
-                    <input 
-                      type="text"
-                      value={repairUid}
-                      onChange={(e) => setRepairUid(e.target.value)}
-                      placeholder="ENTER UID..."
-                      className="w-full bg-[#FAF8F5] border-2 border-on-surface p-4 pl-12 font-mono text-sm uppercase font-black focus:outline-none focus:ring-2 ring-brand-orange/20 rounded-xl"
-                    />
-                  </div>
-                </div>
+              <SectionTitle icon={Shield} title="Agent Re-Sync Protocol" description="Reconstruct mission completion lists, XP totals, and deck unlock state from verified proof history." />
+              <LabeledInput label="Target Agent UID" value={repairUid} onChange={setRepairUid} placeholder="paste UID or use lookup tab" />
+              <ToggleRow checked={individualDryRun} onClick={() => setIndividualDryRun(!individualDryRun)} title="Dry Run Mode" description="Simulation only. Turn off to write changes." />
+              <button onClick={handleRepairIndividual} disabled={repairingIndividual || !repairUid.trim()} className="w-full py-4 bg-brand-orange text-white font-display font-black uppercase italic tracking-widest text-lg shadow-[4px_4px_0px_black] disabled:opacity-50 rounded-xl">
+                {repairingIndividual ? 'REPAIRING...' : individualDryRun ? 'DRY RUN REPAIR' : 'EXECUTE REPAIR'}
+              </button>
+            </Card>
+            <Card className="p-8 border-2 border-on-surface shadow-[8px_8px_0px_black] bg-[#FAF8F5]">
+              <h3 className="text-xl font-display font-black uppercase italic tracking-tight mb-6">Repair Receipt</h3>
+              {individualReport ? (
+                <RepairActionReceipt
+                  title={individualReport.errors.length ? 'Repair Failed' : 'Repair Complete'}
+                  failed={individualReport.errors.length > 0}
+                  rows={[
+                    ['Target UID', individualReport.uid],
+                    ['Mode', individualReport.dryRun ? 'Dry Run' : 'Live Write'],
+                    ['Proof History', individualReport.entriesCount],
+                    ['Starter Approved', individualReport.starterApprovedCount],
+                    ['Heatwave Access', individualReport.canUseHeatwaveDeck ? 'Granted' : 'Restricted']
+                  ]}
+                  error={individualReport.errors[0]}
+                />
+              ) : <EmptyReceipt text="Run a repair to see results." />}
+            </Card>
+          </div>
+        )}
 
-                <div className="flex items-center gap-3 p-4 bg-on-surface/5 rounded-xl border border-on-surface/10 cursor-pointer" onClick={() => setIndividualDryRun(!individualDryRun)}>
-                  <div className={cn(
-                    "w-6 h-6 border-2 border-on-surface rounded-md flex items-center justify-center transition-colors",
-                    individualDryRun ? "bg-brand-orange" : "bg-white"
-                  )}>
-                    {individualDryRun && <CheckCircle className="w-4 h-4 text-white" />}
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-mono font-black uppercase">Dry Run Mode</p>
-                    <p className="text-[9px] opacity-40 uppercase">Simulation only. No changes will be persisted.</p>
-                  </div>
-                </div>
-
-                <button 
-                  onClick={handleRepairIndividual}
-                  disabled={repairingIndividual || !repairUid.trim()}
-                  className="w-full py-4 bg-brand-orange text-white font-display font-black uppercase italic tracking-widest text-lg shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none transition-all disabled:opacity-50 rounded-xl"
-                >
-                  {repairingIndividual ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <RefreshCw className="w-5 h-5 animate-spin" /> INJECTING...
-                    </span>
-                  ) : 'EXECUTE_REPAIR'}
+        {activeTab === 'users' && (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+            <Card className="p-8 border-2 border-on-surface shadow-[8px_8px_0px_black] space-y-6">
+              <SectionTitle icon={Search} title="Find User" description="Search by username, email, display name, or UID. Use a result for repair or reset." />
+              <div className="flex gap-3">
+                <input value={userSearchTerm} onChange={(e) => setUserSearchTerm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleUserLookup()} placeholder="username, email, display name, or UID" className="flex-1 bg-[#FAF8F5] border-2 border-on-surface p-4 font-mono text-sm font-black rounded-xl" />
+                <button onClick={handleUserLookup} disabled={userLookupLoading || !userSearchTerm.trim()} className="px-6 bg-on-surface text-white font-mono font-black uppercase rounded-xl disabled:opacity-50">
+                  {userLookupLoading ? '...' : 'Lookup'}
                 </button>
               </div>
-            </Card>
-
-            <Card className="p-8 border-2 border-on-surface shadow-[8px_8px_0px_black] bg-[#FAF8F5] relative overflow-hidden">
-               <div className="absolute top-4 right-4 opacity-10">
-                 <Database className="w-24 h-24" />
-               </div>
-               
-               <h3 className="text-xl font-display font-black uppercase italic tracking-tight mb-6">Repair Receipt</h3>
-               
-               {!individualReport ? (
-                 <div className="h-64 flex flex-col items-center justify-center border-2 border-dashed border-on-surface/15 rounded-2xl opacity-40">
-                   <p className="text-[10px] font-mono font-black uppercase tracking-widest">Waiting for target...</p>
-                 </div>
-               ) : (
-                 <div className="space-y-4 font-mono text-[10px] uppercase font-bold">
-                    <div className="flex justify-between border-b border-on-surface/10 pb-2">
-                      <span className="opacity-40">Target UID:</span>
-                      <span className="text-brand-orange">{individualReport.uid}</span>
-                    </div>
-                    <div className="flex justify-between border-b border-on-surface/10 pb-2">
-                      <span className="opacity-40">Status:</span>
-                      <span className={cn(individualReport.errors.length > 0 ? "text-rose-500" : "text-emerald-500")}>
-                        {individualReport.errors.length > 0 ? 'FAILED' : 'SUCCESS'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between border-b border-on-surface/10 pb-2">
-                      <span className="opacity-40">Proof History:</span>
-                      <span>{individualReport.entriesCount} RECORDS</span>
-                    </div>
-                    <div className="flex justify-between border-b border-on-surface/10 pb-2">
-                      <span className="opacity-40">Starter Pack:</span>
-                      <span>{individualReport.isStarterPackComplete ? 'COMPLETE' : 'INCOMPLETE'} ({individualReport.starterApprovedCount}/3)</span>
-                    </div>
-                    <div className="flex justify-between border-b border-on-surface/10 pb-2">
-                      <span className="opacity-40">Heatwave Access:</span>
-                      <span>{individualReport.canUseHeatwaveDeck ? 'GRANTED' : 'RESTRICTED'}</span>
-                    </div>
-                    {individualReport.errors.length > 0 && (
-                      <div className="p-3 bg-rose-50 text-rose-600 border border-rose-200 rounded-lg">
-                        {individualReport.errors[0]}
+              {userLookupError && <div className="p-3 bg-rose-50 border border-rose-200 text-rose-600 font-mono text-xs font-bold rounded-xl">{userLookupError}</div>}
+              <div className="space-y-3 max-h-[460px] overflow-auto">
+                {userLookupResults.map(result => (
+                  <div key={result.uid} className="p-4 border border-on-surface/10 bg-white rounded-xl">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="font-display font-black uppercase italic truncate">{result.username || result.displayName || 'Unnamed Agent'}</p>
+                        <p className="font-mono text-[10px] opacity-50 truncate">{result.email || 'no email'}</p>
+                        <p className="font-mono text-[10px] text-brand-orange break-all">UID: {result.uid}</p>
                       </div>
-                    )}
-                 </div>
-               )}
+                      <div className="flex flex-col gap-2 shrink-0">
+                        <button onClick={() => selectLookupUser(result, 'repair')} className="px-3 py-2 bg-on-surface text-white rounded-lg font-mono text-[10px] font-black uppercase">Use for Repair</button>
+                        <button onClick={() => selectLookupUser(result, 'reset')} className="px-3 py-2 bg-brand-orange text-white rounded-lg font-mono text-[10px] font-black uppercase">Use for Reset</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card className="p-8 border-2 border-on-surface shadow-[8px_8px_0px_black] space-y-6">
+              <SectionTitle icon={UserX} title="Soft / Hard User Reset" description="Soft reset archives gameplay and keeps onboarding. Hard reset returns the user to first-run onboarding state." />
+              <LabeledInput label="Target UID, Username, or Email" value={resetTarget} onChange={setResetTarget} placeholder="select user or paste target" />
+              <ToggleRow checked={resetConfirm} onClick={() => setResetConfirm(!resetConfirm)} title="Confirm Target Reset" description="Required before reset buttons are enabled." />
+              <LabeledInput label="Hard Reset Phrase" value={hardResetPhrase} onChange={setHardResetPhrase} placeholder="type HARD RESET for hard reset" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button onClick={() => handleUserReset('soft')} disabled={!!resettingMode || !resetTarget.trim() || !resetConfirm} className="py-4 bg-brand-orange text-white font-display font-black uppercase italic rounded-xl shadow-[4px_4px_0px_black] disabled:opacity-50">
+                  {resettingMode === 'soft' ? 'RESETTING...' : 'SOFT RESET USER'}
+                </button>
+                <button onClick={() => handleUserReset('hard')} disabled={!!resettingMode || !resetTarget.trim() || !resetConfirm || hardResetPhrase.trim() !== 'HARD RESET'} className="py-4 bg-rose-600 text-white font-display font-black uppercase italic rounded-xl shadow-[4px_4px_0px_black] disabled:opacity-50">
+                  <Trash2 className="w-4 h-4 inline mr-2" />{resettingMode === 'hard' ? 'WIPING...' : 'HARD RESET USER'}
+                </button>
+              </div>
+              {resetReport && (
+                <RepairActionReceipt
+                  title="Reset Receipt"
+                  failed={!resetReport.success || resetReport.errors.length > 0}
+                  rows={[
+                    ['Mode', resetReport.mode],
+                    ['Target', resetReport.username || resetReport.userId],
+                    ['Archived Groups', Object.keys(resetReport.archivedCounts || {}).length]
+                  ]}
+                  error={resetReport.errors[0]}
+                />
+              )}
             </Card>
           </div>
         )}
 
-        {/* Bulk Repair */}
         {activeTab === 'bulk' && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <ModuleCard 
-                title="Bulk System Sync"
-                description="Scans all users and reconstructs missing proofReview links for orphaned entries."
-                icon={RefreshCw}
-                status="neutral"
-                primaryAction={{
-                  label: repairingBulk ? "SYNCING..." : "START_SYNC",
-                  onClick: handleRepairBulk,
-                }}
-              />
-              <ModuleCard 
-                title="Stranded Starter Patch"
-                description="Fixes users stuck in onboarding because of legacy starter deck mission ID mismatches."
-                icon={Shield}
-                status="yellow"
-                primaryAction={{
-                  label: repairingStranded ? "PATCHING..." : "APPLY_PATCH",
-                  onClick: handleRepairStranded,
-                }}
-              />
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <ModuleCard title="Bulk System Sync" description="Scans all users and repairs orphaned entry/review links." icon={RefreshCw} status={bulkReport?.errors?.length ? 'red' : bulkReport ? 'green' : 'neutral'} statusLabel={bulkReport?.errors?.length ? 'FAILED' : bulkReport ? 'COMPLETE' : 'READY'} primaryAction={{ label: repairingBulk ? 'SYNCING...' : bulkDryRun ? 'DRY RUN SYNC' : 'LIVE SYNC', onClick: handleRepairBulk, loading: repairingBulk, disabled: repairingBulk }} secondaryAction={{ label: bulkDryRun ? 'Switch To Live Write' : 'Switch To Dry Run', onClick: () => setBulkDryRun(!bulkDryRun), disabled: repairingBulk }}>
+              {bulkReport && <RepairActionReceipt title="Bulk Sync Receipt" failed={bulkReport.errors?.length > 0} rows={[['Mode', bulkReport.dryRun ? 'Dry Run' : 'Live Write'], ['Users Scanned', bulkReport.totalUsersScanned || 0], ['Submissions Scanned', bulkReport.totalSubmissionsScanned || 0], ['Reviews Created', bulkReport.proofReviewsCreated || 0], ['Entries Linked', bulkReport.entriesLinked || 0], ['Users Repaired', bulkReport.usersRepaired || 0]]} error={bulkReport.errors?.[0]} />}
+            </ModuleCard>
+            <ModuleCard title="Stranded Starter Patch" description="Repairs users stuck because starter statuses drifted." icon={Shield} status={strandedReport?.errors?.length ? 'red' : strandedReport ? 'green' : 'yellow'} statusLabel={strandedReport?.errors?.length ? 'FAILED' : strandedReport ? 'COMPLETE' : 'READY'} primaryAction={{ label: repairingStranded ? 'PATCHING...' : 'APPLY PATCH', onClick: handleRepairStranded, loading: repairingStranded, disabled: repairingStranded }}>
+              {strandedReport && <RepairActionReceipt title="Starter Patch Receipt" failed={strandedReport.errors?.length > 0 || strandedReport.success === false} rows={[['Mode', strandedReport.dryRun ? 'Dry Run' : 'Live Write'], ['Users Scanned', strandedReport.totalUsersScanned || 0], ['Stranded Detected', strandedReport.strandedDetected || 0], ['Users Repaired', strandedReport.usersRepaired || 0], ['Entries Updated', strandedReport.entriesUpdated || 0]]} error={strandedReport.errors?.[0]} />}
+            </ModuleCard>
           </div>
         )}
 
-        {/* Diagnostics Monitor */}
         {activeTab === 'diagnostics' && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <Card className="p-8 border-2 border-on-surface shadow-[8px_8px_0px_black] bg-white">
-              <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-3">
-                  <Database className="w-6 h-6 text-brand-orange" />
-                  <h3 className="text-xl font-display font-black uppercase italic tracking-tight">System Health Monitor</h3>
-                </div>
-                <button 
-                  onClick={fetchDiagnostics}
-                  disabled={loadingDiagnostics}
-                  className="p-2 border-2 border-on-surface rounded-lg hover:bg-on-surface/5 transition-all"
-                >
+          <Card className="p-8 border-2 border-on-surface shadow-[8px_8px_0px_black] bg-white">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <SectionTitle icon={Database} title="System Health Monitor" description="Live admin diagnostics with direct cleanup actions." />
+              <div className="flex gap-3">
+                <button onClick={handleArchiveOrphanReviews} disabled={cleaningOrphanReviews || !diagnostics || diagnostics.countReviewsNoEntries === 0} className="px-4 py-2 bg-brand-orange text-white border-2 border-on-surface rounded-lg text-[10px] font-mono font-black uppercase disabled:opacity-40 shadow-[3px_3px_0px_black]">
+                  {cleaningOrphanReviews ? 'Archiving...' : 'Archive Orphan Reviews'}
+                </button>
+                <button onClick={fetchDiagnostics} disabled={loadingDiagnostics} className="p-2 border-2 border-on-surface rounded-lg hover:bg-on-surface/5">
                   <RefreshCw className={cn("w-4 h-4", loadingDiagnostics && "animate-spin")} />
                 </button>
               </div>
-
-              {loadingDiagnostics ? (
-                <div className="h-64 flex flex-col items-center justify-center">
-                  <RefreshCw className="w-12 h-12 animate-spin text-brand-orange mb-4" />
-                  <p className="text-[10px] font-mono font-black uppercase opacity-40">Probing infrastructure...</p>
-                </div>
-              ) : diagnostics ? (
+            </div>
+            {loadingDiagnostics ? <EmptyReceipt text="Loading diagnostics..." /> : diagnostics ? (
+              <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <StatItem label="Firebase Link" value={diagnostics.firebaseConnectionStatus} status={diagnostics.firebaseConnectionStatus === 'ok' ? 'success' : 'error'} />
                   <StatItem label="App Check" value={diagnostics.appCheckStatus} status={diagnostics.appCheckStatus === 'active' ? 'success' : 'warning'} />
@@ -323,18 +334,71 @@ export default function AdminRepair() {
                   <StatItem label="Starter Drift" value={diagnostics.countUsersStarterMismatch} status={diagnostics.countUsersStarterMismatch === 0 ? 'success' : 'warning'} />
                   <StatItem label="Last Scan" value={new Date(diagnostics.lastRepairRunTimestamp).toLocaleTimeString()} status="neutral" />
                 </div>
-              ) : (
-                <p className="text-center text-xs font-mono opacity-40 py-12">Run diagnostics to see system health.</p>
-              )}
-            </Card>
-          </div>
+                {orphanCleanupReport && <RepairActionReceipt title="Orphan Review Cleanup" failed={!orphanCleanupReport.success || orphanCleanupReport.errors?.length > 0} rows={[['Detected', orphanCleanupReport.orphanedDetected || 0], ['Archived', orphanCleanupReport.reviewsArchived || 0], ['Scanned', orphanCleanupReport.reviewsScanned || 0]]} error={orphanCleanupReport.errors?.[0]} />}
+              </>
+            ) : <EmptyReceipt text="Run diagnostics to see system health." />}
+          </Card>
         )}
       </div>
     </AdminLayout>
   );
 }
 
-function StatItem({ label, value, status }: { label: string, value: string | number, status: 'success' | 'warning' | 'error' | 'neutral' }) {
+function SectionTitle({ icon: Icon, title, description }: { icon: any; title: string; description: string }) {
+  return (
+    <div className="flex items-start gap-3">
+      <Icon className="w-6 h-6 text-brand-orange shrink-0" />
+      <div>
+        <h3 className="text-xl font-display font-black uppercase italic tracking-tight">{title}</h3>
+        <p className="text-xs font-mono text-on-surface/60 leading-relaxed uppercase">{description}</p>
+      </div>
+    </div>
+  );
+}
+
+function LabeledInput({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder: string }) {
+  return (
+    <div className="space-y-2">
+      <label className="text-[10px] font-mono font-black uppercase opacity-40">{label}</label>
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full bg-[#FAF8F5] border-2 border-on-surface p-4 font-mono text-sm font-black rounded-xl" />
+    </div>
+  );
+}
+
+function ToggleRow({ checked, onClick, title, description }: { checked: boolean; onClick: () => void; title: string; description: string }) {
+  return (
+    <div className="flex items-center gap-3 p-4 bg-on-surface/5 rounded-xl border border-on-surface/10 cursor-pointer" onClick={onClick}>
+      <div className={cn("w-6 h-6 border-2 border-on-surface rounded-md flex items-center justify-center", checked ? "bg-brand-orange" : "bg-white")}>
+        {checked && <CheckCircle className="w-4 h-4 text-white" />}
+      </div>
+      <div>
+        <p className="text-[10px] font-mono font-black uppercase">{title}</p>
+        <p className="text-[9px] opacity-40 uppercase">{description}</p>
+      </div>
+    </div>
+  );
+}
+
+function EmptyReceipt({ text }: { text: string }) {
+  return <div className="h-64 flex items-center justify-center border-2 border-dashed border-on-surface/15 rounded-2xl opacity-40 text-[10px] font-mono font-black uppercase tracking-widest">{text}</div>;
+}
+
+function RepairActionReceipt({ title, rows, failed, error }: { title: string; rows: Array<[string, string | number]>; failed?: boolean; error?: string }) {
+  return (
+    <div className={cn("mt-4 p-4 border rounded-xl font-mono text-[10px] uppercase font-bold space-y-2", failed ? "bg-rose-50 border-rose-200 text-rose-700" : "bg-emerald-50 border-emerald-200 text-emerald-700")}>
+      <p className="font-black tracking-widest">{title}</p>
+      {rows.map(([label, value]) => (
+        <div key={label} className="flex justify-between gap-3 border-t border-current/10 pt-2">
+          <span className="opacity-60">{label}</span>
+          <span>{String(value)}</span>
+        </div>
+      ))}
+      {error && <div className="mt-3 p-3 bg-white/70 border border-current/20 rounded-lg normal-case break-words">{error}</div>}
+    </div>
+  );
+}
+
+function StatItem({ label, value, status }: { label: string; value: string | number; status: 'success' | 'warning' | 'error' | 'neutral' }) {
   return (
     <div className="p-4 border border-on-surface/10 bg-[#FAF8F5] rounded-xl flex items-center justify-between">
       <span className="text-[9px] font-mono font-black uppercase opacity-40">{label}</span>
