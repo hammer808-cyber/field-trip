@@ -59,6 +59,17 @@ export interface DiagnosticsReport {
   lastRepairRunTimestamp: string;
 }
 
+export interface OrphanReviewCleanupReport {
+  success: boolean;
+  dryRun: boolean;
+  reviewsScanned: number;
+  orphanedDetected: number;
+  reviewsArchived: number;
+  sampleReviewIds: string[];
+  warnings: string[];
+  errors: string[];
+}
+
 /**
  * Repairs the mission state for a specific user using the secure backend utility.
  */
@@ -198,6 +209,35 @@ export async function repairStrandedStarterUsers(dryRun: boolean = true): Promis
       warnings: [],
       errors: [err.message || String(err)],
       dryRun
+    };
+  }
+}
+
+export async function archiveOrphanedProofReviews(dryRun: boolean = true): Promise<OrphanReviewCleanupReport> {
+  try {
+    const response = await authenticatedFetch('/api/admin/archive-orphan-proof-reviews', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dryRun })
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.message || errData.error || `Orphan review cleanup failed with HTTP ${response.status}`);
+    }
+
+    return response.json();
+  } catch (err: any) {
+    console.error('[archiveOrphanedProofReviews] failed:', err);
+    return {
+      success: false,
+      dryRun,
+      reviewsScanned: 0,
+      orphanedDetected: 0,
+      reviewsArchived: 0,
+      sampleReviewIds: [],
+      warnings: [],
+      errors: [err.message || String(err)]
     };
   }
 }
