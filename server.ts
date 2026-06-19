@@ -40,6 +40,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 // Initialize Firebase Admin for background tasks
 let adminApp: App | null = null;
+let authApp: App | null = null;
 let dbAdmin: FirebaseFirestore.Firestore | null = null;
 let storageAdmin: any = null;
 let authAdmin: any = null;
@@ -52,6 +53,19 @@ async function initAdmin() {
     if (fs.existsSync(firebaseConfigPath)) {
       const config = JSON.parse(fs.readFileSync(firebaseConfigPath, 'utf8'));
       firebaseConfig = config;
+      
+      // Initialize the separate Auth App (authApp) first so we don't accidentally delete it
+      const targetAuthProjectId = config.projectId || 'field-trip-495823';
+      const apps = getApps();
+      const existingAuthApp = apps.find(app => app.name === 'authApp');
+      if (existingAuthApp) {
+        authApp = existingAuthApp;
+      } else {
+        authApp = initializeApp({
+          projectId: targetAuthProjectId
+        }, 'authApp');
+      }
+      authAdmin = getAuth(authApp);
       
       const dbId = config.firestoreDatabaseId;
       const appletId = dbId?.startsWith('ai-studio-') ? dbId.replace('ai-studio-', '') : null;
@@ -75,7 +89,9 @@ async function initAdmin() {
           
           const existingApps = getApps();
           for (const app of existingApps) {
-            await deleteApp(app).catch(() => {});
+            if (app.name !== 'authApp') {
+              await deleteApp(app).catch(() => {});
+            }
           }
 
           adminApp = initializeApp({
@@ -99,8 +115,9 @@ async function initAdmin() {
       if (!connectionSuccess) {
         console.error("[BUREAU_ADMIN] All project candidates failed. Falling back to configuration values.");
         const existingApps = getApps();
-        if (existingApps.length > 0) {
-          adminApp = existingApps[0];
+        const nonAuthApp = existingApps.find(app => app.name !== 'authApp');
+        if (nonAuthApp) {
+          adminApp = nonAuthApp;
         } else {
           adminApp = initializeApp({
             projectId: config.projectId,
@@ -113,14 +130,17 @@ async function initAdmin() {
     } else {
       console.log(`[BUREAU_ADMIN] No config file found. Using default internal credentials.`);
       const existingApps = getApps();
-      adminApp = existingApps.length === 0 ? initializeApp() : existingApps[0];
+      const nonAuthApp = existingApps.find(app => app.name !== 'authApp');
+      adminApp = nonAuthApp ? nonAuthApp : initializeApp();
       dbAdmin = getFirestore(adminApp);
     }
 
     // Ensure storage and auth admins are populated
     if (adminApp) {
       storageAdmin = getStorage(adminApp);
-      authAdmin = getAuth(adminApp);
+      if (!authAdmin) {
+        authAdmin = getAuth(authApp || adminApp);
+      }
     }
   } catch (e: any) {
     console.error("[BUREAU_ADMIN] FATAL: Firebase Admin initialization failed:", e.message);
@@ -319,7 +339,7 @@ async function startServer() {
           return res.status(401).json({ error: 'APP_CHECK_REQUIRED' });
         }
         try {
-          await getAppCheck(adminApp).verifyToken(appCheckToken);
+          await getAppCheck(authApp || adminApp).verifyToken(appCheckToken);
         } catch (acErr) {
           console.error('[AUTH_GUARD] Blocked: Invalid App Check token.', acErr);
           return res.status(401).json({ error: 'INVALID_APP_CHECK_TOKEN' });
@@ -327,7 +347,7 @@ async function startServer() {
       } else if (appCheckToken) {
         // Optional verification if not enforced
         try {
-          await getAppCheck(adminApp).verifyToken(appCheckToken);
+          await getAppCheck(authApp || adminApp).verifyToken(appCheckToken);
           console.log('[AUTH_GUARD] App Check verified (optional path)');
         } catch (acErr) {
           console.warn('[AUTH_GUARD] App Check provided but invalid (optional path)');
@@ -335,7 +355,7 @@ async function startServer() {
       }
 
       // 2. Verify Auth Token
-      const decodedToken = await getAuth(adminApp).verifyIdToken(idToken);
+      const decodedToken = await getAuth(authApp || adminApp).verifyIdToken(idToken);
       req.user = decodedToken;
       next();
     } catch (error) {
