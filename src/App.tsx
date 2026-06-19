@@ -579,7 +579,8 @@ export default function App() {
       if (isBenign) {
         console.warn('[REJECTION_WARN]', reasonStr);
       } else {
-        console.error('[PROMISE_REJECTION]', event.reason);
+        const stackStr = event.reason?.stack || '';
+        console.error(`[PROMISE_REJECTION] Msg: ${reasonStr} | Stack: ${stackStr}`);
       }
     };
 

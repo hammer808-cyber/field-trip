@@ -46,25 +46,6 @@ let authAdmin: any = null;
 let firebaseConfig: any = null;
 let workingBucketName: string | null = null;
 
-
-function getAdminCredentialSetupMessage() {
-  const hasServiceAccountJson = Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 || process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
-  const hasCredentialFile = Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS);
-  if (hasServiceAccountJson || hasCredentialFile || process.env.NODE_ENV === 'production') return null;
-  return 'Firebase Admin credentials are not configured for this server. Add FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT_BASE64 to the server environment, then restart the app.';
-}
-
-function assertAdminCredentialsReady() {
-  const setupMessage = getAdminCredentialSetupMessage();
-  if (setupMessage) {
-    throw new Error(setupMessage);
-  }
-  if (!adminApp || !dbAdmin) {
-    throw new Error('DB_ADMIN_NOT_READY: Firebase Admin is not initialized yet. Restart the app after adding Firebase Admin credentials.');
-  }
-}
-
-
 async function initAdmin() {
   try {
     const firebaseConfigPath = path.join(rootPath, 'firebase-applet-config.json');
@@ -648,125 +629,6 @@ async function startServer() {
     } catch (error: any) {
       console.error("[SOFT_RESET] Error:", error);
       res.status(500).json({ error: "SOFT_RESET_FAILED", message: error.message });
-    }
-  });
-
-  app.get("/api/admin/user-lookup", authenticate, async (req: any, res) => {
-    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
-    const isAdminUser = await checkIsAdmin(req.user);
-    if (!isAdminUser) return res.status(403).json({ error: "ADMIN_ONLY" });
-
-    try {
-      assertAdminCredentialsReady();
-      const rawQuery = String(req.query.q || '').trim();
-      const normalizedQuery = rawQuery.toLowerCase();
-      if (!normalizedQuery) return res.json({ users: [] });
-
-      const results = new Map<string, any>();
-      const maybeDoc = await dbAdmin.collection('users').doc(rawQuery).get();
-      if (maybeDoc.exists) {
-        const data = maybeDoc.data() || {};
-        results.set(maybeDoc.id, { uid: maybeDoc.id, username: data.username || data.name || null, displayName: data.displayName || data.name || null, email: data.email || null, role: data.role || null, accessStatus: data.accessStatus || null });
-      }
-
-      const userSnap = await dbAdmin.collection('users').limit(500).get();
-      userSnap.docs.forEach(doc => {
-        const data = doc.data() || {};
-        const searchable = [doc.id, data.username, data.name, data.displayName, data.email].filter(Boolean).join(' ').toLowerCase();
-        if (searchable.includes(normalizedQuery)) {
-          results.set(doc.id, { uid: doc.id, username: data.username || data.name || null, displayName: data.displayName || data.name || null, email: data.email || null, role: data.role || null, accessStatus: data.accessStatus || null });
-        }
-      });
-
-      res.json({ users: Array.from(results.values()).slice(0, 25) });
-    } catch (error: any) {
-      console.error("[USER_LOOKUP] Error:", error);
-      res.status(500).json({ error: "USER_LOOKUP_FAILED", message: error.message });
-    }
-  });
-
-  app.post("/api/admin/hard-reset-user", authenticate, async (req: any, res) => {
-    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
-    const isAdminUser = await checkIsAdmin(req.user);
-    if (!isAdminUser) return res.status(403).json({ error: "ADMIN_ONLY" });
-
-    const { targetUserId, targetUsername, targetEmail, confirmReset, confirmationText } = req.body;
-    const adminUid = req.user.uid;
-    if (!confirmReset || String(confirmationText || '').trim() !== 'HARD RESET') {
-      return res.status(400).json({ error: "CONFIRMATION_REQUIRED", message: "Type HARD RESET to confirm the hard reset action." });
-    }
-
-    try {
-      assertAdminCredentialsReady();
-      let userId = targetUserId;
-      let userRef: FirebaseFirestore.DocumentReference | null = null;
-      let userData: any = null;
-
-      if (userId) {
-        userRef = dbAdmin.collection('users').doc(userId);
-        const userSnap = await userRef.get();
-        if (!userSnap.exists) return res.status(404).json({ error: "USER_NOT_FOUND" });
-        userData = userSnap.data();
-      } else if (targetUsername) {
-        const snap = await dbAdmin.collection('users').where('username', '==', targetUsername).limit(1).get();
-        if (snap.empty) return res.status(404).json({ error: "USER_NOT_FOUND_BY_USERNAME" });
-        userRef = snap.docs[0].ref;
-        userId = snap.docs[0].id;
-        userData = snap.docs[0].data();
-      } else if (targetEmail) {
-        const snap = await dbAdmin.collection('users').where('email', '==', targetEmail).limit(1).get();
-        if (snap.empty) return res.status(404).json({ error: "USER_NOT_FOUND_BY_EMAIL" });
-        userRef = snap.docs[0].ref;
-        userId = snap.docs[0].id;
-        userData = snap.docs[0].data();
-      }
-
-      if (!userRef || !userData || !userId) return res.status(400).json({ error: "MISSING_TARGET_USER" });
-
-      const archiveCollections = ['entries', 'proofReviews', 'proofs', 'proofChecks', 'scoreEvents', 'badgeProgress', 'weeklyBallots', 'weeklySummaries', 'activityEvents', 'crewArtifacts'];
-      const report: any = { userId, username: userData.username || userData.name, email: userData.email || null, mode: 'hard', archivedCounts: {} };
-
-      for (const colName of archiveCollections) {
-        const colRef = dbAdmin.collection(colName);
-        const [a, b] = await Promise.all([colRef.where('userId', '==', userId).get(), colRef.where('uid', '==', userId).get()]);
-        const docMap = new Map<string, any>();
-        a.docs.forEach(doc => docMap.set(doc.ref.path, doc));
-        b.docs.forEach(doc => docMap.set(doc.ref.path, doc));
-        const docs = Array.from(docMap.values());
-        report.archivedCounts[colName] = docs.length;
-        for (let i = 0; i < docs.length; i += 500) {
-          const batch = dbAdmin.batch();
-          docs.slice(i, i + 500).forEach(doc => batch.set(doc.ref, { archived: true, archivedAt: FieldValue.serverTimestamp(), archiveReason: "single_user_hard_reset", excludedFromProgress: true }, { merge: true }));
-          await batch.commit();
-        }
-      }
-
-      await userRef.update({
-        xp: 0, points: 0, totalXP: 0, seasonXP: 0, weeklyXP: 0,
-        approvedMissionCount: 0, approvedEntriesCount: 0,
-        starterDeckComplete: false, onboardingComplete: false, onboardingCompleted: false,
-        fieldClassificationComplete: false, firstMissionTourComplete: false,
-        fieldType: null, personaType: null, personalityType: null,
-        starterApprovedCount: 0, starterPendingCount: 0,
-        completedMissionIds: [], completedChallengeIds: [], approvedCompletedChallengeIds: [],
-        submittedChallengeIds: [], submittedPendingChallengeIds: [], rejectedChallengeIds: [],
-        retryableChallengeIds: [], needsMoreProofChallengeIds: [],
-        activeMissionId: null, activeTripId: null, activeTrip: null, activeMissionCard: null,
-        drawnMissionCards: [], activeDeckId: "starter-signals", currentDeckId: "starter-signals", selectedDeckId: "starter-signals",
-        hasUnlockedHeatwave: false, hasUnlockedSeasonal: false, lastDrawnMissionId: null,
-        soloTripsCount: 0, crewTripsCount: 0, boldTripsCount: 0, completedCoreChallenges: 0,
-        unlockedRewards: { stickers: [], badges: [], skins: ['classic'] },
-        discoveryEvents: {}, completedDiscoveryGroups: [], stickerUnlockHistory: [],
-        hardResetAt: FieldValue.serverTimestamp(), hardResetBy: adminUid, updatedAt: FieldValue.serverTimestamp(),
-        "starterState.starterApprovedCount": 0, "starterState.pendingStarterCount": 0, "starterState.starterComplete": false,
-        "starterState.starterSignalsCompleted": [], "stats.totalApproved": 0, "stats.approvedMissionCount": 0, "stats.totalXP": 0, "stats.weeklyXP": 0, "stats.seasonXP": 0
-      });
-
-      await dbAdmin.collection('adminRepairLogs').add({ action: "single_user_hard_reset", targetUserId: userId, targetUsername: userData.username || userData.name, targetEmail: userData.email || null, performedBy: adminUid, countsArchived: report.archivedCounts, timestamp: FieldValue.serverTimestamp() });
-      res.json({ success: true, report });
-    } catch (error: any) {
-      console.error("[HARD_RESET] Error:", error);
-      res.status(500).json({ error: "HARD_RESET_FAILED", message: error.message });
     }
   });
 
@@ -2518,44 +2380,6 @@ async function startServer() {
       dryRun
     };
   }
-
-  app.post("/api/admin/archive-orphan-proof-reviews", authenticate, async (req: any, res) => {
-    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
-    const isAdminUser = await checkIsAdmin(req.user);
-    if (!isAdminUser) return res.status(403).json({ error: "ADMIN_REQUIRED" });
-
-    const { dryRun = true } = req.body;
-    try {
-      assertAdminCredentialsReady();
-      const [entriesSnap, reviewsSnap] = await Promise.all([dbAdmin.collection('entries').get(), dbAdmin.collection('proofReviews').get()]);
-      const activeEntryIds = new Set<string>();
-      entriesSnap.docs.forEach(docSnap => {
-        const data = docSnap.data() || {};
-        if (data.archived === true || data.excludedFromProgress === true) return;
-        activeEntryIds.add(docSnap.id);
-        if (data.entryId) activeEntryIds.add(String(data.entryId));
-        if (data.submissionId) activeEntryIds.add(String(data.submissionId));
-        if (data.proofId) activeEntryIds.add(String(data.proofId));
-      });
-      const orphanReviews = reviewsSnap.docs.filter(docSnap => {
-        const data = docSnap.data() || {};
-        if (data.archived === true || data.excludedFromProgress === true) return false;
-        const candidates = [docSnap.id, data.entryId, data.submissionId, data.proofId, data.sourceEntryId, data.linkedEntryId].filter(Boolean).map(String);
-        return candidates.length === 0 || candidates.every(id => !activeEntryIds.has(id));
-      });
-      if (!dryRun) {
-        for (let i = 0; i < orphanReviews.length; i += 500) {
-          const batch = dbAdmin.batch();
-          orphanReviews.slice(i, i + 500).forEach(docSnap => batch.set(docSnap.ref, { archived: true, excludedFromProgress: true, archivedAt: FieldValue.serverTimestamp(), archiveReason: "orphan_review_cleanup" }, { merge: true }));
-          await batch.commit();
-        }
-      }
-      res.json({ success: true, dryRun, reviewsScanned: reviewsSnap.size, orphanedDetected: orphanReviews.length, reviewsArchived: dryRun ? 0 : orphanReviews.length, sampleReviewIds: orphanReviews.slice(0, 25).map(docSnap => docSnap.id), warnings: [], errors: [] });
-    } catch (error: any) {
-      console.error("[ORPHAN_REVIEW_CLEANUP] Error:", error);
-      res.status(500).json({ error: "ORPHAN_REVIEW_CLEANUP_FAILED", message: error.message, warnings: [], errors: [error.message || String(error)] });
-    }
-  });
 
   app.post("/api/admin/repair-stranded-starter", authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
