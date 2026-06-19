@@ -1,0 +1,297 @@
+From 9be6f06131d9bcae471434d8f7c9d88e931b15ee Mon Sep 17 00:00:00 2001
+From: Zachary Hammer <hammerhome@Zacharys-Air.lan>
+Date: Mon, 15 Jun 2026 14:56:31 -0700
+Subject: [PATCH] Fix camera framing and pending XP display
+
+---
+ src/components/EvidenceMeter.tsx     | 26 +++++------
+ src/components/FieldClipboard.tsx    |  1 +
+ src/components/MissionResultCard.tsx | 11 +++--
+ src/components/ViewfinderCamera.tsx  | 14 +++++-
+ src/pages/Capture.tsx                | 65 +++++++++++-----------------
+ 5 files changed, 60 insertions(+), 57 deletions(-)
+
+diff --git a/src/components/EvidenceMeter.tsx b/src/components/EvidenceMeter.tsx
+index daeff47..ca45c75 100644
+--- a/src/components/EvidenceMeter.tsx
++++ b/src/components/EvidenceMeter.tsx
+@@ -27,6 +27,9 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
+ }) => {
+   const { unlockDiscoverySticker } = useApp();
+   const [displayStrength, setDisplayStrength] = useState(0);
++  const proofPoints = Math.max(1, Math.round(maxStrength * 0.7));
++  const notePoints = Math.max(1, Math.round(maxStrength * 0.2));
++  const bonusPoints = Math.max(0, maxStrength - proofPoints - notePoints);
+ 
+   // Trigger discovery sticker
+   useEffect(() => {
+@@ -35,14 +38,11 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
+     }
+   }, [photoCaptured, noteAdded, unlockDiscoverySticker]);
+   
+-  // Calculate Strength based on exact specs:
+-  // Photo/proof: +150
+-  // Note added: +30
+-  // Bonus (e.g. high mission match or special detection): +20
++  // Scale evidence potential to the mission's base XP so the meter agrees with the mission card.
+   const targetStrength = 
+-    (photoCaptured ? 150 : 0) + 
+-    (noteAdded ? 30 : 0) + 
+-    (detectedSubject ? 20 : 0);
++    (photoCaptured ? proofPoints : 0) + 
++    (noteAdded ? notePoints : 0) + 
++    (detectedSubject ? bonusPoints : 0);
+ 
+   // Simple counting animation for Strength
+   useEffect(() => {
+@@ -96,9 +96,9 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
+         {/* Compact Horizontal Bonus Chips */}
+         <div className="grid grid-cols-3 gap-1.5 relative z-10">
+           {[
+-            { icon: <Camera className="w-3 h-3" />, label: 'Proof', pts: '+150', fulfilled: photoCaptured },
+-            { icon: <FileText className="w-3 h-3" />, label: 'Note', pts: '+30', fulfilled: noteAdded },
+-            { icon: detectedSubject ? <Zap className="w-3 h-3 fill-on-surface" /> : <Lock className="w-3 h-3" />, label: 'Bonus', pts: '+20', fulfilled: detectedSubject, locked: !detectedSubject }
++            { icon: <Camera className="w-3 h-3" />, label: 'Proof', pts: `+${proofPoints}`, fulfilled: photoCaptured },
++            { icon: <FileText className="w-3 h-3" />, label: 'Note', pts: `+${notePoints}`, fulfilled: noteAdded },
++            { icon: detectedSubject ? <Zap className="w-3 h-3 fill-on-surface" /> : <Lock className="w-3 h-3" />, label: 'Bonus', pts: `+${bonusPoints}`, fulfilled: detectedSubject, locked: !detectedSubject }
+           ].map((chip, i) => (
+             <div key={i} className={cn(
+               "flex flex-col items-center justify-center gap-0.5 py-1.5 px-0.5 rounded-xl border-2 transition-all",
+@@ -176,19 +176,19 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
+         <StatusChip 
+           icon={<Camera className="w-5 h-5" />} 
+           label="Visual Proof" 
+-          pts="+150" 
++          pts={`+${proofPoints}`} 
+           active={photoCaptured} 
+         />
+         <StatusChip 
+           icon={<FileText className="w-5 h-5" />} 
+           label="Field Note" 
+-          pts="+30" 
++          pts={`+${notePoints}`} 
+           active={noteAdded} 
+         />
+         <StatusChip 
+           icon={detectedSubject ? <Zap className="w-5 h-5 fill-on-surface" /> : <Lock className="w-5 h-5" />} 
+           label="Signal Bonus" 
+-          pts="+20" 
++          pts={`+${bonusPoints}`} 
+           active={detectedSubject} 
+           locked={!detectedSubject}
+         />
+diff --git a/src/components/FieldClipboard.tsx b/src/components/FieldClipboard.tsx
+index 6d09eae..4ec7876 100644
+--- a/src/components/FieldClipboard.tsx
++++ b/src/components/FieldClipboard.tsx
+@@ -412,6 +412,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
+               noteAdded={data.note.length >= 10}
+               detectedSubject={aiAnalysisResult?.status === 'detected'}
+               missionMatchScore={aiAnalysisResult?.missionMatchScore}
++              maxStrength={mission.baseXP || (mission as any).basePoints || 100}
+               variant="compact"
+             />
+ 
+diff --git a/src/components/MissionResultCard.tsx b/src/components/MissionResultCard.tsx
+index 58cab8b..3a678af 100644
+--- a/src/components/MissionResultCard.tsx
++++ b/src/components/MissionResultCard.tsx
+@@ -29,7 +29,7 @@ export function MissionResultCard({ trip, scoringData, evidence, showMathWizard,
+   const { frankieMode, fc } = useTheme();
+   const fPref = { frankieMode };
+   const { scoring, ftBonus = 0, ftText = '', tokenAwarded, totalTokens } = scoringData;
+-  const totalXP = (scoring?.totalPoints || 0) + ftBonus;
++  const totalXP = (scoring?.totalPoints || trip.baseXP || (trip as any).basePoints || 100) + ftBonus;
+ 
+   const containerVariants = {
+     hidden: { opacity: 0, y: 30 },
+@@ -74,7 +74,7 @@ export function MissionResultCard({ trip, scoringData, evidence, showMathWizard,
+             </motion.h2>
+             
+             <motion.div variants={itemVariants} className="text-right shrink-0 flex flex-col items-end">
+-              <span className="text-[10px] font-mono font-black uppercase tracking-widest text-[#FFFDF8]/40 mb-1">{getDisplayLabel('XP_YIELD')}</span>
++              <span className="text-[10px] font-mono font-black uppercase tracking-widest text-[#FFFDF8]/40 mb-1">Estimated XP</span>
+               <div className="flex flex-col items-end relative">
+                 <span className="font-display text-5xl sm:text-6xl font-black text-brand-orange tracking-tighter leading-none italic">+{totalXP}</span>
+                 {tokenAwarded && (
+@@ -219,7 +219,7 @@ export function MissionResultCard({ trip, scoringData, evidence, showMathWizard,
+               <Zap className="w-16 h-16" />
+             </div>
+             
+-            <p className="text-[10px] font-black text-brand-orange uppercase tracking-[0.3em] mb-5">{fc(getDisplayLabel('SIGNAL_ANALYSIS'), getDisplayLabel('MATH_WIZARD_BREAKDOWN'))}</p>
++            <p className="text-[10px] font-black text-brand-orange uppercase tracking-[0.3em] mb-5">{fc(getDisplayLabel('SIGNAL_ANALYSIS'), 'PENDING ADMIN SCORE')}</p>
+             <div className="space-y-2.5 text-[10px] uppercase font-bold">
+               {scoring.scoreEvents?.map((ev: any, idx: number) => (
+                 <div key={idx} className="flex justify-between items-center gap-4">
+@@ -234,9 +234,12 @@ export function MissionResultCard({ trip, scoringData, evidence, showMathWizard,
+                 </div>
+               )}
+               <div className="flex justify-between items-center pt-4 border-t-2 border-brand-orange/40 text-[11px] font-black text-brand-orange mt-2">
+-                <span>FINAL_YIELD</span>
++                <span>PENDING_ESTIMATE</span>
+                 <span className="text-2xl italic tracking-tighter">{totalXP} XP</span>
+               </div>
++              <p className="pt-2 text-[9px] leading-relaxed text-white/45 normal-case">
++                Final XP is awarded only after admin approval.
++              </p>
+             </div>
+           </motion.div>
+         )}
+diff --git a/src/components/ViewfinderCamera.tsx b/src/components/ViewfinderCamera.tsx
+index aaf9615..1733dc8 100644
+--- a/src/components/ViewfinderCamera.tsx
++++ b/src/components/ViewfinderCamera.tsx
+@@ -502,8 +502,9 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
+           muted
+           style={{ filter: FILTER_CSS[selectedFilter] }}
+           className={cn(
+-            "w-full h-full object-contain transition-all duration-700",
++            "w-full h-full object-cover transition-all duration-700",
+             isInitializing ? "opacity-0" : "opacity-100",
++            facingMode === 'user' && "scale-x-[-1]",
+             !isBaja && !isHeat && "brightness-110 contrast-125",
+             isBaja && "sepia hue-rotate-[320deg] saturate-150",
+             isHeat && "invert hue-rotate-180 saturate-200 contrast-200 brightness-150"
+@@ -540,6 +541,17 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
+           <div className="mt-1 text-brand-orange">FLTR_{VIEWFINDER_FILTERS.find(f => f.id === selectedFilter)?.name.toUpperCase()}</div>
+         </div>
+ 
++        <button
++          type="button"
++          onClick={toggleCamera}
++          disabled={isProcessing || isInitializing}
++          className="absolute top-20 right-6 z-50 flex items-center gap-2 rounded-full border border-white/20 bg-black/55 px-3 py-2 font-mono text-[8px] font-black uppercase tracking-widest text-white/80 backdrop-blur-md transition-all hover:bg-black/75 hover:text-white disabled:opacity-35"
++          title="Flip camera"
++        >
++          <RefreshCw className="h-3.5 w-3.5" />
++          Flip
++        </button>
++
+         {/* Brackets */}
+         <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-12">
+           <div className="relative w-full h-full">
+diff --git a/src/pages/Capture.tsx b/src/pages/Capture.tsx
+index af1df85..529e06c 100644
+--- a/src/pages/Capture.tsx
++++ b/src/pages/Capture.tsx
+@@ -20,7 +20,6 @@ import type { ViewfinderCameraHandle } from '../components/ViewfinderCamera';
+ import { evaluateProof } from '../services/proofService';
+ import { uploadBase64Image } from '../services/storageService';
+ import { getGlobalConfig } from '../services/configService';
+-import { calculateSubmissionPoints } from '../logic/scoringLogic';
+ import { getCatalystForWeek } from '../services/weeklyCatalystService';
+ import { analyzeSubmissionImage } from '../services/geminiService';
+ 
+@@ -999,45 +998,35 @@ export default function CapturePage() {
+     
+     // 0. Calculate Rewards
+     const isFirstTime = !completedChallengeIds.has(currentTrip.id);
+-    const draftForScoring = {
+-      id: 'draft',
+-      proofImage: captureData?.filteredImageUrl || '',
+-      imageUrl: captureData?.filteredImageUrl || '',
+-      photoUrl: captureData?.filteredImageUrl || '',
+-      note: fcData.note || '',
+-      fieldNote: fcData.note || ''
+-    } as any;
+-
+-    const scoringResult = calculateSubmissionPoints(
+-      draftForScoring,
+-      currentTrip,
+-      {
+-        isFirstSubmission: (profile?.approvedEntriesCount || 0) === 0,
+-        daysLate: 0,
+-        hintUsed: hintUsed,
+-        weekNumber: currentTrip.weekNumber || currentWeekNumber || 1,
+-        catalyst: catalyst || undefined
+-      }
+-    );
+-
+-    let awardedXP = scoringResult.totalPoints;
+-    if (isRetry) awardedXP = Math.round(awardedXP * 0.5);
++    const baseMissionXP = lockedBasePoints || currentTrip.baseXP || currentTrip.basePoints || 100;
++    let estimatedXP = baseMissionXP;
++    if (isRetry) estimatedXP = Math.round(estimatedXP * 0.7);
++    const pendingScoring = {
++      totalPoints: estimatedXP,
++      scoreEvents: [{
++        type: 'trip_pending_review',
++        points: estimatedXP,
++        entryId: 'draft',
++        tripId: currentTrip.id,
++        description: isRetry ? 'Mission Base Estimate (Retry)' : 'Mission Base Estimate'
++      }]
++    };
+     
+     const awardedTokenCount = isFirstTime ? 1 : 0;
+ 
+     // 1. OPTIMISTIC UPDATE IMMEDIATELY
+-    registerPendingSubmissionLocally(awardedXP, currentTrip.id, {
++    registerPendingSubmissionLocally(estimatedXP, currentTrip.id, {
+       title: currentTrip.title,
+       photo: captureData.filteredImageUrl,
+-      awardedXP: awardedXP
++      awardedXP: estimatedXP
+     });
+ 
+     // 2. Prepare Local Result Record
+     const localResult = {
+       tripId: currentTrip.id,
+       title: currentTrip.title,
+-      awardedXP: awardedXP,
+-      baseXP: awardedXP,
++      awardedXP: estimatedXP,
++      baseXP: baseMissionXP,
+       note: fcData.note,
+       photo: captureData.filteredImageUrl,
+       proofType: currentTrip.proofType || currentTrip.requiredProof || ['photo'],
+@@ -1045,9 +1034,9 @@ export default function CapturePage() {
+       completedAt: new Date().toISOString(),
+       syncStatus: 'pending' as 'pending' | 'synced' | 'sync_failed',
+       scoringData: {
+-        scoring: { totalPoints: awardedXP },
++        scoring: pendingScoring,
+         ftBonus: 0,
+-        ftText: 'Uplink Pending...',
++        ftText: 'Admin Review Pending',
+         tokenAwarded: isFirstTime,
+         totalTokens: (fieldTokens || 0) + awardedTokenCount
+       }
+@@ -1156,17 +1145,15 @@ export default function CapturePage() {
+           return;
+         }
+ 
+-        const finalXP = (result.scoring?.totalPoints || 0) + (result.ftBonus || 0);
+-
+         setCompleteRecord({
+           ...localResult,
+           photo: filteredUrl,
+-          awardedXP: finalXP || awardedXP,
++          awardedXP: estimatedXP,
+           syncStatus: 'synced',
+           scoringData: {
+-            scoring: result.scoring,
+-            ftBonus: result.ftBonus,
+-            ftText: result.ftText,
++            scoring: pendingScoring,
++            ftBonus: 0,
++            ftText: 'Admin Review Pending',
+             newRewards: result.newRewards,
+             tokenAwarded: isFirstTime,
+             totalTokens: (fieldTokens || 0) + awardedTokenCount
+@@ -1174,9 +1161,9 @@ export default function CapturePage() {
+         });
+ 
+         setScoringData({
+-          scoring: result.scoring,
+-          ftBonus: result.ftBonus,
+-          ftText: result.ftText,
++          scoring: pendingScoring,
++          ftBonus: 0,
++          ftText: 'Admin Review Pending',
+           newRewards: result.newRewards,
+           tokenAwarded: isFirstTime,
+           totalTokens: (fieldTokens || 0) + awardedTokenCount
+-- 
+2.37.1 (Apple Git-137.1)
+

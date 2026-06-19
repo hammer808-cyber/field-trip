@@ -1,0 +1,122 @@
+From f8825edfe32465fef5a5f0502c6566cbbcb3f018 Mon Sep 17 00:00:00 2001
+From: Zachary Hammer <hammerhome@Zacharys-Air.lan>
+Date: Mon, 15 Jun 2026 19:04:03 -0700
+Subject: [PATCH] Hydrate review-backed queue from linked entries
+
+---
+ src/services/submissionService.ts | 47 +++++++++++++++++++++----------
+ 1 file changed, 32 insertions(+), 15 deletions(-)
+
+diff --git a/src/services/submissionService.ts b/src/services/submissionService.ts
+index 539fdcc..1a9db0c 100644
+--- a/src/services/submissionService.ts
++++ b/src/services/submissionService.ts
+@@ -145,6 +145,10 @@ function findReviewForEntry(entry: any, reviews: any[]): any | null {
+   }) || null;
+ }
+ 
++function findEntryForReview(review: any, entries: any[]): any | null {
++  return entries.find(entry => findReviewForEntry(entry, [review])) || null;
++}
++
+ function getReviewQueueStatus(review: any): string {
+   const reviewStatus = review?.reviewStatus;
+   if (reviewStatus && reviewStatus !== 'completed') return reviewStatus;
+@@ -177,9 +181,9 @@ function hasProofMedia(record: any): boolean {
+ function isXpAwarded(record: any): boolean {
+   if (record?.xpAwarded === true) return true;
+   if (record?.pointsAwarded === true) return true;
+-  if (typeof record?.pointsAwarded === 'number' && record.pointsAwarded > 0) return true;
+-  if (typeof record?.awardedXP === 'number' && record.awardedXP > 0) return true;
+-  if (typeof record?.awardedPoints === 'number' && record.awardedPoints > 0) return true;
++  if (record?.status === 'approved' && typeof record?.pointsAwarded === 'number' && record.pointsAwarded > 0) return true;
++  if (record?.status === 'approved' && typeof record?.awardedXP === 'number' && record.awardedXP > 0) return true;
++  if (record?.status === 'approved' && typeof record?.awardedPoints === 'number' && record.awardedPoints > 0) return true;
+   return false;
+ }
+ 
+@@ -214,11 +218,13 @@ function shouldShowAsPendingUnawardedProof(entry: any, linkedReview: any | null)
+   return hasProofMedia(entry) || hasProofMedia(linkedReview);
+ }
+ 
+-function shouldShowReviewAsPendingUnawardedProof(review: any): boolean {
++function shouldShowReviewAsPendingUnawardedProof(review: any, linkedEntry: any | null = null): boolean {
+   if (review?.archived === true) return false;
+-  if (isXpAwarded(review)) return false;
++  if (linkedEntry?.archived === true) return false;
++  if (isXpAwarded(review) || isXpAwarded(linkedEntry)) return false;
+   if (isExplicitFinalStatus(getReviewQueueStatus(review))) return false;
+-  return hasProofMedia(review);
++  if (linkedEntry && isExplicitFinalStatus(linkedEntry.status)) return false;
++  return hasProofMedia(review) || hasProofMedia(linkedEntry);
+ }
+ 
+ function getStatusSummary(records: any[], label: 'entry' | 'proofReview'): Record<string, number> {
+@@ -250,17 +256,23 @@ function hydrateAdminQueueEntry(entry: any, linkedReview: any | null): any {
+   };
+ }
+ 
+-function hydrateOrphanedProofReview(review: any): any {
++function hydrateOrphanedProofReview(review: any, linkedEntry: any | null = null): any {
+   const entryId = review.entryId || (typeof review.id === 'string' ? review.id.replace(/^rev_/, '') : review.id);
+   const normalizedStatus = normalizeEntryStatus(getReviewQueueStatus(review));
+-  const imageFields = resolveAdminImageFields({}, review);
++  const imageFields = resolveAdminImageFields(linkedEntry || {}, review);
+   return {
++    ...(linkedEntry || {}),
+     ...review,
+     ...imageFields,
+-    id: entryId || review.id,
+-    entryId: entryId || review.entryId || review.id,
++    id: linkedEntry?.id || entryId || review.id,
++    entryId: linkedEntry?.id || entryId || review.entryId || review.id,
++    userId: linkedEntry?.userId || linkedEntry?.uid || review.userId || review.uid || '',
++    uid: linkedEntry?.uid || linkedEntry?.userId || review.uid || review.userId || '',
++    missionId: linkedEntry?.missionId || linkedEntry?.tripId || linkedEntry?.challengeId || review.missionId || review.tripId || review.challengeId || '',
++    challengeId: linkedEntry?.challengeId || linkedEntry?.missionId || linkedEntry?.tripId || review.challengeId || review.missionId || review.tripId || '',
++    tripId: linkedEntry?.tripId || linkedEntry?.missionId || linkedEntry?.challengeId || review.tripId || review.missionId || review.challengeId || '',
+     status: normalizedStatus,
+-    entryStatus: null,
++    entryStatus: linkedEntry ? normalizeEntryStatus(linkedEntry.status) : null,
+     reviewStatus: normalizedStatus,
+     proofReview: review,
+     proofReviewId: review.id,
+@@ -600,6 +612,7 @@ export function subscribeToAdminPendingReviews(
+       proofReviewDocs = reviewSnap.docs.map(reviewDoc => ({ id: reviewDoc.id, ...reviewDoc.data() } as any));
+       console.log('[AdminQueue] proofReview metadata documents returned', proofReviewDocs.length);
+       console.log('[AdminQueue] proofReview status summary', getStatusSummary(proofReviewDocs, 'proofReview'));
++      console.log('[AdminQueue] raw pending proofReview count', proofReviewDocs.filter(review => normalizeEntryStatus(getReviewQueueStatus(review)) === 'pending_review').length);
+     } catch (err: any) {
+       console.warn('[AdminQueue] proofReview metadata join skipped:', err.message || err);
+     }
+@@ -628,19 +641,23 @@ export function subscribeToAdminPendingReviews(
+     });
+ 
+     const reviewBackedPendingProofs = proofReviewDocs.filter(review => {
+-      const hasLinkedEntry = rawEntries.some(entry => findReviewForEntry(entry, [review]));
++      const linkedEntry = findEntryForReview(review, rawEntries);
++      const hasLinkedEntry = !!linkedEntry;
+       const reviewStatusMatches = normalizeEntryStatus(getReviewQueueStatus(review)) === statusFilter;
+-      const reviewNeedsPendingRescue = statusFilter === 'pending_review' && shouldShowReviewAsPendingUnawardedProof(review);
++      const reviewNeedsPendingRescue = statusFilter === 'pending_review' && shouldShowReviewAsPendingUnawardedProof(review, linkedEntry);
+       return (!hasLinkedEntry && reviewStatusMatches) || reviewNeedsPendingRescue;
+     });
+ 
+     if (reviewBackedPendingProofs.length > 0) {
+-      console.warn('[AdminQueue] review-backed proofReviews included in queue', reviewBackedPendingProofs.map(r => ({ id: r.id, entryId: r.entryId, status: getReviewQueueStatus(r), rescued: shouldShowReviewAsPendingUnawardedProof(r) })));
++      console.warn('[AdminQueue] review-backed proofReviews included in queue', reviewBackedPendingProofs.map(r => {
++        const linkedEntry = findEntryForReview(r, rawEntries);
++        return { id: r.id, entryId: r.entryId, linkedEntryId: linkedEntry?.id, status: getReviewQueueStatus(r), rescued: shouldShowReviewAsPendingUnawardedProof(r, linkedEntry) };
++      }));
+     }
+ 
+     const seenQueueIds = new Set(hydratedEntries.flatMap(entry => [entry.id, entry.entryId, entry.proofReviewId, entry.reviewId].filter(Boolean)));
+     const reviewBackedEntries = reviewBackedPendingProofs
+-      .map(hydrateOrphanedProofReview)
++      .map(review => hydrateOrphanedProofReview(review, findEntryForReview(review, rawEntries)))
+       .filter(entry => {
+         const keys = [entry.id, entry.entryId, entry.proofReviewId, entry.reviewId].filter(Boolean);
+         const alreadySeen = keys.some(key => seenQueueIds.has(key));
+-- 
+2.37.1 (Apple Git-137.1)
+

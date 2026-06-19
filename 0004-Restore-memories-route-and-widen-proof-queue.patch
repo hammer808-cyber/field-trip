@@ -1,0 +1,178 @@
+From f379d2b165c26acdf6dee5b2854d6b6a1956228c Mon Sep 17 00:00:00 2001
+From: Zachary Hammer <hammerhome@Zacharys-Air.lan>
+Date: Mon, 15 Jun 2026 17:09:29 -0700
+Subject: [PATCH] Restore memories route and widen proof queue
+
+---
+ src/App.tsx                       |  5 ++++-
+ src/components/BottomNav.tsx      |  4 ++--
+ src/pages/Collection.tsx          | 16 ++++++++++++++--
+ src/services/submissionService.ts | 31 ++++++++++++++++++++++++++++---
+ 4 files changed, 48 insertions(+), 8 deletions(-)
+
+diff --git a/src/App.tsx b/src/App.tsx
+index 688ae09..5209733 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -341,6 +341,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
+   const isBigBoardPage = location.pathname === '/big-board';
+   const isBasecampPage = location.pathname === '/basecamp';
+   const isVotingPage = location.pathname.startsWith('/voting');
++  const isCollectionPage = location.pathname === '/collection' || location.pathname === '/memories';
+ 
+   // Centralized login/returning destination selector
+   let correctDestination = "/basecamp";
+@@ -391,7 +392,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
+ 
+   // Step 3: Resume guided onboarding or mission at correct saved step.
+   // Allow all pages used in the tour: Deck, Capture, Profile, Big Board, and Field Type.
+-  const isAllowedOnboardingPage = isDeckPage || isCapturePage || isMissionSubmittedPage || isProfilePage || isBigBoardPage || isFieldTypePage || isBasecampPage;
++  const isAllowedOnboardingPage = isDeckPage || isCapturePage || isMissionSubmittedPage || isProfilePage || isBigBoardPage || isFieldTypePage || isBasecampPage || isCollectionPage;
+   if (user && hasConfirmedLegal && fieldClassificationComplete && hasSeenFieldTypeResults && !onboardingCompleted && !isAllowedOnboardingPage && !isBypassingGuards) {
+     return <Navigate to="/deck" replace />;
+   }
+@@ -447,6 +448,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
+     '/deck',
+     '/missions',
+     '/collection',
++    '/memories',
+     '/voting',
+     '/big-board',
+     '/crews',
+@@ -617,6 +619,7 @@ export default function App() {
+                     <Route path="/admin/ops" element={<AdminDevTools />} />
+                     <Route path="/admin/archive" element={<AdminArchiveSubmissions />} />
+                     <Route path="/collection" element={<Collection />} />
++                    <Route path="/memories" element={<Collection />} />
+                     <Route path="/banned" element={<Banned />} />
+                     <Route path="*" element={<Navigate to="/" replace />} />
+                   </Routes>
+diff --git a/src/components/BottomNav.tsx b/src/components/BottomNav.tsx
+index 3f01095..60dd133 100644
+--- a/src/components/BottomNav.tsx
++++ b/src/components/BottomNav.tsx
+@@ -50,7 +50,7 @@ export function BottomNav() {
+   const navItems = [
+     { icon: Home, label: 'BASECAMP', path: '/basecamp' },
+     { icon: Target, label: 'MISSIONS', path: '/deck' },
+-    { icon: LayoutGrid, label: 'MEMORIES', path: '/collection', special: true },
++    { icon: LayoutGrid, label: 'MEMORIES', path: '/memories', special: true },
+     { icon: Users, label: 'CREW', path: '/voting' },
+     { icon: Trophy, label: 'STANDINGS', path: '/big-board' }
+   ];
+@@ -85,7 +85,7 @@ export function BottomNav() {
+         if (item.path === '/deck') dataOnboarding = 'deck-nav';
+         else if (item.path === '/big-board') dataOnboarding = 'big-board-nav';
+         else if (item.path === '/profile') dataOnboarding = 'profile-nav';
+-        else if (item.path === '/collection') dataOnboarding = 'dex-nav';
++        else if (item.path === '/collection' || item.path === '/memories') dataOnboarding = 'dex-nav';
+         
+         if (item.special) {
+           return (
+diff --git a/src/pages/Collection.tsx b/src/pages/Collection.tsx
+index 988620a..62a9a37 100644
+--- a/src/pages/Collection.tsx
++++ b/src/pages/Collection.tsx
+@@ -17,7 +17,7 @@ import {
+   Heart,
+   Calendar
+ } from 'lucide-react';
+-import { useNavigate } from 'react-router-dom';
++import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+ import { cn } from '../lib/utils';
+ import { StickerDecal } from '../components/StickerDecals';
+ import { Card, FieldBadge } from '../components/UI';
+@@ -48,7 +48,14 @@ export default function CollectionPage() {
+   } = useApp();
+   const { skin: currentSkin, allSkins, setSkin } = useTheme();
+   const navigate = useNavigate();
+-  const [activeTab, setActiveTab] = useState<CollectionTab>('stickers');
++  const location = useLocation();
++  const [searchParams, setSearchParams] = useSearchParams();
++  const getInitialTab = (): CollectionTab => {
++    const requestedTab = searchParams.get('tab') as CollectionTab | null;
++    if (requestedTab && ['stickers', 'badges', 'skins', 'decks', 'missions', 'crew_memories'].includes(requestedTab)) return requestedTab;
++    return location.pathname === '/memories' ? 'crew_memories' : 'stickers';
++  };
++  const [activeTab, setActiveTab] = useState<CollectionTab>(getInitialTab);
+ 
+   const activePacks = getActiveDeckPacks();
+ 
+@@ -89,8 +96,13 @@ export default function CollectionPage() {
+     unlockDiscoverySticker('dex_open', 'dex');
+   }, []);
+ 
++  useEffect(() => {
++    setActiveTab(getInitialTab());
++  }, [location.pathname, searchParams]);
++
+   const handleTabChange = (id: CollectionTab) => {
+     setActiveTab(id);
++    setSearchParams(id === 'stickers' ? {} : { tab: id });
+     if (id === 'stickers') {
+       unlockDiscoverySticker('sticker_collection_view', 'dex');
+     }
+diff --git a/src/services/submissionService.ts b/src/services/submissionService.ts
+index ade6ddd..3f2d4d3 100644
+--- a/src/services/submissionService.ts
++++ b/src/services/submissionService.ts
+@@ -111,12 +111,37 @@ function makeReviewLookupKeys(review: any): string[] {
+   ].filter(Boolean);
+ }
+ 
++function getEntryMissionKey(entry: any): string {
++  return String(entry?.tripId || entry?.missionId || entry?.challengeId || '').toLowerCase().trim();
++}
++
++function getReviewMissionKey(review: any): string {
++  return String(review?.tripId || review?.missionId || review?.challengeId || '').toLowerCase().trim();
++}
++
++function getEntryUserKey(entry: any): string {
++  return String(entry?.userId || entry?.uid || entry?.firebaseUid || '').toLowerCase().trim();
++}
++
++function getReviewUserKey(review: any): string {
++  return String(review?.userId || review?.uid || review?.firebaseUid || '').toLowerCase().trim();
++}
++
+ function findReviewForEntry(entry: any, reviews: any[]): any | null {
+   const entryId = entry.id;
+   const proofCheckId = entry.proofCheckId;
+-  return reviews.find(review => {
++  const directMatch = reviews.find(review => {
+     const keys = makeReviewLookupKeys(review);
+     return keys.includes(entryId) || (!!proofCheckId && keys.includes(proofCheckId));
++  });
++  if (directMatch) return directMatch;
++
++  const entryMissionKey = getEntryMissionKey(entry);
++  const entryUserKey = getEntryUserKey(entry);
++  if (!entryMissionKey || !entryUserKey) return null;
++
++  return reviews.find(review => {
++    return getReviewMissionKey(review) === entryMissionKey && getReviewUserKey(review) === entryUserKey;
+   }) || null;
+ }
+ 
+@@ -497,7 +522,7 @@ export function subscribeToAdminPendingReviews(
+ 
+   console.log('[AdminQueue] entries source-of-truth query started');
+   console.log('[AdminQueue] normalized status filter', statusFilter);
+-  const q = query(collection(db, ENTRIES_COLLECTION), orderBy('createdAt', 'desc'), limit(200));
++  const q = query(collection(db, ENTRIES_COLLECTION), orderBy('createdAt', 'desc'), limit(500));
+ 
+   return onSnapshot(q, async (snap) => {
+     const rawEntries = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Entry));
+@@ -506,7 +531,7 @@ export function subscribeToAdminPendingReviews(
+ 
+     let proofReviewDocs: any[] = [];
+     try {
+-      const reviewQuery = query(collection(db, REVIEWS_COLLECTION), orderBy('createdAt', 'desc'), limit(300));
++      const reviewQuery = query(collection(db, REVIEWS_COLLECTION), orderBy('createdAt', 'desc'), limit(1000));
+       const reviewSnap = await getDocs(reviewQuery);
+       proofReviewDocs = reviewSnap.docs.map(reviewDoc => ({ id: reviewDoc.id, ...reviewDoc.data() } as any));
+       console.log('[AdminQueue] proofReview metadata documents returned', proofReviewDocs.length);
+-- 
+2.37.1 (Apple Git-137.1)
+

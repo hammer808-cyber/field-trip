@@ -1,0 +1,163 @@
+From 62a97b2b259c2cc40ae09acc196b960bbf11b1b5 Mon Sep 17 00:00:00 2001
+From: Zachary Hammer <hammerhome@Zacharys-Air.lan>
+Date: Mon, 15 Jun 2026 13:43:23 -0700
+Subject: [PATCH] Fix admin proof queue status filtering
+
+---
+ src/services/submissionService.ts | 111 ++++++++++++++++++++++--------
+ 1 file changed, 82 insertions(+), 29 deletions(-)
+
+diff --git a/src/services/submissionService.ts b/src/services/submissionService.ts
+index 94c4aad..6c96886 100644
+--- a/src/services/submissionService.ts
++++ b/src/services/submissionService.ts
+@@ -120,6 +120,62 @@ function findReviewForEntry(entry: any, reviews: any[]): any | null {
+   }) || null;
+ }
+ 
++function getReviewStatus(review: any): string {
++  return review?.status || review?.reviewStatus || review?.aiRecommendation || '';
++}
++
++function getStatusSummary(records: any[], label: 'entry' | 'proofReview'): Record<string, number> {
++  return records.reduce((summary, record) => {
++    const rawStatus = label === 'proofReview' ? getReviewStatus(record) : record?.status;
++    const key = `${String(rawStatus || 'missing')} -> ${normalizeEntryStatus(rawStatus)}`;
++    summary[key] = (summary[key] || 0) + 1;
++    return summary;
++  }, {} as Record<string, number>);
++}
++
++function hydrateAdminQueueEntry(entry: any, linkedReview: any | null): any {
++  const imageFields = resolveAdminImageFields(entry, linkedReview || {});
++  const normalizedEntryStatus = normalizeEntryStatus(entry.status);
++  const normalizedReviewStatus = linkedReview ? normalizeEntryStatus(getReviewStatus(linkedReview)) : null;
++  return {
++    ...entry,
++    status: normalizedReviewStatus || normalizedEntryStatus,
++    entryStatus: normalizedEntryStatus,
++    reviewStatus: normalizedReviewStatus || entry.reviewStatus || normalizedEntryStatus,
++    proofReview: linkedReview || null,
++    proofReviewId: linkedReview?.id || null,
++    reviewId: linkedReview?.id || null,
++    reviewNotes: linkedReview?.reviewNotes || entry.adminNotes || entry.reviewNotes || '',
++    confidenceScore: linkedReview?.confidenceScore || entry.confidenceScore || entry.aiScore || 100,
++    aiAnalysisResult: entry.aiAnalysisResult || linkedReview?.aiAnalysisResult || null,
++    missingRequirements: entry.missingRequirements || linkedReview?.missingRequirements || linkedReview?.aiAnalysisResult?.missingItems || [],
++    ...imageFields
++  };
++}
++
++function hydrateOrphanedProofReview(review: any): any {
++  const entryId = review.entryId || (typeof review.id === 'string' ? review.id.replace(/^rev_/, '') : review.id);
++  const normalizedStatus = normalizeEntryStatus(getReviewStatus(review));
++  const imageFields = resolveAdminImageFields({}, review);
++  return {
++    ...review,
++    ...imageFields,
++    id: entryId || review.id,
++    entryId: entryId || review.entryId || review.id,
++    status: normalizedStatus,
++    entryStatus: null,
++    reviewStatus: normalizedStatus,
++    proofReview: review,
++    proofReviewId: review.id,
++    reviewId: review.id,
++    adminQueueSource: 'orphaned proofReview',
++    reviewNotes: review.reviewNotes || review.adminNotes || '',
++    confidenceScore: review.confidenceScore || review.aiScore || 100,
++    aiAnalysisResult: review.aiAnalysisResult || null,
++    missingRequirements: review.missingRequirements || review.aiAnalysisResult?.missingItems || []
++  };
++}
++
+ export async function uploadSubmissionPhoto(userId: string, missionId: string, base64Image: string): Promise<{ url: string; path: string }> {
+   logDev(`Uploading photo for mission: ${missionId}, user: ${userId}`);
+   const filename = `proof_${missionId}_${Date.now()}.jpg`;
+@@ -438,16 +494,7 @@ export function subscribeToAdminPendingReviews(
+   return onSnapshot(q, async (snap) => {
+     const rawEntries = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Entry));
+     console.log('[AdminQueue] entry documents returned', rawEntries.length);
+-    let filteredOutCount = 0;
+-    const entries = rawEntries.filter(e => {
+-      const isArchived = e.archived === true;
+-      const normalized = normalizeEntryStatus(e.status);
+-      const isStatusMatch = normalized === statusFilter;
+-      if (isArchived || !isStatusMatch) {
+-        filteredOutCount++;
+-      }
+-      return !isArchived && isStatusMatch;
+-    });
++    console.log('[AdminQueue] entry status summary', getStatusSummary(rawEntries, 'entry'));
+ 
+     let proofReviewDocs: any[] = [];
+     try {
+@@ -455,40 +502,46 @@ export function subscribeToAdminPendingReviews(
+       const reviewSnap = await getDocs(reviewQuery);
+       proofReviewDocs = reviewSnap.docs.map(reviewDoc => ({ id: reviewDoc.id, ...reviewDoc.data() } as any));
+       console.log('[AdminQueue] proofReview metadata documents returned', proofReviewDocs.length);
++      console.log('[AdminQueue] proofReview status summary', getStatusSummary(proofReviewDocs, 'proofReview'));
+     } catch (err: any) {
+       console.warn('[AdminQueue] proofReview metadata join skipped:', err.message || err);
+     }
+ 
++    let filteredOutCount = 0;
++    const entries = rawEntries.filter(e => {
++      const linkedReview = findReviewForEntry(e, proofReviewDocs);
++      const isArchived = e.archived === true;
++      const entryStatus = normalizeEntryStatus(e.status);
++      const linkedReviewStatus = linkedReview ? normalizeEntryStatus(getReviewStatus(linkedReview)) : null;
++      const isStatusMatch = entryStatus === statusFilter || linkedReviewStatus === statusFilter;
++      if (isArchived || !isStatusMatch) {
++        filteredOutCount++;
++      }
++      return !isArchived && isStatusMatch;
++    });
++
+     const hydratedEntries = entries.map(entry => {
+       const linkedReview = findReviewForEntry(entry, proofReviewDocs);
+-      const imageFields = resolveAdminImageFields(entry, linkedReview || {});
+-      return {
+-        ...entry,
+-        status: normalizeEntryStatus(entry.status),
+-        proofReview: linkedReview || null,
+-        proofReviewId: linkedReview?.id || null,
+-        reviewId: linkedReview?.id || null,
+-        reviewNotes: linkedReview?.reviewNotes || (entry as any).adminNotes || (entry as any).reviewNotes || '',
+-        confidenceScore: linkedReview?.confidenceScore || (entry as any).confidenceScore || (entry as any).aiScore || 100,
+-        aiAnalysisResult: (entry as any).aiAnalysisResult || linkedReview?.aiAnalysisResult || null,
+-        missingRequirements: (entry as any).missingRequirements || linkedReview?.missingRequirements || linkedReview?.aiAnalysisResult?.missingItems || [],
+-        ...imageFields
+-      } as any;
++      return hydrateAdminQueueEntry(entry, linkedReview);
+     });
+ 
+-    const hydratedEntryIds = new Set(hydratedEntries.map(entry => entry.id));
+     const orphanedProofReviews = proofReviewDocs.filter(review => {
+-      const linkedEntryId = review.entryId || review.id;
+-      return linkedEntryId && !hydratedEntryIds.has(linkedEntryId) && normalizeEntryStatus(review.status) === statusFilter;
++      const hasLinkedEntry = rawEntries.some(entry => findReviewForEntry(entry, [review]));
++      return !hasLinkedEntry && normalizeEntryStatus(getReviewStatus(review)) === statusFilter;
+     });
+ 
+     if (orphanedProofReviews.length > 0) {
+-      console.warn('[AdminQueue] orphaned proofReviews excluded from main queue', orphanedProofReviews.map(r => ({ id: r.id, entryId: r.entryId, status: r.status })));
++      console.warn('[AdminQueue] orphaned proofReviews included as review-backed queue items', orphanedProofReviews.map(r => ({ id: r.id, entryId: r.entryId, status: getReviewStatus(r) })));
+     }
+ 
++    const queueEntries = [
++      ...hydratedEntries,
++      ...orphanedProofReviews.map(hydrateOrphanedProofReview)
++    ];
++
+     console.log('[AdminQueue] filtered out entry count', filteredOutCount);
+-    logDev(`Admin queue snapshot loaded from entries. Size: ${hydratedEntries.length}`);
+-    callback(hydratedEntries);
++    logDev(`Admin queue snapshot loaded. Size: ${queueEntries.length}`);
++    callback(queueEntries);
+   }, (err) => {
+     console.error('[SUBMISSION_PIPELINE] Error loading admin entries queue:', err);
+   });
+-- 
+2.37.1 (Apple Git-137.1)
+

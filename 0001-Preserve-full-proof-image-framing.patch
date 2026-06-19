@@ -1,0 +1,220 @@
+From e9115ae1dc4a4ae2568cfb516e59c8ac47f9c27f Mon Sep 17 00:00:00 2001
+From: Zachary Hammer <hammerhome@Zacharys-Air.lan>
+Date: Mon, 15 Jun 2026 07:21:10 -0700
+Subject: [PATCH] Preserve full proof image framing
+
+---
+ src/components/AdminReviewPanel.tsx        | 4 ++--
+ src/components/CrewMemoriesFeed.tsx        | 1 +
+ src/components/DevelopingPolaroid.tsx      | 2 +-
+ src/components/FieldClipboard.tsx          | 2 +-
+ src/components/MissionResultCard.tsx       | 2 +-
+ src/components/ProofImage.tsx              | 8 +++++---
+ src/components/ViewfinderCamera.tsx        | 2 +-
+ src/components/VotingHub.tsx               | 6 +++---
+ src/components/profile/MissionBriefing.tsx | 2 +-
+ src/pages/VotingHubPage.tsx                | 4 ++--
+ src/pages/WeeklyAwardsPage.tsx             | 2 +-
+ 11 files changed, 19 insertions(+), 16 deletions(-)
+
+diff --git a/src/components/AdminReviewPanel.tsx b/src/components/AdminReviewPanel.tsx
+index 206c442..c263e9b 100644
+--- a/src/components/AdminReviewPanel.tsx
++++ b/src/components/AdminReviewPanel.tsx
+@@ -169,7 +169,7 @@ export function AdminReviewPanel() {
+             <div className="flex gap-4 relative z-10">
+               <div className="w-20 h-20 bg-on-surface/5 border-2 border-on-surface rounded-none overflow-hidden shrink-0 shadow-[2px_2px_0px_black]">
+                 {entry.proofImage ? (
+-                  <img src={entry.proofImage} alt="Proof" className="w-full h-full object-cover grayscale" />
++                  <img src={entry.proofImage} alt="Proof" className="w-full h-full object-contain grayscale" />
+                 ) : (
+                   <div className="w-full h-full flex items-center justify-center">
+                     <Camera className="w-6 h-6 opacity-20" />
+@@ -292,7 +292,7 @@ export function AdminReviewPanel() {
+                       <img 
+                         src={selectedEntry.proofImage || (selectedEntry as any).photoUrl} 
+                         alt="Proof" 
+-                        className="w-full h-full object-cover group-hover:grayscale-0 transition-all duration-500" 
++                        className="w-full h-full object-contain group-hover:grayscale-0 transition-all duration-500" 
+                       />
+                     ) : (
+                       <div className="w-full h-full flex flex-col items-center justify-center gap-3 opacity-20">
+diff --git a/src/components/CrewMemoriesFeed.tsx b/src/components/CrewMemoriesFeed.tsx
+index d2f9128..c0b1b77 100644
+--- a/src/components/CrewMemoriesFeed.tsx
++++ b/src/components/CrewMemoriesFeed.tsx
+@@ -323,6 +323,7 @@ export function CrewMemoriesFeed() {
+                   <ProofImage 
+                     entry={entry} 
+                     alt={entry.tripTitle || "Crew Memory Snapshot"}
++                    isCommunityFeed={true}
+                     className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-500 ease-out"
+                   />
+                   
+diff --git a/src/components/DevelopingPolaroid.tsx b/src/components/DevelopingPolaroid.tsx
+index b93aaa1..f1c9634 100644
+--- a/src/components/DevelopingPolaroid.tsx
++++ b/src/components/DevelopingPolaroid.tsx
+@@ -33,7 +33,7 @@ export const DevelopingPolaroid: React.FC<DevelopingPolaroidProps> = ({
+               initial={isDeveloping ? { filter: 'brightness(2) contrast(0.5) blur(10px)', opacity: 0 } : {}}
+               animate={isDeveloping ? { filter: 'brightness(1) contrast(1) blur(0px)', opacity: 1 } : {}}
+               transition={{ duration: 4, ease: "easeOut" }}
+-              className="w-full h-full object-cover"
++              className="w-full h-full object-contain"
+             />
+           )}
+           {/* Chemical Shimmer Overlay */}
+diff --git a/src/components/FieldClipboard.tsx b/src/components/FieldClipboard.tsx
+index 9c31359..6d09eae 100644
+--- a/src/components/FieldClipboard.tsx
++++ b/src/components/FieldClipboard.tsx
+@@ -353,7 +353,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
+               <div className="bg-white p-3 pb-10 shadow-[0_15px_35px_rgba(0,0,0,0.15)] border border-black/5 rotate-[1deg] relative">
+                  <div className="w-64 h-64 bg-on-surface/5 relative overflow-hidden">
+                    {data.photoUrl ? (
+-                     <img src={data.photoUrl} alt="Captured Proof" className="w-full h-full object-cover" />
++                     <img src={data.photoUrl} alt="Captured Proof" className="w-full h-full object-contain" />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center text-on-surface/20">
+                        <Camera size={48} strokeWidth={1} />
+diff --git a/src/components/MissionResultCard.tsx b/src/components/MissionResultCard.tsx
+index de541e5..58cab8b 100644
+--- a/src/components/MissionResultCard.tsx
++++ b/src/components/MissionResultCard.tsx
+@@ -95,7 +95,7 @@ export function MissionResultCard({ trip, scoringData, evidence, showMathWizard,
+         {/* 2. Visual Proof with Sticker Feel */}
+         <motion.div variants={itemVariants} className="relative">
+           <div className="aspect-[4/3] bg-[#EAE5D8] border-4 border-on-surface shadow-[10px_10px_0px_black] overflow-hidden rotate-[-1.5deg] transition-transform hover:rotate-0 duration-500 relative group">
+-            <img src={evidence.photo} alt="Mission Proof" className="w-full h-full object-cover grayscale-[0.3] brightness-110 contrast-[1.1]" />
++            <img src={evidence.photo} alt="Mission Proof" className="w-full h-full object-contain grayscale-[0.3] brightness-110 contrast-[1.1]" />
+             
+             {/* Filter Overlay */}
+             <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-80" />
+diff --git a/src/components/ProofImage.tsx b/src/components/ProofImage.tsx
+index f3fc13c..3ae10c7 100644
+--- a/src/components/ProofImage.tsx
++++ b/src/components/ProofImage.tsx
+@@ -29,7 +29,7 @@ function getFallbackSvgDataUrl(id: string): string {
+  * Resolves both direct URLs and Firebase Storage paths.
+  * Provides detailed debug info in Admin/Dev mode on failure.
+  */
+-export function ProofImage({ entry, proofReview, className, alt = "Proof Evidence", objectFit = 'cover', isCommunityFeed = false }: ProofImageProps) {
++export function ProofImage({ entry, proofReview, className, alt = "Proof Evidence", objectFit, isCommunityFeed = false }: ProofImageProps) {
+   const { isAdmin, user, profile } = useApp();
+   const [url, setUrl] = useState<string | null>(null);
+   const [error, setError] = useState<string | null>(null);
+@@ -283,6 +283,8 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
+ 
+   const stamp = getStampData();
+   const isReal = isPermanentStorageUrl(url);
++  const effectiveObjectFit = objectFit || (isCommunityFeed ? 'cover' : 'contain');
++  const sanitizedClassName = className?.replace(/\bobject-(cover|contain)\b/g, '').trim();
+ 
+   return (
+     <div className="relative w-full h-full overflow-hidden group select-none bg-neutral-900">
+@@ -291,8 +293,8 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
+         alt={alt} 
+         className={cn(
+           "w-full h-full transition-all duration-700",
+-          objectFit === 'cover' ? 'object-cover' : 'object-contain',
+-          className
++          effectiveObjectFit === 'cover' ? 'object-cover' : 'object-contain',
++          sanitizedClassName
+         )}
+         referrerPolicy="no-referrer"
+         onLoad={() => {
+diff --git a/src/components/ViewfinderCamera.tsx b/src/components/ViewfinderCamera.tsx
+index d7bd145..aaf9615 100644
+--- a/src/components/ViewfinderCamera.tsx
++++ b/src/components/ViewfinderCamera.tsx
+@@ -502,7 +502,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
+           muted
+           style={{ filter: FILTER_CSS[selectedFilter] }}
+           className={cn(
+-            "w-full h-full object-cover transition-all duration-700",
++            "w-full h-full object-contain transition-all duration-700",
+             isInitializing ? "opacity-0" : "opacity-100",
+             !isBaja && !isHeat && "brightness-110 contrast-125",
+             isBaja && "sepia hue-rotate-[320deg] saturate-150",
+diff --git a/src/components/VotingHub.tsx b/src/components/VotingHub.tsx
+index f2c29f4..b766ce3 100644
+--- a/src/components/VotingHub.tsx
++++ b/src/components/VotingHub.tsx
+@@ -334,7 +334,7 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
+                           )}
+                         >
+                           <div className="aspect-[3/4] overflow-hidden bg-on-surface relative flex flex-col justify-end rounded-lg border-[3px] border-on-surface">
+-                            <img src={entry.proofImage} alt="" className="w-full h-full object-cover" />
++                            <img src={entry.proofImage} alt="" className="w-full h-full object-contain" />
+                             {isWinner && (
+                                <div className="absolute inset-x-0 bottom-0 bg-brand-yellow text-on-surface py-3 px-4 flex items-center justify-between border-t-4 border-on-surface z-20">
+                                  <span className="font-display text-[10px] font-black uppercase tracking-widest italic font-bold">CHAMPION_SEED</span>
+@@ -373,7 +373,7 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
+ 
+                    <div className="border-4 border-on-surface rounded-xl overflow-hidden shadow-[6px_6px_0px_black] bg-paper-dark">
+                      <div className="aspect-[4/3] overflow-hidden bg-on-surface">
+-                       <img src={votedEntry.proofImage} alt="" className="w-full h-full object-cover" />
++                       <img src={votedEntry.proofImage} alt="" className="w-full h-full object-contain" />
+                      </div>
+                      <div className="p-6 space-y-3 bg-white border-t-4 border-on-surface">
+                        <p className="font-display text-4xl font-black uppercase leading-none italic tracking-tighter text-on-surface">{votedEntry.userName}</p>
+@@ -433,7 +433,7 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
+                        <div className="w-full bg-white border-4 border-on-surface rounded-2xl overflow-hidden shadow-[12px_12px_0px_black] bg-white relative animate-fade-in group">
+                          {/* Giant high quality visual proof image */}
+                          <div className="aspect-square sm:aspect-[4/5] bg-on-surface relative overflow-hidden border-b-4 border-on-surface">
+-                           <img src={candidate.proofImage} alt="" className="w-full h-full object-cover" />
++                           <img src={candidate.proofImage} alt="" className="w-full h-full object-contain" />
+                            <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-sm text-brand-lime font-mono text-[9px] font-black px-3 py-1 border-2 border-brand-lime rounded uppercase tracking-widest">
+                              TRIBUNAL NOMINEE
+                            </div>
+diff --git a/src/components/profile/MissionBriefing.tsx b/src/components/profile/MissionBriefing.tsx
+index 959f65a..62ad150 100644
+--- a/src/components/profile/MissionBriefing.tsx
++++ b/src/components/profile/MissionBriefing.tsx
+@@ -416,7 +416,7 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
+ 
+             {photoCaptured && photoUrl ? (
+               <div className="relative aspect-square w-full rounded-xl overflow-hidden border-4 border-on-surface field-paper-shadow group bg-neutral-900 shadow-[6px_6px_0px_black]">
+-                <img src={photoUrl} className="w-full h-full object-cover" alt="Proof captured receipt" />
++                <img src={photoUrl} className="w-full h-full object-contain" alt="Proof captured receipt" />
+                 
+                 <button 
+                   onClick={onStartCapture}
+diff --git a/src/pages/VotingHubPage.tsx b/src/pages/VotingHubPage.tsx
+index a396335..87c4f2c 100644
+--- a/src/pages/VotingHubPage.tsx
++++ b/src/pages/VotingHubPage.tsx
+@@ -257,7 +257,7 @@ export default function VotingHubPage() {
+                              </div>
+ 
+                              <div className="aspect-video bg-on-surface/5 border-2 border-on-surface overflow-hidden rounded-2xl relative">
+-                                <img src={c.proofImage} alt={c.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
++                                <img src={c.proofImage} alt={c.title} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
+                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
+                                    <p className="text-xs text-white font-serif italic line-clamp-2">"{c.fieldNote}"</p>
+                                 </div>
+@@ -326,7 +326,7 @@ export default function VotingHubPage() {
+                        {resolvedCases.map(c => (
+                          <div key={c.id} className="bg-white border-4 border-on-surface p-6 rounded-[2rem] shadow-[8px_8px_0px_black] flex items-center gap-6 text-left group hover:scale-[1.01] transition-transform">
+                              <div className="w-20 h-20 bg-paper-dark border-2 border-on-surface rounded-2xl overflow-hidden shrink-0">
+-                                <img src={c.proofImage} alt={c.title} className="w-full h-full object-cover grayscale" />
++                                <img src={c.proofImage} alt={c.title} className="w-full h-full object-contain grayscale" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                 <div className="flex items-center gap-3 mb-1">
+diff --git a/src/pages/WeeklyAwardsPage.tsx b/src/pages/WeeklyAwardsPage.tsx
+index 2f0c54f..26e885f 100644
+--- a/src/pages/WeeklyAwardsPage.tsx
++++ b/src/pages/WeeklyAwardsPage.tsx
+@@ -146,7 +146,7 @@ export default function WeeklyAwardsPage() {
+ 
+                         {winner.proofImage && (
+                           <div className="aspect-[16/10] overflow-hidden bg-on-surface relative rounded-lg border-2 border-on-surface">
+-                            <img src={winner.proofImage} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
++                            <img src={winner.proofImage} alt="" className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
+                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(255,255,255,0.15),transparent)] pointer-events-none" />
+                           </div>
+                         )}
+-- 
+2.37.1 (Apple Git-137.1)
+

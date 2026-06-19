@@ -1,0 +1,180 @@
+From b87093bf6bc6e9ccbf0cd68933b4a25b08a95b49 Mon Sep 17 00:00:00 2001
+From: Zachary Hammer <hammerhome@Zacharys-Air.lan>
+Date: Mon, 15 Jun 2026 18:44:42 -0700
+Subject: [PATCH] Rescue unawarded proofs in admin queue
+
+---
+ src/pages/Capture.tsx             | 12 ++++--
+ src/services/submissionService.ts | 65 ++++++++++++++++++++++++++++++-
+ 2 files changed, 72 insertions(+), 5 deletions(-)
+
+diff --git a/src/pages/Capture.tsx b/src/pages/Capture.tsx
+index 529e06c..c8f5398 100644
+--- a/src/pages/Capture.tsx
++++ b/src/pages/Capture.tsx
+@@ -89,6 +89,7 @@ export default function CapturePage() {
+   const isRepairMode = params.get('mode') === 'addMoreProof';
+   const entryIdParam = params.get('entryId');
+   const reviewIdParam = params.get('reviewId');
++  const isRetryOrRepairFlow = isRetry || isResubmit || isRepairMode || !!originalEntryId || !!entryIdParam || !!reviewIdParam;
+   const navigate = useNavigate();
+   const submitLockRef = useRef(false);
+ 
+@@ -323,6 +324,7 @@ export default function CapturePage() {
+     if (
+       (isCompleted || isPending) &&
+       !isNeedsMore &&
++      !isRetryOrRepairFlow &&
+       fcState !== 'result' &&
+       fcState !== 'submitting' &&
+       submissionStatus !== 'saving' &&
+@@ -333,7 +335,7 @@ export default function CapturePage() {
+        // Use replace: true to prevent back-button loops
+        navigate('/deck', { replace: true });
+     }
+-  }, [tripIdParam, completedChallengeIds, submittedPendingChallengeIds, needsMoreProofChallengeIds, user, navigate, fcState, submissionStatus]);
++  }, [tripIdParam, completedChallengeIds, submittedPendingChallengeIds, needsMoreProofChallengeIds, user, navigate, fcState, submissionStatus, isRetryOrRepairFlow]);
+ 
+   // Gating properties needed early
+   const isLaunchMission = !!(currentTrip?.id && currentTrip.id.toLowerCase() === LAUNCH_MISSION_ID.toLowerCase());
+@@ -345,7 +347,7 @@ export default function CapturePage() {
+     LAUNCH_MISSION_ID.toLowerCase()
+   ].includes(currentTrip.id.toLowerCase()));
+   const isStarterTrainingActive = !isOnboardingComplete && isStarterMission;
+-  const isUnavailable = !!(currentTrip && (completedChallengeIds.has(currentTrip.id.toLowerCase()) || submittedPendingChallengeIds.has(currentTrip.id.toLowerCase())));
++  const isUnavailable = !!(currentTrip && !isRetryOrRepairFlow && (completedChallengeIds.has(currentTrip.id.toLowerCase()) || submittedPendingChallengeIds.has(currentTrip.id.toLowerCase())));
+ 
+   // Page load triggers
+   useEffect(() => {
+@@ -357,6 +359,7 @@ export default function CapturePage() {
+   // STRICTION: Detect if this mission is ALREADY submitted via entries context
+   // This solves the "dead end" where a refresh or navigation back shows the review screen again
+   useEffect(() => {
++    if (isRetryOrRepairFlow) return;
+     if (submissionStatus === 'submitted' || fcState === 'result') return;
+     if (!tripIdParam || entries.length === 0) return;
+ 
+@@ -388,7 +391,7 @@ export default function CapturePage() {
+       setFcState('result');
+       setSubmissionStatus('submitted');
+     }
+-  }, [tripIdParam, entries, submissionStatus, fcState, fieldTokens]);
++  }, [tripIdParam, entries, submissionStatus, fcState, fieldTokens, isRetryOrRepairFlow]);
+ 
+   // Handle successful submission navigation timer
+   useEffect(() => {
+@@ -425,6 +428,7 @@ export default function CapturePage() {
+ 
+   // Handle fallback redirect for already submitted missions
+   useEffect(() => {
++    if (isRetryOrRepairFlow) return;
+     // Recovery redirect logic
+     if ((!currentTrip && !completeRecord && (fcState as string) !== 'result') || (isUnavailable && !completeRecord && (fcState as string) !== 'result' && submissionStatus !== 'submitted')) {
+       const timer = setTimeout(() => {
+@@ -435,7 +439,7 @@ export default function CapturePage() {
+       }, 500);
+       return () => clearTimeout(timer);
+     }
+-  }, [currentTrip, completeRecord, fcState, completedChallengeIds, submittedPendingChallengeIds, navigate, submissionStatus, isUnavailable]);
++  }, [currentTrip, completeRecord, fcState, completedChallengeIds, submittedPendingChallengeIds, navigate, submissionStatus, isUnavailable, isRetryOrRepairFlow]);
+ 
+   // Reset scroll on step changes
+   useEffect(() => {
+diff --git a/src/services/submissionService.ts b/src/services/submissionService.ts
+index 3f2d4d3..d45a770 100644
+--- a/src/services/submissionService.ts
++++ b/src/services/submissionService.ts
+@@ -157,6 +157,63 @@ function getReviewQueueStatus(review: any): string {
+   return review?.status || reviewStatus || aiRecommendation || '';
+ }
+ 
++function hasProofMedia(record: any): boolean {
++  return !!firstString(
++    record?.photoUrl,
++    record?.imageUrl,
++    record?.mediaUrl,
++    record?.proofImageUrl,
++    record?.proofImage,
++    record?.originalImageUrl,
++    Array.isArray(record?.imageUrls) ? record.imageUrls[0] : '',
++    record?.storagePath,
++    record?.imageStoragePath,
++    record?.photoStoragePath,
++    record?.proofImageRef,
++    record?.proofStoragePath
++  );
++}
++
++function isXpAwarded(record: any): boolean {
++  if (record?.xpAwarded === true) return true;
++  if (record?.pointsAwarded === true) return true;
++  if (typeof record?.pointsAwarded === 'number' && record.pointsAwarded > 0) return true;
++  if (typeof record?.awardedXP === 'number' && record.awardedXP > 0) return true;
++  if (typeof record?.awardedPoints === 'number' && record.awardedPoints > 0) return true;
++  return false;
++}
++
++function isExplicitFinalStatus(status: unknown): boolean {
++  const s = typeof status === 'string' ? status.toLowerCase().trim() : '';
++  return [
++    'approved',
++    'approved_by_admin',
++    'auto_approved',
++    'verified',
++    'rejected',
++    'denied',
++    'auto_rejected',
++    'needs_more_proof',
++    'needs-more-proof',
++    'needs_more_proof_requested',
++    'resubmit_requested',
++    'awaiting_purge',
++    'purged',
++    'archived'
++  ].includes(s);
++}
++
++function shouldShowAsPendingUnawardedProof(entry: any, linkedReview: any | null): boolean {
++  if (entry?.archived === true) return false;
++  if (isXpAwarded(entry) || isXpAwarded(linkedReview)) return false;
++
++  const entryStatusRaw = entry?.status;
++  const reviewStatusRaw = linkedReview ? getReviewQueueStatus(linkedReview) : '';
++  if (isExplicitFinalStatus(entryStatusRaw) || isExplicitFinalStatus(reviewStatusRaw)) return false;
++
++  return hasProofMedia(entry) || hasProofMedia(linkedReview);
++}
++
+ function getStatusSummary(records: any[], label: 'entry' | 'proofReview'): Record<string, number> {
+   return records.reduce((summary, record) => {
+     const rawStatus = label === 'proofReview' ? getReviewQueueStatus(record) : record?.status;
+@@ -541,12 +598,17 @@ export function subscribeToAdminPendingReviews(
+     }
+ 
+     let filteredOutCount = 0;
++    let unawardedProofRescueCount = 0;
+     const entries = rawEntries.filter(e => {
+       const linkedReview = findReviewForEntry(e, proofReviewDocs);
+       const isArchived = e.archived === true;
+       const entryStatus = normalizeEntryStatus(e.status);
+       const linkedReviewStatus = linkedReview ? normalizeEntryStatus(getReviewQueueStatus(linkedReview)) : null;
+-      const isStatusMatch = entryStatus === statusFilter || linkedReviewStatus === statusFilter;
++      const shouldRescuePending = statusFilter === 'pending_review' && shouldShowAsPendingUnawardedProof(e, linkedReview);
++      const isStatusMatch = entryStatus === statusFilter || linkedReviewStatus === statusFilter || shouldRescuePending;
++      if (shouldRescuePending && entryStatus !== statusFilter && linkedReviewStatus !== statusFilter) {
++        unawardedProofRescueCount++;
++      }
+       if (isArchived || !isStatusMatch) {
+         filteredOutCount++;
+       }
+@@ -573,6 +635,7 @@ export function subscribeToAdminPendingReviews(
+     ];
+ 
+     console.log('[AdminQueue] filtered out entry count', filteredOutCount);
++    console.log('[AdminQueue] unawarded proof rescue count', unawardedProofRescueCount);
+     logDev(`Admin queue snapshot loaded. Size: ${queueEntries.length}`);
+     callback(queueEntries);
+   }, (err) => {
+-- 
+2.37.1 (Apple Git-137.1)
+

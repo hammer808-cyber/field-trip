@@ -1,0 +1,60 @@
+From 462e5a96288c6a0802df9d48b01cf30fc76f5e0b Mon Sep 17 00:00:00 2001
+From: Zachary Hammer <hammerhome@Zacharys-Air.lan>
+Date: Mon, 15 Jun 2026 19:18:25 -0700
+Subject: [PATCH] Include linked proof reviews in admin queues
+
+---
+ src/pages/AdminProofReview.tsx    | 5 +++++
+ src/services/submissionService.ts | 6 +++---
+ 2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/pages/AdminProofReview.tsx b/src/pages/AdminProofReview.tsx
+index e73c229..aa10f87 100644
+--- a/src/pages/AdminProofReview.tsx
++++ b/src/pages/AdminProofReview.tsx
+@@ -384,6 +384,11 @@ export default function AdminProofReview() {
+     return () => clearTimeout(timer);
+   };
+ 
++  useEffect(() => {
++    setHiddenIds(new Set());
++    setSkippedIds(new Set());
++  }, [subFilter]);
++
+   useEffect(() => {
+     if (!isAdmin) return;
+ 
+diff --git a/src/services/submissionService.ts b/src/services/submissionService.ts
+index d77c121..70adbd9 100644
+--- a/src/services/submissionService.ts
++++ b/src/services/submissionService.ts
+@@ -208,7 +208,7 @@ function shouldShowAsPendingUnawardedProof(entry: any, linkedReview: any | null)
+   const reviewStatusRaw = linkedReview ? getReviewQueueStatus(linkedReview) : '';
+   if (isTerminalAwardStatus(entryStatusRaw) || isTerminalAwardStatus(reviewStatusRaw)) return false;
+ 
+-  return hasProofMedia(entry) || hasProofMedia(linkedReview);
++  return hasProofMedia(entry) || hasProofMedia(linkedReview) || !!linkedReview?.id;
+ }
+ 
+ function shouldShowReviewAsPendingUnawardedProof(review: any, linkedEntry: any | null = null): boolean {
+@@ -217,7 +217,7 @@ function shouldShowReviewAsPendingUnawardedProof(review: any, linkedEntry: any |
+   if (isXpAwarded(review) || isXpAwarded(linkedEntry)) return false;
+   if (isTerminalAwardStatus(getReviewQueueStatus(review))) return false;
+   if (linkedEntry && isTerminalAwardStatus(linkedEntry.status)) return false;
+-  return hasProofMedia(review) || hasProofMedia(linkedEntry);
++  return hasProofMedia(review) || hasProofMedia(linkedEntry) || !!review?.id;
+ }
+ 
+ function getStatusSummary(records: any[], label: 'entry' | 'proofReview'): Record<string, number> {
+@@ -643,7 +643,7 @@ export function subscribeToAdminPendingReviews(
+       const hasLinkedEntry = !!linkedEntry;
+       const reviewStatusMatches = normalizeEntryStatus(getReviewQueueStatus(review)) === statusFilter;
+       const reviewNeedsPendingRescue = statusFilter === 'pending_review' && shouldShowReviewAsPendingUnawardedProof(review, linkedEntry);
+-      return (!hasLinkedEntry && reviewStatusMatches) || reviewNeedsPendingRescue;
++      return reviewNeedsPendingRescue || (reviewStatusMatches && (!hasLinkedEntry || statusFilter !== 'approved'));
+     });
+ 
+     if (reviewBackedPendingProofs.length > 0) {
+-- 
+2.37.1 (Apple Git-137.1)
+
