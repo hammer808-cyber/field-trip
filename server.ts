@@ -12,6 +12,7 @@ import { getStorage } from 'firebase-admin/storage';
 import cron from 'node-cron';
 import fs from 'fs';
 import crypto from 'crypto';
+import rateLimit from "express-rate-limit";
 
 // Types for proof evaluation
 type MetadataStatus = 'verified' | 'missing' | 'mismatch' | 'unverified';
@@ -393,7 +394,7 @@ async function startServer() {
    * CANONICAL DATA MODEL AUDIT
    * Scans for legacy fields and inconsistencies.
    */
-  app.get("/api/admin/canonical-audit", authenticate, async (req: any, res) => {
+  app.get("/api/admin/canonical-audit", adminRateLimiter, authenticate, async (req: any, res) => { 
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
     
     // Check for admin role
@@ -456,7 +457,7 @@ async function startServer() {
    * CANONICAL MIGRATION TRIGGER
    * Batch migrates legacy points to XP.
    */
-  app.post("/api/admin/run-migration", authenticate, async (req: any, res) => {
+  app.post("/api/admin/run-migration", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
     const { uid, email } = req.user;
     let isAdminUser = (email === 'hammer808@gmail.com') || (uid === 'vX7K0XGkXRM2yPzhidv79Q59GqC2') || (uid === 'oae0GwP7mpcUX7i93AeDGd22VNu2');
@@ -525,7 +526,7 @@ async function startServer() {
     totalXP: Number(data.totalXP || data.xp || 0)
   });
 
-  app.get("/api/admin/user-lookup", authenticate, async (req: any, res) => {
+  app.get("/api/admin/user-lookup", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
     const isAdminUser = await checkIsAdmin(req.user);
     if (!isAdminUser) return res.status(403).json({ error: "ADMIN_ONLY" });
@@ -604,7 +605,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/admin/decks/:deckId/publish-cards", authenticate, async (req: any, res) => {
+  app.post("/api/admin/decks/:deckId/publish-cards", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
     const isAdminUser = await checkIsAdmin(req.user);
     if (!isAdminUser) return res.status(403).json({ error: "ADMIN_ONLY" });
@@ -668,7 +669,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/admin/archive-orphan-proof-reviews", authenticate, async (req: any, res) => {
+  app.post("/api/admin/archive-orphan-proof-reviews", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
     const isAdminUser = await checkIsAdmin(req.user);
     if (!isAdminUser) return res.status(403).json({ error: "ADMIN_ONLY" });
@@ -736,7 +737,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/admin/soft-reset-user", authenticate, async (req: any, res) => {
+  app.post("/api/admin/soft-reset-user", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
     const isAdminUser = await checkIsAdmin(req.user);
     if (!isAdminUser) return res.status(403).json({ error: "ADMIN_ONLY" });
@@ -939,7 +940,7 @@ async function startServer() {
    * Bypasses client-side storage rules by using Admin SDK.
    * This is necessary when environment-level storage rule propagation is unstable.
    */
-  app.post("/api/storage/upload", authenticate, async (req: any, res) => {
+  app.post("/api/storage/upload", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!storageAdmin) return res.status(500).json({ error: "STORAGE_ADMIN_NOT_READY" });
 
     try {
@@ -1162,7 +1163,7 @@ async function startServer() {
    * SECURE SCORING ENDPOINT
    * This handles the trusted point awarding logic formerly on the client.
    */
-  app.post("/api/game/award-points", authenticate, async (req: any, res) => {
+  app.post("/api/game/award-points", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
 
     try {
@@ -1259,7 +1260,7 @@ async function startServer() {
    * SECURE CONSUMABLES ENDPOINT
    * Handles sensitive profile decrements (rerolls, tokens)
    */
-  app.post("/api/game/use-reroll", authenticate, async (req: any, res) => {
+  app.post("/api/game/use-reroll", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
     const { uid } = req.user;
 
@@ -1290,7 +1291,7 @@ async function startServer() {
    * SECURE ONBOARDING ENDPOINT
    * Allows users to mark onboarding as complete once they've finished classification.
    */
-  app.post("/api/user/complete-onboarding", authenticate, async (req: any, res) => {
+  app.post("/api/user/complete-onboarding", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
     const { uid } = req.user;
 
@@ -1317,7 +1318,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/proof/evaluate-metadata", authenticate, async (req: any, res) => {
+  app.post("/api/proof/evaluate-metadata", adminRateLimiter, authenticate, async (req: any, res) => {
     try {
       const { metadata, challengeId, challengeWindow } = req.body;
       const { uid } = req.user;
@@ -1394,7 +1395,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/analyze-proof", authenticate, async (req: any, res) => {
+  app.post("/api/analyze-proof", adminRateLimiter, authenticate, async (req: any, res) => {
     // Helper atomic counters functions defined ahead of the try/catch blocks for universal scope availability
     const incrementUserDailyScan = async (uidStr: string, today: string) => {
       if (!dbAdmin) return 0;
@@ -1963,7 +1964,7 @@ async function startServer() {
    * Creates or updates a user profile to 'approved' status if they have a valid access code.
    * Uses Admin SDK to bypass security rules constraints for promotion.
    */
-  app.post("/api/auth/register-profile", authenticate, async (req: any, res) => {
+  app.post("/api/auth/register-profile", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
 
     const { username, accessCode } = req.body;
@@ -2418,7 +2419,7 @@ async function startServer() {
     };
   }
 
-  app.post("/api/admin/repair-user", authenticate, async (req: any, res) => {
+  app.post("/api/admin/repair-user", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
 
     const isAdminUser = await checkIsAdmin(req.user);
@@ -2442,7 +2443,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/admin/bulk-sync", authenticate, async (req: any, res) => {
+  app.post("/api/admin/bulk-sync", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
 
     const isAdminUser = await checkIsAdmin(req.user);
@@ -2657,7 +2658,7 @@ async function startServer() {
     };
   }
 
-  app.post("/api/admin/repair-stranded-starter", authenticate, async (req: any, res) => {
+  app.post("/api/admin/repair-stranded-starter", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
 
     const isAdminUser = await checkIsAdmin(req.user);
@@ -2678,7 +2679,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/admin/resetStarterDeck", authenticate, async (req: any, res) => {
+  app.post("/api/admin/resetStarterDeck", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
 
     const isAdminUser = await checkIsAdmin(req.user);
@@ -2939,7 +2940,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/admin/previewSubmissionArchive", authenticate, async (req: any, res) => {
+  app.post("/api/admin/previewSubmissionArchive", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
 
     const isAdminUser = await checkIsAdmin(req.user);
@@ -3018,7 +3019,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/admin/runSubmissionArchive", authenticate, async (req: any, res) => {
+  app.post("/api/admin/runSubmissionArchive", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
 
     const isAdminUser = await checkIsAdmin(req.user);
@@ -3269,7 +3270,7 @@ async function startServer() {
     }
   });
 
-  app.get("/api/admin/archive-history", authenticate, async (req: any, res) => {
+  app.get("/api/admin/archive-history", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
 
     const isAdminUser = await checkIsAdmin(req.user);
@@ -3300,7 +3301,7 @@ async function startServer() {
     }
   });
 
-  app.get("/api/admin/repair-diagnostics", authenticate, async (req: any, res) => {
+  app.get("/api/admin/repair-diagnostics", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
 
     const isAdminUser = await checkIsAdmin(req.user);
