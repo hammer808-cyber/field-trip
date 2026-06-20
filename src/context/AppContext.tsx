@@ -395,9 +395,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const submittedPendingChallengeIds = React.useMemo(() => {
     const pending = new Set<string>();
     
-    // Seed from UserProfile only until entry data has synced.
-    if (entries.length === 0 && profile?.submittedChallengeIds && Array.isArray(profile.submittedChallengeIds)) {
+    // Seed from UserProfile as a durable fallback while entry listeners catch up.
+    // This prevents the guided starter gate from re-forcing starter-1 after the
+    // first proof is submitted but before the entry snapshot lands locally.
+    if (profile?.submittedChallengeIds && Array.isArray(profile.submittedChallengeIds)) {
       profile.submittedChallengeIds.forEach(id => {
+        if (id) pending.add(id.toLowerCase());
+      });
+    }
+    if (profile?.submittedPendingChallengeIds && Array.isArray(profile.submittedPendingChallengeIds)) {
+      profile.submittedPendingChallengeIds.forEach(id => {
         if (id) pending.add(id.toLowerCase());
       });
     }
@@ -2135,12 +2142,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setProfile(prev => {
       if (!prev) return null;
       const submitted = prev.submittedChallengeIds || [];
+      const submittedPending = (prev as any).submittedPendingChallengeIds || [];
       const lowerId = currentTrip.id.toLowerCase();
       const updatedSubmitted = submitted.includes(lowerId) ? submitted : [...submitted, lowerId];
+      const updatedSubmittedPending = submittedPending.includes(lowerId) ? submittedPending : [...submittedPending, lowerId];
       return {
         ...prev,
         activeTrip: null,
-        submittedChallengeIds: updatedSubmitted
+        submittedChallengeIds: updatedSubmitted,
+        submittedPendingChallengeIds: updatedSubmittedPending
       };
     });
 
