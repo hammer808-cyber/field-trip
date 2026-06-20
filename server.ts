@@ -345,6 +345,14 @@ async function startServer() {
   });
 
   // Middleware for verifying Firebase ID Token and App Check Token
+  const adminRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "TOO_MANY_ADMIN_REQUESTS" },
+  });
+
   const authRateLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 120,
