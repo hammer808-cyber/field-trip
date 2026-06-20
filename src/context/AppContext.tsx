@@ -73,6 +73,7 @@ import { subscribeToActiveSignal } from '../services/fieldSignalService';
 import { FieldSignal } from '../types/signals';
 import { awardDiscoverySticker } from '../services/discoveryService';
 import { DISCOVERY_STICKERS, DiscoverySticker } from '../constants/discoveryStickers';
+import { hasEarnedSticker } from '../services/stickerService';
 import { castVote, getVotesForUser } from '../services/voteService';
 import { calculateStarterState, StarterCompletionState } from '../utils/starterHelper';
 
@@ -1579,7 +1580,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Check if already unlocked locally to prevent wasting a call
     const stickerDef = DISCOVERY_STICKERS.find(s => s.discoveryKey === discoveryKey);
     const alreadyOwns = (profile.discoveryEvents?.[discoveryKey]) || 
-                        (profile.unlockedRewards?.stickers?.includes(stickerDef?.id || 'MISSING_ID'));
+                        (profile.unlockedRewards?.stickers?.includes(stickerDef?.id || 'MISSING_ID')) ||
+                        (!!stickerDef && hasEarnedSticker(profile, stickerDef.id));
     if (alreadyOwns) return null;
 
     pendingUnlocksRef.current.add(discoveryKey);
@@ -1628,6 +1630,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       pendingUnlocksRef.current.delete(discoveryKey);
     }
   };
+
+  React.useEffect(() => {
+    if (!user || !profile) return;
+    if (onboardingCompletedCount >= 1) {
+      unlockDiscoverySticker('starter_signal_1', 'starter').catch(err => console.warn('starter_signal_1 sticker failed:', err));
+      unlockDiscoverySticker('receipt_approved', 'starter').catch(err => console.warn('receipt_approved sticker failed:', err));
+    }
+    if (onboardingCompletedCount >= 3) {
+      unlockDiscoverySticker('starter_signal_3_complete', 'starter').catch(err => console.warn('starter_signal_3_complete sticker failed:', err));
+      unlockDiscoverySticker('crew_unlocked', 'starter').catch(err => console.warn('crew_unlocked sticker failed:', err));
+      unlockDiscoverySticker('memories_unlocked', 'starter').catch(err => console.warn('memories_unlocked sticker failed:', err));
+    }
+  }, [user?.uid, profile, onboardingCompletedCount]);
 
   const updateTripProgress = async (tripId: string, progress: Partial<import('../components/ChallengeCard').EvidenceProgress>) => {
     if (!user) return;
@@ -2287,6 +2302,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       
       // Trigger weekly_vote_cast discovery
       unlockDiscoverySticker('weekly_vote_cast', 'voting').catch(e => console.warn("Discovery unlock failed:", e));
+      unlockDiscoverySticker('first_vote', 'voting').catch(e => console.warn("Discovery unlock failed:", e));
     } catch (err) {
       console.error("Vote action failed:", err);
       throw err;

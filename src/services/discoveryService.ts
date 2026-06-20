@@ -2,9 +2,20 @@ import { doc, updateDoc, arrayUnion, serverTimestamp, increment } from 'firebase
 import { db } from '../lib/firebase';
 import { DISCOVERY_STICKERS } from '../constants/discoveryStickers';
 import { UserProfile } from './userService';
+import { STICKER_DEFINITIONS, hasEarnedSticker } from './stickerService';
 
 // Phase 1 Allowed Keys
 const PHASE_1_KEYS = [
+  'camera_ready',
+  'first_field_note',
+  'starter_signal_1',
+  'starter_signal_3_complete',
+  'dex_discovered',
+  'first_vote',
+  'proof_returned',
+  'receipt_approved',
+  'crew_unlocked',
+  'memories_unlocked',
   'dex_open',
   'sticker_collection_view',
   'locked_sticker_tap',
@@ -71,7 +82,8 @@ export async function awardDiscoverySticker(
   // 2. Check if already unlocked (check both discoveryEvents map and unlockedRewards.stickers)
   const isAlreadyUnlocked = 
     (profile.discoveryEvents?.[discoveryKey]) || 
-    (profile.unlockedRewards?.stickers?.includes(sticker.id));
+    (profile.unlockedRewards?.stickers?.includes(sticker.id)) ||
+    hasEarnedSticker(profile, sticker.id);
 
   if (isAlreadyUnlocked) return null;
 
@@ -85,11 +97,28 @@ export async function awardDiscoverySticker(
       unlockedAt: new Date().toISOString(), 
       sourcePage
     };
+    const structuredSticker = STICKER_DEFINITIONS[sticker.id]
+      ? {
+          ...STICKER_DEFINITIONS[sticker.id],
+          earnedAt: historyEntry.unlockedAt,
+          source: sourcePage,
+          seen: false
+        }
+      : {
+          id: sticker.id,
+          title: sticker.name,
+          description: sticker.description,
+          trigger: discoveryKey,
+          earnedAt: historyEntry.unlockedAt,
+          source: sourcePage,
+          seen: false
+        };
 
     // Use dot notation to avoid wiping the whole unlockedRewards object
     const updates: any = {
       [`discoveryEvents.${discoveryKey}`]: true,
       'stickerUnlockHistory': arrayUnion(historyEntry),
+      'earnedStickers': arrayUnion(structuredSticker),
       updatedAt: serverTimestamp()
     };
 

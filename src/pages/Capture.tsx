@@ -34,7 +34,7 @@ import { FieldClipboardData, FieldClipboardState } from '../types/fieldClipboard
 import { LAUNCH_MISSION, LAUNCH_MISSION_ID } from '../data/specialMissions';
 
 import { resolveMissionById } from '../logic/missionResolver';
-import { normalizeEntryStatus } from '../logic/entryLogic';
+import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 
 const GESTURES = [
   "Thumbs Up",
@@ -138,10 +138,11 @@ export default function CapturePage() {
   const repairEntry = React.useMemo(() => {
     if (!entries || entries.length === 0) return null;
     if (entryIdParam) {
-      return entries.find(e => e.id === entryIdParam);
+      return entries.find(e => e.id === entryIdParam && !isArchivedEntry(e));
     }
     const lowerId = tripIdParam?.toLowerCase();
     return entries.find(e => 
+      !isArchivedEntry(e) &&
       (e.tripId?.toLowerCase() === lowerId || e.missionId?.toLowerCase() === lowerId || e.challengeId?.toLowerCase() === lowerId) && 
       normalizeEntryStatus(e.status) === 'needs_more_proof'
     );
@@ -259,8 +260,17 @@ export default function CapturePage() {
       if (stored) {
         const parsed = JSON.parse(stored);
         const timeDiff = Date.now() - new Date(parsed.completedAt).getTime();
-        if (timeDiff < 10 * 60 * 1000 && parsed.missionId === tripIdParam) {
+        const lowerId = parsed.missionId?.toLowerCase();
+        const isStillSubmittedOrApproved = !!lowerId && (
+          completedChallengeIds.has(lowerId) ||
+          submittedPendingChallengeIds.has(lowerId) ||
+          needsMoreProofChallengeIds?.has(lowerId)
+        );
+        if (timeDiff < 10 * 60 * 1000 && parsed.missionId === tripIdParam && isStillSubmittedOrApproved) {
           return parsed;
+        }
+        if (parsed.missionId === tripIdParam && !isStillSubmittedOrApproved) {
+          localStorage.removeItem('fieldtrip_last_completed_result');
         }
       }
     } catch (e) {
@@ -320,6 +330,20 @@ export default function CapturePage() {
     const isPending = submittedPendingChallengeIds.has(lowerId);
     const isNeedsMore = needsMoreProofChallengeIds?.has(lowerId) || isRepairMode;
 
+    if (!isCompleted && !isPending && !isNeedsMore) {
+      const storedResult = localStorage.getItem('fieldtrip_last_completed_result');
+      if (storedResult) {
+        try {
+          const parsed = JSON.parse(storedResult);
+          if (parsed?.missionId?.toLowerCase() === lowerId) {
+            localStorage.removeItem('fieldtrip_last_completed_result');
+          }
+        } catch {
+          localStorage.removeItem('fieldtrip_last_completed_result');
+        }
+      }
+    }
+
     // If it's already in a final/pending state and NOT specifically requested for resubmission
     if ((isCompleted || isPending) && !isNeedsMore && fcState !== 'result' && submissionStatus !== 'submitted') {
        console.log(`[Capture Guard] Mission ${lowerId} already submitted/approved. Redirecting back to Deck.`);
@@ -344,6 +368,7 @@ export default function CapturePage() {
   useEffect(() => {
     if (fcState === 'capture') {
       unlockDiscoverySticker('capture_start', 'capture');
+      unlockDiscoverySticker('camera_ready', 'capture');
     }
   }, [fcState, unlockDiscoverySticker]);
 
@@ -353,10 +378,12 @@ export default function CapturePage() {
     if (submissionStatus === 'submitted' || fcState === 'result') return;
     if (!tripIdParam || entries.length === 0) return;
 
-    const existingEntry = entries.find(e => 
-      (e.tripId === tripIdParam || e.missionId === tripIdParam) && 
-      ['pending', 'approved', 'submitted', 'under_field_check'].includes(e.status)
-    );
+    const existingEntry = entries.find(e => {
+      if (isArchivedEntry(e)) return false;
+      const entryMissionId = (e.tripId || e.missionId || e.challengeId || '').toLowerCase();
+      const status = normalizeEntryStatus(e.status);
+      return entryMissionId === tripIdParam.toLowerCase() && (status === 'pending_review' || status === 'approved');
+    });
 
     if (existingEntry) {
       console.log('[Capture] Found existing entry for missionId:', tripIdParam, 'restoring success state.');
@@ -480,7 +507,13 @@ export default function CapturePage() {
           if (stored) {
             const parsed = JSON.parse(stored);
             const timeDiff = Date.now() - new Date(parsed.completedAt).getTime();
-            if (timeDiff < 10 * 60 * 1000 && parsed.missionId === tripIdParam) {
+            const lowerId = parsed.missionId?.toLowerCase();
+            const isStillSubmittedOrApproved = !!lowerId && (
+              completedChallengeIds.has(lowerId) ||
+              submittedPendingChallengeIds.has(lowerId) ||
+              needsMoreProofChallengeIds?.has(lowerId)
+            );
+            if (timeDiff < 10 * 60 * 1000 && parsed.missionId === tripIdParam && isStillSubmittedOrApproved) {
               setCompleteRecord({
                 tripId: parsed.missionId,
                 title: parsed.missionTitle,
@@ -501,6 +534,8 @@ export default function CapturePage() {
               });
               setFcState('result');
               setSubmissionStatus('submitted');
+            } else if (parsed.missionId === tripIdParam && !isStillSubmittedOrApproved) {
+              localStorage.removeItem('fieldtrip_last_completed_result');
             }
           }
         } catch (e) {
@@ -1017,6 +1052,11 @@ export default function CapturePage() {
     
     const awardedTokenCount = isFirstTime ? 1 : 0;
 
+    unlockDiscoverySticker('camera_ready', 'capture').catch(e => console.warn('Sticker award failed:', e));
+    if ((fcData.note || '').trim().length > 0) {
+      unlockDiscoverySticker('first_field_note', 'capture').catch(e => console.warn('Sticker award failed:', e));
+    }
+
     // 1. OPTIMISTIC UPDATE IMMEDIATELY
     registerPendingSubmissionLocally(awardedXP, currentTrip.id, {
       title: currentTrip.title,
@@ -1141,6 +1181,9 @@ export default function CapturePage() {
         console.log(`[ProofSubmit] AI scan result or fallback: ${result.review?.status || 'Manual Review Fallback'}`);
         
         if (!bypassReview && result.review && (result.review.status === 'needs_more_proof' || result.review.status === 'rejected')) {
+          if (result.review.status === 'needs_more_proof') {
+            unlockDiscoverySticker('proof_returned', 'capture').catch(e => console.warn('Sticker award failed:', e));
+          }
           setFcState('needs_more_proof');
           setIsUploading(false);
           submitLockRef.current = false;

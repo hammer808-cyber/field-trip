@@ -1,21 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Layers, History, Camera, Trophy, Settings, Users, Home, Target, LayoutGrid, Package, Lock } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { Trophy, Users, Home, Target, LayoutGrid, Lock } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
 
 export function BottomNav() {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { skin, frankieMode, fc } = useTheme();
-  const { mustCompleteStarterMission, isAdmin, starterState, fieldGuideAssistEnabled } = useApp();
+  const { skin } = useTheme();
+  const { isAdmin, completedChallengeIds } = useApp();
 
   const [isNavActive, setIsNavActive] = useState(false);
-  const [lockedFeatureModal, setLockedFeatureModal] = useState<{
-    isOpen: boolean;
-    feature: 'crew' | 'leaderboard';
-  } | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const triggerTimedActive = () => {
@@ -50,8 +45,8 @@ export function BottomNav() {
   const navItems = [
     { icon: Home, label: 'BASECAMP', path: '/basecamp' },
     { icon: Target, label: 'MISSIONS', path: '/deck' },
-    { icon: LayoutGrid, label: 'MEMORIES', path: '/collection', special: true },
-    { icon: Users, label: 'CREW', path: '/voting' },
+    { icon: LayoutGrid, label: 'MEMORIES', path: '/collection?tab=crew_memories', special: true },
+    { icon: Users, label: 'CREW', path: '/crew' },
     { icon: Trophy, label: 'STANDINGS', path: '/big-board' }
   ];
 
@@ -80,12 +75,13 @@ export function BottomNav() {
         </>
       )}
       {navItems.map((item) => {
-        const isActive = location.pathname === item.path;
+        const itemPathname = item.path.split('?')[0];
+        const isActive = location.pathname === itemPathname;
         let dataOnboarding = undefined;
-        if (item.path === '/deck') dataOnboarding = 'deck-nav';
-        else if (item.path === '/big-board') dataOnboarding = 'big-board-nav';
-        else if (item.path === '/profile') dataOnboarding = 'profile-nav';
-        else if (item.path === '/collection') dataOnboarding = 'dex-nav';
+        if (itemPathname === '/deck') dataOnboarding = 'deck-nav';
+        else if (itemPathname === '/big-board') dataOnboarding = 'big-board-nav';
+        else if (itemPathname === '/profile') dataOnboarding = 'profile-nav';
+        else if (itemPathname === '/collection') dataOnboarding = 'dex-nav';
         
         if (item.special) {
           return (
@@ -121,22 +117,14 @@ export function BottomNav() {
           );
         }
 
-        const isLockedTab = (item.path === '/voting' || item.path === '/big-board') && !starterState?.starterComplete && !isAdmin;
-        const handleClick = (e: React.MouseEvent) => {
-          if (isLockedTab) {
-            e.preventDefault();
-            setLockedFeatureModal({
-              isOpen: true,
-              feature: item.path === '/voting' ? 'crew' : 'leaderboard'
-            });
-          }
-        };
+        const approvedStarterCount = ['starter-1', 'starter-2', 'starter-3'].filter(id => completedChallengeIds?.has(id)).length;
+        const isStarterComplete = approvedStarterCount >= 3;
+        const isLockedTab = (itemPathname === '/crew' || itemPathname === '/voting' || itemPathname === '/big-board') && !isStarterComplete && !isAdmin;
 
         return (
           <Link
             key={item.path}
-            to={isLockedTab ? '#' : item.path}
-            onClick={handleClick}
+            to={item.path}
             data-onboarding={dataOnboarding}
             className={cn(
               "flex flex-col items-center justify-center flex-1 h-full py-1 relative select-none",
@@ -190,77 +178,6 @@ export function BottomNav() {
           </Link>
         );
       })}
-
-      {/* Locked Feature Modal */}
-      {lockedFeatureModal && lockedFeatureModal.isOpen && (
-        <div className="fixed inset-0 z-200 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white border-[8px] border-on-surface shadow-[14px_14px_0px_rgba(0,0,0,1)] rounded-3xl max-w-sm w-full p-6 text-on-surface relative overflow-hidden">
-            {/* Retro header line */}
-            <div className="absolute top-0 inset-x-0 h-4 bg-brand-orange" />
-            
-            <div className="flex flex-col items-center text-center mt-2">
-              <div className="w-16 h-16 rounded-full border-4 border-on-surface flex items-center justify-center bg-brand-orange mb-4 shadow-[4px_4px_0px_rgba(0,0,0,1)]">
-                <Lock className="w-8 h-8 text-white stroke-[3]" />
-              </div>
-              
-              <h3 className="font-display font-black uppercase text-xl italic tracking-tight mb-1 text-brand-orange">
-                Access Restricted
-              </h3>
-              <p className="font-mono text-[9.5px] uppercase font-bold tracking-wider text-on-surface/50 mb-4">
-                BUREAU PROTOCOL G-04
-              </p>
-
-              <div className="bg-paper border-2 border-on-surface rounded-xl p-4 font-mono text-xs text-left mb-6 shadow-[3px_3px_0px_rgba(0,0,0,1)]">
-                {lockedFeatureModal.feature === 'crew' ? (
-                  <p className="leading-relaxed">
-                    "Crew dispatch and real-time feed channels are restricted to certified scouts. Log <span className="font-bold text-brand-orange">3 Starter Pack approvals</span> to gain authorization."
-                  </p>
-                ) : (
-                  <p className="leading-relaxed">
-                    "Scout Standings are protected! Validate your profile across <span className="font-bold text-brand-orange">3 unique Starter Pack missions</span> before competing on the leaderboard."
-                  </p>
-                )}
-              </div>
-
-              {/* Progress Tracker */}
-              <div className="w-full bg-[#FAFAFA] border-2 border-on-surface rounded-lg p-3 mb-6 flex flex-col items-center">
-                <span className="font-display font-black uppercase text-[10px] tracking-widest text-on-surface/60 mb-1.5">
-                  Starter Deck Progress
-                </span>
-                <div className="w-full bg-white border-2 border-on-surface h-5 rounded-full overflow-hidden relative shadow-[2px_2px_0px_rgba(0,0,0,1)]">
-                  <div 
-                    className="bg-brand-lime h-full transition-all duration-500 ease-out border-r-2 border-on-surface"
-                    style={{ width: `${Math.min(100, Math.max(0, ((starterState?.starterApprovedCount || 0) / 3) * 100))}%` }}
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center font-mono text-[10px] font-black uppercase">
-                    {(starterState?.starterApprovedCount || 0)} / 3 APPROVED
-                  </div>
-                </div>
-              </div>
-
-              {/* CTAs */}
-              <div className="flex flex-col gap-2 w-full">
-                <button 
-                  onClick={() => {
-                    setLockedFeatureModal(null);
-                    navigate('/deck');
-                  }}
-                  className="bg-brand-lime hover:bg-brand-lime/90 font-display font-black uppercase italic tracking-wider py-3 px-4 border-4 border-on-surface rounded-xl shadow-[4px_4px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-1 active:translate-y-1 transition-all text-on-surface"
-                >
-                  GO TO MISSIONS
-                </button>
-                <button 
-                  onClick={() => setLockedFeatureModal(null)}
-                  className="font-mono text-[10px] uppercase font-bold text-on-surface/60 hover:text-on-surface/90 underline cursor-pointer"
-                >
-                  DISMISS
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
     </nav>
   );
 }

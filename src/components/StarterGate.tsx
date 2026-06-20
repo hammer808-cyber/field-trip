@@ -8,10 +8,12 @@ interface StarterGateProps {
   children: React.ReactNode;
 }
 
-export function StarterGate({ requiredFeature, children }: StarterGateProps) {
-  const { starterState, isAdmin, fieldGuideAssistEnabled } = useApp();
+export function StarterGate({ children }: StarterGateProps) {
+  const { isAdmin, completedChallengeIds } = useApp();
   const navigate = useNavigate();
-  const isStarterComplete = starterState?.starterComplete ?? false;
+  const starterIds = ['starter-1', 'starter-2', 'starter-3'];
+  const approvedStarterCount = starterIds.filter(id => completedChallengeIds?.has(id)).length;
+  const isStarterComplete = approvedStarterCount >= 3;
 
   // If the user has completed the starter deck, or they have admin bypass, show the content.
   if (isStarterComplete || isAdmin) {
@@ -46,11 +48,7 @@ export function StarterGate({ requiredFeature, children }: StarterGateProps) {
           {/* Status Message */}
           <div className="bg-brand-cyan/15 border-2 border-on-surface rounded-2xl p-6 mb-6 w-full text-left shadow-[4px_4px_0px_rgba(0,0,0,1)]">
               <p className="font-serif italic text-sm leading-relaxed text-on-surface/90">
-                {requiredFeature === 'crew' || requiredFeature === 'voting' ? (
-                  `Access to real-time dispatch and voting ballots is restricted to certified scouts. Log at least 3 unique Starter Signal approvals to gain clearance.`
-                ) : (
-                  `Scout Standings and collective leaderboards are protected! Validate your field kit profile across 3 unique Starter missions to authorize access.`
-                )}
+                Complete all 3 Starter Signals to unlock this.
               </p>
           </div>
 
@@ -63,10 +61,10 @@ export function StarterGate({ requiredFeature, children }: StarterGateProps) {
             <div className="w-full bg-white border-2 border-on-surface h-6 rounded-full overflow-hidden relative shadow-[3px_3px_0px_rgba(0,0,0,1)]">
               <div 
                 className="bg-brand-lime h-full transition-all duration-500 ease-out border-r-2 border-on-surface"
-                style={{ width: `${Math.min(100, Math.max(0, ((starterState?.starterApprovedCount || 0) / 3) * 100))}%` }}
+                    style={{ width: `${Math.min(100, Math.max(0, (approvedStarterCount / 3) * 100))}%` }}
               />
               <div className="absolute inset-0 flex items-center justify-center font-mono text-[10px] font-black uppercase">
-                {(starterState?.starterApprovedCount || 0)} / 3 UNIQUE APPROVED STARTER MISSIONS
+                {approvedStarterCount} / 3 UNIQUE APPROVED STARTER MISSIONS
               </div>
             </div>
           </div>

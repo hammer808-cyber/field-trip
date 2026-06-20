@@ -179,6 +179,16 @@ export const STICKER_REGISTRY: StickerMetadata[] = [
     label: 'URBAN RECON'
   },
   // Discovery Fallbacks
+  { id: 'camera_ready', src: '', alt: 'Camera Ready', category: 'utility', theme: 'classic', recommendedPlacement: 'center', emoji: '📸', color: 'bg-brand-lime', textColor: 'text-black', label: 'CAMERA READY' },
+  { id: 'first_field_note', src: '', alt: 'First Field Note', category: 'mission', theme: 'classic', recommendedPlacement: 'center', emoji: '📝', color: 'bg-brand-orange', textColor: 'text-white', label: 'FIRST NOTE' },
+  { id: 'starter_signal_1', src: '', alt: 'Starter Signal 1', category: 'deck', theme: 'classic', recommendedPlacement: 'center', emoji: '⚡', color: 'bg-brand-lime', textColor: 'text-black', label: 'SIGNAL 1' },
+  { id: 'starter_signal_3_complete', src: '', alt: 'Starter Signals Complete', category: 'deck', theme: 'classic', recommendedPlacement: 'center', emoji: '✅', color: 'bg-brand-cyan', textColor: 'text-black', label: '3/3 STARTER' },
+  { id: 'dex_discovered', src: '', alt: 'Dex Discovered', category: 'utility', theme: 'classic', recommendedPlacement: 'center', emoji: '📒', color: 'bg-brand-cyan', textColor: 'text-black', label: 'DEX FOUND' },
+  { id: 'first_vote', src: '', alt: 'First Vote', category: 'weekly', theme: 'classic', recommendedPlacement: 'center', emoji: '🗳️', color: 'bg-brand-magenta', textColor: 'text-white', label: 'FIRST VOTE' },
+  { id: 'proof_returned', src: '', alt: 'Proof Returned', category: 'status', theme: 'classic', recommendedPlacement: 'center', emoji: '↩️', color: 'bg-brand-orange', textColor: 'text-white', label: 'RETURNED' },
+  { id: 'receipt_approved', src: '', alt: 'Receipt Approved', category: 'status', theme: 'classic', recommendedPlacement: 'center', emoji: '🏆', color: 'bg-brand-lime', textColor: 'text-black', label: 'APPROVED' },
+  { id: 'crew_unlocked', src: '', alt: 'Crew Unlocked', category: 'utility', theme: 'classic', recommendedPlacement: 'center', emoji: '👥', color: 'bg-brand-purple', textColor: 'text-white', label: 'CREW OPEN' },
+  { id: 'memories_unlocked', src: '', alt: 'Memories Unlocked', category: 'utility', theme: 'classic', recommendedPlacement: 'center', emoji: '🗂️', color: 'bg-brand-cyan', textColor: 'text-black', label: 'MEMORIES' },
   { id: 'basecamp-found', src: '', alt: 'Basecamp', category: 'utility', theme: 'classic', recommendedPlacement: 'center', emoji: '🏠', color: 'bg-brand-cyan', textColor: 'text-black', label: 'BASECAMP' },
   { id: 'rival-spotted', src: '', alt: 'Radar', category: 'utility', theme: 'classic', recommendedPlacement: 'center', emoji: '👁️', color: 'bg-brand-magenta', textColor: 'text-white', label: 'RADAR' },
   { id: 'signal-reader', src: '', alt: 'Catalyst', category: 'weekly', theme: 'classic', recommendedPlacement: 'center', emoji: '📖', color: 'bg-brand-purple', textColor: 'text-white', label: 'CATALYST' },
