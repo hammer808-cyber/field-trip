@@ -104,5 +104,21 @@ export function getProofImageUrl(item: any): string | null {
  */
 export function isPermanentStorageUrl(url: string | null): boolean {
   if (!url) return false;
-  return url.startsWith('https://firebasestorage.googleapis.com') || url.startsWith('http://localhost:9199');
+
+  try {
+    const parsedUrl = new URL(url);
+
+    const isFirebaseStorageHost =
+      parsedUrl.protocol === 'https:' &&
+      parsedUrl.hostname === 'firebasestorage.googleapis.com';
+
+    const isLocalEmulatorHost =
+      parsedUrl.protocol === 'http:' &&
+      parsedUrl.hostname === 'localhost' &&
+      parsedUrl.port === '9199';
+
+    return isFirebaseStorageHost || isLocalEmulatorHost;
+  } catch {
+    return false;
+  }
 }
