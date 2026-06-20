@@ -389,6 +389,82 @@ export async function submitTripEntry(
 
     await updateDoc(doc(db, 'entries', entryId), entryUpdate);
 
+    // Keep the admin review queue in sync with the canonical entry.
+    // The live capture path writes entries directly, so it must also create
+    // the linked proofReviews document used by diagnostics and admin tools.
+    const reviewDocId = `review_${entryId}`;
+    const reviewRef = doc(db, 'proofReviews', reviewDocId);
+    const reviewSnap = await getDoc(reviewRef);
+    const writableReviewRef = reviewSnap.exists()
+      ? doc(db, 'proofReviews', `review_${entryId}_${timestamp}`)
+      : reviewRef;
+
+    await setDoc(writableReviewRef, {
+      id: writableReviewRef.id,
+      reviewId: writableReviewRef.id,
+      entryId,
+      submissionId: entryId,
+      userId,
+      uid: userId,
+      displayName: userName || userData?.name || 'Agent',
+      userName: userName || userData?.name || 'Agent',
+      missionId: trip.id,
+      challengeId: trip.id,
+      tripId: trip.id,
+      missionTitle: trip.title,
+      challengeTitle: trip.title,
+      tripTitle: trip.title,
+      deckId: finalEntryData.deckId,
+      seasonId,
+      status: 'pending_review',
+      reviewStatus: 'pending_review',
+      photoUrl: imageUrl,
+      imageUrl,
+      proofImage: imageUrl,
+      storagePath: imagePath,
+      imageStoragePath: imagePath,
+      photoStoragePath: imagePath,
+      fieldNote: entryData.fieldNote || '',
+      note: entryData.fieldNote || '',
+      aiRecommendation: review.status || 'pending_review',
+      aiAnalysisStatus: 'completed',
+      confidenceScore: review.confidenceScore ?? 0,
+      reviewNotes: review.reviewNotes || '',
+      missingRequirements: review.missingRequirements || [],
+      needsManualReview: true,
+      xpAwarded: false,
+      createdAt: serverTimestamp(),
+      submittedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      metadata: {
+        uploadSource: entryData.uploadSource || null,
+        metadataStatus: entryData.metadataStatus || null,
+        photoTakenAt: entryData.photoTakenAt || null,
+        fileLastModifiedAt: entryData.fileLastModifiedAt || null,
+        captureTrustLevel: entryData.captureTrustLevel || null,
+        filterUsed: entryData.filterUsed || null,
+        filterIntensity: entryData.filterIntensity ?? null,
+        latitude: entryData.latitude ?? null,
+        longitude: entryData.longitude ?? null,
+        cameraMake: (review as any).cameraMake || null,
+        cameraModel: (review as any).cameraModel || null,
+        editingSoftware: (review as any).editingSoftware || null,
+      },
+      verification: {
+        proofTrustScore: (review as any).proofTrustScore ?? 70,
+        aiRiskScore: (review as any).aiRiskScore ?? 20,
+        riskLevel: (review as any).riskLevel || 'low',
+        riskReasons: (review as any).riskReasons || [],
+        duplicateWarning: (review as any).duplicateWarning || null,
+        duplicateReusedDesc: (review as any).duplicateReusedDesc || null,
+        receiptChallengeResult: (review as any).receiptChallengeResult || 'unverified',
+        imageHash: (review as any).imageHash || 'no-image',
+        perceptualHash: (review as any).perceptualHash || '',
+        missionMatchScore: (review as any).missionMatchScore || 100,
+      },
+      version: 'gameService.reviewQueue.v1'
+    });
+
     return { 
       entryId, 
       status: 'pending_review', 
