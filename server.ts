@@ -345,6 +345,14 @@ async function startServer() {
   });
 
   // Middleware for verifying Firebase ID Token and App Check Token
+  const adminRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "TOO_MANY_ADMIN_REQUESTS" },
+  });
+
   const authRateLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 120,
@@ -465,7 +473,7 @@ async function startServer() {
    * CANONICAL MIGRATION TRIGGER
    * Batch migrates legacy points to XP.
    */
-  app.post("/api/admin/run-migration", adminRateLimiter, authenticate, async (req: any, res) => {
+  app.post("/api/admin/run-migration", adminRateLimiter, authRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
     const { uid, email } = req.user;
     let isAdminUser = (email === 'hammer808@gmail.com') || (uid === 'vX7K0XGkXRM2yPzhidv79Q59GqC2') || (uid === 'oae0GwP7mpcUX7i93AeDGd22VNu2');
