@@ -81,7 +81,9 @@ export function subscribeToUserMissionCards(uid: string, callback: (cards: Drawn
   const q = query(cardsRef, orderBy('drawnAt', 'desc'));
 
   return onSnapshot(q, (snapshot) => {
-    const cards = snapshot.docs.map(doc => ({ ...doc.data() } as DrawnMissionCard));
+    const cards = snapshot.docs
+      .map(doc => ({ ...doc.data() } as DrawnMissionCard))
+      .filter(card => (card as any).archived !== true && (card as any).excludedFromProgress !== true);
     callback(cards);
   }, (error) => {
     logFirestoreError(error, OperationType.LIST, `${USERS_COLLECTION}/${uid}/${MISSION_CARDS_SUBCOLLECTION}`);

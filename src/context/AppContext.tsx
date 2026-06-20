@@ -692,7 +692,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Tribunal access gate
   const isTribunalUnlocked = (isOnboardingComplete || overrides.forceUnlocked);
 
-  const isCrewUnlocked = (isOnboardingComplete || profile?.onboardingCompleted || profile?.starterDeckComplete || overrides.forceUnlocked) && isFeatureEnabled('crewDispatchEnabled');
+  const isCrewUnlocked = (isOnboardingComplete || overrides.forceUnlocked) && isFeatureEnabled('crewDispatchEnabled');
   const crewUnlocked = isCrewUnlocked; // Backward compat for some views
   
   const isFieldCheckUnlocked = (checkFieldCheckMode(gameState) || overrides.forceUnlocked) && isFeatureEnabled('rivalMomentsEnabled') && isTribunalUnlocked;
