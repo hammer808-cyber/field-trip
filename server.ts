@@ -345,6 +345,14 @@ async function startServer() {
   });
 
   // Middleware for verifying Firebase ID Token and App Check Token
+  const authRateLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 120,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "TOO_MANY_AUTH_REQUESTS" },
+  });
+
   const authenticate = async (req: any, res: any, next: any) => {
     const authHeader = req.headers.authorization;
     const appCheckToken = req.headers['x-firebase-appcheck'];
@@ -394,7 +402,7 @@ async function startServer() {
    * CANONICAL DATA MODEL AUDIT
    * Scans for legacy fields and inconsistencies.
    */
-  app.get("/api/admin/canonical-audit", adminRateLimiter, authenticate, async (req: any, res) => { 
+  app.get("/api/admin/canonical-audit", adminRateLimiter, authRateLimiter, authenticate, async (req: any, res) => { 
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
     
     // Check for admin role
