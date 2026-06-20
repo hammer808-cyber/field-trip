@@ -814,15 +814,22 @@ async function startServer() {
 
       for (const colName of archiveCollections) {
         const colRef = dbAdmin.collection(colName);
-        const q = colRef.where('userId', '==', userId);
-        const snapshot = await q.get();
+        const snapshots = await Promise.all([
+          colRef.where('userId', '==', userId).get(),
+          colRef.where('uid', '==', userId).get()
+        ]);
+        const docsByPath = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
+        snapshots.forEach(snapshot => {
+          snapshot.docs.forEach(doc => docsByPath.set(doc.ref.path, doc));
+        });
+        const docs = Array.from(docsByPath.values());
         
-        report.archivedCounts[colName] = snapshot.size;
+        report.archivedCounts[colName] = docs.length;
 
-        if (!snapshot.empty) {
+        if (docs.length > 0) {
           const chunks = [];
-          for (let i = 0; i < snapshot.docs.length; i += 500) {
-            chunks.push(snapshot.docs.slice(i, i + 500));
+          for (let i = 0; i < docs.length; i += 500) {
+            chunks.push(docs.slice(i, i + 500));
           }
 
           for (const chunk of chunks) {
@@ -832,11 +839,27 @@ async function startServer() {
                 archived: true,
                 archivedAt: FieldValue.serverTimestamp(),
                 archiveReason: "single_user_soft_reset",
-                excludedFromProgress: true
+                excludedFromProgress: true,
+                countsTowardLiveStats: false,
+                countsTowardStarter: false
               });
             });
             await batch.commit();
           }
+        }
+      }
+
+      const drawnCardsSnap = await userRef.collection('drawnMissionCards').get();
+      report.archivedCounts.drawnMissionCards = drawnCardsSnap.size;
+      if (!drawnCardsSnap.empty) {
+        const chunks = [];
+        for (let i = 0; i < drawnCardsSnap.docs.length; i += 500) {
+          chunks.push(drawnCardsSnap.docs.slice(i, i + 500));
+        }
+        for (const chunk of chunks) {
+          const batch = dbAdmin.batch();
+          chunk.forEach(doc => batch.delete(doc.ref));
+          await batch.commit();
         }
       }
 
@@ -849,25 +872,51 @@ async function startServer() {
         weeklyXP: 0,
         approvedMissionCount: 0,
         starterDeckComplete: false,
-        onboardingComplete: true,
-        onboardingCompleted: true,
+        starterCompleted: false,
+        onboardingComplete: false,
+        onboardingCompleted: false,
         starterApprovedCount: 0,
         starterPendingCount: 0,
+        starterProgress: 0,
+        seasonalProgress: 0,
         completedMissionIds: [],
+        completedMissions: [],
         completedChallengeIds: [],
         approvedCompletedChallengeIds: [],
         submittedChallengeIds: [],
         submittedPendingChallengeIds: [],
         rejectedChallengeIds: [],
         needsMoreProofChallengeIds: [],
+        drawnChallengeIds: [],
+        drawnMissionIds: [],
+        drawnMissionCards: [],
+        drawHistory: [],
         activeMissionId: null,
         activeTripId: null,
+        activeTrip: null,
+        activeDraw: null,
+        activeDrawId: null,
+        activeChallengeId: null,
+        activeChallenge: null,
+        activeMissionCard: null,
+        currentMissionId: null,
+        currentChallengeId: null,
+        drawnCard: null,
         activeDeckId: "starter-signals",
         currentDeckId: "starter-signals",
         selectedDeckId: "starter-signals",
+        activeDeckPackId: "starter-signals",
+        activePlayableDeckId: "starter-signals",
+        deckProgress: {},
+        deckStats: {},
+        deckState: {},
+        missionCooldowns: {},
+        tripProgress: {},
         hasUnlockedHeatwave: false,
         hasUnlockedSeasonal: false,
         lastDrawnMissionId: null,
+        lastDrawnAt: FieldValue.delete(),
+        lastSubmissionAt: FieldValue.delete(),
         soloTripsCount: 0,
         crewTripsCount: 0,
         boldTripsCount: 0,
@@ -889,6 +938,15 @@ async function startServer() {
         "starterState.starterApprovedCount": 0,
         "starterState.starterComplete": false,
         "starterState.starterSignalsCompleted": [],
+        "starterState.pendingStarterCount": 0,
+        "starterState.needsMoreProofStarterCount": 0,
+        "starterState.retryStarterCount": 0,
+        "starterState.submittedMissionIds": [],
+        "starterState.needsMoreProofMissionId": null,
+        "starterState.needsMoreProofEntryId": null,
+        "starterState.rejectedMissionId": null,
+        "starterState.rejectedEntryId": null,
+        "starterState.status": "NOT_STARTED",
         "stats.totalApproved": 0,
         "stats.approvedMissionCount": 0
       };
