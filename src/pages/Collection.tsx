@@ -14,10 +14,9 @@ import {
   ArrowRight, 
   LayoutGrid, 
   Box,
-  Heart,
-  Calendar
+  Heart
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { StickerDecal } from '../components/StickerDecals';
 import { Card, FieldBadge } from '../components/UI';
@@ -26,31 +25,31 @@ import { getDeckPackById, getDefaultDeckPack, getActiveDeckPacks } from '../data
 import { FieldPageHero } from '../components/FieldPageHero';
 import { MissionCard } from '../components/ChallengeCard';
 import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
+import { markEarnedStickersSeen } from '../services/stickerService';
 
 type CollectionTab = 'stickers' | 'badges' | 'skins' | 'decks' | 'missions' | 'crew_memories';
 
 export default function CollectionPage() {
   const { 
     profile, 
+    user,
     trips,
-    onboardingCompletedCount, 
-    memories, 
-    activeTrip, 
     completedChallengeIds, 
     unlockDiscoverySticker,
     isHeatwaveDeckUnlocked,
-    isOnboardingComplete,
     isAdmin,
     currentDate,
-    drawnMissionCards,
-    updateMissionCardStatus,
-    setActiveMissionCard
+    drawnMissionCards
   } = useApp();
   const { skin: currentSkin, allSkins, setSkin } = useTheme();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<CollectionTab>('stickers');
+  const [searchParams] = useSearchParams();
+  const initialTab = (searchParams.get('tab') as CollectionTab) || 'stickers';
+  const [activeTab, setActiveTab] = useState<CollectionTab>(initialTab);
 
   const activePacks = getActiveDeckPacks();
+  const approvedStarterCount = ['starter-1', 'starter-2', 'starter-3'].filter(id => completedChallengeIds?.has(id)).length;
+  const isStarterComplete = approvedStarterCount >= 3;
 
   const getPackLockState = (packId: string) => {
     const pack = activePacks.find(p => p.packId === packId);
@@ -75,7 +74,7 @@ export default function CollectionPage() {
       const activeByDate = new Date(currentDate) >= new Date('2026-06-06T00:00:00Z');
       
       if (!isHeatwaveDeckUnlocked && !isAdmin) {
-        if (!isOnboardingComplete) return { locked: true, reason: "Complete Starter Pack (3/3 missions) to unlock" };
+        if (!isStarterComplete) return { locked: true, reason: "Complete Starter Pack (3/3 missions) to unlock" };
         if (!activeByDate) return { locked: true, reason: "Opens Saturday, June 6th" };
         return { locked: true, reason: "Complete Starter Pack (3/3 missions) to unlock" };
       }
@@ -87,12 +86,21 @@ export default function CollectionPage() {
 
   useEffect(() => {
     unlockDiscoverySticker('dex_open', 'dex');
+    unlockDiscoverySticker('dex_discovered', 'dex');
   }, []);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab') as CollectionTab | null;
+    if (tab) setActiveTab(tab);
+  }, [searchParams]);
 
   const handleTabChange = (id: CollectionTab) => {
     setActiveTab(id);
     if (id === 'stickers') {
       unlockDiscoverySticker('sticker_collection_view', 'dex');
+      if (user?.uid) {
+        markEarnedStickersSeen(user.uid, profile).catch(err => console.warn('[Collection] mark stickers seen failed:', err));
+      }
     }
   };
 
@@ -100,6 +108,8 @@ export default function CollectionPage() {
   const badges = getRewardsByType('badge');
 
   const unlockedStickers = new Set(profile?.unlockedRewards?.stickers || []);
+  const earnedStickerRecords = ((profile as any)?.earnedStickers || []) as Array<{ id: string; seen?: boolean }>;
+  const unseenStickerIds = new Set(earnedStickerRecords.filter(record => record.seen === false).map(record => record.id));
   const unlockedBadges = new Set(profile?.unlockedRewards?.badges || []);
   const unlockedSkinsList = profile?.unlockedRewards?.skins || ['classic'];
   const unlockedSkins = new Set(unlockedSkinsList);
@@ -170,7 +180,23 @@ export default function CollectionPage() {
 
       {!isUnlocked && <Lock className="absolute top-4 right-4 w-3.5 h-3.5 text-on-surface/20" />}
       {isUnlocked && <div className="absolute top-2 left-2 w-1.5 h-1.5 rounded-full bg-brand-cyan/40" />}
+      {isUnlocked && unseenStickerIds.has(reward.id) && (
+        <div className="absolute top-2 right-2 bg-brand-orange text-white border border-on-surface px-1.5 py-0.5 text-[7px] font-black uppercase">
+          New
+        </div>
+      )}
     </motion.div>
+  );
+
+  const LockedStarterPanel = ({ label = 'this' }: { label?: string }) => (
+    <div className="py-14 px-4 text-center space-y-5 max-w-xl mx-auto">
+      <div className="w-16 h-16 bg-brand-magenta text-white border-4 border-on-surface shadow-[6px_6px_0px_black] rounded-2xl flex items-center justify-center mx-auto">
+        <Lock className="w-8 h-8" />
+      </div>
+      <h2 className="font-display text-3xl font-black uppercase italic tracking-tight text-on-surface">Access Restricted</h2>
+      <p className="font-serif italic text-on-surface/70">Complete all 3 Starter Signals to unlock {label}.</p>
+      <button onClick={() => navigate('/deck')} className="bureau-btn bg-brand-lime text-on-surface text-xs">Go to Starter Signals</button>
+    </div>
   );
 
   return (
@@ -288,7 +314,7 @@ export default function CollectionPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
             >
-              <CrewMemoriesFeed />
+              {isStarterComplete || isAdmin ? <CrewMemoriesFeed /> : <LockedStarterPanel label="Crew Memories" />}
             </motion.div>
           )}
 
@@ -298,11 +324,31 @@ export default function CollectionPage() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
-              className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4"
+              className="space-y-10"
             >
-              {stickers.map(r => (
-                <RewardItem key={r.id} reward={r} isUnlocked={unlockedStickers.has(r.id)} />
-              ))}
+              <section className="space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="font-display text-2xl font-black uppercase italic tracking-tight text-on-surface">Earned Stickers</h2>
+                  <span className="font-mono text-[10px] font-black uppercase text-on-surface/40">{stickers.filter(r => unlockedStickers.has(r.id)).length} earned</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
+                  {stickers.filter(r => unlockedStickers.has(r.id)).map(r => (
+                    <RewardItem key={r.id} reward={r} isUnlocked />
+                  ))}
+                  {stickers.filter(r => unlockedStickers.has(r.id)).length === 0 && (
+                    <div className="col-span-full py-12 text-center text-on-surface/40 font-serif italic">"No stickers earned yet."</div>
+                  )}
+                </div>
+              </section>
+
+              <section className="space-y-4">
+                <h2 className="font-display text-2xl font-black uppercase italic tracking-tight text-on-surface/45">Locked Stickers</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
+                  {stickers.filter(r => !unlockedStickers.has(r.id)).map(r => (
+                    <RewardItem key={r.id} reward={r} isUnlocked={false} />
+                  ))}
+                </div>
+              </section>
             </motion.div>
           )}
 

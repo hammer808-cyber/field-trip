@@ -141,6 +141,16 @@ export interface UserProfile {
     lastSeenApprovedCount?: number;
   };
   completedDiscoveryGroups?: string[];
+  earnedStickers?: Array<{
+    id: string;
+    title: string;
+    description: string;
+    trigger: string;
+    earnedAt: any;
+    source: string;
+    seen: boolean;
+    metadata?: Record<string, any>;
+  }>;
   stickerUnlockHistory?: Array<{
     stickerId: string;
     discoveryKey: string;

@@ -74,7 +74,7 @@ const MajorReveal: React.FC<MajorRevealProps> = ({ reward, onDismiss, skinConfig
 
   return (
     <div className={cn(
-      "fixed inset-0 z-[120] flex items-center justify-center p-6 bg-black/90",
+      "fixed inset-0 z-[120] flex items-center justify-center p-4 sm:p-6 bg-black/90",
       !isReduced && "backdrop-blur-xl"
     )}>
       <motion.div
@@ -82,12 +82,13 @@ const MajorReveal: React.FC<MajorRevealProps> = ({ reward, onDismiss, skinConfig
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={isReduced ? { opacity: 0 } : { scale: 0.8, opacity: 0, y: -20 }}
         className={cn(
-          "relative w-full max-w-sm p-8 text-center overflow-hidden",
+          "relative w-full max-w-sm p-6 sm:p-8 text-center overflow-y-auto overscroll-contain pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)]",
           isBaja ? "bg-white border-8 border-baja-pink rounded-[4rem] shadow-[20px_20px_0px_#40e0d0]" :
           isDiamond ? "bg-white/10 border border-white/20 rounded-none backdrop-blur-2xl" :
           isHeat ? "bg-white border-8 border-heat-pink rounded-[4rem] shadow-[20px_20px_0px_rgba(255,140,0,0.4)]" :
           "bg-paper border-4 border-on-surface shadow-[24px_24px_0px_black]"
         )}
+        style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 32px)' }}
       >
         {/* Background Visual Flair (Disabled on Reduced to preserve frame budgets) */}
         {!isReduced && (
@@ -194,7 +195,8 @@ const MajorReveal: React.FC<MajorRevealProps> = ({ reward, onDismiss, skinConfig
 
         <button 
           onClick={onDismiss}
-          className="absolute top-4 right-4 opacity-40 hover:opacity-100 transition-opacity z-20"
+          className="absolute top-4 right-4 opacity-70 hover:opacity-100 transition-opacity z-20 p-2 bg-white/80 border border-on-surface/20 rounded-full"
+          aria-label="Close sticker reward"
         >
           <X className="w-5 h-5" />
         </button>

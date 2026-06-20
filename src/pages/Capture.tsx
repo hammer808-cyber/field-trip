@@ -368,6 +368,7 @@ export default function CapturePage() {
   useEffect(() => {
     if (fcState === 'capture') {
       unlockDiscoverySticker('capture_start', 'capture');
+      unlockDiscoverySticker('camera_ready', 'capture');
     }
   }, [fcState, unlockDiscoverySticker]);
 
@@ -1051,6 +1052,11 @@ export default function CapturePage() {
     
     const awardedTokenCount = isFirstTime ? 1 : 0;
 
+    unlockDiscoverySticker('camera_ready', 'capture').catch(e => console.warn('Sticker award failed:', e));
+    if ((fcData.note || '').trim().length > 0) {
+      unlockDiscoverySticker('first_field_note', 'capture').catch(e => console.warn('Sticker award failed:', e));
+    }
+
     // 1. OPTIMISTIC UPDATE IMMEDIATELY
     registerPendingSubmissionLocally(awardedXP, currentTrip.id, {
       title: currentTrip.title,
@@ -1175,6 +1181,9 @@ export default function CapturePage() {
         console.log(`[ProofSubmit] AI scan result or fallback: ${result.review?.status || 'Manual Review Fallback'}`);
         
         if (!bypassReview && result.review && (result.review.status === 'needs_more_proof' || result.review.status === 'rejected')) {
+          if (result.review.status === 'needs_more_proof') {
+            unlockDiscoverySticker('proof_returned', 'capture').catch(e => console.warn('Sticker award failed:', e));
+          }
           setFcState('needs_more_proof');
           setIsUploading(false);
           submitLockRef.current = false;

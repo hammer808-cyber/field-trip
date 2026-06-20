@@ -113,6 +113,16 @@ export const REWARD_REGISTRY: Record<string, RewardMetadata> = {
     betaCritical: true
   },
   // Discovery Stickers
+  camera_ready: { id: 'camera_ready', type: 'sticker', label: 'Camera Ready', description: 'Opened the viewfinder or submitted your first photo proof.', rarity: 'common' },
+  first_field_note: { id: 'first_field_note', type: 'sticker', label: 'First Field Note', description: 'Submitted your first written field note.', rarity: 'common' },
+  starter_signal_1: { id: 'starter_signal_1', type: 'sticker', label: 'Starter Signal 1', description: 'Your first Starter Signal was approved.', rarity: 'common' },
+  starter_signal_3_complete: { id: 'starter_signal_3_complete', type: 'sticker', label: 'Starter Signals Complete', description: 'All 3 Starter Signals are approved.', rarity: 'uncommon' },
+  dex_discovered: { id: 'dex_discovered', type: 'sticker', label: 'Dex Discovered', description: 'Opened the Dex for the first time.', rarity: 'common' },
+  first_vote: { id: 'first_vote', type: 'sticker', label: 'First Vote', description: 'Cast your first successful vote.', rarity: 'common' },
+  proof_returned: { id: 'proof_returned', type: 'sticker', label: 'Proof Returned', description: 'A proof was returned for more evidence.', rarity: 'common' },
+  receipt_approved: { id: 'receipt_approved', type: 'sticker', label: 'Receipt Approved', description: 'Received your first approved submission.', rarity: 'common' },
+  crew_unlocked: { id: 'crew_unlocked', type: 'sticker', label: 'Crew Unlocked', description: 'Crew access unlocked after completing Starter Signals.', rarity: 'uncommon' },
+  memories_unlocked: { id: 'memories_unlocked', type: 'sticker', label: 'Memories Unlocked', description: 'Crew Memories unlocked after completing Starter Signals.', rarity: 'uncommon' },
   'basecamp-found': { id: 'basecamp-found', type: 'sticker', label: 'Basecamp Found', description: 'You found the heart of the operation.', rarity: 'common' },
   'rival-spotted': { id: 'rival-spotted', type: 'sticker', label: 'Rival Spotted', description: "You checked who's just ahead and who's sneaking up behind you.", rarity: 'common' },
   'signal-reader': { id: 'signal-reader', type: 'sticker', label: 'Signal Reader', description: "You found this week's hidden scoring weather.", rarity: 'common' },

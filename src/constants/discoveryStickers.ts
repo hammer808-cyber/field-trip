@@ -16,6 +16,96 @@ export interface DiscoverySticker {
 export const DISCOVERY_STICKERS: DiscoverySticker[] = [
   // Basecamp / Dashboard
   {
+    id: 'camera_ready',
+    name: 'Camera Ready',
+    description: 'Opened the viewfinder or submitted your first photo proof.',
+    iconName: 'Camera',
+    rarity: 'common',
+    unlockType: 'achievement',
+    discoveryKey: 'camera_ready'
+  },
+  {
+    id: 'first_field_note',
+    name: 'First Field Note',
+    description: 'Submitted your first written field note.',
+    iconName: 'PenLine',
+    rarity: 'common',
+    unlockType: 'achievement',
+    discoveryKey: 'first_field_note'
+  },
+  {
+    id: 'starter_signal_1',
+    name: 'Starter Signal 1',
+    description: 'Your first Starter Signal was approved.',
+    iconName: 'Zap',
+    rarity: 'common',
+    unlockType: 'achievement',
+    discoveryKey: 'starter_signal_1'
+  },
+  {
+    id: 'starter_signal_3_complete',
+    name: 'Starter Signals Complete',
+    description: 'All 3 Starter Signals are approved.',
+    iconName: 'ShieldCheck',
+    rarity: 'uncommon',
+    unlockType: 'achievement',
+    discoveryKey: 'starter_signal_3_complete'
+  },
+  {
+    id: 'dex_discovered',
+    name: 'Dex Discovered',
+    description: 'Opened the Dex for the first time.',
+    iconName: 'Book',
+    rarity: 'common',
+    unlockType: 'discovery',
+    discoveryKey: 'dex_discovered'
+  },
+  {
+    id: 'first_vote',
+    name: 'First Vote',
+    description: 'Cast your first successful vote.',
+    iconName: 'Vote',
+    rarity: 'common',
+    unlockType: 'achievement',
+    discoveryKey: 'first_vote'
+  },
+  {
+    id: 'proof_returned',
+    name: 'Proof Returned',
+    description: 'A proof was returned for more evidence.',
+    iconName: 'RefreshCw',
+    rarity: 'common',
+    unlockType: 'achievement',
+    discoveryKey: 'proof_returned'
+  },
+  {
+    id: 'receipt_approved',
+    name: 'Receipt Approved',
+    description: 'Received your first approved submission.',
+    iconName: 'CheckCircle2',
+    rarity: 'common',
+    unlockType: 'achievement',
+    discoveryKey: 'receipt_approved'
+  },
+  {
+    id: 'crew_unlocked',
+    name: 'Crew Unlocked',
+    description: 'Crew access unlocked after completing Starter Signals.',
+    iconName: 'Users',
+    rarity: 'uncommon',
+    unlockType: 'achievement',
+    discoveryKey: 'crew_unlocked'
+  },
+  {
+    id: 'memories_unlocked',
+    name: 'Memories Unlocked',
+    description: 'Crew Memories unlocked after completing Starter Signals.',
+    iconName: 'LayoutGrid',
+    rarity: 'uncommon',
+    unlockType: 'achievement',
+    discoveryKey: 'memories_unlocked'
+  },
+  {
     id: 'basecamp-found',
     name: 'Basecamp Found',
     description: 'You found the heart of the operation.',
