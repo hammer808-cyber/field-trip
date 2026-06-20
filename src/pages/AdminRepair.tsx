@@ -81,6 +81,13 @@ export default function AdminRepair() {
         countEntriesNoReviews: 0,
         countReviewsNoEntries: 0,
         countUsersStarterMismatch: 0,
+        deployInfo: {
+          commitSha: 'unknown',
+          buildTime: 'unknown',
+          cloudRunService: 'unknown',
+          cloudRunRevision: 'unknown',
+          cloudRunConfiguration: 'unknown'
+        },
         lastRepairRunTimestamp: new Date().toISOString()
       });
     } finally {
@@ -195,20 +202,24 @@ export default function AdminRepair() {
       description="Functional repair console for users, proof records, deck drift, and reset workflows."
     >
       <div className="flex flex-col gap-8">
-        <div className="flex border-b-2 border-on-surface/10 gap-8 overflow-x-auto">
-          {tabs.map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={cn(
-                "pb-4 text-xs font-mono font-black uppercase tracking-widest transition-all relative whitespace-nowrap",
-                activeTab === key ? "text-brand-orange" : "text-on-surface/40 hover:text-on-surface"
-              )}
-            >
-              {label}
-              {activeTab === key && <motion.div layoutId="repair-tab" className="absolute bottom-0 left-0 right-0 h-1 bg-brand-orange" />}
-            </button>
-          ))}
+        <div className="-mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto overflow-y-hidden border-b-2 border-on-surface/10">
+          <div className="flex min-w-max gap-2 sm:gap-6 pb-1">
+            {tabs.map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className={cn(
+                  "shrink-0 px-3 py-3 sm:px-1 sm:pb-4 text-[10px] sm:text-xs font-mono font-black uppercase tracking-widest transition-all relative whitespace-nowrap border-2 sm:border-0 rounded-xl sm:rounded-none",
+                  activeTab === key
+                    ? "text-on-surface bg-brand-orange/15 border-brand-orange sm:bg-transparent sm:text-brand-orange"
+                    : "text-on-surface/50 border-on-surface/10 bg-white/60 hover:text-on-surface"
+                )}
+              >
+                {label}
+                {activeTab === key && <motion.div layoutId="repair-tab" className="absolute bottom-0 left-0 right-0 h-1 bg-brand-orange" />}
+              </button>
+            ))}
+          </div>
         </div>
 
         {activeTab === 'individual' && (
@@ -280,10 +291,13 @@ export default function AdminRepair() {
                 <button onClick={() => handleUserReset('soft')} disabled={!!resettingMode || !resetTarget.trim() || !resetConfirm} className="py-4 bg-brand-orange text-white font-display font-black uppercase italic rounded-xl shadow-[4px_4px_0px_black] disabled:opacity-50">
                   {resettingMode === 'soft' ? 'RESETTING...' : 'SOFT RESET USER'}
                 </button>
-                <button onClick={() => handleUserReset('hard')} disabled={!!resettingMode || !resetTarget.trim() || !resetConfirm || hardResetPhrase.trim() !== 'HARD RESET'} className="py-4 bg-rose-600 text-white font-display font-black uppercase italic rounded-xl shadow-[4px_4px_0px_black] disabled:opacity-50">
-                  <Trash2 className="w-4 h-4 inline mr-2" />{resettingMode === 'hard' ? 'WIPING...' : 'HARD RESET USER'}
+                <button disabled className="py-4 bg-rose-600 text-white font-display font-black uppercase italic rounded-xl shadow-[4px_4px_0px_black] opacity-50 cursor-not-allowed">
+                  <Trash2 className="w-4 h-4 inline mr-2" />HARD RESET COMING SOON
                 </button>
               </div>
+              <p className="text-[9px] font-mono font-black uppercase tracking-widest text-on-surface/40">
+                Hard reset endpoint is intentionally disabled until the server workflow is implemented and reviewed.
+              </p>
               {resetReport && (
                 <RepairActionReceipt
                   title="Reset Receipt"
@@ -335,6 +349,7 @@ export default function AdminRepair() {
                   <StatItem label="Last Scan" value={new Date(diagnostics.lastRepairRunTimestamp).toLocaleTimeString()} status="neutral" />
                 </div>
                 {orphanCleanupReport && <RepairActionReceipt title="Orphan Review Cleanup" failed={!orphanCleanupReport.success || orphanCleanupReport.errors?.length > 0} rows={[['Detected', orphanCleanupReport.orphanedDetected || 0], ['Archived', orphanCleanupReport.reviewsArchived || 0], ['Scanned', orphanCleanupReport.reviewsScanned || 0]]} error={orphanCleanupReport.errors?.[0]} />}
+                <DeployStamp deployInfo={diagnostics.deployInfo} />
               </>
             ) : <EmptyReceipt text="Run diagnostics to see system health." />}
           </Card>
@@ -394,6 +409,25 @@ function RepairActionReceipt({ title, rows, failed, error }: { title: string; ro
         </div>
       ))}
       {error && <div className="mt-3 p-3 bg-white/70 border border-current/20 rounded-lg normal-case break-words">{error}</div>}
+    </div>
+  );
+}
+
+function DeployStamp({ deployInfo }: { deployInfo?: DiagnosticsReport['deployInfo'] }) {
+  const commitSha = deployInfo?.commitSha || 'unknown';
+  const shortSha = commitSha === 'unknown' ? commitSha : commitSha.slice(0, 12);
+
+  return (
+    <div className="mt-8 border-t-2 border-dashed border-on-surface/10 pt-4 font-mono text-[9px] uppercase text-on-surface/45">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <span className="font-black tracking-widest text-on-surface/60">Deploy Stamp</span>
+        <span>Commit: <strong>{shortSha}</strong></span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3 break-all">
+        <span>Build: {deployInfo?.buildTime || 'unknown'}</span>
+        <span>Service: {deployInfo?.cloudRunService || 'unknown'}</span>
+        <span>Revision: {deployInfo?.cloudRunRevision || 'unknown'}</span>
+      </div>
     </div>
   );
 }
