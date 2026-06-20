@@ -354,49 +354,47 @@ async function startServer() {
   });
 
   const authenticate = async (req: any, res: any, next: any) => {
-    authRateLimiter(req, res, async () => {
-      const authHeader = req.headers.authorization;
-      const appCheckToken = req.headers['x-firebase-appcheck'];
+    const authHeader = req.headers.authorization;
+    const appCheckToken = req.headers['x-firebase-appcheck'];
 
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'UNAUTHORIZED' });
-      }
-      const idToken = authHeader.split('Bearer ')[1];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'UNAUTHORIZED' });
+    }
+    const idToken = authHeader.split('Bearer ')[1];
+    
+    try {
+      if (!adminApp) throw new Error("Admin SDK not initialized.");
       
-      try {
-        if (!adminApp) throw new Error("Admin SDK not initialized.");
-        
-        // 1. Verify App Check (if enforced)
-        if (process.env.ENFORCE_APP_CHECK === 'true') {
-          if (!appCheckToken) {
-            console.warn('[AUTH_GUARD] Blocked: Missing App Check token.');
-            return res.status(401).json({ error: 'APP_CHECK_REQUIRED' });
-          }
-          try {
-            await getAppCheck(authApp || adminApp).verifyToken(appCheckToken);
-          } catch (acErr) {
-            console.error('[AUTH_GUARD] Blocked: Invalid App Check token.', acErr);
-            return res.status(401).json({ error: 'INVALID_APP_CHECK_TOKEN' });
-          }
-        } else if (appCheckToken) {
-          // Optional verification if not enforced
-          try {
-            await getAppCheck(authApp || adminApp).verifyToken(appCheckToken);
-            console.log('[AUTH_GUARD] App Check verified (optional path)');
-          } catch (acErr) {
-            console.warn('[AUTH_GUARD] App Check provided but invalid (optional path)');
-          }
+      // 1. Verify App Check (if enforced)
+      if (process.env.ENFORCE_APP_CHECK === 'true') {
+        if (!appCheckToken) {
+          console.warn('[AUTH_GUARD] Blocked: Missing App Check token.');
+          return res.status(401).json({ error: 'APP_CHECK_REQUIRED' });
         }
-
-        // 2. Verify Auth Token
-        const decodedToken = await getAuth(authApp || adminApp).verifyIdToken(idToken);
-        req.user = decodedToken;
-        next();
-      } catch (error) {
-        console.error('Auth Error:', error);
-        res.status(401).json({ error: 'INVALID_TOKEN' });
+        try {
+          await getAppCheck(authApp || adminApp).verifyToken(appCheckToken);
+        } catch (acErr) {
+          console.error('[AUTH_GUARD] Blocked: Invalid App Check token.', acErr);
+          return res.status(401).json({ error: 'INVALID_APP_CHECK_TOKEN' });
+        }
+      } else if (appCheckToken) {
+        // Optional verification if not enforced
+        try {
+          await getAppCheck(authApp || adminApp).verifyToken(appCheckToken);
+          console.log('[AUTH_GUARD] App Check verified (optional path)');
+        } catch (acErr) {
+          console.warn('[AUTH_GUARD] App Check provided but invalid (optional path)');
+        }
       }
-    });
+
+      // 2. Verify Auth Token
+      const decodedToken = await getAuth(authApp || adminApp).verifyIdToken(idToken);
+      req.user = decodedToken;
+      next();
+    } catch (error) {
+      console.error('Auth Error:', error);
+      res.status(401).json({ error: 'INVALID_TOKEN' });
+    }
   };
 
   // API Routes
@@ -404,7 +402,7 @@ async function startServer() {
    * CANONICAL DATA MODEL AUDIT
    * Scans for legacy fields and inconsistencies.
    */
-  app.get("/api/admin/canonical-audit", adminRateLimiter, authenticate, async (req: any, res) => { 
+  app.get("/api/admin/canonical-audit", adminRateLimiter, authRateLimiter, authenticate, async (req: any, res) => { 
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
     
     // Check for admin role
