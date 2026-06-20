@@ -3454,8 +3454,14 @@ async function startServer() {
   } else {
     // Production static serving
     const distPath = path.join(rootPath, 'dist');
+    const spaFallbackRateLimiter = rateLimit({
+      windowMs: 60 * 1000, // 1 minute
+      max: 120, // limit repeated fallback hits per IP
+      standardHeaders: true,
+      legacyHeaders: false,
+    });
     app.use(express.static(distPath));
-    app.get('*all', (req, res) => {
+    app.get('*all', spaFallbackRateLimiter, (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
