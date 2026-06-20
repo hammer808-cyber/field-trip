@@ -1481,7 +1481,7 @@ async function startServer() {
           aiScanCount: existingCount + 1
         } as any, { merge: true });
       } catch (err) {
-        console.error(`[PROOF_ANALYSIS] Failed to update proof record for ${pId}:`, err);
+        console.error("[PROOF_ANALYSIS] Failed to update proof record for %s:", pId, err);
       }
     };
 
