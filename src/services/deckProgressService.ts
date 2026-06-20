@@ -10,7 +10,7 @@ import {
   deleteField
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { normalizeEntryStatus } from '../logic/entryLogic';
+import { countsTowardStarterProgress, isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 import { getDeckPackById } from '../data/deckPacks';
 
 export interface DeckProgress {
@@ -103,8 +103,11 @@ export async function getUserDeckProgress(userId: string, deckId: string): Promi
     const approvedIds = new Set<string>();
     const pendingIds = new Set<string>();
     const deckEntriesList = entriesList.filter(e => {
+      if (isArchivedEntry(e)) {
+        return false;
+      }
       if (deckId === 'starter-signals') {
-        if (e.archived === true || e.countsTowardStarter === false) {
+        if (!countsTowardStarterProgress(e)) {
           return false;
         }
         if (activeResetVersion && e.starterResetVersion !== activeResetVersion) {
@@ -410,7 +413,7 @@ export async function getMissionAvailabilityState(userId: string, missionId: str
 
   const mEntries = userEntries.filter(e => {
     const eMid = (e.missionId || e.challengeId || e.tripId || '').toLowerCase().trim();
-    return eMid === missionIdClean && e.archived !== true && e.countsTowardStarter !== false;
+    return eMid === missionIdClean && countsTowardStarterProgress(e);
   });
 
   let status = 'unseen';
@@ -506,7 +509,7 @@ export async function getDeckAvailabilityState(userId: string, deckId: string) {
   missionIds.forEach(mId => {
     const mEntries = userEntries.filter(e => {
       const eMid = (e.missionId || e.challengeId || e.tripId || '').toLowerCase().trim();
-      return eMid === mId && e.archived !== true && e.countsTowardStarter !== false;
+      return eMid === mId && countsTowardStarterProgress(e);
     });
 
     let status = 'unseen';

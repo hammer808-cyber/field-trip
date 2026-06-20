@@ -17,6 +17,7 @@ import {
 import { db, handleFirestoreError, OperationType, logFirestoreError } from '../lib/firebase';
 import { Entry } from '../constants';
 import { guardedCall } from './guardedService';
+import { isArchivedEntry } from '../logic/entryLogic';
 
 const COLLECTION = 'entries';
 
@@ -132,10 +133,9 @@ export async function getApprovedSubmissionsForUser(userId: string): Promise<Ent
     const snapshot = await getDocs(qByUserId);
     return snapshot.docs
       .map(doc => ({ id: doc.id, ...doc.data() } as Entry))
-      .filter(e => e.archived !== true);
+      .filter(e => !isArchivedEntry(e));
   } catch (error) {
     console.error(`[getApprovedSubmissionsForUser] Error querying approved submissions for user ${userId}:`, error);
     return [];
   }
 }
-

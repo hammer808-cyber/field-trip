@@ -1,7 +1,7 @@
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { Entry } from '../types/game';
-import { normalizeEntryStatus } from '../logic/entryLogic';
+import { countsTowardStarterProgress, normalizeEntryStatus } from '../logic/entryLogic';
 
 export interface StarterCompletionState {
   starterApprovedCount: number;
@@ -71,7 +71,7 @@ export function calculateStarterState(
 
   userEntries.forEach(e => {
     // If the submission is archived or explicitly marked as not counting toward starter progress, skip it.
-    if (e.archived === true || e.countsTowardStarter === false) return;
+    if (!countsTowardStarterProgress(e)) return;
 
     // Check reset version if specified
     if (starterResetVersion && e.starterResetVersion !== starterResetVersion) return;

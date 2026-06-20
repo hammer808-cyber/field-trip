@@ -31,7 +31,7 @@ import { DEFAULT_AVATAR, AVATAR_MANIFEST } from '../constants/avatarAssets';
 import { AvatarData } from '../types/avatar';
 import { FIELD_TYPES, DEV_APP_CONFIG } from '../constants';
 import { getDisplayLabel } from '../utils/labelUtils';
-import { normalizeEntryStatus } from '../logic/entryLogic';
+import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 import { getApprovedSubmissionsForUser } from '../services/submission-utils';
 import { Entry } from '../types/game';
 
@@ -96,7 +96,7 @@ export default function ProfilePage() {
   }, [searchParams]);
 
   const approvedSubmissions = React.useMemo(() => {
-    return entries.filter(e => normalizeEntryStatus(e.status) === 'approved');
+    return entries.filter(e => !isArchivedEntry(e) && normalizeEntryStatus(e.status) === 'approved');
   }, [entries]);
 
   const logbookEntries = React.useMemo(() => {
@@ -836,4 +836,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-

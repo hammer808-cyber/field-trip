@@ -1,7 +1,7 @@
 import { db, auth } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { Entry } from '../types/game';
-import { normalizeEntryStatus } from '../logic/entryLogic';
+import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 import { awardPoints } from './scoringService';
 
 /**
@@ -34,7 +34,7 @@ export async function getApprovedSubmissionsForUser(userId: string): Promise<Ent
       const docSnap = await transaction.get(ref);
       if (docSnap.exists()) {
         const data = docSnap.data() as Entry;
-        if (normalizeEntryStatus(data.status) === 'approved') {
+        if (!isArchivedEntry(data) && normalizeEntryStatus(data.status) === 'approved') {
           results.push({ ...data, id: docSnap.id });
         }
       }

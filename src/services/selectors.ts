@@ -1,6 +1,6 @@
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { normalizeEntryStatus } from '../logic/entryLogic';
+import { countsTowardStarterProgress, isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 import { getDeckPackById } from '../data/deckPacks';
 
 export interface StarterProgress {
@@ -26,15 +26,7 @@ export async function getStarterProgress(userId: string): Promise<StarterProgres
     };
   }
 
-  // 1. Fetch User Profile for canonical persistence
-  const userRef = doc(db, 'users', userId);
-  const userSnap = await getDoc(userRef);
-  const profile = userSnap.exists() ? userSnap.data() : {};
-
-  const profileApproved = new Set<string>((profile.completedChallengeIds || []).map((id: string) => id.toLowerCase().trim()));
-  const profilePending = new Set<string>((profile.submittedChallengeIds || []).map((id: string) => id.toLowerCase().trim()));
-
-  // 2. Fetch all entries for this user to catch any missed states in profile sets
+  // Fetch all active entries for this user to derive current progress.
   // We query both uid and userId for compatibility
   const entriesRef = collection(db, 'entries');
   const qUid = query(entriesRef, where('uid', '==', userId));
@@ -45,12 +37,14 @@ export async function getStarterProgress(userId: string): Promise<StarterProgres
 
   const STARTER_MISSION_IDS = ["template_03_ignored_place", "starter-2", "starter-3", "starter-signals"];
   
-  const approved = new Set<string>(profileApproved);
-  const pending = new Set<string>(profilePending);
+  const approved = new Set<string>();
+  const pending = new Set<string>();
   const needsMore = new Set<string>();
   const rejected = new Set<string>();
 
   allEntries.forEach((e: any) => {
+    if (!countsTowardStarterProgress(e)) return;
+
     const mid = (e.missionId || e.challengeId || e.tripId || '').toLowerCase().trim();
     if (!mid) return;
     
@@ -132,6 +126,8 @@ export async function getDeckProgress(userId: string, deckId: string) {
   const missionIdsNormalized = new Set(missionIds.map(id => id.toLowerCase()));
 
   allEntries.forEach((e: any) => {
+    if (isArchivedEntry(e)) return;
+
     const mid = (e.missionId || e.challengeId || e.tripId || '').toLowerCase().trim();
     if (!missionIdsNormalized.has(mid)) return;
 
