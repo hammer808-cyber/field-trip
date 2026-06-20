@@ -37,6 +37,30 @@ process.on('uncaughtException', (error) => {
 // For bundled output compatibility
 const rootPath = process.cwd();
 const isProduction = process.env.NODE_ENV === 'production';
+const serverBootTime = new Date().toISOString();
+
+function readGitCommitSha(): string | null {
+  try {
+    const headPath = path.join(rootPath, '.git', 'HEAD');
+    if (!fs.existsSync(headPath)) return null;
+    const head = fs.readFileSync(headPath, 'utf8').trim();
+    if (!head.startsWith('ref:')) return head;
+
+    const refPath = path.join(rootPath, '.git', head.replace('ref:', '').trim());
+    if (!fs.existsSync(refPath)) return null;
+    return fs.readFileSync(refPath, 'utf8').trim();
+  } catch {
+    return null;
+  }
+}
+
+const deployInfo = {
+  commitSha: process.env.COMMIT_SHA || process.env.GITHUB_SHA || process.env.SOURCE_COMMIT || process.env.BUILD_SHA || readGitCommitSha() || 'unknown',
+  buildTime: process.env.BUILD_TIME || process.env.BUILD_TIMESTAMP || process.env.SOURCE_DATE_EPOCH || serverBootTime,
+  cloudRunService: process.env.K_SERVICE || 'local',
+  cloudRunRevision: process.env.K_REVISION || 'local',
+  cloudRunConfiguration: process.env.K_CONFIGURATION || 'local'
+};
 
 // Initialize Firebase Admin for background tasks
 let adminApp: App | null = null;
@@ -300,7 +324,7 @@ if (process.env.NODE_ENV !== 'production' && process.env.ENABLE_STARTUP_PURGE ==
 
 async function startServer() {
   const app = express();
-  const port = 3000;
+  const port = Number(process.env.PORT || 3000);
 
   // Middleware for parsing JSON with large limits for images
   app.use(express.json({ limit: '10mb' }));
@@ -487,12 +511,237 @@ async function startServer() {
       res.status(500).json({ error: "MIGRATION_FAILED", message: error.message });
     }
   });
+  const serializeAdminUserLookup = (docId: string, data: any) => ({
+    uid: docId,
+    email: data.email || null,
+    username: data.username || data.name || '',
+    displayName: data.displayName || data.name || data.username || '',
+    photoURL: data.photoURL || data.avatarUrl || null,
+    role: data.role || undefined,
+    isAdmin: data.isAdmin === true || data.role === 'admin',
+    createdAt: data.createdAt || null,
+    lastLoginAt: data.lastLoginAt || data.lastSeenAt || null,
+    starterApprovedCount: Number(data.starterApprovedCount || data.starterState?.starterApprovedCount || 0),
+    totalXP: Number(data.totalXP || data.xp || 0)
+  });
+
+  app.get("/api/admin/user-lookup", authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const isAdminUser = await checkIsAdmin(req.user);
+    if (!isAdminUser) return res.status(403).json({ error: "ADMIN_ONLY" });
+
+    const rawQuery = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    if (!rawQuery) {
+      return res.status(400).json({ error: "MISSING_QUERY", message: "Provide a username, email, display name, or UID." });
+    }
+
+    try {
+      const users = new Map<string, any>();
+      const addUserDoc = (doc: FirebaseFirestore.QueryDocumentSnapshot | FirebaseFirestore.DocumentSnapshot) => {
+        if (doc.exists) users.set(doc.id, serializeAdminUserLookup(doc.id, doc.data()));
+      };
+
+      const directUserSnap = await dbAdmin.collection('users').doc(rawQuery).get();
+      addUserDoc(directUserSnap);
+
+      if (authAdmin) {
+        if (rawQuery.includes('@')) {
+          const authUser = await authAdmin.getUserByEmail(rawQuery).catch(() => null);
+          if (authUser) {
+            const authUserSnap = await dbAdmin.collection('users').doc(authUser.uid).get();
+            if (authUserSnap.exists) {
+              addUserDoc(authUserSnap);
+            } else {
+              users.set(authUser.uid, {
+                uid: authUser.uid,
+                email: authUser.email || null,
+                username: authUser.displayName || '',
+                displayName: authUser.displayName || '',
+                photoURL: authUser.photoURL || null,
+                starterApprovedCount: 0,
+                totalXP: 0
+              });
+            }
+          }
+        } else if (rawQuery.length > 20 && !rawQuery.includes(' ')) {
+          const authUser = await authAdmin.getUser(rawQuery).catch(() => null);
+          if (authUser && !users.has(authUser.uid)) {
+            users.set(authUser.uid, {
+              uid: authUser.uid,
+              email: authUser.email || null,
+              username: authUser.displayName || '',
+              displayName: authUser.displayName || '',
+              photoURL: authUser.photoURL || null,
+              starterApprovedCount: 0,
+              totalXP: 0
+            });
+          }
+        }
+      }
+
+      const normalizedQuery = rawQuery.toLowerCase();
+      const lookupFields = [
+        ['email', rawQuery],
+        ['email', normalizedQuery],
+        ['username', rawQuery],
+        ['username', normalizedQuery],
+        ['displayName', rawQuery],
+        ['displayName', normalizedQuery],
+        ['name', rawQuery],
+        ['name', normalizedQuery]
+      ] as const;
+
+      for (const [field, value] of lookupFields) {
+        if (!value || users.size >= 10) continue;
+        const snap = await dbAdmin.collection('users').where(field, '==', value).limit(10).get();
+        snap.docs.forEach(addUserDoc);
+      }
+
+      res.json({ users: Array.from(users.values()).slice(0, 10) });
+    } catch (error: any) {
+      console.error("[USER_LOOKUP] Error:", error);
+      res.status(500).json({ error: "USER_LOOKUP_FAILED", message: error.message });
+    }
+  });
+
+  app.post("/api/admin/decks/:deckId/publish-cards", authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const isAdminUser = await checkIsAdmin(req.user);
+    if (!isAdminUser) return res.status(403).json({ error: "ADMIN_ONLY" });
+
+    const deckId = String(req.params.deckId || '').trim();
+    if (!deckId) return res.status(400).json({ error: "MISSING_DECK_ID" });
+
+    try {
+      const snap = await dbAdmin.collection('challenges').where('deckId', '==', deckId).get();
+      let scanned = 0;
+      let published = 0;
+      let skipped = 0;
+      const unfinishedStatuses = new Set(['archived', 'disabled', 'retired']);
+      let batch = dbAdmin.batch();
+      let batchCount = 0;
+
+      for (const doc of snap.docs) {
+        scanned++;
+        const data = doc.data();
+        const status = String(data.status || '').toLowerCase().trim();
+        const isDraft = !status || status === 'draft';
+
+        if (isDraft) {
+          batch.set(doc.ref, {
+            status: 'published',
+            active: true,
+            isActive: true,
+            publishedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+            publishedBy: req.user.uid
+          }, { merge: true });
+          published++;
+          batchCount++;
+
+          if (batchCount >= 450) {
+            await batch.commit();
+            batch = dbAdmin.batch();
+            batchCount = 0;
+          }
+        } else if (unfinishedStatuses.has(status)) {
+          skipped++;
+        }
+      }
+
+      if (batchCount > 0) await batch.commit();
+
+      await dbAdmin.collection('adminRepairLogs').add({
+        action: "publish_deck_cards",
+        deckId,
+        performedBy: req.user.uid,
+        scanned,
+        published,
+        skipped,
+        timestamp: FieldValue.serverTimestamp()
+      });
+
+      res.json({ success: true, deckId, scanned, published, skipped, status: 'published' });
+    } catch (error: any) {
+      console.error("[PUBLISH_DECK_CARDS] Error:", error);
+      res.status(500).json({ error: "PUBLISH_DECK_CARDS_FAILED", message: error.message });
+    }
+  });
+
+  app.post("/api/admin/archive-orphan-proof-reviews", authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const isAdminUser = await checkIsAdmin(req.user);
+    if (!isAdminUser) return res.status(403).json({ error: "ADMIN_ONLY" });
+
+    const dryRun = req.body?.dryRun === true;
+
+    try {
+      const [entriesSnap, reviewsSnap] = await Promise.all([
+        dbAdmin.collection('entries').get(),
+        dbAdmin.collection('proofReviews').get()
+      ]);
+
+      const entryIds = new Set(entriesSnap.docs.map(doc => doc.id));
+      let orphanedDetected = 0;
+      let reviewsArchived = 0;
+      let batch = dbAdmin.batch();
+      let batchCount = 0;
+
+      for (const reviewDoc of reviewsSnap.docs) {
+        if (entryIds.has(reviewDoc.id)) continue;
+        orphanedDetected++;
+
+        if (!dryRun) {
+          batch.set(reviewDoc.ref, {
+            archived: true,
+            archivedAt: FieldValue.serverTimestamp(),
+            archiveReason: 'orphan_proof_review_cleanup',
+            archivedBy: req.user.uid,
+            updatedAt: FieldValue.serverTimestamp()
+          }, { merge: true });
+          reviewsArchived++;
+          batchCount++;
+
+          if (batchCount >= 450) {
+            await batch.commit();
+            batch = dbAdmin.batch();
+            batchCount = 0;
+          }
+        }
+      }
+
+      if (batchCount > 0) await batch.commit();
+
+      await dbAdmin.collection('adminRepairLogs').add({
+        action: "archive_orphan_proof_reviews",
+        performedBy: req.user.uid,
+        dryRun,
+        orphanedDetected,
+        reviewsArchived,
+        reviewsScanned: reviewsSnap.size,
+        timestamp: FieldValue.serverTimestamp()
+      });
+
+      res.json({
+        success: true,
+        dryRun,
+        orphanedDetected,
+        reviewsArchived,
+        reviewsScanned: reviewsSnap.size,
+        errors: []
+      });
+    } catch (error: any) {
+      console.error("[ARCHIVE_ORPHAN_PROOF_REVIEWS] Error:", error);
+      res.status(500).json({ error: "ARCHIVE_ORPHAN_PROOF_REVIEWS_FAILED", message: error.message });
+    }
+  });
+
   app.post("/api/admin/soft-reset-user", authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
     const isAdminUser = await checkIsAdmin(req.user);
     if (!isAdminUser) return res.status(403).json({ error: "ADMIN_ONLY" });
 
-    const { targetUserId, targetUsername, confirmReset } = req.body;
+    const { targetUserId, targetUsername, targetEmail, confirmReset } = req.body;
     const adminUid = req.user.uid;
 
     if (!confirmReset) {
@@ -509,6 +758,13 @@ async function startServer() {
         const userSnap = await userRef.get();
         if (!userSnap.exists) return res.status(404).json({ error: "USER_NOT_FOUND" });
         userData = userSnap.data();
+      } else if (targetEmail) {
+        const emailSnap = await dbAdmin.collection('users').where('email', '==', targetEmail).limit(1).get();
+        if (emailSnap.empty) return res.status(404).json({ error: "USER_NOT_FOUND_BY_EMAIL" });
+        const userDoc = emailSnap.docs[0];
+        userId = userDoc.id;
+        userRef = userDoc.ref;
+        userData = userDoc.data();
       } else if (targetUsername) {
         const usernameSnap = await dbAdmin.collection('users').where('username', '==', targetUsername).limit(1).get();
         if (usernameSnap.empty) return res.status(404).json({ error: "USER_NOT_FOUND_BY_USERNAME" });
@@ -519,7 +775,7 @@ async function startServer() {
       }
 
       if (!userRef || !userData) {
-        return res.status(400).json({ error: "MISSING_TARGET_USER", message: "Provide either targetUserId or targetUsername." });
+        return res.status(400).json({ error: "MISSING_TARGET_USER", message: "Provide targetUserId, targetEmail, or targetUsername." });
       }
 
       const archiveCollections = [
@@ -3151,6 +3407,7 @@ async function startServer() {
         firebaseConnectionStatus: "connected",
         currentAdminUid: req.user.uid,
         adminPermissionStatus: isAdminUser ? "authorized" : "unauthorized",
+        deployInfo,
         appCheckStatus: req.headers['x-firebase-appcheck'] ? "verified" : "optional/not_provided",
         firestoreTestStatus: firestoreTest,
         firestoreDatabaseId: firebaseConfig?.firestoreDatabaseId || "(default)",

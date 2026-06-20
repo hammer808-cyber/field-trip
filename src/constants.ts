@@ -172,7 +172,7 @@ import { SOCAL_SUMMER_CHALLENGE_BANK } from './data/socalSummerChallengeBank';
 import { STARTER_MISSION_BANK } from './data/starterMissionBank';
 
 export const MOCK_TRIPS: TripCard[] = ([...STARTER_MISSION_BANK, ...HEATWAVE_CHALLENGE_BANK, ...SOCAL_SUMMER_CHALLENGE_BANK] as any[]).filter(t => 
-  t.status === 'available' || t.status === 'approved' || t.status === 'active'
+  t.status === 'published' || t.status === 'available' || t.status === 'approved' || t.status === 'active'
 );
 
 export const MOCK_ENTRIES: Entry[] = [

@@ -49,6 +49,13 @@ export interface DiagnosticsReport {
   firebaseConnectionStatus: string;
   currentAdminUid: string;
   adminPermissionStatus: string;
+  deployInfo?: {
+    commitSha?: string;
+    buildTime?: string;
+    cloudRunService?: string;
+    cloudRunRevision?: string;
+    cloudRunConfiguration?: string;
+  };
   appCheckStatus: string;
   firestoreTestStatus: string;
   storageTestStatus: string;
@@ -57,6 +64,21 @@ export interface DiagnosticsReport {
   countReviewsNoEntries: number;
   countUsersStarterMismatch: number;
   lastRepairRunTimestamp: string;
+}
+
+async function readAdminJson<T = any>(response: Response, fallbackMessage: string): Promise<T> {
+  const contentType = response.headers.get('content-type') || '';
+
+  if (!contentType.toLowerCase().includes('application/json')) {
+    throw new Error('Admin API unavailable or wrong route. The server returned non-JSON content.');
+  }
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || data.error || fallbackMessage);
+  }
+
+  return data;
 }
 
 /**
@@ -210,12 +232,7 @@ export async function getRepairDiagnostics(): Promise<DiagnosticsReport> {
     method: 'GET'
   });
 
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    throw new Error(errData.message || errData.error || `HTTP error ${response.status}`);
-  }
-
-  return response.json();
+  return readAdminJson<DiagnosticsReport>(response, `HTTP error ${response.status}`);
 }
 
 /**
@@ -282,13 +299,26 @@ export async function lookupAdminUsers(searchTerm: string): Promise<AdminUserLoo
     method: 'GET'
   });
 
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    throw new Error(errData.message || errData.error || `User lookup failed with HTTP ${response.status}`);
-  }
-
-  const raw = await response.json();
+  const raw = await readAdminJson<any>(response, `User lookup failed with HTTP ${response.status}`);
   return raw.users || raw.results || [];
+}
+
+export interface PublishDeckCardsReport {
+  success: boolean;
+  deckId: string;
+  scanned: number;
+  published: number;
+  skipped: number;
+  status: string;
+}
+
+export async function publishDeckCards(deckId: string): Promise<PublishDeckCardsReport> {
+  const response = await authenticatedFetch(`/api/admin/decks/${encodeURIComponent(deckId)}/publish-cards`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  });
+
+  return readAdminJson<PublishDeckCardsReport>(response, `Publish deck cards failed with HTTP ${response.status}`);
 }
 
 export async function resetUserState(params: {
@@ -334,11 +364,5 @@ export async function archiveOrphanedProofReviews(dryRun: boolean = false): Prom
     body: JSON.stringify({ dryRun })
   });
 
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    throw new Error(errData.message || errData.error || `Archive orphan reviews failed with HTTP ${response.status}`);
-  }
-
-  return response.json();
+  return readAdminJson<any>(response, `Archive orphan reviews failed with HTTP ${response.status}`);
 }
-

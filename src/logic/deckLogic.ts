@@ -159,7 +159,7 @@ export function getEligibleDrawPool({
     const isAlreadySubmitted = isApproved || isPending || isNeedsMoreProof || isRejected;
     
     const status = (m.status || 'available').toLowerCase();
-    const isAllowedStatus = ['available', 'approved', 'active', 'auto_approved', 'approved_by_admin'].includes(status);
+    const isAllowedStatus = ['published', 'available', 'approved', 'active', 'auto_approved', 'approved_by_admin'].includes(status);
     
     let isDrawable = isAllowedStatus && !isApproved && !isPending && !isNeedsMoreProof;
     let exclusionReason: string | null = null;
@@ -241,4 +241,3 @@ export function getEligibleDrawPool({
     analysis 
   };
 }
-
