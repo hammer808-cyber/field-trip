@@ -65,3 +65,21 @@ export function normalizeEntryStatus(status: string | undefined): "pending_revie
   // Everything else is pending_review
   return "pending_review";
 }
+
+/**
+ * Soft resets preserve old submissions as history, but archived/excluded entries
+ * must not drive live deck progress, unlocks, or starter completion.
+ */
+export function isArchivedEntry(entry: any): boolean {
+  const rawStatus = entry?.status?.toString().toLowerCase().trim();
+  return (
+    entry?.archived === true ||
+    entry?.excludedFromProgress === true ||
+    entry?.countsTowardLiveStats === false ||
+    rawStatus === "archived"
+  );
+}
+
+export function countsTowardStarterProgress(entry: any): boolean {
+  return !isArchivedEntry(entry) && entry?.countsTowardStarter !== false;
+}

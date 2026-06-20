@@ -25,7 +25,7 @@ import { getDeckCoverImage, BASE_DECK_PLACEHOLDER } from '../lib/deckUtils';
 import { getWeeklyBonusForWeek } from '../data/weeklyBonuses';
 import { StickerBackground } from '../components/StickerBackground';
 import { StickerDecal, StickerCorner, StickerScatter } from '../components/StickerDecals';
-import { normalizeEntryStatus } from '../logic/entryLogic';
+import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { StarterCompletionState } from '../utils/starterHelper';
 import { getSummerCountdown } from '../utils/seasonCountdown';
@@ -209,19 +209,21 @@ export default function DeckPage() {
   const [isDeckShelfExpanded, setIsDeckShelfExpanded] = useState(false);
   const [isFieldLogExpanded, setIsFieldLogExpanded] = useState(false);
 
-  const pendingSubmissions = entries.filter(e => 
+  const activeLogEntries = React.useMemo(() => entries.filter(entry => !isArchivedEntry(entry)), [entries]);
+
+  const pendingSubmissions = activeLogEntries.filter(e => 
     normalizeEntryStatus(e.status) === 'pending_review'
   );
 
-  const needsMoreProofSubmissions = entries.filter(e => 
+  const needsMoreProofSubmissions = activeLogEntries.filter(e => 
     normalizeEntryStatus(e.status) === 'needs_more_proof'
   );
 
-  const rejectedMissions = entries.filter(e => 
+  const rejectedMissions = activeLogEntries.filter(e => 
     normalizeEntryStatus(e.status) === 'rejected'
   );
 
-  const recentlyApprovedMissions = entries.filter(e => 
+  const recentlyApprovedMissions = activeLogEntries.filter(e => 
     normalizeEntryStatus(e.status) === 'approved'
   );
 
@@ -1351,7 +1353,7 @@ export default function DeckPage() {
                  <div className="flex items-center gap-3">
                     <div className={cn(
                       "w-8 h-8 border-2 border-on-surface flex items-center justify-center shadow-[3px_3px_0px_black]",
-                      entries.length > 0 ? "bg-brand-lime" : "bg-neutral-200"
+                      activeLogEntries.length > 0 ? "bg-brand-lime" : "bg-neutral-200"
                     )}>
                       <FileText className="w-4 h-4 text-on-surface" />
                     </div>
@@ -1365,7 +1367,7 @@ export default function DeckPage() {
                          )}
                       </div>
                       <p className="text-[10px] font-mono font-black uppercase tracking-widest text-[#FF5A00] mt-1 leading-none">
-                         {entries.length === 0 ? "NO FIELD LOGS YET" : `${entries.length} ARCHIVES LOADED`}
+                         {activeLogEntries.length === 0 ? "NO ACTIVE FIELD LOGS" : `${activeLogEntries.length} ACTIVE LOGS`}
                       </p>
                     </div>
                  </div>
@@ -1376,8 +1378,8 @@ export default function DeckPage() {
               </summary>
               <div className="p-4 pt-0 bg-[#FCFAF5] border-t-2 border-on-surface/5">
                  <div className="space-y-3 max-h-[360px] overflow-y-auto custom-scrollbar pt-2">
-                    {entries.length > 0 ? (
-                       entries.slice(0, 8).map((entry) => {
+                    {activeLogEntries.length > 0 ? (
+                       activeLogEntries.slice(0, 8).map((entry) => {
                           const normalizedStatus = normalizeEntryStatus(entry.status);
                           const isUrgent = normalizedStatus === 'needs_more_proof' || normalizedStatus === 'rejected';
                           const isApprovedState = normalizedStatus === 'approved';
@@ -1496,4 +1498,3 @@ export default function DeckPage() {
     </div>
   );
 }
-

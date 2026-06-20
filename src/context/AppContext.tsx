@@ -88,7 +88,7 @@ import { getProofRequirement } from '../services/proofService';
 import { ProofReview, ProofRequirement } from '../types/proof';
 import { syncServerTime, getServerDate } from '../services/timeService';
 import { LAUNCH_MISSION, LAUNCH_MISSION_ID, isLaunchMissionEligible } from '../data/specialMissions';
-import { normalizeEntryStatus } from '../logic/entryLogic';
+import { countsTowardStarterProgress, isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 
 import { 
   submitTripEntry as submitEntryLogic, 
@@ -325,20 +325,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return id.toString().trim();
   };
 
+  const activeEntries = React.useMemo(() => {
+    return entries.filter(entry => !isArchivedEntry(entry));
+  }, [entries]);
+
   // 1. Unified Distinct Status Sets (Normalized Strings)
   // APPROVED completed submissions
   const approvedCompletedChallengeIds = React.useMemo(() => {
     const approved = new Set<string>();
     
-    // Seed from Firestore UserProfile document've been approved (canonical persistent storage)
-    if (profile?.completedChallengeIds && Array.isArray(profile.completedChallengeIds)) {
+    // Profile arrays are only a fallback before entry data has synced. Once entries
+    // are present, live/non-archived entries are the source of truth after reset.
+    if (entries.length === 0 && profile?.completedChallengeIds && Array.isArray(profile.completedChallengeIds)) {
       profile.completedChallengeIds.forEach(id => {
         if (id) approved.add(id.toLowerCase());
       });
     }
 
     // Scanned real-time server entries that are approved/completed
-    entries.forEach(e => {
+    activeEntries.forEach(e => {
       const status = normalizeEntryStatus(e.status);
       if (status === 'approved') {
         const id = normalizeId(e.missionId || e.challengeId || e.tripId);
@@ -347,17 +352,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
 
     return approved;
-  }, [entries, profile?.completedChallengeIds]);
+  }, [activeEntries, entries.length, profile?.completedChallengeIds]);
 
   // REJECTED submissions
   const rejectedChallengeIds = React.useMemo(() => {
     const rejected = new Set<string>();
-    if (profile?.rejectedChallengeIds && Array.isArray(profile.rejectedChallengeIds)) {
+    if (entries.length === 0 && profile?.rejectedChallengeIds && Array.isArray(profile.rejectedChallengeIds)) {
       profile.rejectedChallengeIds.forEach(id => {
         if (id) rejected.add(id.toLowerCase());
       });
     }
-    entries.forEach(e => {
+    activeEntries.forEach(e => {
       const status = normalizeEntryStatus(e.status);
       if (status === 'rejected') {
         const id = normalizeId(e.missionId || e.challengeId || e.tripId);
@@ -365,17 +370,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     });
     return rejected;
-  }, [entries, profile?.rejectedChallengeIds]);
+  }, [activeEntries, entries.length, profile?.rejectedChallengeIds]);
 
   // NEEDS MORE PROOF submissions
   const needsMoreProofChallengeIds = React.useMemo(() => {
     const needsMore = new Set<string>();
-    if (profile?.needsMoreProofChallengeIds && Array.isArray(profile.needsMoreProofChallengeIds)) {
+    if (entries.length === 0 && profile?.needsMoreProofChallengeIds && Array.isArray(profile.needsMoreProofChallengeIds)) {
       profile.needsMoreProofChallengeIds.forEach(id => {
         if (id) needsMore.add(id.toLowerCase());
       });
     }
-    entries.forEach(e => {
+    activeEntries.forEach(e => {
       const status = normalizeEntryStatus(e.status);
       if (status === 'needs_more_proof') {
         const id = normalizeId(e.missionId || e.challengeId || e.tripId);
@@ -383,21 +388,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     });
     return needsMore;
-  }, [entries, profile?.needsMoreProofChallengeIds]);
+  }, [activeEntries, entries.length, profile?.needsMoreProofChallengeIds]);
 
   // SUBMITTED pending review
   const submittedPendingChallengeIds = React.useMemo(() => {
     const pending = new Set<string>();
     
-    // Seed from UserProfile (for instant user-specific persistent state across tabs/refreshes)
-    if (profile?.submittedChallengeIds && Array.isArray(profile.submittedChallengeIds)) {
+    // Seed from UserProfile only until entry data has synced.
+    if (entries.length === 0 && profile?.submittedChallengeIds && Array.isArray(profile.submittedChallengeIds)) {
       profile.submittedChallengeIds.forEach(id => {
         if (id) pending.add(id.toLowerCase());
       });
     }
 
     // Server-side pending documents
-    entries.forEach(e => {
+    activeEntries.forEach(e => {
       const status = normalizeEntryStatus(e.status);
       if (status === 'pending_review' || status === 'needs_more_proof') {
         const id = normalizeId(e.missionId || e.challengeId || e.tripId);
@@ -417,7 +422,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     needsMoreProofChallengeIds.forEach(id => pending.delete(id.toLowerCase()));
 
     return pending;
-  }, [entries, pendingEntries, profile?.submittedChallengeIds, approvedCompletedChallengeIds, rejectedChallengeIds, needsMoreProofChallengeIds]);
+  }, [activeEntries, entries.length, pendingEntries, profile?.submittedChallengeIds, approvedCompletedChallengeIds, rejectedChallengeIds, needsMoreProofChallengeIds]);
 
   // Aliases and base metrics
   // STRICTION: completedChallengeIds points strictly to approved ones for unlocks!
@@ -440,11 +445,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Canonical Starter Deck Gating State Calculation
   const starterState = React.useMemo(() => {
-    // Merge real-time entries with profile canonical approved IDs to prevent truncation issues
-    const mergedEntries = [...pendingEntries, ...entries];
+    // Merge pending entries with active entries. Archived reset records stay in
+    // history but no longer count toward active starter progress.
+    const mergedEntries = [...pendingEntries, ...activeEntries.filter(countsTowardStarterProgress)];
     
-    // Ensure missions from profile are represented if missing from entries (rare but happens with truncation)
-    if (profile?.completedChallengeIds) {
+    // Fallback to profile IDs only before any entry data has synced.
+    if (entries.length === 0 && profile?.completedChallengeIds) {
       profile.completedChallengeIds.forEach((id: string) => {
         const idLower = id.toLowerCase();
         if (!mergedEntries.some(e => (e.missionId || e.challengeId || e.tripId || '').toLowerCase() === idLower)) {
@@ -467,7 +473,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       gameConfig?.starterResetVersion,
       gameConfig?.activeStarterDeckId
     );
-  }, [user?.uid, entries, pendingEntries, activeMissionId, activeSubmissionStatus, gameConfig?.starterResetVersion, gameConfig?.activeStarterDeckId, profile?.completedChallengeIds]);
+  }, [user?.uid, entries.length, activeEntries, pendingEntries, activeMissionId, activeSubmissionStatus, gameConfig?.starterResetVersion, gameConfig?.activeStarterDeckId, profile?.completedChallengeIds]);
 
   const starterApprovedCount = starterState.starterApprovedCount;
   const isOnboardingComplete = starterState.starterComplete;
@@ -578,7 +584,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const localPendingTripIds = new Set(pendingEntries.map(e => e.tripId));
     
     // 3. Sum up server-side entries that represent XP in-flight
-    const serverPendingSum = entries.reduce((sum, e) => {
+    const serverPendingSum = activeEntries.reduce((sum, e) => {
       const isPendingXP = ['pending', 'pending_review', 'submitted_pending_review', 'submitted', 'under_field_check', 'needs_more_proof'].includes(e.status);
       if (isPendingXP && !localPendingTripIds.has(e.tripId)) {
         // Fallback chain for points: actual > estimated > base placeholder
@@ -588,7 +594,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }, 0);
     
     return localSum + serverPendingSum;
-  }, [pendingEntries, entries]);
+  }, [pendingEntries, activeEntries]);
 
   const xp = (overrides.xp !== null) ? overrides.xp : (profile?.xp !== undefined ? profile.xp : (profile?.points || 0));
   const points = xp;
