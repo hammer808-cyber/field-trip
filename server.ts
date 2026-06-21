@@ -1155,7 +1155,7 @@ async function startServer() {
       try {
         codeSnap = await codeRef.get();
       } catch (getErr: any) {
-        console.error(`[BUREAU_AUTH] Permission/Read Error for document ${normalizedCode}:`, getErr.message);
+        console.error("[BUREAU_AUTH] Permission/Read Error for document %s: %s", normalizedCode, getErr.message);
         if (getErr.code === 7 || getErr.message?.includes('permission')) {
           console.error(`[BUREAU_AUTH] Error 7 detected. Verify that database ${databaseId} exists and the service account has permission.`);
         }
