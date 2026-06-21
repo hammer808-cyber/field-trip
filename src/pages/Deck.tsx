@@ -105,6 +105,7 @@ function MiniSplitFlap({ text, colorClass = "text-brand-orange" }: { text: strin
 
 import { QuickMissionCard } from '../components/QuickMissionCard';
 import { MissionDetailsModal } from '../components/MissionDetailsModal';
+import { DeckDiagnosticsPanel } from '../components/DeckDiagnosticsPanel';
 
 import { ActionButton, DisplayPanel } from '../components/UIUtilities';
 
@@ -149,7 +150,7 @@ export default function DeckPage() {
     updateTripProgress, completedChallengeIds, submittedPendingChallengeIds, fieldTokens, onboardingCompletedCount,
     onboardingRequiredCount, completedOnboardingMissionIds, isOnboardingComplete, trips, starterState,
     memories, toggleFavoriteMemory, getEligibleDrawPool, updateProfile, blockedIds, unlockDiscoverySticker, currentDate,
-    isAdmin, isHeatwaveDeckUnlocked, mustCompleteStarterMission,
+    isAdmin, isHeatwaveDeckUnlocked, isSocalSummerUnlocked, mustCompleteStarterMission,
     needsMoreProofChallengeIds, rejectedChallengeIds,
     drawnMissionCards, updateMissionCardStatus, setActiveMissionCard
   } = useApp();
@@ -494,6 +495,33 @@ export default function DeckPage() {
     }, 1000);
   };
 
+  const deckLockState = getPackLockState(activePack);
+  const deckDiagnosticsPanel = (isAdmin || import.meta.env.DEV) ? (
+    <DeckDiagnosticsPanel
+      activePack={activePack}
+      missions={trips}
+      entries={entries}
+      drawnMissionCards={drawnMissionCards}
+      profile={profile}
+      completedChallengeIds={completedChallengeIds}
+      submittedPendingChallengeIds={submittedPendingChallengeIds}
+      needsMoreProofChallengeIds={needsMoreProofChallengeIds}
+      rejectedChallengeIds={rejectedChallengeIds}
+      onboardingCompletedCount={onboardingCompletedCount}
+      onboardingRequiredCount={onboardingRequiredCount}
+      isOnboardingComplete={isOnboardingComplete}
+      starterState={starterState}
+      isHeatwaveDeckUnlocked={isHeatwaveDeckUnlocked}
+      isSocalSummerUnlocked={isSocalSummerUnlocked}
+      isAdmin={isAdmin}
+      locked={deckLockState.locked}
+      lockReason={deckLockState.reason}
+      exhausted={isExhausted}
+      eligibleCards={eligiblePool}
+      activeTripId={activeTrip?.id || null}
+    />
+  ) : null;
+
   // Full-Screen Training Protocol Complete Screen (Intro)
   if (user && isOnboardingComplete && !profile?.hasSeenDeckChooserIntro) {
     return (
@@ -594,6 +622,9 @@ export default function DeckPage() {
             </button>
           </div>
         </motion.div>
+        <div className="relative z-30 w-full px-4">
+          {deckDiagnosticsPanel}
+        </div>
       </div>
     );
   }
@@ -607,6 +638,7 @@ export default function DeckPage() {
           <p className="font-serif italic opacity-75 text-lg">"{fc('The mission queue is currently locked. No active seasonal data available in your sector.', 'The mission queue is currently locked. Check back later.')}"</p>
         </div>
         <Link to="/" className="bureau-btn bg-on-surface text-paper">{fc('Return to Base', 'Back Home')}</Link>
+        {deckDiagnosticsPanel}
       </div>
     );
   }
@@ -745,6 +777,9 @@ export default function DeckPage() {
            <div className="text-[8px] font-mono font-black uppercase tracking-[0.6em]">Protocol: Ready for Deployment</div>
            <div className="h-0.5 w-32 bg-on-surface/40 rounded-full" />
         </div>
+        <div className="absolute bottom-24 left-0 right-0 z-30 px-4">
+          {deckDiagnosticsPanel}
+        </div>
       </div>
     );
   }
@@ -785,7 +820,7 @@ export default function DeckPage() {
         backgroundIcon={<Layers className="w-64 h-64" />}
         infoCardLabel={getDisplayLabel('ACTIVE_DECK')}
         infoCardValue={activePack?.shortName || activeDeckShortName}
-        infoCardSubtext={getPackLockState(activePack).locked ? "LOCKED" : "UNLOCKED"}
+        infoCardSubtext={deckLockState.locked ? "LOCKED" : "UNLOCKED"}
         infoCardAccent="blue"
       />
 
@@ -857,68 +892,9 @@ export default function DeckPage() {
           </div>
         </div>
 
-        {/* DEBUG PANEL */}
-        {activePackId === 'heatwave-receipts' && (
-          <div className="mt-4 p-4 bg-black text-white font-mono text-[10px] rounded-lg opacity-90 overflow-auto border-2 border-brand-orange/50 shadow-lg relative z-20">
-            <h5 className="text-brand-orange border-b border-brand-orange/30 pb-1 mb-2 font-bold uppercase tracking-wider">DEBUG: Heatwave Diagnostics</h5>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-              <div>activeDeckId: <span className="text-brand-orange">{activePackId}</span></div>
-              <div>totalCards: {totalDeckChallenges}</div>
-              <div>approvedCount: {approvedDeckChallengesCount}</div>
-              <div>pendingCount: {pendingDeckChallengesCount}</div>
-              <div>needsMoreCount: {needsMoreProofDeckChallengesCount}</div>
-              <div>rejectedCount: {rejectedDeckChallengesCount}</div>
-              <div>availableCards.length: <span className={eligiblePool.length === 0 ? "text-red-500 font-bold" : "text-green-500"}>{eligiblePool.length}</span></div>
-              <div>isExhausted: {String(isExhausted)}</div>
-              <div>isBlocked: {String(isWaitingForReview)}</div>
-              <div>blockReason: <span className="text-brand-orange">{isPendingReviewLimit ? 'pending_limit_reached' : (eligiblePool.length === 0 ? 'deck_exhausted' : 'none')}</span></div>
-              <div>displayLabel: {displayState.label}</div>
-              <div>displaySub: {displayState.sublabel}</div>
-            </div>
-            
-            <div className="mt-3 text-neutral-400 border-t border-white/10 pt-2">Available Card IDs:</div>
-            <div className="flex flex-wrap gap-1 mt-1">
-              {eligiblePool.map(m => <span key={m.id} className="bg-green-500/20 text-green-400 px-1 rounded">{m.id}</span>)}
-              {eligiblePool.length === 0 && <span className="text-red-500">NONE</span>}
-            </div>
-
-            <div className="mt-3 text-neutral-400 border-t border-white/10 pt-2 text-[8px] uppercase font-bold text-neutral-500">Deck Inventory Analyzer:</div>
-            <div className="max-h-48 overflow-auto mt-1 space-y-0.5 border border-white/5 rounded-md bg-white/5">
-              <table className="w-full text-left">
-                <thead className="bg-white/10 text-neutral-400 uppercase tracking-tighter">
-                  <tr>
-                    <th className="px-1 py-0.5">ID</th>
-                    <th className="px-1 py-0.5">STAT</th>
-                    <th className="px-1 py-0.5">SUB?</th>
-                    <th className="px-1 py-0.5">DRAW</th>
-                    <th className="px-1 py-0.5">REASON</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {drawPoolAnalysis.sort((a,b) => a.cardId.localeCompare(b.cardId)).map(a => (
-                    <tr key={a.cardId} className={`${a.isDrawable ? 'bg-green-500/5' : ''}`}>
-                      <td className="px-1 py-0.5 text-white/80">{a.cardId}</td>
-                      <td className="px-1 py-0.5 text-blue-400">{a.status}</td>
-                      <td className="px-1 py-0.5">
-                        {a.isApproved && "APV"}
-                        {a.isPending && "PND"}
-                        {a.isNeedsMoreProof && "NMP"}
-                        {a.isRejected && "REJ"}
-                      </td>
-                      <td className={`px-1 py-0.5 font-bold ${a.isDrawable ? 'text-green-500' : 'text-neutral-600'}`}>
-                        {a.isDrawable ? 'YES' : 'NO'}
-                      </td>
-                      <td className={`px-1 py-0.5 ${a.exclusionReason === 'missing_from_missions_bank' ? 'text-red-500' : 'text-neutral-500 italic'}`}>
-                        {a.exclusionReason || '-'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
       </div>
+
+      {deckDiagnosticsPanel}
 
       {/* 4. MAIN INTERACTIVE AREA: DRAW OR REVEAL (REFACTORED) */}
       <div className="max-w-xl mx-auto mb-12 relative z-10 px-2 lg:px-0 min-h-[500px]">
