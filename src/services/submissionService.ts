@@ -11,11 +11,7 @@ import {
   limit, 
   getDocs,
   onSnapshot, 
-  serverTimestamp, 
-  increment, 
-  arrayUnion, 
-  arrayRemove,
-  getDocFromServer
+  serverTimestamp
 } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import firebaseConfig from '../../firebase-applet-config.json';
@@ -23,9 +19,20 @@ import { Entry } from '../constants';
 import { ProofReview, ProofStatus } from '../types/proof';
 import { uploadBase64Image } from './storageService';
 import { evaluateProof } from './proofService';
-import { normalizeEntryStatus } from '../logic/entryLogic';
-import { awardPoints } from './scoringService';
 import { logAdminAction } from './moderationService';
+import {
+  getCanonicalChallengeId,
+  getCanonicalImageUrl,
+  getCanonicalStoragePath,
+  getCanonicalUserId,
+  isKnownProofStatusValue,
+  normalizeProofStatus,
+  normalizeCanonicalSubmission,
+  markCanonicalSubmissionPending,
+  transitionProofReview,
+  repairCanonicalProofQueue,
+  QueueRepairReport
+} from './proofLifecycleService';
 
 // COLLECTION NAMES
 const ENTRIES_COLLECTION = 'entries';
@@ -40,8 +47,14 @@ export interface AdminReviewQueueDiagnostics {
   entriesTotalBeforeFiltering: number;
   proofReviewsTotalBeforeFiltering: number;
   mergedTotalAfterFiltering: number;
+  failedOrIncompleteCount: number;
+  missingRequiredFieldsCount: number;
+  missingImageReferenceCount: number;
+  missingLinkageCount: number;
+  invalidStatusCount: number;
   statusCounts: Record<'pending_review' | 'approved' | 'rejected' | 'needs_more_proof', number>;
   excluded: Array<{ id: string; source: 'entry' | 'proofReview'; status: string; normalizedStatus: string; reason: string }>;
+  reviewableButNotRendered: string[];
   errors: Array<{ source: 'entries' | 'proofReviews'; message: string; code?: string }>;
   updatedAt: string;
 }
@@ -57,6 +70,11 @@ function createEmptyDiagnostics(
     entriesTotalBeforeFiltering: 0,
     proofReviewsTotalBeforeFiltering: 0,
     mergedTotalAfterFiltering: 0,
+    failedOrIncompleteCount: 0,
+    missingRequiredFieldsCount: 0,
+    missingImageReferenceCount: 0,
+    missingLinkageCount: 0,
+    invalidStatusCount: 0,
     statusCounts: {
       pending_review: 0,
       approved: 0,
@@ -64,6 +82,7 @@ function createEmptyDiagnostics(
       needs_more_proof: 0
     },
     excluded: [],
+    reviewableButNotRendered: [],
     errors: [],
     updatedAt: new Date().toISOString()
   };
@@ -103,8 +122,8 @@ function normalizeReviewQueueRecord(docId: string, data: any, source: 'entry' | 
     imageUrl: data.imageUrl || data.photoUrl || data.proofImage || data.mediaUrl || '',
     proofImage: data.proofImage || data.photoUrl || data.imageUrl || data.mediaUrl || '',
     fieldNote: data.fieldNote || data.note || data.caption || '',
-    status: normalizeEntryStatus(data.status),
-    reviewStatus: normalizeEntryStatus(data.reviewStatus || data.status),
+    status: normalizeProofStatus(data.status),
+    reviewStatus: normalizeProofStatus(data.reviewStatus || data.status),
     queueSource: source
   } as Entry;
 }
@@ -119,7 +138,9 @@ function mergeReviewQueueRecords(entries: Entry[], reviews: Entry[]): Entry[] {
   reviews.forEach(review => {
     const key = ((review as any).entryId || review.id) as string;
     const existing = byEntryId.get(key);
-    byEntryId.set(key, existing ? ({ ...review, ...existing, proofReviewId: (review as any).proofReviewId || (existing as any).proofReviewId } as Entry) : review);
+    if (existing) {
+      byEntryId.set(key, { ...review, ...existing, proofReviewId: (review as any).proofReviewId || (existing as any).proofReviewId } as Entry);
+    }
   });
 
   return sortNewestFirst(Array.from(byEntryId.values()));
@@ -286,10 +307,12 @@ export async function createSubmission(
   console.log("[NewUserSubmit] entry create started");
   // Write Entry first
   await setDoc(docRef, canonicalEntry);
+  await markCanonicalSubmissionPending(entryId, canonicalEntry);
   console.log("[NewUserSubmit] entry created");
   logDev(`Canonical entry written once to Firestore under ID: ${entryId}`);
 
-  // Now run evaluateProof trigger logic asynchronously or directly
+  // AI analysis and proofReviews are projections only. The canonical entry above
+  // is already persisted and validated, so these can never decide queue visibility.
   try {
     const aiReview = await evaluateProof(
       userId,
@@ -310,107 +333,116 @@ export async function createSubmission(
       updatedAt: serverTimestamp()
     });
 
-    console.log("[NewUserSubmit] proofReview create started");
-    // Create corresponding admin review document
-    await createAdminReview(aiReview.id, entryId, {
-      userId,
-      challengeId: trip.id,
-      missionId: trip.id,
-      deckId: canonicalEntry.deckId,
-      status: 'pending_review',
-      imageUrl: canonicalEntry.imageUrl,
-      photoUrl: canonicalEntry.photoUrl,
-      storagePath: canonicalEntry.storagePath,
-      fieldNote: canonicalEntry.fieldNote,
-      capturedAt: canonicalEntry.createdAt,
-      submittedAt: new Date().toISOString(),
-      uploadedAt: new Date().toISOString(),
-      captureSource: canonicalEntry.uploadSource || 'camera',
-      aiRecommendation: aiReview.status || 'pending_review',
-      aiAnalysisStatus: 'completed',
-      needsManualReview: true,
-      metadata: {
-        hasExif: false,
-        cameraMake: null,
-        cameraModel: null,
-        createdAt: null,
-        editingSoftware: null,
-        gpsPresent: false,
-        width: 1080,
-        height: 1920
-      },
-      verification: {
-        aiRiskScore: 0,
-        proofTrustScore: 70,
-        riskLevel: "low",
-        riskReasons: [],
-        duplicateStatus: "none",
-        imageHash: "",
-        perceptualHash: "",
-        missionMatchScore: aiReview.confidenceScore || 70
-      }
-    });
-    console.log("[NewUserSubmit] proofReview created");
+    console.log("[NewUserSubmit] proofReview audit create started");
+    try {
+      await createAdminReview(aiReview.id, entryId, {
+        userId,
+        challengeId: trip.id,
+        missionId: trip.id,
+        deckId: canonicalEntry.deckId,
+        status: 'pending_review',
+        imageUrl: canonicalEntry.imageUrl,
+        photoUrl: canonicalEntry.photoUrl,
+        storagePath: canonicalEntry.storagePath,
+        fieldNote: canonicalEntry.fieldNote,
+        capturedAt: canonicalEntry.createdAt,
+        submittedAt: new Date().toISOString(),
+        uploadedAt: new Date().toISOString(),
+        captureSource: canonicalEntry.uploadSource || 'camera',
+        aiRecommendation: aiReview.status || 'pending_review',
+        aiAnalysisStatus: 'completed',
+        needsManualReview: true,
+        metadata: {
+          hasExif: false,
+          cameraMake: null,
+          cameraModel: null,
+          createdAt: null,
+          editingSoftware: null,
+          gpsPresent: false,
+          width: 1080,
+          height: 1920
+        },
+        verification: {
+          aiRiskScore: 0,
+          proofTrustScore: 70,
+          riskLevel: "low",
+          riskReasons: [],
+          duplicateStatus: "none",
+          imageHash: "",
+          perceptualHash: "",
+          missionMatchScore: aiReview.confidenceScore || 70
+        }
+      });
+      console.log("[NewUserSubmit] proofReview audit created");
+    } catch (reviewErr) {
+      console.warn('[SUBMISSION_PIPELINE] proofReviews audit write failed; canonical entry remains reviewable:', reviewErr);
+    }
     console.log("[NewUserSubmit] status saved");
     console.log("[NewUserSubmit] photoUrl saved");
 
   } catch (err: any) {
     console.error('[SUBMISSION_PIPELINE] Non-blocking AI evaluation failure:', err);
-    // Create backup proofReview document if AI service fails
-    const backupReviewId = `rev_fail_${Date.now()}`;
-    
-    console.log("[NewUserSubmit] proofReview create started");
-    await createAdminReview(backupReviewId, entryId, {
-      userId,
-      challengeId: trip.id,
-      missionId: trip.id,
-      deckId: canonicalEntry.deckId,
-      status: 'pending_review',
-      imageUrl: canonicalEntry.imageUrl,
-      photoUrl: canonicalEntry.photoUrl,
-      storagePath: canonicalEntry.storagePath,
-      fieldNote: canonicalEntry.fieldNote,
-      capturedAt: canonicalEntry.createdAt,
-      submittedAt: new Date().toISOString(),
-      uploadedAt: new Date().toISOString(),
-      captureSource: 'camera',
+    await updateDoc(docRef, {
+      proofCheckId: `entry_${entryId}_manual_review`,
       aiRecommendation: 'pending_review',
       aiAnalysisStatus: 'failed',
-      needsManualReview: true,
-      confidenceScore: 50,
-      reviewNotes: `Internal AI service offline. Deferred entirely to manual admin review. Error: ${err.message || err}`,
-      missingRequirements: [],
-      metadata: {
-        hasExif: false,
-        cameraMake: null,
-        cameraModel: null,
-        createdAt: null,
-        editingSoftware: null,
-        gpsPresent: false,
-        width: 1080,
-        height: 1920
-      },
-      verification: {
-        aiRiskScore: 0,
-        proofTrustScore: 50,
-        riskLevel: "low",
-        riskReasons: [],
-        duplicateStatus: "none",
-        imageHash: "",
-        perceptualHash: "",
-        missionMatchScore: 50
-      }
-    });
-    console.log("[NewUserSubmit] proofReview created");
-    console.log("[NewUserSubmit] status saved");
-    console.log("[NewUserSubmit] photoUrl saved");
-
-    await updateDoc(docRef, {
-      proofCheckId: backupReviewId,
-      aiRecommendation: 'pending_review',
       adminNotes: 'AI offline. Defaulting directly to admin queue.',
       updatedAt: serverTimestamp()
     });
+
+    // Create backup proofReview document if AI service fails. This is not required
+    // for the admin queue; entries remains the canonical queue source.
+    const backupReviewId = `rev_fail_${Date.now()}`;
+    
+    console.log("[NewUserSubmit] proofReview fallback audit create started");
+    try {
+      await createAdminReview(backupReviewId, entryId, {
+        userId,
+        challengeId: trip.id,
+        missionId: trip.id,
+        deckId: canonicalEntry.deckId,
+        status: 'pending_review',
+        imageUrl: canonicalEntry.imageUrl,
+        photoUrl: canonicalEntry.photoUrl,
+        storagePath: canonicalEntry.storagePath,
+        fieldNote: canonicalEntry.fieldNote,
+        capturedAt: canonicalEntry.createdAt,
+        submittedAt: new Date().toISOString(),
+        uploadedAt: new Date().toISOString(),
+        captureSource: 'camera',
+        aiRecommendation: 'pending_review',
+        aiAnalysisStatus: 'failed',
+        needsManualReview: true,
+        confidenceScore: 50,
+        reviewNotes: `Internal AI service offline. Deferred entirely to manual admin review. Error: ${err.message || err}`,
+        missingRequirements: [],
+        metadata: {
+          hasExif: false,
+          cameraMake: null,
+          cameraModel: null,
+          createdAt: null,
+          editingSoftware: null,
+          gpsPresent: false,
+          width: 1080,
+          height: 1920
+        },
+        verification: {
+          aiRiskScore: 0,
+          proofTrustScore: 50,
+          riskLevel: "low",
+          riskReasons: [],
+          duplicateStatus: "none",
+          imageHash: "",
+          perceptualHash: "",
+          missionMatchScore: 50
+        }
+      });
+      console.log("[NewUserSubmit] proofReview fallback audit created");
+    } catch (reviewErr) {
+      console.warn('[SUBMISSION_PIPELINE] fallback proofReviews audit write failed; canonical entry remains reviewable:', reviewErr);
+    }
+    console.log("[NewUserSubmit] status saved");
+    console.log("[NewUserSubmit] photoUrl saved");
   }
 
   return canonicalEntry;
@@ -426,51 +458,7 @@ export async function updateSubmissionStatus(
   notes?: string
 ) {
   logDev(`Updating submission ${submissionId} to status: ${status}. Notes: ${notes}`);
-  const entryRef = doc(db, ENTRIES_COLLECTION, submissionId);
-  const entrySnap = await getDoc(entryRef);
-  if (!entrySnap.exists()) {
-    throw new Error('ENTRY_NOT_FOUND: The specified entry could not be located.');
-  }
-
-  // Update Entry Status
-  const entryUpdates: any = {
-    status,
-    reviewStatus: status,
-    adminNotes: notes || '',
-    updatedAt: serverTimestamp()
-  };
-  if (status === 'rejected') {
-    entryUpdates.retryAvailable = true;
-    entryUpdates.retryPointMultiplier = 0.5;
-  }
-  await updateDoc(entryRef, entryUpdates);
-
-  // Find linked review doc and update it too
-  const reviewCollection = collection(db, REVIEWS_COLLECTION);
-  const reviewQuery = query(reviewCollection, where('entryId', '==', submissionId));
-  const reviewSnap = await getDocs(reviewQuery);
-  
-  if (!reviewSnap.empty) {
-    const reviewId = reviewSnap.docs[0].id;
-    logDev(`Updating linked review document ${reviewId} status to: ${status}`);
-    await updateDoc(doc(db, REVIEWS_COLLECTION, reviewId), {
-      status,
-      reviewNotes: notes || '',
-      reviewedAt: serverTimestamp()
-    });
-  } else {
-    logDev(`No linked review document found for entry ${submissionId}. Submitting a placeholder review.`);
-    await addDoc(reviewCollection, {
-      entryId: submissionId,
-      status,
-      confidenceScore: 100,
-      reviewNotes: notes || 'Fallback proof review mapping status.',
-      userId: entrySnap.data().userId,
-      challengeId: entrySnap.data().tripId || entrySnap.data().missionId || entrySnap.data().challengeId,
-      createdAt: serverTimestamp(),
-      reviewedAt: serverTimestamp()
-    });
-  }
+  return transitionProofReview(submissionId, status, notes || '');
 }
 
 import { awardSubmissionPointsOnce } from './submission-utils';
@@ -481,10 +469,7 @@ export { awardSubmissionPointsOnce };
  */
 export async function approveSubmission(submissionId: string, notes: string) {
   logDev(`Approving submission ${submissionId}`);
-  // Force update statuses first
-  await updateSubmissionStatus(submissionId, 'approved', notes);
-  // Execute points award safely
-  const pointsResult = await awardSubmissionPointsOnce(submissionId, notes);
+  const pointsResult = await transitionProofReview(submissionId, 'approved', notes);
 
   if (auth.currentUser) {
     await logAdminAction(auth.currentUser.uid, submissionId, 'proofReview', 'approve', { 
@@ -501,26 +486,11 @@ export async function approveSubmission(submissionId: string, notes: string) {
  */
 export async function requestMoreProof(submissionId: string, notes: string) {
   logDev(`Requesting more proof for ${submissionId}`);
-  await updateSubmissionStatus(submissionId, 'needs_more_proof', notes);
-  
-  // Adjust user profile arrays
-  const entrySnap = await getDoc(doc(db, ENTRIES_COLLECTION, submissionId));
-  if (entrySnap.exists()) {
-    const data = entrySnap.data();
-    const userRef = doc(db, USERS_COLLECTION, data.userId);
-    const missionIdClean = (data.tripId || data.missionId || data.challengeId).toLowerCase().trim();
-    await updateDoc(userRef, {
-      completedChallengeIds: arrayRemove(missionIdClean),
-      completedMissionIds: arrayRemove(missionIdClean),
-      needsMoreProofChallengeIds: arrayUnion(missionIdClean),
-      submittedChallengeIds: arrayRemove(missionIdClean),
-      submittedPendingChallengeIds: arrayRemove(missionIdClean)
-    });
-
-    if (auth.currentUser) {
-      await logAdminAction(auth.currentUser.uid, submissionId, 'proofReview', 'request_more_proof', { notes, targetUserId: data.userId });
-    }
+  const result = await transitionProofReview(submissionId, 'needs_more_proof', notes);
+  if (auth.currentUser) {
+    await logAdminAction(auth.currentUser.uid, submissionId, 'proofReview', 'request_more_proof', { notes });
   }
+  return result;
 }
 
 /**
@@ -528,27 +498,11 @@ export async function requestMoreProof(submissionId: string, notes: string) {
  */
 export async function rejectSubmission(submissionId: string, notes: string) {
   logDev(`Rejecting submission ${submissionId}`);
-  await updateSubmissionStatus(submissionId, 'rejected', notes);
-
-  // Adjust user profile arrays
-  const entrySnap = await getDoc(doc(db, ENTRIES_COLLECTION, submissionId));
-  if (entrySnap.exists()) {
-    const data = entrySnap.data();
-    const userRef = doc(db, USERS_COLLECTION, data.userId);
-    const missionIdClean = (data.tripId || data.missionId || data.challengeId).toLowerCase().trim();
-    await updateDoc(userRef, {
-      completedChallengeIds: arrayRemove(missionIdClean),
-      completedMissionIds: arrayRemove(missionIdClean),
-      rejectedChallengeIds: arrayUnion(missionIdClean),
-      retryableChallengeIds: arrayUnion(missionIdClean),
-      submittedChallengeIds: arrayRemove(missionIdClean),
-      submittedPendingChallengeIds: arrayRemove(missionIdClean)
-    });
-
-    if (auth.currentUser) {
-      await logAdminAction(auth.currentUser.uid, submissionId, 'proofReview', 'reject', { notes, targetUserId: data.userId });
-    }
+  const result = await transitionProofReview(submissionId, 'rejected', notes);
+  if (auth.currentUser) {
+    await logAdminAction(auth.currentUser.uid, submissionId, 'proofReview', 'reject', { notes });
   }
+  return result;
 }
 
 /**
@@ -582,28 +536,52 @@ export function subscribeToAdminPendingReviews(
 
   let latestEntries: Entry[] = [];
   let latestReviews: Entry[] = [];
-  let rawEntriesForDiagnostics: any[] = [];
+  let monitorEntriesForDiagnostics: any[] = [];
   let rawReviewsForDiagnostics: any[] = [];
   let entriesReady = false;
+  let monitorReady = false;
   let reviewsReady = false;
   let rawEntriesCount = 0;
+  let monitorEntriesCount = 0;
   let rawReviewsCount = 0;
   const errors: AdminReviewQueueDiagnostics['errors'] = [];
   const excluded = new Map<string, AdminReviewQueueDiagnostics['excluded'][number]>();
 
   const emit = () => {
-    if (!entriesReady && !reviewsReady) return;
+    if (!entriesReady && !reviewsReady && !monitorReady) return;
     const merged = mergeReviewQueueRecords(latestEntries, latestReviews);
+    const renderedIds = new Set(merged.map(item => String((item as any).entryId || item.id)));
     const diagnostics = createEmptyDiagnostics(statusFilter);
-    diagnostics.entriesTotalBeforeFiltering = rawEntriesCount;
+    diagnostics.entriesTotalBeforeFiltering = monitorEntriesCount || rawEntriesCount;
     diagnostics.proofReviewsTotalBeforeFiltering = rawReviewsCount;
     diagnostics.mergedTotalAfterFiltering = merged.length;
     diagnostics.errors = [...errors];
     diagnostics.excluded = Array.from(excluded.values()).slice(0, 80);
-    [...rawEntriesForDiagnostics, ...rawReviewsForDiagnostics].forEach(record => {
+    [...monitorEntriesForDiagnostics, ...rawReviewsForDiagnostics].forEach(record => {
       if (record?.archived === true) return;
-      const status = normalizeEntryStatus((record as any).status || (record as any).reviewStatus);
+      const rawStatus = (record as any).status || (record as any).reviewStatus || (record as any).submissionStatus || (record as any).proofStatus;
+      const status = normalizeProofStatus(rawStatus);
+      const rawStatusText = String(rawStatus || '').toLowerCase().trim();
       diagnostics.statusCounts[status] += 1;
+      if (rawStatusText === 'submission_failed' || rawStatusText === 'upload_incomplete' || rawStatusText === 'uploading' || rawStatusText === 'draft') {
+        diagnostics.failedOrIncompleteCount += 1;
+      }
+      if (!isKnownProofStatusValue(rawStatus)) {
+        diagnostics.invalidStatusCount += 1;
+      }
+      if (!getCanonicalImageUrl(record) && !getCanonicalStoragePath(record)) {
+        diagnostics.missingImageReferenceCount += 1;
+      }
+      if (!getCanonicalUserId(record) || !getCanonicalChallengeId(record) || !(record as any).deckId) {
+        diagnostics.missingLinkageCount += 1;
+      }
+      if (!rawStatus || (!getCanonicalImageUrl(record) && !getCanonicalStoragePath(record)) || !getCanonicalUserId(record) || !getCanonicalChallengeId(record) || !(record as any).deckId) {
+        diagnostics.missingRequiredFieldsCount += 1;
+      }
+      const entryId = String((record as any).entryId || (record as any).id || '');
+      if (status === statusFilter && entryId && !renderedIds.has(entryId)) {
+        diagnostics.reviewableButNotRendered.push(entryId);
+      }
     });
     console.log("[AdminQueue] merged documents returned", merged.length);
     console.log("[AdminQueue] diagnostics", diagnostics);
@@ -612,6 +590,13 @@ export function subscribeToAdminPendingReviews(
   };
 
   const entryQuery = query(
+    collection(db, ENTRIES_COLLECTION),
+    where('status', '==', statusFilter),
+    orderBy('submittedAt', 'desc'),
+    limit(200)
+  );
+
+  const monitorEntryQuery = query(
     collection(db, ENTRIES_COLLECTION),
     orderBy('submittedAt', 'desc'),
     limit(500)
@@ -625,12 +610,11 @@ export function subscribeToAdminPendingReviews(
 
   const unsubEntries = onSnapshot(entryQuery, (snap) => {
     const rawEntries = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Entry));
-    rawEntriesForDiagnostics = rawEntries;
     rawEntriesCount = rawEntries.length;
-    console.log("[AdminQueue] entries documents returned before filtering", rawEntries.length);
+    console.log("[AdminQueue] canonical entries returned", rawEntries.length);
 
     latestEntries = rawEntries.filter(e => {
-      const normalizedStatus = normalizeEntryStatus((e as any).status);
+      const normalizedStatus = normalizeProofStatus((e as any).status || (e as any).reviewStatus);
       const isArchived = e.archived === true;
       if (isArchived) {
         excluded.set(`entry:${e.id}:archived`, {
@@ -665,13 +649,25 @@ export function subscribeToAdminPendingReviews(
     emit();
   });
 
+  const unsubMonitorEntries = onSnapshot(monitorEntryQuery, (snap) => {
+    monitorEntriesForDiagnostics = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    monitorEntriesCount = monitorEntriesForDiagnostics.length;
+    monitorReady = true;
+    emit();
+  }, (err) => {
+    monitorReady = true;
+    console.error('[SUBMISSION_PIPELINE] Error loading admin queue monitor:', err);
+    errors.push({ source: 'entries', message: `monitor: ${err?.message || String(err)}`, code: err?.code });
+    emit();
+  });
+
   const unsubReviews = onSnapshot(reviewQuery, (snap) => {
     const rawReviews = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     rawReviewsForDiagnostics = rawReviews;
     rawReviewsCount = rawReviews.length;
     latestReviews = rawReviews
       .filter(review => {
-        const normalizedStatus = normalizeEntryStatus((review as any).status || (review as any).reviewStatus);
+        const normalizedStatus = normalizeProofStatus((review as any).status || (review as any).reviewStatus);
         if ((review as any).archived === true) {
           excluded.set(`proofReview:${review.id}:archived`, {
             id: review.id,
@@ -708,8 +704,13 @@ export function subscribeToAdminPendingReviews(
 
   return () => {
     unsubEntries();
+    unsubMonitorEntries();
     unsubReviews();
   };
+}
+
+export async function runCanonicalProofQueueRepair(dryRun = true): Promise<QueueRepairReport> {
+  return repairCanonicalProofQueue(dryRun);
 }
 
 /**

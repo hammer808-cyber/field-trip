@@ -33,6 +33,7 @@ import { FieldCheckReason, FieldCheckStatus, Season } from '../types/game';
 import { LAUNCH_MISSION_ID } from '../data/specialMissions';
 import { getWeekWindows, getServerTime as getWeeklyServerTime, getCurrentSeasonWeek } from '../logic/weeklyLogic';
 import { getServerTime as getSyncedTime, getServerDate } from './timeService';
+import { markCanonicalSubmissionPending } from './proofLifecycleService';
 
 export async function submitTripEntry(
   userId: string,
@@ -331,6 +332,15 @@ export async function submitTripEntry(
       await updateDoc(entryRef, { id: entryId, entryId: entryId }); // Keeping both for safety
     }
 
+    const canonicalEntryForValidation = {
+      ...finalEntryData,
+      id: entryId,
+      entryId,
+      status: 'pending_review',
+      reviewStatus: 'pending_review'
+    };
+    await markCanonicalSubmissionPending(entryId, canonicalEntryForValidation);
+
     // Consolidate user locking logic
     const userUpdate: any = {
       activeTrip: null,
@@ -352,43 +362,64 @@ export async function submitTripEntry(
 
     await updateDoc(userRef, userUpdate);
 
-    // Requirement Part 4: AI Evaluate Proof (Pre-classification check)
-    // This now handles both document creation and AI analysis in one flow
-    const review = await evaluateProof(
-      userId,
-      trip.id,
-      trip.title,
-      trip.theAsk,
-      { ...updatedEntryData, id: entryId, note: entryData.fieldNote },
-      imageUrl 
-    );
+    let review: any;
 
-    const entryUpdate: any = {
-      status: 'pending_review', // Explicitly keep as pending_review to restrict self-approvals
-      reviewStatus: 'pending_review', // Same
-      proofCheckId: review.id,
-      aiRecommendation: review.status,
-      adminNotes: review.reviewNotes,
-      updatedAt: serverTimestamp(),
-      
-      // Save all multi-signal pipeline variables
-      proofTrustScore: (review as any).proofTrustScore !== undefined ? (review as any).proofTrustScore : 70,
-      aiRiskScore: (review as any).aiRiskScore !== undefined ? (review as any).aiRiskScore : 20,
-      riskLevel: (review as any).riskLevel || 'low',
-      riskReasons: (review as any).riskReasons || [],
-      metadataSummary: (review as any).metadataSummary || '',
-      duplicateWarning: (review as any).duplicateWarning || null,
-      duplicateReusedDesc: (review as any).duplicateReusedDesc || null,
-      receiptChallengeResult: (review as any).receiptChallengeResult || 'unverified',
-      imageHash: (review as any).imageHash || 'no-image',
-      perceptualHash: (review as any).perceptualHash || '',
-      cameraMake: (review as any).cameraMake || null,
-      cameraModel: (review as any).cameraModel || null,
-      editingSoftware: (review as any).editingSoftware || null,
-      missionMatchScore: (review as any).missionMatchScore || 100
-    };
+    try {
+      review = await evaluateProof(
+        userId,
+        trip.id,
+        trip.title,
+        trip.theAsk,
+        { ...updatedEntryData, id: entryId, note: entryData.fieldNote },
+        imageUrl 
+      );
 
-    await updateDoc(doc(db, 'entries', entryId), entryUpdate);
+      const entryUpdate: any = {
+        status: 'pending_review', // Explicitly keep as pending_review to restrict self-approvals
+        reviewStatus: 'pending_review', // Same
+        proofCheckId: review.id,
+        aiRecommendation: review.status,
+        aiAnalysisStatus: 'completed',
+        adminNotes: review.reviewNotes,
+        updatedAt: serverTimestamp(),
+        
+        // Save all multi-signal pipeline variables
+        proofTrustScore: (review as any).proofTrustScore !== undefined ? (review as any).proofTrustScore : 70,
+        aiRiskScore: (review as any).aiRiskScore !== undefined ? (review as any).aiRiskScore : 20,
+        riskLevel: (review as any).riskLevel || 'low',
+        riskReasons: (review as any).riskReasons || [],
+        metadataSummary: (review as any).metadataSummary || '',
+        duplicateWarning: (review as any).duplicateWarning || null,
+        duplicateReusedDesc: (review as any).duplicateReusedDesc || null,
+        receiptChallengeResult: (review as any).receiptChallengeResult || 'unverified',
+        imageHash: (review as any).imageHash || 'no-image',
+        perceptualHash: (review as any).perceptualHash || '',
+        cameraMake: (review as any).cameraMake || null,
+        cameraModel: (review as any).cameraModel || null,
+        editingSoftware: (review as any).editingSoftware || null,
+        missionMatchScore: (review as any).missionMatchScore || 100
+      };
+
+      await updateDoc(doc(db, 'entries', entryId), entryUpdate);
+    } catch (reviewErr: any) {
+      console.error('[SUBMISSION_PIPELINE] Non-blocking AI analysis failed. Canonical entry remains pending review:', reviewErr);
+      review = {
+        id: `entry_${entryId}_manual_review`,
+        status: 'pending_review',
+        confidenceScore: 0,
+        reviewNotes: `AI analysis failed. Send to manual admin review. Error: ${reviewErr?.message || reviewErr}`,
+        missingRequirements: []
+      };
+      await updateDoc(doc(db, 'entries', entryId), {
+        status: 'pending_review',
+        reviewStatus: 'pending_review',
+        proofCheckId: review.id,
+        aiRecommendation: 'pending_review',
+        aiAnalysisStatus: 'failed',
+        adminNotes: review.reviewNotes,
+        updatedAt: serverTimestamp()
+      });
+    }
 
     // Keep the admin review queue in sync with the canonical entry.
     // The live capture path writes entries directly, so it must also create
@@ -400,71 +431,75 @@ export async function submitTripEntry(
       ? doc(db, 'proofReviews', `review_${entryId}_${timestamp}`)
       : reviewRef;
 
-    await setDoc(writableReviewRef, {
-      id: writableReviewRef.id,
-      reviewId: writableReviewRef.id,
-      entryId,
-      submissionId: entryId,
-      userId,
-      uid: userId,
-      displayName: userName || userData?.name || 'Agent',
-      userName: userName || userData?.name || 'Agent',
-      missionId: trip.id,
-      challengeId: trip.id,
-      tripId: trip.id,
-      missionTitle: trip.title,
-      challengeTitle: trip.title,
-      tripTitle: trip.title,
-      deckId: finalEntryData.deckId,
-      seasonId,
-      status: 'pending_review',
-      reviewStatus: 'pending_review',
-      photoUrl: imageUrl,
-      imageUrl,
-      proofImage: imageUrl,
-      storagePath: imagePath,
-      imageStoragePath: imagePath,
-      photoStoragePath: imagePath,
-      fieldNote: entryData.fieldNote || '',
-      note: entryData.fieldNote || '',
-      aiRecommendation: review.status || 'pending_review',
-      aiAnalysisStatus: 'completed',
-      confidenceScore: review.confidenceScore ?? 0,
-      reviewNotes: review.reviewNotes || '',
-      missingRequirements: review.missingRequirements || [],
-      needsManualReview: true,
-      xpAwarded: false,
-      createdAt: serverTimestamp(),
-      submittedAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      metadata: {
-        uploadSource: entryData.uploadSource || null,
-        metadataStatus: entryData.metadataStatus || null,
-        photoTakenAt: entryData.photoTakenAt || null,
-        fileLastModifiedAt: entryData.fileLastModifiedAt || null,
-        captureTrustLevel: entryData.captureTrustLevel || null,
-        filterUsed: entryData.filterUsed || null,
-        filterIntensity: entryData.filterIntensity ?? null,
-        latitude: entryData.latitude ?? null,
-        longitude: entryData.longitude ?? null,
-        cameraMake: (review as any).cameraMake || null,
-        cameraModel: (review as any).cameraModel || null,
-        editingSoftware: (review as any).editingSoftware || null,
-      },
-      verification: {
-        proofTrustScore: (review as any).proofTrustScore ?? 70,
-        aiRiskScore: (review as any).aiRiskScore ?? 20,
-        riskLevel: (review as any).riskLevel || 'low',
-        riskReasons: (review as any).riskReasons || [],
-        duplicateWarning: (review as any).duplicateWarning || null,
-        duplicateReusedDesc: (review as any).duplicateReusedDesc || null,
-        receiptChallengeResult: (review as any).receiptChallengeResult || 'unverified',
-        imageHash: (review as any).imageHash || 'no-image',
-        perceptualHash: (review as any).perceptualHash || '',
-        missionMatchScore: (review as any).missionMatchScore || 100,
-      },
-      version: 'gameService.reviewQueue.v1'
-    });
+    try {
+      await setDoc(writableReviewRef, {
+        id: writableReviewRef.id,
+        reviewId: writableReviewRef.id,
+        entryId,
+        submissionId: entryId,
+        userId,
+        uid: userId,
+        displayName: userName || userData?.name || 'Agent',
+        userName: userName || userData?.name || 'Agent',
+        missionId: trip.id,
+        challengeId: trip.id,
+        tripId: trip.id,
+        missionTitle: trip.title,
+        challengeTitle: trip.title,
+        tripTitle: trip.title,
+        deckId: finalEntryData.deckId,
+        seasonId,
+        status: 'pending_review',
+        reviewStatus: 'pending_review',
+        photoUrl: imageUrl,
+        imageUrl,
+        proofImage: imageUrl,
+        storagePath: imagePath,
+        imageStoragePath: imagePath,
+        photoStoragePath: imagePath,
+        fieldNote: entryData.fieldNote || '',
+        note: entryData.fieldNote || '',
+        aiRecommendation: review.status || 'pending_review',
+        aiAnalysisStatus: review.id?.startsWith('entry_') ? 'failed' : 'completed',
+        confidenceScore: review.confidenceScore ?? 0,
+        reviewNotes: review.reviewNotes || '',
+        missingRequirements: review.missingRequirements || [],
+        needsManualReview: true,
+        xpAwarded: false,
+        createdAt: serverTimestamp(),
+        submittedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        metadata: {
+          uploadSource: entryData.uploadSource || null,
+          metadataStatus: entryData.metadataStatus || null,
+          photoTakenAt: entryData.photoTakenAt || null,
+          fileLastModifiedAt: entryData.fileLastModifiedAt || null,
+          captureTrustLevel: entryData.captureTrustLevel || null,
+          filterUsed: entryData.filterUsed || null,
+          filterIntensity: entryData.filterIntensity ?? null,
+          latitude: entryData.latitude ?? null,
+          longitude: entryData.longitude ?? null,
+          cameraMake: (review as any).cameraMake || null,
+          cameraModel: (review as any).cameraModel || null,
+          editingSoftware: (review as any).editingSoftware || null,
+        },
+        verification: {
+          proofTrustScore: (review as any).proofTrustScore ?? 70,
+          aiRiskScore: (review as any).aiRiskScore ?? 20,
+          riskLevel: (review as any).riskLevel || 'low',
+          riskReasons: (review as any).riskReasons || [],
+          duplicateWarning: (review as any).duplicateWarning || null,
+          duplicateReusedDesc: (review as any).duplicateReusedDesc || null,
+          receiptChallengeResult: (review as any).receiptChallengeResult || 'unverified',
+          imageHash: (review as any).imageHash || 'no-image',
+          perceptualHash: (review as any).perceptualHash || '',
+          missionMatchScore: (review as any).missionMatchScore || 100,
+        },
+        version: 'gameService.reviewQueue.audit-v1'
+      });
+    } catch (reviewWriteErr) {
+      console.warn('[SUBMISSION_PIPELINE] proofReviews audit write failed; canonical entry remains reviewable:', reviewWriteErr);
+    }
 
     return { 
       entryId, 

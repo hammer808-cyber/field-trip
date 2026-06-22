@@ -30,9 +30,11 @@ import {
   approveSubmission,
   rejectSubmission,
   requestMoreProof,
+  runCanonicalProofQueueRepair,
   subscribeToAdminPendingReviews,
   AdminReviewQueueDiagnostics
 } from '../services/submissionService';
+import type { QueueRepairReport } from '../services/proofLifecycleService';
 
 export default function AdminProofReview() {
   const [reviews, setReviews] = useState<any[]>([]);
@@ -42,6 +44,8 @@ export default function AdminProofReview() {
   const [diagnostics, setDiagnostics] = useState<AdminReviewQueueDiagnostics | null>(null);
   const [queryError, setQueryError] = useState<string | null>(null);
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
+  const [repairingQueue, setRepairingQueue] = useState(false);
+  const [repairReport, setRepairReport] = useState<QueueRepairReport | null>(null);
   const [stats, setStats] = useState({
     pending: 0,
     velocity: '2.4 p/h',
@@ -110,6 +114,21 @@ export default function AdminProofReview() {
     }
   };
 
+  const handleRepairQueue = async (dryRun: boolean) => {
+    setRepairingQueue(true);
+    try {
+      setRepairReport(await runCanonicalProofQueueRepair(dryRun));
+    } catch (err: any) {
+      console.error('[AdminProofReview] Queue repair failed:', err);
+      alert(`Queue repair failed: ${err?.message || err}`);
+    } finally {
+      setRepairingQueue(false);
+    }
+  };
+
+  const hasQueueIntegrityWarning = !!diagnostics && diagnostics.reviewableButNotRendered.length > 0;
+  const hasPermissionOrQueryFailure = !!queryError || !!diagnostics?.errors.length;
+
   return (
     <AdminLayout 
       title="Proof Review Console" 
@@ -123,7 +142,13 @@ export default function AdminProofReview() {
            <MonitorCard title="System Depth" value={stats.queueDepth} status={stats.queueDepth === 'Clear' ? 'green' : 'yellow'} icon={Activity} />
         </section>
 
-        <QueueDiagnosticsPanel diagnostics={diagnostics} queryError={queryError} />
+        <QueueDiagnosticsPanel
+          diagnostics={diagnostics}
+          queryError={queryError}
+          repairReport={repairReport}
+          repairing={repairingQueue}
+          onRepair={handleRepairQueue}
+        />
 
         {/* Control Toolbar */}
         <Card className="p-6 border-2 border-on-surface shadow-[6px_6px_0px_black] bg-white flex flex-col md:flex-row justify-between items-center gap-6">
@@ -176,9 +201,23 @@ export default function AdminProofReview() {
                 <p className="font-mono text-[10px] uppercase font-black tracking-widest opacity-30">Connecting to proof feed...</p>
              </div>
            ) : reviews.length === 0 ? (
-             <div className="h-64 flex flex-col items-center justify-center space-y-4 bg-white border-2 border-dashed border-on-surface/10 rounded-3xl">
-                <Shield className="w-12 h-12 text-on-surface/10" />
-                <p className="font-mono text-[10px] uppercase font-black tracking-[0.2em] opacity-40">Console Clear: No matching records found.</p>
+             <div className={cn(
+                "min-h-64 flex flex-col items-center justify-center space-y-4 bg-white border-2 border-dashed rounded-3xl p-8 text-center",
+                hasPermissionOrQueryFailure || hasQueueIntegrityWarning ? "border-red-300 bg-red-50" : "border-on-surface/10"
+             )}>
+                <Shield className={cn("w-12 h-12", hasPermissionOrQueryFailure || hasQueueIntegrityWarning ? "text-red-500" : "text-on-surface/10")} />
+                <p className="font-mono text-[10px] uppercase font-black tracking-[0.2em] opacity-70">
+                  {hasPermissionOrQueryFailure
+                    ? 'Could not load review queue. See diagnostics above.'
+                    : hasQueueIntegrityWarning
+                      ? 'Queue may be incomplete. Diagnostics found reviewable records that are not rendering.'
+                      : 'No proof is waiting for review.'}
+                </p>
+                {hasQueueIntegrityWarning && (
+                  <p className="font-mono text-[10px] text-red-700 max-w-xl">
+                    Affected submission IDs: {diagnostics?.reviewableButNotRendered.slice(0, 8).join(', ')}
+                  </p>
+                )}
              </div>
            ) : viewMode === 'swipe' ? (
               <SwipeView 
@@ -211,18 +250,32 @@ function MonitorCard({ title, value, status = 'neutral', icon: Icon }: any) {
   );
 }
 
-function QueueDiagnosticsPanel({ diagnostics, queryError }: { diagnostics: AdminReviewQueueDiagnostics | null; queryError: string | null }) {
+function QueueDiagnosticsPanel({
+  diagnostics,
+  queryError,
+  repairReport,
+  repairing,
+  onRepair
+}: {
+  diagnostics: AdminReviewQueueDiagnostics | null;
+  queryError: string | null;
+  repairReport: QueueRepairReport | null;
+  repairing: boolean;
+  onRepair: (dryRun: boolean) => void;
+}) {
   const statusRows = diagnostics
     ? Object.entries(diagnostics.statusCounts).map(([status, count]) => `${status}: ${count}`).join(' / ')
     : 'waiting for query...';
+  const hasWarning = !!diagnostics?.reviewableButNotRendered.length || !!queryError || !!diagnostics?.errors.length;
 
   return (
-    <Card className="p-4 border-2 border-on-surface/20 bg-white/80">
-      <details>
+    <Card className={cn("p-4 border-2 bg-white/80", hasWarning ? "border-red-400" : "border-on-surface/20")}>
+      <details open={hasWarning}>
         <summary className="cursor-pointer font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/60 flex items-center gap-2">
           <Activity className="w-4 h-4 text-brand-orange" />
           Admin Proof Queue Diagnostics
           {queryError && <span className="text-red-600">QUERY ERROR</span>}
+          {diagnostics && diagnostics.reviewableButNotRendered.length > 0 && <span className="text-red-600">QUEUE WARNING</span>}
         </summary>
         <div className="mt-4 grid gap-2 text-[10px] font-mono uppercase text-on-surface/70">
           <DiagnosticRow label="Firebase project" value={diagnostics?.projectId || 'unknown'} />
@@ -233,6 +286,16 @@ function QueueDiagnosticsPanel({ diagnostics, queryError }: { diagnostics: Admin
           <DiagnosticRow label="ProofReviews before filtering" value={String(diagnostics?.proofReviewsTotalBeforeFiltering ?? 0)} />
           <DiagnosticRow label="Merged records after filtering" value={String(diagnostics?.mergedTotalAfterFiltering ?? 0)} />
           <DiagnosticRow label="Records per status" value={statusRows} />
+          <DiagnosticRow label="Failed/incomplete" value={String(diagnostics?.failedOrIncompleteCount ?? 0)} danger={(diagnostics?.failedOrIncompleteCount ?? 0) > 0} />
+          <DiagnosticRow label="Missing required fields" value={String(diagnostics?.missingRequiredFieldsCount ?? 0)} danger={(diagnostics?.missingRequiredFieldsCount ?? 0) > 0} />
+          <DiagnosticRow label="Missing image reference" value={String(diagnostics?.missingImageReferenceCount ?? 0)} danger={(diagnostics?.missingImageReferenceCount ?? 0) > 0} />
+          <DiagnosticRow label="Missing linkage" value={String(diagnostics?.missingLinkageCount ?? 0)} danger={(diagnostics?.missingLinkageCount ?? 0) > 0} />
+          <DiagnosticRow label="Invalid status values" value={String(diagnostics?.invalidStatusCount ?? 0)} danger={(diagnostics?.invalidStatusCount ?? 0) > 0} />
+          <DiagnosticRow
+            label="Reviewable not rendered"
+            value={diagnostics?.reviewableButNotRendered.length ? diagnostics.reviewableButNotRendered.join(', ') : 'none'}
+            danger={!!diagnostics?.reviewableButNotRendered.length}
+          />
           {queryError && <DiagnosticRow label="Query error" value={queryError} danger />}
           {diagnostics?.errors.map((err, index) => (
             <DiagnosticRow key={`${err.source}-${index}`} label={`${err.source} error`} value={`${err.code || 'error'}: ${err.message}`} danger />
@@ -251,6 +314,34 @@ function QueueDiagnosticsPanel({ diagnostics, queryError }: { diagnostics: Admin
               <div className="mt-1 opacity-40">No excluded records reported.</div>
             )}
           </div>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <button
+              type="button"
+              disabled={repairing}
+              onClick={() => onRepair(true)}
+              className="px-3 py-2 rounded-lg border-2 border-on-surface bg-white font-black uppercase disabled:opacity-50"
+            >
+              {repairing ? 'Checking...' : 'Dry Run Repair'}
+            </button>
+            <button
+              type="button"
+              disabled={repairing}
+              onClick={() => onRepair(false)}
+              className="px-3 py-2 rounded-lg border-2 border-on-surface bg-brand-orange text-white font-black uppercase disabled:opacity-50"
+            >
+              {repairing ? 'Repairing...' : 'Repair / Reindex Queue'}
+            </button>
+          </div>
+          {repairReport && (
+            <div className="mt-3 rounded-xl bg-on-surface/5 p-3 space-y-1">
+              <DiagnosticRow label="Repair mode" value={repairReport.dryRun ? 'dry run' : 'live write'} />
+              <DiagnosticRow label="Entries scanned" value={String(repairReport.scannedEntries)} />
+              <DiagnosticRow label="ProofReviews scanned" value={String(repairReport.scannedProofReviews)} />
+              <DiagnosticRow label="Entries repaired" value={String(repairReport.repairedEntries.length)} />
+              <DiagnosticRow label="Ambiguous records" value={String(repairReport.ambiguousRecords.length)} danger={repairReport.ambiguousRecords.length > 0} />
+              <DiagnosticRow label="Orphan proofReviews" value={String(repairReport.orphanProofReviews.length)} danger={repairReport.orphanProofReviews.length > 0} />
+            </div>
+          )}
         </div>
       </details>
     </Card>
