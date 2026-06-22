@@ -1226,13 +1226,10 @@ export default function CapturePage() {
         
       } catch (error: any) {
         console.error("[ProofSubmit] FATAL Error:", error);
-        setFcState('result');
-        setSubmissionStatus('submitted');
-        setCompleteRecord((prev: any) => ({
-          ...prev,
-          syncStatus: 'sync_failed',
-          syncError: error.message
-        }));
+        setFcState('reviewing');
+        setSubmissionStatus('error');
+        setCompleteRecord(null);
+        alert(`Proof did not save. Please try again. ${error?.message || error}`);
       } finally {
         setIsUploading(false);
         submitLockRef.current = false;
