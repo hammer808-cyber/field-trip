@@ -66,6 +66,17 @@ service cloud.firestore {
     function existing() { return resource.data; }
     function requestTime() { return request.time; }
 
+    // ADMIN COLLECTION-GROUP DIAGNOSTICS
+    // Allows Admin Proof Review to scan proof records regardless of whether
+    // a legacy path wrote them at the root or under a user-scoped subcollection.
+    // Writes still go through the concrete collection rules below.
+    match /{path=**}/entries/{entryId} {
+      allow get, list: if isAdmin();
+    }
+    match /{path=**}/proofReviews/{id} {
+      allow get, list: if isAdmin();
+    }
+
     // =========================================================================
     // 2. CATCH-ALL DENY (Moved to end for better matching behavior)
     // =========================================================================
@@ -224,7 +235,9 @@ service cloud.firestore {
           'imageUrl', 'storagePath', 'fieldNote', 'status', 'updatedAt',
           'deckId', 'challengeId', 'userId',
           'displayName', 'username', 'entryId',
-          'proofImage', 'imageStoragePath', 'missionId' // legacy mirrors
+          'proofImage', 'imageStoragePath', 'missionId', // legacy mirrors
+          'reviewStatus', 'submissionStatus', 'proofStatus',
+          'submissionVersion', 'submissionValidatedAt'
         ]) &&
         incoming().status in ['pending', 'submitted', 'pending_upload', 'pending_review'] &&
         isValidEntry(incoming())
