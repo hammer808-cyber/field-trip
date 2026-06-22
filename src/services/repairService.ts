@@ -45,6 +45,20 @@ export interface StrandedStarterRepairReport {
   dryRun: boolean;
 }
 
+export interface BetaHardResetReport {
+  success: boolean;
+  dryRun: boolean;
+  confirmationRequired: string;
+  rootCollections: Record<string, { matched: number; deleted: number }>;
+  userSubcollections: Record<string, { matched: number; deleted: number }>;
+  usersScanned: number;
+  usersReset: number;
+  appConfigReset: boolean;
+  warnings: string[];
+  errors: string[];
+  message?: string;
+}
+
 export interface DiagnosticsReport {
   firebaseConnectionStatus: string;
   currentAdminUid: string;
@@ -365,4 +379,18 @@ export async function archiveOrphanedProofReviews(dryRun: boolean = false): Prom
   });
 
   return readAdminJson<any>(response, `Archive orphan reviews failed with HTTP ${response.status}`);
+}
+
+export async function runBetaHardReset(params: {
+  dryRun: boolean;
+  confirmReset?: boolean;
+  confirmationText?: string;
+}): Promise<BetaHardResetReport> {
+  const response = await authenticatedFetch('/api/admin/beta-hard-reset', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params)
+  });
+
+  return readAdminJson<BetaHardResetReport>(response, `Beta hard reset failed with HTTP ${response.status}`);
 }
