@@ -1,5 +1,6 @@
 import { 
   collection, 
+  collectionGroup, 
   doc, 
   getDoc, 
   addDoc, 
@@ -55,7 +56,7 @@ export interface AdminReviewQueueDiagnostics {
   statusCounts: Record<'pending_review' | 'approved' | 'rejected' | 'needs_more_proof', number>;
   excluded: Array<{ id: string; source: 'entry' | 'proofReview'; status: string; normalizedStatus: string; reason: string }>;
   reviewableButNotRendered: string[];
-  errors: Array<{ source: 'entries' | 'proofReviews'; message: string; code?: string }>;
+  errors: Array<{ source: 'entries' | 'proofReviews' | 'collectionGroup'; message: string; code?: string }>;
   updatedAt: string;
 }
 
@@ -65,7 +66,7 @@ function createEmptyDiagnostics(
   return {
     projectId: firebaseConfig.projectId || 'unknown',
     environment: import.meta.env.MODE || (import.meta.env.DEV ? 'development' : 'production'),
-    queryPaths: [ENTRIES_COLLECTION, REVIEWS_COLLECTION],
+    queryPaths: [ENTRIES_COLLECTION, REVIEWS_COLLECTION, `**/${ENTRIES_COLLECTION}`, `**/${REVIEWS_COLLECTION}`],
     statusFilter,
     entriesTotalBeforeFiltering: 0,
     proofReviewsTotalBeforeFiltering: 0,
@@ -532,7 +533,7 @@ export function subscribeToAdminPendingReviews(
   onDiagnostics?: (diagnostics: AdminReviewQueueDiagnostics) => void
 ) {
   logDev(`Subscribing to canonical administrative proof queue for filtered status: ${statusFilter}`);
-  console.log("[AdminQueue] canonical query started", { statusFilter, projectId: firebaseConfig.projectId });
+  console.log("[AdminQueue] canonical collection-group query started", { statusFilter, projectId: firebaseConfig.projectId });
 
   let latestEntries: Entry[] = [];
   let latestReviews: Entry[] = [];
@@ -590,28 +591,25 @@ export function subscribeToAdminPendingReviews(
   };
 
   const entryQuery = query(
-    collection(db, ENTRIES_COLLECTION),
+    collectionGroup(db, ENTRIES_COLLECTION),
     where('status', '==', statusFilter),
-    orderBy('submittedAt', 'desc'),
-    limit(200)
+    limit(300)
   );
 
   const monitorEntryQuery = query(
-    collection(db, ENTRIES_COLLECTION),
-    orderBy('submittedAt', 'desc'),
+    collectionGroup(db, ENTRIES_COLLECTION),
     limit(500)
   );
 
   const reviewQuery = query(
-    collection(db, REVIEWS_COLLECTION),
-    orderBy('submittedAt', 'desc'),
+    collectionGroup(db, REVIEWS_COLLECTION),
     limit(500)
   );
 
   const unsubEntries = onSnapshot(entryQuery, (snap) => {
-    const rawEntries = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Entry));
+    const rawEntries = snap.docs.map(doc => ({ id: doc.id, __path: doc.ref.path, ...doc.data() } as unknown as Entry));
     rawEntriesCount = rawEntries.length;
-    console.log("[AdminQueue] canonical entries returned", rawEntries.length);
+    console.log("[AdminQueue] canonical entry-group docs returned", rawEntries.length);
 
     latestEntries = rawEntries.filter(e => {
       const normalizedStatus = normalizeProofStatus((e as any).status || (e as any).reviewStatus);
@@ -644,25 +642,25 @@ export function subscribeToAdminPendingReviews(
   }, (err) => {
     entriesReady = true;
     console.error('[SUBMISSION_PIPELINE] Error loading admin entry reviews:', err);
-    errors.push({ source: 'entries', message: err?.message || String(err), code: err?.code });
+    errors.push({ source: 'collectionGroup', message: `entries: ${err?.message || String(err)}`, code: err?.code });
     if (onError) onError(err);
     emit();
   });
 
   const unsubMonitorEntries = onSnapshot(monitorEntryQuery, (snap) => {
-    monitorEntriesForDiagnostics = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    monitorEntriesForDiagnostics = snap.docs.map(doc => ({ id: doc.id, __path: doc.ref.path, ...doc.data() }));
     monitorEntriesCount = monitorEntriesForDiagnostics.length;
     monitorReady = true;
     emit();
   }, (err) => {
     monitorReady = true;
     console.error('[SUBMISSION_PIPELINE] Error loading admin queue monitor:', err);
-    errors.push({ source: 'entries', message: `monitor: ${err?.message || String(err)}`, code: err?.code });
+    errors.push({ source: 'collectionGroup', message: `entries monitor: ${err?.message || String(err)}`, code: err?.code });
     emit();
   });
 
   const unsubReviews = onSnapshot(reviewQuery, (snap) => {
-    const rawReviews = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const rawReviews = snap.docs.map(doc => ({ id: doc.id, __path: doc.ref.path, ...doc.data() }));
     rawReviewsForDiagnostics = rawReviews;
     rawReviewsCount = rawReviews.length;
     latestReviews = rawReviews
@@ -697,7 +695,7 @@ export function subscribeToAdminPendingReviews(
   }, (err) => {
     reviewsReady = true;
     console.error('[SUBMISSION_PIPELINE] Error loading proofReviews queue:', err);
-    errors.push({ source: 'proofReviews', message: err?.message || String(err), code: err?.code });
+    errors.push({ source: 'collectionGroup', message: `proofReviews: ${err?.message || String(err)}`, code: err?.code });
     if (onError) onError(err);
     emit();
   });
