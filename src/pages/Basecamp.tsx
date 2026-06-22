@@ -40,20 +40,19 @@ import { getDisplayLabel } from '../utils/labelUtils';
 
 import { getSummerCountdown } from '../utils/seasonCountdown';
 import { FieldPageHero } from '../components/FieldPageHero';
-import { getApprovedSubmissionsForUser } from '../services/submission-utils';
-import { Entry } from '../types/game';
+import { getStarterProgress, getUserXp } from '../services/canonicalProgress';
 
 export default function Basecamp() {
   const { 
     fieldType, 
     xp,
     points, 
+    canonicalProgress,
     soloTripsCount, 
     entries, 
     profile, 
     user,
     activeTrip,
-    approvedCompletedChallengeIds,
     submittedPendingChallengeIds,
     needsMoreProofChallengeIds,
     currentDate,
@@ -70,57 +69,31 @@ export default function Basecamp() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [approvedSubmissions, setApprovedSubmissions] = React.useState<Entry[]>([]);
-  const [loadingApproved, setLoadingApproved] = React.useState(false);
-
-  React.useEffect(() => {
-    const userId = profile?.id || user?.uid;
-    if (userId) {
-      setLoadingApproved(true);
-      getApprovedSubmissionsForUser(userId)
-        .then(subs => {
-          setApprovedSubmissions(subs);
-        })
-        .catch(err => {
-          console.error("[Basecamp] Error fetching approved submissions:", err);
-        })
-        .finally(() => {
-          setLoadingApproved(false);
-        });
-    }
-  }, [profile?.id, user?.uid]);
-
   // Development-only logs for verification in Basecamp
   React.useEffect(() => {
     if (import.meta.env.DEV && (profile?.id || user?.uid)) {
       const uId = profile?.id || user?.uid || "N/A";
-      const approvedCount = approvedSubmissions.length;
-      const pointsAwardedStatus = approvedSubmissions.map(e => ({
-        id: e.id,
-        status: e.status,
-        pointsAwarded: e.pointsAwarded !== undefined ? e.pointsAwarded : (e as any).finalPointsAwarded
-      }));
-
       console.log("[DEV_LOG] [Basecamp] Syncing Basecamp Canonical Data:", {
-        sourceCollection: "entries (via transaction query)",
+        sourceCollection: "AppContext canonicalProgress",
         userId: uId,
-        activeFilters: { userId: uId, status: 'approved' },
-        resultingApprovedCount: approvedCount,
-        pointsAwardedMap: pointsAwardedStatus,
+        approvedCount: canonicalProgress.approvedCompletedChallengeIds.size,
+        starter: canonicalProgress.starter.label,
+        xp: canonicalProgress.xp,
         timestamp: new Date().toISOString()
       });
     }
-  }, [approvedSubmissions, profile?.id, user?.uid]);
+  }, [canonicalProgress, profile?.id, user?.uid]);
 
   const thresholds = DEV_APP_CONFIG.levelThresholds;
-  const currentLevelData = [...thresholds].reverse().find(t => points >= t.minXP) || thresholds[0];
+  const canonicalXp = getUserXp(canonicalProgress);
+  const starterProgress = getStarterProgress(canonicalProgress);
+  const currentLevelData = [...thresholds].reverse().find(t => canonicalXp >= t.minXP) || thresholds[0];
   const nextLevelData = thresholds.find(t => t.level === currentLevelData.level + 1);
-  const xpInLevel = nextLevelData ? (points - currentLevelData.minXP) : (points - currentLevelData.minXP);
+  const xpInLevel = nextLevelData ? (canonicalXp - currentLevelData.minXP) : (canonicalXp - currentLevelData.minXP);
   const nextLevelXP = nextLevelData ? (nextLevelData.minXP - currentLevelData.minXP) : 500;
   const xpProgress = nextLevelData ? (xpInLevel / nextLevelXP) * 100 : 100;
   const level = currentLevelData.level;
 
-  const completedCount = approvedSubmissions.length > 0 ? approvedSubmissions.length : (approvedCompletedChallengeIds?.size || 0);
   const fieldTypeData = fieldType ? FIELD_TYPES[fieldType] : null;
 
   const getNextAction = () => {
@@ -128,7 +101,7 @@ export default function Basecamp() {
     if (starterState?.status !== 'COMPLETE') {
       return {
         label: "Finish Starter Pack",
-        sublabel: `${onboardingCompletedCount}/3 APPROVED`,
+        sublabel: `${starterProgress.starterApprovedCount}/${starterProgress.starterRequiredCount} APPROVED`,
         path: "/deck?pack=starter-signals",
         color: "bg-brand-orange",
         variant: "primary" as const

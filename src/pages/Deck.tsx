@@ -34,6 +34,7 @@ import { AvatarPreview } from '../components/AvatarPreview';
 import { subscribeToRecentScoreEvents } from '../services/activityService';
 import { ScoreEvent } from '../types/game';
 import { LAUNCH_MISSION, LAUNCH_MISSION_ID } from '../data/specialMissions';
+import { canAccessFeature, getChallengeStatus, getDeckProgress, getStarterProgress } from '../services/canonicalProgress';
 
 import { FIELD_MATERIALS, FIELD_SHADOWS, FIELD_TYPOGRAPHY } from '../utils/styleHelpers';
 
@@ -152,7 +153,7 @@ export default function DeckPage() {
     memories, toggleFavoriteMemory, getEligibleDrawPool, updateProfile, blockedIds, unlockDiscoverySticker, currentDate,
     isAdmin, isHeatwaveDeckUnlocked, isSocalSummerUnlocked, mustCompleteStarterMission,
     needsMoreProofChallengeIds, rejectedChallengeIds,
-    drawnMissionCards, updateMissionCardStatus, setActiveMissionCard
+    drawnMissionCards, updateMissionCardStatus, setActiveMissionCard, canonicalProgress, progressMismatches
   } = useApp();
   const { frankieMode, skin, fc } = useTheme();
 
@@ -240,15 +241,8 @@ export default function DeckPage() {
 
   const getPackProgress = (pack: any) => {
     if (!pack) return { completed: 0, total: 0, percent: 0 };
-    const missionIds = pack.missionIds || [];
-    const total = missionIds.length;
-    if (total === 0) return { completed: 0, total: 0, percent: 0 };
-    const completed = missionIds.filter((mId: string) => {
-      const lowerId = mId.toLowerCase();
-      return completedChallengeIds.has(lowerId);
-    }).length;
-    const percent = Math.min(100, Math.round((completed / total) * 100));
-    return { completed, total, percent };
+    const progress = getDeckProgress(canonicalProgress, pack.packId);
+    return { completed: progress.approvedCount, total: progress.totalCards, percent: progress.percent };
   };
 
   const getPackLockState = (pack: any) => {
@@ -262,7 +256,7 @@ export default function DeckPage() {
       };
     }
 
-    if (packId !== 'starter-signals' && packId !== 'heatwave-receipts' && !isHeatwaveDeckUnlocked) {
+    if (packId !== 'starter-signals' && packId !== 'heatwave-receipts' && !canAccessFeature(canonicalProgress, 'socal-summer', { isAdmin, socalUnlocked: isSocalSummerUnlocked })) {
       return { 
         locked: !isAdmin, 
         reason: "Unlocks after Starter Deck" 
@@ -270,7 +264,7 @@ export default function DeckPage() {
     }
 
     if (packId === 'heatwave-receipts') {
-      const locked = !isHeatwaveDeckUnlocked && !isAdmin;
+      const locked = !canAccessFeature(canonicalProgress, 'heatwave-receipts', { isAdmin, heatwaveUnlocked: isHeatwaveDeckUnlocked });
       let reason = "";
       if (!isOnboardingComplete && !isAdmin) {
         reason = "Unlocks after Starter Deck";
@@ -315,22 +309,23 @@ export default function DeckPage() {
   
   // Starter-specific counts and variables (based on 'starter-signals')
   const isStarter = activePackId === 'starter-signals';
-  const starterApproved = starterState?.starterApprovedCount || 0;
-  const starterPendingCount = starterState?.pendingStarterCount || 0;
-  const starterSubmittedCount = starterState?.submittedUniqueCount || 0;
-  const starterNeedsMoreProofId = starterState?.needsMoreProofMissionId;
-  const starterRejectedId = starterState?.rejectedMissionId;
+  const starterProgress = getStarterProgress(canonicalProgress);
+  const starterApproved = starterProgress.starterApprovedCount || 0;
+  const starterPendingCount = starterProgress.pendingStarterCount || 0;
+  const starterSubmittedCount = starterProgress.submittedUniqueCount || 0;
+  const starterNeedsMoreProofId = starterProgress.needsMoreProofMissionId;
+  const starterRejectedId = starterProgress.rejectedMissionId;
   
   const isCurrentActiveStarter = activeTrip && ['starter-1', 'starter-2', 'starter-3', 'starter-signals', 'onboarding-mission'].includes(activeTrip.id.toLowerCase().trim());
   
   const isHeatwaveUnlockedForUI = isHeatwaveDeckUnlocked && (isOnboardingComplete || starterApproved >= 3);
 
-  const approvedDeckChallengesCount = activePack
-    ? activePack.missionIds.filter(mId => completedChallengeIds.has(mId.toLowerCase())).length
-    : 0;
-  const pendingDeckChallengesCount = activePack
-    ? activePack.missionIds.filter(mId => submittedPendingChallengeIds.has(mId.toLowerCase())).length
-    : 0;
+  const activeDeckProgress = activePack
+    ? getDeckProgress(canonicalProgress, activePack.packId)
+    : null;
+
+  const approvedDeckChallengesCount = activeDeckProgress?.approvedCount || 0;
+  const pendingDeckChallengesCount = activeDeckProgress?.pendingCount || 0;
   
   const completedDeckChallengesCount = approvedDeckChallengesCount + pendingDeckChallengesCount;
   
@@ -370,12 +365,8 @@ export default function DeckPage() {
     ? (isStarterPending || isDeckCompleted)
     : (isPendingReviewLimit || (eligiblePool.length === 0 && !isDeckCompleted && activePack && pendingDeckChallengesCount > 0)));
 
-  const needsMoreProofDeckChallengesCount = activePack
-    ? activePack.missionIds.filter(mId => needsMoreProofChallengeIds.has(mId.toLowerCase())).length
-    : 0;
-  const rejectedDeckChallengesCount = activePack
-    ? activePack.missionIds.filter(mId => rejectedChallengeIds.has(mId.toLowerCase())).length
-    : 0;
+  const needsMoreProofDeckChallengesCount = activeDeckProgress?.needsMoreProofCount || 0;
+  const rejectedDeckChallengesCount = activeDeckProgress?.rejectedCount || 0;
 
   // Diagnostic Logs for Regression Repair
   useEffect(() => {
@@ -435,8 +426,8 @@ export default function DeckPage() {
   }, [isOnboardingComplete]);
   */
 
-  const isCompleted = (id: string) => completedChallengeIds.has(id.toLowerCase());
-  const isPending = (id: string) => submittedPendingChallengeIds.has(id.toLowerCase());
+  const isCompleted = (id: string) => getChallengeStatus(canonicalProgress, id, activeTrip?.id || null) === 'approved';
+  const isPending = (id: string) => getChallengeStatus(canonicalProgress, id, activeTrip?.id || null) === 'pending_review';
   const isUnavailable = (id: string) => isCompleted(id) || isPending(id);
 
   // Sync initial state if mission already exists AND they have already revealed it in this session
@@ -522,6 +513,8 @@ export default function DeckPage() {
       exhausted={isExhausted}
       eligibleCards={eligiblePool}
       activeTripId={activeTrip?.id || null}
+      canonicalProgress={canonicalProgress}
+      progressMismatches={progressMismatches}
     />
   ) : null;
 
@@ -1100,10 +1093,10 @@ export default function DeckPage() {
                       }
 
                       const missionId = mission.id;
-                      const midLower = missionId.toLowerCase();
 
                       // FINAL SAFETY: If it's already approved or pending, don't enter capture
-                      const isAlreadyDone = completedChallengeIds.has(midLower) || submittedPendingChallengeIds.has(midLower);
+                      const missionStatus = getChallengeStatus(canonicalProgress, missionId, activeTrip?.id || null);
+                      const isAlreadyDone = missionStatus === 'approved' || missionStatus === 'pending_review';
                       if (isAlreadyDone) {
                         console.log("[Deck] Mission already completed or pending. Redirecting to deck instead of capture.");
                         setIsDrawn(false);
@@ -1456,8 +1449,8 @@ export default function DeckPage() {
         onClose={() => setIsDetailsOpen(false)}
         mission={drawnTrip || activeTrip}
         progress={drawnTrip ? {} : missionProgress}
-        isSubmitted={drawnTrip || activeTrip ? submittedPendingChallengeIds.has((drawnTrip || activeTrip).id.toLowerCase()) : false}
-        isApproved={drawnTrip || activeTrip ? completedChallengeIds.has((drawnTrip || activeTrip).id.toLowerCase()) : false}
+        isSubmitted={drawnTrip || activeTrip ? getChallengeStatus(canonicalProgress, (drawnTrip || activeTrip).id, activeTrip?.id || null) === 'pending_review' : false}
+        isApproved={drawnTrip || activeTrip ? getChallengeStatus(canonicalProgress, (drawnTrip || activeTrip).id, activeTrip?.id || null) === 'approved' : false}
         onStart={() => {
           if (drawnTrip || activeTrip) {
             navigate(`/capture?id=${(drawnTrip || activeTrip).id}`);

@@ -26,6 +26,7 @@ import { FieldPageHero } from '../components/FieldPageHero';
 import { MissionCard } from '../components/ChallengeCard';
 import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
 import { markEarnedStickersSeen } from '../services/stickerService';
+import { canAccessFeature, getDeckProgress, getStarterProgress } from '../services/canonicalProgress';
 
 type CollectionTab = 'stickers' | 'badges' | 'skins' | 'decks' | 'missions' | 'crew_memories';
 
@@ -34,12 +35,13 @@ export default function CollectionPage() {
     profile, 
     user,
     trips,
-    completedChallengeIds, 
     unlockDiscoverySticker,
     isHeatwaveDeckUnlocked,
+    isSocalSummerUnlocked,
     isAdmin,
     currentDate,
-    drawnMissionCards
+    drawnMissionCards,
+    canonicalProgress
   } = useApp();
   const { skin: currentSkin, allSkins, setSkin } = useTheme();
   const navigate = useNavigate();
@@ -48,8 +50,8 @@ export default function CollectionPage() {
   const [activeTab, setActiveTab] = useState<CollectionTab>(initialTab);
 
   const activePacks = getActiveDeckPacks();
-  const approvedStarterCount = ['starter-1', 'starter-2', 'starter-3'].filter(id => completedChallengeIds?.has(id)).length;
-  const isStarterComplete = approvedStarterCount >= 3;
+  const starterProgress = getStarterProgress(canonicalProgress);
+  const isStarterComplete = starterProgress.starterComplete;
 
   const getPackLockState = (packId: string) => {
     const pack = activePacks.find(p => p.packId === packId);
@@ -63,7 +65,7 @@ export default function CollectionPage() {
 
     if (packId === 'starter-signals') return { locked: false, reason: "" };
 
-    if (packId !== 'starter-signals' && packId !== 'heatwave-receipts' && !isHeatwaveDeckUnlocked && !isAdmin) {
+    if (packId !== 'starter-signals' && packId !== 'heatwave-receipts' && !canAccessFeature(canonicalProgress, 'socal-summer', { isAdmin, socalUnlocked: isSocalSummerUnlocked })) {
       return { 
         locked: true, 
         reason: "Complete Starter Pack (3/3 missions) to unlock" 
@@ -113,18 +115,15 @@ export default function CollectionPage() {
   const unlockedBadges = new Set(profile?.unlockedRewards?.badges || []);
   const unlockedSkinsList = profile?.unlockedRewards?.skins || ['classic'];
   const unlockedSkins = new Set(unlockedSkinsList);
-  const unlockedDecks = new Set(profile?.completedChallengeIds || []);
-
   const totalRewards = stickers.length + badges.length + allSkins.length;
   const totalUnlocked = unlockedStickers.size + unlockedBadges.size + unlockedSkins.size;
 
   const currentPackId = typeof window !== 'undefined' ? localStorage.getItem('active_deck_pack_id') || getDefaultDeckPack().packId : getDefaultDeckPack().packId;
   const currentPack = getDeckPackById(currentPackId);
 
-  const packMissionsCount = currentPack?.missionIds?.length || 10;
-  const completedPackCount = currentPack
-    ? currentPack.missionIds.filter((id: string) => unlockedDecks.has(id.toLowerCase())).length
-    : 0;
+  const currentPackProgress = currentPack ? getDeckProgress(canonicalProgress, currentPack.packId) : null;
+  const packMissionsCount = currentPackProgress?.totalCards || currentPack?.missionIds?.length || 10;
+  const completedPackCount = currentPackProgress?.approvedCount || 0;
 
   const RewardItem = ({ reward, isUnlocked }: { reward: RewardMetadata; isUnlocked: boolean }) => (
     <motion.div 
@@ -457,9 +456,10 @@ export default function CollectionPage() {
             >
               {activePacks.map(pack => {
                 const { locked, reason } = getPackLockState(pack.packId);
+                const deckProgress = getDeckProgress(canonicalProgress, pack.packId);
                 const missionsInPack = pack.missionIds;
-                const completedCount = missionsInPack.filter(id => completedChallengeIds.has(id.toLowerCase())).length;
-                const progress = missionsInPack.length > 0 ? (completedCount / missionsInPack.length) * 100 : 0;
+                const completedCount = deckProgress.approvedCount;
+                const progress = deckProgress.percent;
                 const isCurrent = pack.packId === currentPackId;
 
                 return (

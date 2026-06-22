@@ -32,7 +32,6 @@ import { ScoreEvent, WeeklySummary } from "../types/game";
 import { getServerDate } from "../services/timeService";
 import { getCurrentVotingCycle, getVotingPhase } from "../services/votingCycleService";
 import { normalizeEntryStatus } from "../logic/entryLogic";
-import { getApprovedSubmissionsForUser } from "../services/submission-utils";
 import { ContentMenu } from "../components/ContentMenu";
 import { SabotageHub } from "../components/SabotageHub";
 import { CrewArtifactsGallery } from "../components/CrewArtifactsGallery";
@@ -862,7 +861,8 @@ export default function BigBoardPage() {
     approvedCompletedChallengeIds,
     isAdmin,
     unlockDiscoverySticker,
-    entries
+    entries,
+    canonicalProgress
   } = useApp();
   const { skin, frankieMode, fc } = useTheme();
   const navigate = useNavigate();
@@ -875,21 +875,6 @@ export default function BigBoardPage() {
     "all" | "earned" | "in-progress" | "locked"
   >("all");
   const [catalyst, setCatalyst] = useState<any>(null);
-
-  const [approvedSubmissions, setApprovedSubmissions] = useState<Entry[]>([]);
-
-  useEffect(() => {
-    const userId = profile?.id || user?.uid;
-    if (userId) {
-      getApprovedSubmissionsForUser(userId)
-        .then(subs => {
-          setApprovedSubmissions(subs);
-        })
-        .catch(err => {
-          console.error("[BigBoard] Error fetching approved submissions:", err);
-        });
-    }
-  }, [profile?.id, user?.uid]);
 
   useEffect(() => {
     let active = true;
@@ -1338,25 +1323,16 @@ export default function BigBoardPage() {
   // Development-only logs for verification in BigBoard
   useEffect(() => {
     if (import.meta.env.DEV) {
-      const approvedCount = approvedSubmissions.length;
-
-      const pointsAwardedStatus = approvedSubmissions.map(e => ({
-        id: e.id,
-        status: e.status,
-        pointsAwarded: e.pointsAwarded !== undefined ? e.pointsAwarded : (e as any).finalPointsAwarded
-      }));
-
       console.log("[DEV_LOG] [BigBoard] Syncing HQ Canonical Data:", {
-        sourceCollection: "entries (via transaction query)",
+        sourceCollection: "AppContext canonicalProgress",
         userId: user?.uid || "N/A",
-        activeFilters: { userId: user?.uid, status: "approved" },
-        resultingApprovedCount: approvedCount,
+        approvedCount: canonicalProgress.approvedCompletedChallengeIds.size,
+        xp: canonicalProgress.xp,
         mergedProofsTotalCount: mergedProofs.length,
-        pointsAwardedMap: pointsAwardedStatus,
         timestamp: new Date().toISOString()
       });
     }
-  }, [mergedProofs, approvedSubmissions, user?.uid]);
+  }, [mergedProofs.length, canonicalProgress, user?.uid]);
 
   return (
     <div className="page-scroll pt-6 sm:pt-12 px-2 sm:px-8 space-y-4 sm:space-y-24 max-w-full mx-auto relative bg-paper ft-paper-texture">

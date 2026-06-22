@@ -9,6 +9,7 @@ import { UserProfile } from '../services/userService';
 import { simulateDeckDraw, DeckDrawSimulation } from '../services/deckDiagnosticsService';
 import { cn } from '../lib/utils';
 import { authenticatedFetch } from '../lib/api';
+import { CanonicalProgressSnapshot, ProgressMismatch, getDeckProgress } from '../services/canonicalProgress';
 
 interface DeckDiagnosticsPanelProps {
   activePack: DeckPack | null;
@@ -32,6 +33,8 @@ interface DeckDiagnosticsPanelProps {
   exhausted: boolean;
   eligibleCards: TripCard[];
   activeTripId?: string | null;
+  canonicalProgress: CanonicalProgressSnapshot;
+  progressMismatches: ProgressMismatch[];
 }
 
 function normalizeId(id: string | null | undefined) {
@@ -136,6 +139,7 @@ export function DeckDiagnosticsPanel(props: DeckDiagnosticsPanelProps) {
   const approvedCompletedChallengeIds = Array.from(props.completedChallengeIds).map(normalizeId).sort();
   const submittedPendingChallengeIds = Array.from(props.submittedPendingChallengeIds).map(normalizeId).sort();
   const packMissionIds = props.activePack?.missionIds?.map(normalizeId) || [];
+  const canonicalDeckProgress = props.activePack ? getDeckProgress(props.canonicalProgress, props.activePack.packId) : null;
   const starterCardIds = ['starter-1', 'starter-2', 'starter-3'];
   const starterCards = starterCardIds.map(id => props.missions.find(mission => normalizeId(mission.id || mission.missionId || mission.challengeId) === id) || null);
   const activeStarterCards = starterCards.filter(card => card && normalizeId(card.status || 'available') === 'active');
@@ -224,9 +228,10 @@ export function DeckDiagnosticsPanel(props: DeckDiagnosticsPanelProps) {
               <Row label="hidden status" value={`${props.activePack?.visibility || 'unknown'} / hidden=${String(props.activePack?.visibility === 'hidden' || props.activePack?.isActive === false)}`} />
               <Row label="locked status" value={`${String(props.locked)}${props.lockReason ? ` (${props.lockReason})` : ''}`} warn={props.locked} />
               <Row label="exhausted status" value={String(props.exhausted)} warn={props.exhausted} />
-              <Row label="total cards" value={String(packMissionIds.length)} />
-              <Row label="remaining cards" value={String(remainingCards.length)} />
+              <Row label="total cards" value={String(canonicalDeckProgress?.totalCards ?? packMissionIds.length)} />
+              <Row label="remaining cards" value={String(canonicalDeckProgress?.remainingCount ?? remainingCards.length)} />
               <Row label="eligible cards count" value={String(props.eligibleCards.length)} warn={props.eligibleCards.length === 0 && packMissionIds.length > 0} />
+              <Row label="canonical progress" value={canonicalDeckProgress ? `${canonicalDeckProgress.label} (${canonicalDeckProgress.percent}%)` : 'none'} />
               <Row label="last draw timestamp" value={lastDrawTimestamp} />
               <Row label="last submission timestamp" value={lastSubmissionTimestamp} />
             </div>
@@ -238,9 +243,33 @@ export function DeckDiagnosticsPanel(props: DeckDiagnosticsPanelProps) {
               <Row label="approvedCompletedChallengeIds" value={<IdList values={approvedCompletedChallengeIds} />} />
               <Row label="onboarding flags" value={`profile=${String(props.profile?.onboardingCompleted)} context=${String(props.isOnboardingComplete)} count=${props.onboardingCompletedCount}/${props.onboardingRequiredCount}`} />
               <Row label="starter completion flags" value={`starterState=${String(props.starterState.starterComplete)} approvedCount=${approvedCompletedChallengeIds.filter(id => ['starter-1', 'starter-2', 'starter-3'].includes(id)).length}`} />
+              <Row label="canonical starter" value={`${props.canonicalProgress.starter.label} complete=${String(props.canonicalProgress.starter.starterComplete)}`} />
               <Row label="activeTripId" value={props.activeTripId || 'none'} />
               <Row label="previous draw/submission id" value={previousMissionId || 'none'} />
             </div>
+          </div>
+
+          <div className={cn(
+            "rounded border p-3",
+            props.progressMismatches.length > 0 ? "border-red-300/50 bg-red-500/10" : "border-lime-300/30 bg-lime-300/5"
+          )}>
+            <div className="mb-2 flex items-center gap-2 font-black uppercase tracking-wider text-cyan-200">
+              Single Truth Check
+              {props.progressMismatches.length > 0 && <AlertTriangle className="h-4 w-4 text-red-300" />}
+            </div>
+            {props.progressMismatches.length === 0 ? (
+              <div className="text-lime-100">No canonical/profile drift detected for progress fields.</div>
+            ) : (
+              <div className="space-y-2">
+                {props.progressMismatches.map(mismatch => (
+                  <div key={`${mismatch.field}-${mismatch.message}`} className="rounded bg-black/30 p-2 text-red-100">
+                    <div className="font-black uppercase">{mismatch.field} ({mismatch.severity})</div>
+                    <div>{mismatch.message}</div>
+                    <div className="text-white/60">canonical={String(mismatch.canonical)} legacy={String(mismatch.legacy)}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {deckId === 'starter-signals' && (
