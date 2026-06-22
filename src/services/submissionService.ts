@@ -558,7 +558,7 @@ export async function getStarterProgress(userId: string) {
   );
   const snap = await getDocs(q);
   
-  const STARTER_MISSION_IDS = ["template_03_ignored_place", "starter-2", "starter-3", "starter-signals"];
+  const STARTER_MISSION_IDS = ["starter-1", "starter-2", "starter-3"];
   
   const approvedIds = new Set(
     snap.docs

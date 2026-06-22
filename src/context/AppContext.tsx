@@ -1880,6 +1880,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       pendingMissionIds: submittedPendingChallengeIds,
       needsMoreProofMissionIds: needsMoreProofChallengeIds,
       rejectedMissionIds: rejectedChallengeIds,
+      activeMissionId: profile?.activeTrip?.id || profile?.activeMissionId || null,
       isOnboardingComplete,
       activePack: pack,
       isHeatwaveDeckUnlocked,
@@ -1888,7 +1889,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
     
     return result;
-  }, [trips, completedChallengeIds, submittedPendingChallengeIds, needsMoreProofChallengeIds, rejectedChallengeIds, isOnboardingComplete, isHeatwaveDeckUnlocked, isAdmin]);
+  }, [trips, completedChallengeIds, submittedPendingChallengeIds, needsMoreProofChallengeIds, rejectedChallengeIds, profile?.activeTrip?.id, profile?.activeMissionId, isOnboardingComplete, isHeatwaveDeckUnlocked, isSocalSummerUnlocked, isAdmin]);
 
   const drawTrip = async (tripId?: string, packId?: string): Promise<TripType | null> => {
     if (!user || trips.length === 0) return null;

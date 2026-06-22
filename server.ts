@@ -63,6 +63,45 @@ const deployInfo = {
   cloudRunConfiguration: process.env.K_CONFIGURATION || 'local'
 };
 
+const STARTER_SIGNAL_REPAIR_CARDS = [
+  {
+    id: 'starter-1',
+    title: 'The Initial Signal',
+    description: 'Welcome to Fieldtrip. Find and snap any vibrant flower, striking blue sky, or shady tree near you right now. An easy signal to warm up your lens!',
+    category: 'Onboarding',
+    type: 'Onboarding',
+    lane: 'onboarding',
+    difficulty: 'easy',
+    proofType: ['photo'],
+    requiredProof: ['photo'],
+    deckId: 'starter-signals'
+  },
+  {
+    id: 'starter-2',
+    title: 'Snack Evidence',
+    description: 'Take a photo of the most summer-coded snack or cold drink within reach. Your crew deserves to know what is fueling the day.',
+    category: 'Evidence Challenge',
+    type: 'Evidence Challenge',
+    lane: 'onboarding',
+    difficulty: 'easy',
+    proofType: ['photo'],
+    requiredProof: ['photo'],
+    deckId: 'starter-signals'
+  },
+  {
+    id: 'starter-3',
+    title: 'Personal Oasis',
+    description: 'Find your ultimate survival spot in the heat. It could be an air-conditioned room, a shady park bench, or just dipping your toes in cool water.',
+    category: 'Field Challenge',
+    type: 'Field Challenge',
+    lane: 'onboarding',
+    difficulty: 'medium',
+    proofType: ['photo', 'note'],
+    requiredProof: ['photo', 'note'],
+    deckId: 'starter-signals'
+  }
+];
+
 // Initialize Firebase Admin for background tasks
 let adminApp: App | null = null;
 let authApp: App | null = null;
@@ -682,6 +721,97 @@ async function startServer() {
     } catch (error: any) {
       console.error("[PUBLISH_DECK_CARDS] Error:", error);
       res.status(500).json({ error: "PUBLISH_DECK_CARDS_FAILED", message: error.message });
+    }
+  });
+
+  app.post("/api/admin/repair-starter-signals-config", adminRateLimiter, authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const isAdminUser = await checkIsAdmin(req.user);
+    if (!isAdminUser) return res.status(403).json({ error: "ADMIN_ONLY" });
+
+    try {
+      const repaired: any[] = [];
+      const verified: any[] = [];
+      const batch = dbAdmin.batch();
+
+      for (const starterCard of STARTER_SIGNAL_REPAIR_CARDS) {
+        const ref = dbAdmin.collection('challenges').doc(starterCard.id);
+        const snap = await ref.get();
+        const current = snap.exists ? snap.data() || {} : {};
+        const changes: string[] = [];
+
+        const desired: any = {
+          ...starterCard,
+          missionId: starterCard.id,
+          challengeId: starterCard.id,
+          deckId: 'starter-signals',
+          status: 'active',
+          active: true,
+          isActive: true,
+          hidden: false,
+          isHidden: false,
+          visibility: 'public',
+          presentInMissionBank: true,
+          isStarter: true,
+          updatedAt: FieldValue.serverTimestamp(),
+          repairedBy: req.user.uid,
+          repairedAt: FieldValue.serverTimestamp()
+        };
+
+        if (!snap.exists) {
+          desired.createdAt = FieldValue.serverTimestamp();
+          changes.push('created_missing_challenge_doc');
+        }
+
+        const checks: Array<[string, any]> = [
+          ['deckId', 'starter-signals'],
+          ['missionId', starterCard.id],
+          ['challengeId', starterCard.id],
+          ['status', 'active'],
+          ['active', true],
+          ['isActive', true],
+          ['hidden', false],
+          ['isHidden', false],
+          ['visibility', 'public'],
+          ['presentInMissionBank', true],
+          ['isStarter', true]
+        ];
+
+        for (const [field, value] of checks) {
+          if (current[field] !== value) {
+            changes.push(`${field}:${current[field] ?? 'missing'}->${value}`);
+          }
+        }
+
+        batch.set(ref, desired, { merge: true });
+        verified.push(starterCard.id);
+        if (changes.length > 0) {
+          repaired.push({ id: starterCard.id, changes });
+        }
+      }
+
+      await batch.commit();
+
+      await dbAdmin.collection('adminRepairLogs').add({
+        action: "repair_starter_signals_configuration",
+        performedBy: req.user.uid,
+        verified,
+        repaired,
+        timestamp: FieldValue.serverTimestamp()
+      });
+
+      return res.json({
+        success: true,
+        action: "repair_starter_signals_configuration",
+        verified,
+        repaired,
+        message: repaired.length > 0
+          ? "Starter Signals configuration repaired."
+          : "Starter Signals configuration already valid."
+      });
+    } catch (error: any) {
+      console.error("[REPAIR_STARTER_SIGNALS_CONFIG] Error:", error);
+      return res.status(500).json({ error: "REPAIR_STARTER_SIGNALS_CONFIG_FAILED", message: error.message });
     }
   });
 
@@ -2874,6 +3004,8 @@ async function startServer() {
         const approvedCompletedChallengeIds = (userData.approvedCompletedChallengeIds || []).filter((id: string) => !starterMissions.includes(id.toLowerCase()));
         const submittedChallengeIds = (userData.submittedChallengeIds || []).filter((id: string) => !starterMissions.includes(id.toLowerCase()));
         const submittedPendingChallengeIds = (userData.submittedPendingChallengeIds || []).filter((id: string) => !starterMissions.includes(id.toLowerCase()));
+        const rejectedChallengeIds = (userData.rejectedChallengeIds || []).filter((id: string) => !starterMissions.includes(id.toLowerCase()));
+        const needsMoreProofChallengeIds = (userData.needsMoreProofChallengeIds || []).filter((id: string) => !starterMissions.includes(id.toLowerCase()));
 
         let activeStarterMissionId = null;
         let activeMissionId = userData.activeMissionId || null;
@@ -2881,10 +3013,35 @@ async function startServer() {
           activeMissionId = null;
           activeMissionsClearedCount++;
         }
+
+        let activeTripId = userData.activeTripId || null;
+        if (activeTripId && starterMissions.includes(activeTripId.toLowerCase())) {
+          activeTripId = null;
+        }
         
         let currentChallengeId = userData.currentChallengeId || null;
         if (currentChallengeId && starterMissions.includes(currentChallengeId.toLowerCase())) {
           currentChallengeId = null;
+        }
+
+        let currentMissionId = userData.currentMissionId || null;
+        if (currentMissionId && starterMissions.includes(currentMissionId.toLowerCase())) {
+          currentMissionId = null;
+        }
+
+        let activeChallengeId = userData.activeChallengeId || null;
+        if (activeChallengeId && starterMissions.includes(activeChallengeId.toLowerCase())) {
+          activeChallengeId = null;
+        }
+
+        let lastDrawnMissionId = userData.lastDrawnMissionId || null;
+        if (lastDrawnMissionId && starterMissions.includes(lastDrawnMissionId.toLowerCase())) {
+          lastDrawnMissionId = null;
+        }
+
+        let lastSubmittedMissionId = userData.lastSubmittedMissionId || null;
+        if (lastSubmittedMissionId && starterMissions.includes(lastSubmittedMissionId.toLowerCase())) {
+          lastSubmittedMissionId = null;
         }
 
         let activeTrip = userData.activeTrip || null;
@@ -2932,15 +3089,23 @@ async function startServer() {
           approvedCompletedChallengeIds,
           submittedChallengeIds,
           submittedPendingChallengeIds,
+          rejectedChallengeIds,
+          needsMoreProofChallengeIds,
 
           activeStarterMissionId,
           activeMissionId,
+          activeTripId,
           currentChallengeId,
+          currentMissionId,
+          activeChallengeId,
           activeTrip,
           isActive: activeTrip ? true : false,
           drawnStarterMissionIds: [],
+          starterDrawHistory: [],
           exhaustedStarterDeck: false,
           starterProgress: {},
+          starterProgressCount: 0,
+          starterPendingCount: 0,
 
           currentDeckId,
           activeDeckId,
@@ -2953,6 +3118,10 @@ async function startServer() {
           weeklyPoints: wPts,
           xp: curXp,
           score: curScore,
+          lastDrawnMissionId,
+          lastSubmittedMissionId,
+          lastDrawnAt: FieldValue.delete(),
+          lastSubmissionAt: FieldValue.delete(),
 
           updatedAt: FieldValue.serverTimestamp()
         };

@@ -6,6 +6,10 @@ export type DrawPoolReason =
   | 'onboarding_complete' 
   | 'season_locked' 
   | 'pack_exhausted' 
+  | 'unpublished_cards_blocked'
+  | 'active_mission_in_progress'
+  | 'all_starter_signals_pending_review'
+  | 'no_eligible_cards'
   | 'loading' 
   | 'no_missions';
 
@@ -38,6 +42,7 @@ export function getEligibleDrawPool({
   pendingMissionIds = new Set(),
   needsMoreProofMissionIds = new Set(),
   rejectedMissionIds = new Set(),
+  activeMissionId = null,
   isOnboardingComplete,
   activePack,
   isHeatwaveDeckUnlocked,
@@ -49,6 +54,7 @@ export function getEligibleDrawPool({
   pendingMissionIds?: Set<string>;
   needsMoreProofMissionIds?: Set<string>;
   rejectedMissionIds?: Set<string>;
+  activeMissionId?: string | null;
   isOnboardingComplete: boolean;
   activePack: DeckPack | null;
   isHeatwaveDeckUnlocked: boolean;
@@ -74,6 +80,7 @@ export function getEligibleDrawPool({
   }
 
   const ONBOARDING_IDS = ["starter-1", "starter-2", "starter-3"];
+  const STARTER_CARD_IDS = new Set(ONBOARDING_IDS);
   let pool: TripType[] = [];
   let reason: DrawPoolReason | null = null;
 
@@ -151,23 +158,27 @@ export function getEligibleDrawPool({
     
     analyzedIds.add(missionIdLower);
 
-    const isStarterMission = ONBOARDING_IDS.includes(missionIdLower);
+    const isStarterMission = STARTER_CARD_IDS.has(missionIdLower);
     const isApproved = completedMissionIds.has(missionIdLower);
     const isPending = pendingMissionIds.has(missionIdLower);
     const isNeedsMoreProof = needsMoreProofMissionIds.has(missionIdLower);
     const isRejected = rejectedMissionIds.has(missionIdLower);
+    const isActiveMission = !!activeMissionId && missionIdLower === activeMissionId.toLowerCase().trim();
     const isAlreadySubmitted = isApproved || isPending || isNeedsMoreProof || isRejected;
     
     const status = (m.status || 'available').toLowerCase();
-    const isAllowedStatus = ['published', 'available', 'approved', 'active', 'auto_approved', 'approved_by_admin'].includes(status);
+    const isAllowedStatus = isStarterMission
+      ? status === 'active'
+      : ['published', 'available', 'approved', 'active', 'auto_approved', 'approved_by_admin'].includes(status);
     
-    let isDrawable = isAllowedStatus && !isApproved && !isPending && !isNeedsMoreProof;
+    let isDrawable = isAllowedStatus && !isApproved && !isPending && !isNeedsMoreProof && !isActiveMission;
     let exclusionReason: string | null = null;
 
     if (!isAllowedStatus) exclusionReason = `disallowed_status:${status}`;
     else if (isApproved) exclusionReason = 'approved';
     else if (isPending) exclusionReason = 'pending';
     else if (isNeedsMoreProof) exclusionReason = 'needs_more_proof';
+    else if (isActiveMission) exclusionReason = 'active_mission_in_progress';
     else if (isRejected) {
       if (isStarterMission) {
         isDrawable = true;
@@ -227,8 +238,26 @@ export function getEligibleDrawPool({
   }
 
   if (eligibleMissions.length === 0) {
-    if (!isOnboardingComplete && !isAdmin) {
-      reason = 'onboarding_complete';
+    const isStarterPack = activePack?.packId === 'starter-signals' || (!activePack && !isOnboardingComplete && !isAdmin);
+    if (isStarterPack) {
+      const starterAnalysis = analysis.filter(a => STARTER_CARD_IDS.has(a.cardId));
+      const activeStarterCards = starterAnalysis.filter(a => a.status === 'active');
+      const draftStarterCards = starterAnalysis.filter(a => a.status === 'draft' || a.exclusionReason === 'disallowed_status:draft');
+      const pendingStarterCards = starterAnalysis.filter(a => a.isPending);
+      const approvedStarterCards = starterAnalysis.filter(a => a.isApproved);
+      const activeMissionStarterCards = starterAnalysis.filter(a => a.exclusionReason === 'active_mission_in_progress');
+
+      if (draftStarterCards.length > 0 || activeStarterCards.length < ONBOARDING_IDS.length) {
+        reason = 'unpublished_cards_blocked';
+      } else if (pendingStarterCards.length >= ONBOARDING_IDS.length && approvedStarterCards.length < ONBOARDING_IDS.length) {
+        reason = 'all_starter_signals_pending_review';
+      } else if (activeMissionStarterCards.length > 0) {
+        reason = 'active_mission_in_progress';
+      } else if (!isOnboardingComplete && !isAdmin) {
+        reason = 'onboarding_complete';
+      } else {
+        reason = 'no_eligible_cards';
+      }
     } else {
       reason = 'pack_exhausted';
     }

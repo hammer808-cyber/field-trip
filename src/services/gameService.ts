@@ -584,7 +584,7 @@ export async function checkOnboardingState(userId: string) {
   
   // 1. Fetch relevant entries to check for specific starter IDs
   // STRICTION: Only count APPROVED missions for onboarding completion!
-  const starterIds = ["template_03_ignored_place", "starter-2", "starter-3"];
+  const starterIds = ["starter-1", "starter-2", "starter-3"];
   const q = query(
     collection(db, 'entries'),
     where('userId', '==', userId),

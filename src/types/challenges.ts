@@ -96,6 +96,10 @@ export interface TripCard {
   tags: string[];
   /** Optional deck association */
   deckId?: string;
+  hidden?: boolean;
+  isHidden?: boolean;
+  visibility?: 'public' | 'internal' | 'planned' | 'hidden';
+  presentInMissionBank?: boolean;
   findingTypes?: string[];
   cardType?: 'Signal' | 'Proof' | 'Crew' | 'Receipt' | 'Lore';
   deckName?: string;

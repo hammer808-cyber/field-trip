@@ -350,6 +350,7 @@ export default function DeckPage() {
   const poolResult = getEligibleDrawPool(activePackId);
   const eligiblePool = poolResult.eligibleMissions;
   const drawPoolAnalysis = poolResult.analysis || [];
+  const isStarterConfigurationBlocked = isStarter && poolResult.reason === 'unpublished_cards_blocked';
   
   // Rule 1 & Rule 2 for Starter Deck:
   // - Pending review should only show if ALL starters are submitted but not yet 3 approved.
@@ -402,16 +403,18 @@ export default function DeckPage() {
   const displayState = {
     label: starterHasNeedsMoreProof ? "FIX PROOF" : 
            starterHasRejected ? "RETRY MISSION" :
+           isStarterConfigurationBlocked ? "STARTER UNAVAILABLE" :
            isPendingReviewLimit ? "LIMIT REACHED" : 
            (isWaitingForReview ? "PENDING REVIEW" : 
            (isExhausted ? getDisplayLabel("DECK_EXHAUSTED") : getDisplayLabel("START_MISSION"))),
     sublabel: starterHasNeedsMoreProof ? "PHOTO_REJECTED" :
               starterHasRejected ? "RETRY_REQUIRED" :
+              isStarterConfigurationBlocked ? "CHECK_BACK_SOON" :
               isPendingReviewLimit ? "PENDING_LIMIT_REACHED" : 
               (isWaitingForReview ? "CALIBRATION_PENDING" : 
               (isExhausted ? (isDeckCompleted ? "DECK_COMPLETE" : getDisplayLabel("MISSION_LIMIT_REACHED")) : 
               (isStarter ? "STARTER_SIGNALS_READY" : getDisplayLabel("UPLINK_READY_FOR_HAND_OFF")))),
-    status: starterHasNeedsMoreProof || starterHasRejected || isPendingReviewLimit || isWaitingForReview ? "PENDING" : (isExhausted ? "EXHAUSTED" : "READY")
+    status: starterHasNeedsMoreProof || starterHasRejected || isStarterConfigurationBlocked || isPendingReviewLimit || isWaitingForReview ? "PENDING" : (isExhausted ? "EXHAUSTED" : "READY")
   };
 
   // Real automatically rotating weekly bonus selector
@@ -445,7 +448,7 @@ export default function DeckPage() {
   }, [activeTrip, trips.length, hasRevealedInActiveSession]);
 
   const handleDraw = async (isRedraw: boolean = false) => {
-    if (isDrawing || (isExhausted && !activeTrip) || animationStep === 'drawing' || animationStep === 'flipping') return;
+    if (isDrawing || isStarterConfigurationBlocked || (isExhausted && !activeTrip) || animationStep === 'drawing' || animationStep === 'flipping') return;
 
     setIsDrawing(true);
     setShowAnimation(true);
@@ -984,8 +987,7 @@ export default function DeckPage() {
                   <div className="space-y-2">
                     <h2 className="font-display text-4xl font-black uppercase italic tracking-tight text-on-surface">Pending Review</h2>
                     <p className="text-xs font-sans font-bold text-on-surface/60 max-w-xs mx-auto">
-                      {starterPendingCount} starter proof{starterPendingCount > 1 ? 's are' : ' is'} waiting for review. 
-                      Waiting for Bureau approval to unlock higher-tier datasets.
+                      All three Starter Signals are in review. Your next route unlocks once they are approved.
                     </p>
                   </div>
                   <button
@@ -1002,7 +1004,7 @@ export default function DeckPage() {
                     <DeckStack 
                       onDraw={() => handleDraw()}
                       isDrawing={isDrawing}
-                      disabled={isDrawing || (isExhausted && !activeTrip) || isWaitingForReview}
+                      disabled={isDrawing || isStarterConfigurationBlocked || (isExhausted && !activeTrip) || isWaitingForReview}
                       activeMission={null}
                       activePack={activePack}
                       poolEmpty={isExhausted && !activeTrip}
@@ -1018,10 +1020,10 @@ export default function DeckPage() {
                   <div className="w-full space-y-6">
                     <button
                       onClick={() => handleDraw()}
-                      disabled={isDrawing || (isExhausted && !activeTrip) || isWaitingForReview}
+                      disabled={isDrawing || isStarterConfigurationBlocked || (isExhausted && !activeTrip) || isWaitingForReview}
                       className={cn(
                         "w-full py-5 bg-on-surface text-white border-[3px] border-on-surface shadow-[0_8px_0px_#B7FF00] active:shadow-none active:translate-y-2 transition-all font-display text-2xl font-black uppercase italic tracking-wide flex items-center justify-center gap-3 cursor-pointer",
-                        (isDrawing || (isExhausted && !activeTrip) || isWaitingForReview) && "opacity-70 cursor-not-allowed grayscale"
+                        (isDrawing || isStarterConfigurationBlocked || (isExhausted && !activeTrip) || isWaitingForReview) && "opacity-70 cursor-not-allowed grayscale"
                       )}
                     >
                       {isDrawing ? (

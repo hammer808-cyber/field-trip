@@ -35,7 +35,7 @@ export async function getStarterProgress(userId: string): Promise<StarterProgres
   const [snap1, snap2] = await Promise.all([getDocs(qUid), getDocs(qUserId)]);
   const allEntries = [...snap1.docs, ...snap2.docs].map(d => ({ id: d.id, ...d.data() }));
 
-  const STARTER_MISSION_IDS = ["template_03_ignored_place", "starter-2", "starter-3", "starter-signals"];
+  const STARTER_MISSION_IDS = ["starter-1", "starter-2", "starter-3"];
   
   const approved = new Set<string>();
   const pending = new Set<string>();
@@ -49,7 +49,7 @@ export async function getStarterProgress(userId: string): Promise<StarterProgres
     if (!mid) return;
     
     // Check if it's a starter mission
-    const isStarter = STARTER_MISSION_IDS.includes(mid) || mid.startsWith('starter-') || e.deckId === 'starter-signals';
+    const isStarter = STARTER_MISSION_IDS.includes(mid) || e.deckId === 'starter-signals';
     if (!isStarter) return;
 
     const status = normalizeEntryStatus(e.status);
@@ -76,10 +76,10 @@ export async function getStarterProgress(userId: string): Promise<StarterProgres
   });
 
   // Filter ONLY starter IDs for final counts
-  const finalApproved = Array.from(approved).filter(id => STARTER_MISSION_IDS.includes(id) || id.startsWith('starter-'));
-  const finalPending = Array.from(pending).filter(id => STARTER_MISSION_IDS.includes(id) || id.startsWith('starter-'));
-  const finalNeedsMore = Array.from(needsMore).filter(id => STARTER_MISSION_IDS.includes(id) || id.startsWith('starter-'));
-  const finalRejected = Array.from(rejected).filter(id => STARTER_MISSION_IDS.includes(id) || id.startsWith('starter-'));
+  const finalApproved = Array.from(approved).filter(id => STARTER_MISSION_IDS.includes(id));
+  const finalPending = Array.from(pending).filter(id => STARTER_MISSION_IDS.includes(id));
+  const finalNeedsMore = Array.from(needsMore).filter(id => STARTER_MISSION_IDS.includes(id));
+  const finalRejected = Array.from(rejected).filter(id => STARTER_MISSION_IDS.includes(id));
 
   const starterApprovedCount = finalApproved.length;
   const starterComplete = starterApprovedCount >= 3;

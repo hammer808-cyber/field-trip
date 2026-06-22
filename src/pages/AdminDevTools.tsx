@@ -351,7 +351,7 @@ export default function AdminDevTools() {
               { label: 'Frontlines', path: '/frontlines', icon: Trophy },
               { label: 'Voting Hub', path: '/voting', icon: Users },
               { label: 'Admin Proof', path: '/admin/proofs', icon: Shield },
-              { label: 'Capture (Starter)', path: '/capture?id=template_03_ignored_place', icon: Camera, highlight: true },
+              { label: 'Capture (Starter)', path: '/capture?id=starter-1', icon: Camera, highlight: true },
             ].map(link => (
               <button
                 key={link.path}

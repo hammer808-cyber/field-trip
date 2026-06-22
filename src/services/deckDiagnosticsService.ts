@@ -9,6 +9,7 @@ export interface DeckDiagnosticsInput {
   pendingMissionIds: Set<string>;
   needsMoreProofMissionIds: Set<string>;
   rejectedMissionIds: Set<string>;
+  activeMissionId?: string | null;
   isOnboardingComplete: boolean;
   activePack: DeckPack | null;
   isHeatwaveDeckUnlocked: boolean;
@@ -69,6 +70,7 @@ export function simulateDeckDraw(input: DeckDiagnosticsInput): DeckDrawSimulatio
     pendingMissionIds: input.pendingMissionIds,
     needsMoreProofMissionIds: input.needsMoreProofMissionIds,
     rejectedMissionIds: input.rejectedMissionIds,
+    activeMissionId: input.activeMissionId,
     isOnboardingComplete: input.isOnboardingComplete,
     activePack: input.activePack,
     isHeatwaveDeckUnlocked: input.isHeatwaveDeckUnlocked,
