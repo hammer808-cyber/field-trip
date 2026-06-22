@@ -19,11 +19,13 @@ import {
   repairStrandedStarterUsers,
   getRepairDiagnostics,
   archiveOrphanedProofReviews,
+  runBetaHardReset,
   resetUserState,
   lookupAdminUsers,
   RepairReport,
   DiagnosticsReport,
   StrandedStarterRepairReport,
+  BetaHardResetReport,
   UserResetReport,
   AdminUserLookupResult
 } from '../services/repairService';
@@ -41,6 +43,11 @@ export default function AdminRepair() {
   const [bulkDryRun, setBulkDryRun] = useState(true);
   const [repairingBulk, setRepairingBulk] = useState(false);
   const [bulkReport, setBulkReport] = useState<any>(null);
+  const [betaHardResetDryRun, setBetaHardResetDryRun] = useState(true);
+  const [betaHardResetConfirm, setBetaHardResetConfirm] = useState(false);
+  const [betaHardResetPhrase, setBetaHardResetPhrase] = useState('');
+  const [betaHardResetRunning, setBetaHardResetRunning] = useState(false);
+  const [betaHardResetReport, setBetaHardResetReport] = useState<BetaHardResetReport | null>(null);
 
   const [repairingStranded, setRepairingStranded] = useState(false);
   const [strandedReport, setStrandedReport] = useState<StrandedStarterRepairReport | null>(null);
@@ -123,6 +130,26 @@ export default function AdminRepair() {
       setStrandedReport(await repairStrandedStarterUsers(false));
     } finally {
       setRepairingStranded(false);
+    }
+  };
+
+  const handleBetaHardReset = async () => {
+    if (!betaHardResetDryRun && (!betaHardResetConfirm || betaHardResetPhrase !== 'RESET_FIELDTRIP_BETA')) return;
+    setBetaHardResetRunning(true);
+    setBetaHardResetReport(null);
+    try {
+      const report = await runBetaHardReset({
+        dryRun: betaHardResetDryRun,
+        confirmReset: !betaHardResetDryRun && betaHardResetConfirm,
+        confirmationText: betaHardResetPhrase
+      });
+      setBetaHardResetReport(report);
+      if (!report.dryRun) {
+        setBetaHardResetConfirm(false);
+        setBetaHardResetPhrase('');
+      }
+    } finally {
+      setBetaHardResetRunning(false);
     }
   };
 
@@ -322,6 +349,41 @@ export default function AdminRepair() {
             <ModuleCard title="Stranded Starter Patch" description="Repairs users stuck because starter statuses drifted." icon={Shield} status={strandedReport?.errors?.length ? 'red' : strandedReport ? 'green' : 'yellow'} statusLabel={strandedReport?.errors?.length ? 'FAILED' : strandedReport ? 'COMPLETE' : 'READY'} primaryAction={{ label: repairingStranded ? 'PATCHING...' : 'APPLY PATCH', onClick: handleRepairStranded, loading: repairingStranded, disabled: repairingStranded }}>
               {strandedReport && <RepairActionReceipt title="Starter Patch Receipt" failed={strandedReport.errors?.length > 0 || strandedReport.success === false} rows={[['Mode', strandedReport.dryRun ? 'Dry Run' : 'Live Write'], ['Users Scanned', strandedReport.totalUsersScanned || 0], ['Stranded Detected', strandedReport.strandedDetected || 0], ['Users Repaired', strandedReport.usersRepaired || 0], ['Entries Updated', strandedReport.entriesUpdated || 0]]} error={strandedReport.errors?.[0]} />}
             </ModuleCard>
+            <Card className="md:col-span-2 p-8 border-2 border-rose-600 bg-rose-50 shadow-[8px_8px_0px_black] space-y-6">
+              <SectionTitle icon={AlertTriangle} title="Beta Hard Reset" description="Deletes stale gameplay roots, clears proof queues, and returns every user to clean Starter state. Firebase Auth and admin roles are preserved." />
+              <ToggleRow checked={betaHardResetDryRun} onClick={() => setBetaHardResetDryRun(!betaHardResetDryRun)} title="Dry Run Mode" description="Leave this on first. Dry run counts records but writes nothing." />
+              {!betaHardResetDryRun && (
+                <>
+                  <ToggleRow checked={betaHardResetConfirm} onClick={() => setBetaHardResetConfirm(!betaHardResetConfirm)} title="I understand this deletes beta gameplay data" description="Required for live reset. This cannot be undone from the app." />
+                  <LabeledInput label="Live Reset Phrase" value={betaHardResetPhrase} onChange={setBetaHardResetPhrase} placeholder="type RESET_FIELDTRIP_BETA" />
+                </>
+              )}
+              <button
+                onClick={handleBetaHardReset}
+                disabled={betaHardResetRunning || (!betaHardResetDryRun && (!betaHardResetConfirm || betaHardResetPhrase !== 'RESET_FIELDTRIP_BETA'))}
+                className="w-full py-4 bg-rose-600 text-white font-display font-black uppercase italic rounded-xl shadow-[4px_4px_0px_black] disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4 inline mr-2" />
+                {betaHardResetRunning ? 'RUNNING...' : betaHardResetDryRun ? 'DRY RUN BETA HARD RESET' : 'LIVE BETA HARD RESET'}
+              </button>
+              {betaHardResetReport && (
+                <RepairActionReceipt
+                  title={betaHardResetReport.dryRun ? 'Hard Reset Preview' : 'Hard Reset Complete'}
+                  failed={!betaHardResetReport.success || betaHardResetReport.errors?.length > 0}
+                  rows={[
+                    ['Mode', betaHardResetReport.dryRun ? 'Dry Run' : 'Live Write'],
+                    ['Users Scanned', betaHardResetReport.usersScanned || 0],
+                    ['Users Reset', betaHardResetReport.usersReset || 0],
+                    ['Root Docs Matched', sumResetCounts(betaHardResetReport.rootCollections, 'matched')],
+                    ['Root Docs Deleted', sumResetCounts(betaHardResetReport.rootCollections, 'deleted')],
+                    ['User Subdocs Matched', sumResetCounts(betaHardResetReport.userSubcollections, 'matched')],
+                    ['User Subdocs Deleted', sumResetCounts(betaHardResetReport.userSubcollections, 'deleted')],
+                    ['App Config Reset', betaHardResetReport.appConfigReset ? 'Yes' : 'No']
+                  ]}
+                  error={betaHardResetReport.errors?.[0] || betaHardResetReport.warnings?.join(' | ')}
+                />
+              )}
+            </Card>
           </div>
         )}
 
@@ -396,6 +458,11 @@ function ToggleRow({ checked, onClick, title, description }: { checked: boolean;
 
 function EmptyReceipt({ text }: { text: string }) {
   return <div className="h-64 flex items-center justify-center border-2 border-dashed border-on-surface/15 rounded-2xl opacity-40 text-[10px] font-mono font-black uppercase tracking-widest">{text}</div>;
+}
+
+function sumResetCounts(collections: Record<string, { matched?: number; deleted?: number }> | undefined, key: 'matched' | 'deleted') {
+  if (!collections) return 0;
+  return Object.values(collections).reduce((sum, item) => sum + (Number(item?.[key]) || 0), 0);
 }
 
 function RepairActionReceipt({ title, rows, failed, error }: { title: string; rows: Array<[string, string | number]>; failed?: boolean; error?: string }) {

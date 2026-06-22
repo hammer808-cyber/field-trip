@@ -883,6 +883,275 @@ async function startServer() {
     }
   });
 
+  const BETA_HARD_RESET_CONFIRMATION = "RESET_FIELDTRIP_BETA";
+  const BETA_HARD_RESET_COLLECTIONS = [
+    'entries',
+    'proofReviews',
+    'proofs',
+    'proofChecks',
+    'scoreEvents',
+    'fieldChecks',
+    'weeklyBallots',
+    'weeklySummaries',
+    'weeklyVotes',
+    'votes',
+    'voteEvents',
+    'communityProofs',
+    'proofMetadata'
+  ];
+  const BETA_HARD_RESET_USER_SUBCOLLECTIONS = [
+    'drawnMissionCards',
+    'entries',
+    'proofReviews',
+    'proofs',
+    'proofChecks',
+    'scoreEvents',
+    'missionProgress',
+    'deckProgress'
+  ];
+
+  function buildCleanBetaUserState(adminUid: string, dryRun: boolean) {
+    return {
+      xp: 0,
+      points: 0,
+      totalXP: 0,
+      totalPoints: 0,
+      seasonXP: 0,
+      seasonPoints: 0,
+      weeklyXP: 0,
+      weeklyPoints: 0,
+      score: 0,
+      approvedMissionCount: 0,
+      approvedEntriesCount: 0,
+      soloTripsCount: 0,
+      crewTripsCount: 0,
+      boldTripsCount: 0,
+      completedCoreChallenges: 0,
+
+      starterDeckComplete: false,
+      starterCompleted: false,
+      starterApprovedCount: 0,
+      starterPendingCount: 0,
+      starterProgress: 0,
+      starterProgressCount: 0,
+      seasonalProgress: 0,
+      onboardingComplete: false,
+      onboardingCompleted: false,
+      forcedLaunchMissionCompleted: false,
+      hasCompletedFirstMission: false,
+      hasCompletedGuidedFirstEntry: false,
+      hasSeenFieldTypeResults: false,
+      starterTourSeen_v1: false,
+      firstMissionTourComplete: false,
+
+      completedMissionIds: [],
+      completedMissions: [],
+      completedChallengeIds: [],
+      approvedCompletedChallengeIds: [],
+      submittedChallengeIds: [],
+      submittedPendingChallengeIds: [],
+      rejectedChallengeIds: [],
+      retryableChallengeIds: [],
+      needsMoreProofChallengeIds: [],
+      drawnChallengeIds: [],
+      drawnMissionIds: [],
+      drawnMissionCards: [],
+      drawnStarterMissionIds: [],
+      starterDrawHistory: [],
+      drawHistory: [],
+      exhaustedStarterDeck: false,
+
+      activeMissionId: null,
+      activeTripId: null,
+      activeTrip: null,
+      activeDraw: null,
+      activeDrawId: null,
+      activeChallengeId: null,
+      activeChallenge: null,
+      activeMissionCard: null,
+      activeStarterMissionId: null,
+      currentMissionId: null,
+      currentChallengeId: null,
+      drawnCard: null,
+      lastDrawnMissionId: null,
+      lastSubmittedMissionId: null,
+
+      activeDeckId: "starter-signals",
+      currentDeckId: "starter-signals",
+      selectedDeckId: "starter-signals",
+      activeDeckPackId: "starter-signals",
+      activePlayableDeckId: "starter-signals",
+      unlockedDeckIds: ["starter-signals"],
+      hasUnlockedHeatwave: false,
+      hasUnlockedSeasonal: false,
+      deckProgress: {},
+      deckStats: {},
+      deckState: {},
+      missionCooldowns: {},
+      tripProgress: {},
+
+      unlockedRewards: {
+        stickers: [],
+        badges: [],
+        skins: ['classic']
+      },
+      discoveryEvents: {},
+      completedDiscoveryGroups: [],
+      stickerUnlockHistory: [],
+      seenBadges: [],
+      badgeProgress: [],
+
+      "starterState.starterApprovedCount": 0,
+      "starterState.starterComplete": false,
+      "starterState.starterSignalsCompleted": [],
+      "starterState.pendingStarterCount": 0,
+      "starterState.needsMoreProofStarterCount": 0,
+      "starterState.retryStarterCount": 0,
+      "starterState.submittedMissionIds": [],
+      "starterState.needsMoreProofMissionId": null,
+      "starterState.needsMoreProofEntryId": null,
+      "starterState.rejectedMissionId": null,
+      "starterState.rejectedEntryId": null,
+      "starterState.status": "NOT_STARTED",
+      "stats.totalApproved": 0,
+      "stats.approvedMissionCount": 0,
+
+      lastDrawnAt: FieldValue.delete(),
+      lastSubmissionAt: FieldValue.delete(),
+      activeSubmissionStatus: FieldValue.delete(),
+      starterResetVersion: `beta-hard-reset-${Date.now()}`,
+      betaHardResetAt: dryRun ? FieldValue.delete() : FieldValue.serverTimestamp(),
+      betaHardResetBy: adminUid,
+      updatedAt: FieldValue.serverTimestamp()
+    };
+  }
+
+  async function deleteQuerySnapshotInBatches(snapshot: FirebaseFirestore.QuerySnapshot, dryRun: boolean) {
+    if (dryRun || snapshot.empty) return 0;
+    let deleted = 0;
+    for (let i = 0; i < snapshot.docs.length; i += 450) {
+      const batch = dbAdmin!.batch();
+      snapshot.docs.slice(i, i + 450).forEach(docSnap => {
+        batch.delete(docSnap.ref);
+        deleted++;
+      });
+      await batch.commit();
+    }
+    return deleted;
+  }
+
+  app.post("/api/admin/beta-hard-reset", adminRateLimiter, authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+
+    const isAdminUser = await checkIsAdmin(req.user);
+    if (!isAdminUser) return res.status(403).json({ error: "ADMIN_ONLY" });
+
+    const dryRun = req.body?.dryRun !== false;
+    const confirmReset = req.body?.confirmReset === true;
+    const confirmationText = String(req.body?.confirmationText || '');
+    const adminUid = req.user.uid;
+
+    if (!dryRun && (!confirmReset || confirmationText !== BETA_HARD_RESET_CONFIRMATION)) {
+      return res.status(400).json({
+        error: "INVALID_CONFIRMATION",
+        message: `Live beta hard reset requires confirmReset=true and confirmationText="${BETA_HARD_RESET_CONFIRMATION}".`
+      });
+    }
+
+    const report: any = {
+      success: true,
+      dryRun,
+      confirmationRequired: BETA_HARD_RESET_CONFIRMATION,
+      rootCollections: {},
+      userSubcollections: {},
+      usersScanned: 0,
+      usersReset: 0,
+      appConfigReset: false,
+      warnings: [
+        "Firebase Auth users are preserved.",
+        "Admin roles/profile identity are preserved.",
+        "Firebase Storage proof files are not deleted by this tool."
+      ],
+      errors: []
+    };
+
+    try {
+      for (const collectionName of BETA_HARD_RESET_COLLECTIONS) {
+        const snapshot = await dbAdmin.collection(collectionName).get();
+        report.rootCollections[collectionName] = {
+          matched: snapshot.size,
+          deleted: dryRun ? 0 : await deleteQuerySnapshotInBatches(snapshot, false)
+        };
+      }
+
+      const usersSnapshot = await dbAdmin.collection('users').get();
+      report.usersScanned = usersSnapshot.size;
+
+      for (const userDoc of usersSnapshot.docs) {
+        for (const subcollectionName of BETA_HARD_RESET_USER_SUBCOLLECTIONS) {
+          const subSnap = await userDoc.ref.collection(subcollectionName).get();
+          if (!report.userSubcollections[subcollectionName]) {
+            report.userSubcollections[subcollectionName] = { matched: 0, deleted: 0 };
+          }
+          report.userSubcollections[subcollectionName].matched += subSnap.size;
+          if (!dryRun) {
+            report.userSubcollections[subcollectionName].deleted += await deleteQuerySnapshotInBatches(subSnap, false);
+          }
+        }
+
+        if (!dryRun) {
+          await userDoc.ref.set(buildCleanBetaUserState(adminUid, dryRun), { merge: true });
+        }
+        report.usersReset++;
+      }
+
+      if (!dryRun) {
+        await dbAdmin.collection('appConfig').doc('game').set({
+          activeStarterDeckId: "starter-signals",
+          starterRequiredCount: 3,
+          starterResetVersion: `beta-hard-reset-${Date.now()}`,
+          betaHardResetAt: FieldValue.serverTimestamp(),
+          betaHardResetBy: adminUid,
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+        report.appConfigReset = true;
+      }
+
+      await dbAdmin.collection('adminRepairLogs').add({
+        action: "beta_hard_reset",
+        performedBy: adminUid,
+        dryRun,
+        report,
+        timestamp: FieldValue.serverTimestamp()
+      });
+
+      await dbAdmin.collection('adminLogs').add({
+        action: "beta_hard_reset",
+        adminId: adminUid,
+        targetId: "global_beta",
+        targetType: "system",
+        metadata: {
+          dryRun,
+          rootCollections: report.rootCollections,
+          userSubcollections: report.userSubcollections,
+          usersReset: report.usersReset
+        },
+        createdAt: FieldValue.serverTimestamp()
+      });
+
+      res.json(report);
+    } catch (error: any) {
+      console.error("[BETA_HARD_RESET] Error:", error);
+      res.status(500).json({
+        success: false,
+        dryRun,
+        error: "BETA_HARD_RESET_FAILED",
+        message: error.message,
+        report
+      });
+    }
+  });
+
   app.post("/api/admin/soft-reset-user", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
     const isAdminUser = await checkIsAdmin(req.user);
