@@ -213,6 +213,8 @@ export async function transitionProofReview(
 
     const userId = getCanonicalUserId(data);
     const challengeId = getCanonicalChallengeId(data);
+    const userRef = userId && challengeId ? doc(db, 'users', userId) : null;
+    const userSnap = userRef ? await transaction.get(userRef) : null;
 
     transaction.update(entryRef, {
       status: nextStatus,
@@ -229,12 +231,7 @@ export async function transitionProofReview(
       updatedAt: serverTimestamp()
     });
 
-    if (userId && challengeId) {
-      const userRef = doc(db, 'users', userId);
-      const userSnap = await transaction.get(userRef);
-      if (!userSnap.exists()) {
-        return { success: true, status: nextStatus, reason: 'USER_PROFILE_NOT_FOUND' };
-      }
+    if (userRef && userSnap?.exists()) {
       const userUpdates: any = {
         submittedChallengeIds: arrayRemove(challengeId),
         submittedPendingChallengeIds: arrayRemove(challengeId),
@@ -250,7 +247,11 @@ export async function transitionProofReview(
       transaction.update(userRef, userUpdates);
     }
 
-    return { success: true, status: nextStatus };
+    return {
+      success: true,
+      status: nextStatus,
+      reason: userRef && !userSnap?.exists() ? 'USER_PROFILE_NOT_FOUND' : undefined
+    };
   });
 }
 
