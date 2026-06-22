@@ -26,13 +26,22 @@ import { Card } from '../components/UI';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
-import { subscribeToAdminPendingReviews } from '../services/submissionService';
+import {
+  approveSubmission,
+  rejectSubmission,
+  requestMoreProof,
+  subscribeToAdminPendingReviews,
+  AdminReviewQueueDiagnostics
+} from '../services/submissionService';
 
 export default function AdminProofReview() {
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'pending_review' | 'approved' | 'rejected' | 'needs_more_proof'>('pending_review');
   const [viewMode, setViewMode] = useState<'swipe' | 'queue'>('swipe');
+  const [diagnostics, setDiagnostics] = useState<AdminReviewQueueDiagnostics | null>(null);
+  const [queryError, setQueryError] = useState<string | null>(null);
+  const [actionBusyId, setActionBusyId] = useState<string | null>(null);
   const [stats, setStats] = useState({
     pending: 0,
     velocity: '2.4 p/h',
@@ -53,6 +62,7 @@ export default function AdminProofReview() {
     // Proofs listener
     const unsub = subscribeToAdminPendingReviews(filter, (entries) => {
       setReviews(entries);
+      setQueryError(null);
       if (filter === 'pending_review') {
         setStats(prev => ({
           ...prev,
@@ -63,8 +73,9 @@ export default function AdminProofReview() {
       setLoading(false);
     }, (error: any) => {
       console.error('[AdminProofReview] Reviews subscription denied:', error);
+      setQueryError(error?.message || String(error));
       setLoading(false);
-    });
+    }, setDiagnostics);
 
     return () => {
       unsub();
@@ -72,8 +83,31 @@ export default function AdminProofReview() {
   }, [isAdminAuthorized, filter]);
 
   const handleAction = async (id: string, action: 'approve' | 'reject' | 'request_info') => {
-    // Placeholder for actual review logic which is in submissionService
-    alert(`Action: ${action} on ${id}`);
+    const notes = window.prompt(
+      action === 'approve'
+        ? 'Approval note'
+        : action === 'request_info'
+          ? 'What should the player fix or add?'
+          : 'Rejection note',
+      action === 'approve' ? 'Approved from Admin Proof Review.' : ''
+    );
+    if (notes === null) return;
+
+    setActionBusyId(id);
+    try {
+      if (action === 'approve') {
+        await approveSubmission(id, notes || 'Approved from Admin Proof Review.');
+      } else if (action === 'request_info') {
+        await requestMoreProof(id, notes || 'Trevor needs one more little receipt.');
+      } else {
+        await rejectSubmission(id, notes || 'Rejected from Admin Proof Review.');
+      }
+    } catch (err: any) {
+      console.error('[AdminProofReview] Review action failed:', err);
+      alert(`Review action failed: ${err?.message || err}`);
+    } finally {
+      setActionBusyId(null);
+    }
   };
 
   return (
@@ -88,6 +122,8 @@ export default function AdminProofReview() {
            <MonitorCard title="Review Velocity" value={stats.velocity} icon={Zap} />
            <MonitorCard title="System Depth" value={stats.queueDepth} status={stats.queueDepth === 'Clear' ? 'green' : 'yellow'} icon={Activity} />
         </section>
+
+        <QueueDiagnosticsPanel diagnostics={diagnostics} queryError={queryError} />
 
         {/* Control Toolbar */}
         <Card className="p-6 border-2 border-on-surface shadow-[6px_6px_0px_black] bg-white flex flex-col md:flex-row justify-between items-center gap-6">
@@ -147,10 +183,11 @@ export default function AdminProofReview() {
            ) : viewMode === 'swipe' ? (
               <SwipeView 
                 entry={reviews[0]} 
+                busy={actionBusyId === reviews[0].id}
                 onAction={(action: any) => handleAction(reviews[0].id, action)} 
               />
            ) : (
-              <QueueView entries={reviews} />
+              <QueueView entries={reviews} busyId={actionBusyId} onAction={handleAction} />
            )}
         </div>
 
@@ -174,7 +211,62 @@ function MonitorCard({ title, value, status = 'neutral', icon: Icon }: any) {
   );
 }
 
-function SwipeView({ entry, onAction }: any) {
+function QueueDiagnosticsPanel({ diagnostics, queryError }: { diagnostics: AdminReviewQueueDiagnostics | null; queryError: string | null }) {
+  const statusRows = diagnostics
+    ? Object.entries(diagnostics.statusCounts).map(([status, count]) => `${status}: ${count}`).join(' / ')
+    : 'waiting for query...';
+
+  return (
+    <Card className="p-4 border-2 border-on-surface/20 bg-white/80">
+      <details>
+        <summary className="cursor-pointer font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/60 flex items-center gap-2">
+          <Activity className="w-4 h-4 text-brand-orange" />
+          Admin Proof Queue Diagnostics
+          {queryError && <span className="text-red-600">QUERY ERROR</span>}
+        </summary>
+        <div className="mt-4 grid gap-2 text-[10px] font-mono uppercase text-on-surface/70">
+          <DiagnosticRow label="Firebase project" value={diagnostics?.projectId || 'unknown'} />
+          <DiagnosticRow label="Environment" value={diagnostics?.environment || 'unknown'} />
+          <DiagnosticRow label="Query paths" value={diagnostics?.queryPaths.join(', ') || 'entries, proofReviews'} />
+          <DiagnosticRow label="Active filter" value={diagnostics?.statusFilter || 'pending_review'} />
+          <DiagnosticRow label="Entries before filtering" value={String(diagnostics?.entriesTotalBeforeFiltering ?? 0)} />
+          <DiagnosticRow label="ProofReviews before filtering" value={String(diagnostics?.proofReviewsTotalBeforeFiltering ?? 0)} />
+          <DiagnosticRow label="Merged records after filtering" value={String(diagnostics?.mergedTotalAfterFiltering ?? 0)} />
+          <DiagnosticRow label="Records per status" value={statusRows} />
+          {queryError && <DiagnosticRow label="Query error" value={queryError} danger />}
+          {diagnostics?.errors.map((err, index) => (
+            <DiagnosticRow key={`${err.source}-${index}`} label={`${err.source} error`} value={`${err.code || 'error'}: ${err.message}`} danger />
+          ))}
+          <div className="mt-2">
+            <div className="font-black text-on-surface/50">Excluded records and reasons</div>
+            {diagnostics && diagnostics.excluded.length > 0 ? (
+              <div className="mt-2 max-h-44 overflow-y-auto rounded-xl bg-on-surface/5 p-3 space-y-1">
+                {diagnostics.excluded.slice(0, 30).map((item) => (
+                  <div key={`${item.source}-${item.id}-${item.reason}`} className="break-all">
+                    {item.source}/{item.id}: {item.status} -&gt; {item.normalizedStatus} / {item.reason}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-1 opacity-40">No excluded records reported.</div>
+            )}
+          </div>
+        </div>
+      </details>
+    </Card>
+  );
+}
+
+function DiagnosticRow({ label, value, danger = false }: { label: string; value: string; danger?: boolean }) {
+  return (
+    <div className={cn("grid gap-1 sm:grid-cols-[180px_1fr] border-b border-on-surface/5 pb-1", danger && "text-red-600")}>
+      <span className="font-black opacity-50">{label}</span>
+      <span className="break-words">{value}</span>
+    </div>
+  );
+}
+
+function SwipeView({ entry, onAction, busy }: any) {
   return (
     <div className="max-w-4xl mx-auto space-y-12 animate-in zoom-in-95 duration-300">
        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
@@ -222,19 +314,22 @@ function SwipeView({ entry, onAction }: any) {
              <div className="grid grid-cols-2 gap-4">
                 <button 
                   onClick={() => onAction('approve')}
+                  disabled={busy}
                   className="col-span-2 py-6 bg-brand-lime text-on-surface border-4 border-on-surface shadow-[8px_8px_0px_black] flex flex-col items-center justify-center gap-2 group hover:shadow-[4px_4px_0px_black] active:translate-y-1 transition-all"
                 >
                    <Check className="w-8 h-8 group-hover:scale-125 transition-transform" />
-                   <span className="font-display text-xl font-black uppercase italic tracking-tighter">APPROVE_PROTOCOL</span>
+                   <span className="font-display text-xl font-black uppercase italic tracking-tighter">{busy ? 'WORKING...' : 'APPROVE_PROTOCOL'}</span>
                 </button>
                 <button 
                   onClick={() => onAction('request_info')}
+                  disabled={busy}
                   className="py-4 bg-[#FFDD00] text-on-surface border-4 border-on-surface shadow-[6px_6px_0px_black] flex items-center justify-center gap-2 font-display font-black uppercase italic text-sm hover:shadow-[2px_2px_0px_black] active:translate-y-1 transition-all"
                 >
                    <Clock className="w-4 h-4" /> REQ_INFO
                 </button>
                 <button 
                   onClick={() => onAction('reject')}
+                  disabled={busy}
                   className="py-4 bg-rose-500 text-white border-4 border-on-surface shadow-[6px_6px_0px_black] flex items-center justify-center gap-2 font-display font-black uppercase italic text-sm hover:shadow-[2px_2px_0px_black] active:translate-y-1 transition-all"
                 >
                    <X className="w-4 h-4" /> REJECT
@@ -253,7 +348,7 @@ function SwipeView({ entry, onAction }: any) {
   );
 }
 
-function QueueView({ entries }: { entries: any[] }) {
+function QueueView({ entries, busyId, onAction }: { entries: any[]; busyId: string | null; onAction: (id: string, action: 'approve' | 'reject' | 'request_info') => void }) {
   return (
     <div className="overflow-x-auto border-2 border-on-surface shadow-[8px_8px_0px_black] rounded-[2.5rem] bg-white">
        <table className="w-full text-left border-collapse">
@@ -281,10 +376,36 @@ function QueueView({ entries }: { entries: any[] }) {
                    <td className="py-4 px-6 font-black text-brand-orange">
                      {e.aiScore || 'N/A'}%
                    </td>
-                   <td className="py-4 px-6 text-center">
-                     <button className="p-2 border border-on-surface rounded hover:bg-on-surface hover:text-white">
-                        <Eye className="w-3 h-3" />
-                     </button>
+                   <td className="py-4 px-6">
+                     <div className="flex items-center justify-center gap-2">
+                       <button
+                         disabled={busyId === e.id}
+                         onClick={() => onAction(e.id, 'approve')}
+                         className="p-2 border border-on-surface rounded bg-brand-lime hover:bg-on-surface hover:text-white disabled:opacity-40"
+                         title="Approve"
+                       >
+                          <Check className="w-3 h-3" />
+                       </button>
+                       <button
+                         disabled={busyId === e.id}
+                         onClick={() => onAction(e.id, 'request_info')}
+                         className="p-2 border border-on-surface rounded bg-[#FFDD00] hover:bg-on-surface hover:text-white disabled:opacity-40"
+                         title="Needs more proof"
+                       >
+                          <Clock className="w-3 h-3" />
+                       </button>
+                       <button
+                         disabled={busyId === e.id}
+                         onClick={() => onAction(e.id, 'reject')}
+                         className="p-2 border border-on-surface rounded bg-rose-500 text-white hover:bg-on-surface disabled:opacity-40"
+                         title="Reject"
+                       >
+                          <X className="w-3 h-3" />
+                       </button>
+                       <button className="p-2 border border-on-surface rounded hover:bg-on-surface hover:text-white" title="View">
+                          <Eye className="w-3 h-3" />
+                       </button>
+                     </div>
                    </td>
                 </tr>
              ))}

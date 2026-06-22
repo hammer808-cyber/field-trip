@@ -18,6 +18,7 @@ import {
   getDocFromServer
 } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
+import firebaseConfig from '../../firebase-applet-config.json';
 import { Entry } from '../constants';
 import { ProofReview, ProofStatus } from '../types/proof';
 import { uploadBase64Image } from './storageService';
@@ -30,6 +31,43 @@ import { logAdminAction } from './moderationService';
 const ENTRIES_COLLECTION = 'entries';
 const REVIEWS_COLLECTION = 'proofReviews';
 const USERS_COLLECTION = 'users';
+
+export interface AdminReviewQueueDiagnostics {
+  projectId: string;
+  environment: string;
+  queryPaths: string[];
+  statusFilter: 'pending_review' | 'approved' | 'rejected' | 'needs_more_proof';
+  entriesTotalBeforeFiltering: number;
+  proofReviewsTotalBeforeFiltering: number;
+  mergedTotalAfterFiltering: number;
+  statusCounts: Record<'pending_review' | 'approved' | 'rejected' | 'needs_more_proof', number>;
+  excluded: Array<{ id: string; source: 'entry' | 'proofReview'; status: string; normalizedStatus: string; reason: string }>;
+  errors: Array<{ source: 'entries' | 'proofReviews'; message: string; code?: string }>;
+  updatedAt: string;
+}
+
+function createEmptyDiagnostics(
+  statusFilter: AdminReviewQueueDiagnostics['statusFilter']
+): AdminReviewQueueDiagnostics {
+  return {
+    projectId: firebaseConfig.projectId || 'unknown',
+    environment: import.meta.env.MODE || (import.meta.env.DEV ? 'development' : 'production'),
+    queryPaths: [ENTRIES_COLLECTION, REVIEWS_COLLECTION],
+    statusFilter,
+    entriesTotalBeforeFiltering: 0,
+    proofReviewsTotalBeforeFiltering: 0,
+    mergedTotalAfterFiltering: 0,
+    statusCounts: {
+      pending_review: 0,
+      approved: 0,
+      rejected: 0,
+      needs_more_proof: 0
+    },
+    excluded: [],
+    errors: [],
+    updatedAt: new Date().toISOString()
+  };
+}
 
 function timestampMillis(value: any): number {
   if (!value) return 0;
@@ -428,7 +466,7 @@ export async function updateSubmissionStatus(
       confidenceScore: 100,
       reviewNotes: notes || 'Fallback proof review mapping status.',
       userId: entrySnap.data().userId,
-      challengeId: entrySnap.data().tripId || entrySnap.data().missionId,
+      challengeId: entrySnap.data().tripId || entrySnap.data().missionId || entrySnap.data().challengeId,
       createdAt: serverTimestamp(),
       reviewedAt: serverTimestamp()
     });
@@ -470,7 +508,7 @@ export async function requestMoreProof(submissionId: string, notes: string) {
   if (entrySnap.exists()) {
     const data = entrySnap.data();
     const userRef = doc(db, USERS_COLLECTION, data.userId);
-    const missionIdClean = (data.tripId || data.missionId).toLowerCase().trim();
+    const missionIdClean = (data.tripId || data.missionId || data.challengeId).toLowerCase().trim();
     await updateDoc(userRef, {
       completedChallengeIds: arrayRemove(missionIdClean),
       completedMissionIds: arrayRemove(missionIdClean),
@@ -497,7 +535,7 @@ export async function rejectSubmission(submissionId: string, notes: string) {
   if (entrySnap.exists()) {
     const data = entrySnap.data();
     const userRef = doc(db, USERS_COLLECTION, data.userId);
-    const missionIdClean = (data.tripId || data.missionId).toLowerCase().trim();
+    const missionIdClean = (data.tripId || data.missionId || data.challengeId).toLowerCase().trim();
     await updateDoc(userRef, {
       completedChallengeIds: arrayRemove(missionIdClean),
       completedMissionIds: arrayRemove(missionIdClean),
@@ -536,78 +574,134 @@ export async function getUserSubmissions(userId: string) {
 export function subscribeToAdminPendingReviews(
   statusFilter: 'pending_review' | 'approved' | 'rejected' | 'needs_more_proof',
   callback: (submissions: Entry[]) => void,
-  onError?: (err: any) => void
+  onError?: (err: any) => void,
+  onDiagnostics?: (diagnostics: AdminReviewQueueDiagnostics) => void
 ) {
-  logDev(`Subscribing to administrative entries queue for filtered status: ${statusFilter}`);
-  
-  // Status mapping for inclusive queries
-  // If we're looking for pending, we look for ALL pending variants
-  const statusVariants: string[] = [statusFilter];
-  if (statusFilter === 'pending_review') {
-    statusVariants.push('pending', 'checking', 'awaiting_review', 'needs_review', 'manual_review_required');
-  }
-
-  console.log("[AdminQueue] query started");
-  console.log("[AdminQueue] statuses included", statusVariants);
+  logDev(`Subscribing to canonical administrative proof queue for filtered status: ${statusFilter}`);
+  console.log("[AdminQueue] canonical query started", { statusFilter, projectId: firebaseConfig.projectId });
 
   let latestEntries: Entry[] = [];
   let latestReviews: Entry[] = [];
+  let rawEntriesForDiagnostics: any[] = [];
+  let rawReviewsForDiagnostics: any[] = [];
   let entriesReady = false;
   let reviewsReady = false;
+  let rawEntriesCount = 0;
+  let rawReviewsCount = 0;
+  const errors: AdminReviewQueueDiagnostics['errors'] = [];
+  const excluded = new Map<string, AdminReviewQueueDiagnostics['excluded'][number]>();
 
   const emit = () => {
     if (!entriesReady && !reviewsReady) return;
     const merged = mergeReviewQueueRecords(latestEntries, latestReviews);
+    const diagnostics = createEmptyDiagnostics(statusFilter);
+    diagnostics.entriesTotalBeforeFiltering = rawEntriesCount;
+    diagnostics.proofReviewsTotalBeforeFiltering = rawReviewsCount;
+    diagnostics.mergedTotalAfterFiltering = merged.length;
+    diagnostics.errors = [...errors];
+    diagnostics.excluded = Array.from(excluded.values()).slice(0, 80);
+    [...rawEntriesForDiagnostics, ...rawReviewsForDiagnostics].forEach(record => {
+      if (record?.archived === true) return;
+      const status = normalizeEntryStatus((record as any).status || (record as any).reviewStatus);
+      diagnostics.statusCounts[status] += 1;
+    });
     console.log("[AdminQueue] merged documents returned", merged.length);
+    console.log("[AdminQueue] diagnostics", diagnostics);
+    onDiagnostics?.(diagnostics);
     callback(merged);
   };
 
   const entryQuery = query(
     collection(db, ENTRIES_COLLECTION),
-    where('status', 'in', statusVariants),
-    limit(200)
+    orderBy('submittedAt', 'desc'),
+    limit(500)
   );
 
   const reviewQuery = query(
     collection(db, REVIEWS_COLLECTION),
-    where('status', 'in', statusVariants),
-    limit(200)
+    orderBy('submittedAt', 'desc'),
+    limit(500)
   );
 
   const unsubEntries = onSnapshot(entryQuery, (snap) => {
     const rawEntries = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Entry));
-    console.log("[AdminQueue] documents returned", rawEntries.length);
+    rawEntriesForDiagnostics = rawEntries;
+    rawEntriesCount = rawEntries.length;
+    console.log("[AdminQueue] entries documents returned before filtering", rawEntries.length);
 
-    let filteredOutCount = 0;
     latestEntries = rawEntries.filter(e => {
+      const normalizedStatus = normalizeEntryStatus((e as any).status);
       const isArchived = e.archived === true;
       if (isArchived) {
-        filteredOutCount++;
-        console.log("[AdminQueue] reason filtered out", `Entry ${e.id} matches query but is filtered out because it is archived.`);
+        excluded.set(`entry:${e.id}:archived`, {
+          id: e.id,
+          source: 'entry',
+          status: String((e as any).status || 'missing'),
+          normalizedStatus,
+          reason: 'archived'
+        });
+        return false;
       }
-      return !isArchived;
+      if (normalizedStatus !== statusFilter) {
+        excluded.set(`entry:${e.id}:status`, {
+          id: e.id,
+          source: 'entry',
+          status: String((e as any).status || 'missing'),
+          normalizedStatus,
+          reason: `status ${normalizedStatus} does not match active tab ${statusFilter}`
+        });
+        return false;
+      }
+      return true;
     }).map(entry => normalizeReviewQueueRecord(entry.id, entry, 'entry'));
 
-    console.log("[AdminQueue] filtered out count", filteredOutCount);
     entriesReady = true;
     emit();
   }, (err) => {
     entriesReady = true;
     console.error('[SUBMISSION_PIPELINE] Error loading admin entry reviews:', err);
+    errors.push({ source: 'entries', message: err?.message || String(err), code: err?.code });
     if (onError) onError(err);
     emit();
   });
 
   const unsubReviews = onSnapshot(reviewQuery, (snap) => {
-    latestReviews = snap.docs
-      .map(doc => normalizeReviewQueueRecord(doc.id, { id: doc.id, ...doc.data() }, 'proofReview'))
-      .filter(review => (review as any).archived !== true);
+    const rawReviews = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    rawReviewsForDiagnostics = rawReviews;
+    rawReviewsCount = rawReviews.length;
+    latestReviews = rawReviews
+      .filter(review => {
+        const normalizedStatus = normalizeEntryStatus((review as any).status || (review as any).reviewStatus);
+        if ((review as any).archived === true) {
+          excluded.set(`proofReview:${review.id}:archived`, {
+            id: review.id,
+            source: 'proofReview',
+            status: String((review as any).status || (review as any).reviewStatus || 'missing'),
+            normalizedStatus,
+            reason: 'archived'
+          });
+          return false;
+        }
+        if (normalizedStatus !== statusFilter) {
+          excluded.set(`proofReview:${review.id}:status`, {
+            id: review.id,
+            source: 'proofReview',
+            status: String((review as any).status || (review as any).reviewStatus || 'missing'),
+            normalizedStatus,
+            reason: `status ${normalizedStatus} does not match active tab ${statusFilter}`
+          });
+          return false;
+        }
+        return true;
+      })
+      .map(review => normalizeReviewQueueRecord(review.id, review, 'proofReview'));
     console.log("[AdminQueue] proofReviews returned", latestReviews.length);
     reviewsReady = true;
     emit();
   }, (err) => {
     reviewsReady = true;
     console.error('[SUBMISSION_PIPELINE] Error loading proofReviews queue:', err);
+    errors.push({ source: 'proofReviews', message: err?.message || String(err), code: err?.code });
     if (onError) onError(err);
     emit();
   });
