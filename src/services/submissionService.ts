@@ -7,7 +7,7 @@ import {
   updateDoc, 
   query, 
   where, 
-  orderBy, 
+  orderBy,
   limit, 
   getDocs, 
   onSnapshot, 
@@ -30,6 +30,14 @@ import { logAdminAction } from './moderationService';
 const ENTRIES_COLLECTION = 'entries';
 const REVIEWS_COLLECTION = 'proofReviews';
 const USERS_COLLECTION = 'users';
+
+function timestampMillis(value: any): number {
+  if (!value) return 0;
+  if (typeof value.toMillis === 'function') return value.toMillis();
+  if (typeof value.toDate === 'function') return value.toDate().getTime();
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
 // Log message only in development
 function logDev(message: string, ...args: any[]) {
@@ -497,7 +505,6 @@ export function subscribeToAdminPendingReviews(
   const q = query(
     collection(db, ENTRIES_COLLECTION),
     where('status', 'in', statusVariants),
-    orderBy('createdAt', 'desc'),
     limit(200)
   );
 
@@ -513,7 +520,7 @@ export function subscribeToAdminPendingReviews(
         console.log("[AdminQueue] reason filtered out", `Entry ${e.id} matches query but is filtered out because it is archived.`);
       }
       return !isArchived;
-    });
+    }).sort((a, b) => timestampMillis((b as any).createdAt || (b as any).submittedAt) - timestampMillis((a as any).createdAt || (a as any).submittedAt));
 
     console.log("[AdminQueue] filtered out count", filteredOutCount);
     logDev(`Admin queue snapshot loaded. Size: ${entries.length}`);
