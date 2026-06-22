@@ -139,17 +139,17 @@ export function MissionCard({
             </div>
             
             <p className="text-[9px] font-mono leading-none text-on-surface/40 uppercase font-black tracking-widest mt-6 text-center">
-              DE-ENCRYPTION PROTOCOL REQUIRED
+              NOT YET, LEGEND
             </p>
           </div>
 
           {/* Locked / Requirement Details */}
           <div className="bg-on-surface/[0.04] border-4 border-dashed border-on-surface/10 p-4 rounded-none space-y-1 text-center relative overflow-hidden">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-orange">
-              UNFINISHED COGNITIVE THREADS
+              FINISH THE EARLIER ADVENTURES
             </p>
             <p className="text-[11px] font-medium italic text-on-surface/60 leading-snug">
-              Complete preceding segment missions to unlock access to {getFrankieTitle(challenge, fPref).replace(/_/g, ' ')}.
+              Finish the adventures before this one, then Trevor opens the next tiny door: {getFrankieTitle(challenge, fPref).replace(/_/g, ' ')}.
             </p>
           </div>
 
@@ -270,7 +270,7 @@ export function MissionCard({
           </div>
           <span className="text-[8px] font-mono font-black uppercase tracking-[0.25em] text-brand-orange flex items-center gap-1">
             <span className="w-1.5 h-1.5 bg-brand-orange rounded-full" />
-            THE PHOTO CHALLENGE
+            WHAT TO HUNT
           </span>
           <p className="text-xs sm:text-sm font-sans font-extrabold text-on-surface leading-snug">
             "{challenge.theAsk || getFrankieDescription(challenge, fPref)}"
@@ -280,7 +280,7 @@ export function MissionCard({
         {/* 2. MEMORY ANGLE (Why is it fun? / Suggestion) */}
         <div className="bg-brand-yellow/5 border-[2px] border-dashed border-on-surface/15 p-4 space-y-1 rounded-xl relative">
           <span className="text-[8px] font-mono font-black uppercase tracking-[0.25em] text-[#D84315] flex items-center gap-1">
-            ✨ MEMORY ANGLE
+            ✨ WHY IT'S FUN
           </span>
           <p className="text-xs font-serif italic font-bold text-on-surface/70 leading-relaxed">
             "{challenge.shortPrompt || challenge.fieldNotePrompt || "Spot it, snap it, and record a small part of your summer vacation lore."}"
@@ -290,11 +290,11 @@ export function MissionCard({
         {/* 3. GAME DETAILS BOX (Points, Who will see it) */}
         <div className="bg-on-surface/[0.02] border-[2px] border-on-surface/5 p-4 rounded-xl flex items-center justify-between gap-4">
           <div className="space-y-0.5">
-            <span className="text-[7px] font-mono font-black uppercase tracking-widest text-on-surface/30 block">WHO SEES IT</span>
+            <span className="text-[7px] font-mono font-black uppercase tracking-widest text-on-surface/30 block">WHERE IT GOES</span>
             <div className="flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5 text-brand-cyan" />
               <p className="text-[10px] font-sans font-bold text-on-surface/60">
-                Shared to your <span className="text-brand-orange-dark font-black">Crew Feed</span>
+                Added to your <span className="text-brand-orange-dark font-black">Crew Feed</span>
               </p>
             </div>
           </div>
@@ -317,7 +317,7 @@ export function MissionCard({
           <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-transparent pointer-events-none" />
           <span className="relative z-10 flex items-center gap-2">
             <Camera className="w-6 h-6 stroke-[2.5]" />
-            {challenge.status === 'approved' ? 'MISSION COMPLETED ✓' : 'CAPTURE PHOTO'}
+            {challenge.status === 'approved' ? 'ADVENTURE SAVED ✓' : 'SNAP A PIC'}
             <ArrowRight className="w-5 h-5 stroke-[2.5]" />
           </span>
         </button>

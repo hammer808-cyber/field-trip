@@ -148,20 +148,20 @@ export const MissionDetailsModal: React.FC<MissionDetailsModalProps> = ({
                   {(mission.proofType || []).map((type, idx) => {
                     const isDone = !!progress[type] || isUnavailable;
                     const labelMap: Record<string, string> = {
-                      photo: 'Photo Evidence',
-                      note: 'Field Journal Entry',
-                      location: 'GPS Pin Drop',
+                      photo: 'Photo Receipt',
+                      note: 'Tell the Story',
+                      location: 'Drop a Pin',
                       'group-confirmation': 'Crew Check-In',
-                      audio: 'Sound Sample Capture',
-                      video: 'Video Recording'
+                      audio: 'Catch the Sound',
+                      video: 'Video Clip'
                     };
                     const instructionMap: Record<string, string> = {
-                      photo: 'Take a clear, aligned photograph with the viewfinder camera.',
-                      note: 'Write a detailed field note describing your subject.',
-                      location: 'Log your correct GPS coordinates in the field area.',
-                      'group-confirmation': 'Get confirmation from other active explorers.',
-                      audio: 'Record atmospheric background noise or sound patterns.',
-                      video: 'Record high-fidelity proof of the field encounter.'
+                      photo: 'Snap a clear pic of the thing.',
+                      note: 'Tell Trevor what you found and why it matters.',
+                      location: 'Drop a pin while you are near the spot.',
+                      'group-confirmation': 'Bring your crew into the tiny legend.',
+                      audio: 'Record the sound if the moment has one.',
+                      video: 'Record a quick clip of the adventure.'
                     };
                     return (
                       <div 
@@ -185,7 +185,7 @@ export const MissionDetailsModal: React.FC<MissionDetailsModalProps> = ({
                               {labelMap[type] || type.replace('_', ' ')}
                             </span>
                             <p className="text-[10px] opacity-60 leading-none mt-0.5 font-medium">
-                              {isUnavailable ? 'Objective Secured.' : (instructionMap[type] || 'Capture objective verification.')}
+                              {isUnavailable ? 'Already caught.' : (instructionMap[type] || 'Grab a little proof.')}
                             </p>
                           </div>
                         </div>
@@ -202,7 +202,7 @@ export const MissionDetailsModal: React.FC<MissionDetailsModalProps> = ({
                     <div className="p-3 bg-brand-orange/5 border border-brand-orange/15 rounded-md text-left">
                       <div className="flex items-center gap-1.5 text-brand-orange text-[10px] font-mono font-black uppercase">
                         <AlertTriangle className="w-3.5 h-3.5 animate-pulse" />
-                        <span>BUREAU FIELD INTEL REVEALED:</span>
+                        <span>TREVOR'S HINT REVEALED:</span>
                       </div>
                       <p className="text-xs font-medium opacity-80 mt-1 leading-relaxed">
                         {mission.hintText}

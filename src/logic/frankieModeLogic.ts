@@ -116,10 +116,10 @@ export function getFrankieEvidenceLabel(task: TripCard, type: string, pref: Fran
   };
 
   const defaultNormalLabels: Record<string, string> = {
-    photo: 'Capture Photo',
-    field_note: 'Field Note',
-    location: 'Location Signal',
-    audio: 'Audio Sample'
+    photo: 'Snap a Pic',
+    field_note: 'Tell the Story',
+    location: 'Drop a Pin',
+    audio: 'Catch the Sound'
   };
 
   if (pref.frankieMode) {

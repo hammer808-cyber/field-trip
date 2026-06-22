@@ -71,6 +71,6 @@ export const LAUNCH_MISSION: TripCard = {
   taskDescription: "Find and snap any vibrant flower, striking blue sky, or shady tree near you.",
   theAsk: "Take a photo of any outdoor nature detail that feels like a relaxing summer moment.",
   fieldNotePrompt: "Why does this nature spot belong in your collection?",
-  submitMessage: 'Receipt submitted. Your Initial Signal proof is headed to review.',
+  submitMessage: 'Receipt sent. Trevor is squinting at your Initial Signal with great interest.',
   isRequired: true
 };

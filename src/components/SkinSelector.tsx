@@ -19,7 +19,7 @@ export function SkinSelector() {
             <div className="bureau-tag bg-brand-orange text-white text-[10px] w-fit">ACCESSIBILITY_PROTOCOL</div>
             <h4 className="text-3xl font-display uppercase leading-none tracking-tighter">Visual Calm</h4>
             <p className="font-serif text-sm opacity-60 leading-relaxed italic">
-              Deactivate high-fidelity environmental filters for immediate visual stabilization.
+              Turn off the extra visual effects if your screen needs a calmer ride.
             </p>
           </div>
           <div className="flex items-center justify-between">

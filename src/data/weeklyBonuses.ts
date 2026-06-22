@@ -12,7 +12,7 @@ export const WEEKLY_BONUSES: WeeklyBonus[] = [
     id: 'bonus-urban-uplink',
     index: 1,
     title: 'Urban Uplink',
-    description: 'Double points on the first approved submission of the week. Calibrate your field logs carefully.',
+    description: 'Your first approved receipt this week gets double points. Trevor loves a strong opener.',
     variant: 'orange',
     badgeCode: 'SIGNAL_A1'
   },
@@ -28,7 +28,7 @@ export const WEEKLY_BONUSES: WeeklyBonus[] = [
     id: 'bonus-noontime-sync',
     index: 3,
     title: 'Noontime Sync',
-    description: '+15 bonus points for submitting any mission between 11:00 AM and 1:00 PM local time.',
+    description: '+15 bonus points for sending in an adventure between 11 AM and 1 PM.',
     variant: 'cyan',
     badgeCode: 'SIGNAL_T5'
   },
@@ -36,7 +36,7 @@ export const WEEKLY_BONUSES: WeeklyBonus[] = [
     id: 'bonus-scout-armor',
     index: 4,
     title: 'Scout Armor Shield',
-    description: '+1 streak protection this week. Your multiplier is shielded if you miss a field reporting day.',
+    description: '+1 streak save this week. Miss a day and your streak gets one tiny helmet.',
     variant: 'purple',
     badgeCode: 'SHIELD_P1'
   },
@@ -44,7 +44,7 @@ export const WEEKLY_BONUSES: WeeklyBonus[] = [
     id: 'bonus-radar-sweep',
     index: 5,
     title: 'Radar Sweep',
-    description: 'Hidden object missions earn +20 bonus XP. Scan the blind spots of your grid.',
+    description: 'Hidden-object adventures earn +20 bonus XP. Look where nobody bothers to look.',
     variant: 'pink',
     badgeCode: 'SWEEP_D3'
   },
@@ -52,7 +52,7 @@ export const WEEKLY_BONUSES: WeeklyBonus[] = [
     id: 'bonus-token-multiplier',
     index: 6,
     title: 'Archive Token Boost',
-    description: 'First approved mission of the week rewards double tokens for the Season Archive.',
+    description: 'Your first approved adventure this week earns double archive tokens.',
     variant: 'emerald',
     badgeCode: 'TOKEN_X2'
   },
@@ -60,23 +60,23 @@ export const WEEKLY_BONUSES: WeeklyBonus[] = [
     id: 'bonus-expressive-flare',
     index: 7,
     title: 'Expressive Flare',
-    description: 'Mood Object or atmospheric missions reward +15 bonus XP. Style your logs with flair.',
+    description: 'Mood-object or vibe-heavy adventures get +15 XP. Bring flair. Trevor is watching respectfully.',
     variant: 'orange',
     badgeCode: 'FLARE_E4'
   },
   {
     id: 'bonus-ocular-capture',
     index: 8,
-    title: 'Ocular Capture Multiplier',
-    description: 'Photo-proof missions receive a 1.2x overall XP boost this week.',
+    title: 'Camera Roll Bonus',
+    description: 'Photo adventures get a 1.2x XP boost this week. Snap the thing. Become folklore.',
     variant: 'cyan',
     badgeCode: 'PHOTO_Z9'
   },
   {
     id: 'bonus-transmission-leak',
     index: 9,
-    title: 'Transmission Leak',
-    description: 'Missions completed during high heat solar hours (2 PM - 4 PM) award +20 XP.',
+    title: 'Hot Sidewalk Bonus',
+    description: 'Adventures finished between 2 PM and 4 PM earn +20 XP. Hydrate like a legend.',
     variant: 'lime',
     badgeCode: 'LEAK_W3'
   },
@@ -84,31 +84,31 @@ export const WEEKLY_BONUSES: WeeklyBonus[] = [
     id: 'bonus-archive-sweep',
     index: 10,
     title: 'Archive Retry Bonus',
-    description: 'Retry and resubmission success rewards an extra 10 XP on approved logs this week.',
+    description: 'Fix-up attempts that get approved earn an extra 10 XP this week. Comeback energy.',
     variant: 'purple',
     badgeCode: 'RETRY_V1'
   },
   {
     id: 'bonus-transit-sync',
     index: 11,
-    title: 'Transit Node Sync',
-    description: 'Missions located near transit-hubs, platforms, or bus stops reward +15 tokens.',
+    title: 'Bus Stop Treasure',
+    description: 'Adventures near bus stops, trains, or platforms earn +15 tokens. Public transit has secrets.',
     variant: 'pink',
     badgeCode: 'NODE_X8'
   },
   {
     id: 'bonus-flora-finder',
     index: 12,
-    title: 'Flora Finder Overlay',
-    description: 'Nature-based, overgrown urban, or floral observations yield +20 XP extra.',
+    title: 'Plant Thing Bonus',
+    description: 'Plants, weeds, flowers, and sidewalk jungle moments earn +20 extra XP.',
     variant: 'emerald',
     badgeCode: 'FLORA_G7'
   },
   {
     id: 'bonus-retro-scan',
     index: 13,
-    title: 'Retro Scan Sync',
-    description: 'Legacy technology, older signs, or antique object observations score double tokens.',
+    title: 'Old Thing Bonus',
+    description: 'Old signs, ancient gadgets, and suspiciously vintage finds earn double tokens.',
     variant: 'orange',
     badgeCode: 'RETRO_C0'
   },
@@ -116,15 +116,15 @@ export const WEEKLY_BONUSES: WeeklyBonus[] = [
     id: 'bonus-overgrowth-echo',
     index: 14,
     title: 'Overgrowth Echo',
-    description: 'Missions capturing overgrowth, weeds cracking through concrete, or alleys award +15 XP.',
+    description: 'Overgrowth, weeds in concrete, and dramatic alley moments earn +15 XP.',
     variant: 'lime',
     badgeCode: 'ECHO_Y7'
   },
   {
     id: 'bonus-dusk-surveillance',
     index: 15,
-    title: 'Dusk Scout Protocol',
-    description: 'Missions submitted and approved during dusk hours (6 PM - 8 PM) secure dynamic streak-shields.',
+    title: 'Dusk Legend Bonus',
+    description: 'Adventures approved between 6 PM and 8 PM earn a streak shield. Sunset does paperwork now.',
     variant: 'purple',
     badgeCode: 'DUSK_Q1'
   }

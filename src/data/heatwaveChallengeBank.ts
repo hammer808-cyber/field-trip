@@ -46,7 +46,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Scan heat signature." },
       Advanced: { points: 125, description: "Add a dramatic diagnosis." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -85,7 +85,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Identify shade." },
       Advanced: { points: 125, description: "Rate it from barely legal to premium real estate." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -124,7 +124,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Find loud color." },
       Advanced: { points: 125, description: "Name the color sample." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -163,7 +163,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Find plastic artifact." },
       Advanced: { points: 125, description: "Assign royal title." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -202,7 +202,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Detect energy." },
       Advanced: { points: 125, description: "Evaluate merit." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -241,7 +241,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Find extra item." },
       Advanced: { points: 125, description: "Create slogan." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -282,7 +282,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Document presence." },
       Advanced: { points: 125, description: "Mystery shot." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -321,7 +321,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Document chapter." },
       Advanced: { points: 125, description: "Define genre." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -360,7 +360,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Flexible selfie." },
       Advanced: { points: 125, description: "Accidental importance." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -399,7 +399,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Document mood." },
       Advanced: { points: 125, description: "Add warning." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -438,7 +438,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Celebrate win." },
       Advanced: { points: 125, description: "Justify confetti." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -479,7 +479,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Document forecast." },
       Advanced: { points: 125, description: "Assign individual weather." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -518,7 +518,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Capture formation." },
       Advanced: { points: 125, description: "Name the squad." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -557,7 +557,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Document inside joke." },
       Advanced: { points: 125, description: "Caption message." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -596,7 +596,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Log council decision." },
       Advanced: { points: 125, description: "Note dissent." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -635,7 +635,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Find the witness." },
       Advanced: { points: 125, description: "Bestow title." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -676,7 +676,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Document detour." },
       Advanced: { points: 125, description: "Pinpoint start." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -715,7 +715,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Identify beverage." },
       Advanced: { points: 125, description: "Define role." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -754,7 +754,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Document contents." },
       Advanced: { points: 125, description: "Rate heft." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -793,7 +793,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Document commute." },
       Advanced: { points: 125, description: "Write prophecy." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -832,7 +832,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Document lie." },
       Advanced: { points: 125, description: "Compare intention." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -873,7 +873,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Document escalation." },
       Advanced: { points: 125, description: "Title twist." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -912,7 +912,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Document change." },
       Advanced: { points: 125, description: "Evaluate diversion." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -951,7 +951,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Document remains." },
       Advanced: { points: 125, description: "Label exhibit." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   },
@@ -990,7 +990,7 @@ export const HEATWAVE_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     levels: {
       Standard: { points: 100, description: "Document memory." },
       Advanced: { points: 125, description: "Title chapter." },
-      Certified: { points: 150, description: "Official verification." }
+      Certified: { points: 150, description: "Trevor stamp of approval." }
     },
     safetyRules: ["Faces optional. Consent required. Avoid photographing strangers directly."]
   }

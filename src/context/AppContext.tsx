@@ -1705,7 +1705,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
     }
 
-    showHelpToast(`Mission "${entryData?.title || 'Proof'}" submitted for satellite verification.`);
+    showHelpToast(`"${entryData?.title || 'Your receipt'}" is in. Trevor is reviewing the tiny evidence.`);
   };
 
   const addToMaybeList = async (tripId: string) => {

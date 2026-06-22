@@ -311,7 +311,7 @@ export default function ProfilePage() {
                         <h4 className="text-3xl font-black uppercase italic tracking-tighter text-on-surface leading-none mt-1">{fieldTypeData?.name || 'Trailblazer'}</h4>
                       </div>
                       <p className="text-sm font-serif italic font-bold opacity-60 leading-relaxed max-w-sm">
-                        {fc('Analyzing physical reality with precision calibration.', 'Searching for the hidden signals in the Heatwave noise.')}
+                        {fc('Trevor is squinting at reality with great interest.', 'Searching for hidden sparks in the Heatwave noise.')}
                       </p>
                       <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 mt-4">
                         <button 

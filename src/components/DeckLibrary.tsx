@@ -276,19 +276,19 @@ function ChallengePreviewModal({ challenge, uiStatus, onClose, onStart }: { chal
 
   const hintTexts: Record<string, { title: string; desc: string; tip: string }> = {
     photo: {
-      title: "CAMERA INTEL",
-      desc: "A clear photographic proof is required to verify this mission.",
-      tip: "Use the Viewfinder camera to capture the requested subject. Avoid cropped closeups or blurry lighting."
+      title: "PHOTO RECEIPT",
+      desc: "Snap a clear pic so Trevor can admire the find.",
+      tip: "Use the Viewfinder. Keep the thing easy to see. Blurry legends are discouraged."
     },
     field_note: {
-      title: "FIELD REPORT",
-      desc: "A written note or description detailing the observation is required.",
-      tip: "Write a compelling field note/anecdote answering the prompt. This will build your zine entry."
+      title: "STORY TIME",
+      desc: "Add a few words about what happened out there.",
+      tip: "Tell Trevor what you found, why it caught you, or how you stumbled into it."
     },
     location: {
-      title: "GPS VERIFICATION",
-      desc: "Physical environment coordinates signature verification required.",
-      tip: "Open the field capture tool to record location tags automatically. Location permissions must be enabled."
+      title: "PLACE CHECK",
+      desc: "This one needs a location clue.",
+      tip: "Let the app drop a pin while you're there, like a tiny treasure map."
     }
   };
 
@@ -296,9 +296,9 @@ function ChallengePreviewModal({ challenge, uiStatus, onClose, onStart }: { chal
   const hintUsed = !!progress.hintUsed;
 
   const evidenceRequirements = [
-    { key: 'photo', label: 'Photo Proof', icon: Camera, required: (challenge.proofType || []).includes('photo') },
-    { key: 'field_note', label: 'Field Note', icon: Zap, required: (challenge.proofType || []).includes('note') },
-    { key: 'location', label: 'GPS Lock', icon: MapPin, required: !!challenge.proofRequirements?.requireLocation },
+    { key: 'photo', label: 'Photo Receipt', icon: Camera, required: (challenge.proofType || []).includes('photo') },
+    { key: 'field_note', label: 'Tell the Story', icon: Zap, required: (challenge.proofType || []).includes('note') },
+    { key: 'location', label: 'Drop a Pin', icon: MapPin, required: !!challenge.proofRequirements?.requireLocation },
   ].filter(r => r.required);
 
   return (
@@ -378,16 +378,16 @@ function ChallengePreviewModal({ challenge, uiStatus, onClose, onStart }: { chal
             <div className="p-4 bg-white border-2 border-on-surface shadow-[6px_6px_0px_var(--color-brand-orange)] space-y-2">
                <h4 className="micro-label opacity-40 font-black tracking-[0.1em] italic uppercase flex items-center gap-2 text-[8px]">
                  <Zap className="w-4 h-4 fill-brand-orange text-brand-orange" />
-                 FIELD_PROMPT
+                 TREVOR WANTS TO KNOW
                </h4>
-               <p className="font-serif italic text-sm sm:text-base leading-snug">"{challenge.fieldNotePrompt || 'Document field observations.'}"</p>
+               <p className="font-serif italic text-sm sm:text-base leading-snug">"{challenge.fieldNotePrompt || 'Tell Trevor what you found and why it matters.'}"</p>
             </div>
           </div>
  
            <div className="space-y-3">
              <div className="flex justify-between items-baseline">
-               <h5 className="micro-label opacity-40 font-black italic uppercase text-[8px]">Required Evidence</h5>
-               <span id="library-checklist-interactive-indicator" className="text-[7px] opacity-75 text-brand-orange font-black tracking-normal animate-pulse select-none">(HOVER/TAP ICONS FOR PROTOCOL)</span>
+               <h5 className="micro-label opacity-40 font-black italic uppercase text-[8px]">Receipt Checklist</h5>
+               <span id="library-checklist-interactive-indicator" className="text-[7px] opacity-75 text-brand-orange font-black tracking-normal animate-pulse select-none">(TAP ICONS FOR TREVOR HINTS)</span>
              </div>
              <div className="flex flex-wrap gap-2">
                {evidenceRequirements.map(req => {

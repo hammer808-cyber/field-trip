@@ -200,7 +200,7 @@ export function CrewMemoriesFeed() {
         <div className="space-y-2">
           <h3 className="font-display font-black text-2xl uppercase tracking-tight text-on-surface">No Scattered Crew Found</h3>
           <p className="font-serif italic text-sm text-on-surface/70 leading-relaxed">
-            "Every summer memory needs an audience. Form or join a field scouting crew under Basecamp to start streaming cooperative reels."
+            "Every summer memory needs an audience. Form or join a crew in Basecamp so your weird little discoveries have somewhere to land."
           </p>
         </div>
         <button 
@@ -312,7 +312,7 @@ export function CrewMemoriesFeed() {
 
                 {/* Subtitle / Challenge Descriptor */}
                 <div className="mb-4 bg-brand-yellow/10 border-2 border-on-surface/25 p-2 rounded">
-                  <p className="text-[10px] font-mono font-black text-brand-orange uppercase tracking-wider mb-0.5">MISSION COMPLETED:</p>
+                  <p className="text-[10px] font-mono font-black text-brand-orange uppercase tracking-wider mb-0.5">ADVENTURE SAVED:</p>
                   <p className="font-display font-black text-sm text-on-surface uppercase leading-tight">
                     {entry.tripTitle || entry.challengeTitle || "Field Mission Exploration"}
                   </p>

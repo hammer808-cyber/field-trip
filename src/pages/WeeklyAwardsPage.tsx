@@ -11,8 +11,8 @@ import { WeeklySummary } from '../types/game';
 import { getDisplayLabel } from '../utils/labelUtils';
 
 const CATEGORIES = [
-  { id: 'best_field_note', label: 'Best Field Note', description: 'Profound or evocative field commentary.', icon: BookOpen },
-  { id: 'best_photo_proof', label: 'Best Photo Proof', description: 'Exceptional visual composition and clarity.', icon: Sparkles },
+  { id: 'best_field_note', label: 'Best Story Note', description: 'A note that made the find feel weirdly important.', icon: BookOpen },
+  { id: 'best_photo_proof', label: 'Best Photo Receipt', description: 'A photo that made Trevor lean closer to the screen.', icon: Sparkles },
   { id: 'most_legendary_errand', label: 'Most Legendary Errand', description: 'Completing an errand of mythical proportions.', icon: Trophy },
   { id: 'goblin_energy_award', label: 'Goblin Energy Award', description: 'Exceptional speed, chaotic creativity, or frantic vibes.', icon: Zap },
   { id: 'cleanest_completion', label: 'Cleanest Completion', description: 'Peerless professionalism and absolute alignment with the rules.', icon: Sparkles },
@@ -207,7 +207,7 @@ export default function WeeklyAwardsPage() {
                    </div>
                    <div className="flex items-center gap-6 p-8 bg-on-surface text-brand-lime border-4 border-on-surface shadow-[12px_12px_0px_var(--color-brand-orange)] -rotate-1">
                       <AlertCircle className="w-10 h-10 shrink-0" />
-                      <p className="text-xs font-mono uppercase tracking-widest leading-loose">All winners are subject to Bureau verification. Fraudulent submissions will result in structural purge.</p>
+                      <p className="text-xs font-mono uppercase tracking-widest leading-loose">All winners get a final human look. Fake receipts get tossed into the metaphorical volcano.</p>
                    </div>
                 </div>
               </div>
@@ -257,7 +257,7 @@ export default function WeeklyAwardsPage() {
                    </div>
                    <div className="flex items-center gap-6 p-8 bg-on-surface text-brand-lime border-4 border-on-surface shadow-[12px_12px_0px_var(--color-brand-orange)] -rotate-1">
                       <AlertCircle className="w-10 h-10 shrink-0" />
-                      <p className="text-xs font-mono uppercase tracking-widest leading-loose">All winners are subject to Bureau verification. Fraudulent submissions will result in structural purge.</p>
+                      <p className="text-xs font-mono uppercase tracking-widest leading-loose">All winners get a final human look. Fake receipts get tossed into the metaphorical volcano.</p>
                    </div>
                 </div>
               </div>
