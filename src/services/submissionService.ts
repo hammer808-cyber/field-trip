@@ -9,7 +9,7 @@ import {
   where, 
   orderBy,
   limit, 
-  getDocs, 
+  getDocs,
   onSnapshot, 
   serverTimestamp, 
   increment, 
@@ -37,6 +37,54 @@ function timestampMillis(value: any): number {
   if (typeof value.toDate === 'function') return value.toDate().getTime();
   const parsed = new Date(value).getTime();
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function sortNewestFirst<T extends Record<string, any>>(items: T[]): T[] {
+  return [...items].sort(
+    (a, b) => timestampMillis(b.createdAt || b.submittedAt || b.updatedAt) - timestampMillis(a.createdAt || a.submittedAt || a.updatedAt)
+  );
+}
+
+function normalizeReviewQueueRecord(docId: string, data: any, source: 'entry' | 'proofReview'): Entry {
+  const entryId = data.entryId || data.submissionId || data.id || docId;
+  return {
+    ...data,
+    id: source === 'proofReview' ? entryId : (data.id || docId),
+    entryId,
+    proofReviewId: source === 'proofReview' ? (data.reviewId || data.id || docId) : (data.proofReviewId || data.proofCheckId),
+    userId: data.userId || data.uid || '',
+    uid: data.uid || data.userId || '',
+    displayName: data.displayName || data.userName || data.username || 'Unknown scout',
+    userName: data.userName || data.displayName || data.username || 'Unknown scout',
+    missionId: data.missionId || data.challengeId || data.tripId || '',
+    challengeId: data.challengeId || data.missionId || data.tripId || '',
+    tripId: data.tripId || data.missionId || data.challengeId || '',
+    missionTitle: data.missionTitle || data.challengeTitle || data.tripTitle || 'Untitled adventure',
+    tripTitle: data.tripTitle || data.missionTitle || data.challengeTitle || 'Untitled adventure',
+    photoUrl: data.photoUrl || data.imageUrl || data.proofImage || data.mediaUrl || '',
+    imageUrl: data.imageUrl || data.photoUrl || data.proofImage || data.mediaUrl || '',
+    proofImage: data.proofImage || data.photoUrl || data.imageUrl || data.mediaUrl || '',
+    fieldNote: data.fieldNote || data.note || data.caption || '',
+    status: normalizeEntryStatus(data.status),
+    reviewStatus: normalizeEntryStatus(data.reviewStatus || data.status),
+    queueSource: source
+  } as Entry;
+}
+
+function mergeReviewQueueRecords(entries: Entry[], reviews: Entry[]): Entry[] {
+  const byEntryId = new Map<string, Entry>();
+
+  entries.forEach(entry => {
+    byEntryId.set(((entry as any).entryId || entry.id) as string, entry);
+  });
+
+  reviews.forEach(review => {
+    const key = ((review as any).entryId || review.id) as string;
+    const existing = byEntryId.get(key);
+    byEntryId.set(key, existing ? ({ ...review, ...existing, proofReviewId: (review as any).proofReviewId || (existing as any).proofReviewId } as Entry) : review);
+  });
+
+  return sortNewestFirst(Array.from(byEntryId.values()));
 }
 
 // Log message only in development
@@ -502,33 +550,72 @@ export function subscribeToAdminPendingReviews(
   console.log("[AdminQueue] query started");
   console.log("[AdminQueue] statuses included", statusVariants);
 
-  const q = query(
+  let latestEntries: Entry[] = [];
+  let latestReviews: Entry[] = [];
+  let entriesReady = false;
+  let reviewsReady = false;
+
+  const emit = () => {
+    if (!entriesReady && !reviewsReady) return;
+    const merged = mergeReviewQueueRecords(latestEntries, latestReviews);
+    console.log("[AdminQueue] merged documents returned", merged.length);
+    callback(merged);
+  };
+
+  const entryQuery = query(
     collection(db, ENTRIES_COLLECTION),
     where('status', 'in', statusVariants),
     limit(200)
   );
 
-  return onSnapshot(q, (snap) => {
+  const reviewQuery = query(
+    collection(db, REVIEWS_COLLECTION),
+    where('status', 'in', statusVariants),
+    limit(200)
+  );
+
+  const unsubEntries = onSnapshot(entryQuery, (snap) => {
     const rawEntries = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Entry));
     console.log("[AdminQueue] documents returned", rawEntries.length);
 
     let filteredOutCount = 0;
-    const entries = rawEntries.filter(e => {
+    latestEntries = rawEntries.filter(e => {
       const isArchived = e.archived === true;
       if (isArchived) {
         filteredOutCount++;
         console.log("[AdminQueue] reason filtered out", `Entry ${e.id} matches query but is filtered out because it is archived.`);
       }
       return !isArchived;
-    }).sort((a, b) => timestampMillis((b as any).createdAt || (b as any).submittedAt) - timestampMillis((a as any).createdAt || (a as any).submittedAt));
+    }).map(entry => normalizeReviewQueueRecord(entry.id, entry, 'entry'));
 
     console.log("[AdminQueue] filtered out count", filteredOutCount);
-    logDev(`Admin queue snapshot loaded. Size: ${entries.length}`);
-    callback(entries);
+    entriesReady = true;
+    emit();
   }, (err) => {
-    console.error('[SUBMISSION_PIPELINE] Error loading admin reviews:', err);
+    entriesReady = true;
+    console.error('[SUBMISSION_PIPELINE] Error loading admin entry reviews:', err);
     if (onError) onError(err);
+    emit();
   });
+
+  const unsubReviews = onSnapshot(reviewQuery, (snap) => {
+    latestReviews = snap.docs
+      .map(doc => normalizeReviewQueueRecord(doc.id, { id: doc.id, ...doc.data() }, 'proofReview'))
+      .filter(review => (review as any).archived !== true);
+    console.log("[AdminQueue] proofReviews returned", latestReviews.length);
+    reviewsReady = true;
+    emit();
+  }, (err) => {
+    reviewsReady = true;
+    console.error('[SUBMISSION_PIPELINE] Error loading proofReviews queue:', err);
+    if (onError) onError(err);
+    emit();
+  });
+
+  return () => {
+    unsubEntries();
+    unsubReviews();
+  };
 }
 
 /**
