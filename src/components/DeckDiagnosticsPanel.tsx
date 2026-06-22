@@ -8,6 +8,7 @@ import { StarterCompletionState } from '../utils/starterHelper';
 import { UserProfile } from '../services/userService';
 import { simulateDeckDraw, DeckDrawSimulation } from '../services/deckDiagnosticsService';
 import { cn } from '../lib/utils';
+import { authenticatedFetch } from '../lib/api';
 
 interface DeckDiagnosticsPanelProps {
   activePack: DeckPack | null;
@@ -35,18 +36,6 @@ interface DeckDiagnosticsPanelProps {
 
 function normalizeId(id: string | null | undefined) {
   return (id || '').toString().toLowerCase().trim();
-}
-
-function formatTimestamp(value: any): string {
-  if (!value) return 'none';
-  if (typeof value === 'string') return value;
-  if (typeof value?.toDate === 'function') return value.toDate().toISOString();
-  if (typeof value?.seconds === 'number') return new Date(value.seconds * 1000).toISOString();
-  try {
-    return new Date(value).toISOString();
-  } catch {
-    return String(value);
-  }
 }
 
 function latestTimestamp(items: any[], keys: string[]) {
@@ -138,6 +127,8 @@ function StarterConflictRows({
 export function DeckDiagnosticsPanel(props: DeckDiagnosticsPanelProps) {
   const [open, setOpen] = React.useState(false);
   const [simulation, setSimulation] = React.useState<DeckDrawSimulation | null>(null);
+  const [repairingStarter, setRepairingStarter] = React.useState(false);
+  const [starterRepairReport, setStarterRepairReport] = React.useState<any | null>(null);
 
   const deckId = props.activePack?.packId || 'unknown';
   const deckName = props.activePack?.packName || props.activePack?.title || 'Unknown deck';
@@ -145,6 +136,14 @@ export function DeckDiagnosticsPanel(props: DeckDiagnosticsPanelProps) {
   const approvedCompletedChallengeIds = Array.from(props.completedChallengeIds).map(normalizeId).sort();
   const submittedPendingChallengeIds = Array.from(props.submittedPendingChallengeIds).map(normalizeId).sort();
   const packMissionIds = props.activePack?.missionIds?.map(normalizeId) || [];
+  const starterCardIds = ['starter-1', 'starter-2', 'starter-3'];
+  const starterCards = starterCardIds.map(id => props.missions.find(mission => normalizeId(mission.id || mission.missionId || mission.challengeId) === id) || null);
+  const activeStarterCards = starterCards.filter(card => card && normalizeId(card.status || 'available') === 'active');
+  const draftStarterCards = starterCards.filter(card => !card || normalizeId(card.status || 'missing') === 'draft');
+  const submittedStarterCards = starterCardIds.filter(id => submittedChallengeIds.includes(id));
+  const pendingStarterCards = starterCardIds.filter(id => submittedPendingChallengeIds.includes(id));
+  const approvedStarterCards = starterCardIds.filter(id => approvedCompletedChallengeIds.includes(id));
+  const eligibleStarterCards = props.eligibleCards.filter(card => starterCardIds.includes(normalizeId(card.id || card.missionId || card.challengeId)));
   const analysisMissionIds = new Set(packMissionIds);
   const remainingCards = packMissionIds.filter(id =>
     !props.completedChallengeIds.has(id) &&
@@ -168,6 +167,7 @@ export function DeckDiagnosticsPanel(props: DeckDiagnosticsPanelProps) {
       pendingMissionIds: props.submittedPendingChallengeIds,
       needsMoreProofMissionIds: props.needsMoreProofChallengeIds,
       rejectedMissionIds: props.rejectedChallengeIds,
+      activeMissionId: props.activeTripId || null,
       isOnboardingComplete: props.isOnboardingComplete,
       activePack: props.activePack,
       isHeatwaveDeckUnlocked: props.isHeatwaveDeckUnlocked,
@@ -175,6 +175,27 @@ export function DeckDiagnosticsPanel(props: DeckDiagnosticsPanelProps) {
       isAdmin: props.isAdmin,
       previousMissionId
     }));
+  };
+
+  const repairStarterConfiguration = async () => {
+    setRepairingStarter(true);
+    setStarterRepairReport(null);
+    try {
+      const response = await authenticatedFetch('/api/admin/repair-starter-signals-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || data.error || `Repair failed with HTTP ${response.status}`);
+      }
+      setStarterRepairReport(data);
+    } catch (error: any) {
+      setStarterRepairReport({ success: false, error: error.message || 'Starter repair failed' });
+    } finally {
+      setRepairingStarter(false);
+    }
   };
 
   return (
@@ -223,14 +244,55 @@ export function DeckDiagnosticsPanel(props: DeckDiagnosticsPanelProps) {
           </div>
 
           {deckId === 'starter-signals' && (
-            <StarterConflictRows
-              profile={props.profile}
-              starterState={props.starterState}
-              approvedIds={approvedCompletedChallengeIds}
-              submittedIds={submittedChallengeIds}
-              onboardingCompletedCount={props.onboardingCompletedCount}
-              isOnboardingComplete={props.isOnboardingComplete}
-            />
+            <>
+              <div className={cn(
+                "rounded border p-3",
+                activeStarterCards.length < 3 ? "border-red-300/50 bg-red-500/10" : "border-lime-300/30 bg-lime-300/5"
+              )}>
+                <div className="mb-2 flex items-center gap-2 font-black uppercase tracking-wider text-cyan-200">
+                  Starter Inventory
+                  {activeStarterCards.length < 3 && <AlertTriangle className="h-4 w-4 text-red-300" />}
+                </div>
+                <Row label="total starter cards" value={String(starterCardIds.length)} />
+                <Row label="active starter cards" value={String(activeStarterCards.length)} warn={activeStarterCards.length < 3} />
+                <Row label="draft starter cards" value={<IdList values={draftStarterCards.map(card => normalizeId(card?.id || card?.missionId || card?.challengeId) || 'missing')} />} warn={draftStarterCards.length > 0} />
+                <Row label="submitted starter cards" value={<IdList values={submittedStarterCards} />} />
+                <Row label="pending starter cards" value={<IdList values={pendingStarterCards} />} />
+                <Row label="approved starter cards" value={<IdList values={approvedStarterCards} />} />
+                <Row label="eligible starter cards" value={<IdList values={eligibleStarterCards.map(card => normalizeId(card.id || card.missionId || card.challengeId))} />} />
+                <Row label="activeTripId" value={props.activeTripId || 'none'} />
+                <Row label="unlock status" value={props.starterState.starterComplete ? 'unlocked' : 'locked until 3 approved Starter Signals'} />
+                {activeStarterCards.length < 3 && (
+                  <div className="mt-3 rounded bg-red-500/15 p-2 text-red-100">
+                    Starter deck configuration issue: unpublished cards detected.
+                  </div>
+                )}
+                {props.isAdmin && (
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={repairStarterConfiguration}
+                      disabled={repairingStarter}
+                      className="rounded-lg border-2 border-red-200 bg-red-300 px-3 py-2 font-black uppercase tracking-wider text-black disabled:opacity-50"
+                    >
+                      {repairingStarter ? 'Repairing...' : 'Repair Starter Signals Configuration'}
+                    </button>
+                    {starterRepairReport && (
+                      <pre className="max-h-40 max-w-full overflow-auto rounded bg-black/60 p-2 text-[10px] text-white/80">{JSON.stringify(starterRepairReport, null, 2)}</pre>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <StarterConflictRows
+                profile={props.profile}
+                starterState={props.starterState}
+                approvedIds={approvedCompletedChallengeIds}
+                submittedIds={submittedChallengeIds}
+                onboardingCompletedCount={props.onboardingCompletedCount}
+                isOnboardingComplete={props.isOnboardingComplete}
+              />
+            </>
           )}
 
           <div className="flex flex-wrap items-center gap-3">

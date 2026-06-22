@@ -215,7 +215,7 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
                   
                   // For Starter, we use a specific list if the packId matches
                   const isStarterPack = pack.packId === 'starter-signals';
-                  const starterIds = ['template_03_ignored_place', 'starter-2', 'starter-3'];
+                  const starterIds = ['starter-1', 'starter-2', 'starter-3'];
                   const targetIds = isStarterPack ? starterIds : missionIds;
                   
                   const approvedCount = targetIds.filter(id => completedChallengeIds.has(id)).length;
