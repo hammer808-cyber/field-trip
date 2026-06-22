@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Lock, ArrowLeft, Layers } from 'lucide-react';
+import { canAccessFeature, getStarterProgress } from '../services/canonicalProgress';
 
 interface StarterGateProps {
   requiredFeature: 'crew' | 'leaderboard' | 'voting';
@@ -9,11 +10,11 @@ interface StarterGateProps {
 }
 
 export function StarterGate({ children }: StarterGateProps) {
-  const { isAdmin, completedChallengeIds } = useApp();
+  const { isAdmin, canonicalProgress } = useApp();
   const navigate = useNavigate();
-  const starterIds = ['starter-1', 'starter-2', 'starter-3'];
-  const approvedStarterCount = starterIds.filter(id => completedChallengeIds?.has(id)).length;
-  const isStarterComplete = approvedStarterCount >= 3;
+  const starterProgress = getStarterProgress(canonicalProgress);
+  const approvedStarterCount = starterProgress.starterApprovedCount;
+  const isStarterComplete = canAccessFeature(canonicalProgress, 'crew', { isAdmin });
 
   // If the user has completed the starter deck, or they have admin bypass, show the content.
   if (isStarterComplete || isAdmin) {

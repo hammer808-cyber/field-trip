@@ -123,6 +123,14 @@ import {
 
 import { watchGlobalConfig, getGlobalConfig, GlobalConfig } from '../services/configService';
 import { getEligibleDrawPool as getCanonicalPool, ExclusionAnalysis, EligibleDrawPoolResult } from '../logic/deckLogic';
+import {
+  buildCanonicalProgress,
+  canAccessFeature,
+  getProgressMismatches,
+  getStarterProgress,
+  CanonicalProgressSnapshot,
+  ProgressMismatch
+} from '../services/canonicalProgress';
 
 import { 
   DrawnMissionCard, 
@@ -234,6 +242,8 @@ interface AppContextType {
   onboardingStarted: boolean;
   starterApprovedCount: number;
   starterState: StarterCompletionState;
+  canonicalProgress: CanonicalProgressSnapshot;
+  progressMismatches: ProgressMismatch[];
   pendingStarterCount: number;
   retryStarterCount: number;
   nextStarterAction: string;
@@ -483,11 +493,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
   }, [user?.uid, entries.length, activeEntries, pendingEntries, activeMissionId, activeSubmissionStatus, gameConfig?.starterResetVersion, gameConfig?.activeStarterDeckId, profile?.completedChallengeIds]);
 
-  const starterApprovedCount = starterState.starterApprovedCount;
-  const isOnboardingComplete = starterState.starterComplete;
-  const onboardingCompletedCount = starterState.starterApprovedCount;
+  const canonicalProgress = React.useMemo(() => buildCanonicalProgress({
+    userId: user?.uid || null,
+    profile,
+    entries,
+    pendingEntries,
+    drawnMissionCards,
+    trips,
+    activeMissionId,
+    activeSubmissionStatus,
+    starterResetVersion: gameConfig?.starterResetVersion,
+    activeStarterDeckId: gameConfig?.activeStarterDeckId
+  }), [
+    user?.uid,
+    profile,
+    entries,
+    pendingEntries,
+    drawnMissionCards,
+    trips,
+    activeMissionId,
+    activeSubmissionStatus,
+    gameConfig?.starterResetVersion,
+    gameConfig?.activeStarterDeckId
+  ]);
+
+  const progressMismatches = React.useMemo(
+    () => getProgressMismatches(canonicalProgress, profile),
+    [canonicalProgress, profile]
+  );
+
+  const canonicalStarterProgress = getStarterProgress(canonicalProgress);
+  const starterApprovedCount = canonicalStarterProgress.starterApprovedCount;
+  const isOnboardingComplete = canonicalStarterProgress.starterComplete;
+  const onboardingCompletedCount = canonicalStarterProgress.starterApprovedCount;
   const onboardingRequiredCount = 3;
-  const onboardingCompleted = starterState.starterComplete;
+  const onboardingCompleted = canonicalStarterProgress.starterComplete;
 
   // Track "Started Onboarding" (including pending) for some UI hints if needed,
   // but for hard gating we use isOnboardingComplete (Approved only)
@@ -698,9 +738,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const fieldGuideAssistEnabled = isFeatureEnabled('fieldGuideAssistEnabled');
   
   // Tribunal access gate
-  const isTribunalUnlocked = (isOnboardingComplete || overrides.forceUnlocked);
+  const isTribunalUnlocked = canAccessFeature(canonicalProgress, 'tribunal', {
+    forceUnlocked: overrides.forceUnlocked
+  });
 
-  const isCrewUnlocked = (isOnboardingComplete || overrides.forceUnlocked) && isFeatureEnabled('crewDispatchEnabled');
+  const isCrewUnlocked = canAccessFeature(canonicalProgress, 'crew', {
+    forceUnlocked: overrides.forceUnlocked,
+    featureEnabled: isFeatureEnabled('crewDispatchEnabled')
+  });
   const crewUnlocked = isCrewUnlocked; // Backward compat for some views
   
   const isFieldCheckUnlocked = (checkFieldCheckMode(gameState) || overrides.forceUnlocked) && isFeatureEnabled('rivalMomentsEnabled') && isTribunalUnlocked;
@@ -2371,6 +2416,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       onboardingStarted,
       starterApprovedCount,
       starterState,
+      canonicalProgress,
+      progressMismatches,
       pendingStarterCount: starterState.pendingStarterCount,
       retryStarterCount: starterState.retryStarterCount,
       nextStarterAction: starterState.nextStarterAction,

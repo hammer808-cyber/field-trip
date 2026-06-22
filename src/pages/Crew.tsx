@@ -27,7 +27,7 @@ import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
 
 export default function CrewPage() {
   const { skin } = useTheme();
-  const { user, profile, crewArtifacts, activeSeason, currentWeekNumber } = useApp();
+  const { user, profile, crewArtifacts, activeSeason, currentWeekNumber, isCrewUnlocked, canonicalProgress } = useApp();
   const [searchParams] = useSearchParams();
   const initialTab = (searchParams.get('tab') as any) || 'home';
   const [activeTab, setActiveTab ] = useState<'home' | 'memories' | 'lore' | 'members' | 'stats' | 'dispatch'>(initialTab);
@@ -78,6 +78,31 @@ export default function CrewPage() {
   const crewRank = weeklySummary ? (Object.entries(weeklySummary.crewStats)
     .sort(([, a]: any, [, b]: any) => b.totalScore - a.totalScore)
     .findIndex(([id]) => id === crewId) + 1) : 0;
+
+  if (!isCrewUnlocked) {
+    return (
+      <div className="min-h-screen bg-paper-light flex items-center justify-center p-6 pb-32">
+        <div className="max-w-md w-full bg-white border-[8px] border-on-surface shadow-[14px_14px_0px_rgba(0,0,0,1)] rounded-3xl p-6 text-center space-y-5">
+          <div className="w-16 h-16 mx-auto bg-brand-magenta text-white border-4 border-on-surface rounded-2xl flex items-center justify-center shadow-[6px_6px_0px_black]">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h1 className="font-display font-black uppercase text-3xl italic leading-none">Crew Is Locked</h1>
+          <p className="font-serif italic text-on-surface/70">
+            Complete all 3 Starter Signals to unlock this.
+          </p>
+          <div className="w-full bg-white border-2 border-on-surface h-5 rounded-full overflow-hidden">
+            <div className="h-full bg-brand-lime" style={{ width: `${canonicalProgress.starter.percent}%` }} />
+          </div>
+          <p className="font-mono text-[10px] uppercase font-black tracking-widest">
+            {canonicalProgress.starter.label} approved
+          </p>
+          <button onClick={() => navigate('/deck?pack=starter-signals')} className="bureau-btn bg-brand-lime text-on-surface text-xs">
+            Go To Starter Signals
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) return <div className="flex items-center justify-center min-h-screen font-mono">LOADING_CREW_IDENTITY...</div>;
 

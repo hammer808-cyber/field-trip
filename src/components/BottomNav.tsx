@@ -4,11 +4,12 @@ import { Trophy, Users, Home, Target, LayoutGrid, Lock } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
+import { canAccessFeature } from '../services/canonicalProgress';
 
 export function BottomNav() {
   const location = useLocation();
   const { skin } = useTheme();
-  const { isAdmin, completedChallengeIds } = useApp();
+  const { isAdmin, canonicalProgress } = useApp();
 
   const [isNavActive, setIsNavActive] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -117,9 +118,10 @@ export function BottomNav() {
           );
         }
 
-        const approvedStarterCount = ['starter-1', 'starter-2', 'starter-3'].filter(id => completedChallengeIds?.has(id)).length;
-        const isStarterComplete = approvedStarterCount >= 3;
-        const isLockedTab = (itemPathname === '/crew' || itemPathname === '/voting' || itemPathname === '/big-board') && !isStarterComplete && !isAdmin;
+        const isLockedTab = (
+          (itemPathname === '/crew' && !canAccessFeature(canonicalProgress, 'crew', { isAdmin })) ||
+          (itemPathname === '/big-board' && !canAccessFeature(canonicalProgress, 'voting', { isAdmin }))
+        );
 
         return (
           <Link
