@@ -49,9 +49,9 @@ export const DEFAULT_WEEKLY_CATALYSTS: Record<number, Omit<WeeklyCatalyst, 'star
     id: 'default_1',
     seasonId: 'dev-season-2026',
     weekNumber: 1,
-    title: 'Solar Wind Calibration',
-    shortLabel: 'Solar Wind',
-    description: 'Afternoon solar alignment. Submissions containing a photo proof and detailed field notes (at least 15 characters) uploaded between 12:00 PM and 3:00 PM (12:00 – 15:00) local time earn a 1.5x Catalyst Boost.',
+    title: 'Afternoon Power Hour',
+    shortLabel: 'Power Hour',
+    description: 'Take your shot between 12 PM and 3 PM with a photo and a decent story. Boom. 1.5x Catalyst.',
     status: 'active',
     multiplier: 1.5,
     catalystType: 'solar-wind',
@@ -71,7 +71,7 @@ export const DEFAULT_WEEKLY_CATALYSTS: Record<number, Omit<WeeklyCatalyst, 'star
     weekNumber: 2,
     title: 'Flora Finder Overdrive',
     shortLabel: 'Flora Finder',
-    description: 'Overgrowth signal boost. Submissions capturing flora, weeds, or botanical elements (requires nature-related tags) with notes of at least 15 characters secure a 1.5x Catalyst Boost.',
+    description: 'Find a plant, weed, leaf, or tiny green legend. Add a photo and a quick note. Nature rewards the nosy.',
     status: 'active',
     multiplier: 1.5,
     catalystType: 'flora-finder',
@@ -87,9 +87,9 @@ export const DEFAULT_WEEKLY_CATALYSTS: Record<number, Omit<WeeklyCatalyst, 'star
     id: 'default_3',
     seasonId: 'dev-season-2026',
     weekNumber: 3,
-    title: 'Early Bird Synchronization',
+    title: 'Morning Legend Hour',
     shortLabel: 'Early Bird',
-    description: 'Dawn-patrol signal uplink. High-integrity photo uploads with notes (minimum 20 characters) submitted during morning hours (6:00 AM – 10:00 AM) unlock a 2.0x Catalyst Boost.',
+    description: 'Catch your find between 6 AM and 10 AM. Photo plus a little story earns 2x Catalyst. The sidewalk is awake.',
     status: 'active',
     multiplier: 2.0,
     catalystType: 'early-bird',
@@ -107,9 +107,9 @@ export const DEFAULT_WEEKLY_CATALYSTS: Record<number, Omit<WeeklyCatalyst, 'star
     id: 'default_4',
     seasonId: 'dev-season-2026',
     weekNumber: 4,
-    title: 'Deep Field Notes Expansion',
-    shortLabel: 'Deep Field',
-    description: 'Complete high-integrity field logs documentation. Photo submissions with comprehensive notes detailed to at least 45 characters earn a 1.8x Catalyst Boost.',
+    title: 'Tell Me Everything Mode',
+    shortLabel: 'Story Mode',
+    description: 'Bring a photo and a juicy note with actual details. If Trevor can picture it, you earn 1.8x Catalyst.',
     status: 'active',
     multiplier: 1.8,
     catalystType: 'deep-field',
@@ -124,9 +124,9 @@ export const DEFAULT_WEEKLY_CATALYSTS: Record<number, Omit<WeeklyCatalyst, 'star
     id: 'default_5',
     seasonId: 'dev-season-2026',
     weekNumber: 5,
-    title: 'Dusk Surveillance Sync',
-    shortLabel: 'Dusk Patrol',
-    description: 'Sunset signal capture. Submissions containing a photo proof and active notes of at least 15 characters submitted between 6:00 PM and 9:00 PM (18:00 – 21:00) lock a 1.5x Catalyst Boost.',
+    title: 'Golden Hour-ish',
+    shortLabel: 'Golden Hour',
+    description: 'Catch today’s challenge between 6 PM and 9 PM. Bring a photo, a note, and a tiny bit of chaos for 1.5x Catalyst.',
     status: 'active',
     multiplier: 1.5,
     catalystType: 'dusk-watch',
@@ -250,12 +250,12 @@ export function evaluateProofForCatalyst(
   }
 ): { qualified: boolean; reason: string } {
   if (!catalyst || !catalyst.isActive) {
-    return { qualified: false, reason: 'No active Weekly Catalyst Alignment detected.' };
+    return { qualified: false, reason: 'No weekly bonus is awake right now.' };
   }
 
   const rules = catalyst.eligibilityRules;
   if (!rules) {
-    return { qualified: true, reason: 'Catalyst specifications satisfied.' };
+    return { qualified: true, reason: 'Trevor accepts this tiny masterpiece.' };
   }
 
   // 1. Photo Check
@@ -304,7 +304,7 @@ export function evaluateProofForCatalyst(
     if (!isWithin) {
       return { 
         qualified: false, 
-        reason: `Submission occurred outside the target Catalyst time window of ${rules.startTime} – ${rules.endTime}.` 
+        reason: `This happened outside Trevor's bonus window of ${rules.startTime} - ${rules.endTime}.`
       };
     }
   }
@@ -333,12 +333,12 @@ export function evaluateProofForCatalyst(
     if (!hasTagMatched) {
       return { 
         qualified: false, 
-        reason: `Mission is of the wrong tactical type. Catalyst requires theme match: '${rules.requiresTag}'.` 
+        reason: `Wrong vibe for this bonus. Trevor was looking for: '${rules.requiresTag}'.`
       };
     }
   }
 
-  return { qualified: true, reason: `Weekly Catalyst Boost alignment verified! (${catalyst.shortLabel})` };
+  return { qualified: true, reason: `Weekly bonus unlocked. Trevor is clapping. (${catalyst.shortLabel})` };
 }
 
 /**

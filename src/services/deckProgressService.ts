@@ -227,7 +227,7 @@ export function getDeckDisplayState(progress: DeckProgress): DeckDisplayState {
     return {
       state: 'COMPLETE',
       uiLabel: 'Starter Complete',
-      subtext: 'You have calibrated your sensors. Heatwave Receipts deck is unlocked.',
+      subtext: 'You finished the Starter Signals. Heatwave Receipts is now open for tiny chaos.',
       primaryAction: 'Enter Heatwave Receipts',
       canUnlockSummer: true
     };
@@ -285,7 +285,7 @@ export function getDeckDisplayState(progress: DeckProgress): DeckDisplayState {
     state: 'IN_PROGRESS',
     uiLabel: 'Starter in progress',
     progressLabel: `${approved} / 3 approved`,
-    subtext: 'Calibrate your sensors in the field.',
+    subtext: 'Go find the thing, snap a pic, and tell Trevor what happened.',
     primaryAction: 'Draw Starter Card',
     canUnlockSummer: false
   };

@@ -286,7 +286,7 @@ export async function evaluateProof(
     const challengeCode = entryData.proofChallengeCode || null;
     const challengeType = entryData.proofChallengeType || null;
     const challengeText = entryData.proofChallengeText || null;
-    const challengeInstructionsAndTarget = challengeText ? `${challengeInstructions}. Verification Challenge Active: please incorporate a clearly visible "${challengeText}".` : challengeInstructions;
+    const challengeInstructionsAndTarget = challengeText ? `${challengeInstructions}. Trevor's side quest: make sure "${challengeText}" is clearly visible.` : challengeInstructions;
 
     // 2. AI Analysis (Gemini) - If image is provided and required
     if (base64Image && (requirement?.requiresObjectDetection || true)) {
@@ -1578,4 +1578,3 @@ export async function checkIfLiked(entryId: string, uid: string): Promise<boolea
         return false;
     }
 }
-

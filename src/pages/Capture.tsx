@@ -52,8 +52,8 @@ function generateReceiptChallenge() {
   if (isGesture) {
     const gesture = GESTURES[Math.floor(Math.random() * GESTURES.length)];
     const instructionsOpts = [
-      `Receipt Check: Add today’s weird little proof detail so Trevor knows this happened in the wild. Incorporate a physical "${gesture}" gesture clearly within your photo proof.`,
-      `Today’s Field Receipt: include something orange, suspicious, or emotionally unavailable. Make sure a clear "${gesture}" gesture is visible in the photo.`
+      `Trevor's Tiny Chaos Request: sneak a "${gesture}" into the photo so we know this adventure happened in the wild. Bonus glory awaits.`,
+      `Trevor's Side Quest: find something orange, suspicious, or emotionally unavailable. Then make sure your "${gesture}" is clearly in the shot. Historic behavior, honestly.`
     ];
     const chosenInstructions = instructionsOpts[Math.floor(Math.random() * instructionsOpts.length)];
     return {
@@ -68,8 +68,8 @@ function generateReceiptChallenge() {
     const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
     const code = `${prefix}-${num}`;
     const instructionsOpts = [
-      `Receipt Check: Add today’s weird little proof detail so Trevor knows this happened in the wild. Write down the dynamic proof code "${code}" on a piece of paper in your photo, or write it explicitly inside your field note journal.`,
-      `Today’s Field Receipt: include something orange, suspicious, or emotionally unavailable. Write the code "${code}" on a scrap or reference it clearly.`
+      `Trevor's Tiny Chaos Request: write "${code}" on a scrap, napkin, receipt, or whatever tiny artifact is available. If it makes it into the photo, I'm legally required to be impressed.`,
+      `Trevor's Side Quest: find something orange, suspicious, or emotionally unavailable. Hide "${code}" somewhere in the photo or mention it in your notes. Extra glory awaits.`
     ];
     const chosenInstructions = instructionsOpts[Math.floor(Math.random() * instructionsOpts.length)];
     return {

@@ -603,7 +603,7 @@ export default function FrontlinesPage() {
               "md:col-span-2 relative",
               isBaja ? "" : "notice-card"
             )}>
-              {!isBaja && !isDiamond && !isHeat && <div className="file-tab">FIELD REPORT FORM // 22-A</div>}
+              {!isBaja && !isDiamond && !isHeat && <div className="file-tab">WEIRD FIND FORM // 22-A</div>}
               <div className={cn(
                 "p-10 space-y-8 relative overflow-hidden font-display",
                 isBaja ? "bg-white border-8 border-baja-pink rounded-[4rem] shadow-[20px_20px_0px_#40e0d0]" : 

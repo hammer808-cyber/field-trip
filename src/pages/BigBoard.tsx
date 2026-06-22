@@ -939,7 +939,7 @@ export default function BigBoardPage() {
     const labels = ["New Explorer", "Star Scout", "Adventure Master", "Fieldtrip Legend"];
     const descriptions = [
       "A fresh face ready to find some stickers and explore the neighborhood.",
-      "Experienced explorer with a growing collection of field findings.",
+      "Experienced explorer with a growing pile of weird little discoveries.",
       "A true pro who knows every secret spot and has logged countless findings.",
       "The ultimate collector of stories and stickers. A true legend of the field.",
     ];
@@ -1041,7 +1041,7 @@ export default function BigBoardPage() {
       "gourmet-goblin":
         "Achieve victory in a high-stakes local flavor and meal test challenge.",
       uncatchable:
-        "Survive an entire bureau check sweeper without incurring data adjustments.",
+        "Survive a full board check without needing any score repairs.",
       "auditor-honor":
         "Approve irregular logs or identify anomalous duplicates during voting sweeps.",
       "chaos-bringer":
@@ -1382,12 +1382,12 @@ export default function BigBoardPage() {
           <div className="flex flex-col gap-2 font-sans text-left mt-1 w-full min-w-[200px]">
             <div className="space-y-0.5">
               <div className="text-xs font-mono font-black uppercase text-brand-orange leading-tight">
-                {phase === 'submission' ? 'Submission Window Active' :
+                {phase === 'submission' ? 'Adventure Window Open' :
                  phase === 'voting' ? 'Voting Open' :
                  phase === 'awards' ? 'Awards Phase' : 'Off-Season'}
               </div>
               <p className="text-[10px] text-on-surface/70 leading-normal font-medium max-w-[220px]">
-                {phase === 'submission' ? 'Approved proofs are feeding the board. Voting opens Saturday.' :
+                {phase === 'submission' ? 'Approved receipts are feeding the board. Voting opens Saturday.' :
                  phase === 'voting' ? 'The community ballot is live. Cast your endorsements!' :
                  phase === 'awards' ? 'Weekly summary finalized and honors distributed.' : 
                  'No active community ops currently scheduled.'}
@@ -1560,7 +1560,7 @@ export default function BigBoardPage() {
             >
               <div className="text-center space-y-2 sm:space-y-4">
                 <h2 className="text-3xl sm:text-7xl font-display font-black uppercase italic tracking-tighter text-on-surface leading-tight">Community Feed</h2>
-                <p className="font-serif italic text-base sm:text-xl text-on-surface/50 px-4 leading-relaxed">Approved reconnaissance proofs from the field operatives.</p>
+                <p className="font-serif italic text-base sm:text-xl text-on-surface/50 px-4 leading-relaxed">Approved receipts from people who went outside and found something.</p>
                 
                 {isAdmin && (
                   <div className="flex justify-center pt-2">
@@ -1685,13 +1685,13 @@ export default function BigBoardPage() {
                        <div className="space-y-3">
                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-brand-cyan/15 border-2 border-brand-cyan text-on-surface text-[10px] font-mono font-black uppercase tracking-wider rounded-md rotate-[-1deg]">
                            <span className={cn("w-1.5 h-1.5 rounded-full block", phase === 'voting' ? "bg-brand-lime animate-ping" : "bg-on-surface/40")} />
-                           {phase === 'submission' ? 'Submission Phase' : phase === 'voting' ? 'Ballot Live' : 'Awards Active'}
+                           {phase === 'submission' ? 'Adventure Phase' : phase === 'voting' ? 'Ballot Live' : 'Awards Active'}
                          </div>
                          
                          <h4 className="text-xl font-display font-black uppercase italic leading-none text-on-surface">Weekly Pulse</h4>
                          <p className="text-xs font-sans text-on-surface/70 leading-relaxed">
-                           {phase === 'submission' ? 'Operatives are collecting recons. Voting ballot opens Saturday at midnight UTC.' :
-                            phase === 'voting' ? 'Ballot box is now open! Check out other operatives’ submissions in the Feed.' :
+                           {phase === 'submission' ? 'Everyone is out collecting receipts. Voting opens Saturday at midnight UTC.' :
+                            phase === 'voting' ? 'Ballot box is open! Go admire everyone else’s finds in the Feed.' :
                             'Weekly summary finalized. Honors distributed. Resetting for the next cycle.'}
                          </p>
                        </div>

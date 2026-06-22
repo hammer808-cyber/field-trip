@@ -370,13 +370,13 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
         <div className="w-full border-4 border-dashed border-brand-orange bg-brand-orange/5 p-4 rounded-xl mt-4 text-left relative z-10 animate-fade-in mb-4">
           <div className="flex items-center gap-1.5 text-brand-orange">
             <Zap className="w-4 h-4 text-brand-orange animate-pulse" />
-            <span className="font-mono text-[9px] font-black uppercase tracking-wider">Verification Challenge Active</span>
+            <span className="font-mono text-[9px] font-black uppercase tracking-wider">Trevor's Side Quest</span>
           </div>
           <p className="font-sans text-xs text-on-surface/90 leading-relaxed font-semibold mt-1">
             {receiptChallenge.instructions}
           </p>
           <div className="mt-2.5 inline-flex items-center gap-1.5 bg-brand-orange text-white px-2.5 py-1 rounded font-mono text-xs font-bold shadow-sm">
-            Challenge Target: {receiptChallenge.text}
+            Tiny target: {receiptChallenge.text}
           </div>
         </div>
       )}
@@ -389,7 +389,7 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
             type="button"
             className="w-full py-5 bg-brand-orange text-white border-4 border-on-surface font-display text-2xl font-black uppercase italic tracking-wide shadow-[6px_6px_0px_black] active:translate-y-1 hover:bg-[#0E1B15] hover:text-[#21D4FD] transition-all rounded-2xl flex items-center justify-center gap-2 cursor-pointer"
           >
-            <span>Start Mission</span>
+            <span>Start Adventure</span>
             <ArrowRight className="w-6 h-6 animate-pulse" />
           </button>
         </div>
@@ -401,7 +401,7 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
             <div className="flex items-center justify-between pb-1 border-b border-on-surface/5">
               <div className="flex items-center gap-1.5">
                 <Camera className="w-4 h-4 text-brand-orange" />
-                <span className="font-mono text-[9px] font-black uppercase tracking-wider text-brand-orange">Capture Proof</span>
+                <span className="font-mono text-[9px] font-black uppercase tracking-wider text-brand-orange">Grab Your Receipt</span>
               </div>
               {photoCaptured ? (
                 <div className="field-badge bg-brand-lime text-on-surface border-on-surface shadow-[2px_2px_0px_black] text-[9px] font-mono">
@@ -590,7 +590,7 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
                 </div>
                 <div className={cn("flex items-center gap-1.5 p-1.5 border rounded-lg transition-all", note.trim().length >= 10 ? "bg-brand-lime/10 border-brand-lime text-on-surface" : "bg-neutral-50 border-neutral-200 text-neutral-400")}>
                   <div className={cn("w-1.5 h-1.5 rounded-full", note.trim().length >= 10 ? "bg-brand-lime" : "bg-neutral-300")} />
-                  <span>Field Note: +50XP</span>
+                  <span>Story Note: +50XP</span>
                 </div>
                 <div className={cn("flex items-center gap-1.5 p-1.5 border rounded-lg transition-all", aiMatchDetected ? "bg-brand-lime/10 border-brand-lime text-on-surface" : "bg-neutral-50 border-neutral-200 text-neutral-400")}>
                   <div className={cn("w-1.5 h-1.5 rounded-full", aiMatchDetected ? "bg-brand-lime" : "bg-neutral-300")} />
@@ -690,7 +690,7 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
                           ? "Satellite Uplink Active" 
                           : !isNoteComplete 
                             ? `Awaiting field note description (${note.trim().length}/10 complete)` 
-                            : "Ready to commit findings to bureau"}
+                            : "Ready to send Trevor the receipt"}
                       </span>
                     </button>
                     

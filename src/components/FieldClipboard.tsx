@@ -205,22 +205,31 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                  <div className="w-8 h-8 bg-brand-orange/10 rounded-lg flex items-center justify-center border border-brand-orange/20">
                    <ShieldCheck className="w-5 h-5 text-brand-orange" />
                  </div>
-                 <span className="font-display font-black uppercase italic text-xl tracking-tighter text-on-surface">Receipt Checklist</span>
+                 <span className="font-display font-black uppercase italic text-xl tracking-tighter text-on-surface">Trevor's Receipt Checklist</span>
                  <div className="ml-auto text-[9px] font-mono font-black uppercase text-on-surface/30">3 Steps</div>
                </div>
 
                <div className="space-y-4 relative z-10 border-t border-dashed border-on-surface/10 pt-4">
                  <div className="flex gap-4 items-start group">
                    <div className="w-6 h-6 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-[10px] font-black shadow-[2px_2px_0px_black]">1</div>
-                   <p className="font-serif italic text-base leading-snug text-on-surface/80">Locate a specimen matching the visual blueprint.</p>
+                   <p className="font-serif italic text-base leading-snug text-on-surface/80">
+                     <strong className="font-display uppercase not-italic">Hunt it down.</strong><br />
+                     Something weird. Something beautiful. Something very specifically today's vibe.
+                   </p>
                  </div>
                  <div className="flex gap-4 items-start group">
                    <div className="w-6 h-6 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-[10px] font-black shadow-[2px_2px_0px_black]">2</div>
-                   <p className="font-serif italic text-base leading-snug text-on-surface/80">Capture a high-fidelity photo from the field.</p>
+                   <p className="font-serif italic text-base leading-snug text-on-surface/80">
+                     <strong className="font-display uppercase not-italic">Grab your receipt.</strong><br />
+                     Take a photo before it disappears back into legend.
+                   </p>
                  </div>
                  <div className="flex gap-4 items-start group">
                    <div className="w-6 h-6 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-[10px] font-black shadow-[2px_2px_0px_black]">3</div>
-                   <p className="font-serif italic text-base leading-snug text-on-surface/80">Document findings with an authentic field note.</p>
+                   <p className="font-serif italic text-base leading-snug text-on-surface/80">
+                     <strong className="font-display uppercase not-italic">Tell me everything.</strong><br />
+                     What'd you find? How'd you stumble into it?
+                   </p>
                  </div>
                </div>
                
@@ -232,13 +241,13 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                    <div className="flex items-center justify-between">
                      <div className="flex items-center gap-2">
                        <Zap className="w-4 h-4 text-brand-orange animate-pulse" />
-                       <span className="font-mono text-[10px] font-black uppercase text-brand-orange tracking-widest">Live Verification Boost</span>
+                       <span className="font-mono text-[10px] font-black uppercase text-brand-orange tracking-widest">Trevor's Side Quest</span>
                      </div>
                      <div className="bg-white border-2 border-on-surface px-2 py-1 text-[10px] font-black italic shadow-[3px_3px_0px_black] rotate-[-2deg]">
                         1.25x BOOST
                      </div>
                    </div>
-                   <p className="text-sm font-bold text-on-surface/80 italic leading-snug pr-8 pt-1">Today's Field Receipt: {receiptChallenge.instructions}</p>
+                   <p className="text-sm font-bold text-on-surface/80 italic leading-snug pr-8 pt-1">{receiptChallenge.instructions}</p>
                  </div>
                )}
 
@@ -250,7 +259,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                    <div className="flex items-center justify-between">
                      <div className="flex items-center gap-2">
                        <Sparkles className="w-4 h-4 text-brand-lime" />
-                       <span className="font-mono text-[10px] font-black uppercase text-brand-lime tracking-widest">Weekly Catalyst Active</span>
+                       <span className="font-mono text-[10px] font-black uppercase text-brand-lime tracking-widest">Trevor's Weekly Bonus</span>
                      </div>
                      <div className="bg-on-surface text-brand-lime px-2 py-1 text-[10px] font-black italic shadow-[3px_3px_0px_white] rotate-[2deg]">
                         1.5x CATALYST
@@ -444,7 +453,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-brand-orange" />
-                  <span className="font-display font-black uppercase italic text-sm">Add Field Note</span>
+                  <span className="font-display font-black uppercase italic text-sm">Tell Trevor</span>
                 </div>
                 <div className={cn(
                   "font-mono text-[9px] font-black uppercase",

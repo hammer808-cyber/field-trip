@@ -127,15 +127,15 @@ export const FieldClipboardSequence: React.FC<FieldClipboardSequenceProps> = ({ 
         <div className="space-y-4">
           <div className="flex items-start gap-4">
             <span className="font-mono text-brand-orange font-black text-xl">01/</span>
-            <p className="font-serif italic text-lg text-on-surface">Keep your eyes sharp. Findings must represent genuine receipt evidence from your environment.</p>
+            <p className="font-serif italic text-lg text-on-surface">Keep your eyes sharp. Find real stuff from the world around you.</p>
           </div>
           <div className="flex items-start gap-4 pt-4 border-t border-dashed border-on-surface/20">
             <span className="font-mono text-brand-orange font-black text-xl">02/</span>
-            <p className="font-serif italic text-lg text-on-surface">Be creative. Let the details of your field notes describe the truth of the transaction without fear.</p>
+            <p className="font-serif italic text-lg text-on-surface">Be creative. Tell the tiny story like you just found treasure near a trash can.</p>
           </div>
           <div className="flex items-start gap-4 pt-4 border-t border-dashed border-on-surface/20">
             <span className="font-mono text-brand-orange font-black text-xl">03/</span>
-            <p className="font-serif italic text-lg text-on-surface">Genuine proof only. Our high-fidelity AI-vision agent monitors alignment for structure.</p>
+            <p className="font-serif italic text-lg text-on-surface">Real proof only. Trevor loves chaos, but not fake chaos.</p>
           </div>
         </div>
       </div>

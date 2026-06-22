@@ -16,7 +16,7 @@ export const DECK_PACKS: DeckPack[] = [
     isEvergreen: true,
     packName: 'Starter: First Signals',
     shortName: 'Starter',
-    description: 'Essential signals for new Bureau scouts. Calibrate your sensors and cross the threshold.',
+    description: 'Your first three tiny adventures. Snap a pic, tell Trevor what happened, and unlock the bigger map.',
     theme: 'baja',
     season: 'Summer 2026',
     missionIds: ['starter-1', 'starter-2', 'starter-3'],

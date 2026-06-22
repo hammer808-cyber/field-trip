@@ -92,7 +92,7 @@ export const EvidenceDetector: React.FC<EvidenceDetectorProps> = ({
       case 'manual_review_required':
         return {
           title: displayTitle || "Review Required",
-          subtitle: displayDetail || "Submit for manual verification"
+          subtitle: displayDetail || "Send it in for a human look"
         };
     }
   };

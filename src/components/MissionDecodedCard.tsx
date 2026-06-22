@@ -63,19 +63,19 @@ export function MissionDecodedCard({
 
   const hintTexts: Record<string, { title: string; desc: string; tip: string }> = {
     photo: {
-      title: "CAMERA INTEL",
-      desc: "A clear photographic proof is required to verify this mission.",
-      tip: "Use the Viewfinder camera to capture the requested subject. Avoid cropped closeups or blurry lighting."
+      title: "PHOTO RECEIPT",
+      desc: "Snap a clear pic so Trevor can admire the find.",
+      tip: "Use the Viewfinder. Keep the thing easy to see. Blurry legends are discouraged."
     },
     note: {
-      title: "FIELD REPORT",
-      desc: "A written note or description detailing the observation is required.",
-      tip: "Write a compelling field note/anecdote answering the prompt. This will build your zine entry."
+      title: "STORY TIME",
+      desc: "Add a few words about what happened out there.",
+      tip: "Tell Trevor what you found, why it caught you, or how you stumbled into it."
     },
     location: {
-      title: "GPS VERIFICATION",
-      desc: "Physical environment coordinates signature verification required.",
-      tip: "Open the field capture tool to record location tags automatically. Location permissions must be enabled."
+      title: "PLACE CHECK",
+      desc: "This one needs a location clue.",
+      tip: "Let the app drop a pin while you’re there, like a tiny treasure map."
     }
   };
   
@@ -103,19 +103,19 @@ export function MissionDecodedCard({
 
   // Determine current step based on progress
   let currentStepIndex = 1;
-  let statusText = isLaunchMission ? `Priority Mission: ${mission.title}` : "Step 1 of 3: View Mission";
-  let footerHint = isLaunchMission ? "Next: press Start Required Mission below." : "Next: press Start Mission below.";
+  let statusText = isLaunchMission ? `Trevor picked this one: ${mission.title}` : "Step 1 of 3: Peek at the adventure";
+  let footerHint = isLaunchMission ? "Next: tap Start Adventure below." : "Next: tap Start Adventure below.";
 
   if (progress.photo) {
     currentStepIndex = 2;
-    statusText = isLaunchMission ? `Proof Found: ${mission.title}` : "Step 2 of 3: Capture Proof";
-    footerHint = "Next: add field note and submit.";
+    statusText = isLaunchMission ? `Receipt grabbed: ${mission.title}` : "Step 2 of 3: Snap the proof";
+    footerHint = "Next: add your note and send it in.";
   }
   
   if (isSubmitted) {
     currentStepIndex = 3;
-    statusText = "Step 3 of 3: Submit";
-    footerHint = "Next: view your field log.";
+    statusText = "Step 3 of 3: Send it in";
+    footerHint = "Next: view your adventure log.";
   }
 
   return (
@@ -233,7 +233,7 @@ export function MissionDecodedCard({
           <div className="bg-[#FF5A00]/[0.03] border-2 border-dashed border-on-surface/10 p-3 space-y-1 rounded-xl relative rotate-[0.5deg]">
             <div className="flex items-center gap-2 mb-0.5">
                <Zap className="w-2.5 h-2.5 text-[#FF5A00] fill-[#FF5A00]/20" />
-               <span className="text-[8px] font-mono font-black uppercase tracking-widest text-on-surface/60">{fc('Field Note Request', 'INTEL_REQUEST')}</span>
+               <span className="text-[8px] font-mono font-black uppercase tracking-widest text-on-surface/60">{fc('Tell Trevor', 'STORY_REQUEST')}</span>
             </div>
             <p className="text-[12px] font-medium italic text-on-surface leading-tight font-serif">
                "{getFrankieFieldNotePrompt(mission, fPref)}"
@@ -244,7 +244,7 @@ export function MissionDecodedCard({
           <div id="tour-card-proof" className="space-y-2 relative z-10">
              <div className="flex justify-between items-center text-[8px] font-mono font-black uppercase italic tracking-widest opacity-40">
                 <span className="flex items-center gap-1">
-                   <span>{fc('Core_Evidence_Checklist', 'PROOF CHECKLIST')}</span>
+                   <span>{fc('Receipt Checklist', 'RECEIPT CHECKLIST')}</span>
                 </span>
              </div>
              <div className="flex flex-wrap gap-1.5">
@@ -289,7 +289,7 @@ export function MissionDecodedCard({
                  <div className="space-y-1 relative z-10 text-left">
                    <div className="flex items-center gap-1.5 text-[#B7FF00] font-mono text-[8px] font-black uppercase tracking-widest">
                      <Info className="w-3 h-3 text-[#B7FF00] shrink-0" />
-                     <span>{hintTexts[activeObjectiveHint]?.title || 'OBJECTIVE PROTOCOL'}</span>
+                     <span>{hintTexts[activeObjectiveHint]?.title || 'WHAT TO DO NEXT'}</span>
                    </div>
                    <p className="text-[11px] font-black font-sans text-white leading-tight">
                      {hintTexts[activeObjectiveHint]?.desc}
