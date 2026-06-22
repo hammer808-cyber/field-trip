@@ -19,8 +19,6 @@ import {
   Activity
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, onSnapshot, where, limit, orderBy } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import { AdminLayout, StatusLight, ModuleCard } from '../components/admin/AdminShared';
@@ -42,39 +40,36 @@ export default function AdminProofReview() {
   });
 
   const { isAdmin } = useTheme();
+  const { profile } = useApp();
   const navigate = useNavigate();
+  const isAdminAuthorized = isAdmin || profile?.role === 'admin' || (profile as any)?.isAdmin;
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!isAdminAuthorized) {
+      setLoading(false);
+      return;
+    }
 
     // Proofs listener
     const unsub = subscribeToAdminPendingReviews(filter, (entries) => {
       setReviews(entries);
+      if (filter === 'pending_review') {
+        setStats(prev => ({
+          ...prev,
+          pending: entries.length,
+          queueDepth: entries.length > 50 ? 'Critical' : entries.length > 20 ? 'Congested' : 'Clear'
+        }));
+      }
       setLoading(false);
     }, (error: any) => {
       console.error('[AdminProofReview] Reviews subscription denied:', error);
       setLoading(false);
     });
 
-    // Simple stats listener
-    const unsubStats = onSnapshot(query(
-      collection(db, 'entries'),
-      where('status', '==', 'pending_review')
-    ), (snap) => {
-      setStats(prev => ({ 
-        ...prev, 
-        pending: snap.size,
-        queueDepth: snap.size > 50 ? 'Critical' : snap.size > 20 ? 'Congested' : 'Clear'
-      }));
-    }, (error) => {
-      console.error('[AdminProofReview] Stats query denied:', error);
-    });
-
     return () => {
       unsub();
-      unsubStats();
     };
-  }, [isAdmin, filter]);
+  }, [isAdminAuthorized, filter]);
 
   const handleAction = async (id: string, action: 'approve' | 'reject' | 'request_info') => {
     // Placeholder for actual review logic which is in submissionService
@@ -188,7 +183,7 @@ function SwipeView({ entry, onAction }: any) {
              <div className="absolute inset-0 bg-brand-orange opacity-0 group-hover:opacity-10 transition-all blur-xl duration-500 rounded-full" />
              <div className="relative border-4 border-on-surface p-4 bg-white shadow-[12px_12px_0px_black] rounded-[2.5rem]">
                 <img 
-                  src={entry.photoUrl || entry.proofImage} 
+                  src={entry.photoUrl || entry.imageUrl || entry.proofImage} 
                   alt="Proof" 
                   className="w-full aspect-[4/5] object-cover rounded-[1.8rem] border-2 border-on-surface"
                 />
@@ -251,7 +246,7 @@ function SwipeView({ entry, onAction }: any) {
        {/* Meta Strip */}
        <footer className="pt-8 border-t-2 border-on-surface/10 flex flex-wrap gap-8 text-[9px] font-mono font-black uppercase opacity-40">
           <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-on-surface rounded-full" /> UID: {entry.userId}</div>
-          <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-on-surface rounded-full" /> Submitted: {entry.createdAt ? format(entry.createdAt.toDate(), 'MM/dd HH:mm') : 'Unknown'}</div>
+          <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-on-surface rounded-full" /> Submitted: {entry.createdAt?.toDate ? format(entry.createdAt.toDate(), 'MM/dd HH:mm') : entry.submittedAt?.toDate ? format(entry.submittedAt.toDate(), 'MM/dd HH:mm') : 'Unknown'}</div>
           <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-on-surface rounded-full" /> Confidence: {(entry.aiScore || 100)}%</div>
        </footer>
     </div>
@@ -275,7 +270,7 @@ function QueueView({ entries }: { entries: any[] }) {
              {entries.map((e) => (
                 <tr key={e.id} className="hover:bg-on-surface/5 cursor-pointer transition-all">
                    <td className="py-4 px-6 opacity-40 whitespace-nowrap">
-                     {e.createdAt ? format(e.createdAt.toDate(), 'MM/dd HH:mm') : '---'}
+                     {e.createdAt?.toDate ? format(e.createdAt.toDate(), 'MM/dd HH:mm') : e.submittedAt?.toDate ? format(e.submittedAt.toDate(), 'MM/dd HH:mm') : '---'}
                    </td>
                    <td className="py-4 px-6 font-black text-on-surface">
                      {e.displayName || 'Anon'}
