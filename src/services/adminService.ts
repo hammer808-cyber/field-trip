@@ -2,7 +2,6 @@ import {
   collection, 
   query, 
   where, 
-  orderBy, 
   onSnapshot, 
   doc, 
   updateDoc, 
@@ -23,6 +22,14 @@ import { adminOverrideReview } from './proofService';
 
 const ENTRIES_COLLECTION = 'entries';
 
+function timestampMillis(value: any): number {
+  if (!value) return 0;
+  if (typeof value.toMillis === 'function') return value.toMillis();
+  if (typeof value.toDate === 'function') return value.toDate().getTime();
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 /**
  * REALTIME: Subscribe to pending submissions for admin review.
  */
@@ -41,14 +48,15 @@ export function subscribeToPendingSubmissions(callback: (entries: Entry[]) => vo
       'resubmit_requested',
       'submitted_pending_review',
       'resubmitted_pending_review'
-    ]),
-    orderBy('createdAt', 'desc')
+    ])
   );
 
   console.log(`[AdminService] [SUBSCRIBE] Admin subscription collection path: ${ENTRIES_COLLECTION} (query filter: status in [pending, submitted, under_field_check, needs_review, retry-submitted])`);
 
   return onSnapshot(q, (snapshot) => {
-    const entries = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Entry));
+    const entries = snapshot.docs
+      .map(doc => ({ id: doc.id, ...doc.data() } as Entry))
+      .sort((a, b) => timestampMillis((b as any).createdAt || (b as any).submittedAt) - timestampMillis((a as any).createdAt || (a as any).submittedAt));
     console.log(`[AdminService] [REALTIME] Admin subscription collection path: ${ENTRIES_COLLECTION} - Detected live update: Loaded ${entries.length} pending submissions.`);
     callback(entries);
   }, (error) => {
@@ -610,4 +618,3 @@ export async function runOneTimePhotoBackfill(): Promise<{
     };
   }
 }
-

@@ -335,6 +335,7 @@ export async function submitTripEntry(
     const userUpdate: any = {
       activeTrip: null,
       submittedChallengeIds: arrayUnion(trip.id.toLowerCase()),
+      submittedPendingChallengeIds: arrayUnion(trip.id.toLowerCase()),
       needsMoreProofChallengeIds: arrayRemove(trip.id.toLowerCase()),
       updatedAt: serverTimestamp()
     };
