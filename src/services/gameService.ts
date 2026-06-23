@@ -14,7 +14,6 @@ import {
   orderBy,
   limit,
   deleteField,
-  arrayUnion,
   arrayRemove
 } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -344,8 +343,6 @@ export async function submitTripEntry(
     // Consolidate user locking logic
     const userUpdate: any = {
       activeTrip: null,
-      submittedChallengeIds: arrayUnion(trip.id.toLowerCase()),
-      submittedPendingChallengeIds: arrayUnion(trip.id.toLowerCase()),
       needsMoreProofChallengeIds: arrayRemove(trip.id.toLowerCase()),
       updatedAt: serverTimestamp()
     };

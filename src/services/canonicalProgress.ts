@@ -126,9 +126,6 @@ export function buildCanonicalProgress(input: BuildCanonicalProgressInput): Cano
   const rejectedChallengeIds = new Set<string>();
   const archivedChallengeIds = new Set<string>();
 
-  addIds(submittedChallengeIds, profile?.submittedChallengeIds);
-  addIds(submittedPendingChallengeIds, profile?.submittedPendingChallengeIds);
-
   if (activeEntries.length === 0) {
     addIds(approvedCompletedChallengeIds, (profile as any)?.approvedCompletedChallengeIds);
     addIds(approvedCompletedChallengeIds, profile?.completedChallengeIds);
@@ -151,13 +148,10 @@ export function buildCanonicalProgress(input: BuildCanonicalProgressInput): Cano
       submittedChallengeIds.add(missionId);
     } else if (status === 'pending_review') {
       submittedPendingChallengeIds.add(missionId);
-      submittedChallengeIds.add(missionId);
     } else if (status === 'needs_more_proof') {
       needsMoreProofChallengeIds.add(missionId);
-      submittedChallengeIds.add(missionId);
     } else if (status === 'rejected') {
       rejectedChallengeIds.add(missionId);
-      submittedChallengeIds.add(missionId);
     }
   });
 
