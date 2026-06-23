@@ -218,12 +218,26 @@ export async function resetUsersForGuidedLaunch(adminId: string): Promise<{ succ
         selectedDeckId: "starter-signals",
         
         // Reset counters/scoring
+        xp: 0,
         points: 0,
+        totalXP: 0,
+        totalPoints: 0,
+        seasonXP: 0,
         seasonPoints: 0,
+        weeklyXP: 0,
+        weeklyXp: 0,
         weeklyPoints: 0,
+        score: 0,
+        pendingPoints: 0,
         entriesApprovedCount: 0,
         approvedEntriesCount: 0, // Canonical synonym
-        xp: 0,
+        approvedMissionCount: 0,
+        totalSubmissions: 0,
+        totalApprovedSubmissions: 0,
+        soloTripsCount: 0,
+        crewTripsCount: 0,
+        boldTripsCount: 0,
+        completedCoreChallenges: 0,
         level: 1,
 
         // Reset collection tracking
@@ -290,9 +304,15 @@ export async function executeGlobalUserReset(adminId: string): Promise<{ success
       
       const resetFields = {
         points: 0,
+        xp: 0,
+        totalXP: 0,
         totalPoints: 0,
+        seasonXP: 0,
         seasonPoints: 0,
+        weeklyXP: 0,
+        weeklyXp: 0,
         weeklyPoints: 0,
+        score: 0,
         pendingPoints: 0,
         approvedCompletedChallengeIds: [],
         completedChallengeIds: [],
@@ -337,8 +357,6 @@ export async function executeGlobalUserReset(adminId: string): Promise<{ success
         completedCoreChallenges: 0,
         totalSubmissions: 0,
         totalApprovedSubmissions: 0,
-        xp: 0,
-        score: 0,
         level: 1,
         rank: 0,
         maybeList: [],

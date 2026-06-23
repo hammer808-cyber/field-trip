@@ -1,5 +1,5 @@
 import { db, auth } from '../lib/firebase';
-import { collection, query, where, getDocs, doc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, runTransaction, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { Entry } from '../types/game';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 import { awardPoints } from './scoringService';
@@ -72,24 +72,23 @@ export async function awardSubmissionPointsOnce(submissionId: string, notes: str
 
     const data = entrySnap.data() as Entry;
     const pointsAwardedRaw = data.pointsAwarded as any;
-    if (pointsAwardedRaw === true || pointsAwardedRaw > 0) {
-      return { success: false, reason: 'ALREADY_AWARDED', points: data.awardedXP || (data.pointsAwarded as any) };
-    }
 
     // Calculate Points
     const rawData = data as any;
-    const xpAward = data.xpValue || data.awardedXP || (data as any).estimatedPoints || 100;
+    const xpAward = data.xpValue || data.awardedXP || (typeof pointsAwardedRaw === 'number' ? pointsAwardedRaw : 0) || (data as any).estimatedPoints || 100;
     const userId = data.userId || data.uid;
     const userName = data.displayName || data.userName || (data as any).username || 'Agent';
 
     const userRef = doc(db, 'users', userId);
     const userSnap = await transaction.get(userRef);
 
-    // Canonical execution of state locks inside transaction
+    // Mark approval first, but do not claim XP was awarded until the score event write succeeds.
     transaction.update(entryRef, {
-      xpAwarded: true,
-      pointsAwarded: true, // compatibility mirror
+      xpAwarded: false,
+      pointsAwarded: false, // compatibility mirror
       awardedXP: xpAward,  // compatibility mirror
+      scoreAwardStatus: 'pending_award',
+      scoreAwardError: null,
       reviewedAt: serverTimestamp(),
       reviewedBy: auth.currentUser?.uid || 'system',
       status: 'approved',
@@ -100,7 +99,8 @@ export async function awardSubmissionPointsOnce(submissionId: string, notes: str
     if (reviewDocRef) {
       transaction.update(reviewDocRef, {
         status: 'approved',
-        xpAwarded: true,
+        xpAwarded: false,
+        scoreAwardStatus: 'pending_award',
         updatedAt: serverTimestamp()
       });
     }
@@ -153,7 +153,7 @@ export async function awardSubmissionPointsOnce(submissionId: string, notes: str
     if (result.success && result._awardingPayload) {
       const p = result._awardingPayload;
       try {
-        await awardPoints(
+        const awardResult = await awardPoints(
           p.userId,
           p.userName,
           p.xpAward,
@@ -164,9 +164,41 @@ export async function awardSubmissionPointsOnce(submissionId: string, notes: str
             description: `Manual approval validation for mission: ${p.missionIdCanonical || 'Field Mission'}. Note: ${p.notes}`
           }
         );
+        await updateDoc(entryRef, {
+          xpAwarded: true,
+          pointsAwarded: true,
+          awardedXP: p.xpAward,
+          scoreAwardStatus: awardResult?.reason === 'ALREADY_AWARDED' ? 'already_awarded' : 'awarded',
+          scoreAwardedAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+        if (reviewDocRef) {
+          await updateDoc(reviewDocRef, {
+            xpAwarded: true,
+            scoreAwardStatus: awardResult?.reason === 'ALREADY_AWARDED' ? 'already_awarded' : 'awarded',
+            scoreAwardedAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          });
+        }
       } catch (err) {
-        console.error('[awardSubmissionPointsOnce] Point awarding failed post-transaction. Entry is approved but points might be missing. Idempotency will catch retries.', err);
-        // We don't throw here because the transaction already committed.
+        const message = err instanceof Error ? err.message : String(err);
+        console.error('[awardSubmissionPointsOnce] Point awarding failed post-transaction. Entry remains approved but is flagged for retry.', err);
+        await updateDoc(entryRef, {
+          xpAwarded: false,
+          pointsAwarded: false,
+          scoreAwardStatus: 'award_failed',
+          scoreAwardError: message.slice(0, 500),
+          updatedAt: serverTimestamp()
+        });
+        if (reviewDocRef) {
+          await updateDoc(reviewDocRef, {
+            xpAwarded: false,
+            scoreAwardStatus: 'award_failed',
+            scoreAwardError: message.slice(0, 500),
+            updatedAt: serverTimestamp()
+          });
+        }
+        throw new Error(`POINT_AWARD_FAILED: ${message}`);
       }
     }
     return result;
