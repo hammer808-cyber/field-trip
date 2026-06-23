@@ -3,6 +3,7 @@ import {
   arrayUnion,
   collection,
   doc,
+  getDoc,
   getDocs,
   runTransaction,
   serverTimestamp,
@@ -169,12 +170,26 @@ export async function markCanonicalSubmissionPending(entryRefPathId: string, dat
   });
 }
 
+async function resolveCanonicalEntryId(submissionId: string): Promise<string> {
+  const directEntry = await getDoc(doc(db, 'entries', submissionId));
+  if (directEntry.exists()) return submissionId;
+
+  const reviewSnap = await getDoc(doc(db, 'proofReviews', submissionId));
+  if (reviewSnap.exists()) {
+    const linkedEntryId = getCanonicalSubmissionId(reviewSnap.data(), '');
+    if (linkedEntryId) return linkedEntryId;
+  }
+
+  return submissionId;
+}
+
 export async function transitionProofReview(
   submissionId: string,
   nextStatus: ReviewableProofStatus,
   notes: string
 ): Promise<ProofTransitionResult> {
-  const entryRef = doc(db, 'entries', submissionId);
+  const canonicalEntryId = await resolveCanonicalEntryId(submissionId);
+  const entryRef = doc(db, 'entries', canonicalEntryId);
 
   if (nextStatus === 'approved') {
     await runTransaction(db, async (transaction) => {
@@ -198,7 +213,7 @@ export async function transitionProofReview(
         updatedAt: serverTimestamp()
       });
     });
-    const awardResult = await awardSubmissionPointsOnce(submissionId, notes);
+    const awardResult = await awardSubmissionPointsOnce(canonicalEntryId, notes);
     return { success: awardResult.success, status: 'approved', points: awardResult.points, reason: awardResult.reason };
   }
 

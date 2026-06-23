@@ -86,6 +86,8 @@ export default function AdminProofReview() {
     };
   }, [isAdminAuthorized, filter]);
 
+  const getActionId = (record: any) => String(record?.entryId || record?.submissionId || record?.id || '');
+
   const handleAction = async (id: string, action: 'approve' | 'reject' | 'request_info') => {
     const notes = window.prompt(
       action === 'approve'
@@ -222,8 +224,8 @@ export default function AdminProofReview() {
            ) : viewMode === 'swipe' ? (
               <SwipeView 
                 entry={reviews[0]} 
-                busy={actionBusyId === reviews[0].id}
-                onAction={(action: any) => handleAction(reviews[0].id, action)} 
+                busy={actionBusyId === getActionId(reviews[0])}
+                onAction={(action: any) => handleAction(getActionId(reviews[0]), action)} 
               />
            ) : (
               <QueueView entries={reviews} busyId={actionBusyId} onAction={handleAction} />
@@ -470,24 +472,24 @@ function QueueView({ entries, busyId, onAction }: { entries: any[]; busyId: stri
                    <td className="py-4 px-6">
                      <div className="flex items-center justify-center gap-2">
                        <button
-                         disabled={busyId === e.id}
-                         onClick={() => onAction(e.id, 'approve')}
+                         disabled={busyId === (e.entryId || e.submissionId || e.id)}
+                         onClick={() => onAction(e.entryId || e.submissionId || e.id, 'approve')}
                          className="p-2 border border-on-surface rounded bg-brand-lime hover:bg-on-surface hover:text-white disabled:opacity-40"
                          title="Approve"
                        >
                           <Check className="w-3 h-3" />
                        </button>
                        <button
-                         disabled={busyId === e.id}
-                         onClick={() => onAction(e.id, 'request_info')}
+                         disabled={busyId === (e.entryId || e.submissionId || e.id)}
+                         onClick={() => onAction(e.entryId || e.submissionId || e.id, 'request_info')}
                          className="p-2 border border-on-surface rounded bg-[#FFDD00] hover:bg-on-surface hover:text-white disabled:opacity-40"
                          title="Needs more proof"
                        >
                           <Clock className="w-3 h-3" />
                        </button>
                        <button
-                         disabled={busyId === e.id}
-                         onClick={() => onAction(e.id, 'reject')}
+                         disabled={busyId === (e.entryId || e.submissionId || e.id)}
+                         onClick={() => onAction(e.entryId || e.submissionId || e.id, 'reject')}
                          className="p-2 border border-on-surface rounded bg-rose-500 text-white hover:bg-on-surface disabled:opacity-40"
                          title="Reject"
                        >
