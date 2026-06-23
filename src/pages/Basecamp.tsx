@@ -93,12 +93,71 @@ export default function Basecamp() {
   const nextLevelXP = nextLevelData ? (nextLevelData.minXP - currentLevelData.minXP) : 500;
   const xpProgress = nextLevelData ? (xpInLevel / nextLevelXP) * 100 : 100;
   const level = currentLevelData.level;
+  const isStarterComplete = starterState?.status === 'COMPLETE' || isOnboardingComplete;
+  const starterApprovedCount = Math.min(
+    starterProgress.starterApprovedCount,
+    starterProgress.starterRequiredCount
+  );
+  const starterPercent = Math.min(100, (starterApprovedCount / starterProgress.starterRequiredCount) * 100);
+  const dailyBoardDate = React.useMemo(() => {
+    const date = currentDate ? new Date(currentDate as any) : new Date();
+    if (Number.isNaN(date.getTime())) return new Date();
+    return date;
+  }, [currentDate]);
+  const dailyBoard = React.useMemo(() => {
+    const dayIndex = dailyBoardDate.getDay();
+    const messages = [
+      {
+        title: "TODAY'S BOARD",
+        subtitle: "SUNDAY FIELD NOTE",
+        message: "Tiny adventure day. Find one thing worth remembering, grab the receipt, and bring it back to the board.",
+        tracker: ["Photo", "Note", "Proof"]
+      },
+      {
+        title: "TODAY'S BOARD",
+        subtitle: "MONDAY SIGNAL",
+        message: "Fresh week, fresh weird little discovery. Keep it simple: one good photo and one honest note.",
+        tracker: ["Scout", "Snap", "Send"]
+      },
+      {
+        title: "TODAY'S BOARD",
+        subtitle: "TUESDAY TREASURE MAP",
+        message: "The field is probably hiding something ridiculous in plain sight. Go prove it exists.",
+        tracker: ["Look", "Find", "Log"]
+      },
+      {
+        title: "TODAY'S BOARD",
+        subtitle: "WEDNESDAY CHECK-IN",
+        message: "Middle of the week. Perfect time to catch a tiny moment before it wanders off forever.",
+        tracker: ["Today", "Memory", "Crew"]
+      },
+      {
+        title: "TODAY'S BOARD",
+        subtitle: "THURSDAY RECEIPT",
+        message: "Bring back one photo that makes Trevor go, okay wait, that counts.",
+        tracker: ["Thing", "Story", "Points"]
+      },
+      {
+        title: "TODAY'S BOARD",
+        subtitle: "FRIDAY FIELD BOARD",
+        message: "Weekend energy is loading. Find something that feels like a tiny headline.",
+        tracker: ["Signal", "Snap", "Share"]
+      },
+      {
+        title: "TODAY'S BOARD",
+        subtitle: "SATURDAY CREW SIGNAL",
+        message: "Big wandering day. Capture one strange, sunny, or weirdly perfect little receipt.",
+        tracker: ["Go", "Proof", "Board"]
+      }
+    ];
+    return messages[dayIndex];
+  }, [dailyBoardDate]);
 
   const fieldTypeData = fieldType ? FIELD_TYPES[fieldType] : null;
 
   const getNextAction = () => {
     // Check if starter pack is actually done based on status set by calculateStarterState
-    if (starterState?.status !== 'COMPLETE') {
+    if (!isStarterComplete) {
       return {
         label: "Finish Starter Pack",
         sublabel: `${starterProgress.starterApprovedCount}/${starterProgress.starterRequiredCount} APPROVED`,
@@ -201,17 +260,17 @@ export default function Basecamp() {
             <div className="p-6 space-y-5 relative z-10">
               <div className="space-y-1">
                 <h3 className="text-3xl sm:text-5xl font-display font-black uppercase italic tracking-tighter text-on-surface leading-none">
-                  {isOnboardingComplete ? "SUMMER IS ACTIVE" : "STARTER STAGE"}
+                  {isStarterComplete ? dailyBoard.title : "STARTER STAGE"}
                 </h3>
                 <p className="text-[10px] font-mono font-black text-on-surface/40 uppercase tracking-widest">
-                  {isOnboardingComplete ? "UNLOCKING EVERYDAY MEMORIES" : "GET CERTIFIED WITH YOUR FRIENDS"}
+                  {isStarterComplete ? dailyBoard.subtitle : "GET CERTIFIED WITH YOUR FRIENDS"}
                 </p>
               </div>
 
               <p className="text-sm sm:text-base font-serif italic text-on-surface/70 leading-relaxed">
-                {isOnboardingComplete 
-                  ? "Take a photo, capture a lazy summer moment, earn points, and make real memories with your crew."
-                  : `Authorizing scouting access... Complete 3 starter photo missions to join the seasonal crew feed. (${onboardingCompletedCount}/3 completed)`}
+                {isStarterComplete 
+                  ? dailyBoard.message
+                  : `Authorizing scouting access... Complete 3 starter photo missions to join the seasonal crew feed. (${starterApprovedCount}/3 completed)`}
               </p>
 
               <div className="pt-2">
@@ -221,29 +280,53 @@ export default function Basecamp() {
                 >
                   <div className="flex items-center justify-center gap-3">
                     <span className="text-xl sm:text-2xl font-display font-black uppercase italic tracking-wider">
-                      {isOnboardingComplete ? "TAKE TODAY'S PHOTO MISSION" : "START A MEMORY MISSION"}
+                      {isStarterComplete ? "OPEN TODAY'S MISSIONS" : "START A MEMORY MISSION"}
                     </span>
                     <ArrowRight className="w-6 h-6 stroke-[3]" />
                   </div>
                 </FieldCTA>
               </div>
 
-              {/* Mini progress tracker block */}
-              {!isOnboardingComplete && (
-                <div className="p-3 bg-[#FFFDF5] border-2 border-on-surface/10 rounded-lg flex items-center justify-between font-mono text-[10px] uppercase">
-                  <span>Starter Steps:</span>
-                  <div className="flex gap-2">
+              {/* Mini progress tracker / message board block */}
+              {!isStarterComplete ? (
+                <div className="p-3 bg-[#FFFDF5] border-2 border-on-surface/10 rounded-lg space-y-3 font-mono text-[10px] uppercase">
+                  <div className="flex items-center justify-between">
+                    <span>Starter Signals:</span>
+                    <span className="font-black">{starterApprovedCount}/3 approved</span>
+                  </div>
+                  <div className="h-3 rounded-full border-2 border-on-surface bg-white overflow-hidden">
+                    <div
+                      className="h-full bg-brand-lime transition-all duration-500"
+                      style={{ width: `${starterPercent}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
                     {[1, 2, 3].map((num) => {
-                      const isDone = onboardingCompletedCount >= num;
+                      const isDone = starterApprovedCount >= num;
                       return (
-                        <div 
-                          key={num} 
+                        <div
+                          key={num}
                           className={`w-6 h-6 rounded border-2 border-on-surface flex items-center justify-center font-bold relative ${isDone ? 'bg-brand-lime' : 'bg-on-surface/5 text-on-surface/20'}`}
                         >
                           {isDone ? "✓" : num}
                         </div>
                       );
                     })}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-[#FFFDF5] border-2 border-on-surface/10 rounded-lg font-mono text-[10px] uppercase">
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Simple Mission Tracker:</span>
+                    <span className="font-black text-brand-orange">{dailyBoardDate.toLocaleDateString(undefined, { weekday: 'short' })}</span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    {dailyBoard.tracker.map((item, index) => (
+                      <div key={item} className="border-2 border-on-surface bg-white px-2 py-2 text-center font-black shadow-[2px_2px_0px_black]">
+                        <span className="block text-[8px] opacity-40">0{index + 1}</span>
+                        {item}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
