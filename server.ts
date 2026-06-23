@@ -1700,10 +1700,16 @@ async function startServer() {
       // Update XP fields
       batch.set(userRef, {
         xp: inc,
+        points: inc,
         totalXP: inc,
-        weeklyXp: inc,
-        seasonXp: inc,
+        totalPoints: inc,
         seasonXP: inc,
+        seasonPoints: inc,
+        weeklyXp: inc,
+        weeklyXP: inc,
+        weeklyPoints: inc,
+        seasonXp: inc,
+        score: inc,
         updatedAt: FieldValue.serverTimestamp()
       }, { merge: true });
 
