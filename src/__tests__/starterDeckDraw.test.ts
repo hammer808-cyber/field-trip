@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getEligibleDrawPool } from '../logic/deckLogic';
 import { calculateStarterState } from '../utils/starterHelper';
+import { buildCanonicalProgress, getChallengeStatus, getDeckProgress } from '../services/canonicalProgress';
 import { STARTER_MISSION_BANK } from '../data/starterMissionBank';
 import { getDeckPackById } from '../data/deckPacks';
 import { TripCard } from '../types/challenges';
@@ -114,4 +115,56 @@ test('draft starter cards are diagnosed without false pack exhaustion', () => {
   assert.equal(result.eligibleMissions.length, 0);
   assert.equal(result.reason, 'unpublished_cards_blocked');
   assert.ok(result.analysis?.some(item => item.cardId === 'starter-2' && item.exclusionReason === 'disallowed_status:draft'));
+});
+
+test('legacy submitted profile arrays do not burn starter cards without active entries', () => {
+  const snapshot = buildCanonicalProgress({
+    userId: 'user-1',
+    profile: {
+      id: 'user-1',
+      submittedChallengeIds: ['starter-1'],
+      submittedPendingChallengeIds: ['starter-2'],
+      approvedCompletedChallengeIds: []
+    } as any,
+    entries: [],
+    pendingEntries: []
+  });
+
+  assert.equal(snapshot.starter.starterApprovedCount, 0);
+  assert.equal(snapshot.submittedChallengeIds.size, 0);
+  assert.equal(snapshot.submittedPendingChallengeIds.size, 0);
+  assert.equal(getChallengeStatus(snapshot, 'starter-1'), 'available');
+  assert.equal(getChallengeStatus(snapshot, 'starter-2'), 'available');
+
+  const starterProgress = getDeckProgress(snapshot, 'starter-signals');
+  assert.equal(starterProgress.approvedCount, 0);
+  assert.equal(starterProgress.pendingCount, 0);
+  assert.equal(starterProgress.remainingCount, 3);
+});
+
+test('pending starter state comes from a real pending entry, not stale profile arrays', () => {
+  const snapshot = buildCanonicalProgress({
+    userId: 'user-1',
+    profile: {
+      id: 'user-1',
+      submittedChallengeIds: ['starter-3'],
+      submittedPendingChallengeIds: ['starter-3'],
+      approvedCompletedChallengeIds: []
+    } as any,
+    entries: [{
+      ...approvedEntry('starter-1'),
+      id: 'entry-starter-1-pending',
+      entryId: 'entry-starter-1-pending',
+      status: 'pending_review'
+    } as Entry],
+    pendingEntries: []
+  });
+
+  assert.equal(getChallengeStatus(snapshot, 'starter-1'), 'pending_review');
+  assert.equal(getChallengeStatus(snapshot, 'starter-3'), 'available');
+  assert.equal(snapshot.starter.starterApprovedCount, 0);
+
+  const starterProgress = getDeckProgress(snapshot, 'starter-signals');
+  assert.equal(starterProgress.pendingCount, 1);
+  assert.equal(starterProgress.remainingCount, 2);
 });

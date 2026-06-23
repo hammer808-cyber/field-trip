@@ -404,25 +404,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // SUBMITTED pending review
   const submittedPendingChallengeIds = React.useMemo(() => {
     const pending = new Set<string>();
-    
-    // Seed from UserProfile as a durable fallback while entry listeners catch up.
-    // This prevents the guided starter gate from re-forcing starter-1 after the
-    // first proof is submitted but before the entry snapshot lands locally.
-    if (profile?.submittedChallengeIds && Array.isArray(profile.submittedChallengeIds)) {
-      profile.submittedChallengeIds.forEach(id => {
-        if (id) pending.add(id.toLowerCase());
-      });
-    }
-    if (profile?.submittedPendingChallengeIds && Array.isArray(profile.submittedPendingChallengeIds)) {
-      profile.submittedPendingChallengeIds.forEach(id => {
-        if (id) pending.add(id.toLowerCase());
-      });
-    }
 
-    // Server-side pending documents
+    // Server-side pending documents are the only durable pending source.
+    // Legacy profile arrays are intentionally ignored here because failed,
+    // denied, or interrupted submissions can leave stale ids that burn cards.
     activeEntries.forEach(e => {
       const status = normalizeEntryStatus(e.status);
-      if (status === 'pending_review' || status === 'needs_more_proof') {
+      if (status === 'pending_review') {
         const id = normalizeId(e.missionId || e.challengeId || e.tripId);
         if (id) pending.add(id.toLowerCase());
       }
@@ -440,7 +428,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     needsMoreProofChallengeIds.forEach(id => pending.delete(id.toLowerCase()));
 
     return pending;
-  }, [activeEntries, entries.length, pendingEntries, profile?.submittedChallengeIds, approvedCompletedChallengeIds, rejectedChallengeIds, needsMoreProofChallengeIds]);
+  }, [activeEntries, pendingEntries, approvedCompletedChallengeIds, rejectedChallengeIds, needsMoreProofChallengeIds]);
 
   // Aliases and base metrics
   // STRICTION: completedChallengeIds points strictly to approved ones for unlocks!
