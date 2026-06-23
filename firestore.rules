@@ -226,7 +226,10 @@ service cloud.firestore {
       allow read: if isAdmin() || isApproved() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow list: if isAdmin();
       
-      allow create: if (isApproved() && isValidId(entryId) && isValidEntry(incoming()) &&
+      // Proof submission must be allowed for signed-in users before review.
+      // Approval gates review/admin/public systems; it should not block creating
+      // the canonical pending_review entry itself.
+      allow create: if (isSignedIn() && isValidId(entryId) && isValidEntry(incoming()) &&
                     incoming().createdAt == requestTime() &&
                     incoming().status in ['pending', 'submitted', 'pending_upload', 'pending_review']) || isAdmin();
       
