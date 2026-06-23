@@ -15,6 +15,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
+import { authenticatedFetch } from '../lib/api';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { Entry } from '../constants';
 import { ProofReview, ProofStatus } from '../types/proof';
@@ -58,6 +59,24 @@ export interface AdminReviewQueueDiagnostics {
   reviewableButNotRendered: string[];
   errors: Array<{ source: 'entries' | 'proofReviews' | 'collectionGroup'; message: string; code?: string }>;
   updatedAt: string;
+}
+
+export interface StarterBypassReport {
+  success: boolean;
+  targetUid: string;
+  starterApprovedCount: number;
+  unlocked: string[];
+  message: string;
+}
+
+export interface OrphanSlotReport {
+  success: boolean;
+  dryRun: boolean;
+  scannedProofReviews: number;
+  createdEntries: Array<{ id: string; reviewId: string; userId: string; challengeId: string; status: string }>;
+  linkedReviews: Array<{ reviewId: string; entryId: string }>;
+  skippedExisting: Array<{ reviewId: string; entryId: string }>;
+  ambiguousRecords: Array<{ reviewId: string; entryId: string; reasons: string[] }>;
 }
 
 function createEmptyDiagnostics(
@@ -152,6 +171,30 @@ function logDev(message: string, ...args: any[]) {
   if (import.meta.env.DEV) {
     console.log(`[SUBMISSION_PIPELINE] ${message}`, ...args);
   }
+}
+
+async function readAdminResponse<T>(response: Response, fallbackMessage: string): Promise<T> {
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.message || payload.error || fallbackMessage);
+  }
+  return payload as T;
+}
+
+export async function grantStarterSignalsBypass(targetUid: string, reason = 'Admin Starter Signals bypass.'): Promise<StarterBypassReport> {
+  const response = await authenticatedFetch('/api/admin/grant-starter-bypass', {
+    method: 'POST',
+    body: JSON.stringify({ targetUid, reason })
+  });
+  return readAdminResponse<StarterBypassReport>(response, `Starter bypass failed with HTTP ${response.status}`);
+}
+
+export async function slotOrphanProofReviews(dryRun = true): Promise<OrphanSlotReport> {
+  const response = await authenticatedFetch('/api/admin/slot-orphan-proof-reviews', {
+    method: 'POST',
+    body: JSON.stringify({ dryRun })
+  });
+  return readAdminResponse<OrphanSlotReport>(response, `Orphan proof slotting failed with HTTP ${response.status}`);
 }
 
 /**

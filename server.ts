@@ -2600,6 +2600,250 @@ async function startServer() {
     return "pending_review";
   }
 
+  function getBackendString(value: any): string {
+    return typeof value === 'string' ? value.trim() : '';
+  }
+
+  function getBackendUserId(data: any): string {
+    return getBackendString(data?.userId || data?.uid || data?.firebaseUid);
+  }
+
+  function getBackendChallengeId(data: any): string {
+    return getBackendString(data?.challengeId || data?.missionId || data?.tripId).toLowerCase();
+  }
+
+  function getBackendImageUrl(data: any): string {
+    return getBackendString(data?.photoUrl || data?.imageUrl || data?.proofImage || data?.mediaUrl || data?.proofUrl);
+  }
+
+  function getBackendStoragePath(data: any): string {
+    return getBackendString(data?.storagePath || data?.photoStoragePath || data?.imageStoragePath || data?.proofImageRef || data?.proofStoragePath);
+  }
+
+  async function requireAdminUser(req: any) {
+    const isAdminUser = await checkIsAdmin(req.user);
+    if (!isAdminUser) {
+      const err: any = new Error("ADMIN_REQUIRED");
+      err.status = 403;
+      throw err;
+    }
+  }
+
+  app.post("/api/admin/grant-starter-bypass", adminRateLimiter, authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+
+    try {
+      await requireAdminUser(req);
+      const targetUid = getBackendString(req.body?.targetUid || req.body?.userId || req.body?.uid);
+      if (!targetUid) {
+        return res.status(400).json({ error: "MISSING_TARGET_UID", message: "A target user UID is required." });
+      }
+
+      const reason = getBackendString(req.body?.reason) || "Admin Starter Signals bypass.";
+      const starterIds = ["starter-1", "starter-2", "starter-3"];
+      const userRef = dbAdmin.collection("users").doc(targetUid);
+      const userSnap = await userRef.get();
+      if (!userSnap.exists) {
+        return res.status(404).json({ error: "USER_NOT_FOUND", message: `No user profile exists for ${targetUid}.` });
+      }
+
+      await userRef.set({
+        approvedCompletedChallengeIds: FieldValue.arrayUnion(...starterIds),
+        completedChallengeIds: FieldValue.arrayUnion(...starterIds),
+        completedMissionIds: FieldValue.arrayUnion(...starterIds),
+        submittedChallengeIds: [],
+        submittedPendingChallengeIds: [],
+        starterDeckComplete: true,
+        starterCompleted: true,
+        starterApprovedCount: 3,
+        starterProgress: 3,
+        starterProgressCount: 3,
+        onboardingCompleted: true,
+        onboardingComplete: true,
+        hasCompletedOnboarding: true,
+        activePlayableDeckId: "heatwave-receipts",
+        activeDeckPackId: "heatwave-receipts",
+        selectedDeckId: "heatwave-receipts",
+        starterBypassGranted: true,
+        starterBypassReason: reason,
+        starterBypassGrantedBy: req.user.uid,
+        starterBypassGrantedAt: FieldValue.serverTimestamp(),
+        "starterState.starterApprovedCount": 3,
+        "starterState.starterComplete": true,
+        "starterState.starterSignalsCompleted": starterIds,
+        "starterState.pendingStarterCount": 0,
+        "starterState.submittedMissionIds": [],
+        "starterState.status": "COMPLETE",
+        updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+
+      await dbAdmin.collection("adminRepairLogs").add({
+        actionType: "grant_starter_signals_bypass",
+        adminUid: req.user.uid,
+        targetUid,
+        reason,
+        starterIds,
+        timestamp: FieldValue.serverTimestamp()
+      });
+
+      res.json({
+        success: true,
+        targetUid,
+        starterApprovedCount: 3,
+        unlocked: ["memories", "crew", "voting", "tribunal", "heatwave-receipts"],
+        message: "Starter Signals bypass granted."
+      });
+    } catch (error: any) {
+      console.error("[GRANT_STARTER_BYPASS] Error:", error);
+      res.status(error.status || 500).json({ error: error.message || "GRANT_STARTER_BYPASS_FAILED" });
+    }
+  });
+
+  app.post("/api/admin/slot-orphan-proof-reviews", adminRateLimiter, authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const adminDb = dbAdmin;
+
+    try {
+      await requireAdminUser(req);
+      const dryRun = req.body?.dryRun !== false;
+      const reviewsSnap = await adminDb.collection("proofReviews").get();
+      const report = {
+        success: true,
+        dryRun,
+        scannedProofReviews: reviewsSnap.size,
+        createdEntries: [] as Array<{ id: string; reviewId: string; userId: string; challengeId: string; status: string }>,
+        linkedReviews: [] as Array<{ reviewId: string; entryId: string }>,
+        skippedExisting: [] as Array<{ reviewId: string; entryId: string }>,
+        ambiguousRecords: [] as Array<{ reviewId: string; entryId: string; reasons: string[] }>
+      };
+
+      let batch = adminDb.batch();
+      let batchCount = 0;
+      const commitIfNeeded = async () => {
+        if (!dryRun && batchCount > 0) {
+          await batch.commit();
+          batch = adminDb.batch();
+          batchCount = 0;
+        }
+      };
+
+      for (const reviewDoc of reviewsSnap.docs) {
+        const review = reviewDoc.data();
+        const rawEntryId = getBackendString(review.entryId || review.submissionId || review.canonicalEntryId);
+        const entryId = rawEntryId && rawEntryId.toLowerCase() !== "tbd" ? rawEntryId : reviewDoc.id;
+        const entryRef = adminDb.collection("entries").doc(entryId);
+        const entrySnap = await entryRef.get();
+
+        if (entrySnap.exists) {
+          report.skippedExisting.push({ reviewId: reviewDoc.id, entryId });
+          if (rawEntryId !== entryId || !review.entryId) {
+            report.linkedReviews.push({ reviewId: reviewDoc.id, entryId });
+            if (!dryRun) {
+              batch.set(reviewDoc.ref, {
+                entryId,
+                submissionId: entryId,
+                canonicalEntryId: entryId,
+                queueSlotStatus: "linked_existing_entry",
+                queueSlottedAt: FieldValue.serverTimestamp(),
+                updatedAt: FieldValue.serverTimestamp()
+              }, { merge: true });
+              batchCount++;
+              if (batchCount >= 450) await commitIfNeeded();
+            }
+          }
+          continue;
+        }
+
+        const userId = getBackendUserId(review);
+        const challengeId = getBackendChallengeId(review);
+        const photoUrl = getBackendImageUrl(review);
+        const storagePath = getBackendStoragePath(review);
+        const status = normalizeStatusBackend(review.status || review.reviewStatus || review.submissionStatus || review.proofStatus);
+        const reasons: string[] = [];
+        if (!userId) reasons.push("missing userId");
+        if (!challengeId) reasons.push("missing challengeId/missionId");
+        if (!photoUrl && !storagePath) reasons.push("missing photoUrl/storagePath");
+
+        if (reasons.length > 0) {
+          report.ambiguousRecords.push({ reviewId: reviewDoc.id, entryId, reasons });
+          continue;
+        }
+
+        const entryPayload = {
+          id: entryId,
+          entryId,
+          userId,
+          uid: userId,
+          displayName: review.displayName || review.userName || review.username || "Unknown scout",
+          userName: review.userName || review.displayName || review.username || "Unknown scout",
+          challengeId,
+          missionId: getBackendString(review.missionId || review.challengeId || review.tripId) || challengeId,
+          tripId: getBackendString(review.tripId || review.missionId || review.challengeId) || challengeId,
+          deckId: getBackendString(review.deckId) || "starter-signals",
+          seasonId: review.seasonId || null,
+          status,
+          reviewStatus: status,
+          submissionStatus: status,
+          proofStatus: status,
+          photoUrl,
+          imageUrl: getBackendString(review.imageUrl) || photoUrl,
+          proofImage: getBackendString(review.proofImage) || photoUrl,
+          mediaUrl: getBackendString(review.mediaUrl) || photoUrl,
+          storagePath,
+          photoStoragePath: getBackendString(review.photoStoragePath) || storagePath,
+          imageStoragePath: getBackendString(review.imageStoragePath) || storagePath,
+          fieldNote: review.fieldNote || review.note || review.caption || "",
+          aiRecommendation: review.aiRecommendation || status,
+          aiAnalysisStatus: review.aiAnalysisStatus || "legacy_repaired",
+          submittedAt: review.submittedAt || review.createdAt || FieldValue.serverTimestamp(),
+          createdAt: review.createdAt || review.submittedAt || FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+          submissionVersion: "canonical-entry-v1",
+          repairedFromProofReviewId: reviewDoc.id,
+          queueSlottedAt: FieldValue.serverTimestamp(),
+          queueSlottedBy: req.user.uid,
+          xpAwarded: review.xpAwarded === true,
+          pointsAwarded: review.pointsAwarded || false
+        };
+
+        report.createdEntries.push({ id: entryId, reviewId: reviewDoc.id, userId, challengeId, status });
+        report.linkedReviews.push({ reviewId: reviewDoc.id, entryId });
+
+        if (!dryRun) {
+          batch.set(entryRef, entryPayload, { merge: true });
+          batch.set(reviewDoc.ref, {
+            entryId,
+            submissionId: entryId,
+            canonicalEntryId: entryId,
+            status,
+            queueSlotStatus: "canonical_entry_created",
+            queueSlottedAt: FieldValue.serverTimestamp(),
+            queueSlottedBy: req.user.uid,
+            updatedAt: FieldValue.serverTimestamp()
+          }, { merge: true });
+          batchCount += 2;
+          if (batchCount >= 450) await commitIfNeeded();
+        }
+      }
+
+      await commitIfNeeded();
+
+      if (!dryRun) {
+        await adminDb.collection("adminRepairLogs").add({
+          actionType: "slot_orphan_proof_reviews",
+          adminUid: req.user.uid,
+          timestamp: FieldValue.serverTimestamp(),
+          report
+        });
+      }
+
+      res.json(report);
+    } catch (error: any) {
+      console.error("[SLOT_ORPHAN_PROOF_REVIEWS] Error:", error);
+      res.status(error.status || 500).json({ error: error.message || "SLOT_ORPHAN_PROOF_REVIEWS_FAILED" });
+    }
+  });
+
   async function repairUserState(uid: string, dryRun: boolean, adminUid: string) {
     if (!dbAdmin) throw new Error("DB_ADMIN_NOT_READY");
     const userRef = dbAdmin.collection('users').doc(uid);

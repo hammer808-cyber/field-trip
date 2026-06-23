@@ -28,11 +28,15 @@ import { format } from 'date-fns';
 import { cn } from '../lib/utils';
 import {
   approveSubmission,
+  grantStarterSignalsBypass,
   rejectSubmission,
   requestMoreProof,
   runCanonicalProofQueueRepair,
+  slotOrphanProofReviews,
   subscribeToAdminPendingReviews,
-  AdminReviewQueueDiagnostics
+  AdminReviewQueueDiagnostics,
+  StarterBypassReport,
+  OrphanSlotReport
 } from '../services/submissionService';
 import type { QueueRepairReport } from '../services/proofLifecycleService';
 
@@ -46,6 +50,10 @@ export default function AdminProofReview() {
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
   const [repairingQueue, setRepairingQueue] = useState(false);
   const [repairReport, setRepairReport] = useState<QueueRepairReport | null>(null);
+  const [grantingBypass, setGrantingBypass] = useState(false);
+  const [starterBypassReport, setStarterBypassReport] = useState<StarterBypassReport | null>(null);
+  const [slottingOrphans, setSlottingOrphans] = useState(false);
+  const [orphanSlotReport, setOrphanSlotReport] = useState<OrphanSlotReport | null>(null);
   const [stats, setStats] = useState({
     pending: 0,
     velocity: '2.4 p/h',
@@ -128,6 +136,33 @@ export default function AdminProofReview() {
     }
   };
 
+  const handleGrantStarterBypass = async () => {
+    const targetUid = window.prompt('User UID to unlock past Starter Signals');
+    if (!targetUid) return;
+    const reason = window.prompt('Reason for bypass', 'Admin bypass: stale pending/review records are blocking Starter Signals.') || 'Admin Starter Signals bypass.';
+    setGrantingBypass(true);
+    try {
+      setStarterBypassReport(await grantStarterSignalsBypass(targetUid.trim(), reason));
+    } catch (err: any) {
+      console.error('[AdminProofReview] Starter bypass failed:', err);
+      alert(`Starter bypass failed: ${err?.message || err}`);
+    } finally {
+      setGrantingBypass(false);
+    }
+  };
+
+  const handleSlotOrphans = async (dryRun: boolean) => {
+    setSlottingOrphans(true);
+    try {
+      setOrphanSlotReport(await slotOrphanProofReviews(dryRun));
+    } catch (err: any) {
+      console.error('[AdminProofReview] Orphan slotting failed:', err);
+      alert(`Orphan slotting failed: ${err?.message || err}`);
+    } finally {
+      setSlottingOrphans(false);
+    }
+  };
+
   const hasQueueIntegrityWarning = !!diagnostics && diagnostics.reviewableButNotRendered.length > 0;
   const hasPermissionOrQueryFailure = !!queryError || !!diagnostics?.errors.length;
 
@@ -149,7 +184,13 @@ export default function AdminProofReview() {
           queryError={queryError}
           repairReport={repairReport}
           repairing={repairingQueue}
+          grantingBypass={grantingBypass}
+          starterBypassReport={starterBypassReport}
+          slottingOrphans={slottingOrphans}
+          orphanSlotReport={orphanSlotReport}
           onRepair={handleRepairQueue}
+          onGrantStarterBypass={handleGrantStarterBypass}
+          onSlotOrphans={handleSlotOrphans}
         />
 
         {/* Control Toolbar */}
@@ -257,13 +298,25 @@ function QueueDiagnosticsPanel({
   queryError,
   repairReport,
   repairing,
-  onRepair
+  grantingBypass,
+  starterBypassReport,
+  slottingOrphans,
+  orphanSlotReport,
+  onRepair,
+  onGrantStarterBypass,
+  onSlotOrphans
 }: {
   diagnostics: AdminReviewQueueDiagnostics | null;
   queryError: string | null;
   repairReport: QueueRepairReport | null;
   repairing: boolean;
+  grantingBypass: boolean;
+  starterBypassReport: StarterBypassReport | null;
+  slottingOrphans: boolean;
+  orphanSlotReport: OrphanSlotReport | null;
   onRepair: (dryRun: boolean) => void;
+  onGrantStarterBypass: () => void;
+  onSlotOrphans: (dryRun: boolean) => void;
 }) {
   const statusRows = diagnostics
     ? Object.entries(diagnostics.statusCounts).map(([status, count]) => `${status}: ${count}`).join(' / ')
@@ -333,7 +386,62 @@ function QueueDiagnosticsPanel({
             >
               {repairing ? 'Repairing...' : 'Repair / Reindex Queue'}
             </button>
+            <button
+              type="button"
+              disabled={grantingBypass}
+              onClick={onGrantStarterBypass}
+              className="px-3 py-2 rounded-lg border-2 border-on-surface bg-brand-lime text-on-surface font-black uppercase disabled:opacity-50"
+            >
+              {grantingBypass ? 'Granting...' : 'Grant Starter Bypass'}
+            </button>
+            <button
+              type="button"
+              disabled={slottingOrphans}
+              onClick={() => onSlotOrphans(true)}
+              className="px-3 py-2 rounded-lg border-2 border-on-surface bg-white font-black uppercase disabled:opacity-50"
+            >
+              {slottingOrphans ? 'Checking...' : 'Dry Run Slot Orphans'}
+            </button>
+            <button
+              type="button"
+              disabled={slottingOrphans}
+              onClick={() => onSlotOrphans(false)}
+              className="px-3 py-2 rounded-lg border-2 border-on-surface bg-red-500 text-white font-black uppercase disabled:opacity-50"
+            >
+              {slottingOrphans ? 'Slotting...' : 'Slot Orphans Into Entries'}
+            </button>
           </div>
+          {starterBypassReport && (
+            <div className="mt-3 rounded-xl bg-brand-lime/20 p-3 space-y-1">
+              <DiagnosticRow label="Starter bypass" value={starterBypassReport.message || 'granted'} />
+              <DiagnosticRow label="Target UID" value={starterBypassReport.targetUid} />
+              <DiagnosticRow label="Starter approved count" value={String(starterBypassReport.starterApprovedCount)} />
+              <DiagnosticRow label="Unlocked" value={(starterBypassReport.unlocked || []).join(', ')} />
+            </div>
+          )}
+          {orphanSlotReport && (
+            <div className="mt-3 rounded-xl bg-on-surface/5 p-3 space-y-1">
+              <DiagnosticRow label="Orphan slot mode" value={orphanSlotReport.dryRun ? 'dry run' : 'live write'} />
+              <DiagnosticRow label="ProofReviews scanned" value={String(orphanSlotReport.scannedProofReviews)} />
+              <DiagnosticRow label="Entries created" value={String(orphanSlotReport.createdEntries.length)} danger={!orphanSlotReport.dryRun && orphanSlotReport.createdEntries.length > 0} />
+              <DiagnosticRow label="Reviews linked" value={String(orphanSlotReport.linkedReviews.length)} />
+              <DiagnosticRow label="Already had entries" value={String(orphanSlotReport.skippedExisting.length)} />
+              <DiagnosticRow label="Ambiguous orphans" value={String(orphanSlotReport.ambiguousRecords.length)} danger={orphanSlotReport.ambiguousRecords.length > 0} />
+              {orphanSlotReport.createdEntries.length > 0 && (
+                <DiagnosticRow
+                  label="Created entry IDs"
+                  value={orphanSlotReport.createdEntries.slice(0, 8).map(item => item.id).join(', ')}
+                />
+              )}
+              {orphanSlotReport.ambiguousRecords.length > 0 && (
+                <DiagnosticRow
+                  label="Ambiguous review IDs"
+                  value={orphanSlotReport.ambiguousRecords.slice(0, 8).map(item => `${item.reviewId}: ${item.reasons.join('|')}`).join(', ')}
+                  danger
+                />
+              )}
+            </div>
+          )}
           {repairReport && (
             <div className="mt-3 rounded-xl bg-on-surface/5 p-3 space-y-1">
               <DiagnosticRow label="Repair mode" value={repairReport.dryRun ? 'dry run' : 'live write'} />
