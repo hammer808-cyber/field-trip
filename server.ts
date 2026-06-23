@@ -1471,6 +1471,7 @@ async function startServer() {
       let uploadSuccess = false;
       let usedBucketName = "";
       let lastError: any = null;
+      const downloadToken = crypto.randomUUID();
 
       console.log(`[STORAGE_PROXY] Candidate buckets for project ${projId}:`, candidates);
 
@@ -1484,6 +1485,7 @@ async function startServer() {
               contentType: 'image/jpeg',
               metadata: {
                 ...metadata,
+                firebaseStorageDownloadTokens: downloadToken,
                 uploadedVia: 'Admin_ProxyResilient',
                 uploaderUid: uid
               }
@@ -1506,7 +1508,7 @@ async function startServer() {
 
       // 5. Generate public-compatible URL format.
       const encodedPath = encodeURIComponent(storagePath);
-      const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${usedBucketName}/o/${encodedPath}?alt=media`;
+      const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${usedBucketName}/o/${encodedPath}?alt=media&token=${downloadToken}`;
 
       console.log(`[STORAGE_PROXY] Successfully generated public URL for: ${storagePath}`);
 
