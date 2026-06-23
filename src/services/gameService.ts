@@ -92,12 +92,14 @@ export async function submitTripEntry(
     // Use specific hintUsed flag from entryData OR from tripProgress if available
     const hintWasUsed = entryData.hintUsed || userData?.tripProgress?.[trip.id]?.hintUsed || false;
 
-    // 1. Anti-Repeat Check 
+    // 1. Anti-Repeat Check
+    // Only approved completions block a non-repeatable mission. Pending or
+    // interrupted submissions must not burn a card or trap the player.
     const recentQuery = query(
       collection(db, 'entries'),
       where('userId', '==', userId),
       where('tripId', '==', trip.id),
-      where('status', 'in', ['approved', 'pending_review', 'needs_more_proof']),
+      where('status', '==', 'approved'),
       orderBy('createdAt', 'desc'),
       limit(1)
     );
@@ -113,9 +115,9 @@ export async function submitTripEntry(
       const lastTime = lastEntry.createdAt?.toDate ? lastEntry.createdAt.toDate() : new Date(lastEntry.createdAt);
       const sevenDaysAgo = getServerDate();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      
+
       if (lastTime > sevenDaysAgo) {
-        throw new Error(`Temporal Anchor: You have already submitted evidence for "${trip.title}" recently.`);
+        throw new Error(`Temporal Anchor: You have already completed "${trip.title}" recently.`);
       }
     }
 
