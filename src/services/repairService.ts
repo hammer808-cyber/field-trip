@@ -32,6 +32,26 @@ export interface RepairReport {
   errors: string[];
   warnings: string[];
   dryRun?: boolean;
+  beforeStarterState?: StarterDeckRepairState;
+  afterStarterState?: StarterDeckRepairState;
+  proposedProfileUpdates?: Record<string, any>;
+}
+
+export interface StarterDeckRepairState {
+  starterIds?: string[];
+  approvedIds?: string[];
+  pendingIds?: string[];
+  needsMoreProofIds?: string[];
+  rejectedIds?: string[];
+  submittedIds?: string[];
+  availableIds?: string[];
+  activeDrawnIds?: string[];
+  starterApprovedCount?: number;
+  starterPendingCount?: number;
+  starterSubmittedCount?: number;
+  starterRejectedCount?: number;
+  starterNeedsMoreProofCount?: number;
+  starterComplete?: boolean;
 }
 
 export interface StrandedStarterRepairReport {
@@ -117,16 +137,19 @@ export async function repairUserMissionState(uid: string, dryRun: boolean = fals
       dryRun: raw.dryRun,
       entriesCount: raw.recordsScanned,
       reviewsCount: raw.recordsScanned,
-      approvedCount: raw.deckProgressRecalculated?.starterApprovedCount || 0,
-      pendingCount: 0, 
-      needsMoreCount: 0,
-      rejectedCount: 0,
+      approvedCount: raw.afterStarterState?.starterApprovedCount || raw.deckProgressRecalculated?.starterApprovedCount || 0,
+      pendingCount: raw.afterStarterState?.starterPendingCount || 0,
+      needsMoreCount: raw.afterStarterState?.starterNeedsMoreProofCount || 0,
+      rejectedCount: raw.afterStarterState?.starterRejectedCount || 0,
       orphansFixed: raw.missingRecordsRebuilt || 0,
       starterApprovedCount: raw.deckProgressRecalculated?.starterApprovedCount || 0,
       isStarterPackComplete: raw.deckProgressRecalculated?.isStarterPackComplete || false,
       canUseHeatwaveDeck: raw.deckProgressRecalculated?.canUseHeatwaveDeck || false,
       errors: raw.errors || [],
-      warnings: raw.warnings || []
+      warnings: raw.warnings || [],
+      beforeStarterState: raw.beforeStarterState,
+      afterStarterState: raw.afterStarterState,
+      proposedProfileUpdates: raw.proposedProfileUpdates
     };
   } catch (err: any) {
     console.error(`[repairUserMissionState] failed:`, err);

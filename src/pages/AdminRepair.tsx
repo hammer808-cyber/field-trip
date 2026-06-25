@@ -269,7 +269,21 @@ export default function AdminRepair() {
                     ['Target UID', individualReport.uid],
                     ['Mode', individualReport.dryRun ? 'Dry Run' : 'Live Write'],
                     ['Proof History', individualReport.entriesCount],
-                    ['Starter Approved', individualReport.starterApprovedCount],
+                    ['Before Approved', individualReport.beforeStarterState?.starterApprovedCount ?? 'n/a'],
+                    ['After Approved', individualReport.afterStarterState?.starterApprovedCount ?? individualReport.starterApprovedCount],
+                    ['Before Pending', individualReport.beforeStarterState?.starterPendingCount ?? 'n/a'],
+                    ['After Pending', individualReport.afterStarterState?.starterPendingCount ?? individualReport.pendingCount],
+                    ['Before Rejected', individualReport.beforeStarterState?.starterRejectedCount ?? 'n/a'],
+                    ['After Rejected', individualReport.afterStarterState?.starterRejectedCount ?? individualReport.rejectedCount],
+                    ['Before Needs More', individualReport.beforeStarterState?.starterNeedsMoreProofCount ?? 'n/a'],
+                    ['After Needs More', individualReport.afterStarterState?.starterNeedsMoreProofCount ?? individualReport.needsMoreCount],
+                    ['Before Submitted', individualReport.beforeStarterState?.starterSubmittedCount ?? 'n/a'],
+                    ['After Submitted', individualReport.afterStarterState?.starterSubmittedCount ?? 'n/a'],
+                    ['Before Available', individualReport.beforeStarterState?.availableIds?.join(', ') || 'none'],
+                    ['After Available', individualReport.afterStarterState?.availableIds?.join(', ') || 'none'],
+                    ['Before Active Drawn', individualReport.beforeStarterState?.activeDrawnIds?.join(', ') || 'none'],
+                    ['After Active Drawn', individualReport.afterStarterState?.activeDrawnIds?.join(', ') || 'none'],
+                    ['Starter Complete', individualReport.afterStarterState?.starterComplete ? 'Yes' : 'No'],
                     ['Heatwave Access', individualReport.canUseHeatwaveDeck ? 'Granted' : 'Restricted']
                   ]}
                   error={individualReport.errors[0]}
