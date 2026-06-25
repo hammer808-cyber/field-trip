@@ -75,7 +75,7 @@ import { awardDiscoverySticker } from '../services/discoveryService';
 import { DISCOVERY_STICKERS, DiscoverySticker } from '../constants/discoveryStickers';
 import { hasEarnedSticker } from '../services/stickerService';
 import { castVote, getVotesForUser } from '../services/voteService';
-import { calculateStarterState, StarterCompletionState } from '../utils/starterHelper';
+import { StarterCompletionState } from '../utils/starterHelper';
 
 import { evaluateEntryForBadges, subscribeToUserBadgeProgress, checkRankBadges } from '../services/badgeService';
 import { BADGE_DEFINITIONS, UserBadgeProgress } from '../types/badges';
@@ -89,7 +89,7 @@ import { getProofRequirement } from '../services/proofService';
 import { ProofReview, ProofRequirement } from '../types/proof';
 import { syncServerTime, getServerDate } from '../services/timeService';
 import { LAUNCH_MISSION, LAUNCH_MISSION_ID, isLaunchMissionEligible } from '../data/specialMissions';
-import { countsTowardStarterProgress, isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
+import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 
 import { 
   submitTripEntry as submitEntryLogic, 
@@ -131,6 +131,7 @@ import {
   CanonicalProgressSnapshot,
   ProgressMismatch
 } from '../services/canonicalProgress';
+import { buildCanonicalStarterDeckState, STARTER_SIGNAL_IDS } from '../logic/starterDeckState';
 
 import { 
   DrawnMissionCard, 
@@ -340,6 +341,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return entries.filter(entry => !isArchivedEntry(entry));
   }, [entries]);
 
+  const canonicalStarterDeckState = React.useMemo(() => {
+    return buildCanonicalStarterDeckState({
+      userId: user?.uid || null,
+      entries: activeEntries,
+      profile,
+      localPendingEntries: pendingEntries,
+      drawnMissionCards,
+      activeTripId: profile?.activeTrip?.id || profile?.activeMissionId || null,
+    });
+  }, [user?.uid, activeEntries, profile, pendingEntries, drawnMissionCards]);
+
   // 1. Unified Distinct Status Sets (Normalized Strings)
   // APPROVED completed submissions
   const approvedCompletedChallengeIds = React.useMemo(() => {
@@ -362,8 +374,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    STARTER_SIGNAL_IDS.forEach(id => approved.delete(id));
+    canonicalStarterDeckState.approvedIds.forEach(id => approved.add(id));
+
     return approved;
-  }, [activeEntries, entries.length, profile?.completedChallengeIds]);
+  }, [activeEntries, entries.length, profile?.completedChallengeIds, canonicalStarterDeckState]);
 
   // REJECTED submissions
   const rejectedChallengeIds = React.useMemo(() => {
@@ -380,8 +395,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (id) rejected.add(id.toLowerCase());
       }
     });
+    STARTER_SIGNAL_IDS.forEach(id => rejected.delete(id));
+    canonicalStarterDeckState.rejectedIds.forEach(id => rejected.add(id));
     return rejected;
-  }, [activeEntries, entries.length, profile?.rejectedChallengeIds]);
+  }, [activeEntries, entries.length, profile?.rejectedChallengeIds, canonicalStarterDeckState]);
 
   // NEEDS MORE PROOF submissions
   const needsMoreProofChallengeIds = React.useMemo(() => {
@@ -398,8 +415,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (id) needsMore.add(id.toLowerCase());
       }
     });
+    STARTER_SIGNAL_IDS.forEach(id => needsMore.delete(id));
+    canonicalStarterDeckState.needsMoreProofIds.forEach(id => needsMore.add(id));
     return needsMore;
-  }, [activeEntries, entries.length, profile?.needsMoreProofChallengeIds]);
+  }, [activeEntries, entries.length, profile?.needsMoreProofChallengeIds, canonicalStarterDeckState]);
 
   // SUBMITTED pending review
   const submittedPendingChallengeIds = React.useMemo(() => {
@@ -426,9 +445,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     approvedCompletedChallengeIds.forEach(id => pending.delete(id.toLowerCase()));
     rejectedChallengeIds.forEach(id => pending.delete(id.toLowerCase()));
     needsMoreProofChallengeIds.forEach(id => pending.delete(id.toLowerCase()));
+    STARTER_SIGNAL_IDS.forEach(id => pending.delete(id));
+    canonicalStarterDeckState.pendingIds.forEach(id => pending.add(id));
 
     return pending;
-  }, [activeEntries, pendingEntries, approvedCompletedChallengeIds, rejectedChallengeIds, needsMoreProofChallengeIds]);
+  }, [activeEntries, pendingEntries, approvedCompletedChallengeIds, rejectedChallengeIds, needsMoreProofChallengeIds, canonicalStarterDeckState]);
 
   // Aliases and base metrics
   // STRICTION: completedChallengeIds points strictly to approved ones for unlocks!
@@ -451,35 +472,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Canonical Starter Deck Gating State Calculation
   const starterState = React.useMemo(() => {
-    // Merge pending entries with active entries. Archived reset records stay in
-    // history but no longer count toward active starter progress.
-    const mergedEntries = [...pendingEntries, ...activeEntries.filter(countsTowardStarterProgress)];
-    
-    // Fallback to profile IDs only before any entry data has synced.
-    if (entries.length === 0 && profile?.completedChallengeIds) {
-      profile.completedChallengeIds.forEach((id: string) => {
-        const idLower = id.toLowerCase();
-        if (!mergedEntries.some(e => (e.missionId || e.challengeId || e.tripId || '').toLowerCase() === idLower)) {
-          // Synthetic entry for completion check
-          (mergedEntries as any).push({
-            missionId: idLower,
-            status: 'approved',
-            userId: user?.uid,
-            deckId: 'starter-signals'
-          });
-        }
-      });
-    }
+    const status: StarterCompletionState['status'] = canonicalStarterDeckState.starterComplete
+      ? 'COMPLETE'
+      : canonicalStarterDeckState.needsMoreProofIds.length > 0
+        ? 'NEEDS_MORE_PROOF'
+        : canonicalStarterDeckState.rejectedIds.length > 0
+          ? 'REJECTED_RETRY_AVAILABLE'
+          : canonicalStarterDeckState.starterSubmittedCount >= STARTER_SIGNAL_IDS.length
+            ? 'PENDING_REVIEW'
+            : canonicalStarterDeckState.starterSubmittedCount > 0 || canonicalStarterDeckState.activeDrawnIds.length > 0
+              ? 'IN_PROGRESS'
+              : 'NOT_STARTED';
 
-    return calculateStarterState(
-      user?.uid || '',
-      mergedEntries,
-      activeMissionId,
-      activeSubmissionStatus,
-      gameConfig?.starterResetVersion,
-      gameConfig?.activeStarterDeckId
-    );
-  }, [user?.uid, entries.length, activeEntries, pendingEntries, activeMissionId, activeSubmissionStatus, gameConfig?.starterResetVersion, gameConfig?.activeStarterDeckId, profile?.completedChallengeIds]);
+    return {
+      starterApprovedCount: canonicalStarterDeckState.starterApprovedCount,
+      starterRequiredCount: STARTER_SIGNAL_IDS.length,
+      starterComplete: canonicalStarterDeckState.starterComplete,
+      pendingStarterCount: canonicalStarterDeckState.starterPendingCount,
+      retryStarterCount: canonicalStarterDeckState.starterRejectedCount,
+      needsMoreProofStarterCount: canonicalStarterDeckState.starterNeedsMoreProofCount,
+      submittedUniqueCount: canonicalStarterDeckState.starterSubmittedCount,
+      submittedMissionIds: canonicalStarterDeckState.submittedIds,
+      needsMoreProofMissionId: canonicalStarterDeckState.needsMoreProofIds[0] || null,
+      needsMoreProofEntryId: null,
+      rejectedMissionId: canonicalStarterDeckState.rejectedIds[0] || null,
+      rejectedEntryId: null,
+      nextStarterAction: canonicalStarterDeckState.availableIds.length > 0 ? 'Draw Starter Mission' : 'View Review Status',
+      status
+    };
+  }, [canonicalStarterDeckState]);
 
   const canonicalProgress = React.useMemo(() => buildCanonicalProgress({
     userId: user?.uid || null,
@@ -1919,10 +1940,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       isHeatwaveDeckUnlocked,
       isSocalSummerUnlocked,
       isAdmin,
+      canonicalStarterState: canonicalStarterDeckState,
     });
     
     return result;
-  }, [trips, completedChallengeIds, submittedPendingChallengeIds, needsMoreProofChallengeIds, rejectedChallengeIds, profile?.activeTrip?.id, profile?.activeMissionId, isOnboardingComplete, isHeatwaveDeckUnlocked, isSocalSummerUnlocked, isAdmin]);
+  }, [trips, completedChallengeIds, submittedPendingChallengeIds, needsMoreProofChallengeIds, rejectedChallengeIds, profile?.activeTrip?.id, profile?.activeMissionId, isOnboardingComplete, isHeatwaveDeckUnlocked, isSocalSummerUnlocked, isAdmin, canonicalStarterDeckState]);
 
   const drawTrip = async (tripId?: string, packId?: string): Promise<TripType | null> => {
     if (!user || trips.length === 0) return null;
@@ -1968,6 +1990,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const effectivePackId = packId || (isOnboardingComplete ? (localStorage.getItem('active_deck_pack_id') || 'urban-recon') : 'starter-signals');
     const poolResult = getEligibleDrawPool(effectivePackId);
     const eligiblePool = poolResult.eligibleMissions;
+    const isStarterPackDraw = effectivePackId === 'starter-signals';
+
+    const activeDrawnStarter = isStarterPackDraw && canonicalStarterDeckState.activeDrawnIds.length > 0
+      ? trips.find(t => t.id.toLowerCase() === canonicalStarterDeckState.activeDrawnIds[0])
+      : null;
+
+    if (activeDrawnStarter && !canonicalStarterDeckState.submittedIds.includes(activeDrawnStarter.id.toLowerCase())) {
+      if (import.meta.env.DEV) {
+        console.log('[Deck Draw Canonical] returning active drawn starter mission', {
+          uid: user.uid,
+          deckId: effectivePackId,
+          activeDrawnIds: canonicalStarterDeckState.activeDrawnIds,
+          canonicalSubmittedIds: canonicalStarterDeckState.submittedIds,
+          selectedId: activeDrawnStarter.id,
+        });
+      }
+      return activeDrawnStarter;
+    }
     
     // 2. Identify previous mission to avoid immediate repeat (Summer rule)
     const lastEntryId = profile?.submittedChallengeIds?.[profile.submittedChallengeIds.length - 1];
@@ -1975,12 +2015,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const previousId = lastEntryId || activeId;
 
     // 3. For a NEW draw, exclude the current active trip AND the previous one if possible
+    const afterCanonicalFilter = eligiblePool.map(t => t.id);
     let finalPool = eligiblePool.filter(t => {
+      if (isStarterPackDraw) return true;
       const tid = t.id.toString().toLowerCase();
-      // Only exclude previous if there are other options
-      if (eligiblePool.length > 1 && tid === previousId) return false;
-      return true;
+      return !(eligiblePool.length > 1 && tid === previousId);
     });
+    const afterPreviousFilter = finalPool.map(t => t.id);
 
     // 4. Default if all filtered out
     if (finalPool.length === 0 && eligiblePool.length > 0) {
@@ -1990,21 +2031,41 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const selectedId = finalPool.length > 0 ? (drawTripLogic(finalPool as any) as any)?.id : null;
 
     // 5. DEEP LOGGING as requested
-    console.log("[Deck Draw]", { 
-      uid: user?.uid,
-      deckId: effectivePackId, 
-      totalCards: trips.length, 
-      approvedIds: Array.from(approvedCompletedChallengeIds), 
-      pendingIds: Array.from(submittedPendingChallengeIds), 
-      needsMoreProofIds: Array.from(needsMoreProofChallengeIds), 
-      rejectedIds: Array.from(rejectedChallengeIds), 
-      activeTripId: activeId, 
-      previousDrawnId: previousId, 
-      eligibleIds: eligiblePool.map(t => t.id), 
-      selectedId 
-    });
+    const nullReason = finalPool.length === 0
+      ? (poolResult.diagnostics?.nullReason || `empty_final_pool:${poolResult.reason || 'unknown'}`)
+      : null;
 
-    if (finalPool.length === 0) return null;
+    if (import.meta.env.DEV) {
+      console.log("[Deck Draw Canonical]", {
+        uid: user?.uid,
+        deckId: effectivePackId,
+        totalCards: trips.length,
+        approvedIds: Array.from(approvedCompletedChallengeIds),
+        pendingIds: Array.from(submittedPendingChallengeIds),
+        needsMoreProofIds: Array.from(needsMoreProofChallengeIds),
+        rejectedIds: Array.from(rejectedChallengeIds),
+        activeTripId: activeId,
+        previousDrawnId: previousId,
+        eligibleIds: eligiblePool.map(t => t.id),
+        afterCanonicalFilter,
+        afterPreviousFilter,
+        canonicalStarter: isStarterPackDraw ? canonicalStarterDeckState : undefined,
+        excludedCards: poolResult.excludedCards,
+        nullReason,
+        selectedId
+      });
+    }
+
+    if (finalPool.length === 0) {
+      console.warn('[Deck Draw] drawTrip returning null', {
+        uid: user.uid,
+        deckId: effectivePackId,
+        nullReason,
+        diagnostics: poolResult.diagnostics,
+        analysis: poolResult.analysis,
+      });
+      return null;
+    }
 
     const newTrip = finalPool.find(t => t.id === selectedId) || finalPool[0];
     

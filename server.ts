@@ -13,6 +13,7 @@ import cron from 'node-cron';
 import fs from 'fs';
 import crypto from 'crypto';
 import rateLimit from "express-rate-limit";
+import { buildCanonicalStarterDeckState, toStarterProfileMirrors, STARTER_SIGNAL_IDS } from "./src/logic/starterDeckState";
 
 // Types for proof evaluation
 type MetadataStatus = 'verified' | 'missing' | 'mismatch' | 'unverified';
@@ -2868,11 +2869,43 @@ async function startServer() {
     const entries = Array.from(entryMap.values());
 
     const reviewsRef = dbAdmin.collection('proofReviews');
-    const reviewsSnap = await reviewsRef.where('userId', '==', uid).get();
+    const drawnCardsRef = userRef.collection('drawnMissionCards');
+    const [reviewsSnap, drawnCardsSnap] = await Promise.all([
+      reviewsRef.where('userId', '==', uid).get(),
+      drawnCardsRef.get()
+    ]);
     const reviewMap = new Map<string, any>();
-    reviewsSnap.docs.forEach(d => reviewMap.set(d.id, { id: d.id, ...d.data() }));
+    reviewsSnap.docs.forEach(d => {
+      const review: any = { id: d.id, ...d.data() };
+      reviewMap.set(d.id, review);
+      if (review.entryId) reviewMap.set(String(review.entryId), review);
+      if (review.submissionId) reviewMap.set(String(review.submissionId), review);
+    });
+    const drawnMissionCards = drawnCardsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const reviewRecords = Array.from(new Map(Array.from(reviewMap.values()).map(review => [review.id, review])).values());
 
-    const STARTER_IDS = ["starter-1", "starter-2", "starter-3"];
+    const reviewsAsEntries = reviewRecords.map((review) => ({
+      id: review.entryId || review.submissionId || review.id,
+      uid: review.uid || review.userId,
+      userId: review.userId || review.uid,
+      missionId: review.missionId || review.challengeId || review.tripId,
+      challengeId: review.challengeId || review.missionId || review.tripId,
+      tripId: review.tripId || review.missionId || review.challengeId,
+      deckId: review.deckId || 'starter-signals',
+      status: review.status || review.reviewStatus,
+      archived: review.archived,
+      excludedFromProgress: review.excludedFromProgress,
+      countsTowardLiveStats: review.countsTowardLiveStats,
+      countsTowardStarter: review.countsTowardStarter
+    }));
+
+    const beforeStarterState = buildCanonicalStarterDeckState({
+      userId: uid,
+      entries: [...reviewsAsEntries, ...entries],
+      profile: userData,
+      drawnMissionCards,
+      activeTripId: userData.activeMissionId || userData.activeTrip?.id || null
+    });
 
     const approvedIds = new Set<string>();
     const pendingIds = new Set<string>();
@@ -2962,24 +2995,55 @@ async function startServer() {
     const finalSubmitted = Array.from(allSubmittedIds).filter(id => !rejectedIds.has(id) && !needsMoreIds.has(id));
     const finalRetryable = Array.from(rejectedIds).filter(id => !approvedIds.has(id) && !pendingIds.has(id));
 
-    const starterApproved = STARTER_IDS.filter(id => approvedIds.has(id));
-    const isStarterPackComplete = starterApproved.length >= 3;
+    const normalizedEntriesForAfter = entries.map(entry => ({
+      ...entry,
+      status: normalizeStatusBackend(entry.status)
+    }));
+    const afterStarterState = buildCanonicalStarterDeckState({
+      userId: uid,
+      entries: [...reviewsAsEntries, ...normalizedEntriesForAfter],
+      profile: {
+        ...userData,
+        completedChallengeIds: finalApproved,
+        completedMissionIds: finalApproved,
+        submittedChallengeIds: finalSubmitted,
+        submittedPendingChallengeIds: finalPending,
+        rejectedChallengeIds: finalRejected,
+        needsMoreProofChallengeIds: finalNeedsMore,
+      },
+      drawnMissionCards,
+      activeTripId: userData.activeMissionId || userData.activeTrip?.id || null
+    });
+    const starterMirrors = toStarterProfileMirrors(afterStarterState);
+
+    const nonStarter = (ids: string[]) => ids.filter(id => !STARTER_SIGNAL_IDS.includes(id as any));
+    const mergeStarter = (nonStarterIds: string[], starterIds: string[]) => Array.from(new Set([...nonStarterIds, ...starterIds])).sort();
+
+    const repairedApproved = mergeStarter(nonStarter(finalApproved), starterMirrors.completedChallengeIds);
+    const repairedSubmitted = mergeStarter(nonStarter(finalSubmitted), starterMirrors.submittedChallengeIds);
+    const repairedPending = mergeStarter(nonStarter(finalPending), starterMirrors.submittedPendingChallengeIds);
+    const repairedRejected = mergeStarter(nonStarter(finalRejected), starterMirrors.rejectedChallengeIds);
+    const repairedNeedsMore = mergeStarter(nonStarter(finalNeedsMore), starterMirrors.needsMoreProofChallengeIds);
+    const repairedRetryable = mergeStarter(nonStarter(finalRetryable), starterMirrors.retryableChallengeIds);
+
+    const isStarterPackComplete = afterStarterState.starterComplete;
     const canUseHeatwaveDeck = isStarterPackComplete;
 
     const deckProgressRecalculated = {
-      starterApprovedCount: starterApproved.length,
+      starterApprovedCount: afterStarterState.starterApprovedCount,
       isStarterPackComplete,
       canUseHeatwaveDeck
     };
 
     const userProfileUpdates = {
-      completedChallengeIds: finalApproved,
-      completedMissionIds: finalApproved,
-      submittedChallengeIds: finalSubmitted,
-      submittedPendingChallengeIds: finalPending,
-      rejectedChallengeIds: finalRejected,
-      retryableChallengeIds: finalRetryable,
-      needsMoreProofChallengeIds: finalNeedsMore,
+      completedChallengeIds: repairedApproved,
+      completedMissionIds: repairedApproved,
+      approvedCompletedChallengeIds: repairedApproved,
+      submittedChallengeIds: repairedSubmitted,
+      submittedPendingChallengeIds: repairedPending,
+      rejectedChallengeIds: repairedRejected,
+      retryableChallengeIds: repairedRetryable,
+      needsMoreProofChallengeIds: repairedNeedsMore,
       starterDeckComplete: isStarterPackComplete,
       onboardingCompleted: isStarterPackComplete,
       activePlayableDeckId: isStarterPackComplete ? 'heatwave-receipts' : 'starter-signals',
@@ -3022,7 +3086,9 @@ async function startServer() {
           entriesStatusUpdatedCount: entriesToUpdate.length,
           proofReviewsUpdatedCount: logsToUpdate.length,
           isStarterPackComplete,
-          canUseHeatwaveDeck
+          canUseHeatwaveDeck,
+          beforeStarterState,
+          afterStarterState
         },
         warnings,
         errors: []
@@ -3041,7 +3107,9 @@ async function startServer() {
           entriesStatusUpdatedCount: entriesToUpdate.length,
           proofReviewsUpdatedCount: logsToUpdate.length,
           isStarterPackComplete,
-          canUseHeatwaveDeck
+          canUseHeatwaveDeck,
+          beforeStarterState,
+          afterStarterState
         },
         warnings,
         errors: []
@@ -3055,6 +3123,9 @@ async function startServer() {
       statusesNormalized,
       missingRecordsRebuilt: missingReviewsRebuilt,
       deckProgressRecalculated,
+      beforeStarterState,
+      afterStarterState,
+      proposedProfileUpdates: userProfileUpdates,
       errors: [] as string[],
       warnings
     };

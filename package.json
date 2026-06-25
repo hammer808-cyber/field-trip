@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:starter": "tsx src/__tests__/starterDeckState.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.3.0",
