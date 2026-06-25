@@ -80,6 +80,8 @@ Runtime variables used by the current codebase:
 | `GEMINI_API_KEY` | Yes | Secret Manager | Used by proof analysis and Gemini-backed API behavior. |
 | `VITE_RECAPTCHA_SITE_KEY` | Yes | Secret Manager or env var | Firebase App Check reCAPTCHA v3 site key. This value is included in the frontend build/runtime environment. |
 | `VITE_RECAPTCHA_ENTERPRISE_SITE_KEY` | Optional | Secret Manager or env var | Optional App Check Enterprise key; preferred by the frontend if set. |
+| `FIREBASE_PROJECT_ID` | Yes | Cloud Run/App Hosting env var | Server-side Firebase Admin project. Must be `field-trip-495823` in production. |
+| `FIRESTORE_DATABASE_ID` | Yes | Cloud Run/App Hosting env var | Server-side Firestore database. Use `(default)` unless intentionally deploying a named database. |
 | `VITE_FIREBASE_APPCHECK_DEBUG` | Optional | Cloud Run env var | Keep `false` in production. |
 | `ENFORCE_APP_CHECK` | Optional hardening | Cloud Run env var | Set `true` after App Check works on the production Cloud Run domain. |
 | `ENABLE_STARTUP_PURGE` | Optional local/dev | Cloud Run env var | Leave unset in production unless intentionally enabling startup purge behavior. |
@@ -166,9 +168,10 @@ The deployer or Cloud Build deploy service account also needs permission to buil
 3. Deploy manually with `gcloud run deploy`.
 4. Open the Cloud Run URL and confirm the frontend loads.
 5. Request `https://SERVICE_URL/api/health`.
-6. Confirm the health response shows `status: "ok"` and Firestore changes from `error` to `connected` after service account credentials and IAM are correct.
-7. Test one proof submission route only if it is safe to create test data in the target Firebase project.
-8. Confirm Cloud Run logs do not contain missing secret, permission, or App Check errors.
+6. Confirm the public health response shows `status: "ok"`. It intentionally does not read or write Firestore.
+7. Use the protected Admin Repair diagnostics page to verify Firestore connectivity after service account credentials and IAM are correct.
+8. Test one proof submission route only if it is safe to create test data in the target Firebase project.
+9. Confirm Cloud Run logs do not contain missing secret, permission, or App Check errors.
 
 ## Rollback Notes
 

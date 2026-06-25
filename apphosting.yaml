@@ -8,6 +8,10 @@ env:
     value: "true"
   - variable: VITE_FIREBASE_APP_CHECK_DEBUG
     value: "false"
+  - variable: FIREBASE_PROJECT_ID
+    value: "field-trip-495823"
+  - variable: FIRESTORE_DATABASE_ID
+    value: "(default)"
 
 # Secrets
 # Configure these in Firebase Console under App Hosting -> Secrets

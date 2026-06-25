@@ -116,8 +116,13 @@ export function initializeFirebase() {
     ignoreUndefinedProperties: true,
     localCache: memoryLocalCache(),
   };
-  const databaseId = (firebaseConfig as any).firestoreDatabaseId;
-  const db = initializeFirestore(app, firestoreSettings, databaseId);
+  const configuredDatabaseId = String((firebaseConfig as any).firestoreDatabaseId || '').trim();
+  const databaseId = configuredDatabaseId && configuredDatabaseId !== '(default)' && !configuredDatabaseId.startsWith('ai-studio-')
+    ? configuredDatabaseId
+    : undefined;
+  const db = databaseId
+    ? initializeFirestore(app, firestoreSettings, databaseId)
+    : initializeFirestore(app, firestoreSettings);
 
   const instances = { app, auth, db, storage };
   globalObj.FIREBASE_INSTANCES = instances;
