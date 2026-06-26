@@ -383,6 +383,7 @@ if (process.env.NODE_ENV !== 'production' && process.env.ENABLE_STARTUP_PURGE ==
 
 async function startServer() {
   const app = express();
+  app.set('trust proxy', 1);
   const port = Number(process.env.PORT || 3000);
 
   // Middleware for parsing JSON with large limits for images
