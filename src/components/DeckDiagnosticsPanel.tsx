@@ -12,6 +12,7 @@ import { authenticatedFetch } from '../lib/api';
 import { CanonicalProgressSnapshot, ProgressMismatch, getDeckProgress } from '../services/canonicalProgress';
 
 interface DeckDiagnosticsPanelProps {
+  userId?: string | null;
   activePack: DeckPack | null;
   missions: TripCard[];
   entries: Entry[];
@@ -131,6 +132,7 @@ export function DeckDiagnosticsPanel(props: DeckDiagnosticsPanelProps) {
   const [open, setOpen] = React.useState(false);
   const [simulation, setSimulation] = React.useState<DeckDrawSimulation | null>(null);
   const [repairingStarter, setRepairingStarter] = React.useState(false);
+  const [resettingStarter, setResettingStarter] = React.useState(false);
   const [starterRepairReport, setStarterRepairReport] = React.useState<any | null>(null);
 
   const deckId = props.activePack?.packId || 'unknown';
@@ -199,6 +201,40 @@ export function DeckDiagnosticsPanel(props: DeckDiagnosticsPanelProps) {
       setStarterRepairReport({ success: false, error: error.message || 'Starter repair failed' });
     } finally {
       setRepairingStarter(false);
+    }
+  };
+
+  const resetCurrentUserStarterState = async () => {
+    if (!props.userId) {
+      setStarterRepairReport({ success: false, error: 'No signed-in user id is available for starter reset.' });
+      return;
+    }
+
+    const confirmed = window.confirm(
+      'Factory reset Starter Signals for this user? This archives old Starter submissions/reviews and clears Starter deck state only.'
+    );
+    if (!confirmed) return;
+
+    setResettingStarter(true);
+    setStarterRepairReport(null);
+    try {
+      const response = await authenticatedFetch('/api/admin/reset-user-starter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUid: props.userId,
+          confirmReset: true
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || data.error || `Starter reset failed with HTTP ${response.status}`);
+      }
+      setStarterRepairReport(data);
+    } catch (error: any) {
+      setStarterRepairReport({ success: false, error: error.message || 'Starter reset failed' });
+    } finally {
+      setResettingStarter(false);
     }
   };
 
@@ -301,10 +337,18 @@ export function DeckDiagnosticsPanel(props: DeckDiagnosticsPanelProps) {
                     <button
                       type="button"
                       onClick={repairStarterConfiguration}
-                      disabled={repairingStarter}
+                      disabled={repairingStarter || resettingStarter}
                       className="rounded-lg border-2 border-red-200 bg-red-300 px-3 py-2 font-black uppercase tracking-wider text-black disabled:opacity-50"
                     >
                       {repairingStarter ? 'Repairing...' : 'Repair Starter Signals Configuration'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={resetCurrentUserStarterState}
+                      disabled={repairingStarter || resettingStarter || !props.userId}
+                      className="rounded-lg border-2 border-lime-100 bg-lime-300 px-3 py-2 font-black uppercase tracking-wider text-black disabled:opacity-50"
+                    >
+                      {resettingStarter ? 'Resetting...' : 'Factory Reset My Starter State'}
                     </button>
                     {starterRepairReport && (
                       <pre className="max-h-40 max-w-full overflow-auto rounded bg-black/60 p-2 text-[10px] text-white/80">{JSON.stringify(starterRepairReport, null, 2)}</pre>

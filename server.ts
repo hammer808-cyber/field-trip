@@ -3265,6 +3265,252 @@ async function startServer() {
     }
   });
 
+  app.post("/api/admin/reset-user-starter", adminRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+
+    const isAdminUser = await checkIsAdmin(req.user);
+    if (!isAdminUser) {
+      return res.status(403).json({ error: "ADMIN_REQUIRED" });
+    }
+
+    const { targetUid, confirmReset } = req.body || {};
+    if (!targetUid || typeof targetUid !== "string") {
+      return res.status(400).json({ error: "INVALID_TARGET_UID" });
+    }
+    if (confirmReset !== true) {
+      return res.status(400).json({ error: "CONFIRMATION_REQUIRED", message: "confirmReset=true is required." });
+    }
+
+    const starterIds = new Set<string>(STARTER_SIGNAL_IDS);
+    const cleanId = (value: unknown) => String(value || "").toLowerCase().trim();
+    const isStarterId = (value: unknown) => starterIds.has(cleanId(value));
+    const getRecordMissionId = (record: any) => cleanId(record?.missionId || record?.challengeId || record?.tripId || record?.id);
+    const isStarterRecord = (record: any, starterEntryIds = new Set<string>()) => {
+      const missionId = getRecordMissionId(record);
+      const deckId = cleanId(record?.deckId);
+      const linkedEntryId = cleanId(record?.entryId || record?.submissionId || record?.proofId);
+      return starterIds.has(missionId) || deckId === "starter-signals" || deckId === "starter" || starterEntryIds.has(linkedEntryId);
+    };
+    const removeStarterIds = (value: unknown) => Array.isArray(value)
+      ? value.filter(id => !isStarterId(id))
+      : [];
+    const clearIfStarter = (value: unknown) => isStarterId(value) ? null : (value ?? null);
+    const clearTripIfStarter = (value: any) => value && isStarterId(value.id || value.missionId || value.challengeId || value.tripId) ? null : (value || null);
+
+    const userRef = dbAdmin.collection("users").doc(targetUid);
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) {
+      return res.status(404).json({ error: "USER_NOT_FOUND" });
+    }
+
+    const userData = userSnap.data() || {};
+    const userQueryDocs = async (collectionName: string) => {
+      const col = dbAdmin!.collection(collectionName);
+      const snapshots = await Promise.all([
+        col.where("userId", "==", targetUid).get(),
+        col.where("uid", "==", targetUid).get()
+      ]);
+      const byPath = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
+      snapshots.forEach(snapshot => snapshot.docs.forEach(doc => byPath.set(doc.ref.path, doc)));
+      return Array.from(byPath.values());
+    };
+
+    const [entryDocs, proofReviewDocs, proofDocs, proofCheckDocs, drawnCardsSnap] = await Promise.all([
+      userQueryDocs("entries"),
+      userQueryDocs("proofReviews"),
+      userQueryDocs("proofs"),
+      userQueryDocs("proofChecks"),
+      userRef.collection("drawnMissionCards").get()
+    ]);
+
+    const starterEntryDocs = entryDocs.filter(doc => isStarterRecord(doc.data()));
+    const starterEntryIds = new Set(starterEntryDocs.map(doc => cleanId(doc.id)));
+    const starterProofReviewDocs = proofReviewDocs.filter(doc => isStarterRecord({ id: doc.id, ...doc.data() }, starterEntryIds));
+    const starterProofDocs = proofDocs.filter(doc => isStarterRecord({ id: doc.id, ...doc.data() }, starterEntryIds));
+    const starterProofCheckDocs = proofCheckDocs.filter(doc => isStarterRecord({ id: doc.id, ...doc.data() }, starterEntryIds));
+    const starterDrawnCards = drawnCardsSnap.docs.filter(doc => isStarterRecord({ id: doc.id, ...doc.data() }));
+
+    const beforeStarterState = buildCanonicalStarterDeckState({
+      userId: targetUid,
+      entries: [
+        ...entryDocs.map(doc => ({ id: doc.id, ...doc.data() })),
+        ...proofReviewDocs.map(doc => ({ id: doc.id, ...doc.data() }))
+      ],
+      profile: userData,
+      drawnMissionCards: drawnCardsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })),
+      activeTripId: userData.activeMissionId || userData.activeTrip?.id || null
+    });
+
+    let xpReduction = 0;
+    starterEntryDocs.forEach(doc => {
+      const entry = doc.data();
+      if (normalizeStatusBackend(entry.status) === "approved" && entry.xpReversed !== true) {
+        xpReduction += Number(entry.awardedXP || entry.pointsAwarded || entry.awardedPoints || entry.estimatedPoints || 100);
+      }
+    });
+
+    const nextPoints = (field: string) => Math.max(0, Number(userData[field] || 0) - xpReduction);
+    const activeTrip = clearTripIfStarter(userData.activeTrip);
+    const resetVersion = `single-user-starter-reset-${Date.now()}`;
+    const userUpdate: any = {
+      completedChallengeIds: removeStarterIds(userData.completedChallengeIds),
+      completedMissionIds: removeStarterIds(userData.completedMissionIds),
+      approvedCompletedChallengeIds: removeStarterIds(userData.approvedCompletedChallengeIds),
+      submittedChallengeIds: removeStarterIds(userData.submittedChallengeIds),
+      submittedPendingChallengeIds: removeStarterIds(userData.submittedPendingChallengeIds),
+      rejectedChallengeIds: removeStarterIds(userData.rejectedChallengeIds),
+      retryableChallengeIds: removeStarterIds(userData.retryableChallengeIds),
+      needsMoreProofChallengeIds: removeStarterIds(userData.needsMoreProofChallengeIds),
+      drawnChallengeIds: removeStarterIds(userData.drawnChallengeIds),
+      drawnMissionIds: removeStarterIds(userData.drawnMissionIds),
+      starterApprovedCount: 0,
+      starterPendingCount: 0,
+      starterProgress: 0,
+      starterProgressCount: 0,
+      starterCompleted: false,
+      starterDeckComplete: false,
+      onboardingCompleted: false,
+      onboardingComplete: false,
+      activeMissionId: clearIfStarter(userData.activeMissionId),
+      activeTripId: clearIfStarter(userData.activeTripId),
+      currentChallengeId: clearIfStarter(userData.currentChallengeId),
+      currentMissionId: clearIfStarter(userData.currentMissionId),
+      activeChallengeId: clearIfStarter(userData.activeChallengeId),
+      lastDrawnMissionId: clearIfStarter(userData.lastDrawnMissionId),
+      lastSubmittedMissionId: clearIfStarter(userData.lastSubmittedMissionId),
+      activeTrip,
+      isActive: !!activeTrip,
+      drawnStarterMissionIds: [],
+      starterDrawHistory: [],
+      exhaustedStarterDeck: false,
+      currentDeckId: "starter-signals",
+      activeDeckId: "starter-signals",
+      selectedDeckId: "starter-signals",
+      activeDeckPackId: "starter-signals",
+      activePlayableDeckId: "starter-signals",
+      unlockedDeckIds: removeStarterIds(userData.unlockedDeckIds).filter((id: string) => id !== "heatwave-receipts"),
+      points: nextPoints("points"),
+      totalPoints: nextPoints("totalPoints"),
+      seasonPoints: nextPoints("seasonPoints"),
+      weeklyPoints: nextPoints("weeklyPoints"),
+      xp: nextPoints("xp"),
+      score: nextPoints("score"),
+      starterResetVersion: resetVersion,
+      starterResetAt: FieldValue.serverTimestamp(),
+      starterResetBy: req.user.uid,
+      updatedAt: FieldValue.serverTimestamp(),
+      "starterState.starterApprovedCount": 0,
+      "starterState.starterComplete": false,
+      "starterState.starterSignalsCompleted": [],
+      "starterState.pendingStarterCount": 0,
+      "starterState.needsMoreProofStarterCount": 0,
+      "starterState.retryStarterCount": 0,
+      "starterState.submittedMissionIds": [],
+      "starterState.needsMoreProofMissionId": null,
+      "starterState.needsMoreProofEntryId": null,
+      "starterState.rejectedMissionId": null,
+      "starterState.rejectedEntryId": null,
+      "starterState.status": "NOT_STARTED",
+      lastDrawnAt: FieldValue.delete(),
+      lastSubmissionAt: FieldValue.delete()
+    };
+
+    let batch = dbAdmin.batch();
+    let opCount = 0;
+    const commitIfNeeded = async () => {
+      if (opCount < 450) return;
+      await batch.commit();
+      batch = dbAdmin!.batch();
+      opCount = 0;
+    };
+    const archiveDocs = async (docs: FirebaseFirestore.QueryDocumentSnapshot[], collectionLabel: string) => {
+      for (const doc of docs) {
+        const data = doc.data();
+        const xpVal = collectionLabel === "entries" && normalizeStatusBackend(data.status) === "approved" && data.xpReversed !== true
+          ? Number(data.awardedXP || data.pointsAwarded || data.awardedPoints || data.estimatedPoints || 100)
+          : 0;
+        batch.set(doc.ref, {
+          archived: true,
+          archivedAt: FieldValue.serverTimestamp(),
+          archiveReason: "single_user_starter_factory_reset",
+          excludedFromProgress: true,
+          countsTowardLiveStats: false,
+          countsTowardStarter: false,
+          starterResetVersion: resetVersion,
+          xpReversed: xpVal > 0 ? true : data.xpReversed || false,
+          reversedXp: xpVal > 0 ? xpVal : data.reversedXp || 0
+        }, { merge: true });
+        opCount++;
+        await commitIfNeeded();
+      }
+    };
+
+    await archiveDocs(starterEntryDocs, "entries");
+    await archiveDocs(starterProofReviewDocs, "proofReviews");
+    await archiveDocs(starterProofDocs, "proofs");
+    await archiveDocs(starterProofCheckDocs, "proofChecks");
+    await archiveDocs(starterDrawnCards, "drawnMissionCards");
+
+    batch.update(userRef, userUpdate);
+    opCount++;
+    if (opCount > 0) await batch.commit();
+
+    const afterStarterState = buildCanonicalStarterDeckState({
+      userId: targetUid,
+      entries: [],
+      profile: {
+        ...userData,
+        ...userUpdate,
+        completedChallengeIds: userUpdate.completedChallengeIds,
+        approvedCompletedChallengeIds: userUpdate.approvedCompletedChallengeIds,
+        completedMissionIds: userUpdate.completedMissionIds,
+        submittedChallengeIds: userUpdate.submittedChallengeIds,
+        submittedPendingChallengeIds: userUpdate.submittedPendingChallengeIds,
+        needsMoreProofChallengeIds: userUpdate.needsMoreProofChallengeIds,
+        rejectedChallengeIds: userUpdate.rejectedChallengeIds,
+        activeMissionId: userUpdate.activeMissionId,
+        activeTrip
+      },
+      drawnMissionCards: [],
+      activeTripId: null
+    });
+
+    await dbAdmin.collection("adminRepairLogs").add({
+      actionType: "single_user_starter_factory_reset",
+      adminUid: req.user.uid,
+      targetUid,
+      timestamp: FieldValue.serverTimestamp(),
+      resetVersion,
+      countsChanged: {
+        entriesArchived: starterEntryDocs.length,
+        proofReviewsArchived: starterProofReviewDocs.length,
+        proofsArchived: starterProofDocs.length,
+        proofChecksArchived: starterProofCheckDocs.length,
+        drawnCardsArchived: starterDrawnCards.length,
+        xpReduction
+      },
+      beforeStarterState,
+      afterStarterState
+    });
+
+    return res.json({
+      success: true,
+      action: "single_user_starter_factory_reset",
+      targetUid,
+      resetVersion,
+      counts: {
+        entriesArchived: starterEntryDocs.length,
+        proofReviewsArchived: starterProofReviewDocs.length,
+        proofsArchived: starterProofDocs.length,
+        proofChecksArchived: starterProofCheckDocs.length,
+        drawnCardsArchived: starterDrawnCards.length,
+        xpReduction
+      },
+      beforeStarterState,
+      afterStarterState
+    });
+  });
+
   app.post("/api/admin/bulk-sync", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
 

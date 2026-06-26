@@ -492,6 +492,7 @@ export default function DeckPage() {
   const deckLockState = getPackLockState(activePack);
   const deckDiagnosticsPanel = (isAdmin || import.meta.env.DEV) ? (
     <DeckDiagnosticsPanel
+      userId={user?.uid || null}
       activePack={activePack}
       missions={trips}
       entries={entries}
