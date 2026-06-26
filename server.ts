@@ -808,6 +808,7 @@ async function startServer() {
 
       for (const reviewDoc of reviewsSnap.docs) {
         if (entryIds.has(reviewDoc.id)) continue;
+        if (reviewDoc.data().archived === true) continue;
         orphanedDetected++;
 
         if (!dryRun) {
@@ -852,6 +853,79 @@ async function startServer() {
     } catch (error: any) {
       console.error("[ARCHIVE_ORPHAN_PROOF_REVIEWS] Error:", error);
       res.status(500).json({ error: "ARCHIVE_ORPHAN_PROOF_REVIEWS_FAILED", message: error.message });
+    }
+  });
+
+  app.post("/api/admin/hard-delete-archived-orphan-proof-reviews", adminRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const isAdminUser = await checkIsAdmin(req.user);
+    if (!isAdminUser) return res.status(403).json({ error: "ADMIN_ONLY" });
+
+    const dryRun = req.body?.dryRun !== false;
+    const confirmDelete = req.body?.confirmDelete === true;
+
+    if (!dryRun && !confirmDelete) {
+      return res.status(400).json({
+        error: "CONFIRM_DELETE_REQUIRED",
+        message: "Hard delete requires confirmDelete=true. Run a preview first."
+      });
+    }
+
+    try {
+      const [entriesSnap, reviewsSnap] = await Promise.all([
+        dbAdmin.collection('entries').get(),
+        dbAdmin.collection('proofReviews').get()
+      ]);
+
+      const entryIds = new Set(entriesSnap.docs.map(doc => doc.id));
+      const candidates = reviewsSnap.docs.filter(reviewDoc => {
+        const data = reviewDoc.data();
+        return data.archived === true && !entryIds.has(reviewDoc.id);
+      });
+
+      let reviewsDeleted = 0;
+      let batch = dbAdmin.batch();
+      let batchCount = 0;
+
+      if (!dryRun) {
+        for (const reviewDoc of candidates) {
+          batch.delete(reviewDoc.ref);
+          reviewsDeleted++;
+          batchCount++;
+
+          if (batchCount >= 450) {
+            await batch.commit();
+            batch = dbAdmin.batch();
+            batchCount = 0;
+          }
+        }
+
+        if (batchCount > 0) await batch.commit();
+      }
+
+      await dbAdmin.collection('adminRepairLogs').add({
+        action: "hard_delete_archived_orphan_proof_reviews",
+        performedBy: req.user.uid,
+        dryRun,
+        archivedOrphansDetected: candidates.length,
+        reviewsDeleted,
+        previewIds: candidates.slice(0, 50).map(doc => doc.id),
+        reviewsScanned: reviewsSnap.size,
+        timestamp: FieldValue.serverTimestamp()
+      });
+
+      res.json({
+        success: true,
+        dryRun,
+        archivedOrphansDetected: candidates.length,
+        reviewsDeleted,
+        previewIds: candidates.slice(0, 50).map(doc => doc.id),
+        reviewsScanned: reviewsSnap.size,
+        errors: []
+      });
+    } catch (error: any) {
+      console.error("[HARD_DELETE_ARCHIVED_ORPHAN_PROOF_REVIEWS] Error:", error);
+      res.status(500).json({ error: "HARD_DELETE_ARCHIVED_ORPHAN_PROOF_REVIEWS_FAILED", message: error.message });
     }
   });
 
@@ -4131,6 +4205,7 @@ async function startServer() {
 
       let pendingProofReviewsCount = 0;
       reviewsSnap.docs.forEach(d => {
+        if (d.data().archived === true) return;
         const s = (d.data().status || '').toLowerCase().trim();
         if (['pending_review', 'pending', 'checking', 'awaiting_review', 'needs_review'].includes(s)) {
           pendingProofReviewsCount++;
@@ -4146,6 +4221,7 @@ async function startServer() {
 
       let reviewsWithoutMatchingEntriesCount = 0;
       reviewsSnap.docs.forEach(d => {
+        if (d.data().archived === true) return;
         if (!entryIds.has(d.id)) {
           reviewsWithoutMatchingEntriesCount++;
         }

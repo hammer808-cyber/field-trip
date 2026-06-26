@@ -100,6 +100,18 @@ export interface DiagnosticsReport {
   lastRepairRunTimestamp: string;
 }
 
+export interface OrphanReviewCleanupReport {
+  success: boolean;
+  dryRun: boolean;
+  orphanedDetected?: number;
+  reviewsArchived?: number;
+  archivedOrphansDetected?: number;
+  reviewsDeleted?: number;
+  previewIds?: string[];
+  reviewsScanned: number;
+  errors: string[];
+}
+
 async function readAdminJson<T = any>(response: Response, fallbackMessage: string): Promise<T> {
   const contentType = response.headers.get('content-type') || '';
 
@@ -394,14 +406,24 @@ export async function resetUserState(params: {
   };
 }
 
-export async function archiveOrphanedProofReviews(dryRun: boolean = false): Promise<any> {
+export async function archiveOrphanedProofReviews(dryRun: boolean = false): Promise<OrphanReviewCleanupReport> {
   const response = await authenticatedFetch('/api/admin/archive-orphan-proof-reviews', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ dryRun })
   });
 
-  return readAdminJson<any>(response, `Archive orphan reviews failed with HTTP ${response.status}`);
+  return readAdminJson<OrphanReviewCleanupReport>(response, `Archive orphan reviews failed with HTTP ${response.status}`);
+}
+
+export async function hardDeleteArchivedOrphanProofReviews(dryRun: boolean = true): Promise<OrphanReviewCleanupReport> {
+  const response = await authenticatedFetch('/api/admin/hard-delete-archived-orphan-proof-reviews', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dryRun, confirmDelete: !dryRun })
+  });
+
+  return readAdminJson<OrphanReviewCleanupReport>(response, `Hard delete archived orphan reviews failed with HTTP ${response.status}`);
 }
 
 export async function runBetaHardReset(params: {

@@ -19,6 +19,7 @@ import {
   repairStrandedStarterUsers,
   getRepairDiagnostics,
   archiveOrphanedProofReviews,
+  hardDeleteArchivedOrphanProofReviews,
   runBetaHardReset,
   resetUserState,
   lookupAdminUsers,
@@ -27,7 +28,8 @@ import {
   StrandedStarterRepairReport,
   BetaHardResetReport,
   UserResetReport,
-  AdminUserLookupResult
+  AdminUserLookupResult,
+  OrphanReviewCleanupReport
 } from '../services/repairService';
 import { cn } from '../lib/utils';
 
@@ -55,7 +57,9 @@ export default function AdminRepair() {
   const [diagnostics, setDiagnostics] = useState<DiagnosticsReport | null>(null);
   const [loadingDiagnostics, setLoadingDiagnostics] = useState(false);
   const [cleaningOrphanReviews, setCleaningOrphanReviews] = useState(false);
-  const [orphanCleanupReport, setOrphanCleanupReport] = useState<any>(null);
+  const [orphanCleanupReport, setOrphanCleanupReport] = useState<OrphanReviewCleanupReport | null>(null);
+  const [hardDeletingOrphanReviews, setHardDeletingOrphanReviews] = useState(false);
+  const [hardDeleteReport, setHardDeleteReport] = useState<OrphanReviewCleanupReport | null>(null);
 
   const [resetTarget, setResetTarget] = useState('');
   const [resetConfirm, setResetConfirm] = useState(false);
@@ -213,6 +217,32 @@ export default function AdminRepair() {
       await fetchDiagnostics();
     } finally {
       setCleaningOrphanReviews(false);
+    }
+  };
+
+  const handlePreviewHardDeleteOrphanReviews = async () => {
+    setHardDeletingOrphanReviews(true);
+    setHardDeleteReport(null);
+    try {
+      setHardDeleteReport(await hardDeleteArchivedOrphanProofReviews(true));
+    } finally {
+      setHardDeletingOrphanReviews(false);
+    }
+  };
+
+  const handleHardDeleteOrphanReviews = async () => {
+    const candidateCount = hardDeleteReport?.archivedOrphansDetected || 0;
+    if (candidateCount <= 0) return;
+    const confirmed = window.confirm(`Permanently delete ${candidateCount} archived ghost proof review${candidateCount === 1 ? '' : 's'}? This cannot be undone from the app.`);
+    if (!confirmed) return;
+
+    setHardDeletingOrphanReviews(true);
+    try {
+      const report = await hardDeleteArchivedOrphanProofReviews(false);
+      setHardDeleteReport(report);
+      await fetchDiagnostics();
+    } finally {
+      setHardDeletingOrphanReviews(false);
     }
   };
 
@@ -409,6 +439,12 @@ export default function AdminRepair() {
                 <button onClick={handleArchiveOrphanReviews} disabled={cleaningOrphanReviews || !diagnostics || diagnostics.countReviewsNoEntries === 0} className="px-4 py-2 bg-brand-orange text-white border-2 border-on-surface rounded-lg text-[10px] font-mono font-black uppercase disabled:opacity-40 shadow-[3px_3px_0px_black]">
                   {cleaningOrphanReviews ? 'Archiving...' : 'Archive Orphan Reviews'}
                 </button>
+                <button onClick={handlePreviewHardDeleteOrphanReviews} disabled={hardDeletingOrphanReviews || !diagnostics} className="px-4 py-2 bg-white text-on-surface border-2 border-on-surface rounded-lg text-[10px] font-mono font-black uppercase disabled:opacity-40 shadow-[3px_3px_0px_black]">
+                  {hardDeletingOrphanReviews ? 'Checking...' : 'Preview Hard Delete'}
+                </button>
+                <button onClick={handleHardDeleteOrphanReviews} disabled={hardDeletingOrphanReviews || !hardDeleteReport || hardDeleteReport.dryRun !== true || (hardDeleteReport.archivedOrphansDetected || 0) === 0} className="px-4 py-2 bg-rose-600 text-white border-2 border-on-surface rounded-lg text-[10px] font-mono font-black uppercase disabled:opacity-40 shadow-[3px_3px_0px_black]">
+                  Delete Archived Ghosts
+                </button>
                 <button onClick={fetchDiagnostics} disabled={loadingDiagnostics} className="p-2 border-2 border-on-surface rounded-lg hover:bg-on-surface/5">
                   <RefreshCw className={cn("w-4 h-4", loadingDiagnostics && "animate-spin")} />
                 </button>
@@ -425,6 +461,7 @@ export default function AdminRepair() {
                   <StatItem label="Last Scan" value={new Date(diagnostics.lastRepairRunTimestamp).toLocaleTimeString()} status="neutral" />
                 </div>
                 {orphanCleanupReport && <RepairActionReceipt title="Orphan Review Cleanup" failed={!orphanCleanupReport.success || orphanCleanupReport.errors?.length > 0} rows={[['Detected', orphanCleanupReport.orphanedDetected || 0], ['Archived', orphanCleanupReport.reviewsArchived || 0], ['Scanned', orphanCleanupReport.reviewsScanned || 0]]} error={orphanCleanupReport.errors?.[0]} />}
+                {hardDeleteReport && <RepairActionReceipt title={hardDeleteReport.dryRun ? 'Hard Delete Preview' : 'Hard Delete Receipt'} failed={!hardDeleteReport.success || hardDeleteReport.errors?.length > 0} rows={[['Mode', hardDeleteReport.dryRun ? 'Preview' : 'Deleted'], ['Archived Ghosts', hardDeleteReport.archivedOrphansDetected || 0], ['Deleted', hardDeleteReport.reviewsDeleted || 0], ['Preview IDs', hardDeleteReport.previewIds?.slice(0, 5).join(', ') || 'none'], ['Scanned', hardDeleteReport.reviewsScanned || 0]]} error={hardDeleteReport.errors?.[0]} />}
                 <DeployStamp deployInfo={diagnostics.deployInfo} />
               </>
             ) : <EmptyReceipt text="Run diagnostics to see system health." />}

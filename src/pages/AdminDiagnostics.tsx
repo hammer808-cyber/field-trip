@@ -2,12 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { Activity, Server, Database, Globe, Cpu, AlertTriangle, CheckCircle, RefreshCw, Shield } from 'lucide-react';
 import { AdminLayout, StatusLight } from '../components/admin/AdminShared';
 import { Card } from '../components/UI';
-import { getRepairDiagnostics, DiagnosticsReport } from '../services/repairService';
+import {
+  archiveOrphanedProofReviews,
+  getRepairDiagnostics,
+  hardDeleteArchivedOrphanProofReviews,
+  DiagnosticsReport,
+  OrphanReviewCleanupReport
+} from '../services/repairService';
 import { cn } from '../lib/utils';
 
 export default function AdminDiagnostics() {
   const [diagnostics, setDiagnostics] = useState<DiagnosticsReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cleanupRunning, setCleanupRunning] = useState(false);
+  const [cleanupReport, setCleanupReport] = useState<OrphanReviewCleanupReport | null>(null);
+  const [hardDeleteRunning, setHardDeleteRunning] = useState(false);
+  const [hardDeleteReport, setHardDeleteReport] = useState<OrphanReviewCleanupReport | null>(null);
 
   useEffect(() => {
     fetchDiagnostics();
@@ -22,6 +32,42 @@ export default function AdminDiagnostics() {
       console.error('Failed to fetch diagnostics:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const archiveGhostReviews = async () => {
+    setCleanupRunning(true);
+    setCleanupReport(null);
+    try {
+      setCleanupReport(await archiveOrphanedProofReviews(false));
+      await fetchDiagnostics();
+    } finally {
+      setCleanupRunning(false);
+    }
+  };
+
+  const previewHardDelete = async () => {
+    setHardDeleteRunning(true);
+    setHardDeleteReport(null);
+    try {
+      setHardDeleteReport(await hardDeleteArchivedOrphanProofReviews(true));
+    } finally {
+      setHardDeleteRunning(false);
+    }
+  };
+
+  const hardDeleteGhostReviews = async () => {
+    const count = hardDeleteReport?.archivedOrphansDetected || 0;
+    if (count <= 0) return;
+    const confirmed = window.confirm(`Permanently delete ${count} archived ghost proof review${count === 1 ? '' : 's'}? This cannot be undone from the app.`);
+    if (!confirmed) return;
+
+    setHardDeleteRunning(true);
+    try {
+      setHardDeleteReport(await hardDeleteArchivedOrphanProofReviews(false));
+      await fetchDiagnostics();
+    } finally {
+      setHardDeleteRunning(false);
     }
   };
 
@@ -62,9 +108,22 @@ export default function AdminDiagnostics() {
         {/* Detailed Insights */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
            <Card className="lg:col-span-2 p-8 border-2 border-on-surface shadow-[8px_8px_0px_black] bg-white">
-              <div className="flex justify-between items-center mb-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                  <h3 className="text-xl font-display font-black uppercase italic tracking-tight">Anomalies Detected</h3>
-                 {loading && <RefreshCw className="w-5 h-5 animate-spin text-brand-orange" />}
+                 <div className="flex flex-wrap gap-2">
+                   <button onClick={archiveGhostReviews} disabled={cleanupRunning || !diagnostics || diagnostics.countReviewsNoEntries === 0} className="px-3 py-2 bg-brand-orange text-white border-2 border-on-surface rounded-lg text-[9px] font-mono font-black uppercase disabled:opacity-40 shadow-[2px_2px_0px_black]">
+                     {cleanupRunning ? 'Archiving...' : 'Archive Ghosts'}
+                   </button>
+                   <button onClick={previewHardDelete} disabled={hardDeleteRunning || !diagnostics} className="px-3 py-2 bg-white text-on-surface border-2 border-on-surface rounded-lg text-[9px] font-mono font-black uppercase disabled:opacity-40 shadow-[2px_2px_0px_black]">
+                     {hardDeleteRunning ? 'Checking...' : 'Preview Delete'}
+                   </button>
+                   <button onClick={hardDeleteGhostReviews} disabled={hardDeleteRunning || !hardDeleteReport || hardDeleteReport.dryRun !== true || (hardDeleteReport.archivedOrphansDetected || 0) === 0} className="px-3 py-2 bg-rose-600 text-white border-2 border-on-surface rounded-lg text-[9px] font-mono font-black uppercase disabled:opacity-40 shadow-[2px_2px_0px_black]">
+                     Delete Archived
+                   </button>
+                   <button onClick={fetchDiagnostics} disabled={loading} className="p-2 border-2 border-on-surface rounded-lg hover:bg-on-surface/5 disabled:opacity-40">
+                     <RefreshCw className={cn("w-4 h-4", loading && "animate-spin text-brand-orange")} />
+                   </button>
+                 </div>
               </div>
               
               <div className="space-y-4">
@@ -94,6 +153,22 @@ export default function AdminDiagnostics() {
                    </>
                  )}
               </div>
+              {cleanupReport && (
+                <DiagnosticReceipt title="Ghost Archive Cleanup" rows={[
+                  ['Detected', cleanupReport.orphanedDetected || 0],
+                  ['Archived', cleanupReport.reviewsArchived || 0],
+                  ['Scanned', cleanupReport.reviewsScanned || 0]
+                ]} failed={!cleanupReport.success || cleanupReport.errors?.length > 0} error={cleanupReport.errors?.[0]} />
+              )}
+              {hardDeleteReport && (
+                <DiagnosticReceipt title={hardDeleteReport.dryRun ? 'Hard Delete Preview' : 'Hard Delete Receipt'} rows={[
+                  ['Mode', hardDeleteReport.dryRun ? 'Preview' : 'Deleted'],
+                  ['Archived Ghosts', hardDeleteReport.archivedOrphansDetected || 0],
+                  ['Deleted', hardDeleteReport.reviewsDeleted || 0],
+                  ['Preview IDs', hardDeleteReport.previewIds?.slice(0, 5).join(', ') || 'none'],
+                  ['Scanned', hardDeleteReport.reviewsScanned || 0]
+                ]} failed={!hardDeleteReport.success || hardDeleteReport.errors?.length > 0} error={hardDeleteReport.errors?.[0]} />
+              )}
            </Card>
 
            <Card className="p-8 border-2 border-on-surface shadow-[8px_8px_0px_black] bg-[#FAF8F5]">
@@ -144,6 +219,21 @@ function AnomalyRow({ label, value, warningThreshold, isPositive = false }: any)
       )}>
         {value}
       </span>
+    </div>
+  );
+}
+
+function DiagnosticReceipt({ title, rows, failed, error }: { title: string; rows: Array<[string, string | number]>; failed?: boolean; error?: string }) {
+  return (
+    <div className={cn("mt-4 p-4 border rounded-xl font-mono text-[10px] uppercase font-bold space-y-2", failed ? "bg-rose-50 border-rose-200 text-rose-700" : "bg-emerald-50 border-emerald-200 text-emerald-700")}>
+      <p className="font-black tracking-widest">{title}</p>
+      {rows.map(([label, value]) => (
+        <div key={label} className="flex justify-between gap-3 border-t border-current/10 pt-2">
+          <span className="opacity-60">{label}</span>
+          <span className="text-right break-all">{String(value)}</span>
+        </div>
+      ))}
+      {error && <div className="mt-3 p-3 bg-white/70 border border-current/20 rounded-lg normal-case break-words">{error}</div>}
     </div>
   );
 }
