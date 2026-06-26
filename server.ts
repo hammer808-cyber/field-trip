@@ -3781,17 +3781,43 @@ async function startServer() {
         }
       }
 
-      const [entriesSnapshot, usersSnapshot] = await Promise.all([
+      const [
+        entriesSnapshot,
+        usersSnapshot,
+        proofReviewsSnapshot,
+        proofsSnapshot,
+        proofChecksSnapshot,
+        drawnMissionCardsSnapshot
+      ] = await Promise.all([
         dbAdmin.collection('entries').get(),
-        dbAdmin.collection('users').get()
+        dbAdmin.collection('users').get(),
+        dbAdmin.collection('proofReviews').get(),
+        dbAdmin.collection('proofs').get(),
+        dbAdmin.collection('proofChecks').get(),
+        dbAdmin.collectionGroup('drawnMissionCards').get()
       ]);
 
       const userXpReduction = new Map<string, number>();
       let submissionsArchivedCount = 0;
       let proofReviewsUpdatedCount = 0;
+      let proofsUpdatedCount = 0;
+      let proofChecksUpdatedCount = 0;
+      let drawnMissionCardsArchivedCount = 0;
       let totalXPReversed = 0;
 
       const entriesToUpdate: any[] = [];
+      const starterEntryIds = new Set<string>();
+      const starterMissionsSet = new Set(starterMissions);
+      const cleanId = (value: unknown) => String(value || '').toLowerCase().trim();
+      const isStarterLinkedRecord = (record: any, docId?: string) => {
+        const missionId = cleanId(record?.missionId || record?.challengeId || record?.tripId || record?.id || docId);
+        const deckId = cleanId(record?.deckId);
+        const linkedId = cleanId(record?.entryId || record?.submissionId || record?.proofId);
+        return starterMissionsSet.has(missionId) ||
+          deckId === 'starter' ||
+          deckId === 'starter-signals' ||
+          starterEntryIds.has(linkedId);
+      };
 
       entriesSnapshot.docs.forEach(docSnap => {
         const eData = docSnap.data();
@@ -3800,6 +3826,10 @@ async function startServer() {
         
         const isStarter = deckIdLower === 'starter' || deckIdLower === 'starter-signals' || starterMissions.includes(missionIdLower);
         
+        if (isStarter) {
+          starterEntryIds.add(cleanId(docSnap.id));
+        }
+
         if (isStarter && eData.archived !== true) {
           entriesToUpdate.push({ id: docSnap.id, ref: docSnap.ref, data: eData });
           
@@ -3811,6 +3841,23 @@ async function startServer() {
             totalXPReversed += xpVal;
           }
         }
+      });
+
+      const proofReviewsToUpdate = proofReviewsSnapshot.docs.filter(docSnap => {
+        const data = docSnap.data();
+        return data.archived !== true && isStarterLinkedRecord(data, docSnap.id);
+      });
+      const proofsToUpdate = proofsSnapshot.docs.filter(docSnap => {
+        const data = docSnap.data();
+        return data.archived !== true && isStarterLinkedRecord(data, docSnap.id);
+      });
+      const proofChecksToUpdate = proofChecksSnapshot.docs.filter(docSnap => {
+        const data = docSnap.data();
+        return data.archived !== true && isStarterLinkedRecord(data, docSnap.id);
+      });
+      const drawnMissionCardsToArchive = drawnMissionCardsSnapshot.docs.filter(docSnap => {
+        const data = docSnap.data();
+        return data.archived !== true && isStarterLinkedRecord(data, docSnap.id);
       });
 
       let batch = dbAdmin.batch();
@@ -3826,6 +3873,9 @@ async function startServer() {
           archived: true,
           archivedReason: "starter_reset",
           archivedAt: FieldValue.serverTimestamp(),
+          archiveReason: "starter_reset",
+          excludedFromProgress: true,
+          countsTowardLiveStats: false,
           countsTowardStarter: false,
           starterResetVersion: starterResetVersion,
           xpReversed: xpVal > 0 ? true : (entry.data.xpReversed || false),
@@ -3834,16 +3884,66 @@ async function startServer() {
         submissionsArchivedCount++;
         opCount++;
 
+        if (opCount >= 400) {
+          await batch.commit();
+          batch = dbAdmin.batch();
+          opCount = 0;
+        }
+      }
+
+      const archiveStarterDocs = async (
+        docs: FirebaseFirestore.QueryDocumentSnapshot[],
+        countKey: 'proofReviews' | 'proofs' | 'proofChecks' | 'drawnMissionCards'
+      ) => {
+        for (const docSnap of docs) {
+          batch.set(docSnap.ref, {
+            archived: true,
+            archivedReason: "starter_reset",
+            archivedAt: FieldValue.serverTimestamp(),
+            archiveReason: "starter_reset",
+            excludedFromProgress: true,
+            countsTowardLiveStats: false,
+            countsTowardStarter: false,
+            starterResetVersion: starterResetVersion
+          }, { merge: true });
+
+          if (countKey === 'proofReviews') proofReviewsUpdatedCount++;
+          if (countKey === 'proofs') proofsUpdatedCount++;
+          if (countKey === 'proofChecks') proofChecksUpdatedCount++;
+          if (countKey === 'drawnMissionCards') drawnMissionCardsArchivedCount++;
+          opCount++;
+
+          if (opCount >= 400) {
+            await batch.commit();
+            batch = dbAdmin!.batch();
+            opCount = 0;
+          }
+        }
+      };
+
+      await archiveStarterDocs(proofReviewsToUpdate, 'proofReviews');
+      await archiveStarterDocs(proofsToUpdate, 'proofs');
+      await archiveStarterDocs(proofChecksToUpdate, 'proofChecks');
+      await archiveStarterDocs(drawnMissionCardsToArchive, 'drawnMissionCards');
+
+      // Preserve legacy behavior for deployments that created proofReviews with entry IDs
+      // but did not include enough metadata to be discovered by the sweep above.
+      for (const entry of entriesToUpdate) {
         const reviewRef = dbAdmin.collection('proofReviews').doc(entry.id);
-        batch.set(reviewRef, {
-          archived: true,
-          archivedReason: "starter_reset",
-          archivedAt: FieldValue.serverTimestamp(),
-          countsTowardStarter: false,
-          starterResetVersion: starterResetVersion
-        }, { merge: true });
-        proofReviewsUpdatedCount++;
-        opCount++;
+        if (!proofReviewsToUpdate.some(docSnap => docSnap.id === entry.id)) {
+          batch.set(reviewRef, {
+            archived: true,
+            archivedReason: "starter_reset",
+            archivedAt: FieldValue.serverTimestamp(),
+            archiveReason: "starter_reset",
+            excludedFromProgress: true,
+            countsTowardLiveStats: false,
+            countsTowardStarter: false,
+            starterResetVersion: starterResetVersion
+          }, { merge: true });
+          proofReviewsUpdatedCount++;
+          opCount++;
+        }
 
         if (opCount >= 400) {
           await batch.commit();
@@ -3870,6 +3970,9 @@ async function startServer() {
         const submittedPendingChallengeIds = (userData.submittedPendingChallengeIds || []).filter((id: string) => !starterMissions.includes(id.toLowerCase()));
         const rejectedChallengeIds = (userData.rejectedChallengeIds || []).filter((id: string) => !starterMissions.includes(id.toLowerCase()));
         const needsMoreProofChallengeIds = (userData.needsMoreProofChallengeIds || []).filter((id: string) => !starterMissions.includes(id.toLowerCase()));
+        const retryableChallengeIds = (userData.retryableChallengeIds || []).filter((id: string) => !starterMissions.includes(id.toLowerCase()));
+        const drawnChallengeIds = (userData.drawnChallengeIds || []).filter((id: string) => !starterMissions.includes(id.toLowerCase()));
+        const drawnMissionIds = (userData.drawnMissionIds || []).filter((id: string) => !starterMissions.includes(id.toLowerCase()));
 
         let activeStarterMissionId = null;
         let activeMissionId = userData.activeMissionId || null;
@@ -3926,6 +4029,14 @@ async function startServer() {
         if (selectedDeckId === 'heatwave-receipts') {
           selectedDeckId = 'starter-signals';
         }
+        let activeDeckPackId = userData.activeDeckPackId || 'starter-signals';
+        if (activeDeckPackId === 'heatwave-receipts') {
+          activeDeckPackId = 'starter-signals';
+        }
+        let activePlayableDeckId = userData.activePlayableDeckId || 'starter-signals';
+        if (activePlayableDeckId === 'heatwave-receipts') {
+          activePlayableDeckId = 'starter-signals';
+        }
 
         let unlockedDeckIds = userData.unlockedDeckIds || [];
         if (Array.isArray(unlockedDeckIds)) {
@@ -3955,6 +4066,9 @@ async function startServer() {
           submittedPendingChallengeIds,
           rejectedChallengeIds,
           needsMoreProofChallengeIds,
+          retryableChallengeIds,
+          drawnChallengeIds,
+          drawnMissionIds,
 
           activeStarterMissionId,
           activeMissionId,
@@ -3974,6 +4088,8 @@ async function startServer() {
           currentDeckId,
           activeDeckId,
           selectedDeckId,
+          activeDeckPackId,
+          activePlayableDeckId,
           unlockedDeckIds,
 
           points: pts,
@@ -3986,6 +4102,19 @@ async function startServer() {
           lastSubmittedMissionId,
           lastDrawnAt: FieldValue.delete(),
           lastSubmissionAt: FieldValue.delete(),
+
+          "starterState.starterApprovedCount": 0,
+          "starterState.starterComplete": false,
+          "starterState.starterSignalsCompleted": [],
+          "starterState.pendingStarterCount": 0,
+          "starterState.needsMoreProofStarterCount": 0,
+          "starterState.retryStarterCount": 0,
+          "starterState.submittedMissionIds": [],
+          "starterState.needsMoreProofMissionId": null,
+          "starterState.needsMoreProofEntryId": null,
+          "starterState.rejectedMissionId": null,
+          "starterState.rejectedEntryId": null,
+          "starterState.status": "NOT_STARTED",
 
           updatedAt: FieldValue.serverTimestamp()
         };
@@ -4026,6 +4155,9 @@ async function startServer() {
           submissionsArchived: submissionsArchivedCount,
           activeMissionsCleared: activeMissionsClearedCount,
           proofReviewsUpdated: proofReviewsUpdatedCount,
+          proofsUpdated: proofsUpdatedCount,
+          proofChecksUpdated: proofChecksUpdatedCount,
+          drawnMissionCardsArchived: drawnMissionCardsArchivedCount,
           xpReduced: totalXPReversed > 0,
           totalSubtractions: totalXPReversed
         }
@@ -4037,6 +4169,9 @@ async function startServer() {
         submissionsArchived: submissionsArchivedCount,
         activeMissionsCleared: activeMissionsClearedCount,
         proofReviewsUpdated: proofReviewsUpdatedCount,
+        proofsUpdated: proofsUpdatedCount,
+        proofChecksUpdated: proofChecksUpdatedCount,
+        drawnMissionCardsArchived: drawnMissionCardsArchivedCount,
         xpReduced: totalXPReversed > 0,
         totalSubtractions: totalXPReversed
       });
