@@ -27,6 +27,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
 import {
+  calculateProofRubricScore,
+  DEFAULT_PROOF_RUBRIC_RATINGS,
+  getProofRubricRecommendationLabel,
+  PROOF_RUBRIC_CATEGORIES,
+  type ProofRubricRatings,
+  type ProofRubricScore
+} from '../logic/proofRubric';
+import {
   approveSubmission,
   grantStarterSignalsBypass,
   rejectSubmission,
@@ -96,25 +104,31 @@ export default function AdminProofReview() {
 
   const getActionId = (record: any) => String(record?.entryId || record?.submissionId || record?.id || '');
 
-  const handleAction = async (id: string, action: 'approve' | 'reject' | 'request_info') => {
-    const notes = window.prompt(
-      action === 'approve'
-        ? 'Approval note'
-        : action === 'request_info'
-          ? 'What should the player fix or add?'
-          : 'Rejection note',
-      action === 'approve' ? 'Approved from Admin Proof Review.' : ''
-    );
-    if (notes === null) return;
-
+  const handleAction = async (
+    id: string,
+    action: 'approve' | 'reject' | 'request_info',
+    review?: { notes: string; rubric: ProofRubricScore; adminOverrideUsed: boolean; adminOverrideReason: string | null }
+  ) => {
+    if (!review?.rubric) {
+      alert('Score the rubric in card view before issuing a final review decision.');
+      return;
+    }
+    const notes = review.notes.trim() || defaultReviewNote(action);
     setActionBusyId(id);
+    const metadata = {
+      rubric: {
+        ...review.rubric,
+        adminOverrideUsed: review.adminOverrideUsed,
+        adminOverrideReason: review.adminOverrideReason,
+      }
+    };
     try {
       if (action === 'approve') {
-        await approveSubmission(id, notes || 'Approved from Admin Proof Review.');
+        await approveSubmission(id, notes, metadata);
       } else if (action === 'request_info') {
-        await requestMoreProof(id, notes || 'Trevor needs one more little receipt.');
+        await requestMoreProof(id, notes, metadata);
       } else {
-        await rejectSubmission(id, notes || 'Rejected from Admin Proof Review.');
+        await rejectSubmission(id, notes, metadata);
       }
     } catch (err: any) {
       console.error('[AdminProofReview] Review action failed:', err);
@@ -266,7 +280,7 @@ export default function AdminProofReview() {
               <SwipeView 
                 entry={reviews[0]} 
                 busy={actionBusyId === getActionId(reviews[0])}
-                onAction={(action: any) => handleAction(getActionId(reviews[0]), action)} 
+                onAction={(action: any, review: any) => handleAction(getActionId(reviews[0]), action, review)}
               />
            ) : (
               <QueueView entries={reviews} busyId={actionBusyId} onAction={handleAction} />
@@ -467,7 +481,146 @@ function DiagnosticRow({ label, value, danger = false }: { label: string; value:
   );
 }
 
+function defaultReviewNote(action: 'approve' | 'reject' | 'request_info') {
+  if (action === 'approve') return 'Approved from Admin Proof Review.';
+  if (action === 'request_info') return 'Trevor needs one more little receipt.';
+  return 'Rejected from Admin Proof Review.';
+}
+
+function suggestedActionForRubric(score: ProofRubricScore): 'approve' | 'request_info' | 'reject' | null {
+  if (score.recommendation === 'strong_approval_candidate' || score.recommendation === 'approve_with_judgment') return 'approve';
+  if (score.recommendation === 'likely_insufficient') return 'request_info';
+  return null;
+}
+
+function createReviewPayload(
+  action: 'approve' | 'reject' | 'request_info',
+  notes: string,
+  score: ProofRubricScore
+) {
+  const suggestedAction = suggestedActionForRubric(score);
+  const adminOverrideUsed = !!suggestedAction && suggestedAction !== action;
+  return {
+    notes,
+    rubric: score,
+    adminOverrideUsed,
+    adminOverrideReason: adminOverrideUsed ? (notes.trim() || `Admin chose ${action} despite rubric recommendation.`) : null,
+  };
+}
+
+function RubricCard({
+  ratings,
+  onChange,
+  score,
+  recommendationLabel,
+}: {
+  ratings: ProofRubricRatings;
+  onChange: (key: keyof ProofRubricRatings, value: number) => void;
+  score: ProofRubricScore;
+  recommendationLabel: string;
+}) {
+  return (
+    <div className="bg-white border-2 border-on-surface p-5 rounded-2xl shadow-[5px_5px_0px_black] space-y-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h4 className="text-sm font-display font-black uppercase italic tracking-tight">Human Proof Rubric</h4>
+          <p className="mt-1 text-[9px] font-mono font-black uppercase opacity-40">
+            Score the receipt. The final call is still yours.
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-[9px] font-mono font-black uppercase opacity-40">Weighted</p>
+          <p className="text-3xl font-display font-black italic text-brand-orange leading-none">{score.weightedScore}</p>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {PROOF_RUBRIC_CATEGORIES.map(category => (
+          <div key={category.id} className="rounded-xl border border-on-surface/10 bg-[#FAF8F5] p-3">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[10px] font-mono font-black uppercase">{category.label}</p>
+                <p className="text-[9px] font-mono uppercase opacity-45">{category.description}</p>
+              </div>
+              <p className="text-[9px] font-mono font-black uppercase text-brand-orange">
+                Weight {category.weight}% · {ratings[category.id]}/4
+              </p>
+            </div>
+            <div className="mt-3 grid grid-cols-5 gap-1.5">
+              {category.ratings.map(rating => {
+                const selected = ratings[category.id] === rating.value;
+                return (
+                  <button
+                    type="button"
+                    key={rating.value}
+                    onClick={() => onChange(category.id, rating.value)}
+                    className={cn(
+                      "min-h-16 rounded-lg border-2 px-1.5 py-2 text-center font-mono text-[8px] font-black uppercase leading-tight transition-all",
+                      selected
+                        ? "border-on-surface bg-brand-orange text-white shadow-[2px_2px_0px_black]"
+                        : "border-on-surface/15 bg-white text-on-surface/55 hover:border-brand-orange hover:text-on-surface"
+                    )}
+                  >
+                    <span className="block text-sm leading-none">{rating.value}</span>
+                    <span>{rating.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-3 rounded-xl border-2 border-on-surface bg-on-surface text-white p-4 font-mono text-[10px] uppercase sm:grid-cols-3">
+        <div>
+          <p className="opacity-45 font-black">Raw</p>
+          <p className="text-lg font-black">{score.rawScore} / 20</p>
+        </div>
+        <div>
+          <p className="opacity-45 font-black">Normalized</p>
+          <p className="text-lg font-black">{score.normalizedScore} / 100</p>
+        </div>
+        <div>
+          <p className="opacity-45 font-black">Recommendation</p>
+          <p className="text-sm font-black text-brand-lime">{recommendationLabel}</p>
+        </div>
+        <div className="sm:col-span-3 border-t border-white/10 pt-3 text-[9px] leading-relaxed opacity-75">
+          Weighted score = mission match/4 x 40 + clarity/4 x 25 + trust/4 x 20 + note/4 x 10 + energy/4 x 5.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SwipeView({ entry, onAction, busy }: any) {
+  const existingRubric = entry.rubric || {};
+  const [ratings, setRatings] = React.useState<ProofRubricRatings>(() => ({
+    missionMatch: Number.isFinite(existingRubric.missionMatch) ? existingRubric.missionMatch : DEFAULT_PROOF_RUBRIC_RATINGS.missionMatch,
+    proofClarity: Number.isFinite(existingRubric.proofClarity) ? existingRubric.proofClarity : DEFAULT_PROOF_RUBRIC_RATINGS.proofClarity,
+    authenticity: Number.isFinite(existingRubric.authenticity) ? existingRubric.authenticity : DEFAULT_PROOF_RUBRIC_RATINGS.authenticity,
+    fieldNoteQuality: Number.isFinite(existingRubric.fieldNoteQuality) ? existingRubric.fieldNoteQuality : DEFAULT_PROOF_RUBRIC_RATINGS.fieldNoteQuality,
+    fieldtripEnergy: Number.isFinite(existingRubric.fieldtripEnergy) ? existingRubric.fieldtripEnergy : DEFAULT_PROOF_RUBRIC_RATINGS.fieldtripEnergy,
+  }));
+  const [reviewNote, setReviewNote] = React.useState(entry.reviewNotes || entry.adminNotes || '');
+
+  React.useEffect(() => {
+    const rubric = entry.rubric || {};
+    setRatings({
+      missionMatch: Number.isFinite(rubric.missionMatch) ? rubric.missionMatch : DEFAULT_PROOF_RUBRIC_RATINGS.missionMatch,
+      proofClarity: Number.isFinite(rubric.proofClarity) ? rubric.proofClarity : DEFAULT_PROOF_RUBRIC_RATINGS.proofClarity,
+      authenticity: Number.isFinite(rubric.authenticity) ? rubric.authenticity : DEFAULT_PROOF_RUBRIC_RATINGS.authenticity,
+      fieldNoteQuality: Number.isFinite(rubric.fieldNoteQuality) ? rubric.fieldNoteQuality : DEFAULT_PROOF_RUBRIC_RATINGS.fieldNoteQuality,
+      fieldtripEnergy: Number.isFinite(rubric.fieldtripEnergy) ? rubric.fieldtripEnergy : DEFAULT_PROOF_RUBRIC_RATINGS.fieldtripEnergy,
+    });
+    setReviewNote(entry.reviewNotes || entry.adminNotes || '');
+  }, [entry.id, entry.entryId, entry.rubric, entry.reviewNotes, entry.adminNotes]);
+
+  const score = React.useMemo(() => calculateProofRubricScore(ratings), [ratings]);
+  const recommendationLabel = getProofRubricRecommendationLabel(score.recommendation);
+  const handleDecision = (action: 'approve' | 'reject' | 'request_info') => {
+    onAction(action, createReviewPayload(action, reviewNote, score));
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-12 animate-in zoom-in-95 duration-300">
        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
@@ -511,10 +664,27 @@ function SwipeView({ entry, onAction, busy }: any) {
                 </p>
              </div>
 
+             <RubricCard
+               ratings={ratings}
+               onChange={(key, value) => setRatings(prev => ({ ...prev, [key]: value }))}
+               score={score}
+               recommendationLabel={recommendationLabel}
+             />
+
+             <div className="bg-white border-2 border-on-surface p-5 rounded-2xl shadow-[5px_5px_0px_black] space-y-3">
+                <h4 className="text-[9px] font-mono font-black uppercase opacity-40">Admin Review Note</h4>
+                <textarea
+                  value={reviewNote}
+                  onChange={(event) => setReviewNote(event.target.value)}
+                  placeholder="Leave a useful note for the player, future admins, or the training label archive."
+                  className="w-full min-h-24 resize-y rounded-xl border-2 border-on-surface/20 bg-[#FAF8F5] p-3 font-mono text-xs outline-none focus:border-brand-orange"
+                />
+             </div>
+
              {/* Action Grid */}
              <div className="grid grid-cols-2 gap-4">
                 <button 
-                  onClick={() => onAction('approve')}
+                  onClick={() => handleDecision('approve')}
                   disabled={busy}
                   className="col-span-2 py-6 bg-brand-lime text-on-surface border-4 border-on-surface shadow-[8px_8px_0px_black] flex flex-col items-center justify-center gap-2 group hover:shadow-[4px_4px_0px_black] active:translate-y-1 transition-all"
                 >
@@ -522,14 +692,14 @@ function SwipeView({ entry, onAction, busy }: any) {
                    <span className="font-display text-xl font-black uppercase italic tracking-tighter">{busy ? 'WORKING...' : 'APPROVE_PROTOCOL'}</span>
                 </button>
                 <button 
-                  onClick={() => onAction('request_info')}
+                  onClick={() => handleDecision('request_info')}
                   disabled={busy}
                   className="py-4 bg-[#FFDD00] text-on-surface border-4 border-on-surface shadow-[6px_6px_0px_black] flex items-center justify-center gap-2 font-display font-black uppercase italic text-sm hover:shadow-[2px_2px_0px_black] active:translate-y-1 transition-all"
                 >
                    <Clock className="w-4 h-4" /> REQ_INFO
                 </button>
                 <button 
-                  onClick={() => onAction('reject')}
+                  onClick={() => handleDecision('reject')}
                   disabled={busy}
                   className="py-4 bg-rose-500 text-white border-4 border-on-surface shadow-[6px_6px_0px_black] flex items-center justify-center gap-2 font-display font-black uppercase italic text-sm hover:shadow-[2px_2px_0px_black] active:translate-y-1 transition-all"
                 >

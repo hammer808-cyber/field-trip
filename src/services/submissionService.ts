@@ -32,6 +32,7 @@ import {
   normalizeCanonicalSubmission,
   markCanonicalSubmissionPending,
   transitionProofReview,
+  ProofTransitionReviewMetadata,
   repairCanonicalProofQueue,
   QueueRepairReport
 } from './proofLifecycleService';
@@ -499,10 +500,11 @@ export async function createSubmission(
 export async function updateSubmissionStatus(
   submissionId: string, 
   status: 'pending_review' | 'approved' | 'needs_more_proof' | 'rejected', 
-  notes?: string
+  notes?: string,
+  metadata?: ProofTransitionReviewMetadata
 ) {
   logDev(`Updating submission ${submissionId} to status: ${status}. Notes: ${notes}`);
-  return transitionProofReview(submissionId, status, notes || '');
+  return transitionProofReview(submissionId, status, notes || '', metadata);
 }
 
 import { awardSubmissionPointsOnce } from './submission-utils';
@@ -511,13 +513,14 @@ export { awardSubmissionPointsOnce };
 /**
  * 6. Approve submission wrapper.
  */
-export async function approveSubmission(submissionId: string, notes: string) {
+export async function approveSubmission(submissionId: string, notes: string, metadata?: ProofTransitionReviewMetadata) {
   logDev(`Approving submission ${submissionId}`);
-  const pointsResult = await transitionProofReview(submissionId, 'approved', notes);
+  const pointsResult = await transitionProofReview(submissionId, 'approved', notes, metadata);
 
   if (auth.currentUser) {
     await logAdminAction(auth.currentUser.uid, submissionId, 'proofReview', 'approve', { 
       notes,
+      rubric: metadata?.rubric || null,
       pointsAwarded: pointsResult.points || 0
     });
   }
@@ -528,11 +531,11 @@ export async function approveSubmission(submissionId: string, notes: string) {
 /**
  * 7. Request more proof wrapper.
  */
-export async function requestMoreProof(submissionId: string, notes: string) {
+export async function requestMoreProof(submissionId: string, notes: string, metadata?: ProofTransitionReviewMetadata) {
   logDev(`Requesting more proof for ${submissionId}`);
-  const result = await transitionProofReview(submissionId, 'needs_more_proof', notes);
+  const result = await transitionProofReview(submissionId, 'needs_more_proof', notes, metadata);
   if (auth.currentUser) {
-    await logAdminAction(auth.currentUser.uid, submissionId, 'proofReview', 'request_more_proof', { notes });
+    await logAdminAction(auth.currentUser.uid, submissionId, 'proofReview', 'request_more_proof', { notes, rubric: metadata?.rubric || null });
   }
   return result;
 }
@@ -540,11 +543,11 @@ export async function requestMoreProof(submissionId: string, notes: string) {
 /**
  * 8. Reject submission wrapper.
  */
-export async function rejectSubmission(submissionId: string, notes: string) {
+export async function rejectSubmission(submissionId: string, notes: string, metadata?: ProofTransitionReviewMetadata) {
   logDev(`Rejecting submission ${submissionId}`);
-  const result = await transitionProofReview(submissionId, 'rejected', notes);
+  const result = await transitionProofReview(submissionId, 'rejected', notes, metadata);
   if (auth.currentUser) {
-    await logAdminAction(auth.currentUser.uid, submissionId, 'proofReview', 'reject', { notes });
+    await logAdminAction(auth.currentUser.uid, submissionId, 'proofReview', 'reject', { notes, rubric: metadata?.rubric || null });
   }
   return result;
 }

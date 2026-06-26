@@ -11,7 +11,8 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "test:starter": "tsx src/__tests__/starterDeckState.test.ts"
+    "test:starter": "tsx src/__tests__/starterDeckState.test.ts",
+    "test:rubric": "tsx src/__tests__/proofRubric.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.3.0",

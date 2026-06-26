@@ -5,9 +5,11 @@ import {
   doc,
   getDoc,
   getDocs,
+  query,
   runTransaction,
   serverTimestamp,
   updateDoc,
+  where,
   writeBatch
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
@@ -29,6 +31,25 @@ export interface ProofTransitionResult {
   status: ReviewableProofStatus;
   points?: number;
   reason?: string;
+}
+
+export interface ProofReviewRubricInput {
+  version: 'v1';
+  missionMatch: number;
+  proofClarity: number;
+  authenticity: number;
+  fieldNoteQuality: number;
+  fieldtripEnergy: number;
+  rawScore: number;
+  normalizedScore: number;
+  weightedScore: number;
+  recommendation: 'strong_approval_candidate' | 'approve_with_judgment' | 'needs_closer_review' | 'likely_insufficient';
+  adminOverrideUsed?: boolean;
+  adminOverrideReason?: string | null;
+}
+
+export interface ProofTransitionReviewMetadata {
+  rubric?: ProofReviewRubricInput;
 }
 
 export const REVIEWABLE_STATUSES: ReviewableProofStatus[] = ['pending_review', 'approved', 'needs_more_proof', 'rejected'];
@@ -186,10 +207,31 @@ async function resolveCanonicalEntryId(submissionId: string): Promise<string> {
 export async function transitionProofReview(
   submissionId: string,
   nextStatus: ReviewableProofStatus,
-  notes: string
+  notes: string,
+  metadata: ProofTransitionReviewMetadata = {}
 ): Promise<ProofTransitionResult> {
   const canonicalEntryId = await resolveCanonicalEntryId(submissionId);
   const entryRef = doc(db, 'entries', canonicalEntryId);
+  const reviewerId = auth.currentUser?.uid || 'system';
+  const rubric = metadata.rubric
+    ? {
+        ...metadata.rubric,
+        adminOverrideUsed: metadata.rubric.adminOverrideUsed === true,
+        adminOverrideReason: metadata.rubric.adminOverrideReason || null,
+        reviewerId,
+        reviewedAt: serverTimestamp(),
+      }
+    : null;
+  const rubricSummary = metadata.rubric
+    ? {
+        version: metadata.rubric.version,
+        weightedScore: metadata.rubric.weightedScore,
+        normalizedScore: metadata.rubric.normalizedScore,
+        recommendation: metadata.rubric.recommendation,
+        reviewerId,
+        reviewedAt: serverTimestamp(),
+      }
+    : null;
 
   if (nextStatus === 'approved') {
     await runTransaction(db, async (transaction) => {
@@ -200,7 +242,7 @@ export async function transitionProofReview(
       if (!isAllowedProofTransition(currentStatus, nextStatus)) {
         throw new Error(`INVALID_PROOF_TRANSITION: ${currentStatus} -> ${nextStatus}`);
       }
-      transaction.update(entryRef, {
+      const entryUpdate: any = {
         status: 'approved',
         reviewStatus: 'approved',
         submissionStatus: 'approved',
@@ -209,15 +251,18 @@ export async function transitionProofReview(
         reviewNotes: notes,
         adminNotes: notes,
         reviewedAt: serverTimestamp(),
-        reviewedBy: auth.currentUser?.uid || 'system',
+        reviewedBy: reviewerId,
         updatedAt: serverTimestamp()
-      });
+      };
+      if (rubric) entryUpdate.rubric = rubricSummary;
+      transaction.update(entryRef, entryUpdate);
     });
+    if (rubric) await persistProofReviewRubric(canonicalEntryId, nextStatus, notes, reviewerId, rubric);
     const awardResult = await awardSubmissionPointsOnce(canonicalEntryId, notes);
     return { success: awardResult.success, status: 'approved', points: awardResult.points, reason: awardResult.reason };
   }
 
-  return runTransaction(db, async (transaction) => {
+  const transitionResult = await runTransaction(db, async (transaction) => {
     const entrySnap = await transaction.get(entryRef);
     if (!entrySnap.exists()) throw new Error('ENTRY_NOT_FOUND');
     const data = entrySnap.data();
@@ -231,7 +276,7 @@ export async function transitionProofReview(
     const userRef = userId && challengeId ? doc(db, 'users', userId) : null;
     const userSnap = userRef ? await transaction.get(userRef) : null;
 
-    transaction.update(entryRef, {
+    const entryUpdate: any = {
       status: nextStatus,
       reviewStatus: nextStatus,
       submissionStatus: nextStatus,
@@ -242,9 +287,11 @@ export async function transitionProofReview(
       retryAvailable: true,
       retryPointMultiplier: nextStatus === 'rejected' ? 0.5 : null,
       reviewedAt: serverTimestamp(),
-      reviewedBy: auth.currentUser?.uid || 'system',
+      reviewedBy: reviewerId,
       updatedAt: serverTimestamp()
-    });
+    };
+    if (rubric) entryUpdate.rubric = rubricSummary;
+    transaction.update(entryRef, entryUpdate);
 
     if (userRef && userSnap?.exists()) {
       const userUpdates: any = {
@@ -268,6 +315,61 @@ export async function transitionProofReview(
       reason: userRef && !userSnap?.exists() ? 'USER_PROFILE_NOT_FOUND' : undefined
     };
   });
+  if (rubric) await persistProofReviewRubric(canonicalEntryId, nextStatus, notes, reviewerId, rubric);
+  return transitionResult;
+}
+
+async function persistProofReviewRubric(
+  canonicalEntryId: string,
+  status: ReviewableProofStatus,
+  notes: string,
+  reviewerId: string,
+  rubric: any
+) {
+  const batch = writeBatch(db);
+  const directReviewRef = doc(db, 'proofReviews', canonicalEntryId);
+  const entrySnap = await getDoc(doc(db, 'entries', canonicalEntryId));
+  const entryData = entrySnap.exists() ? entrySnap.data() : {};
+  const projectionBase = {
+    entryId: canonicalEntryId,
+    userId: getCanonicalUserId(entryData),
+    uid: getCanonicalUserId(entryData),
+    challengeId: getCanonicalChallengeId(entryData),
+    missionId: getCanonicalChallengeId(entryData),
+    deckId: entryData.deckId || 'starter-signals',
+    photoUrl: getCanonicalImageUrl(entryData),
+    imageUrl: getCanonicalImageUrl(entryData),
+    storagePath: getCanonicalStoragePath(entryData) || null,
+    fieldNote: entryData.fieldNote || entryData.note || '',
+  };
+  batch.set(directReviewRef, {
+    ...projectionBase,
+    status,
+    reviewStatus: status,
+    reviewNotes: notes,
+    adminNotes: notes,
+    rubric,
+    reviewedAt: serverTimestamp(),
+    reviewedBy: reviewerId,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+
+  const linkedReviews = await getDocs(query(collection(db, 'proofReviews'), where('entryId', '==', canonicalEntryId)));
+  linkedReviews.docs.forEach(reviewDoc => {
+    batch.set(reviewDoc.ref, {
+      ...projectionBase,
+      status,
+      reviewStatus: status,
+      reviewNotes: notes,
+      adminNotes: notes,
+      rubric,
+      reviewedAt: serverTimestamp(),
+      reviewedBy: reviewerId,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  });
+
+  await batch.commit();
 }
 
 export interface QueueRepairReport {

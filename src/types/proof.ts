@@ -2,6 +2,24 @@ export type MetadataStatus = 'verified' | 'missing' | 'mismatch' | 'unverified';
 export type CaptureTrustLevel = 'live' | 'verifiedCameraRoll' | 'unverifiedCameraRoll';
 export type ReviewStatus = 'approved' | 'pending_review' | 'rejected' | 'needs_more_proof';
 export type UploadSource = 'camera' | 'cameraRoll';
+export type ProofRubricRecommendation = 'strong_approval_candidate' | 'approve_with_judgment' | 'needs_closer_review' | 'likely_insufficient';
+
+export interface ProofReviewRubric {
+  version: 'v1';
+  missionMatch: number;
+  proofClarity: number;
+  authenticity: number;
+  fieldNoteQuality: number;
+  fieldtripEnergy: number;
+  rawScore: number;
+  normalizedScore: number;
+  weightedScore: number;
+  recommendation: ProofRubricRecommendation;
+  adminOverrideUsed: boolean;
+  adminOverrideReason: string | null;
+  reviewerId: string;
+  reviewedAt: any;
+}
 
 export interface ProofReview {
   reviewId: string;
@@ -62,6 +80,7 @@ export interface ProofReview {
   reviewNotes?: string;
   reviewedBy?: string;
   reviewedAt?: string;
+  rubric?: ProofReviewRubric;
 }
 
 export interface ProofRequirement {
