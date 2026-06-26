@@ -11,7 +11,7 @@ env:
   - variable: FIREBASE_PROJECT_ID
     value: "field-trip-495823"
   - variable: FIRESTORE_DATABASE_ID
-    value: "(default)"
+    value: "ai-studio-6bdf91b5-28e9-46f3-ae49-89cf99e2d88a"
 
 # Secrets
 # Configure these in Firebase Console under App Hosting -> Secrets

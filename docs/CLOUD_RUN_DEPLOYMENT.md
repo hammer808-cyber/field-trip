@@ -81,7 +81,7 @@ Runtime variables used by the current codebase:
 | `VITE_RECAPTCHA_SITE_KEY` | Yes | Secret Manager or env var | Firebase App Check reCAPTCHA v3 site key. This value is included in the frontend build/runtime environment. |
 | `VITE_RECAPTCHA_ENTERPRISE_SITE_KEY` | Optional | Secret Manager or env var | Optional App Check Enterprise key; preferred by the frontend if set. |
 | `FIREBASE_PROJECT_ID` | Yes | Cloud Run/App Hosting env var | Server-side Firebase Admin project. Must be `field-trip-495823` in production. |
-| `FIRESTORE_DATABASE_ID` | Yes | Cloud Run/App Hosting env var | Server-side Firestore database. Use `(default)` unless intentionally deploying a named database. |
+| `FIRESTORE_DATABASE_ID` | Yes | Cloud Run/App Hosting env var | Server-side Firestore database ID. Production uses `ai-studio-6bdf91b5-28e9-46f3-ae49-89cf99e2d88a` inside project `field-trip-495823`. |
 | `VITE_FIREBASE_APPCHECK_DEBUG` | Optional | Cloud Run env var | Keep `false` in production. |
 | `ENFORCE_APP_CHECK` | Optional hardening | Cloud Run env var | Set `true` after App Check works on the production Cloud Run domain. |
 | `ENABLE_STARTUP_PURGE` | Optional local/dev | Cloud Run env var | Leave unset in production unless intentionally enabling startup purge behavior. |

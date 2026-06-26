@@ -4,16 +4,21 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
-import { initializeApp, getApps, App } from 'firebase-admin/app';
-import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
-import { getAuth } from 'firebase-admin/auth';
+import { App } from 'firebase-admin/app';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { getAppCheck } from 'firebase-admin/app-check';
-import { getStorage } from 'firebase-admin/storage';
 import cron from 'node-cron';
 import fs from 'fs';
 import crypto from 'crypto';
 import rateLimit from "express-rate-limit";
 import { buildCanonicalStarterDeckState, toStarterProfileMirrors, STARTER_SIGNAL_IDS } from "./src/logic/starterDeckState";
+import {
+  FIELDTRIP_FIRESTORE_DATABASE_ID,
+  FIELDTRIP_PROJECT_ID,
+  initializeServerFirebase,
+  resolveServerFirebaseProjectId,
+  resolveServerFirestoreDatabaseId,
+} from "./src/server/firebaseAdmin";
 
 // Types for proof evaluation
 type MetadataStatus = 'verified' | 'missing' | 'mismatch' | 'unverified';
@@ -64,42 +69,20 @@ const deployInfo = {
   cloudRunConfiguration: process.env.K_CONFIGURATION || 'local'
 };
 
-const EXPECTED_FIREBASE_PROJECT_ID = 'field-trip-495823';
-const DEFAULT_FIRESTORE_DATABASE_ID = '(default)';
-
-function sanitizeProjectId(value: unknown): string | null {
+function safeProjectId(value: unknown): string | null {
   if (!value) return null;
   const projectId = String(value).trim();
   if (!projectId || projectId.startsWith('ai-studio-')) return null;
   return projectId;
 }
 
-function resolveServerProjectId(config: any): string {
-  const candidates = [
-    process.env.FIREBASE_PROJECT_ID,
-    process.env.GOOGLE_CLOUD_PROJECT,
-    process.env.GCLOUD_PROJECT,
-    config?.projectId,
-    EXPECTED_FIREBASE_PROJECT_ID,
-  ];
-  return candidates.map(sanitizeProjectId).find(Boolean) || EXPECTED_FIREBASE_PROJECT_ID;
-}
-
-function resolveFirestoreDatabaseId(config: any): string | undefined {
-  const configured = String(process.env.FIRESTORE_DATABASE_ID || config?.firestoreDatabaseId || '').trim();
-  if (!configured || configured === DEFAULT_FIRESTORE_DATABASE_ID || configured.startsWith('ai-studio-')) {
-    return undefined;
-  }
-  return configured;
-}
-
 function safeAdminStartupLog(status: 'starting' | 'ready' | 'error', details: Record<string, unknown>) {
   console.log('[BUREAU_ADMIN_STARTUP]', {
     status,
-    expectedProjectId: EXPECTED_FIREBASE_PROJECT_ID,
-    resolvedGoogleCloudProjectId: sanitizeProjectId(process.env.GOOGLE_CLOUD_PROJECT) || 'unset_or_ignored',
+    expectedProjectId: FIELDTRIP_PROJECT_ID,
+    resolvedGoogleCloudProjectId: safeProjectId(process.env.GOOGLE_CLOUD_PROJECT) || 'unset_or_ignored',
     resolvedFirebaseProjectId: details.resolvedFirebaseProjectId || 'unknown',
-    resolvedFirestoreDatabaseId: details.resolvedFirestoreDatabaseId || DEFAULT_FIRESTORE_DATABASE_ID,
+    resolvedFirestoreDatabaseId: details.resolvedFirestoreDatabaseId || FIELDTRIP_FIRESTORE_DATABASE_ID,
     firestoreInitialized: details.firestoreInitialized === true,
     cloudRunService: deployInfo.cloudRunService,
     cloudRunRevision: deployInfo.cloudRunRevision,
@@ -157,73 +140,41 @@ let workingBucketName: string | null = null;
 async function initAdmin() {
   try {
     const firebaseConfigPath = path.join(rootPath, 'firebase-applet-config.json');
-    let resolvedProjectId = EXPECTED_FIREBASE_PROJECT_ID;
-    let resolvedDatabaseId: string | undefined;
+    let config: any = null;
 
     if (fs.existsSync(firebaseConfigPath)) {
-      const config = JSON.parse(fs.readFileSync(firebaseConfigPath, 'utf8'));
+      config = JSON.parse(fs.readFileSync(firebaseConfigPath, 'utf8'));
       firebaseConfig = config;
-      resolvedProjectId = resolveServerProjectId(config);
-      resolvedDatabaseId = resolveFirestoreDatabaseId(config);
-
-      safeAdminStartupLog('starting', {
-        resolvedFirebaseProjectId: resolvedProjectId,
-        resolvedFirestoreDatabaseId: resolvedDatabaseId || DEFAULT_FIRESTORE_DATABASE_ID,
-        firestoreInitialized: false,
-      });
-      
-      // Initialize the separate Auth App (authApp) first so we don't accidentally delete it
-      const apps = getApps();
-      const existingAuthApp = apps.find(app => app.name === 'authApp');
-      if (existingAuthApp) {
-        authApp = existingAuthApp;
-      } else {
-        authApp = initializeApp({
-          projectId: resolvedProjectId
-        }, 'authApp');
-      }
-      authAdmin = getAuth(authApp);
-
-      const existingAdminApp = getApps().find(app => app.name !== 'authApp');
-      adminApp = existingAdminApp || initializeApp({
-        projectId: resolvedProjectId,
-        storageBucket: config.storageBucket || `${resolvedProjectId}.firebasestorage.app`
-      });
-
-      dbAdmin = resolvedDatabaseId ? getFirestore(adminApp, resolvedDatabaseId) : getFirestore(adminApp);
-      workingBucketName = config.storageBucket || `${resolvedProjectId}.firebasestorage.app`;
     } else {
       console.log(`[BUREAU_ADMIN] No config file found. Using default internal credentials.`);
-      const existingApps = getApps();
-      const nonAuthApp = existingApps.find(app => app.name !== 'authApp');
-      resolvedProjectId = resolveServerProjectId(null);
-      resolvedDatabaseId = resolveFirestoreDatabaseId(null);
-      safeAdminStartupLog('starting', {
-        resolvedFirebaseProjectId: resolvedProjectId,
-        resolvedFirestoreDatabaseId: resolvedDatabaseId || DEFAULT_FIRESTORE_DATABASE_ID,
-        firestoreInitialized: false,
-      });
-      adminApp = nonAuthApp ? nonAuthApp : initializeApp({ projectId: resolvedProjectId });
-      dbAdmin = resolvedDatabaseId ? getFirestore(adminApp, resolvedDatabaseId) : getFirestore(adminApp);
+      firebaseConfig = null;
     }
 
-    // Ensure storage and auth admins are populated
-    if (adminApp) {
-      storageAdmin = getStorage(adminApp);
-      if (!authAdmin) {
-        authAdmin = getAuth(authApp || adminApp);
-      }
-    }
+    const resolvedProjectId = resolveServerFirebaseProjectId(config);
+    const resolvedDatabaseId = resolveServerFirestoreDatabaseId(config);
+    safeAdminStartupLog('starting', {
+      resolvedFirebaseProjectId: resolvedProjectId,
+      resolvedFirestoreDatabaseId: resolvedDatabaseId,
+      firestoreInitialized: false,
+    });
+
+    const handles = initializeServerFirebase(config);
+    adminApp = handles.adminApp;
+    authApp = handles.authApp;
+    dbAdmin = handles.db;
+    storageAdmin = handles.storage;
+    authAdmin = handles.auth;
+    workingBucketName = handles.storageBucket;
 
     safeAdminStartupLog('ready', {
-      resolvedFirebaseProjectId: adminApp?.options.projectId || resolvedProjectId,
-      resolvedFirestoreDatabaseId: dbAdmin?.databaseId || resolvedDatabaseId || DEFAULT_FIRESTORE_DATABASE_ID,
+      resolvedFirebaseProjectId: handles.projectId,
+      resolvedFirestoreDatabaseId: handles.databaseId,
       firestoreInitialized: !!dbAdmin,
     });
   } catch (e: any) {
     safeAdminStartupLog('error', {
-      resolvedFirebaseProjectId: EXPECTED_FIREBASE_PROJECT_ID,
-      resolvedFirestoreDatabaseId: DEFAULT_FIRESTORE_DATABASE_ID,
+      resolvedFirebaseProjectId: FIELDTRIP_PROJECT_ID,
+      resolvedFirestoreDatabaseId: FIELDTRIP_FIRESTORE_DATABASE_ID,
       firestoreInitialized: false,
     });
     console.error("[BUREAU_ADMIN] FATAL: Firebase Admin initialization failed:", e.message);
@@ -455,7 +406,8 @@ async function startServer() {
       }
 
       // 2. Verify Auth Token
-      const decodedToken = await getAuth(authApp || adminApp).verifyIdToken(idToken);
+      if (!authAdmin) return res.status(500).json({ error: 'AUTH_ADMIN_NOT_READY' });
+      const decodedToken = await authAdmin.verifyIdToken(idToken);
       req.user = decodedToken;
       next();
     } catch (error) {
@@ -1449,7 +1401,7 @@ async function startServer() {
       const buffer = Buffer.from(base64Data, 'base64');
 
       // 4. Save to Storage with Resilient Fallback Buckets
-      const projId = resolveServerProjectId(firebaseConfig);
+      const projId = resolveServerFirebaseProjectId(firebaseConfig);
       
       let defaultBucketName = "";
       try {
@@ -1464,8 +1416,8 @@ async function startServer() {
         defaultBucketName,
         `${projId}.firebasestorage.app`,
         `${projId}.appspot.com`,
-        `${EXPECTED_FIREBASE_PROJECT_ID}.firebasestorage.app`,
-        `${EXPECTED_FIREBASE_PROJECT_ID}.appspot.com`,
+        `${FIELDTRIP_PROJECT_ID}.firebasestorage.app`,
+        `${FIELDTRIP_PROJECT_ID}.appspot.com`,
         projId
       ].filter((v, i, a) => v && typeof v === 'string' && a.indexOf(v) === i);
 
@@ -4159,7 +4111,7 @@ async function startServer() {
 
       let storageTest = "untested";
       try {
-        const bucket = getStorage(adminApp || undefined).bucket();
+        const bucket = storageAdmin?.bucket();
         if (bucket) {
           storageTest = "success";
         }
@@ -4246,7 +4198,7 @@ async function startServer() {
         deployInfo,
         appCheckStatus: req.headers['x-firebase-appcheck'] ? "verified" : "optional/not_provided",
         firestoreTestStatus: firestoreTest,
-        firestoreDatabaseId: firebaseConfig?.firestoreDatabaseId || "(default)",
+        firestoreDatabaseId: resolveServerFirestoreDatabaseId(firebaseConfig),
         storageTestStatus: storageTest,
         countPendingProofReviews: pendingProofReviewsCount,
         countEntriesNoReviews: entriesWithoutMatchingReviewsCount,

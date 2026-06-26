@@ -117,7 +117,7 @@ export function initializeFirebase() {
     localCache: memoryLocalCache(),
   };
   const configuredDatabaseId = String((firebaseConfig as any).firestoreDatabaseId || '').trim();
-  const databaseId = configuredDatabaseId && configuredDatabaseId !== '(default)' && !configuredDatabaseId.startsWith('ai-studio-')
+  const databaseId = configuredDatabaseId && configuredDatabaseId !== '(default)'
     ? configuredDatabaseId
     : undefined;
   const db = databaseId
