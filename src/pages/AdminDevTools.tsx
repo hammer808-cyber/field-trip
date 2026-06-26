@@ -100,16 +100,20 @@ export default function AdminDevTools() {
         // Clear localStorage fields related to starter deck
         try {
           const keysToClear = [
-            'starter', 'deck', 'drawn', 'completedChallengeIds', 
+            'starter', 'deck', 'drawn', 'field_log_pending', 'ft_challenge_starter-',
+            'fieldtrip_last_completed_result', 'current_mission_id', 'resume_mission_id',
+            'fieldtrip_active_trip', 'activeTrip', 'currentMission', 'resumeMission',
+            'completedChallengeIds',
             'approvedCompletedChallengeIds', 'submittedChallengeIds', 
-            'activeMission', 'missionProgress'
+            'submittedPendingChallengeIds', 'activeMission', 'missionProgress'
           ];
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
+          const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
+            .filter((key): key is string => !!key);
+          keys.forEach(key => {
             if (key && keysToClear.some(suffix => key.toLowerCase().includes(suffix.toLowerCase()))) {
               localStorage.removeItem(key);
             }
-          }
+          });
         } catch (e) {
           console.warn("Could not clear localStorage:", e);
         }

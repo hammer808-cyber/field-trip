@@ -77,6 +77,44 @@ function Row({ label, value, warn = false }: { label: string; value: React.React
   );
 }
 
+function clearLocalStarterState(userId?: string | null) {
+  if (typeof window === 'undefined') return 0;
+
+  const exactKeys = [
+    userId ? `field_log_pending_${userId}` : null,
+    'fieldtrip_last_completed_result',
+    'fieldtrip_active_trip',
+    'current_mission_id',
+    'resume_mission_id',
+    'activeTrip',
+    'currentMission',
+    'resumeMission'
+  ].filter(Boolean) as string[];
+
+  const keyFragments = [
+    'starter',
+    'field_log_pending',
+    'ft_challenge_starter-',
+    'activeMission',
+    'missionProgress',
+    'submittedChallengeIds',
+    'submittedPendingChallengeIds'
+  ];
+
+  let cleared = 0;
+  const keys = Array.from({ length: window.localStorage.length }, (_, index) => window.localStorage.key(index))
+    .filter((key): key is string => !!key);
+
+  keys.forEach(key => {
+    if (exactKeys.includes(key) || keyFragments.some(fragment => key.toLowerCase().includes(fragment.toLowerCase()))) {
+      window.localStorage.removeItem(key);
+      cleared++;
+    }
+  });
+
+  return cleared;
+}
+
 function StarterConflictRows({
   profile,
   starterState,
@@ -230,7 +268,9 @@ export function DeckDiagnosticsPanel(props: DeckDiagnosticsPanelProps) {
       if (!response.ok) {
         throw new Error(data.message || data.error || `Starter reset failed with HTTP ${response.status}`);
       }
-      setStarterRepairReport(data);
+      const localKeysCleared = clearLocalStarterState(props.userId);
+      setStarterRepairReport({ ...data, localKeysCleared });
+      window.setTimeout(() => window.location.reload(), 500);
     } catch (error: any) {
       setStarterRepairReport({ success: false, error: error.message || 'Starter reset failed' });
     } finally {
@@ -325,6 +365,8 @@ export function DeckDiagnosticsPanel(props: DeckDiagnosticsPanelProps) {
                 <Row label="pending starter cards" value={<IdList values={pendingStarterCards} />} />
                 <Row label="approved starter cards" value={<IdList values={approvedStarterCards} />} />
                 <Row label="eligible starter cards" value={<IdList values={eligibleStarterCards.map(card => normalizeId(card.id || card.missionId || card.challengeId))} />} />
+                <Row label="canonical starter sources" value={<pre className="whitespace-pre-wrap text-[10px] text-white/80">{JSON.stringify(props.starterState.canonical?.sourceById || {}, null, 2)}</pre>} />
+                <Row label="canonical starter statuses" value={<pre className="whitespace-pre-wrap text-[10px] text-white/80">{JSON.stringify(props.starterState.canonical?.statusById || {}, null, 2)}</pre>} />
                 <Row label="activeTripId" value={props.activeTripId || 'none'} />
                 <Row label="unlock status" value={props.starterState.starterComplete ? 'unlocked' : 'locked until 3 approved Starter Signals'} />
                 {activeStarterCards.length < 3 && (

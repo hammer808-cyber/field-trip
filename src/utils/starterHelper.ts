@@ -18,6 +18,10 @@ export interface StarterCompletionState {
   rejectedEntryId?: string | null;
   nextStarterAction: string;
   status: 'NOT_STARTED' | 'IN_PROGRESS' | 'PENDING_REVIEW' | 'NEEDS_MORE_PROOF' | 'REJECTED_RETRY_AVAILABLE' | 'COMPLETE';
+  canonical?: {
+    sourceById: Record<string, string>;
+    statusById: Record<string, string>;
+  };
 }
 
 /**

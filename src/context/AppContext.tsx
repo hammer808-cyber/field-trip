@@ -498,7 +498,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       rejectedMissionId: canonicalStarterDeckState.rejectedIds[0] || null,
       rejectedEntryId: null,
       nextStarterAction: canonicalStarterDeckState.availableIds.length > 0 ? 'Draw Starter Mission' : 'View Review Status',
-      status
+      status,
+      canonical: {
+        sourceById: canonicalStarterDeckState.sourceById,
+        statusById: canonicalStarterDeckState.statusById
+      }
     };
   }, [canonicalStarterDeckState]);
 
