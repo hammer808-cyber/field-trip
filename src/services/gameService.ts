@@ -11,8 +11,6 @@ import {
   where,
   getDocs,
   Timestamp,
-  orderBy,
-  limit,
   deleteField,
   arrayRemove
 } from 'firebase/firestore';
@@ -33,6 +31,7 @@ import { LAUNCH_MISSION_ID } from '../data/specialMissions';
 import { getWeekWindows, getServerTime as getWeeklyServerTime, getCurrentSeasonWeek } from '../logic/weeklyLogic';
 import { getServerTime as getSyncedTime, getServerDate } from './timeService';
 import { markCanonicalSubmissionPending } from './proofLifecycleService';
+import { countsTowardMissionRepeatGuard } from '../logic/entryLogic';
 
 export async function submitTripEntry(
   userId: string,
@@ -95,17 +94,37 @@ export async function submitTripEntry(
     // 1. Anti-Repeat Check
     // Only approved completions block a non-repeatable mission. Pending or
     // interrupted submissions must not burn a card or trap the player.
-    const recentQuery = query(
-      collection(db, 'entries'),
-      where('userId', '==', userId),
-      where('tripId', '==', trip.id),
-      where('status', '==', 'approved'),
-      orderBy('createdAt', 'desc'),
-      limit(1)
-    );
-    const recentSnap = await getDocs(recentQuery);
-    if (!recentSnap.empty) {
-      const lastEntry = recentSnap.docs[0].data();
+    const approvedEntryQueries = [
+      query(
+        collection(db, 'entries'),
+        where('userId', '==', userId),
+        where('tripId', '==', trip.id),
+        where('status', '==', 'approved')
+      ),
+      query(
+        collection(db, 'entries'),
+        where('uid', '==', userId),
+        where('tripId', '==', trip.id),
+        where('status', '==', 'approved')
+      )
+    ];
+    const approvedEntrySnaps = await Promise.all(approvedEntryQueries.map(q => getDocs(q)));
+    const approvedEntriesById = new Map<string, any>();
+    approvedEntrySnaps.forEach(snap => {
+      snap.docs.forEach(entryDoc => {
+        approvedEntriesById.set(entryDoc.id, { id: entryDoc.id, ...entryDoc.data() });
+      });
+    });
+    const activeApprovedEntries = Array.from(approvedEntriesById.values())
+      .filter(countsTowardMissionRepeatGuard)
+      .sort((a, b) => {
+        const aTime = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt || 0).getTime();
+        const bTime = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt || 0).getTime();
+        return bTime - aTime;
+      });
+
+    if (activeApprovedEntries.length > 0) {
+      const lastEntry = activeApprovedEntries[0];
       
       const isRepeatable = trip.repeatable || trip.isRepeatableTemplate;
       if (!isRepeatable) {

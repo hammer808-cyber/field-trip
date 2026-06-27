@@ -7,6 +7,7 @@ import {
   type StarterStateEntryLike,
   type StarterStateProfileLike,
 } from '../logic/starterDeckState';
+import { countsTowardMissionRepeatGuard } from '../logic/entryLogic';
 import type { TripCard } from '../types/challenges';
 
 const missions = STARTER_MISSION_BANK as TripCard[];
@@ -124,5 +125,21 @@ sameIds(
   sameIds(mirrors.submittedPendingChallengeIds, ['starter-2', 'starter-3'], 'repair mirrors should rebuild pending Starter IDs from canonical state');
   sameIds(mirrors.rejectedChallengeIds, ['starter-1'], 'repair mirrors should preserve canonical rejected Starter IDs');
 }
+
+assert(
+  countsTowardMissionRepeatGuard({ missionId: 'starter-2', status: 'approved' }) === true,
+  'active approved entry should block immediate repeat submission'
+);
+
+assert(
+  countsTowardMissionRepeatGuard({
+    missionId: 'starter-2',
+    status: 'approved',
+    archived: true,
+    excludedFromProgress: true,
+    countsTowardStarter: false,
+  }) === false,
+  'archived reset entry should not block a fresh starter submission'
+);
 
 console.log('STARTER_DECK_STATE_TESTS_COMPLETE. ALL_TESTS_PASSED.');

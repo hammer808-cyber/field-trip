@@ -83,3 +83,11 @@ export function isArchivedEntry(entry: any): boolean {
 export function countsTowardStarterProgress(entry: any): boolean {
   return !isArchivedEntry(entry) && entry?.countsTowardStarter !== false;
 }
+
+export function countsTowardMissionRepeatGuard(entry: any): boolean {
+  return (
+    !isArchivedEntry(entry) &&
+    entry?.countsTowardStarter !== false &&
+    entry?.countsTowardProgress !== false
+  );
+}
