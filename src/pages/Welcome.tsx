@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Camera, ChevronRight, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronRight, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
 import { cn } from '../lib/utils';
-import { Hibiscus, ChromeStar, GlossOverlay } from '../components/BajaBratzAssets';
-import { DiamondStar, Sparkle, SunFlare, GlossOverlay as DiamondGloss } from '../components/SkinAssets';
+import { Sparkle } from '../components/SkinAssets';
 import { getDisplayLabel } from '../utils/labelUtils';
 
 import AccessCodeGate from './Auth/AccessCodeGate';
@@ -15,40 +14,38 @@ import SignIn from './Auth/SignIn';
 
 import { PageLoader } from '../components/PageLoader';
 
-const base = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
-
-const openingPolaroids = [
+const welcomeImages = [
   {
-    src: `images/opening/field-trip-01`,
-    alt: "Field Trip opening Polaroid 1",
+    src: "/images/welcome/field-trip-01.png",
+    alt: "Friends hanging out by a pool with a unicorn float"
   },
   {
-    src: `https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=600&h=600&fit=crop&q=80&sat=-100&contrast=120`,
-    alt: "Field Trip opening Polaroid 2",
+    src: "/images/welcome/field-trip-02.png",
+    alt: "Textured brick wall found outside"
   },
   {
-    src: `https://images.unsplash.com/photo-1470770841072-f978cf4d019e?w=600&h=600&fit=crop&q=80&sat=-100&contrast=120`,
-    alt: "Field Trip opening Polaroid 3",
+    src: "/images/welcome/field-trip-03.png",
+    alt: "Small white dog looking into the camera"
   },
   {
-    src: `https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=600&h=600&fit=crop&q=80&sat=-100&contrast=120`,
-    alt: "Field Trip opening Polaroid 4",
+    src: "/images/welcome/field-trip-04.png",
+    alt: "Palm trees and city skyline"
   },
   {
-    src: `https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=600&h=600&fit=crop&q=80&sat=-100&contrast=120`,
-    alt: "Field Trip opening Polaroid 5",
+    src: "/images/welcome/field-trip-05.png",
+    alt: "Dessert held in a car"
   },
   {
-    src: `https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=600&h=600&fit=crop&q=80&sat=-100&contrast=120`,
-    alt: "Field Trip opening Polaroid 6",
-  },
+    src: "/images/welcome/field-trip-06.png",
+    alt: "Palm trees reflected in a window"
+  }
 ];
 
 type AuthMode = 'welcome' | 'access_code' | 'signup' | 'signin';
 
 export default function WelcomePage() {
-  const { skin, frankieMode, fc } = useTheme();
-  const { user, fieldType, fieldClassificationComplete, loading, onboardingCompleted } = useApp();
+  const { skin } = useTheme();
+  const { user, fieldClassificationComplete, loading, onboardingCompleted } = useApp();
   const [authMode, setAuthMode] = useState<AuthMode>('welcome');
   const [accessCode, setAccessCode] = useState('');
   const [showHowItWorks, setShowHowItWorks] = useState(false);
@@ -85,46 +82,66 @@ export default function WelcomePage() {
     setAuthMode('signin');
   };
 
-  const Polaroid = ({ photo, label, rotation, index }: { photo: { src: string; alt: string }; label: string; rotation: string; index: number }) => {
-    const [hasError, setHasError] = useState(false);
+  const WelcomePhotoCollage = () => {
+    const tileClass = "overflow-hidden rounded-[8px] border-2 border-on-surface bg-white shadow-[6px_6px_0px_rgba(0,0,0,0.18)]";
+    const imageClass = "h-full w-full object-cover";
 
     return (
-      <div 
-        style={{ transform: `rotate(${rotation})` }}
-        className="bg-white p-3 pb-8 shadow-[16px_16px_0px_rgba(0,0,0,0.05)] border-2 border-on-surface group relative transition-all duration-500 hover:shadow-[20px_20px_0px_var(--color-brand-lime)] hover:-translate-y-2"
-      >
-        {/* Utility Corner Bits */}
-        <div className="absolute -top-1 -left-1 w-6 h-6 border-t-2 border-l-2 border-brand-lime z-20" />
-        <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-2 border-r-2 border-brand-orange z-20" />
-        
-        <div className="aspect-square overflow-hidden bg-gray-50 relative border-2 border-on-surface">
-          {hasError ? (
-            <div className="h-full w-full flex flex-col items-center justify-center bg-brand-orange/5 text-brand-orange/20">
-              <Camera size={32} strokeWidth={1} />
-              <span className="text-[6px] uppercase tracking-widest mt-2">Signal Lost</span>
-            </div>
-          ) : (
-            <img 
-              src={photo.src || undefined} 
-              alt={photo.alt} 
-              onError={() => setHasError(true)}
-              className="h-full w-full object-cover transition-all duration-700 group-hover:scale-110 group-hover:rotate-2" 
-            />
-          )}
-          {/* Gloss Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-          
-          {/* Scanline Effect */}
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.03),rgba(0,255,0,0.01),rgba(0,0,255,0.03))] bg-[length:100%_2px,3px_100%] pointer-events-none opacity-20" />
-        </div>
-        
-        <div className="mt-3 flex justify-between items-center px-1">
-          <span className="font-mono text-[9px] font-black text-on-surface uppercase tracking-widest">
-            {label}
-          </span>
-          <span className="font-mono text-[8px] text-on-surface/30 font-black">
-            #{String(index + 1).padStart(3, '0')}
-          </span>
+      <div className="relative mx-auto w-full max-w-[560px]">
+        <div className="relative grid h-[360px] grid-cols-6 grid-rows-6 gap-2 sm:h-[430px] sm:gap-3 lg:h-[560px]">
+          <motion.figure
+            initial={{ opacity: 0, y: 18, rotate: -3 }}
+            animate={{ opacity: 1, y: 0, rotate: -2 }}
+            transition={{ delay: 0.08 }}
+            className={cn(tileClass, "col-span-4 row-span-4")}
+          >
+            <img src={welcomeImages[0].src} alt={welcomeImages[0].alt} loading="eager" fetchPriority="high" className={imageClass} />
+          </motion.figure>
+
+          <motion.figure
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.16 }}
+            className={cn(tileClass, "col-span-2 row-span-2")}
+          >
+            <img src={welcomeImages[2].src} alt={welcomeImages[2].alt} loading="lazy" className={imageClass} />
+          </motion.figure>
+
+          <motion.figure
+            initial={{ opacity: 0, y: 18, rotate: 3 }}
+            animate={{ opacity: 1, y: 0, rotate: 2 }}
+            transition={{ delay: 0.24 }}
+            className={cn(tileClass, "col-span-2 row-span-2")}
+          >
+            <img src={welcomeImages[4].src} alt={welcomeImages[4].alt} loading="lazy" className={imageClass} />
+          </motion.figure>
+
+          <motion.figure
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.32 }}
+            className={cn(tileClass, "col-span-2 row-span-2")}
+          >
+            <img src={welcomeImages[3].src} alt={welcomeImages[3].alt} loading="lazy" className={imageClass} />
+          </motion.figure>
+
+          <motion.figure
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className={cn(tileClass, "col-span-2 row-span-2")}
+          >
+            <img src={welcomeImages[5].src} alt={welcomeImages[5].alt} loading="lazy" className={imageClass} />
+          </motion.figure>
+
+          <motion.figure
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.48 }}
+            className={cn(tileClass, "col-span-2 row-span-2")}
+          >
+            <img src={welcomeImages[1].src} alt={welcomeImages[1].alt} loading="lazy" className={imageClass} />
+          </motion.figure>
         </div>
       </div>
     );
@@ -158,8 +175,6 @@ export default function WelcomePage() {
         >
           <Sparkle className="w-96 h-96" />
         </motion.div>
-        <SunFlare className="absolute top-1/4 left-0 w-[500px] h-[500px] bg-brand-lime/10 blur-[120px] pointer-events-none" />
-        <SunFlare className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-brand-cyan/15 blur-[120px] pointer-events-none" />
       </>
 
       <AnimatePresence mode="wait">
@@ -169,223 +184,60 @@ export default function WelcomePage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="flex flex-col items-center w-full max-w-4xl mx-auto py-12 px-4"
+            className="w-full max-w-7xl mx-auto px-4 py-6 sm:py-8 lg:min-h-[calc(100vh-48px)] lg:grid lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-12"
           >
-            {/* Header / Logo Section */}
-            <div className="flex flex-col items-center space-y-4 md:space-y-6 mb-8 md:mb-16 relative z-10">
-              <div className="flex items-center gap-6 mb-4">
-                 <div className="w-12 h-1 bg-brand-orange" />
-                 <span className="micro-label text-brand-orange tracking-[0.5em]">WELCOME TO FIELDTRIP</span>
-                 <div className="w-12 h-1 bg-brand-orange" />
+            <section className="relative z-10 flex flex-col items-center text-center lg:items-start lg:text-left">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="h-1 w-10 bg-brand-orange" />
+                <span className="micro-label text-brand-orange tracking-[0.35em]">WELCOME TO FIELDTRIP</span>
               </div>
-              
-              <div className="text-center space-y-4">
-                <h1 className="text-huge italic">
-                  FIELDTRIP
-                </h1>
-                <div className="flex flex-col items-center">
-                   <p className="font-mono text-xs sm:text-sm font-bold text-on-surface uppercase tracking-[0.25em] bg-brand-lime px-5 py-2.5 shadow-[4px_4px_0px_black] rotate-1">
-                     A summer photo game for your crew.
-                   </p>
-                   <div className="font-serif italic text-lg sm:text-xl opacity-85 mt-6 max-w-md space-y-1.5 leading-relaxed bg-[#FFFDF6]/85 p-4 border-2 border-on-surface shadow-[4px_4px_0px_black] rotate-[-1deg]">
-                     <p>Get a mission.</p>
-                     <p>Take the picture.</p>
-                     <p>Earn points.</p>
-                     <p>Make memories.</p>
-                     <p>Win the season.</p>
-                   </div>
-                </div>
+
+              <h1 className="font-display text-[clamp(4rem,18vw,9rem)] font-black italic leading-[0.78] tracking-normal text-on-surface">
+                FIELDTRIP
+              </h1>
+
+              <p className="mt-5 max-w-[660px] font-display text-[clamp(2rem,8vw,5.5rem)] font-black italic uppercase leading-[0.9] tracking-normal text-on-surface">
+                Get outside. Cause a scene. Get Receipts.
+              </p>
+
+              <p className="mt-5 max-w-md font-sans text-base font-black leading-snug text-on-surface/75 sm:text-lg">
+                Your real-world photo game starts here.
+              </p>
+
+              <div className="order-2 my-6 w-full lg:hidden">
+                <WelcomePhotoCollage />
               </div>
-            </div>
 
-            {/* Hero Image Section (Polaroids) */}
-            <div className="relative w-full aspect-square max-w-2xl mb-6 md:mb-12 flex items-center justify-center">
-              {/* Polaroids Staggered Layout */}
-              <div className="relative w-full h-full">
-                {/* Arrows Overlay */}
-                <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible">
-                  {/* Arrow 1: Top Left to Right*/}
-                  <motion.g initial={{ opacity: 0 }} animate={{ opacity: 0.8 }} transition={{ delay: 1 }}>
-                    <path 
-                      d="M 28,30 Q 32,40 45,45" 
-                      fill="none" 
-                      stroke="var(--color-brand-lime)" 
-                      strokeWidth="4.5" 
-                      strokeLinecap="round" 
-                    />
-                    <path d="M 38,44 L 45,45 L 43,38" fill="none" stroke="var(--color-brand-lime)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </motion.g>
-
-                  {/* Arrow 2: Top Right to Center */}
-                  <motion.g initial={{ opacity: 0 }} animate={{ opacity: 0.7 }} transition={{ delay: 1.2 }}>
-                    <path 
-                      d="M 70,35 Q 65,45 55,50" 
-                      fill="none" 
-                      stroke="var(--color-brand-orange)" 
-                      strokeWidth="4.5" 
-                      strokeLinecap="round" 
-                    />
-                    <path d="M 62,48 L 55,50 L 58,42" fill="none" stroke="var(--color-brand-orange)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </motion.g>
-
-                  {/* Arrow 3: Center to Bottom Left */}
-                  <motion.g initial={{ opacity: 0 }} animate={{ opacity: 0.7 }} transition={{ delay: 1.4 }}>
-                    <path 
-                      d="M 40,65 Q 30,75 18,85" 
-                      fill="none" 
-                      stroke="var(--color-brand-cyan)" 
-                      strokeWidth="3.5" 
-                      strokeLinecap="round" 
-                    />
-                    <path d="M 26,85 L 18,85 L 20,77" fill="none" stroke="var(--color-brand-cyan)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </motion.g>
-
-                  {/* Arrow 4: Center to Bottom Right */}
-                  <motion.g initial={{ opacity: 0 }} animate={{ opacity: 0.6 }} transition={{ delay: 1.6 }}>
-                    <path 
-                      d="M 60,65 Q 70,75 82,88" 
-                      fill="none" 
-                      stroke="var(--color-brand-magenta)" 
-                      strokeWidth="3.5" 
-                      strokeLinecap="round" 
-                    />
-                    <path d="M 74,86 L 82,88 L 80,80" fill="none" stroke="var(--color-brand-magenta)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </motion.g>
-                </svg>
-                
-                {/* 1. Pool Day */}
-                <motion.div 
-                  initial={{ opacity: 0, rotate: -15, y: 20 }}
-                  animate={{ opacity: 1, rotate: -8, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className="absolute top-[10%] left-[10%] z-20 w-[42%]"
-                >
-                  <Polaroid 
-                    photo={openingPolaroids[0]} 
-                    label="SCANNED PROOF" 
-                    rotation="-1deg"
-                    index={0}
-                  />
-                </motion.div>
-
-                {/* 2. Desert Finds */}
-                <motion.div 
-                  initial={{ opacity: 0, rotate: 15, y: 20 }}
-                  animate={{ opacity: 1, rotate: 4, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="absolute top-[5%] right-[5%] z-10 w-[42%]"
-                >
-                  <Polaroid 
-                    photo={openingPolaroids[1]} 
-                    label="EVIDENCE #2" 
-                    rotation="2deg"
-                    index={1}
-                  />
-                </motion.div>
-
-                {/* 3. Gallery Wall */}
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="absolute top-[35%] left-[25%] z-30 w-[42%]"
-                >
-                  <Polaroid 
-                    photo={openingPolaroids[2]} 
-                    label="VERIFIED 03" 
-                    rotation="0deg"
-                    index={2}
-                  />
-                </motion.div>
-
-                {/* 4. Night Out */}
-                <motion.div 
-                  initial={{ opacity: 0, rotate: -20, y: 20 }}
-                  animate={{ opacity: 1, rotate: -5, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                  className="absolute bottom-[5%] left-[5%] z-20 w-[42%]"
-                >
-                  <Polaroid 
-                    photo={openingPolaroids[3]} 
-                    label="NIGHTSYNC 004" 
-                    rotation="-3deg"
-                    index={3}
-                  />
-                </motion.div>
-
-                {/* 5. Palm Views */}
-                <motion.div 
-                  initial={{ opacity: 0, rotate: 20, y: 20 }}
-                  animate={{ opacity: 1, rotate: 6, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className="absolute bottom-[2%] right-[5%] z-10 w-[42%]"
-                >
-                  <Polaroid 
-                    photo={openingPolaroids[4]} 
-                    label="CREW 005" 
-                    rotation="4deg"
-                    index={4}
-                  />
-                </motion.div>
-
-                {/* 6. Extra Scan */}
-                <motion.div 
-                  initial={{ opacity: 0, rotate: -10, scale: 0.8 }}
-                  animate={{ opacity: 1, rotate: -2, scale: 1 }}
-                  transition={{ delay: 0.6 }}
-                  className="absolute top-[25%] right-[20%] z-20 w-[40%]"
-                >
-                  <Polaroid 
-                    photo={openingPolaroids[5]} 
-                    label="C Town #6" 
-                    rotation="-1deg"
-                    index={5}
-                  />
-                </motion.div>
-              </div>
-            </div>
-
-            {/* Actions Section */}
-            <div className="flex flex-col w-full max-w-3xl mt-8 md:mt-24 mb-16 relative z-30 space-y-4">
-              <div className="flex flex-col md:flex-row gap-6 md:gap-12 w-full">
-                {/* Utility Floating Label */}
-                <div className="absolute -top-12 left-0 flex items-center gap-2 md:block">
-                  <div className="w-2 h-2 bg-brand-orange animate-pulse rounded-full md:hidden" />
-                  <span className="font-mono text-[9px] font-black uppercase tracking-[0.5em] opacity-40">
-                    CAMP_LAUNCH_CONTROLS
-                  </span>
-                </div>
-                
+              <div className="order-3 mt-2 flex w-full max-w-xl flex-col gap-3 sm:flex-row lg:mt-8">
                 <button 
                   onClick={handleStart}
-                  className="flex-1 px-8 py-6 md:px-10 md:py-10 border-[3.5px] border-on-surface bg-on-surface text-white font-display font-bold text-2xl md:text-5xl uppercase tracking-tight hover:bg-brand-orange transition-all active:translate-x-1 active:translate-y-1 active:shadow-none shadow-[10px_10px_0px_var(--color-brand-lime)] md:shadow-[14px_14px_0px_var(--color-brand-lime)] group relative overflow-hidden italic leading-tight"
+                  className="flex-1 border-[3.5px] border-on-surface bg-on-surface px-5 py-4 font-display text-xl font-black italic uppercase leading-tight tracking-normal text-white shadow-[8px_8px_0px_var(--color-brand-lime)] transition-all hover:bg-brand-orange active:translate-x-1 active:translate-y-1 active:shadow-none sm:text-2xl"
                 >
-                  <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
-                  <span className="relative z-10 flex items-center justify-center gap-4">
-                    START FIRST PHOTO MISSION
-                    <ChevronRight className="w-6 h-6 md:w-8 md:h-8" />
+                  <span className="flex items-center justify-center gap-3">
+                    Start First Mission
+                    <ChevronRight className="h-6 w-6" />
                   </span>
                 </button>
-                
+
                 <button 
-                  onClick={() => setShowHowItWorks(true)}
-                  className="flex-1 px-8 py-6 md:px-10 md:py-10 border-[3.5px] border-on-surface bg-white text-on-surface font-display font-bold text-2xl md:text-5xl uppercase tracking-tight hover:bg-brand-lime hover:text-on-surface transition-all active:translate-x-1 active:translate-y-1 active:shadow-none shadow-[10px_10px_0px_var(--color-brand-cyan)] md:shadow-[14px_14px_0px_var(--color-brand-cyan)] group relative overflow-hidden italic leading-tight"
+                  onClick={handleSignInClick}
+                  className="flex-1 border-[3.5px] border-on-surface bg-white px-5 py-4 font-display text-xl font-black italic uppercase leading-tight tracking-normal text-on-surface shadow-[8px_8px_0px_var(--color-brand-cyan)] transition-all hover:bg-brand-lime active:translate-x-1 active:translate-y-1 active:shadow-none sm:text-2xl"
                 >
-                  <div className="absolute inset-0 bg-brand-lime translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
-                  <span className="relative z-10 transition-colors">HOW IT WORKS</span>
+                  Log In
                 </button>
               </div>
 
-              {/* Explicit Sign In Alternative Link */}
-              <div className="text-center pt-4">
-                <button 
-                  onClick={handleSignInClick}
-                  className="font-mono text-xs font-black text-on-surface/60 hover:text-brand-orange uppercase tracking-widest underline decoration-2 underline-offset-4"
-                >
-                  Already an explorer? Log In instead
-                </button>
-              </div>
-            </div>
+              <button 
+                onClick={() => setShowHowItWorks(true)}
+                className="order-4 mt-6 font-mono text-xs font-black uppercase tracking-widest text-on-surface/60 underline decoration-2 underline-offset-4 transition-colors hover:text-brand-orange"
+              >
+                How it works
+              </button>
+            </section>
+
+            <section className="relative z-10 hidden lg:block">
+              <WelcomePhotoCollage />
+            </section>
 
             {/* How It Works Popup Modal */}
             <AnimatePresence>
