@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   SUS_DAILY_REPORT_LIMIT,
+  TRIBUNAL_REPAIR_CONFIRMATION,
+  buildTribunalDiagnosticsReport,
+  buildTribunalResultSnapshot,
+  canonicalizeLegacyTribunalVote,
+  canBackfillTribunalResult,
   getPublicTribunalCaseData,
   getPublicTribunalCasePrivateFieldViolations,
   getSusDailyCounterId,
@@ -140,4 +145,78 @@ test('finalizing a case twice cannot overwrite a second result snapshot', async 
   assert.equal(first.snapshot, second.snapshot);
   assert.equal(results.get('case-1').validVotes, 7);
   assert.equal(results.get('case-1').susVotes, 2);
+});
+
+test('preview diagnostics reports all canonical Tribunal repair categories without mutation', () => {
+  const caseData = {
+    status: 'closed',
+    entryId: 'entry-1',
+    seasonId: 'season-1',
+    weekNumber: 2,
+    validVotes: 4,
+    susVotes: 1,
+    reporterId: 'private-reporter',
+    sourceReportIds: ['report-1'],
+    title: 'Receipt'
+  };
+  const report = buildTribunalDiagnosticsReport(
+    [{ id: 'case-1', data: caseData }],
+    [{ id: 'user_case-1', data: { vote: 'agree' } }],
+    new Set()
+  );
+  assert.equal(report.counts.publicCasesWithForbiddenFields, 1);
+  assert.equal(report.counts.legacyVotes, 1);
+  assert.equal(report.counts.closedCasesMissingResults, 1);
+  assert.equal(report.counts.cannotSafelyRepair, 0);
+  assert.equal(caseData.reporterId, 'private-reporter');
+});
+
+test('repair helpers remove forbidden fields, convert legacy votes, and backfill snapshots idempotently', () => {
+  const publicCase = {
+    caseId: 'case-1',
+    entryId: 'entry-1',
+    status: 'closed',
+    seasonId: 'season-1',
+    weekNumber: 2,
+    validVotes: 3,
+    susVotes: 2,
+    reporterId: 'private-reporter',
+    escalationReason: 'private reason',
+    title: 'Receipt'
+  };
+  const privateFields = getPublicTribunalCasePrivateFieldViolations(publicCase);
+  for (const field of privateFields) delete (publicCase as any)[field];
+  assert.deepEqual(getPublicTribunalCasePrivateFieldViolations(publicCase), []);
+
+  assert.equal(canonicalizeLegacyTribunalVote('agree'), 'valid');
+  assert.equal(canonicalizeLegacyTribunalVote('disagree'), 'sus');
+  assert.equal(canonicalizeLegacyTribunalVote('weird'), null);
+
+  assert.equal(canBackfillTribunalResult(publicCase), true);
+  const snapshot = buildTribunalResultSnapshot('case-1', publicCase, 'admin-1', 'now');
+  assert.equal(snapshot.caseId, 'case-1');
+  assert.equal(snapshot.outcome, 'community_valid_recommendation');
+  assert.equal(snapshot.recommendationOnly, true);
+
+  const after = buildTribunalDiagnosticsReport(
+    [{ id: 'case-1', data: { ...publicCase, resultSnapshotId: 'case-1' } }],
+    [{ id: 'user_case-1', data: { vote: 'valid' } }],
+    new Set(['case-1'])
+  );
+  assert.equal(after.criticalFailures, 0);
+});
+
+test('unsafe closed cases are flagged for manual admin review', () => {
+  const report = buildTribunalDiagnosticsReport(
+    [{ id: 'case-bad', data: { status: 'closed', entryId: 'entry-1', seasonId: 'season-1' } }],
+    [],
+    new Set()
+  );
+  assert.equal(report.counts.closedCasesMissingResults, 1);
+  assert.equal(report.counts.cannotSafelyRepair, 1);
+  assert.equal(report.samples.cannotSafelyRepair[0].repairable, false);
+});
+
+test('repair confirmation phrase is exact', () => {
+  assert.equal(TRIBUNAL_REPAIR_CONFIRMATION, 'REPAIR TRIBUNAL DATA');
 });

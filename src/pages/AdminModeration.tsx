@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, AlertTriangle, CheckCircle, XCircle, Eye, User, FileText, ExternalLink, Trophy, Zap, Search, ShieldCheck, ClipboardList, Clock } from 'lucide-react';
-import { subscribeToPendingReports, performModerationAction, updateReportStatus, subscribeToAdminLogs, fetchPendingSusReports, resolveSusReport, escalateSusReportToTribunal } from '../services/moderationService';
+import { subscribeToPendingReports, performModerationAction, updateReportStatus, subscribeToAdminLogs, fetchPendingSusReports, resolveSusReport, escalateSusReportToTribunal, previewTribunalDiagnostics, applyTribunalDiagnosticsRepair } from '../services/moderationService';
 import { subscribeToAllOpenFieldChecks } from '../services/fieldCheckService';
 import { resolveFieldCheck } from '../services/gameService';
 import { finalizeVoteWinners } from '../services/voteService';
@@ -17,13 +17,18 @@ export default function AdminModerationPage() {
   const [susReports, setSusReports] = useState<any[]>([]);
   const [fieldChecks, setFieldChecks] = useState<FieldCheck[]>([]);
   const [adminLogs, setAdminLogs] = useState<any[]>([]);
-  const [view, setView] = useState<'reports' | 'sus' | 'fieldChecks' | 'audit'>('reports');
+  const [view, setView] = useState<'reports' | 'sus' | 'fieldChecks' | 'tribunalDiagnostics' | 'audit'>('reports');
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [selectedSusReport, setSelectedSusReport] = useState<any | null>(null);
   const [selectedFieldCheck, setSelectedFieldCheck] = useState<FieldCheck | null>(null);
   const [actionReason, setActionReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFinalizingVotes, setIsFinalizingVotes] = useState(false);
+  const [tribunalPreview, setTribunalPreview] = useState<any | null>(null);
+  const [tribunalRepairResult, setTribunalRepairResult] = useState<any | null>(null);
+  const [tribunalConfirmation, setTribunalConfirmation] = useState('');
+  const [isScanningTribunal, setIsScanningTribunal] = useState(false);
+  const [isRepairingTribunal, setIsRepairingTribunal] = useState(false);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -132,6 +137,35 @@ export default function AdminModerationPage() {
     }
   };
 
+  const handlePreviewTribunalDiagnostics = async () => {
+    setIsScanningTribunal(true);
+    setTribunalRepairResult(null);
+    try {
+      setTribunalPreview(await previewTribunalDiagnostics());
+    } catch (err: any) {
+      alert(`BUREAU_ERROR: Tribunal preview failed. ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsScanningTribunal(false);
+    }
+  };
+
+  const handleApplyTribunalRepairs = async () => {
+    if (tribunalConfirmation.trim() !== 'REPAIR TRIBUNAL DATA') {
+      alert('BUREAU_ERROR: Type REPAIR TRIBUNAL DATA to apply repairs.');
+      return;
+    }
+    setIsRepairingTribunal(true);
+    try {
+      const result = await applyTribunalDiagnosticsRepair(tribunalConfirmation.trim());
+      setTribunalRepairResult(result);
+      setTribunalPreview({ success: true, mode: 'post_repair', readOnly: true, report: result.after });
+    } catch (err: any) {
+      alert(`BUREAU_ERROR: Tribunal repair failed. ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsRepairingTribunal(false);
+    }
+  };
+
   if (!isAdmin) return <div className="p-20 text-center uppercase font-mono text-error">ACCESS_DENIED. Admin clearance required.</div>;
 
   return (
@@ -170,6 +204,12 @@ export default function AdminModerationPage() {
                >
                  Field Checks ({fieldChecks.length})
                </button>
+               <button
+                onClick={() => { setView('tribunalDiagnostics'); setSelectedReport(null); setSelectedSusReport(null); setSelectedFieldCheck(null); }}
+                className={cn("px-4 py-1 text-[10px] font-bold uppercase tracking-widest", view === 'tribunalDiagnostics' ? "bg-on-surface text-paper" : "hover:bg-on-surface/5")}
+               >
+                 Tribunal Data
+               </button>
                <button 
                 onClick={() => { setView('audit'); setSelectedReport(null); setSelectedSusReport(null); setSelectedFieldCheck(null); }}
                 className={cn("px-4 py-1 text-[10px] font-bold uppercase tracking-widest", view === 'audit' ? "bg-on-surface text-paper" : "hover:bg-on-surface/5")}
@@ -181,6 +221,18 @@ export default function AdminModerationPage() {
         </div>
       </div>
 
+      {view === 'tribunalDiagnostics' ? (
+        <TribunalDiagnosticsPanel
+          preview={tribunalPreview}
+          repairResult={tribunalRepairResult}
+          confirmation={tribunalConfirmation}
+          isScanning={isScanningTribunal}
+          isRepairing={isRepairingTribunal}
+          onConfirmationChange={setTribunalConfirmation}
+          onPreview={handlePreviewTribunalDiagnostics}
+          onRepair={handleApplyTribunalRepairs}
+        />
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* List View */}
         <div className={cn(view === 'audit' ? "md:col-span-3" : "md:col-span-1", "space-y-4")}>
@@ -288,6 +340,7 @@ export default function AdminModerationPage() {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }
@@ -415,6 +468,169 @@ function ReportDetails({ report, actionReason, onActionReasonChange, onAction }:
         />
       </Card>
     </motion.div>
+  );
+}
+
+function TribunalDiagnosticsPanel({
+  preview,
+  repairResult,
+  confirmation,
+  isScanning,
+  isRepairing,
+  onConfirmationChange,
+  onPreview,
+  onRepair
+}: any) {
+  const report = preview?.report;
+  const canRepair = !!report && report.canApplyRepairs && confirmation.trim() === 'REPAIR TRIBUNAL DATA' && !isRepairing;
+  const categories = [
+    {
+      key: 'publicCasesWithForbiddenFields',
+      label: 'Forbidden public case fields',
+      description: 'Private reporter/source fields found on public tribunalCases.'
+    },
+    {
+      key: 'legacyVotes',
+      label: 'Legacy vote values',
+      description: 'tribunalVotes still using agree/disagree instead of valid/sus.'
+    },
+    {
+      key: 'closedCasesMissingResults',
+      label: 'Missing result snapshots',
+      description: 'Closed cases missing tribunalResults/{caseId}.'
+    },
+    {
+      key: 'cannotSafelyRepair',
+      label: 'Manual review required',
+      description: 'Records missing enough canonical data for automatic repair.'
+    }
+  ];
+
+  return (
+    <div className="space-y-6">
+      <Card className="p-8 space-y-6 border-2 border-on-surface">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-brand-orange">
+              <ShieldCheck className="w-5 h-5" />
+              <p className="text-[10px] font-black uppercase tracking-[0.28em]">Admin Only // Preview Before Write</p>
+            </div>
+            <h2 className="font-display text-3xl uppercase tracking-tighter mt-2">Tribunal Diagnostics</h2>
+            <p className="text-sm opacity-60 max-w-2xl mt-2">
+              Preview scans are read-only. Repairs are server-authorized, idempotent, logged, and require typed confirmation.
+            </p>
+          </div>
+          <button
+            onClick={onPreview}
+            disabled={isScanning || isRepairing}
+            className="bureau-btn-sm bg-on-surface text-paper hover:bg-brand-orange"
+          >
+            {isScanning ? 'SCANNING...' : 'PREVIEW_SCAN'}
+          </button>
+        </div>
+
+        {!report ? (
+          <div className="border-2 border-dashed border-on-surface/15 p-10 text-center">
+            <p className="font-mono text-xs uppercase tracking-widest opacity-50">Run Preview Scan before applying any repair.</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              {categories.map(category => (
+                <div key={category.key} className="border-2 border-on-surface/10 p-4 bg-on-surface/[0.02]">
+                  <p className="micro-label">{category.label}</p>
+                  <p className="font-display text-4xl uppercase italic leading-none mt-2">
+                    {Number(report.counts?.[category.key] || 0)}
+                  </p>
+                  <p className="text-[10px] opacity-55 mt-2 leading-snug">{category.description}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {categories.map(category => (
+                <div key={`${category.key}-samples`} className="border border-on-surface/10 p-4 bg-white">
+                  <p className="text-[10px] font-black uppercase tracking-widest mb-3">{category.label} Samples</p>
+                  {(report.samples?.[category.key] || []).length === 0 ? (
+                    <p className="text-xs font-mono opacity-40">none</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {report.samples[category.key].map((issue: any) => (
+                        <div key={`${category.key}-${issue.id}`} className="bg-on-surface/[0.03] border border-on-surface/10 p-3">
+                          <p className="text-xs font-mono font-bold">{issue.id}</p>
+                          {issue.fields?.length ? <p className="text-[10px] mt-1 opacity-60">fields: {issue.fields.join(', ')}</p> : null}
+                          {issue.vote ? <p className="text-[10px] mt-1 opacity-60">vote: {issue.vote}</p> : null}
+                          <p className="text-[10px] mt-2 uppercase tracking-wider">{issue.proposedAction}</p>
+                          {!issue.repairable ? <p className="text-[10px] mt-1 text-error font-black">manual: {issue.reason || 'unsafe automatic repair'}</p> : null}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="border-2 border-on-surface p-5 space-y-4 bg-paper">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="micro-label">Critical Failures</p>
+                  <p className={cn("font-display text-3xl uppercase italic leading-none", report.criticalFailures === 0 ? "text-brand-green" : "text-error")}>
+                    {report.criticalFailures === 0 ? 'PASS' : `${report.criticalFailures} FAIL`}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="micro-label">Repair Availability</p>
+                  <p className="text-xs font-mono uppercase">{report.canApplyRepairs ? 'repairable_records_found' : 'no_safe_repairs_available'}</p>
+                </div>
+              </div>
+              <div className="grid md:grid-cols-[1fr_auto] gap-3 items-end">
+                <div>
+                  <p className="micro-label">TYPE_CONFIRMATION</p>
+                  <input
+                    value={confirmation}
+                    onChange={(e) => onConfirmationChange(e.target.value)}
+                    placeholder="REPAIR TRIBUNAL DATA"
+                    className="w-full border-2 border-on-surface/20 bg-white px-4 py-3 font-mono text-xs uppercase focus:border-on-surface outline-none"
+                  />
+                </div>
+                <button
+                  onClick={onRepair}
+                  disabled={!canRepair}
+                  className={cn(
+                    "bureau-btn-sm px-6 py-3",
+                    canRepair ? "bg-brand-orange text-white border-brand-orange hover:bg-on-surface" : "bg-on-surface/10 text-on-surface/35 cursor-not-allowed"
+                  )}
+                >
+                  {isRepairing ? 'REPAIRING...' : 'APPLY_REPAIRS'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {repairResult ? (
+        <Card className="p-6 border-2 border-on-surface space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="micro-label">Post Repair Verification</p>
+              <h3 className={cn("font-display text-3xl uppercase italic", repairResult.verification?.pass ? "text-brand-green" : "text-error")}>
+                {repairResult.verification?.pass ? 'PASS' : 'FAIL'}
+              </h3>
+            </div>
+            <div className="text-right text-xs font-mono">
+              <p>pass_count={repairResult.verification?.passCount ?? 0}</p>
+              <p>fail_count={repairResult.verification?.failCount ?? 0}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3 text-xs font-mono">
+            <div className="bg-on-surface/[0.03] p-3">public_cases={repairResult.repaired?.publicCases ?? 0}</div>
+            <div className="bg-on-surface/[0.03] p-3">legacy_votes={repairResult.repaired?.legacyVotes ?? 0}</div>
+            <div className="bg-on-surface/[0.03] p-3">result_snapshots={repairResult.repaired?.resultSnapshots ?? 0}</div>
+          </div>
+        </Card>
+      ) : null}
+    </div>
   );
 }
 

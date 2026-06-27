@@ -67,8 +67,8 @@ export default function SnitchCouncilPage() {
           votes.reduce<Record<string, BoothVote>>((acc, vote: TribunalVote) => {
             const legacyVote = (vote as any).vote;
             if (vote.caseId && (legacyVote === 'valid' || legacyVote === 'sus')) acc[vote.caseId] = legacyVote;
-            if (vote.caseId && legacyVote === 'agree') acc[vote.caseId] = 'sus';
-            if (vote.caseId && legacyVote === 'disagree') acc[vote.caseId] = 'valid';
+            if (vote.caseId && legacyVote === 'agree') acc[vote.caseId] = 'valid';
+            if (vote.caseId && legacyVote === 'disagree') acc[vote.caseId] = 'sus';
             return acc;
           }, {})
         );

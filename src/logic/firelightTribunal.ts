@@ -53,6 +53,39 @@ export type LegacyTribunalVerdict = TribunalVerdict | 'agree' | 'disagree';
 export const FIRELIGHT_TRIBUNAL_COMPATIBILITY_NOTE =
   'Firelight Tribunal is separate from Weekly Voting. Sus signals are private admin-review inputs; Tribunal votes are public-case recommendations only and never mutate proof status or points.';
 
+export const TRIBUNAL_REPAIR_CONFIRMATION = 'REPAIR TRIBUNAL DATA';
+
+export type TribunalDiagnosticDoc = {
+  id: string;
+  data: Record<string, any>;
+};
+
+export type TribunalDiagnosticIssue = {
+  id: string;
+  proposedAction: string;
+  fields?: string[];
+  vote?: string;
+  repairable: boolean;
+  reason?: string;
+};
+
+export type TribunalDiagnosticsReport = {
+  counts: {
+    publicCasesWithForbiddenFields: number;
+    legacyVotes: number;
+    closedCasesMissingResults: number;
+    cannotSafelyRepair: number;
+  };
+  samples: {
+    publicCasesWithForbiddenFields: TribunalDiagnosticIssue[];
+    legacyVotes: TribunalDiagnosticIssue[];
+    closedCasesMissingResults: TribunalDiagnosticIssue[];
+    cannotSafelyRepair: TribunalDiagnosticIssue[];
+  };
+  criticalFailures: number;
+  canApplyRepairs: boolean;
+};
+
 export function getSusReportId(reporterId: string, entryId: string): string {
   return `${reporterId}_${entryId}`;
 }
@@ -78,8 +111,8 @@ export function isTribunalVerdict(vote: unknown): vote is TribunalVerdict {
 }
 
 export function canonicalTribunalVerdict(input: LegacyTribunalVerdict): TribunalVerdict {
-  if (input === 'agree') return 'sus';
-  if (input === 'disagree') return 'valid';
+  if (input === 'agree') return 'valid';
+  if (input === 'disagree') return 'sus';
   return input;
 }
 
@@ -111,4 +144,105 @@ export function getPublicTribunalCaseData(caseData: Record<string, any>) {
 
 export function getPublicTribunalCasePrivateFieldViolations(caseData: Record<string, any>): string[] {
   return PRIVATE_TRIBUNAL_CASE_FIELDS.filter(field => Object.prototype.hasOwnProperty.call(caseData, field));
+}
+
+export function canonicalizeLegacyTribunalVote(vote: unknown): TribunalVerdict | null {
+  if (vote === 'agree') return 'valid';
+  if (vote === 'disagree') return 'sus';
+  if (isTribunalVerdict(vote)) return vote;
+  return null;
+}
+
+export function canBackfillTribunalResult(caseData: Record<string, any>): boolean {
+  return caseData.status === 'closed' &&
+    !!caseData.entryId &&
+    !!caseData.seasonId &&
+    Number.isFinite(Number(caseData.weekNumber)) &&
+    Number.isFinite(Number(caseData.validVotes)) &&
+    Number.isFinite(Number(caseData.susVotes));
+}
+
+export function buildTribunalResultSnapshot(caseId: string, caseData: Record<string, any>, actorId: string, timestamp: any) {
+  const validVotes = Number(caseData.validVotes || 0);
+  const susVotes = Number(caseData.susVotes || 0);
+  const totalVotes = Number(caseData.totalVotes ?? validVotes + susVotes);
+  return {
+    caseId,
+    entryId: caseData.entryId,
+    seasonId: caseData.seasonId,
+    weekNumber: Number(caseData.weekNumber),
+    validVotes,
+    susVotes,
+    totalVotes,
+    outcome: caseData.outcome || getTribunalOutcome(validVotes, susVotes),
+    recommendationOnly: true,
+    backfilledBy: actorId,
+    backfilledAt: timestamp,
+    finalizedBy: caseData.closedBy || actorId,
+    finalizedAt: caseData.closedAt || timestamp,
+    caseSnapshot: getPublicTribunalCaseData(caseData),
+    compatibility: FIRELIGHT_TRIBUNAL_COMPATIBILITY_NOTE
+  };
+}
+
+export function buildTribunalDiagnosticsReport(
+  cases: TribunalDiagnosticDoc[],
+  votes: TribunalDiagnosticDoc[],
+  resultIds: Set<string>,
+  sampleLimit = 8
+): TribunalDiagnosticsReport {
+  const publicCasesWithForbiddenFields = cases
+    .map(doc => ({
+      id: doc.id,
+      fields: getPublicTribunalCasePrivateFieldViolations(doc.data),
+      proposedAction: 'Move private reporter/source linkage to tribunalCasePrivate and delete forbidden fields from public tribunalCases.',
+      repairable: true
+    }))
+    .filter(issue => issue.fields.length > 0);
+
+  const legacyVotes = votes
+    .map(doc => ({
+      id: doc.id,
+      vote: String(doc.data.vote || ''),
+      proposedAction: doc.data.vote === 'agree'
+        ? 'Convert vote from agree to valid.'
+        : doc.data.vote === 'disagree'
+          ? 'Convert vote from disagree to sus.'
+          : 'No action.',
+      repairable: doc.data.vote === 'agree' || doc.data.vote === 'disagree'
+    }))
+    .filter(issue => issue.repairable);
+
+  const closedCasesMissingResults = cases
+    .filter(doc => doc.data.status === 'closed' && !resultIds.has(doc.id))
+    .map(doc => {
+      const repairable = canBackfillTribunalResult(doc.data);
+      return {
+        id: doc.id,
+        proposedAction: repairable
+          ? 'Create tribunalResults snapshot from canonical closed case counts.'
+          : 'Manual admin review required before result snapshot can be backfilled.',
+        repairable,
+        reason: repairable ? undefined : 'Missing required closed case fields or canonical valid/sus counts.'
+      };
+    });
+
+  const cannotSafelyRepair = closedCasesMissingResults.filter(issue => !issue.repairable);
+
+  return {
+    counts: {
+      publicCasesWithForbiddenFields: publicCasesWithForbiddenFields.length,
+      legacyVotes: legacyVotes.length,
+      closedCasesMissingResults: closedCasesMissingResults.length,
+      cannotSafelyRepair: cannotSafelyRepair.length
+    },
+    samples: {
+      publicCasesWithForbiddenFields: publicCasesWithForbiddenFields.slice(0, sampleLimit),
+      legacyVotes: legacyVotes.slice(0, sampleLimit),
+      closedCasesMissingResults: closedCasesMissingResults.slice(0, sampleLimit),
+      cannotSafelyRepair: cannotSafelyRepair.slice(0, sampleLimit)
+    },
+    criticalFailures: publicCasesWithForbiddenFields.length + legacyVotes.length + cannotSafelyRepair.length,
+    canApplyRepairs: publicCasesWithForbiddenFields.length + legacyVotes.length + closedCasesMissingResults.filter(issue => issue.repairable).length > 0
+  };
 }

@@ -33,7 +33,11 @@ import {
 } from "./src/logic/weeklyVoting";
 import {
   FIRELIGHT_TRIBUNAL_COMPATIBILITY_NOTE,
+  TRIBUNAL_REPAIR_CONFIRMATION,
   SUS_DAILY_REPORT_LIMIT,
+  buildTribunalDiagnosticsReport,
+  buildTribunalResultSnapshot,
+  canonicalizeLegacyTribunalVote,
   canSubmitSusReport,
   getPublicTribunalCaseData,
   getPublicTribunalCasePrivateFieldViolations,
@@ -1263,42 +1267,156 @@ async function startServer() {
     res.json({ success: true, ...result });
   });
 
+  const scanTribunalDiagnostics = async () => {
+    const [casesSnap, votesSnap, resultsSnap] = await Promise.all([
+      dbAdmin!.collection('tribunalCases').limit(1000).get(),
+      dbAdmin!.collection('tribunalVotes').limit(1000).get(),
+      dbAdmin!.collection('tribunalResults').limit(1000).get()
+    ]);
+    const cases = casesSnap.docs.map(docSnap => ({ id: docSnap.id, data: docSnap.data() || {}, ref: docSnap.ref }));
+    const votes = votesSnap.docs.map(docSnap => ({ id: docSnap.id, data: docSnap.data() || {}, ref: docSnap.ref }));
+    const resultIds = new Set(resultsSnap.docs.map(docSnap => docSnap.id));
+    const report = buildTribunalDiagnosticsReport(cases, votes, resultIds);
+    return {
+      report,
+      cases,
+      votes,
+      resultIds,
+      scannedAt: new Date().toISOString()
+    };
+  };
+
   app.get("/api/admin/tribunal/diagnostics", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!assertAdminReady(res)) return;
     if (!(await checkIsAdmin(req.user))) return res.status(403).json({ error: "ADMIN_ONLY" });
     try {
-      const [casesSnap, votesSnap, resultsSnap] = await Promise.all([
-        dbAdmin!.collection('tribunalCases').limit(500).get(),
-        dbAdmin!.collection('tribunalVotes').limit(500).get(),
-        dbAdmin!.collection('tribunalResults').limit(500).get()
-      ]);
-      const publicCasePrivateFieldLeaks = casesSnap.docs
-        .map(docSnap => ({
-          caseId: docSnap.id,
-          privateFields: getPublicTribunalCasePrivateFieldViolations(docSnap.data() || {})
-        }))
-        .filter(item => item.privateFields.length > 0);
-      const legacyVoteValues = votesSnap.docs
-        .map(docSnap => ({ voteId: docSnap.id, vote: docSnap.data()?.vote }))
-        .filter(item => item.vote === 'agree' || item.vote === 'disagree');
-      const closedCasesMissingResultSnapshots = casesSnap.docs
-        .filter(docSnap => docSnap.data()?.status === 'closed' && !resultsSnap.docs.some(resultDoc => resultDoc.id === docSnap.id))
-        .map(docSnap => docSnap.id);
+      const scan = await scanTribunalDiagnostics();
       res.json({
         success: true,
+        mode: 'preview',
+        readOnly: true,
+        scannedAt: scan.scannedAt,
         compatibility: FIRELIGHT_TRIBUNAL_COMPATIBILITY_NOTE,
-        counts: {
-          publicCasesScanned: casesSnap.size,
-          votesScanned: votesSnap.size,
-          resultsScanned: resultsSnap.size
-        },
-        publicCasePrivateFieldLeaks,
-        legacyVoteValues,
-        closedCasesMissingResultSnapshots
+        report: scan.report
       });
     } catch (error: any) {
       console.error("[TRIBUNAL_DIAGNOSTICS] Failed:", error);
       res.status(500).json({ error: "FAILED_TRIBUNAL_DIAGNOSTICS", message: error.message || String(error) });
+    }
+  });
+
+  app.post("/api/admin/tribunal/diagnostics/repair", adminRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    if (!(await checkIsAdmin(req.user))) return res.status(403).json({ error: "ADMIN_ONLY" });
+    const confirmation = String(req.body.confirmation || '').trim();
+    if (confirmation !== TRIBUNAL_REPAIR_CONFIRMATION) {
+      return res.status(400).json({ error: "CONFIRMATION_REQUIRED", requiredPhrase: TRIBUNAL_REPAIR_CONFIRMATION });
+    }
+
+    try {
+      const before = await scanTribunalDiagnostics();
+      let writeCount = 0;
+      let repairedPublicCases = 0;
+      let repairedLegacyVotes = 0;
+      let backfilledResults = 0;
+      const manualReviewIds: string[] = before.report.samples.cannotSafelyRepair.map(issue => issue.id);
+      let batch = dbAdmin!.batch();
+      const flush = async () => {
+        if (writeCount === 0) return;
+        await batch.commit();
+        batch = dbAdmin!.batch();
+        writeCount = 0;
+      };
+      const queue = (fn: (activeBatch: FirebaseFirestore.WriteBatch) => void) => {
+        fn(batch);
+        writeCount++;
+      };
+
+      for (const item of before.cases) {
+        const privateFields = getPublicTribunalCasePrivateFieldViolations(item.data);
+        if (privateFields.length === 0) continue;
+        const privateUpdate: Record<string, any> = {
+          caseId: item.id,
+          migratedFromPublicCase: true,
+          updatedAt: FieldValue.serverTimestamp()
+        };
+        if (item.data.reporterId) privateUpdate.reporterIds = [item.data.reporterId];
+        if (Array.isArray(item.data.reporterIds)) privateUpdate.reporterIds = item.data.reporterIds;
+        if (Array.isArray(item.data.sourceReportIds)) privateUpdate.sourceReportIds = item.data.sourceReportIds;
+        if (item.data.escalationReason) privateUpdate.escalationReason = item.data.escalationReason;
+        if (item.data.adminNotes) privateUpdate.adminNotes = item.data.adminNotes;
+        if (item.data.adminPrivateNotes) privateUpdate.adminPrivateNotes = item.data.adminPrivateNotes;
+
+        const publicUpdate: Record<string, any> = { updatedAt: FieldValue.serverTimestamp() };
+        for (const field of privateFields) publicUpdate[field] = FieldValue.delete();
+        queue(activeBatch => {
+          activeBatch.set(dbAdmin!.collection('tribunalCasePrivate').doc(item.id), privateUpdate, { merge: true });
+          activeBatch.update(item.ref, publicUpdate);
+        });
+        repairedPublicCases++;
+        if (writeCount >= 400) await flush();
+      }
+
+      for (const item of before.votes) {
+        const canonicalVote = canonicalizeLegacyTribunalVote(item.data.vote);
+        if (!canonicalVote || canonicalVote === item.data.vote) continue;
+        queue(activeBatch => {
+          activeBatch.update(item.ref, {
+            vote: canonicalVote,
+            migratedFromVote: item.data.vote,
+            migratedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp()
+          });
+        });
+        repairedLegacyVotes++;
+        if (writeCount >= 400) await flush();
+      }
+
+      for (const item of before.cases) {
+        if (item.data.status !== 'closed' || before.resultIds.has(item.id)) continue;
+        if (!buildTribunalDiagnosticsReport([item], [], before.resultIds).samples.closedCasesMissingResults[0]?.repairable) continue;
+        const snapshot = buildTribunalResultSnapshot(item.id, item.data, req.user.uid, FieldValue.serverTimestamp());
+        queue(activeBatch => {
+          activeBatch.create(dbAdmin!.collection('tribunalResults').doc(item.id), snapshot);
+          activeBatch.set(item.ref, {
+            resultSnapshotId: item.id,
+            updatedAt: FieldValue.serverTimestamp()
+          }, { merge: true });
+        });
+        backfilledResults++;
+        if (writeCount >= 400) await flush();
+      }
+
+      await flush();
+      await writeAdminAudit(req.user.uid, 'tribunal_schema_migration', 'tribunalDiagnostics', 'repair_tribunal_schema', {
+        repairedPublicCases,
+        repairedLegacyVotes,
+        backfilledResults,
+        manualReviewIds,
+        beforeCounts: before.report.counts
+      });
+      const after = await scanTribunalDiagnostics();
+
+      res.json({
+        success: true,
+        action: 'repair_tribunal_schema',
+        repaired: {
+          publicCases: repairedPublicCases,
+          legacyVotes: repairedLegacyVotes,
+          resultSnapshots: backfilledResults
+        },
+        manualReviewIds,
+        before: before.report,
+        after: after.report,
+        verification: {
+          pass: after.report.criticalFailures === 0,
+          failCount: after.report.criticalFailures,
+          passCount: Math.max(0, before.report.criticalFailures - after.report.criticalFailures)
+        }
+      });
+    } catch (error: any) {
+      console.error("[TRIBUNAL_DIAGNOSTICS_REPAIR] Failed:", error);
+      res.status(500).json({ error: "FAILED_TRIBUNAL_DIAGNOSTICS_REPAIR", message: error.message || String(error) });
     }
   });
 

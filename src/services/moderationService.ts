@@ -96,6 +96,27 @@ export async function escalateSusReportToTribunal(report: any, seasonId: string,
   return response.json();
 }
 
+export async function previewTribunalDiagnostics() {
+  const response = await authenticatedFetch('/api/admin/tribunal/diagnostics');
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'FAILED_TO_PREVIEW_TRIBUNAL_DIAGNOSTICS');
+  }
+  return response.json();
+}
+
+export async function applyTribunalDiagnosticsRepair(confirmation: string) {
+  const response = await authenticatedFetch('/api/admin/tribunal/diagnostics/repair', {
+    method: 'POST',
+    body: JSON.stringify({ confirmation })
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'FAILED_TO_REPAIR_TRIBUNAL_DIAGNOSTICS');
+  }
+  return response.json();
+}
+
 // 2. Blocking
 export async function blockUser(userId: string, blockedUserId: string) {
   try {

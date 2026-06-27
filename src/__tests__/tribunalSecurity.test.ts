@@ -25,8 +25,8 @@ test('only open and closed tribunal cases are public-readable states', () => {
 });
 
 test('legacy agree/disagree UI votes map to canonical valid/sus votes', () => {
-  assert.equal(canonicalTribunalVerdict('agree'), 'sus');
-  assert.equal(canonicalTribunalVerdict('disagree'), 'valid');
+  assert.equal(canonicalTribunalVerdict('agree'), 'valid');
+  assert.equal(canonicalTribunalVerdict('disagree'), 'sus');
   assert.equal(canonicalTribunalVerdict('sus'), 'sus');
   assert.equal(canonicalTribunalVerdict('valid'), 'valid');
 });
