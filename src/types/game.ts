@@ -365,21 +365,32 @@ export type Challenge = any; // Simple fallback to avoid complex circular import
 
 export interface TribunalCase {
   id: string; // usually same as entryId
+  caseId?: string;
   entryId: string;
-  reporterId: string;
+  resultSnapshotId?: string;
   targetId: string; // The user who submitted the proof
+  targetUserId?: string;
   weekNumber: number;
   seasonId: string;
-  status: 'open' | 'closed';
-  outcome?: 'called_out' | 'upheld';
-  agreeVotes: number;
-  disagreeVotes: number;
+  status: 'admin_review' | 'open' | 'closed' | 'dismissed';
+  outcome?: 'called_out' | 'upheld' | 'community_sus_recommendation' | 'community_valid_recommendation';
+  validVotes: number;
+  susVotes: number;
+  totalVotes?: number;
   createdAt: any;
+  openedAt?: any;
+  closedAt?: any;
+  openedBy?: string;
+  closedBy?: string;
+  adminReviewedBy?: string;
+  adminReviewedAt?: any;
+  adminNotes?: string;
   title: string;
   description: string;
   proofImage: string;
   playerName: string;
   fieldNote: string;
+  missionTitle?: string;
   deckName?: string;
 }
 
@@ -387,8 +398,9 @@ export interface TribunalVote {
   id: string; // userId_caseId
   userId: string;
   caseId: string;
-  vote: 'agree' | 'disagree';
+  vote: 'valid' | 'sus';
   createdAt: any;
+  updatedAt?: any;
 }
 
 export interface BallotCandidate {
@@ -404,4 +416,3 @@ export interface BallotCandidate {
   seasonId: string;
   addedAt: any; // Timestamp
 }
-

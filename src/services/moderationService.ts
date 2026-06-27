@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Report, ReportTargetType, ReportStatus, ModerationAudit } from '../types/game';
+import { authenticatedFetch } from '../lib/api';
 
 // 1. Reporting
 export async function createReport(
@@ -40,6 +41,59 @@ export async function createReport(
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, 'reports');
   }
+}
+
+export async function submitSusReport(entryId: string, reason = 'suspicious_proof', details = '') {
+  const response = await authenticatedFetch('/api/reports/sus', {
+    method: 'POST',
+    body: JSON.stringify({ entryId, reason, details })
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'FAILED_TO_SUBMIT_SUS_REPORT');
+  }
+  return response.json();
+}
+
+export async function fetchPendingSusReports() {
+  const response = await authenticatedFetch('/api/admin/sus-reports?status=pending');
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'FAILED_TO_FETCH_SUS_REPORTS');
+  }
+  const data = await response.json();
+  return data.reports || [];
+}
+
+export async function resolveSusReport(reportId: string, status: 'dismissed' | 'resolved' | 'request_clarification', adminNotes = '') {
+  const response = await authenticatedFetch(`/api/admin/sus-reports/${encodeURIComponent(reportId)}/resolve`, {
+    method: 'POST',
+    body: JSON.stringify({ status, adminNotes })
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'FAILED_TO_RESOLVE_SUS_REPORT');
+  }
+  return response.json();
+}
+
+export async function escalateSusReportToTribunal(report: any, seasonId: string, weekNumber: number, adminReason: string) {
+  const response = await authenticatedFetch('/api/admin/tribunal/cases', {
+    method: 'POST',
+    body: JSON.stringify({
+      reportId: report.id,
+      entryId: report.entryId,
+      seasonId,
+      weekNumber,
+      status: 'open',
+      adminReason
+    })
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'FAILED_TO_ESCALATE_SUS_REPORT');
+  }
+  return response.json();
 }
 
 // 2. Blocking

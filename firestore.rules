@@ -48,6 +48,13 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/users/$(request.auth.uid))
       );
     }
+    function isTribunalEligible() {
+      return isSignedIn() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('starterApprovedCount', 0) >= 3)
+      );
+    }
     
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
     function isValidAccessCode(data) {
@@ -181,10 +188,38 @@ service cloud.firestore {
                       incoming().diff(existing()).affectedKeys().hasOnly(['favorite']);
         allow delete: if isAdmin();
       }
+
+      match /susReports/{id} {
+        allow read, write: if false;
+      }
+      match /susReportCounters/{id} {
+        allow read, write: if false;
+      }
+      match /susAbuseSignals/{id} {
+        allow read, write: if false;
+      }
+      match /tribunalCases/{id} {
+        allow read, write: if false;
+      }
+      match /tribunalCasePrivate/{id} {
+        allow read, write: if false;
+      }
+      match /tribunalVotes/{id} {
+        allow read, write: if false;
+      }
+      match /tribunalVoteAudit/{id} {
+        allow read, write: if false;
+      }
+      match /tribunalResults/{id} {
+        allow read, write: if false;
+      }
       
       match /{allPaths=**} {
-        allow read: if isSignedIn() && (uId == request.auth.uid || isAdmin());
-        allow write: if isAdmin();
+        allow read: if isSignedIn() &&
+          (uId == request.auth.uid || isAdmin()) &&
+          !allPaths.matches('^(susReports|susReportCounters|susAbuseSignals|tribunalCases|tribunalCasePrivate|tribunalVotes|tribunalVoteAudit|tribunalResults)/.*');
+        allow write: if isAdmin() &&
+          !allPaths.matches('^(susReports|susReportCounters|susAbuseSignals|tribunalCases|tribunalCasePrivate|tribunalVotes|tribunalVoteAudit|tribunalResults)/.*');
       }
     }
 
@@ -244,13 +279,7 @@ service cloud.firestore {
         ]) &&
         incoming().status in ['pending', 'submitted', 'pending_upload', 'pending_review'] &&
         isValidEntry(incoming())
-      )) || (
-        // Action: Tribunal Flag (Non-owner called it out)
-        isSignedIn() &&
-        incoming().diff(existing()).affectedKeys().hasOnly(['tribunalStatus']) &&
-        incoming().tribunalStatus == 'open' &&
-        existsAfter(/databases/$(database)/documents/tribunalCases/$(entryId))
-      );
+      ));
       
       allow delete: if isAdmin();
     }
@@ -305,7 +334,7 @@ service cloud.firestore {
                data.seasonId is string;
       }
       allow read: if isApproved();
-      allow create: if isSignedIn() && isValidCandidate(incoming());
+      allow create: if isAdmin() && isValidCandidate(incoming());
       allow update, delete: if isAdmin();
     }
 
@@ -323,11 +352,8 @@ service cloud.firestore {
                data.isLocked is bool;
       }
       allow read: if isApproved();
-      allow create: if isApproved() && isValidWeeklyBallot(incoming());
-      allow update: if isApproved() && isValidWeeklyBallot(incoming()) && (
-        isAdmin() || 
-        incoming().diff(existing()).affectedKeys().hasOnly(['candidateEntryIds', 'categoryCandidateMap', 'totalCandidates', 'isGenerated', 'isLocked', 'generatedAt', 'lockedAt', 'finalizedAt', 'phase'])
-      );
+      allow create: if isAdmin() && isValidWeeklyBallot(incoming());
+      allow update: if isAdmin() && isValidWeeklyBallot(incoming());
       allow delete: if isAdmin();
 
       match /candidates/{entryId} {
@@ -349,13 +375,10 @@ service cloud.firestore {
         }
 
         allow read: if isApproved();
-        allow create: if isApproved() && 
+        allow create: if isAdmin() && 
                          isValidWeeklyBallotCandidate(incoming()) && 
                          get(/databases/$(database)/documents/entries/$(entryId)).data.status == 'approved';
-        allow update: if isApproved() && isValidWeeklyBallotCandidate(incoming()) && (
-                         isAdmin() || 
-                         incoming().diff(existing()).affectedKeys().hasOnly(['voteCountByCategory', 'totalVotes', 'isEligible', 'isDisqualified', 'disqualifiedReason', 'updatedAt'])
-                      );
+        allow update: if isAdmin() && isValidWeeklyBallotCandidate(incoming());
         allow delete: if isAdmin();
       }
     }
@@ -372,18 +395,8 @@ service cloud.firestore {
         resource == null ||
         resource.data.userId == request.auth.uid
       );
-      // voteId: userId_seasonId_week_category prevents duplicates
-      allow create: if isApproved() && 
-                    voteId == (request.auth.uid + "_" + incoming().seasonId + "_w" + incoming().weekNumber + "_" + incoming().category) &&
-                    isValidVote(incoming()) &&
-                    get(/databases/$(database)/documents/entries/$(incoming().entryId)).data.userId != request.auth.uid &&
-                    get(/databases/$(database)/documents/entries/$(incoming().entryId)).data.status == 'approved';
-      allow update: if isApproved() &&
-                    isOwner(existing().userId) &&
-                    incoming().userId == request.auth.uid &&
-                    incoming().diff(existing()).affectedKeys().hasOnly(['entryId', 'createdAt']) &&
-                    get(/databases/$(database)/documents/entries/$(incoming().entryId)).data.userId != request.auth.uid &&
-                    get(/databases/$(database)/documents/entries/$(incoming().entryId)).data.status == 'approved';
+      // Vote writes are server-owned through /api/voting/weekly/vote.
+      allow create, update: if false;
       allow delete: if isAdmin();
     }
 
@@ -413,6 +426,11 @@ service cloud.firestore {
       allow get: if isAdmin() || (isSignedIn() && resource.data.reporterId == request.auth.uid);
       allow list: if isAdmin();
       allow update: if isAdmin();
+    }
+
+    match /susReports/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // MODERATION AUDIT (Append-only for admins)
@@ -498,39 +516,39 @@ service cloud.firestore {
     
     // TRIBUNAL
     match /tribunalCases/{caseId} {
-      function isValidTribunalCase(data) {
-        return data.keys().hasAll(['entryId', 'reporterId', 'targetId', 'weekNumber', 'seasonId', 'status', 'agreeVotes', 'disagreeVotes', 'createdAt', 'title', 'description', 'proofImage', 'playerName', 'fieldNote', 'deckName']) &&
-               data.reporterId == request.auth.uid &&
-               data.status == 'open' &&
-               data.agreeVotes == 0 &&
-               data.disagreeVotes == 0 &&
-               data.createdAt == requestTime();
-      }
-      allow read: if isApproved();
-      allow create: if isApproved() && isValidId(caseId) && isValidTribunalCase(incoming()) &&
-                    exists(/databases/$(database)/documents/entries/$(incoming().entryId));
-      allow update: if isApproved() && (
-        isAdmin() || 
-        // Action: Cast/Change Vote
-        (incoming().diff(existing()).affectedKeys().hasAny(['agreeVotes', 'disagreeVotes'])) ||
-        // Action: Resolve Case
-        (incoming().diff(existing()).affectedKeys().hasAny(['status', 'outcome', 'updatedAt']))
-      );
+      allow read: if isTribunalEligible() && resource.data.status in ['open', 'closed'];
+      allow create, update, delete: if false;
+    }
+
+    match /tribunalCasePrivate/{caseId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     match /tribunalVotes/{voteId} {
-      function isValidTribunalVote(data) {
-        return data.keys().hasAll(['userId', 'caseId', 'vote', 'createdAt']) &&
-               data.userId == request.auth.uid &&
-               data.vote in ['agree', 'disagree'] &&
-               data.createdAt == requestTime();
-      }
       allow read: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid || isAdmin());
-      // voteId: userId_caseId
-      allow create: if isApproved() && voteId == (request.auth.uid + "_" + incoming().caseId) && isValidTribunalVote(incoming());
-      allow update: if isApproved() && isOwner(existing().userId) && 
-                    incoming().diff(existing()).affectedKeys().hasOnly(['vote', 'createdAt']) && 
-                    isValidTribunalVote(incoming());
+      // Tribunal vote writes are server-owned through /api/tribunal/vote.
+      allow create, update: if false;
+    }
+
+    match /tribunalVoteAudit/{voteId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /tribunalResults/{caseId} {
+      allow read: if isTribunalEligible();
+      allow write: if false;
+    }
+
+    match /susReportCounters/{counterId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /susAbuseSignals/{userId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // Global Catch-all Deny at the very end

@@ -19,6 +19,33 @@ import {
   resolveServerFirebaseProjectId,
   resolveServerFirestoreDatabaseId,
 } from "./src/server/firebaseAdmin";
+import { getCurrentVotingCycle, getVotingPhase } from "./src/services/votingCycleService";
+import {
+  WEEKLY_VOTE_CATEGORIES,
+  WEEKLY_VOTING_COMPATIBILITY_NOTE,
+  getWeeklyBallotId,
+  getWeeklyVoteId,
+  getWeeklyVotingRestriction,
+  isApprovedWeeklyProofStatus,
+  isWeeklyCandidateEligible,
+  isWeeklyEntryEligible,
+  isWeeklyVoteCategory,
+} from "./src/logic/weeklyVoting";
+import {
+  FIRELIGHT_TRIBUNAL_COMPATIBILITY_NOTE,
+  SUS_DAILY_REPORT_LIMIT,
+  canSubmitSusReport,
+  getPublicTribunalCaseData,
+  getPublicTribunalCasePrivateFieldViolations,
+  getSusDailyCounterId,
+  getSusReportId,
+  getTribunalOutcome,
+  getTribunalVoteId,
+  getUtcDayKey,
+  isActiveSusReportStatus,
+  isSusReviewStatus,
+  isTribunalVerdict,
+} from "./src/logic/firelightTribunal";
 
 // Types for proof evaluation
 type MetadataStatus = 'verified' | 'missing' | 'mismatch' | 'unverified';
@@ -416,7 +443,865 @@ async function startServer() {
     }
   };
 
+  const cleanServerId = (value: unknown) => String(value || '').trim();
+  const isApprovedEntryStatus = (status: unknown) => {
+    return isApprovedWeeklyProofStatus(status);
+  };
+  const normalizeVoteCategory = (category: unknown) => cleanServerId(category);
+  const assertAdminReady = (res: any) => {
+    if (!dbAdmin) {
+      res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+      return false;
+    }
+    return true;
+  };
+
+  const getUserProfileForRequest = async (uid: string) => {
+    if (!dbAdmin) return null;
+    const snap = await dbAdmin.collection('users').doc(uid).get();
+    return snap.exists ? { id: snap.id, ...snap.data() } as any : null;
+  };
+
+  const ensureApprovedRequester = async (req: any, res: any) => {
+    const isAdminUser = await checkIsAdmin(req.user);
+    if (isAdminUser) return { ok: true, isAdminUser, profile: null };
+    const profile = await getUserProfileForRequest(req.user.uid);
+    if (!profile) {
+      res.status(403).json({ error: "APPROVED_PROFILE_REQUIRED" });
+      return { ok: false, isAdminUser, profile: null };
+    }
+    return { ok: true, isAdminUser, profile };
+  };
+
+  const writeAdminAudit = async (adminId: string, targetId: string, targetType: string, action: string, metadata: Record<string, unknown> = {}) => {
+    if (!dbAdmin) return;
+    await dbAdmin.collection('adminLogs').add({
+      adminId,
+      targetId,
+      targetType,
+      action,
+      ...metadata,
+      createdAt: FieldValue.serverTimestamp()
+    });
+  };
+
+  const awardWeeklyPointsOnce = (batch: FirebaseFirestore.WriteBatch, params: {
+    eventId: string;
+    userId: string;
+    userName: string;
+    points: number;
+    entryId: string;
+    tripId?: string;
+    description: string;
+  }) => {
+    if (!dbAdmin) return;
+    const eventRef = dbAdmin.collection('scoreEvents').doc(params.eventId);
+    batch.create(eventRef, {
+      userId: params.userId,
+      userName: params.userName,
+      type: 'vote_winner_bonus',
+      points: params.points,
+      entryId: params.entryId,
+      tripId: params.tripId || null,
+      description: params.description,
+      createdAt: FieldValue.serverTimestamp()
+    });
+    const inc = FieldValue.increment(params.points);
+    batch.set(dbAdmin.collection('users').doc(params.userId), {
+      xp: inc,
+      points: inc,
+      totalXP: inc,
+      totalPoints: inc,
+      seasonXP: inc,
+      seasonPoints: inc,
+      weeklyXp: inc,
+      weeklyXP: inc,
+      weeklyPoints: inc,
+      seasonXp: inc,
+      score: inc,
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+  };
+
   // API Routes
+  app.post("/api/voting/weekly/vote", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    const approval = await ensureApprovedRequester(req, res);
+    if (!approval.ok) return;
+
+    try {
+      const uid = req.user.uid;
+      const entryId = cleanServerId(req.body.entryId);
+      const seasonId = cleanServerId(req.body.seasonId) || 'heatwave-receipts';
+      const weekNumber = Number(req.body.weekNumber);
+      const category = normalizeVoteCategory(req.body.category);
+
+      if (!entryId || !Number.isInteger(weekNumber) || weekNumber <= 0 || !isWeeklyVoteCategory(category)) {
+        return res.status(400).json({ error: "INVALID_WEEKLY_VOTE_REQUEST" });
+      }
+
+      const cycle = getCurrentVotingCycle(new Date(), 'UTC');
+      if (getVotingPhase(new Date(), cycle) !== 'voting') {
+        return res.status(403).json({ error: "VOTING_WINDOW_CLOSED" });
+      }
+
+      const [voterProfileSnap, appConfigSnap] = await Promise.all([
+        dbAdmin!.collection('users').doc(uid).get(),
+        dbAdmin!.collection('appConfig').doc('main').get()
+      ]);
+      const voterProfile = voterProfileSnap.exists ? voterProfileSnap.data() || {} : {};
+      const appConfig = appConfigSnap.exists ? appConfigSnap.data() || {} : {};
+      const enforceCrewRestriction = appConfig?.weeklyVoting?.enforceCrewRestriction === true || appConfig?.voting?.enforceCrewRestriction === true;
+
+      const ballotId = getWeeklyBallotId(seasonId, weekNumber);
+      const voteId = getWeeklyVoteId(uid, seasonId, weekNumber, category);
+      const result = await dbAdmin!.runTransaction(async (transaction) => {
+        const ballotRef = dbAdmin!.collection('weeklyBallots').doc(ballotId);
+        const candidateRef = ballotRef.collection('candidates').doc(entryId);
+        const entryRef = dbAdmin!.collection('entries').doc(entryId);
+        const voteRef = dbAdmin!.collection('votes').doc(voteId);
+
+        const [ballotSnap, candidateSnap, entrySnap, voteSnap] = await Promise.all([
+          transaction.get(ballotRef),
+          transaction.get(candidateRef),
+          transaction.get(entryRef),
+          transaction.get(voteRef)
+        ]);
+
+        if (!ballotSnap.exists) throw new Error("BALLOT_NOT_FOUND");
+        const ballot = ballotSnap.data() || {};
+        if (ballot.phase !== 'voting') throw new Error("BALLOT_NOT_OPEN");
+        if (ballot.isLocked !== true) throw new Error("BALLOT_NOT_LOCKED");
+        if (!candidateSnap.exists) throw new Error("CANDIDATE_NOT_FOUND");
+
+        const candidate = candidateSnap.data() || {};
+        if (!isWeeklyCandidateEligible(candidate, category)) throw new Error("CANDIDATE_NOT_ELIGIBLE");
+        if (!entrySnap.exists) throw new Error("ENTRY_NOT_FOUND");
+
+        const entry = entrySnap.data() || {};
+        if (!isWeeklyEntryEligible(entry)) throw new Error("ENTRY_NOT_ELIGIBLE");
+        const restriction = getWeeklyVotingRestriction({
+          voterId: uid,
+          voterCrewId: voterProfile.crewId,
+          entry,
+          enforceCrewRestriction
+        });
+        if (restriction) throw new Error(restriction);
+
+        if (voteSnap.exists) {
+          const existingVote = voteSnap.data() || {};
+          if (existingVote.entryId === entryId) {
+            return { voteId, changed: false, duplicateIgnored: true };
+          }
+          throw new Error("VOTE_ALREADY_CAST");
+        }
+
+        const voteData = {
+          userId: uid,
+          entryId,
+          weekNumber,
+          seasonId,
+          category,
+          createdAt: FieldValue.serverTimestamp()
+        };
+        transaction.create(voteRef, voteData);
+        return { voteId, changed: true, duplicateIgnored: false };
+      });
+
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      const message = error?.message || String(error);
+      const status = ['SELF_VOTE_PROHIBITED', 'CREW_VOTE_PROHIBITED', 'VOTING_WINDOW_CLOSED', 'VOTE_ALREADY_CAST'].includes(message) ? 403 : 400;
+      console.warn("[WEEKLY_VOTE] Rejected:", message);
+      res.status(status).json({ error: message });
+    }
+  });
+
+  app.post("/api/admin/voting/build-weekly-ballot", adminRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    if (!(await checkIsAdmin(req.user))) return res.status(403).json({ error: "ADMIN_ONLY" });
+
+    try {
+      const seasonId = cleanServerId(req.body.seasonId) || 'heatwave-receipts';
+      const weekNumber = Number(req.body.weekNumber);
+      const reason = cleanServerId(req.body.reason);
+      if (!Number.isInteger(weekNumber) || weekNumber <= 0) {
+        return res.status(400).json({ error: "INVALID_WEEK_NUMBER" });
+      }
+      if (reason.length < 5) {
+        return res.status(400).json({ error: "ADMIN_REASON_REQUIRED" });
+      }
+
+      const ballotId = getWeeklyBallotId(seasonId, weekNumber);
+      const entriesSnap = await dbAdmin!.collection('entries').where('status', '==', 'approved').get();
+      const eligibleEntries = entriesSnap.docs
+        .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any))
+        .filter(entry => {
+          const entrySeasonId = entry.seasonId || seasonId;
+          const entryWeek = Number(entry.eligibleWeekNumber || entry.weekNumber || weekNumber);
+          return entrySeasonId === seasonId &&
+            entryWeek === weekNumber &&
+            (entry.proofImage || entry.imageUrl || entry.photoUrl) &&
+            entry.isPrivate !== true &&
+            entry.private !== true &&
+            entry.visibility !== 'private' &&
+            entry.disqualified !== true;
+        });
+
+      const batch = dbAdmin!.batch();
+      const ballotRef = dbAdmin!.collection('weeklyBallots').doc(ballotId);
+      const categoryCandidateMap: Record<string, string[]> = {};
+      WEEKLY_VOTE_CATEGORIES.forEach(category => {
+        categoryCandidateMap[category] = eligibleEntries.map(entry => entry.id);
+      });
+
+      batch.set(ballotRef, {
+        ballotId,
+        seasonId,
+        weekNumber,
+        cycleStartAt: FieldValue.serverTimestamp(),
+        votingOpensAt: FieldValue.serverTimestamp(),
+        votingClosesAt: FieldValue.serverTimestamp(),
+        awardsReleaseAt: FieldValue.serverTimestamp(),
+        phase: req.body.phase || 'submission',
+        candidateEntryIds: eligibleEntries.map(entry => entry.id),
+        categoryCandidateMap,
+        totalCandidates: eligibleEntries.length,
+        isGenerated: true,
+        isLocked: req.body.phase === 'voting',
+        generatedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+
+      for (const entry of eligibleEntries) {
+        const missionId = entry.tripId || entry.challengeId || entry.missionId || '';
+        const candidateData = {
+          entryId: entry.id,
+          userId: entry.userId || entry.uid || '',
+          displayName: entry.userName || entry.displayName || 'Agent',
+          userName: entry.userName || entry.displayName || 'Agent',
+          avatarUrl: entry.avatarUrl || '',
+          photoUrl: entry.proofImage || entry.imageUrl || entry.photoUrl || '',
+          thumbnailUrl: entry.thumbnailUrl || entry.proofImage || entry.imageUrl || entry.photoUrl || '',
+          missionId,
+          missionTitle: entry.tripTitle || entry.challengeTitle || entry.missionTitle || 'Field Trip Mission',
+          tripId: missionId,
+          tripTitle: entry.tripTitle || entry.challengeTitle || entry.missionTitle || 'Field Trip Mission',
+          proofImage: entry.proofImage || entry.imageUrl || entry.photoUrl || '',
+          fieldNote: entry.fieldNote || entry.note || '',
+          deckId: entry.deckId || 'starter',
+          approvedAt: entry.approvedAt || FieldValue.serverTimestamp(),
+          submittedAt: entry.createdAt || FieldValue.serverTimestamp(),
+          eligibleWeekNumber: weekNumber,
+          weekNumber,
+          seasonId,
+          categories: WEEKLY_VOTE_CATEGORIES,
+          voteCountByCategory: Object.fromEntries(WEEKLY_VOTE_CATEGORIES.map(category => [category, 0])),
+          totalVotes: 0,
+          isEligible: true,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
+        };
+        batch.set(ballotRef.collection('candidates').doc(entry.id), candidateData, { merge: true });
+        batch.set(dbAdmin!.collection('ballotCandidates').doc(`${seasonId}_w${weekNumber}_${entry.id}`), {
+          id: `${seasonId}_w${weekNumber}_${entry.id}`,
+          entryId: entry.id,
+          userId: candidateData.userId,
+          userName: candidateData.userName,
+          tripId: missionId,
+          tripTitle: candidateData.tripTitle,
+          proofImage: candidateData.proofImage,
+          fieldNote: candidateData.fieldNote,
+          weekNumber,
+          seasonId,
+          addedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+      }
+
+      await batch.commit();
+      await writeAdminAudit(req.user.uid, ballotId, 'weeklyBallot', 'build_weekly_ballot', { seasonId, weekNumber, candidates: eligibleEntries.length, reason });
+      res.json({ success: true, ballotId, candidates: eligibleEntries.length });
+    } catch (error: any) {
+      console.error("[WEEKLY_BALLOT_BUILD] Failed:", error);
+      res.status(500).json({ error: "FAILED_TO_BUILD_WEEKLY_BALLOT", message: error.message || String(error) });
+    }
+  });
+
+  app.post("/api/admin/voting/finalize-week", adminRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    if (!(await checkIsAdmin(req.user))) return res.status(403).json({ error: "ADMIN_ONLY" });
+
+    try {
+      const seasonId = cleanServerId(req.body.seasonId) || 'heatwave-receipts';
+      const weekNumber = Number(req.body.weekNumber);
+      const reason = cleanServerId(req.body.reason);
+      if (!Number.isInteger(weekNumber) || weekNumber <= 0) return res.status(400).json({ error: "INVALID_WEEK_NUMBER" });
+      if (reason.length < 5) return res.status(400).json({ error: "ADMIN_REASON_REQUIRED" });
+
+      const summaryId = getWeeklyBallotId(seasonId, weekNumber);
+      const summaryRef = dbAdmin!.collection('weeklySummaries').doc(summaryId);
+      const summarySnap = await summaryRef.get();
+      if (summarySnap.exists && summarySnap.data()?.isLocked && summarySnap.data()?.voteWinners) {
+        return res.json({ success: true, alreadyFinalized: true, voteWinners: summarySnap.data()?.voteWinners });
+      }
+
+      const votesSnap = await dbAdmin!.collection('votes')
+        .where('seasonId', '==', seasonId)
+        .where('weekNumber', '==', weekNumber)
+        .get();
+      const votes = votesSnap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any));
+      const voteWinners: Record<string, any> = {};
+      let batch = dbAdmin!.batch();
+      let writes = 0;
+
+      const flush = async () => {
+        if (writes > 0) {
+          await batch.commit();
+          batch = dbAdmin!.batch();
+          writes = 0;
+        }
+      };
+
+      for (const category of WEEKLY_VOTE_CATEGORIES) {
+        const categoryVotes = votes.filter(v => v.category === category);
+        const counts = new Map<string, number>();
+        categoryVotes.forEach(v => counts.set(v.entryId, (counts.get(v.entryId) || 0) + 1));
+        const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+        if (sorted.length === 0) continue;
+
+        const [winningEntryId, topVotes] = sorted[0];
+        const entrySnap = await dbAdmin!.collection('entries').doc(winningEntryId).get();
+        if (!entrySnap.exists) continue;
+        const entry = entrySnap.data() || {};
+        const winnerUserId = entry.userId || entry.uid;
+        if (!winnerUserId) continue;
+
+        voteWinners[category] = {
+          entryId: winningEntryId,
+          count: topVotes,
+          userName: entry.userName || entry.displayName || 'Anonymous Agent',
+          tripTitle: entry.tripTitle || entry.challengeTitle || '',
+          proofImage: entry.proofImage || entry.imageUrl || entry.photoUrl || '',
+          fieldNote: entry.fieldNote || entry.note || ''
+        };
+
+        const winnerEventId = `weekly_winner_${summaryId}_${category}_${winningEntryId}`;
+        const winnerEventSnap = await dbAdmin!.collection('scoreEvents').doc(winnerEventId).get();
+        if (!winnerEventSnap.exists) {
+          awardWeeklyPointsOnce(batch, {
+            eventId: winnerEventId,
+            userId: winnerUserId,
+            userName: entry.userName || entry.displayName || 'Agent',
+            points: 25,
+            entryId: winningEntryId,
+            tripId: entry.tripId || entry.challengeId || entry.missionId || null,
+            description: `Weekly winner: ${category} (Week ${weekNumber})`
+          });
+          writes += 2;
+        }
+
+        const winningVotes = categoryVotes.filter(v => v.entryId === winningEntryId);
+        for (const vote of winningVotes) {
+          const consensusEventId = `weekly_consensus_${summaryId}_${category}_${vote.userId}_${winningEntryId}`;
+          const consensusEventSnap = await dbAdmin!.collection('scoreEvents').doc(consensusEventId).get();
+          if (consensusEventSnap.exists) continue;
+          awardWeeklyPointsOnce(batch, {
+            eventId: consensusEventId,
+            userId: vote.userId,
+            userName: 'Agent',
+            points: 20,
+            entryId: winningEntryId,
+            tripId: entry.tripId || entry.challengeId || entry.missionId || null,
+            description: `Weekly consensus: ${category} (Week ${weekNumber})`
+          });
+          writes += 2;
+          if (writes >= 450) await flush();
+        }
+      }
+
+      batch.set(summaryRef, {
+        id: summaryId,
+        seasonId,
+        weekNumber,
+        voteWinners,
+        isLocked: true,
+        finalizedBy: req.user.uid,
+        finalizeReason: reason,
+        finalizedAt: FieldValue.serverTimestamp(),
+        lastCalculatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+      writes++;
+      await flush();
+
+      await writeAdminAudit(req.user.uid, summaryId, 'weeklyVoting', 'finalize_week', { seasonId, weekNumber, categories: Object.keys(voteWinners).length, reason });
+      res.json({ success: true, summaryId, voteWinners });
+    } catch (error: any) {
+      if (String(error?.message || error).includes('ALREADY_EXISTS')) {
+        return res.status(409).json({ error: "FINALIZE_RETRY_NEEDED", message: "A score event was created by another finalize request. Retry to read the finalized state." });
+      }
+      console.error("[WEEKLY_FINALIZE] Failed:", error);
+      res.status(500).json({ error: "FAILED_TO_FINALIZE_WEEK", message: error.message || String(error) });
+    }
+  });
+
+  app.get("/api/admin/voting/diagnostics", adminRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    if (!(await checkIsAdmin(req.user))) return res.status(403).json({ error: "ADMIN_ONLY" });
+
+    try {
+      const seasonId = cleanServerId(req.query.seasonId) || 'heatwave-receipts';
+      const weekNumber = Number(req.query.weekNumber || 1);
+      if (!Number.isInteger(weekNumber) || weekNumber <= 0) return res.status(400).json({ error: "INVALID_WEEK_NUMBER" });
+
+      const ballotId = getWeeklyBallotId(seasonId, weekNumber);
+      const now = new Date();
+      const expectedPhase = getVotingPhase(now, getCurrentVotingCycle(now, 'UTC'));
+      const [ballotSnap, votesSnap, summarySnap, legacyWeeklyVotesSnap, legacyVoteEventsSnap] = await Promise.all([
+        dbAdmin!.collection('weeklyBallots').doc(ballotId).get(),
+        dbAdmin!.collection('votes').where('seasonId', '==', seasonId).where('weekNumber', '==', weekNumber).get(),
+        dbAdmin!.collection('weeklySummaries').doc(ballotId).get(),
+        dbAdmin!.collection('weeklyVotes').limit(1).get().catch(() => ({ size: 0, docs: [] } as any)),
+        dbAdmin!.collection('voteEvents').limit(1).get().catch(() => ({ size: 0, docs: [] } as any))
+      ]);
+
+      const votes = votesSnap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any));
+      const seenSlots = new Map<string, string[]>();
+      const malformedVoteIds: string[] = [];
+      const invalidVotes: Array<{ voteId: string; reason: string }> = [];
+
+      for (const vote of votes) {
+        const expectedVoteId = getWeeklyVoteId(vote.userId, vote.seasonId, vote.weekNumber, vote.category);
+        if (vote.id !== expectedVoteId) malformedVoteIds.push(vote.id);
+        const slot = `${vote.userId}_${vote.seasonId}_${vote.weekNumber}_${vote.category}`;
+        seenSlots.set(slot, [...(seenSlots.get(slot) || []), vote.id]);
+
+        if (!isWeeklyVoteCategory(vote.category)) {
+          invalidVotes.push({ voteId: vote.id, reason: 'invalid_category' });
+          continue;
+        }
+
+        const [entrySnap, candidateSnap] = await Promise.all([
+          dbAdmin!.collection('entries').doc(vote.entryId).get(),
+          dbAdmin!.collection('weeklyBallots').doc(ballotId).collection('candidates').doc(vote.entryId).get()
+        ]);
+        if (!entrySnap.exists) {
+          invalidVotes.push({ voteId: vote.id, reason: 'missing_entry' });
+          continue;
+        }
+        if (!candidateSnap.exists) {
+          invalidVotes.push({ voteId: vote.id, reason: 'missing_candidate' });
+          continue;
+        }
+        const entry = entrySnap.data() || {};
+        const candidate = candidateSnap.data() || {};
+        if (!isWeeklyEntryEligible(entry)) invalidVotes.push({ voteId: vote.id, reason: 'entry_not_eligible' });
+        if (!isWeeklyCandidateEligible(candidate, vote.category)) invalidVotes.push({ voteId: vote.id, reason: 'candidate_not_eligible' });
+        if ((entry.userId || entry.uid) === vote.userId) invalidVotes.push({ voteId: vote.id, reason: 'self_vote' });
+      }
+
+      const duplicateSlots = Array.from(seenSlots.entries())
+        .filter(([, ids]) => ids.length > 1)
+        .map(([slot, ids]) => ({ slot, voteIds: ids }));
+
+      const ballot = ballotSnap.exists ? ballotSnap.data() || {} : null;
+      const summary = summarySnap.exists ? summarySnap.data() || {} : null;
+      const staleCycles = ballot && ballot.phase !== expectedPhase
+        ? [{ ballotId, storedPhase: ballot.phase, expectedPhase }]
+        : [];
+      const missingResultSnapshots = expectedPhase === 'awards' && !(summary?.isLocked && summary?.voteWinners)
+        ? [ballotId]
+        : [];
+
+      res.json({
+        success: true,
+        seasonId,
+        weekNumber,
+        canonicalModel: {
+          cycleModel: 'src/services/votingCycleService.ts',
+          voteCollection: 'votes',
+          voteIdFormat: 'userId_seasonId_w{weekNumber}_{category}',
+          compatibility: WEEKLY_VOTING_COMPATIBILITY_NOTE
+        },
+        counts: {
+          votes: votes.length,
+          ballotExists: ballotSnap.exists,
+          summaryExists: summarySnap.exists,
+          legacyWeeklyVotesSampleExists: legacyWeeklyVotesSnap.size > 0,
+          legacyVoteEventsSampleExists: legacyVoteEventsSnap.size > 0
+        },
+        duplicateSlots,
+        malformedVoteIds,
+        invalidVotes,
+        staleCycles,
+        missingResultSnapshots,
+        finalizedSnapshot: summary?.isLocked === true && !!summary?.voteWinners
+      });
+    } catch (error: any) {
+      console.error("[WEEKLY_VOTING_DIAGNOSTICS] Failed:", error);
+      res.status(500).json({ error: "FAILED_WEEKLY_VOTING_DIAGNOSTICS", message: error.message || String(error) });
+    }
+  });
+
+  app.post("/api/reports/sus", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    const approval = await ensureApprovedRequester(req, res);
+    if (!approval.ok) return;
+
+    try {
+      const uid = req.user.uid;
+      const entryId = cleanServerId(req.body.entryId);
+      const reason = cleanServerId(req.body.reason) || 'suspicious_proof';
+      const details = cleanServerId(req.body.details).slice(0, 1500);
+      if (!entryId) return res.status(400).json({ error: "ENTRY_ID_REQUIRED" });
+
+      const reportId = getSusReportId(uid, entryId);
+      const dayKey = getUtcDayKey();
+      const counterId = getSusDailyCounterId(uid, dayKey);
+      const result = await dbAdmin!.runTransaction(async (transaction) => {
+        const entryRef = dbAdmin!.collection('entries').doc(entryId);
+        const reportRef = dbAdmin!.collection('susReports').doc(reportId);
+        const counterRef = dbAdmin!.collection('susReportCounters').doc(counterId);
+        const abuseRef = dbAdmin!.collection('susAbuseSignals').doc(uid);
+        const [entrySnap, reportSnap] = await Promise.all([
+          transaction.get(entryRef),
+          transaction.get(reportRef)
+        ]);
+        const counterSnap = await transaction.get(counterRef);
+        if (!entrySnap.exists) throw new Error("ENTRY_NOT_FOUND");
+        const entry = entrySnap.data() || {};
+        if (!isApprovedEntryStatus(entry.status)) throw new Error("ENTRY_NOT_APPROVED");
+        if (entry.archived === true || entry.isArchived === true || entry.isDisqualified === true || entry.visibility === 'private') {
+          throw new Error("ENTRY_NOT_ELIGIBLE_FOR_SUS_REPORT");
+        }
+        const targetUserId = entry.userId || entry.uid;
+        if (!targetUserId) throw new Error("ENTRY_OWNER_MISSING");
+        if (!canSubmitSusReport(uid, targetUserId)) throw new Error("SELF_REPORT_PROHIBITED");
+        if (reportSnap.exists && isActiveSusReportStatus(reportSnap.data()?.status)) {
+          throw new Error("DUPLICATE_ACTIVE_SUS_REPORT");
+        }
+        const currentCount = Number(counterSnap.data()?.count || 0);
+        if (currentCount >= SUS_DAILY_REPORT_LIMIT) {
+          transaction.set(abuseRef, {
+            userId: uid,
+            lastRateLimitedAt: FieldValue.serverTimestamp(),
+            rateLimitedCount: FieldValue.increment(1),
+            lastEntryId: entryId,
+            updatedAt: FieldValue.serverTimestamp()
+          }, { merge: true });
+          return { reportId, rateLimited: true };
+        }
+
+        transaction.set(reportRef, {
+          reporterId: uid,
+          entryId,
+          targetUserId,
+          reason,
+          details,
+          source: 'community_feed',
+          status: 'pending',
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+          reviewedAt: null,
+          reviewedBy: null,
+          linkedTribunalCaseId: null
+        }, { merge: true });
+        transaction.set(counterRef, {
+          userId: uid,
+          dayKey,
+          count: FieldValue.increment(1),
+          limit: SUS_DAILY_REPORT_LIMIT,
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+        transaction.set(abuseRef, {
+          userId: uid,
+          totalReports: FieldValue.increment(1),
+          lastReportAt: FieldValue.serverTimestamp(),
+          lastEntryId: entryId,
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+        return { reportId };
+      });
+
+      if (result.rateLimited) return res.status(429).json({ error: "SUS_RATE_LIMITED" });
+
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      const message = error?.message || String(error);
+      const status = message.includes('DUPLICATE') ? 409 : message.includes('PROHIBITED') ? 403 : message.includes('RATE_LIMITED') ? 429 : 400;
+      res.status(status).json({ error: message });
+    }
+  });
+
+  app.get("/api/admin/sus-reports", adminRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    if (!(await checkIsAdmin(req.user))) return res.status(403).json({ error: "ADMIN_ONLY" });
+    const status = cleanServerId(req.query.status) || 'pending';
+    const snap = await dbAdmin!.collection('susReports').where('status', '==', status).limit(100).get();
+    res.json({ success: true, reports: snap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })) });
+  });
+
+  app.post("/api/admin/sus-reports/:reportId/resolve", adminRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    if (!(await checkIsAdmin(req.user))) return res.status(403).json({ error: "ADMIN_ONLY" });
+    const reportId = cleanServerId(req.params.reportId);
+    const status = cleanServerId(req.body.status);
+    const adminNotes = cleanServerId(req.body.adminNotes).slice(0, 1500);
+    if (!isSusReviewStatus(status) || status === 'pending' || status === 'escalated_to_tribunal') return res.status(400).json({ error: "INVALID_SUS_STATUS" });
+    if (adminNotes.length < 5) return res.status(400).json({ error: "ADMIN_REASON_REQUIRED" });
+    await dbAdmin!.collection('susReports').doc(reportId).set({
+      status,
+      adminNotes,
+      reviewedBy: req.user.uid,
+      reviewedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+    await writeAdminAudit(req.user.uid, reportId, 'susReport', `${status}_sus_report`, { adminNotes });
+    res.json({ success: true });
+  });
+
+  app.post("/api/admin/tribunal/cases", adminRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    if (!(await checkIsAdmin(req.user))) return res.status(403).json({ error: "ADMIN_ONLY" });
+
+    try {
+      const reportId = cleanServerId(req.body.reportId);
+      const entryId = cleanServerId(req.body.entryId);
+      const seasonId = cleanServerId(req.body.seasonId) || 'heatwave-receipts';
+      const weekNumber = Number(req.body.weekNumber || 1);
+      const requestedStatus = cleanServerId(req.body.status) || 'open';
+      const status = requestedStatus === 'admin_review' ? 'admin_review' : 'open';
+      const adminReason = cleanServerId(req.body.adminReason || req.body.adminNotes).slice(0, 1500);
+      const sourceReportIds = reportId ? [reportId] : Array.isArray(req.body.sourceReportIds) ? req.body.sourceReportIds.map(cleanServerId).filter(Boolean) : [];
+      const targetEntryId = entryId || cleanServerId(req.body.targetEntryId);
+      if (!targetEntryId) return res.status(400).json({ error: "ENTRY_ID_REQUIRED" });
+      if (sourceReportIds.length === 0) return res.status(400).json({ error: "SUS_REPORT_REQUIRED" });
+      if (adminReason.length < 5) return res.status(400).json({ error: "ADMIN_REASON_REQUIRED" });
+
+      const caseId = targetEntryId;
+      const result = await dbAdmin!.runTransaction(async (transaction) => {
+        const entryRef = dbAdmin!.collection('entries').doc(targetEntryId);
+        const caseRef = dbAdmin!.collection('tribunalCases').doc(caseId);
+        const privateRef = dbAdmin!.collection('tribunalCasePrivate').doc(caseId);
+        const [entrySnap, caseSnap] = await Promise.all([
+          transaction.get(entryRef),
+          transaction.get(caseRef)
+        ]);
+        const reportSnaps = await Promise.all(sourceReportIds.map((id: string) => transaction.get(dbAdmin!.collection('susReports').doc(id))));
+        if (!entrySnap.exists) throw new Error("ENTRY_NOT_FOUND");
+        if (caseSnap.exists && ['open', 'admin_review'].includes(caseSnap.data()?.status)) throw new Error("TRIBUNAL_CASE_ALREADY_ACTIVE");
+        const entry = entrySnap.data() || {};
+        if (!isApprovedEntryStatus(entry.status)) throw new Error("ENTRY_NOT_APPROVED");
+        const targetUserId = entry.userId || entry.uid;
+        if (reportSnaps.some(snap => !snap.exists || snap.data()?.entryId !== targetEntryId)) throw new Error("SUS_REPORT_NOT_FOUND");
+        const reporterIds = reportSnaps.map(snap => snap.data()?.reporterId).filter(Boolean);
+
+        const caseData = {
+          caseId,
+          id: caseId,
+          entryId: targetEntryId,
+          targetUserId,
+          targetId: targetUserId,
+          status,
+          seasonId,
+          weekNumber,
+          title: entry.tripTitle || entry.challengeTitle || entry.missionTitle || 'Field Trip Proof',
+          description: entry.fieldNote || entry.note || '',
+          proofImage: entry.proofImage || entry.imageUrl || entry.photoUrl || '',
+          playerName: entry.userName || entry.displayName || 'Unknown Player',
+          fieldNote: entry.fieldNote || entry.note || '',
+          missionTitle: entry.tripTitle || entry.challengeTitle || entry.missionTitle || '',
+          deckName: entry.deckId || '',
+          validVotes: caseSnap.exists ? caseSnap.data()?.validVotes || 0 : 0,
+          susVotes: caseSnap.exists ? caseSnap.data()?.susVotes || 0 : 0,
+          totalVotes: caseSnap.exists ? caseSnap.data()?.totalVotes || 0 : 0,
+          openedBy: req.user.uid,
+          openedAt: status === 'open' ? FieldValue.serverTimestamp() : null,
+          adminReviewedBy: req.user.uid,
+          adminReviewedAt: FieldValue.serverTimestamp(),
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
+        };
+        transaction.set(caseRef, getPublicTribunalCaseData(caseData), { merge: true });
+        transaction.set(privateRef, {
+          caseId,
+          sourceReportIds,
+          reporterIds,
+          escalationReason: adminReason,
+          createdBy: req.user.uid,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+        for (const id of sourceReportIds) {
+          transaction.set(dbAdmin!.collection('susReports').doc(id), {
+            status: 'escalated_to_tribunal',
+            linkedTribunalCaseId: caseId,
+            adminNotes: adminReason,
+            reviewedBy: req.user.uid,
+            reviewedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp()
+          }, { merge: true });
+        }
+        return { caseId, status };
+      });
+
+      await writeAdminAudit(req.user.uid, result.caseId, 'tribunalCase', 'open_tribunal_case', { sourceReportIds, adminReason });
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      const message = error?.message || String(error);
+      res.status(message.includes('ALREADY') ? 409 : 400).json({ error: message });
+    }
+  });
+
+  app.post("/api/tribunal/vote", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    const approval = await ensureApprovedRequester(req, res);
+    if (!approval.ok) return;
+
+    try {
+      const uid = req.user.uid;
+      const caseId = cleanServerId(req.body.caseId);
+      const vote = cleanServerId(req.body.vote);
+      if (!caseId || !isTribunalVerdict(vote)) return res.status(400).json({ error: "INVALID_TRIBUNAL_VOTE" });
+      const voteId = getTribunalVoteId(uid, caseId);
+      const result = await dbAdmin!.runTransaction(async (transaction) => {
+        const caseRef = dbAdmin!.collection('tribunalCases').doc(caseId);
+        const voteRef = dbAdmin!.collection('tribunalVotes').doc(voteId);
+        const [caseSnap, voteSnap] = await Promise.all([
+          transaction.get(caseRef),
+          transaction.get(voteRef)
+        ]);
+        if (!caseSnap.exists) throw new Error("TRIBUNAL_CASE_NOT_FOUND");
+        const caseData = caseSnap.data() || {};
+        if (caseData.status !== 'open') throw new Error("TRIBUNAL_CASE_NOT_OPEN");
+        if (caseData.targetUserId === uid || caseData.targetId === uid) throw new Error("SELF_TRIBUNAL_VOTE_PROHIBITED");
+
+        const oldVote = voteSnap.exists ? voteSnap.data()?.vote : null;
+        if (oldVote) {
+          if (oldVote === vote) return { voteId, duplicateIgnored: true };
+          throw new Error("TRIBUNAL_VOTE_ALREADY_CAST");
+        }
+        const updates: any = { updatedAt: FieldValue.serverTimestamp() };
+        updates.totalVotes = FieldValue.increment(1);
+        updates[vote === 'valid' ? 'validVotes' : 'susVotes'] = FieldValue.increment(1);
+        transaction.update(caseRef, updates);
+        transaction.create(voteRef, {
+          userId: uid,
+          caseId,
+          vote,
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
+        });
+        transaction.set(dbAdmin!.collection('tribunalVoteAudit').doc(voteId), {
+          userId: uid,
+          caseId,
+          vote,
+          action: 'cast_tribunal_vote',
+          createdAt: FieldValue.serverTimestamp()
+        });
+        return { voteId, duplicateIgnored: false };
+      });
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      const message = error?.message || String(error);
+      res.status(message.includes('PROHIBITED') ? 403 : 400).json({ error: message });
+    }
+  });
+
+  app.post("/api/admin/tribunal/close", adminRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    if (!(await checkIsAdmin(req.user))) return res.status(403).json({ error: "ADMIN_ONLY" });
+    const caseId = cleanServerId(req.body.caseId);
+    const adminNotes = cleanServerId(req.body.adminNotes).slice(0, 1500);
+    if (!caseId) return res.status(400).json({ error: "CASE_ID_REQUIRED" });
+    if (adminNotes.length < 5) return res.status(400).json({ error: "ADMIN_REASON_REQUIRED" });
+    const result = await dbAdmin!.runTransaction(async (transaction) => {
+      const caseRef = dbAdmin!.collection('tribunalCases').doc(caseId);
+      const resultRef = dbAdmin!.collection('tribunalResults').doc(caseId);
+      const [caseSnap, resultSnap] = await Promise.all([
+        transaction.get(caseRef),
+        transaction.get(resultRef)
+      ]);
+      if (!caseSnap.exists) throw new Error("TRIBUNAL_CASE_NOT_FOUND");
+      const data = caseSnap.data() || {};
+      if (resultSnap.exists || data.status === 'closed') {
+        return { caseId, outcome: data.outcome || resultSnap.data()?.outcome, alreadyFinalized: true };
+      }
+      if (data.status !== 'open') throw new Error("TRIBUNAL_CASE_NOT_OPEN");
+      const validVotes = Number(data.validVotes ?? 0);
+      const susVotes = Number(data.susVotes ?? 0);
+      const totalVotes = Number(data.totalVotes ?? validVotes + susVotes);
+      const outcome = getTribunalOutcome(validVotes, susVotes);
+      const snapshot = {
+        caseId,
+        entryId: data.entryId,
+        seasonId: data.seasonId,
+        weekNumber: data.weekNumber,
+        validVotes,
+        susVotes,
+        totalVotes,
+        outcome,
+        recommendationOnly: true,
+        adminNotes,
+        finalizedBy: req.user.uid,
+        finalizedAt: FieldValue.serverTimestamp(),
+        caseSnapshot: getPublicTribunalCaseData(data),
+        compatibility: FIRELIGHT_TRIBUNAL_COMPATIBILITY_NOTE
+      };
+      transaction.create(resultRef, snapshot);
+      transaction.set(caseRef, {
+        status: 'closed',
+        outcome,
+        adminNotes,
+        resultSnapshotId: caseId,
+        closedBy: req.user.uid,
+        closedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+      return { caseId, outcome, validVotes, susVotes, totalVotes, alreadyFinalized: false };
+    });
+    await writeAdminAudit(req.user.uid, caseId, 'tribunalCase', 'close_tribunal_case', result);
+    res.json({ success: true, ...result });
+  });
+
+  app.get("/api/admin/tribunal/diagnostics", adminRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    if (!(await checkIsAdmin(req.user))) return res.status(403).json({ error: "ADMIN_ONLY" });
+    try {
+      const [casesSnap, votesSnap, resultsSnap] = await Promise.all([
+        dbAdmin!.collection('tribunalCases').limit(500).get(),
+        dbAdmin!.collection('tribunalVotes').limit(500).get(),
+        dbAdmin!.collection('tribunalResults').limit(500).get()
+      ]);
+      const publicCasePrivateFieldLeaks = casesSnap.docs
+        .map(docSnap => ({
+          caseId: docSnap.id,
+          privateFields: getPublicTribunalCasePrivateFieldViolations(docSnap.data() || {})
+        }))
+        .filter(item => item.privateFields.length > 0);
+      const legacyVoteValues = votesSnap.docs
+        .map(docSnap => ({ voteId: docSnap.id, vote: docSnap.data()?.vote }))
+        .filter(item => item.vote === 'agree' || item.vote === 'disagree');
+      const closedCasesMissingResultSnapshots = casesSnap.docs
+        .filter(docSnap => docSnap.data()?.status === 'closed' && !resultsSnap.docs.some(resultDoc => resultDoc.id === docSnap.id))
+        .map(docSnap => docSnap.id);
+      res.json({
+        success: true,
+        compatibility: FIRELIGHT_TRIBUNAL_COMPATIBILITY_NOTE,
+        counts: {
+          publicCasesScanned: casesSnap.size,
+          votesScanned: votesSnap.size,
+          resultsScanned: resultsSnap.size
+        },
+        publicCasePrivateFieldLeaks,
+        legacyVoteValues,
+        closedCasesMissingResultSnapshots
+      });
+    } catch (error: any) {
+      console.error("[TRIBUNAL_DIAGNOSTICS] Failed:", error);
+      res.status(500).json({ error: "FAILED_TRIBUNAL_DIAGNOSTICS", message: error.message || String(error) });
+    }
+  });
+
   /**
    * CANONICAL DATA MODEL AUDIT
    * Scans for legacy fields and inconsistencies.

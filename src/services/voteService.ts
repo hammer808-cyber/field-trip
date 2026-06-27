@@ -3,21 +3,16 @@ import {
   query, 
   where, 
   getDocs, 
-  addDoc, 
   serverTimestamp, 
   doc, 
   getDoc,
-  limit,
-  Timestamp,
-  writeBatch,
   setDoc,
   updateDoc
 } from 'firebase/firestore';
-import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
-import { logAdminAction } from './moderationService';
-import { Vote, VoteCategory, Entry, ScoreEvent, BallotCandidate } from '../types/game';
-import { awardPoints } from './scoringService';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { Vote, VoteCategory, Entry, BallotCandidate } from '../types/game';
 import { getAppConfig, getActiveSeason } from './seasonService';
+import { authenticatedFetch } from '../lib/api';
 
 const VOTES_COLLECTION = 'votes';
 
@@ -30,58 +25,19 @@ const VOTES_COLLECTION = 'votes';
  */
 export const castVote = async (userId: string, entryId: string, weekNumber: number, category: VoteCategory, seasonId: string = 'heatwave-receipts') => {
   try {
-    const voteId = `${userId}_${seasonId}_w${weekNumber}_${category}`;
-    const voteRef = doc(db, VOTES_COLLECTION, voteId);
+    const response = await authenticatedFetch('/api/voting/weekly/vote', {
+      method: 'POST',
+      body: JSON.stringify({ entryId, weekNumber, category, seasonId })
+    });
 
-    // 1. Fetch Entry (Rule will also check this, but we check here for UI error messages)
-    const entryDoc = await getDoc(doc(db, 'entries', entryId));
-    if (!entryDoc.exists()) throw new Error('ENTRY_NOT_FOUND');
-    const entry = entryDoc.data() as Entry;
-
-    if (entry.userId === userId) {
-      throw new Error('SELF_VOTE_PROHIBITED');
-    }
-
-    if (entry.status !== 'approved') {
-      throw new Error('ENTRY_NOT_APPROVED');
-    }
-
-    // 2. Check if vote is new (to award participation bonus once)
-    const voteDoc = await getDoc(voteRef);
-    const isNewVote = !voteDoc.exists();
-
-    const voteData: Omit<Vote, 'id'> = {
-      userId,
-      entryId,
-      weekNumber,
-      seasonId,
-      category,
-      createdAt: serverTimestamp() as any
-    };
-
-    await writeBatch(db).set(voteRef, voteData).commit();
-
-    // Award +5 XP participation points if this is a first-time vote for this category-week
-    if (isNewVote) {
-      try {
-        await awardPoints(
-          userId,
-          'Agent',
-          5, // +5 XP per category voted
-          'vote_winner_bonus',
-          {
-            entryId,
-            description: `Participated in Tribunal Consensus: ${category.replace('_', ' ').toUpperCase()} (Week ${weekNumber})`
-          }
-        );
-      } catch (scoreErr) {
-        console.warn('Failed to award participation points:', scoreErr);
-      }
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || 'VOTE_FAILED');
     }
   } catch (error: any) {
     console.error('Vote failed:', error.message);
     if (error.message === 'SELF_VOTE_PROHIBITED') throw error;
-    handleFirestoreError(error, OperationType.WRITE, VOTES_COLLECTION);
+    throw error;
   }
 };
 
@@ -165,154 +121,20 @@ export const getVoteStandings = async (weekNumber: number, category: VoteCategor
  * This should be triggered when a week is locked/finalized.
  * Also awards consensus bonus (+20 XP) to users who voted for the winner(s).
  */
-export const finalizeVoteWinners = async (weekNumber: number) => {
-  const categories: VoteCategory[] = ['best_field_note', 'best_photo_proof', 'most_legendary_errand', 'goblin_energy_award', 'cleanest_completion', 'underdog_award'];
-  
-  const config = await getAppConfig();
-  const seasonId = config?.activeSeasonId || 'heatwave-receipts';
-  const summaryId = `${seasonId}_${weekNumber}`;
-  const summaryRef = doc(db, 'weeklySummaries', summaryId);
-  const summarySnap = await getDoc(summaryRef);
+export const finalizeVoteWinners = async (weekNumber: number, reason = 'Admin finalized weekly voting results.') => {
+  const appConfig = await getAppConfig();
+  const activeSeasonId = appConfig?.activeSeasonId || 'heatwave-receipts';
+  const response = await authenticatedFetch('/api/admin/voting/finalize-week', {
+    method: 'POST',
+    body: JSON.stringify({ seasonId: activeSeasonId, weekNumber, reason })
+  });
 
-  // IDEMPOTENCY PRE-CHECK: If week is already locked and finalized with winners, do not run payout logic again
-  if (summarySnap.exists()) {
-    const summaryData = summarySnap.data();
-    if (summaryData?.isLocked && summaryData?.voteWinners && Object.keys(summaryData?.voteWinners).length > 0) {
-      console.log(`[VOTE_SERVICE] Week ${weekNumber} is already locked and finalized. Skipping points distribution.`);
-      return;
-    }
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'FAILED_TO_FINALIZE_WEEK');
   }
 
-  const voteWinners: Record<string, any> = {};
-
-  for (const cat of categories) {
-    const standings = await getVoteStandings(weekNumber, cat);
-    if (standings.length > 0) {
-      const topVotes = standings[0].count;
-      const topApprovalTime = standings[0].approvalTime;
-      
-      // Determine co-winners if they are tied on both votes and approval time
-      const categoryWinners = standings.filter(s => s.count === topVotes && s.approvalTime === topApprovalTime);
-
-      const premierWinner = categoryWinners[0];
-      const entrySnap = await getDoc(doc(db, 'entries', premierWinner.entryId));
-      if (entrySnap.exists()) {
-        const entryData = entrySnap.data() as Entry;
-        voteWinners[cat] = {
-          entryId: premierWinner.entryId,
-          count: premierWinner.count,
-          userName: entryData.userName || 'Anonymous Agent',
-          tripTitle: entryData.tripTitle || '',
-          proofImage: entryData.proofImage || '',
-          fieldNote: entryData.fieldNote || ''
-        };
-      }
-
-      // 1. Award +25 XP to each Category Winner/Laureate (with duplicate protection)
-      for (const winner of categoryWinners) {
-        const winSnap = await getDoc(doc(db, 'entries', winner.entryId));
-        if (winSnap.exists()) {
-          const entry = winSnap.data() as Entry;
-          
-          // IDEMPOTENCY: Check if winner reward already exists
-          const q = query(
-            collection(db, 'scoreEvents'),
-            where('userId', '==', entry.userId),
-            where('type', '==', 'vote_winner_bonus'),
-            where('entryId', '==', entry.id)
-          );
-          const existingEventsSnap = await getDocs(q);
-          const alreadyAwarded = existingEventsSnap.docs.some(d => 
-            d.data().description?.includes(`Winner: ${cat.replace('_', ' ').toUpperCase()}`)
-          );
-
-          if (!alreadyAwarded) {
-            try {
-              await awardPoints(
-                entry.userId,
-                entry.userName || entry.displayName || 'Unknown Player',
-                25, // Bonus points for category win
-                'vote_winner_bonus',
-                {
-                  entryId: entry.id,
-                  tripId: entry.tripId || entry.challengeId || 'unknown',
-                  description: `Winner: ${cat.replace('_', ' ').toUpperCase()} (Week ${weekNumber})`
-                }
-              );
-            } catch (winnerErr) {
-              console.warn(`Failed to award category winner bonus to user ${entry.userId}:`, winnerErr);
-            }
-          }
-        }
-      }
-
-      // 2. Award +20 XP Consensus Bonus to users who voted for the winner(s) (with duplicate protection)
-      const votesQuery = query(
-        collection(db, VOTES_COLLECTION),
-        where('weekNumber', '==', weekNumber),
-        where('category', '==', cat)
-      );
-      const votesSnap = await getDocs(votesQuery);
-      const categoryVotes = votesSnap.docs.map(d => d.data() as Vote);
-      
-      const winningEntryIds = new Set(categoryWinners.map(w => w.entryId));
-      for (const vote of categoryVotes) {
-        if (winningEntryIds.has(vote.entryId)) {
-          // IDEMPOTENCY: Check if voter already has consensus bonus for this category and week
-          const voterQuery = query(
-            collection(db, 'scoreEvents'),
-            where('userId', '==', vote.userId),
-            where('type', '==', 'vote_winner_bonus'),
-            where('entryId', '==', vote.entryId)
-          );
-          const existingVoterEvents = await getDocs(voterQuery);
-          const alreadyGotConsensus = existingVoterEvents.docs.some(d => 
-            d.data().description?.includes(`Consensus Bonus: ${cat.replace('_', ' ').toUpperCase()}`)
-          );
-
-          if (!alreadyGotConsensus) {
-            try {
-              await awardPoints(
-                vote.userId,
-                'Agent',
-                20, // Consensus bonus
-                'vote_winner_bonus',
-                {
-                  entryId: vote.entryId,
-                  description: `Consensus Bonus: ${cat.replace('_', ' ').toUpperCase()} (Week ${weekNumber})`
-                }
-              );
-            } catch (voterErr) {
-              console.warn(`Failed to award consensus bonus to user ${vote.userId}:`, voterErr);
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // Update weeklySummary document with the calculated voteWinners
-  if (summarySnap.exists()) {
-    await updateDoc(summaryRef, {
-      voteWinners,
-      isLocked: true
-    });
-  } else {
-    await setDoc(summaryRef, {
-      id: summaryId,
-      seasonId,
-      weekNumber,
-      playerStats: {},
-      crewStats: {},
-      lastCalculatedAt: serverTimestamp(),
-      voteWinners,
-      isLocked: true
-    });
-  }
-
-  if (auth.currentUser) {
-    await logAdminAction(auth.currentUser.uid, `week-${weekNumber}`, 'votes', 'finalize_winners', { weekNumber });
-  }
+  return response.json();
 };
 
 /**

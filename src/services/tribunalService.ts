@@ -3,21 +3,15 @@ import {
   query, 
   where, 
   getDocs, 
-  addDoc, 
-  serverTimestamp, 
-  doc, 
-  getDoc,
-  writeBatch,
-  setDoc,
-  updateDoc,
-  limit,
-  increment
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { TribunalCase, TribunalVote, Entry } from '../types/game';
+import { authenticatedFetch } from '../lib/api';
+import { canonicalTribunalVerdict, isTribunalVerdict, TribunalVerdict } from '../logic/firelightTribunal';
 
 const TRIBUNAL_CASES_COLLECTION = 'tribunalCases';
 const TRIBUNAL_VOTES_COLLECTION = 'tribunalVotes';
+const TRIBUNAL_RESULTS_COLLECTION = 'tribunalResults';
 
 export const createTribunalCase = async (
   reporterId: string, 
@@ -26,63 +20,21 @@ export const createTribunalCase = async (
   seasonId: string
 ) => {
   try {
-    // Validation
-    if (entry.userId === reporterId) {
-      throw new Error('You cannot call out your own proof.');
+    const response = await authenticatedFetch('/api/reports/sus', {
+      method: 'POST',
+      body: JSON.stringify({
+        entryId: entry.id,
+        reason: 'community_sus',
+        details: `Requested Firelight Tribunal review for week ${weekNumber} (${seasonId}).`
+      })
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || 'FAILED_TO_SUBMIT_SUS_REPORT');
     }
-
-    // Check if case already exists
-    const caseRef = doc(db, TRIBUNAL_CASES_COLLECTION, entry.id);
-    const caseSnap = await getDoc(caseRef);
-    if (caseSnap.exists()) {
-      throw new Error('This proof is already in Tribunal.');
-    }
-
-    // Check weekly limits for reporter
-    const q = query(
-      collection(db, TRIBUNAL_CASES_COLLECTION),
-      where('reporterId', '==', reporterId),
-      where('weekNumber', '==', weekNumber),
-      where('seasonId', '==', seasonId)
-    );
-    const reporterCases = await getDocs(q);
-    if (reporterCases.size >= 2) {
-      throw new Error('You can only call out up to 2 proofs per week.');
-    }
-
-    // Check if reporter already called out this player this week
-    const alreadyCalledPlayer = reporterCases.docs.some(d => d.data().targetId === entry.userId);
-    if (alreadyCalledPlayer) {
-      throw new Error('You cannot call out the same player more than once per week.');
-    }
-
-    const newCase: TribunalCase = {
-      id: entry.id,
-      entryId: entry.id,
-      reporterId,
-      targetId: entry.userId,
-      weekNumber,
-      seasonId,
-      status: 'open',
-      agreeVotes: 0,
-      disagreeVotes: 0,
-      createdAt: serverTimestamp(),
-      title: entry.tripTitle || entry.challengeTitle || 'Untitled Mission',
-      description: entry.fieldNote || entry.note || '', // Using fieldNote as description
-      proofImage: entry.proofImage || entry.imageUrl || entry.photoUrl || '',
-      playerName: entry.userName || entry.displayName || 'Unknown Player',
-      fieldNote: entry.fieldNote || entry.note || '',
-      deckName: (entry.tripId || entry.challengeId || '').includes('deck') ? 'Deck Mission' : 'Standard Mission' // Fallback
-    };
-
-    const batch = writeBatch(db);
-    batch.set(caseRef, newCase);
-    batch.update(doc(db, 'entries', entry.id), { tribunalStatus: 'open' });
-    await batch.commit();
-
-    return { success: true };
+    return response.json();
   } catch (error: any) {
-    console.error('Failed to create Tribunal case:', error);
+    console.error('Failed to submit Sus report:', error);
     throw error;
   }
 };
@@ -119,51 +71,42 @@ export const getResolvedTribunalCases = async (weekNumber: number, seasonId: str
   }
 };
 
+export const getTribunalResults = async (weekNumber: number, seasonId: string) => {
+  try {
+    const q = query(
+      collection(db, TRIBUNAL_RESULTS_COLLECTION),
+      where('weekNumber', '==', weekNumber),
+      where('seasonId', '==', seasonId)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, TRIBUNAL_RESULTS_COLLECTION);
+    return [];
+  }
+};
+
 export const castTribunalVote = async (
   userId: string, 
   caseId: string, 
-  vote: 'agree' | 'disagree'
+  vote: TribunalVerdict
 ) => {
   try {
-    const voteId = `${userId}_${caseId}`;
-    const voteRef = doc(db, TRIBUNAL_VOTES_COLLECTION, voteId);
-    const voteSnap = await getDoc(voteRef);
-
-    const batch = writeBatch(db);
-    const caseRef = doc(db, TRIBUNAL_CASES_COLLECTION, caseId);
-
-    if (voteSnap.exists()) {
-      const oldVote = voteSnap.data() as TribunalVote;
-      if (oldVote.vote === vote) return; // No change
-
-      // Update counts
-      if (vote === 'agree') {
-        batch.update(caseRef, { agreeVotes: increment(1), disagreeVotes: increment(-1) });
-      } else {
-        batch.update(caseRef, { agreeVotes: increment(-1), disagreeVotes: increment(1) });
-      }
-    } else {
-      // New vote
-      if (vote === 'agree') {
-        batch.update(caseRef, { agreeVotes: increment(1) });
-      } else {
-        batch.update(caseRef, { disagreeVotes: increment(1) });
-      }
+    if (!isTribunalVerdict(vote)) throw new Error('INVALID_TRIBUNAL_VOTE');
+    const response = await authenticatedFetch('/api/tribunal/vote', {
+      method: 'POST',
+      body: JSON.stringify({
+        caseId,
+        vote
+      })
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || 'FAILED_TO_CAST_TRIBUNAL_VOTE');
     }
-
-    const voteData: TribunalVote = {
-      id: voteId,
-      userId,
-      caseId,
-      vote,
-      createdAt: serverTimestamp()
-    };
-
-    batch.set(voteRef, voteData);
-    await batch.commit();
+    return response.json();
 
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, TRIBUNAL_VOTES_COLLECTION);
     throw error;
   }
 };
@@ -172,29 +115,30 @@ export const getTribunalVotesForUser = async (userId: string) => {
   try {
     const q = query(collection(db, TRIBUNAL_VOTES_COLLECTION), where('userId', '==', userId));
     const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as TribunalVote);
+    return snap.docs.map(d => {
+      const data = d.data() as TribunalVote & { vote?: 'valid' | 'sus' | 'agree' | 'disagree' };
+      const canonicalVote = canonicalTribunalVerdict(data.vote as any);
+      return {
+        ...data,
+        vote: canonicalVote
+      } as TribunalVote;
+    });
   } catch (error) {
     return [];
   }
 };
 
-export const resolveTribunalCase = async (caseId: string) => {
+export const resolveTribunalCase = async (caseId: string, adminNotes: string) => {
   try {
-    const caseRef = doc(db, TRIBUNAL_CASES_COLLECTION, caseId);
-    const caseSnap = await getDoc(caseRef);
-    if (!caseSnap.exists()) return;
-
-    const caseData = caseSnap.data() as TribunalCase;
-    const outcome = caseData.agreeVotes > caseData.disagreeVotes ? 'called_out' : 'upheld';
-
-    await updateDoc(caseRef, {
-      status: 'closed',
-      outcome,
-      updatedAt: serverTimestamp()
+    const response = await authenticatedFetch('/api/admin/tribunal/close', {
+      method: 'POST',
+      body: JSON.stringify({ caseId, adminNotes })
     });
-    
-    // Also update entry
-    await updateDoc(doc(db, 'entries', caseData.entryId), { tribunalStatus: 'closed' });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error || 'FAILED_TO_CLOSE_TRIBUNAL_CASE');
+    }
+    return response.json();
   } catch (error) {
     console.error('Failed to resolve Tribunal case:', error);
   }

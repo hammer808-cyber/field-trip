@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Card, FieldCard, FieldBadge, FieldLabel, FieldTape, FieldStamp } from './UI';
-import { Heart, MessageCircle, Fingerprint, Image as ImageIcon } from 'lucide-react';
+import { Heart, MessageCircle, Fingerprint, Image as ImageIcon, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { ProofImage } from './ProofImage';
 import { AvatarPreview } from './AvatarPreview';
 import { toggleLikeEntry, checkIfLiked } from '../services/proofService';
+import { submitSusReport } from '../services/moderationService';
 import { cn } from '../lib/utils';
 import { DEFAULT_AVATAR } from '../constants/avatarAssets';
 import { toast } from 'react-hot-toast';
@@ -20,6 +21,7 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
   const [liked, setLiked] = useState(false);
   const [localLikeCount, setLocalLikeCount] = useState(proof.likeCount || 0);
   const [isLiking, setIsLiking] = useState(false);
+  const [isReportingSus, setIsReportingSus] = useState(false);
 
   useEffect(() => {
     if (user?.uid && proof.id) {
@@ -58,6 +60,32 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
       toast.error("Failed to update like");
     } finally {
       setIsLiking(false);
+    }
+  };
+
+  const handleSusReport = async () => {
+    if (!user) {
+      toast.error("Sign in to flag proof");
+      return;
+    }
+    if (isReportingSus) return;
+    setIsReportingSus(true);
+    try {
+      await submitSusReport(
+        proof.id,
+        'suspicious_proof',
+        `Community feed Sus flag for ${proof.tripTitle || proof.challengeTitle || 'Fieldtrip proof'}.`
+      );
+      toast.success("Sus report sent privately for admin review");
+    } catch (err: any) {
+      const message = err?.message === 'DUPLICATE_ACTIVE_SUS_REPORT'
+        ? "You already flagged this proof"
+        : err?.message === 'SELF_REPORT_PROHIBITED'
+          ? "You cannot flag your own proof"
+          : "Failed to send Sus report";
+      toast.error(message);
+    } finally {
+      setIsReportingSus(false);
     }
   };
 
@@ -146,7 +174,7 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
         </div>
 
         {/* Action / footer details with barcode element */}
-        <div className="flex items-center justify-between pt-3 border-t border-on-surface/10">
+        <div className="flex items-center justify-between gap-2 pt-3 border-t border-on-surface/10">
           <div className="flex items-center gap-1.5">
             <span className="text-[7.5px] font-mono font-black uppercase text-on-surface/40 bg-on-surface/5 px-2 py-0.5 rounded-sm">
               SECTOR_7B
@@ -161,6 +189,16 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
             {proof.stickerRewardId ? `Sticker Secured` : `Field Record`}
           </span>
         </div>
+        <button
+          type="button"
+          onClick={handleSusReport}
+          disabled={isReportingSus}
+          className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2 border-2 border-on-surface/20 bg-white text-on-surface/60 hover:text-error hover:border-error hover:bg-error/5 disabled:opacity-50 transition-colors text-[8px] font-mono font-black uppercase tracking-widest"
+          title="Privately flag this proof for admin review"
+        >
+          <ShieldAlert className="w-3.5 h-3.5" />
+          {isReportingSus ? 'Sending Sus' : 'Sus'}
+        </button>
       </div>
 
       {/* Decorative ink fingerprint */}

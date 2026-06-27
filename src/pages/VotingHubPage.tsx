@@ -34,6 +34,7 @@ import {
   getTribunalVotesForUser 
 } from '../services/tribunalService';
 import { TribunalCase, TribunalVote } from '../types/game';
+import { TribunalVerdict } from '../logic/firelightTribunal';
 import { getServerDate } from '../services/timeService';
 import { 
   getCurrentVotingCycle, 
@@ -55,7 +56,7 @@ export default function VotingHubPage() {
   
   const [tribunalCases, setTribunalCases] = useState<TribunalCase[]>([]);
   const [resolvedCases, setResolvedCases] = useState<TribunalCase[]>([]);
-  const [userTribunalVotes, setUserTribunalVotes] = useState<Record<string, 'agree' | 'disagree'>>({});
+  const [userTribunalVotes, setUserTribunalVotes] = useState<Record<string, TribunalVerdict>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   const [clockInfo, setClockInfo] = useState(() => {
@@ -97,7 +98,7 @@ export default function VotingHubPage() {
         ]);
         setTribunalCases(cases);
         setResolvedCases(resolved);
-        const voteMap: Record<string, 'agree' | 'disagree'> = {};
+        const voteMap: Record<string, TribunalVerdict> = {};
         votes.forEach(v => {
           voteMap[v.caseId] = v.vote;
         });
@@ -113,7 +114,7 @@ export default function VotingHubPage() {
     }
   }, [user, activeSeason, currentWeekNumber]);
 
-  const handleTribunalVote = async (caseId: string, vote: 'agree' | 'disagree') => {
+  const handleTribunalVote = async (caseId: string, vote: TribunalVerdict) => {
     if (!user || !activeSeason) return;
     try {
       await castTribunalVote(user.uid, caseId, vote);
@@ -267,30 +268,30 @@ export default function VotingHubPage() {
                                 <p className="text-[10px] font-mono font-bold uppercase text-on-surface/40 tracking-widest">CAST YOUR VERDICT</p>
                                 <div className="grid grid-cols-2 gap-4">
                                    <button 
-                                     onClick={() => handleTribunalVote(c.id, 'disagree')}
+                                     onClick={() => handleTribunalVote(c.id, 'valid')}
                                      className={cn(
                                        "flex items-center justify-center gap-3 py-4 border-4 border-on-surface font-display text-lg font-black uppercase italic shadow-[4px_4px_0px_black] active:shadow-none active:translate-y-1 transition-all",
-                                       userTribunalVotes[c.id] === 'disagree' 
+                                       userTribunalVotes[c.id] === 'valid' 
                                          ? "bg-brand-lime text-on-surface" 
                                          : "bg-white text-on-surface hover:bg-brand-lime/10"
                                      )}
                                    >
                                       <ThumbsUp className="w-5 h-5" />
                                       Valid
-                                      <span className="ml-1 opacity-40">({c.disagreeVotes})</span>
+                                      <span className="ml-1 opacity-40">({c.validVotes ?? 0})</span>
                                    </button>
                                    <button 
-                                     onClick={() => handleTribunalVote(c.id, 'agree')}
+                                     onClick={() => handleTribunalVote(c.id, 'sus')}
                                      className={cn(
                                        "flex items-center justify-center gap-3 py-4 border-4 border-on-surface font-display text-lg font-black uppercase italic shadow-[4px_4px_0px_black] active:shadow-none active:translate-y-1 transition-all",
-                                       userTribunalVotes[c.id] === 'agree' 
+                                       userTribunalVotes[c.id] === 'sus' 
                                          ? "bg-brand-magenta text-white" 
                                          : "bg-white text-brand-magenta hover:bg-brand-magenta/10"
                                      )}
                                    >
                                       <ThumbsDown className="w-5 h-5" />
-                                      Fake
-                                      <span className="ml-1 opacity-40">({c.agreeVotes})</span>
+                                      Signal
+                                      <span className="ml-1 opacity-40">({c.susVotes ?? 0})</span>
                                    </button>
                                 </div>
                              </div>
@@ -333,9 +334,9 @@ export default function VotingHubPage() {
                                    <h4 className="text-xl font-display font-black uppercase italic text-on-surface truncate">{c.title}</h4>
                                    <span className={cn(
                                       "px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-full border-2 border-on-surface shadow-[2px_2px_0px_black]",
-                                      c.outcome === 'called_out' ? "bg-brand-magenta text-white" : "bg-brand-lime text-on-surface"
+                                      c.outcome === 'called_out' || c.outcome === 'community_sus_recommendation' ? "bg-brand-magenta text-white" : "bg-brand-lime text-on-surface"
                                    )}>
-                                      {c.outcome === 'called_out' ? 'FAKE' : 'REAL'}
+                                      {c.outcome === 'called_out' || c.outcome === 'community_sus_recommendation' ? 'SUS' : 'VALID'}
                                    </span>
                                 </div>
                                 <p className="text-xs font-serif italic text-on-surface/50 font-bold">
@@ -344,7 +345,7 @@ export default function VotingHubPage() {
                              </div>
                              <div className="shrink-0 text-right space-y-1">
                                 <p className="text-[10px] font-mono font-black text-on-surface/40 uppercase">VOTES</p>
-                                <p className="text-lg font-display font-black text-on-surface leading-none">{c.agreeVotes + c.disagreeVotes}</p>
+                                <p className="text-lg font-display font-black text-on-surface leading-none">{Number(c.totalVotes ?? 0)}</p>
                              </div>
                          </div>
                        ))}

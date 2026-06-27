@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Card } from './UI';
 import { VoteCategory, Entry } from '../types/game';
-import { getVoteStandings, syncApprovedSubmissionsToBallot } from '../services/voteService';
+import { getVoteStandings } from '../services/voteService';
 import { collection, query, where, getDocs, limit, getDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Trophy, Check, ListFilter, AlertTriangle, Clock, Lock, User, Info, Trophy as TrophyIcon, MapPin } from 'lucide-react';
@@ -69,15 +69,6 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
             }
           } else {
             setIsSummaryLocked(false);
-          }
-        }
-
-        // Run weekly ballot assembly pipeline sync first to ensure up-to-date data pools
-        if (activeSeason) {
-          try {
-            await syncApprovedSubmissionsToBallot(activeSeason.id);
-          } catch (syncErr) {
-            console.warn('[BALLOT_ASSEMBLY] Pipeline sync on-the-fly warning:', syncErr);
           }
         }
 
