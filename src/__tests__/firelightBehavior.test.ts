@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
   SUS_DAILY_REPORT_LIMIT,
@@ -16,6 +17,10 @@ import {
   isActiveSusReportStatus,
   isTribunalVerdict
 } from '../logic/firelightTribunal';
+
+const constantsSource = readFileSync('src/constants.ts', 'utf8');
+const appContextSource = readFileSync('src/context/AppContext.tsx', 'utf8');
+const adminSettingsSource = readFileSync('src/pages/AdminSettings.tsx', 'utf8');
 
 class Mutex {
   private chain = Promise.resolve();
@@ -219,4 +224,10 @@ test('unsafe closed cases are flagged for manual admin review', () => {
 
 test('repair confirmation phrase is exact', () => {
   assert.equal(TRIBUNAL_REPAIR_CONFIRMATION, 'REPAIR TRIBUNAL DATA');
+});
+
+test('Tribunal feature flag defaults off and gates public unlock access', () => {
+  assert.match(constantsSource, /tribunalEnabled:\s*false/);
+  assert.match(appContextSource, /featureEnabled:\s*isFeatureEnabled\('tribunalEnabled'\)/);
+  assert.match(adminSettingsSource, /Firelight Tribunal/);
 });

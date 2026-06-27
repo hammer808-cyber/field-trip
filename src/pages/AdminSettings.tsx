@@ -19,17 +19,19 @@ import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import { AdminLayout, ModuleCard, StatusLight, AdminReceipt } from '../components/admin/AdminShared';
 import { GlobalConfig, updateGlobalConfig } from '../services/configService';
+import { updateFeatureFlags } from '../services/adminGameService';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function AdminSettings() {
-  const { globalConfig, profile } = useApp();
+  const { globalConfig, gameConfig, profile } = useApp();
   const { isAdmin } = useTheme();
   
   const [localConfig, setLocalConfig] = useState<GlobalConfig>(globalConfig);
   const [isSaving, setIsSaving] = useState(false);
   const [receipt, setReceipt] = useState<{ title: string; data: Record<string, any> } | null>(null);
   const [showTokens, setShowTokens] = useState(false);
+  const [isSavingTribunalFlag, setIsSavingTribunalFlag] = useState(false);
 
   useEffect(() => {
     setLocalConfig(globalConfig);
@@ -70,6 +72,28 @@ export default function AdminSettings() {
       alert("Error saving configuration: " + err.message);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const tribunalEnabled = gameConfig?.featureFlags?.tribunalEnabled ?? false;
+
+  const toggleTribunalFlag = async () => {
+    setIsSavingTribunalFlag(true);
+    try {
+      const nextValue = !tribunalEnabled;
+      await updateFeatureFlags({ tribunalEnabled: nextValue });
+      setReceipt({
+        title: "Tribunal Flag Updated",
+        data: {
+          tribunalEnabled: nextValue,
+          adminIdentity: profile?.name || 'System'
+        }
+      });
+    } catch (err: any) {
+      console.error("Failed to update Tribunal flag:", err);
+      alert("Error updating Tribunal flag: " + err.message);
+    } finally {
+      setIsSavingTribunalFlag(false);
     }
   };
 
@@ -126,6 +150,22 @@ export default function AdminSettings() {
                  onToggle={() => handleToggle('leaderboardLiveUpdatesEnabled')} 
                />
             </div>
+          </div>
+
+          <div className="bg-white border-4 border-on-surface p-8 shadow-[8px_8px_0px_black] space-y-6">
+            <div className="flex items-center gap-3 border-b-2 border-on-surface/10 pb-4">
+               <ShieldCheck className="w-6 h-6 text-brand-orange" />
+               <h3 className="font-display text-2xl font-black uppercase italic tracking-tight">Feature_Flags</h3>
+            </div>
+            <ConfigToggle
+              label="Firelight Tribunal"
+              description="Public Tribunal access. Keep OFF until Tribunal diagnostics pass with zero critical failures."
+              enabled={tribunalEnabled}
+              onToggle={toggleTribunalFlag}
+            />
+            {isSavingTribunalFlag && (
+              <p className="font-mono text-[10px] uppercase tracking-widest opacity-50">Saving tribunal flag...</p>
+            )}
           </div>
 
           {/* Section 2: AI & Computer Vision */}

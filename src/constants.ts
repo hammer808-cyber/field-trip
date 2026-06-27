@@ -114,7 +114,8 @@ export const DEV_APP_CONFIG = {
     proofFinderEnabled: true,
     skinsEnabled: true,
     fieldTypeEffectsEnabled: true,
-    fieldGuideAssistEnabled: true
+    fieldGuideAssistEnabled: true,
+    tribunalEnabled: false
   }
 };
 

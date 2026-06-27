@@ -19,7 +19,8 @@ export async function initializeGameConfig() {
       proofFinderEnabled: true,
       skinsEnabled: true,
       fieldTypeEffectsEnabled: true,
-      fieldGuideAssistEnabled: true
+      fieldGuideAssistEnabled: true,
+      tribunalEnabled: false
     }
   };
   await setDoc(configRef, defaultConfig, { merge: true });
@@ -43,8 +44,11 @@ export async function repairGlobalConfig() {
 
 export async function updateFeatureFlags(flags: Partial<AppConfig['featureFlags']>) {
   const configRef = doc(db, 'appConfig', 'game');
+  const updates = Object.fromEntries(
+    Object.entries(flags).map(([key, value]) => [`featureFlags.${key}`, value])
+  );
   await updateDoc(configRef, {
-    [`featureFlags`]: flags
+    ...updates
   });
 
   if (auth.currentUser) {

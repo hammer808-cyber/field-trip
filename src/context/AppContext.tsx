@@ -752,7 +752,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   
   // Tribunal access gate
   const isTribunalUnlocked = canAccessFeature(canonicalProgress, 'tribunal', {
-    forceUnlocked: overrides.forceUnlocked
+    forceUnlocked: overrides.forceUnlocked,
+    featureEnabled: isFeatureEnabled('tribunalEnabled')
   });
 
   const isCrewUnlocked = canAccessFeature(canonicalProgress, 'crew', {

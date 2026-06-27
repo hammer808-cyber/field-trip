@@ -79,6 +79,7 @@ export interface AppConfig {
     skinsEnabled: boolean;
     fieldTypeEffectsEnabled: boolean;
     fieldGuideAssistEnabled: boolean;
+    tribunalEnabled: boolean;
   };
 }
 
