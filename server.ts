@@ -50,6 +50,7 @@ import {
   isSusReviewStatus,
   isTribunalVerdict,
 } from "./src/logic/firelightTribunal";
+import { getCommunityFeedExclusionReasons, getCommunityFeedOwnerId, isCommunityFeedEligible } from "./src/logic/communityFeed";
 
 // Types for proof evaluation
 type MetadataStatus = 'verified' | 'missing' | 'mismatch' | 'unverified';
@@ -1033,6 +1034,196 @@ async function startServer() {
       const message = error?.message || String(error);
       const status = message.includes('DUPLICATE') ? 409 : message.includes('PROHIBITED') ? 403 : message.includes('RATE_LIMITED') ? 429 : 400;
       res.status(status).json({ error: message });
+    }
+  });
+
+  app.get("/api/reports/sus/:entryId/status", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    const approval = await ensureApprovedRequester(req, res);
+    if (!approval.ok) return;
+
+    try {
+      const uid = req.user.uid;
+      const entryId = cleanServerId(req.params.entryId);
+      if (!entryId) return res.status(400).json({ error: "ENTRY_ID_REQUIRED" });
+
+      const [entrySnap, reportSnap] = await Promise.all([
+        dbAdmin!.collection('entries').doc(entryId).get(),
+        dbAdmin!.collection('susReports').doc(getSusReportId(uid, entryId)).get()
+      ]);
+      if (!entrySnap.exists) return res.status(404).json({ error: "ENTRY_NOT_FOUND" });
+      const entry = entrySnap.data() || {};
+      const targetUserId = entry.userId || entry.uid;
+
+      res.json({
+        success: true,
+        entryId,
+        canReport: isCommunityFeedEligible(entry) && !!targetUserId && canSubmitSusReport(uid, targetUserId),
+        alreadyReported: reportSnap.exists && isActiveSusReportStatus(reportSnap.data()?.status),
+        isOwnProof: !!targetUserId && targetUserId === uid
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error?.message || "FAILED_TO_CHECK_SUS_REPORT_STATUS" });
+    }
+  });
+
+  app.post("/api/community/hype", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    const approval = await ensureApprovedRequester(req, res);
+    if (!approval.ok) return;
+
+    try {
+      const uid = req.user.uid;
+      const entryId = cleanServerId(req.body.entryId);
+      const desiredLiked = req.body.liked === true;
+      if (!entryId) return res.status(400).json({ error: "ENTRY_ID_REQUIRED" });
+
+      const likeId = `${entryId}_${uid}`;
+      const result = await dbAdmin!.runTransaction(async (transaction) => {
+        const entryRef = dbAdmin!.collection('entries').doc(entryId);
+        const likeRef = dbAdmin!.collection('likes').doc(likeId);
+        const [entrySnap, likeSnap] = await Promise.all([
+          transaction.get(entryRef),
+          transaction.get(likeRef)
+        ]);
+        if (!entrySnap.exists) throw new Error("ENTRY_NOT_FOUND");
+        const entry = entrySnap.data() || {};
+        if (!isCommunityFeedEligible(entry)) throw new Error("ENTRY_NOT_ELIGIBLE_FOR_HYPE");
+
+        const existingLiked = likeSnap.exists;
+        const currentCount = Math.max(0, Number(entry.likeCount || entry.hypeCount || 0));
+        let nextCount = currentCount;
+
+        if (desiredLiked && !existingLiked) {
+          nextCount = currentCount + 1;
+          transaction.set(likeRef, {
+            entryId,
+            userId: uid,
+            reaction: 'hype',
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp()
+          });
+          transaction.update(entryRef, {
+            likeCount: nextCount,
+            hypeCount: nextCount,
+            updatedAt: FieldValue.serverTimestamp()
+          });
+        } else if (!desiredLiked && existingLiked) {
+          nextCount = Math.max(0, currentCount - 1);
+          transaction.delete(likeRef);
+          transaction.update(entryRef, {
+            likeCount: nextCount,
+            hypeCount: nextCount,
+            updatedAt: FieldValue.serverTimestamp()
+          });
+        }
+
+        return { liked: desiredLiked, likeCount: nextCount };
+      });
+
+      res.json({ success: true, entryId, ...result });
+    } catch (error: any) {
+      res.status(400).json({ error: error?.message || "FAILED_TO_UPDATE_HYPE" });
+    }
+  });
+
+  app.get("/api/admin/community-feed/diagnostics", adminRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    if (!(await checkIsAdmin(req.user))) return res.status(403).json({ error: "ADMIN_REQUIRED" });
+
+    try {
+      const [entriesSnap, likesSnap] = await Promise.all([
+        dbAdmin!.collection('entries').limit(500).get(),
+        dbAdmin!.collection('likes').limit(1000).get()
+      ]);
+
+      const report: any = {
+        scannedEntries: entriesSnap.size,
+        eligibleFeedEntries: 0,
+        excludedApprovedEntries: 0,
+        missingImagePaths: 0,
+        orphanedUsers: 0,
+        invalidPublicVisibilityFlags: 0,
+        duplicateLikes: 0,
+        feedQueryFailures: 0,
+        nonApprovedVisibleFeedEntries: 0,
+        samples: {
+          eligible: [] as string[],
+          excludedApproved: [] as any[],
+          missingImages: [] as string[],
+          orphanedUsers: [] as string[],
+          invalidVisibility: [] as string[],
+          duplicateLikes: [] as any[],
+          nonApprovedVisible: [] as string[]
+        }
+      };
+
+      const ownerIds = new Set<string>();
+      const ownerIdByEntry = new Map<string, string>();
+
+      entriesSnap.docs.forEach(entryDoc => {
+        const entry = { id: entryDoc.id, ...entryDoc.data() } as any;
+        const ownerId = getCommunityFeedOwnerId(entry);
+        if (ownerId) {
+          ownerIds.add(ownerId);
+          ownerIdByEntry.set(entryDoc.id, ownerId);
+        }
+
+        const reasons = getCommunityFeedExclusionReasons(entry);
+        const eligible = isCommunityFeedEligible(entry);
+        const status = String(entry.status || '').toLowerCase();
+        const isApprovedLike = status === 'approved';
+
+        if (eligible) {
+          report.eligibleFeedEntries++;
+          if (report.samples.eligible.length < 8) report.samples.eligible.push(entryDoc.id);
+        } else if (isApprovedLike) {
+          report.excludedApprovedEntries++;
+          if (report.samples.excludedApproved.length < 8) report.samples.excludedApproved.push({ id: entryDoc.id, reasons });
+        }
+
+        if (reasons.includes('missing_or_invalid_image')) {
+          report.missingImagePaths++;
+          if (report.samples.missingImages.length < 8) report.samples.missingImages.push(entryDoc.id);
+        }
+        if (reasons.includes('private_visibility') || reasons.includes('not_public_feed_enabled')) {
+          report.invalidPublicVisibilityFlags++;
+          if (report.samples.invalidVisibility.length < 8) report.samples.invalidVisibility.push(entryDoc.id);
+        }
+        if (entry.showInCommunityFeed === true && !isApprovedLike) {
+          report.nonApprovedVisibleFeedEntries++;
+          if (report.samples.nonApprovedVisible.length < 8) report.samples.nonApprovedVisible.push(entryDoc.id);
+        }
+      });
+
+      const userRefs = Array.from(ownerIds).slice(0, 200).map(id => dbAdmin!.collection('users').doc(id).get());
+      const userSnaps = await Promise.all(userRefs);
+      const existingOwners = new Set(userSnaps.filter(snap => snap.exists).map(snap => snap.id));
+      ownerIdByEntry.forEach((ownerId, entryId) => {
+        if (!existingOwners.has(ownerId)) {
+          report.orphanedUsers++;
+          if (report.samples.orphanedUsers.length < 8) report.samples.orphanedUsers.push(entryId);
+        }
+      });
+
+      const likesByPair = new Map<string, string[]>();
+      likesSnap.docs.forEach(likeDoc => {
+        const like = likeDoc.data() || {};
+        const pair = `${like.entryId || 'missing-entry'}:${like.userId || 'missing-user'}`;
+        const ids = likesByPair.get(pair) || [];
+        ids.push(likeDoc.id);
+        likesByPair.set(pair, ids);
+      });
+      likesByPair.forEach((ids, pair) => {
+        if (ids.length > 1) {
+          report.duplicateLikes++;
+          if (report.samples.duplicateLikes.length < 8) report.samples.duplicateLikes.push({ pair, ids });
+        }
+      });
+
+      res.json({ success: true, readOnly: true, report });
+    } catch (error: any) {
+      res.status(500).json({ error: "FAILED_COMMUNITY_FEED_DIAGNOSTICS", message: error?.message || String(error) });
     }
   });
 

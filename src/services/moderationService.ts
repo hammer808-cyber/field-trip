@@ -55,6 +55,19 @@ export async function submitSusReport(entryId: string, reason = 'suspicious_proo
   return response.json();
 }
 
+export async function getSusReportStatus(entryId: string): Promise<{ canReport: boolean; alreadyReported: boolean; isOwnProof: boolean }> {
+  const response = await authenticatedFetch(`/api/reports/sus/${encodeURIComponent(entryId)}/status`);
+  if (!response.ok) {
+    return { canReport: false, alreadyReported: false, isOwnProof: false };
+  }
+  const data = await response.json();
+  return {
+    canReport: data.canReport === true,
+    alreadyReported: data.alreadyReported === true,
+    isOwnProof: data.isOwnProof === true
+  };
+}
+
 export async function fetchPendingSusReports() {
   const response = await authenticatedFetch('/api/admin/sus-reports?status=pending');
   if (!response.ok) {
@@ -113,6 +126,15 @@ export async function applyTribunalDiagnosticsRepair(confirmation: string) {
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || 'FAILED_TO_REPAIR_TRIBUNAL_DIAGNOSTICS');
+  }
+  return response.json();
+}
+
+export async function previewCommunityFeedDiagnostics() {
+  const response = await authenticatedFetch('/api/admin/community-feed/diagnostics');
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'FAILED_TO_PREVIEW_COMMUNITY_FEED_DIAGNOSTICS');
   }
   return response.json();
 }

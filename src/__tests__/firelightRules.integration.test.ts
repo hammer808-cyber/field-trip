@@ -81,7 +81,8 @@ test('normal client auth cannot write protected Firelight collections', async ()
     setDoc(doc(db, 'tribunalCasePrivate/case-new'), { reporterIds: ['user'] }),
     setDoc(doc(db, 'tribunalVotes/tribunal-user_case-open'), { userId: 'tribunal-user', caseId: 'case-open', vote: 'valid' }),
     setDoc(doc(db, 'tribunalVoteAudit/tribunal-user_case-open'), { userId: 'tribunal-user' }),
-    setDoc(doc(db, 'tribunalResults/case-new'), { caseId: 'case-new' })
+    setDoc(doc(db, 'tribunalResults/case-new'), { caseId: 'case-new' }),
+    setDoc(doc(db, 'likes/entry-1_tribunal-user'), { entryId: 'entry-1', userId: 'tribunal-user' })
   ];
   for (const write of protectedWrites) {
     await assertFails(write);

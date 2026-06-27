@@ -16,8 +16,7 @@ import {
   writeBatch,
   deleteField,
   arrayUnion,
-  arrayRemove,
-  deleteDoc
+  arrayRemove
 } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { logAdminAction } from './moderationService';
@@ -33,6 +32,7 @@ import { promoteEntryToBallotCandidate } from './voteService';
 import { applyFieldTypeModifier } from '../logic/challengeLogic';
 import { awardPoints } from './scoringService';
 import { addMemory } from './memoryService';
+import { authenticatedFetch } from '../lib/api';
 import { getActiveWeeklyBonus, hasUserEarnedWeeklyBonusThisWeek, calculateWeeklyBonusReward } from './weeklyBonusService';
 import { getCatalystForWeek, evaluateProofForCatalyst, awardCatalystRewardsIfEligible } from './weeklyCatalystService';
 import { calculateAverageHash, calculateHammingDistance } from '../utils/hashUtils';
@@ -1533,34 +1533,24 @@ export async function adminOverrideReview(reviewId: string, entryId: string, new
  */
 export async function toggleLikeEntry(entryId: string, uid: string, isLiked: boolean) {
     console.log(`[Like_Protocol] Toggling like for Entry: ${entryId}, User: ${uid}, CurrentIsLiked: ${isLiked}`);
-    
-    const likeId = `${entryId}_${uid}`;
-    const likeRef = doc(db, 'likes', likeId);
-    const entryRef = doc(db, 'entries', entryId);
 
     try {
-        if (!isLiked) {
-            // Addition: Liking the entry
-            await setDoc(likeRef, {
+        const response = await authenticatedFetch('/api/community/hype', {
+            method: 'POST',
+            body: JSON.stringify({
                 entryId,
-                userId: uid,
-                createdAt: serverTimestamp()
-            });
-            await updateDoc(entryRef, {
-                likeCount: increment(1)
-            });
-            console.log(`[Like_Success] Entry ${entryId} liked by ${uid}`);
-        } else {
-            // Removal: Unliking the entry
-            await deleteDoc(likeRef);
-            await updateDoc(entryRef, {
-                likeCount: increment(-1)
-            });
-            console.log(`[Like_Success] Entry ${entryId} unliked by ${uid}`);
+                liked: !isLiked
+            })
+        });
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.error || 'FAILED_TO_UPDATE_HYPE');
         }
-        return true;
+        const result = await response.json();
+        console.log(`[Hype_Success] Entry ${entryId} hype=${result.liked} count=${result.likeCount}`);
+        return result;
     } catch (err: any) {
-        console.error(`[Like_Error] Entry ${entryId}: ${err.code || err.message}`);
+        console.error(`[Hype_Error] Entry ${entryId}: ${err.code || err.message}`);
         throw err;
     }
 }

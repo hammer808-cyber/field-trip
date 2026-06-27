@@ -32,6 +32,7 @@ import { ScoreEvent, WeeklySummary } from "../types/game";
 import { getServerDate } from "../services/timeService";
 import { getCurrentVotingCycle, getVotingPhase } from "../services/votingCycleService";
 import { normalizeEntryStatus } from "../logic/entryLogic";
+import { getCommunityFeedApprovedTime, isCommunityFeedEligible } from "../logic/communityFeed";
 import { ContentMenu } from "../components/ContentMenu";
 import { SabotageHub } from "../components/SabotageHub";
 import { CrewArtifactsGallery } from "../components/CrewArtifactsGallery";
@@ -861,7 +862,6 @@ export default function BigBoardPage() {
     approvedCompletedChallengeIds,
     isAdmin,
     unlockDiscoverySticker,
-    entries,
     canonicalProgress
   } = useApp();
   const { skin, frankieMode, fc } = useTheme();
@@ -869,7 +869,7 @@ export default function BigBoardPage() {
   const [searchParams] = useSearchParams();
 
   const [activeTab, setActiveTab] = useState<"standings" | "proofs" | "pulse">("standings");
-  const [showBrokenProofs, setShowBrokenProofs] = useState(false);
+  const [feedFilter, setFeedFilter] = useState<"latest" | "hyped" | "week" | "season" | "crew">("latest");
   const [selectedBadgeId, setSelectedBadgeId] = useState<string | null>(null);
   const [badgeFilter, setBadgeFilter] = useState<
     "all" | "earned" | "in-progress" | "locked"
@@ -1283,42 +1283,37 @@ export default function BigBoardPage() {
   const userWeeklyRank =
     playerRankings.findIndex((u: any) => u.id === user?.uid) + 1;
 
-  const mergedProofs = useMemo(() => {
-    const userPending = (entries || []).filter(e => {
-      const status = normalizeEntryStatus(e.status);
-      return status === 'pending_review' || status === 'needs_more_proof';
-    });
-    
-    // Apply temporary filter to publicProofs as requested
-    const filteredPublic = publicProofs.filter(p => {
-      const isApproved = normalizeEntryStatus(p.status) === 'approved';
-      const hasPhoto = !!(p.photoUrl || p.imageUrl);
-      
-      if (isApproved) {
-        if (!hasPhoto) {
-          // If admin triggers showBrokenProofs, we can bypass the filtering
-          if (isAdmin && showBrokenProofs) {
-            return true;
-          }
-          return false;
-        }
-      }
-      return true;
-    });
-
-    // Combine, deduplicate by ID, and sort
-    const combined = [...userPending, ...filteredPublic];
+  const communityFeedProofs = useMemo(() => {
+    const combined = publicProofs.filter(isCommunityFeedEligible);
     const seen = new Set();
-    return combined.filter(p => {
+    let list = combined.filter(p => {
       if (seen.has(p.id)) return false;
       seen.add(p.id);
       return true;
-    }).sort((a, b) => {
-      const ta = (a.approvedAt?.seconds || a.createdAt?.seconds || 0);
-      const tb = (b.approvedAt?.seconds || b.createdAt?.seconds || 0);
-      return tb - ta;
     });
-  }, [entries, publicProofs, isAdmin, showBrokenProofs]);
+
+    const now = getServerDate();
+    const weekAgo = now.getTime() - (7 * 24 * 60 * 60 * 1000);
+    const seasonStart = activeSeason?.startDate
+      ? (activeSeason.startDate as any).toDate?.().getTime?.() || new Date(activeSeason.startDate as any).getTime()
+      : 0;
+
+    if (feedFilter === "week") {
+      list = list.filter(p => getCommunityFeedApprovedTime(p) >= weekAgo);
+    } else if (feedFilter === "season" && seasonStart > 0) {
+      list = list.filter(p => getCommunityFeedApprovedTime(p) >= seasonStart);
+    } else if (feedFilter === "crew" && crewId) {
+      list = list.filter(p => p.crewId === crewId);
+    }
+
+    return [...list].sort((a, b) => {
+      if (feedFilter === "hyped") {
+        const byHype = Number(b.likeCount || 0) - Number(a.likeCount || 0);
+        if (byHype !== 0) return byHype;
+      }
+      return getCommunityFeedApprovedTime(b) - getCommunityFeedApprovedTime(a);
+    });
+  }, [publicProofs, feedFilter, activeSeason?.startDate, crewId]);
 
   // Development-only logs for verification in BigBoard
   useEffect(() => {
@@ -1328,11 +1323,11 @@ export default function BigBoardPage() {
         userId: user?.uid || "N/A",
         approvedCount: canonicalProgress.approvedCompletedChallengeIds.size,
         xp: canonicalProgress.xp,
-        mergedProofsTotalCount: mergedProofs.length,
+        communityFeedCount: communityFeedProofs.length,
         timestamp: new Date().toISOString()
       });
     }
-  }, [mergedProofs.length, canonicalProgress, user?.uid]);
+  }, [communityFeedProofs.length, canonicalProgress, user?.uid]);
 
   return (
     <div className="page-scroll pt-6 sm:pt-12 px-2 sm:px-8 space-y-4 sm:space-y-24 max-w-full mx-auto relative bg-paper ft-paper-texture">
@@ -1537,29 +1532,33 @@ export default function BigBoardPage() {
               <div className="text-center space-y-2 sm:space-y-4">
                 <h2 className="text-3xl sm:text-7xl font-display font-black uppercase italic tracking-tighter text-on-surface leading-tight">Community Feed</h2>
                 <p className="font-serif italic text-base sm:text-xl text-on-surface/50 px-4 leading-relaxed">Approved receipts from people who went outside and found something.</p>
-                
-                {isAdmin && (
-                  <div className="flex justify-center pt-2">
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-4">
+                  {[
+                    ['latest', 'Latest'],
+                    ['hyped', 'Most Hyped'],
+                    ['week', 'This Week'],
+                    ['season', 'This Season'],
+                    ...(isCrewUnlocked && crewId ? [['crew', 'My Crew']] : []),
+                  ].map(([id, label]) => (
                     <button
-                      onClick={() => setShowBrokenProofs(prev => !prev)}
+                      key={id}
+                      type="button"
+                      onClick={() => setFeedFilter(id as typeof feedFilter)}
                       className={cn(
-                        "flex items-center gap-2 px-4 py-2 font-mono text-xs font-black uppercase tracking-wider rounded-xl border-2 transition-all duration-300",
-                        showBrokenProofs 
-                          ? "bg-red-500 text-white border-on-surface shadow-[4px_4px_0px_black] active:translate-y-0.5 active:shadow-none" 
-                          : "bg-neutral-100 text-on-surface/60 border-on-surface/25 hover:border-on-surface hover:text-on-surface shadow-[2px_2px_0px_rgba(0,0,0,0.1)]"
+                        "px-4 py-2 border-2 border-on-surface font-mono text-[10px] font-black uppercase tracking-widest shadow-[3px_3px_0px_black] transition-transform active:translate-y-0.5 active:shadow-none",
+                        feedFilter === id ? "bg-brand-lime text-on-surface" : "bg-white text-on-surface/60 hover:text-on-surface"
                       )}
                     >
-                      <LucideIcons.AlertTriangle className="w-4 h-4 text-amber-500" />
-                      <span>Show Broken Approved Proofs: {showBrokenProofs ? "ON (DEBUG)" : "OFF"}</span>
+                      {label}
                     </button>
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
 
-              {mergedProofs.length === 0 ? (
+              {communityFeedProofs.length === 0 ? (
                 <div className="max-w-xl mx-auto py-16 text-center space-y-4 bg-white border-4 border-on-surface p-8 rounded-[1.5rem] shadow-[8px_8px_0px_black] relative">
                   <div className="absolute top-2 right-2 text-on-surface/5 font-mono text-[9px] font-black uppercase tracking-widest">
-                    PROOFS_EMPTY
+                    COMMUNITY_EMPTY
                   </div>
                   <div className="inline-flex items-center justify-center w-12 h-12 bg-brand-yellow/10 border-4 border-on-surface rounded-full shadow-[3px_3px_0px_black]">
                     <LucideIcons.CameraOff className="w-6 h-6 text-brand-orange animate-pulse" />
@@ -1569,13 +1568,13 @@ export default function BigBoardPage() {
                       Silent Spectrum
                     </p>
                     <p className="text-xs font-sans text-on-surface/70 leading-relaxed">
-                      No approved proofs yet. The field is suspiciously quiet.
+                      No receipts on the board yet. Somebody go outside and make this place interesting.
                     </p>
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-4">
-                  {mergedProofs.map((proof) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 px-4 pb-32 sm:pb-8">
+                  {communityFeedProofs.map((proof) => (
                     <CommunityProofCard key={proof.id} proof={proof} normalizeEntryStatus={normalizeEntryStatus} />
                   ))}
                 </div>

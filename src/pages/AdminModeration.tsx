@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, AlertTriangle, CheckCircle, XCircle, Eye, User, FileText, ExternalLink, Trophy, Zap, Search, ShieldCheck, ClipboardList, Clock } from 'lucide-react';
-import { subscribeToPendingReports, performModerationAction, updateReportStatus, subscribeToAdminLogs, fetchPendingSusReports, resolveSusReport, escalateSusReportToTribunal, previewTribunalDiagnostics, applyTribunalDiagnosticsRepair } from '../services/moderationService';
+import { subscribeToPendingReports, performModerationAction, updateReportStatus, subscribeToAdminLogs, fetchPendingSusReports, resolveSusReport, escalateSusReportToTribunal, previewTribunalDiagnostics, applyTribunalDiagnosticsRepair, previewCommunityFeedDiagnostics } from '../services/moderationService';
 import { subscribeToAllOpenFieldChecks } from '../services/fieldCheckService';
 import { resolveFieldCheck } from '../services/gameService';
 import { finalizeVoteWinners } from '../services/voteService';
@@ -17,7 +17,7 @@ export default function AdminModerationPage() {
   const [susReports, setSusReports] = useState<any[]>([]);
   const [fieldChecks, setFieldChecks] = useState<FieldCheck[]>([]);
   const [adminLogs, setAdminLogs] = useState<any[]>([]);
-  const [view, setView] = useState<'reports' | 'sus' | 'fieldChecks' | 'tribunalDiagnostics' | 'audit'>('reports');
+  const [view, setView] = useState<'reports' | 'sus' | 'fieldChecks' | 'communityFeedDiagnostics' | 'tribunalDiagnostics' | 'audit'>('reports');
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [selectedSusReport, setSelectedSusReport] = useState<any | null>(null);
   const [selectedFieldCheck, setSelectedFieldCheck] = useState<FieldCheck | null>(null);
@@ -29,6 +29,8 @@ export default function AdminModerationPage() {
   const [tribunalConfirmation, setTribunalConfirmation] = useState('');
   const [isScanningTribunal, setIsScanningTribunal] = useState(false);
   const [isRepairingTribunal, setIsRepairingTribunal] = useState(false);
+  const [communityFeedDiagnostics, setCommunityFeedDiagnostics] = useState<any | null>(null);
+  const [isScanningCommunityFeed, setIsScanningCommunityFeed] = useState(false);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -166,6 +168,17 @@ export default function AdminModerationPage() {
     }
   };
 
+  const handlePreviewCommunityFeedDiagnostics = async () => {
+    setIsScanningCommunityFeed(true);
+    try {
+      setCommunityFeedDiagnostics(await previewCommunityFeedDiagnostics());
+    } catch (err: any) {
+      alert(`BUREAU_ERROR: Community Feed diagnostics failed. ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsScanningCommunityFeed(false);
+    }
+  };
+
   if (!isAdmin) return <div className="p-20 text-center uppercase font-mono text-error">ACCESS_DENIED. Admin clearance required.</div>;
 
   return (
@@ -210,6 +223,12 @@ export default function AdminModerationPage() {
                >
                  Tribunal Data
                </button>
+               <button
+                onClick={() => { setView('communityFeedDiagnostics'); setSelectedReport(null); setSelectedSusReport(null); setSelectedFieldCheck(null); }}
+                className={cn("px-4 py-1 text-[10px] font-bold uppercase tracking-widest", view === 'communityFeedDiagnostics' ? "bg-on-surface text-paper" : "hover:bg-on-surface/5")}
+               >
+                 Community Feed
+               </button>
                <button 
                 onClick={() => { setView('audit'); setSelectedReport(null); setSelectedSusReport(null); setSelectedFieldCheck(null); }}
                 className={cn("px-4 py-1 text-[10px] font-bold uppercase tracking-widest", view === 'audit' ? "bg-on-surface text-paper" : "hover:bg-on-surface/5")}
@@ -231,6 +250,12 @@ export default function AdminModerationPage() {
           onConfirmationChange={setTribunalConfirmation}
           onPreview={handlePreviewTribunalDiagnostics}
           onRepair={handleApplyTribunalRepairs}
+        />
+      ) : view === 'communityFeedDiagnostics' ? (
+        <CommunityFeedDiagnosticsPanel
+          diagnostics={communityFeedDiagnostics}
+          isScanning={isScanningCommunityFeed}
+          onPreview={handlePreviewCommunityFeedDiagnostics}
         />
       ) : (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -468,6 +493,89 @@ function ReportDetails({ report, actionReason, onActionReasonChange, onAction }:
         />
       </Card>
     </motion.div>
+  );
+}
+
+function CommunityFeedDiagnosticsPanel({ diagnostics, isScanning, onPreview }: any) {
+  const report = diagnostics?.report;
+  const rows = [
+    ['Eligible feed entries', report?.eligibleFeedEntries],
+    ['Excluded approved entries', report?.excludedApprovedEntries],
+    ['Missing image paths', report?.missingImagePaths],
+    ['Orphaned users', report?.orphanedUsers],
+    ['Invalid visibility flags', report?.invalidPublicVisibilityFlags],
+    ['Duplicate likes', report?.duplicateLikes],
+    ['Feed query failures', report?.feedQueryFailures],
+    ['Non-approved visible entries', report?.nonApprovedVisibleFeedEntries],
+  ];
+  const sampleGroups = [
+    ['Eligible samples', report?.samples?.eligible],
+    ['Excluded approved samples', report?.samples?.excludedApproved],
+    ['Missing image samples', report?.samples?.missingImages],
+    ['Orphaned user samples', report?.samples?.orphanedUsers],
+    ['Invalid visibility samples', report?.samples?.invalidVisibility],
+    ['Duplicate like samples', report?.samples?.duplicateLikes],
+    ['Non-approved visible samples', report?.samples?.nonApprovedVisible],
+  ];
+
+  return (
+    <Card className="p-8 space-y-6 border-2 border-on-surface">
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-brand-orange">
+            <Eye className="w-5 h-5" />
+            <p className="text-[10px] font-black uppercase tracking-[0.28em]">Admin Only // Read-Only Feed Scan</p>
+          </div>
+          <h2 className="font-display text-3xl uppercase tracking-tighter mt-2">Community Feed Diagnostics</h2>
+          <p className="text-sm opacity-60 max-w-2xl mt-2">
+            Scans canonical entries and likes for public feed eligibility, missing images, orphaned identities, invalid visibility, duplicate Hype records, and non-approved feed leaks.
+          </p>
+        </div>
+        <button
+          onClick={onPreview}
+          disabled={isScanning}
+          className="bureau-btn-sm bg-on-surface text-paper hover:bg-brand-orange"
+        >
+          {isScanning ? 'SCANNING...' : 'PREVIEW_SCAN'}
+        </button>
+      </div>
+
+      {!report ? (
+        <div className="border-2 border-dashed border-on-surface/15 p-10 text-center">
+          <p className="font-mono text-xs uppercase tracking-widest opacity-50">Run Preview Scan to inspect the Community Feed.</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            {rows.map(([label, value]) => (
+              <div key={label} className="border-2 border-on-surface/10 p-4 bg-on-surface/[0.02]">
+                <p className="micro-label">{label}</p>
+                <p className="font-display text-4xl uppercase italic leading-none mt-2">{Number(value || 0)}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {sampleGroups.map(([label, samples]) => (
+              <div key={label} className="border border-on-surface/10 p-4 bg-white">
+                <p className="text-[10px] font-black uppercase tracking-widest mb-3">{label}</p>
+                {!samples || samples.length === 0 ? (
+                  <p className="text-xs font-mono opacity-40">none</p>
+                ) : (
+                  <div className="space-y-2">
+                    {samples.map((sample: any, index: number) => (
+                      <pre key={`${label}-${index}`} className="bg-on-surface/[0.03] border border-on-surface/10 p-3 text-[10px] font-mono whitespace-pre-wrap break-all">
+                        {typeof sample === 'string' ? sample : JSON.stringify(sample, null, 2)}
+                      </pre>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }
 

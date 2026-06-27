@@ -8,6 +8,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { ScoreEvent } from '../types/game';
+import { COMMUNITY_FEED_APPROVED_STATUSES, isCommunityFeedEligible } from '../logic/communityFeed';
 
 export function subscribeToRecentScoreEvents(limitCount: number, callback: (events: ScoreEvent[]) => void) {
   const q = query(
@@ -49,11 +50,9 @@ export function subscribeToUserScoreEvents(userId: string, limitCount: number, c
 }
 
 export function subscribeToPublicProofs(limitCount: number, callback: (entries: any[]) => void) {
-  const approvedStatuses = ['approved', 'approved_by_admin', 'auto_approved', 'completed'];
-
   const q = query(
     collection(db, 'entries'),
-    where('status', 'in', approvedStatuses),
+    where('status', 'in', COMMUNITY_FEED_APPROVED_STATUSES),
     where('showInCommunityFeed', '==', true),
     orderBy('approvedAt', 'desc'),
     limit(limitCount)
@@ -63,7 +62,7 @@ export function subscribeToPublicProofs(limitCount: number, callback: (entries: 
     const entries = snap.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
-    }));
+    })).filter(isCommunityFeedEligible);
     callback(entries);
   }, (error) => {
     console.error("[ActivityService] Public proof subscription failed:", error);
