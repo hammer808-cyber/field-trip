@@ -636,10 +636,12 @@ export function subscribeToAdminPendingReviews(
     callback(merged);
   };
 
+  // Do not filter the admin queue by raw Firestore status. Older/mobile
+  // submission paths have used variants such as pendingReview or
+  // submitted_pending_review; the queue must use the canonical normalizer.
   const entryQuery = query(
     collectionGroup(db, ENTRIES_COLLECTION),
-    where('status', '==', statusFilter),
-    limit(300)
+    limit(500)
   );
 
   const monitorEntryQuery = query(
