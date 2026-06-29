@@ -10,7 +10,7 @@ import { getSusReportStatus, submitSusReport } from '../services/moderationServi
 import { cn } from '../lib/utils';
 import { DEFAULT_AVATAR } from '../constants/avatarAssets';
 import { toast } from 'react-hot-toast';
-import { getCommunityFeedApprovedTime, getCommunityFeedImageUrl, getCommunityFeedOwnerId } from '../logic/communityFeed';
+import { getCommunityFeedApprovedTime, getCommunityFeedOwnerId, hasCommunityFeedImageReference } from '../logic/communityFeed';
 
 const SUS_REASONS = [
   "Doesn't match the mission",
@@ -39,7 +39,7 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
   const [susState, setSusState] = useState({ canReport: false, alreadyReported: false, isOwnProof: false });
 
   const ownerId = getCommunityFeedOwnerId(proof);
-  const imageUrl = getCommunityFeedImageUrl(proof);
+  const hasImageReference = hasCommunityFeedImageReference(proof);
   const missionTitle = proof.tripTitle || proof.challengeTitle || proof.missionTitle || 'Field Receipt';
   const displayName = proof.displayName || proof.userName || proof.publicName || 'Anonymous Agent';
   const deckLabel = proof.deckName || proof.deckId || proof.seasonTitle || proof.seasonId || 'Fieldtrip';
@@ -141,7 +141,7 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
         </div>
 
         <div className="photo-image-slot relative overflow-hidden aspect-square border-[2.5px] border-on-surface bg-[#ECE9E0] flex items-center justify-center m-1 shadow-[inset_0_2px_4px_rgba(0,0,0,0.15)]">
-          {!imageUrl ? (
+          {!hasImageReference ? (
             <div className="flex flex-col items-center gap-2 text-on-surface/35 font-mono text-[9px] font-black uppercase">
               <ImageOff className="w-8 h-8" />
               Image Missing

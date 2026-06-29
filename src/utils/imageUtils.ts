@@ -30,6 +30,7 @@ export function getNormalizedProof(entry: any, proofReview: any): NormalizedProo
   const photoUrl =
     e.photoUrl ||
     e.imageUrl ||
+    e.mediaUrl ||
     r.photoUrl ||
     r.imageUrl ||
     r.mediaUrl ||
@@ -41,6 +42,13 @@ export function getNormalizedProof(entry: any, proofReview: any): NormalizedProo
     e.storagePath ||
     r.storagePath ||
     e.photoStoragePath ||
+    r.photoStoragePath ||
+    e.imageStoragePath ||
+    r.imageStoragePath ||
+    e.proofImageRef ||
+    r.proofImageRef ||
+    e.proofStoragePath ||
+    r.proofStoragePath ||
     '';
 
   return {

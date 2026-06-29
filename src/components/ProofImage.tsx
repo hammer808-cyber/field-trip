@@ -39,11 +39,12 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
   // Adheres to requirement: Use the normalized proof resolver object
   const norm = getNormalizedProof(entry, proofReview || entry?.proofReview || entry?.review || entry);
   const selectedImageUrl = norm.photoUrl || null;
+  const selectedImageReference = norm.photoUrl || norm.storagePath || null;
   const showDiagnostics = import.meta.env.DEV || isAdmin;
 
   const renderDiagnostics = () => {
     if (!showDiagnostics) return null;
-    const statusText = selectedImageUrl 
+    const statusText = selectedImageReference
       ? (imageLoadState === 'success' ? 'SUCCESS' : imageLoadState === 'failure' ? 'FAILURE' : 'LOADING') 
       : 'MISSING';
     
@@ -62,7 +63,7 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
         </div>
         <div className="text-[7.5px] font-mono text-neutral-200 break-all leading-tight max-h-[36px] overflow-y-auto pr-1">
           <span className="text-neutral-500 font-bold mr-1">URL:</span>
-          {selectedImageUrl || 'None'}
+          {selectedImageReference || 'None'}
         </div>
       </div>
     );
@@ -78,9 +79,9 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
       console.log(`[CommunityFeed] photoUrl: ${entry.photoUrl || ''}`);
       console.log(`[CommunityFeed] imageUrl: ${entry.imageUrl || ''}`);
       console.log(`[CommunityFeed] storagePath: ${storagePath}`);
-      console.log(`[CommunityFeed] selectedImageUrl: ${selectedImageUrl || 'null'}`);
+      console.log(`[CommunityFeed] selectedImageUrl: ${selectedImageReference || 'null'}`);
     }
-  }, [entry, isCommunityFeed, selectedImageUrl]);
+  }, [entry, isCommunityFeed, selectedImageReference]);
 
   useEffect(() => {
     let isMounted = true;
@@ -150,7 +151,7 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
   }
 
   // Render order & failures
-  if (!selectedImageUrl) {
+  if (!selectedImageReference) {
     return (
       <div className={cn("w-full h-full flex flex-col items-center justify-center gap-2 p-4 bg-neutral-900 text-center border-2 border-dashed border-red-500/30 relative", className)}>
         <div className="flex flex-col items-center justify-center gap-2 mb-10">
@@ -347,4 +348,3 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
     </div>
   );
 }
-

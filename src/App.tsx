@@ -343,6 +343,9 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const isProfilePage = location.pathname === '/profile';
   const isBigBoardPage = location.pathname === '/big-board';
   const isBasecampPage = location.pathname === '/basecamp';
+  const isCrewPage = location.pathname.startsWith('/crew');
+  const isCollectionPage = location.pathname.startsWith('/collection');
+  const isMemoriesPage = location.pathname.startsWith('/memories');
   const isVotingPage = location.pathname.startsWith('/voting');
 
   // Centralized login/returning destination selector
@@ -394,7 +397,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Step 3: Resume guided onboarding or mission at correct saved step.
   // Allow all pages used in the tour: Deck, Capture, Profile, Big Board, and Field Type.
-  const isAllowedOnboardingPage = isDeckPage || isCapturePage || isProfilePage || isBigBoardPage || isFieldTypePage || isBasecampPage;
+  const isAllowedOnboardingPage = isDeckPage || isCapturePage || isProfilePage || isBigBoardPage || isFieldTypePage || isBasecampPage || isCrewPage || isCollectionPage || isMemoriesPage;
   if (user && hasConfirmedLegal && fieldClassificationComplete && hasSeenFieldTypeResults && !onboardingCompleted && !isAllowedOnboardingPage && !isBypassingGuards) {
     return <Navigate to="/deck" replace />;
   }
@@ -450,6 +453,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     '/deck',
     '/missions',
     '/collection',
+    '/memories',
     '/voting',
     '/big-board',
     '/crews',
@@ -617,6 +621,7 @@ export default function App() {
                     <Route path="/field-id" element={<FieldIdentity />} />
                     <Route path="/classification" element={<Classification />} />
                     <Route path="/crew" element={<StarterGate requiredFeature="crew"><Crew /></StarterGate>} />
+                    <Route path="/memories" element={<StarterGate requiredFeature="memories"><Navigate to="/collection?tab=crew_memories" replace /></StarterGate>} />
                     <Route path="/big-board" element={<StarterGate requiredFeature="leaderboard"><BigBoard /></StarterGate>} />
                     <Route path="/mission-briefing" element={<MissionBriefing />} />
                     <Route path="/mission-submitted" element={<MissionSubmitted />} />

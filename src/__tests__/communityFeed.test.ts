@@ -1,11 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { isCommunityFeedEligible, getCommunityFeedExclusionReasons } from '../logic/communityFeed';
+import {
+  getCommunityFeedExclusionReasons,
+  getCommunityFeedImageReference,
+  hasCommunityFeedImageReference,
+  isCommunityFeedEligible
+} from '../logic/communityFeed';
 
 const bigBoardSource = readFileSync('src/pages/BigBoard.tsx', 'utf8');
 const proofServiceSource = readFileSync('src/services/proofService.ts', 'utf8');
 const cardSource = readFileSync('src/components/CommunityProofCard.tsx', 'utf8');
+const proofImageSource = readFileSync('src/components/ProofImage.tsx', 'utf8');
 const serverSource = readFileSync('server.ts', 'utf8');
 const adminModerationSource = readFileSync('src/pages/AdminModeration.tsx', 'utf8');
 const rulesSource = readFileSync('firestore.rules', 'utf8');
@@ -14,7 +20,6 @@ test('community feed accepts only approved public renderable entries', () => {
   const base = {
     id: 'entry-1',
     status: 'approved',
-    showInCommunityFeed: true,
     isPublic: true,
     userId: 'user-1',
     photoUrl: 'https://example.com/proof.jpg',
@@ -28,8 +33,27 @@ test('community feed accepts only approved public renderable entries', () => {
   assert.equal(isCommunityFeedEligible({ ...base, hidden: true }), false);
   assert.equal(isCommunityFeedEligible({ ...base, isDisqualified: true }), false);
   assert.equal(isCommunityFeedEligible({ ...base, visibility: 'private' }), false);
+  assert.equal(isCommunityFeedEligible({ ...base, showInCommunityFeed: false }), false);
   assert.equal(isCommunityFeedEligible({ ...base, photoUrl: '' }), false);
   assert.equal(isCommunityFeedEligible({ ...base, userId: '' }), false);
+});
+
+test('community feed accepts legacy approved proof image fields and storage references', () => {
+  const base = {
+    id: 'entry-1',
+    status: 'approved',
+    userId: 'user-1',
+  };
+
+  assert.equal(isCommunityFeedEligible({ ...base, photoUrl: 'https://example.com/photo.jpg' }), true);
+  assert.equal(isCommunityFeedEligible({ ...base, imageUrl: 'https://example.com/image.jpg' }), true);
+  assert.equal(isCommunityFeedEligible({ ...base, mediaUrl: 'https://example.com/media.jpg' }), true);
+  assert.equal(isCommunityFeedEligible({ ...base, proofImage: 'https://example.com/proof.jpg' }), true);
+  assert.equal(isCommunityFeedEligible({ ...base, storagePath: 'proofs/user-1/entry-1.jpg' }), true);
+  assert.equal(isCommunityFeedEligible({ ...base, photoStoragePath: 'proofs/user-1/entry-2.jpg' }), true);
+  assert.equal(isCommunityFeedEligible({ ...base, imageStoragePath: 'proofs/user-1/entry-3.jpg' }), true);
+  assert.equal(getCommunityFeedImageReference({ ...base, storagePath: 'proofs/user-1/entry-1.jpg' }), 'proofs/user-1/entry-1.jpg');
+  assert.equal(hasCommunityFeedImageReference({ ...base, storagePath: 'blob:local' }), false);
 });
 
 test('community feed diagnostics explain exclusions', () => {
@@ -54,6 +78,17 @@ test('Big Board Proofs tab does not merge local pending entries into public feed
   assert.match(bigBoardSource, /No receipts on the board yet/);
 });
 
+test('Community feed subscription does not require legacy visibility flags or approvedAt ordering', () => {
+  const activitySource = readFileSync('src/services/activityService.ts', 'utf8');
+  const publicProofs = activitySource.match(/export function subscribeToPublicProofs[\s\S]*?\n\}/)?.[0] || '';
+
+  assert.match(publicProofs, /where\('status', 'in', COMMUNITY_FEED_APPROVED_STATUSES\)/);
+  assert.doesNotMatch(publicProofs, /where\('showInCommunityFeed'/);
+  assert.doesNotMatch(publicProofs, /orderBy\('approvedAt'/);
+  assert.match(publicProofs, /filter\(isCommunityFeedEligible\)/);
+  assert.match(publicProofs, /sort\(\(a: any, b: any\) => getCommunityFeedApprovedTime\(b\) - getCommunityFeedApprovedTime\(a\)\)/);
+});
+
 test('Hype writes go through server endpoint and direct Firestore like writes are blocked', () => {
   assert.match(proofServiceSource, /authenticatedFetch\('\/api\/community\/hype'/);
   assert.doesNotMatch(proofServiceSource, /collection\(db,\s*'likes'\)[\s\S]{0,500}(setDoc|deleteDoc)/);
@@ -66,6 +101,13 @@ test('Community proof card reuses private Sus endpoint and does not render pendi
   assert.match(cardSource, /Approved Receipt/);
   assert.doesNotMatch(cardSource, /Pending Review/);
   assert.match(cardSource, /Signal Check/);
+});
+
+test('ProofImage treats Firebase Storage paths as renderable image references', () => {
+  assert.match(proofImageSource, /const selectedImageReference = norm\.photoUrl \|\| norm\.storagePath \|\| null;/);
+  assert.match(proofImageSource, /if \(!selectedImageReference\)/);
+  assert.match(proofImageSource, /const fileRef = ref\(storage, storagePathVal\)/);
+  assert.match(proofImageSource, /const downloadUrl = await getDownloadURL\(fileRef\)/);
 });
 
 test('admin community feed diagnostics are read-only and exposed in Internal Affairs', () => {

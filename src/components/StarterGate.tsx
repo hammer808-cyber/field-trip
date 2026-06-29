@@ -5,19 +5,20 @@ import { Lock, ArrowLeft, Layers } from 'lucide-react';
 import { canAccessFeature, getStarterProgress } from '../services/canonicalProgress';
 
 interface StarterGateProps {
-  requiredFeature: 'crew' | 'leaderboard' | 'voting';
+  requiredFeature: 'crew' | 'memories' | 'leaderboard' | 'voting';
   children: React.ReactNode;
 }
 
-export function StarterGate({ children }: StarterGateProps) {
+export function StarterGate({ requiredFeature, children }: StarterGateProps) {
   const { isAdmin, canonicalProgress } = useApp();
   const navigate = useNavigate();
   const starterProgress = getStarterProgress(canonicalProgress);
   const approvedStarterCount = starterProgress.starterApprovedCount;
-  const isStarterComplete = canAccessFeature(canonicalProgress, 'crew', { isAdmin });
+  const featureKey = requiredFeature === 'leaderboard' ? 'voting' : requiredFeature;
+  const isFeatureUnlocked = canAccessFeature(canonicalProgress, featureKey, { isAdmin });
 
   // If the user has completed the starter deck, or they have admin bypass, show the content.
-  if (isStarterComplete || isAdmin) {
+  if (isFeatureUnlocked || isAdmin) {
     return <>{children}</>;
   }
 

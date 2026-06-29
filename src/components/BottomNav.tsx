@@ -46,7 +46,7 @@ export function BottomNav() {
   const navItems = [
     { icon: Home, label: 'BASECAMP', path: '/basecamp' },
     { icon: Target, label: 'MISSIONS', path: '/deck' },
-    { icon: LayoutGrid, label: 'MEMORIES', path: '/collection?tab=crew_memories', special: true },
+    { icon: LayoutGrid, label: 'MEMORIES', path: '/memories', special: true },
     { icon: Users, label: 'CREW', path: '/crew' },
     { icon: Trophy, label: 'STANDINGS', path: '/big-board' }
   ];
@@ -82,7 +82,7 @@ export function BottomNav() {
         if (itemPathname === '/deck') dataOnboarding = 'deck-nav';
         else if (itemPathname === '/big-board') dataOnboarding = 'big-board-nav';
         else if (itemPathname === '/profile') dataOnboarding = 'profile-nav';
-        else if (itemPathname === '/collection') dataOnboarding = 'dex-nav';
+        else if (itemPathname === '/memories' || itemPathname === '/collection') dataOnboarding = 'dex-nav';
         
         if (item.special) {
           return (

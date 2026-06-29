@@ -344,7 +344,7 @@ export default function Basecamp() {
                 if (isLocked) {
                   showHelpToast("Finish your Starter Deck first! Clear 3 unique Starter Mission approvals.");
                 } else {
-                  navigate('/crew?tab=memories');
+                  navigate('/memories');
                 }
               }}
               className={cn(

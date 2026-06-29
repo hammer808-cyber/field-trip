@@ -88,7 +88,7 @@ export default function MissionSubmittedPage() {
         {/* Dynamic Nav CTAs */}
         <div className="space-y-4">
           <button
-            onClick={() => navigate('/collection')}
+            onClick={() => navigate('/memories')}
             className="w-full py-4 bg-brand-lime text-on-surface border-[4px] border-on-surface shadow-[6px_6px_0px_black] hover:bg-brand-lime/95 hover:-translate-y-1 hover:shadow-[8px_8px_0px_black] active:translate-y-0.5 active:shadow-none transition-all font-display text-xl font-black uppercase italic tracking-wide flex items-center justify-center gap-3"
           >
             <LayoutGrid className="w-5 h-5 stroke-[2.5]" />
