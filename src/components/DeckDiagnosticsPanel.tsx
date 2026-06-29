@@ -10,6 +10,8 @@ import { simulateDeckDraw, DeckDrawSimulation } from '../services/deckDiagnostic
 import { cn } from '../lib/utils';
 import { authenticatedFetch } from '../lib/api';
 import { CanonicalProgressSnapshot, ProgressMismatch, getDeckProgress } from '../services/canonicalProgress';
+import { STARTER_SIGNAL_IDS } from '../logic/starterDeckState';
+import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 
 interface DeckDiagnosticsPanelProps {
   userId?: string | null;
@@ -115,6 +117,42 @@ function clearLocalStarterState(userId?: string | null) {
   return cleared;
 }
 
+function getProfileStarterIds(profile: UserProfile | null) {
+  const values = [
+    ...((profile as any)?.approvedCompletedChallengeIds || []),
+    ...(profile?.completedChallengeIds || []),
+    ...((profile as any)?.completedMissionIds || [])
+  ].map(normalizeId);
+  return STARTER_SIGNAL_IDS.filter(id => values.includes(id));
+}
+
+function getStarterEntryAudit(entries: Entry[], userId?: string | null) {
+  return entries
+    .map(entry => {
+      const missionId = normalizeId((entry as any).missionId || (entry as any).challengeId || (entry as any).tripId);
+      const deckId = normalizeId((entry as any).deckId);
+      const entryUserId = normalizeId((entry as any).userId || (entry as any).uid);
+      const reasons: string[] = [];
+      if (!missionId) reasons.push('missing missionId/challengeId/tripId');
+      if (missionId && !STARTER_SIGNAL_IDS.includes(missionId as any)) reasons.push(`not starter id:${missionId}`);
+      if (deckId && deckId !== 'starter-signals' && deckId !== 'starter') reasons.push(`non-starter deck:${deckId}`);
+      if (userId && entryUserId && entryUserId !== normalizeId(userId)) reasons.push(`different user:${entryUserId}`);
+      if (isArchivedEntry(entry)) reasons.push('archived/excluded');
+      const status = normalizeEntryStatus((entry as any).status);
+      if (!['approved', 'pending_review', 'needs_more_proof', 'rejected'].includes(status)) reasons.push(`unknown status:${(entry as any).status || 'missing'}`);
+      return {
+        id: (entry as any).id || 'unknown',
+        missionId: missionId || 'missing',
+        status,
+        deckId: deckId || 'missing',
+        sourcePath: `entries/${(entry as any).id || 'unknown'}`,
+        included: reasons.length === 0,
+        excludedReasons: reasons
+      };
+    })
+    .filter(item => STARTER_SIGNAL_IDS.includes(item.missionId as any) || item.deckId === 'starter-signals' || item.deckId === 'starter' || item.excludedReasons.some(reason => reason.includes('starter')));
+}
+
 function StarterConflictRows({
   profile,
   starterState,
@@ -170,6 +208,7 @@ export function DeckDiagnosticsPanel(props: DeckDiagnosticsPanelProps) {
   const [open, setOpen] = React.useState(false);
   const [simulation, setSimulation] = React.useState<DeckDrawSimulation | null>(null);
   const [repairingStarter, setRepairingStarter] = React.useState(false);
+  const [repairingStarterCompletion, setRepairingStarterCompletion] = React.useState<'preview' | 'apply' | null>(null);
   const [resettingStarter, setResettingStarter] = React.useState(false);
   const [starterRepairReport, setStarterRepairReport] = React.useState<any | null>(null);
 
@@ -187,6 +226,11 @@ export function DeckDiagnosticsPanel(props: DeckDiagnosticsPanelProps) {
   const submittedStarterCards = starterCardIds.filter(id => submittedChallengeIds.includes(id));
   const pendingStarterCards = starterCardIds.filter(id => submittedPendingChallengeIds.includes(id));
   const approvedStarterCards = starterCardIds.filter(id => approvedCompletedChallengeIds.includes(id));
+  const canonicalApprovedStarterIds = STARTER_SIGNAL_IDS.filter(id => props.canonicalProgress.approvedCompletedChallengeIds.has(id));
+  const legacyApprovedStarterIds = getProfileStarterIds(props.profile);
+  const starterEntryAudit = getStarterEntryAudit(props.entries, props.userId || undefined);
+  const excludedStarterEntries = starterEntryAudit.filter(item => !item.included);
+  const starterCompletionMismatch = canonicalApprovedStarterIds.length !== legacyApprovedStarterIds.length;
   const eligibleStarterCards = props.eligibleCards.filter(card => starterCardIds.includes(normalizeId(card.id || card.missionId || card.challengeId)));
   const analysisMissionIds = new Set(packMissionIds);
   const remainingCards = packMissionIds.filter(id =>
@@ -239,6 +283,35 @@ export function DeckDiagnosticsPanel(props: DeckDiagnosticsPanelProps) {
       setStarterRepairReport({ success: false, error: error.message || 'Starter repair failed' });
     } finally {
       setRepairingStarter(false);
+    }
+  };
+
+  const repairStarterCompletion = async (dryRun: boolean) => {
+    if (!props.userId) {
+      setStarterRepairReport({ success: false, error: 'No signed-in user id is available for starter completion repair.' });
+      return;
+    }
+
+    setRepairingStarterCompletion(dryRun ? 'preview' : 'apply');
+    setStarterRepairReport(null);
+    try {
+      const response = await authenticatedFetch('/api/admin/repair-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUid: props.userId,
+          dryRun
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.message || data.error || `Starter completion repair failed with HTTP ${response.status}`);
+      }
+      setStarterRepairReport({ ...data, action: dryRun ? 'preview_starter_completion_repair' : 'repair_starter_completion' });
+    } catch (error: any) {
+      setStarterRepairReport({ success: false, error: error.message || 'Starter completion repair failed' });
+    } finally {
+      setRepairingStarterCompletion(null);
     }
   };
 
@@ -364,9 +437,15 @@ export function DeckDiagnosticsPanel(props: DeckDiagnosticsPanelProps) {
                 <Row label="submitted starter cards" value={<IdList values={submittedStarterCards} />} />
                 <Row label="pending starter cards" value={<IdList values={pendingStarterCards} />} />
                 <Row label="approved starter cards" value={<IdList values={approvedStarterCards} />} />
+                <Row label="canonical approved Starter IDs" value={<IdList values={canonicalApprovedStarterIds} />} />
+                <Row label="legacy approved Starter IDs" value={<IdList values={legacyApprovedStarterIds} />} warn={starterCompletionMismatch} />
+                <Row label="canonical source paths" value="entries by uid/userId, local pending buffer, users/{uid} profile compatibility fallback" />
+                <Row label="legacy source paths" value={`users/${props.userId || '{uid}'}.approvedCompletedChallengeIds / completedChallengeIds / completedMissionIds`} />
                 <Row label="eligible starter cards" value={<IdList values={eligibleStarterCards.map(card => normalizeId(card.id || card.missionId || card.challengeId))} />} />
                 <Row label="canonical starter sources" value={<pre className="whitespace-pre-wrap text-[10px] text-white/80">{JSON.stringify(props.starterState.canonical?.sourceById || {}, null, 2)}</pre>} />
                 <Row label="canonical starter statuses" value={<pre className="whitespace-pre-wrap text-[10px] text-white/80">{JSON.stringify(props.starterState.canonical?.statusById || {}, null, 2)}</pre>} />
+                <Row label="excluded starter records" value={excludedStarterEntries.length === 0 ? 'none' : <pre className="whitespace-pre-wrap text-[10px] text-white/80">{JSON.stringify(excludedStarterEntries, null, 2)}</pre>} warn={excludedStarterEntries.length > 0} />
+                <Row label="repair available" value={starterCompletionMismatch || excludedStarterEntries.length > 0 ? 'yes - preview first, then apply if needed' : 'not needed'} warn={starterCompletionMismatch} />
                 <Row label="activeTripId" value={props.activeTripId || 'none'} />
                 <Row label="unlock status" value={props.starterState.starterComplete ? 'unlocked' : 'locked until 3 approved Starter Signals'} />
                 {activeStarterCards.length < 3 && (
@@ -379,15 +458,31 @@ export function DeckDiagnosticsPanel(props: DeckDiagnosticsPanelProps) {
                     <button
                       type="button"
                       onClick={repairStarterConfiguration}
-                      disabled={repairingStarter || resettingStarter}
+                      disabled={repairingStarter || repairingStarterCompletion !== null || resettingStarter}
                       className="rounded-lg border-2 border-red-200 bg-red-300 px-3 py-2 font-black uppercase tracking-wider text-black disabled:opacity-50"
                     >
                       {repairingStarter ? 'Repairing...' : 'Repair Starter Signals Configuration'}
                     </button>
                     <button
                       type="button"
+                      onClick={() => repairStarterCompletion(true)}
+                      disabled={repairingStarter || repairingStarterCompletion !== null || resettingStarter || !props.userId}
+                      className="rounded-lg border-2 border-cyan-100 bg-cyan-200 px-3 py-2 font-black uppercase tracking-wider text-black disabled:opacity-50"
+                    >
+                      {repairingStarterCompletion === 'preview' ? 'Previewing...' : 'Preview Starter Completion Repair'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => repairStarterCompletion(false)}
+                      disabled={repairingStarter || repairingStarterCompletion !== null || resettingStarter || !props.userId}
+                      className="rounded-lg border-2 border-orange-100 bg-orange-300 px-3 py-2 font-black uppercase tracking-wider text-black disabled:opacity-50"
+                    >
+                      {repairingStarterCompletion === 'apply' ? 'Repairing...' : 'Repair Starter Completion'}
+                    </button>
+                    <button
+                      type="button"
                       onClick={resetCurrentUserStarterState}
-                      disabled={repairingStarter || resettingStarter || !props.userId}
+                      disabled={repairingStarter || repairingStarterCompletion !== null || resettingStarter || !props.userId}
                       className="rounded-lg border-2 border-lime-100 bg-lime-300 px-3 py-2 font-black uppercase tracking-wider text-black disabled:opacity-50"
                     >
                       {resettingStarter ? 'Resetting...' : 'Factory Reset My Starter State'}

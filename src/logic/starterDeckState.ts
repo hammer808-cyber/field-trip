@@ -139,15 +139,13 @@ export function buildCanonicalStarterDeckState({
     (ids || []).forEach(id => addStatus(statusById, sourceById, cleanId(id), status, 'profileFallback'));
   };
 
-  // Profile arrays are repairable mirrors. They only fill gaps where an entry/local
-  // pending record has not arrived yet, so stale arrays cannot override entries.
+  // Profile approved arrays are compatibility mirrors for older approved Starter
+  // completions whose entry/review links may be missing from the live query.
+  // Do not use profile submitted/pending/rejected arrays as live deck blockers:
+  // those legacy mirrors can go stale after resets and trap Starter Signals.
   addProfileIds(profile?.completedChallengeIds, 'approved');
   addProfileIds(profile?.approvedCompletedChallengeIds, 'approved');
   addProfileIds(profile?.completedMissionIds, 'approved');
-  addProfileIds(profile?.submittedChallengeIds, 'pending_review');
-  addProfileIds(profile?.submittedPendingChallengeIds, 'pending_review');
-  addProfileIds(profile?.needsMoreProofChallengeIds, 'needs_more_proof');
-  addProfileIds(profile?.rejectedChallengeIds, 'rejected');
 
   drawnMissionCards.forEach(card => {
     if (card.archived === true || card.excludedFromProgress === true) return;

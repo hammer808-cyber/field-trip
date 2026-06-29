@@ -1,6 +1,7 @@
 import { getDeckPackById, getActiveDeckPacks } from '../data/deckPacks';
-import { countsTowardStarterProgress, isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
-import { calculateStarterState, StarterCompletionState } from '../utils/starterHelper';
+import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
+import { StarterCompletionState } from '../utils/starterHelper';
+import { buildCanonicalStarterDeckState, STARTER_SIGNAL_IDS } from '../logic/starterDeckState';
 import { Entry } from '../constants';
 import { TripCard } from '../types/challenges';
 import { UserProfile } from './userService';
@@ -80,7 +81,7 @@ export interface ProgressMismatch {
   message: string;
 }
 
-const STARTER_IDS = ['starter-1', 'starter-2', 'starter-3'];
+const STARTER_IDS = [...STARTER_SIGNAL_IDS];
 
 export function canonicalizeId(value: unknown): string | null {
   if (value === null || value === undefined) return null;
@@ -118,6 +119,14 @@ export function buildCanonicalProgress(input: BuildCanonicalProgressInput): Cano
   const profile = input.profile || null;
   const allEntries = [...(input.pendingEntries || []), ...(input.entries || [])];
   const activeEntries = allEntries.filter(entry => !isArchivedEntry(entry));
+  const canonicalStarterState = buildCanonicalStarterDeckState({
+    userId: input.userId || profile?.id || null,
+    entries: activeEntries,
+    profile,
+    localPendingEntries: input.pendingEntries,
+    drawnMissionCards: input.drawnMissionCards,
+    activeTripId: input.activeMissionId || null
+  });
 
   const approvedCompletedChallengeIds = new Set<string>();
   const submittedPendingChallengeIds = new Set<string>();
@@ -163,15 +172,53 @@ export function buildCanonicalProgress(input: BuildCanonicalProgressInput): Cano
   needsMoreProofChallengeIds.forEach(id => submittedPendingChallengeIds.delete(id));
   rejectedChallengeIds.forEach(id => submittedPendingChallengeIds.delete(id));
 
-  const starterEntries = activeEntries.filter(countsTowardStarterProgress);
-  const starter = calculateStarterState(
-    input.userId || '',
-    starterEntries,
-    input.activeMissionId,
-    input.activeSubmissionStatus,
-    input.starterResetVersion,
-    input.activeStarterDeckId
-  );
+  STARTER_IDS.forEach(id => {
+    approvedCompletedChallengeIds.delete(id);
+    submittedPendingChallengeIds.delete(id);
+    submittedChallengeIds.delete(id);
+    needsMoreProofChallengeIds.delete(id);
+    rejectedChallengeIds.delete(id);
+  });
+  canonicalStarterState.approvedIds.forEach(id => {
+    approvedCompletedChallengeIds.add(id);
+    submittedChallengeIds.add(id);
+  });
+  canonicalStarterState.pendingIds.forEach(id => submittedPendingChallengeIds.add(id));
+  canonicalStarterState.needsMoreProofIds.forEach(id => needsMoreProofChallengeIds.add(id));
+  canonicalStarterState.rejectedIds.forEach(id => rejectedChallengeIds.add(id));
+  canonicalStarterState.submittedIds.forEach(id => submittedChallengeIds.add(id));
+
+  const starterStatus: StarterCompletionState['status'] = canonicalStarterState.starterComplete
+    ? 'COMPLETE'
+    : canonicalStarterState.needsMoreProofIds.length > 0
+      ? 'NEEDS_MORE_PROOF'
+      : canonicalStarterState.rejectedIds.length > 0
+        ? 'REJECTED_RETRY_AVAILABLE'
+        : canonicalStarterState.starterSubmittedCount >= STARTER_IDS.length
+          ? 'PENDING_REVIEW'
+          : canonicalStarterState.starterSubmittedCount > 0 || canonicalStarterState.activeDrawnIds.length > 0
+            ? 'IN_PROGRESS'
+            : 'NOT_STARTED';
+  const starter: StarterCompletionState = {
+    starterApprovedCount: canonicalStarterState.starterApprovedCount,
+    starterRequiredCount: STARTER_IDS.length,
+    starterComplete: canonicalStarterState.starterComplete,
+    pendingStarterCount: canonicalStarterState.starterPendingCount,
+    retryStarterCount: canonicalStarterState.starterRejectedCount,
+    needsMoreProofStarterCount: canonicalStarterState.starterNeedsMoreProofCount,
+    submittedUniqueCount: canonicalStarterState.starterSubmittedCount,
+    submittedMissionIds: canonicalStarterState.submittedIds,
+    needsMoreProofMissionId: canonicalStarterState.needsMoreProofIds[0] || null,
+    needsMoreProofEntryId: null,
+    rejectedMissionId: canonicalStarterState.rejectedIds[0] || null,
+    rejectedEntryId: null,
+    nextStarterAction: canonicalStarterState.availableIds.length > 0 ? 'Draw Starter Mission' : 'View Review Status',
+    status: starterStatus,
+    canonical: {
+      sourceById: canonicalStarterState.sourceById,
+      statusById: canonicalStarterState.statusById
+    }
+  };
   const starterPercent = Math.min(100, Math.round((starter.starterApprovedCount / starter.starterRequiredCount) * 100));
 
   const deckProgressById: Record<string, CanonicalDeckProgress> = {};

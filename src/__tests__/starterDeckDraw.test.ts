@@ -142,6 +142,60 @@ test('legacy submitted profile arrays do not burn starter cards without active e
   assert.equal(starterProgress.remainingCount, 3);
 });
 
+test('legacy approved starter profile arrays complete canonical progress when canonical entry links are missing', () => {
+  const snapshot = buildCanonicalProgress({
+    userId: 'user-1',
+    profile: {
+      id: 'user-1',
+      approvedCompletedChallengeIds: ['starter-1', 'starter-2', 'starter-3'],
+      completedChallengeIds: ['starter-1', 'starter-2', 'starter-3'],
+      onboardingCompleted: true
+    } as any,
+    entries: [],
+    pendingEntries: []
+  });
+
+  assert.equal(snapshot.starter.starterApprovedCount, 3);
+  assert.equal(snapshot.starter.starterComplete, true);
+  assert.deepEqual(starterIds.filter(id => snapshot.approvedCompletedChallengeIds.has(id)), starterIds);
+  assert.equal(getDeckProgress(snapshot, 'starter-signals').approvedCount, 3);
+});
+
+test('one missing legacy starter approval does not complete canonical progress', () => {
+  const snapshot = buildCanonicalProgress({
+    userId: 'user-1',
+    profile: {
+      id: 'user-1',
+      approvedCompletedChallengeIds: ['starter-1', 'starter-2'],
+      completedChallengeIds: ['starter-1', 'starter-2'],
+      onboardingCompleted: true
+    } as any,
+    entries: [],
+    pendingEntries: []
+  });
+
+  assert.equal(snapshot.starter.starterApprovedCount, 2);
+  assert.equal(snapshot.starter.starterComplete, false);
+});
+
+test('pending and rejected starter entries do not unlock canonical progress', () => {
+  const pendingSnapshot = buildCanonicalProgress({
+    userId: 'user-1',
+    profile: { id: 'user-1' } as any,
+    entries: [
+      { ...approvedEntry('starter-1'), status: 'pending_review' },
+      { ...approvedEntry('starter-2'), status: 'rejected' },
+      approvedEntry('starter-3')
+    ],
+    pendingEntries: []
+  });
+
+  assert.equal(pendingSnapshot.starter.starterApprovedCount, 1);
+  assert.equal(pendingSnapshot.starter.starterComplete, false);
+  assert.equal(getChallengeStatus(pendingSnapshot, 'starter-1'), 'pending_review');
+  assert.equal(getChallengeStatus(pendingSnapshot, 'starter-2'), 'rejected');
+});
+
 test('pending starter state comes from a real pending entry, not stale profile arrays', () => {
   const snapshot = buildCanonicalProgress({
     userId: 'user-1',

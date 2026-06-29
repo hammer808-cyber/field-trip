@@ -121,9 +121,22 @@ sameIds(
   const mirrors = toStarterProfileMirrors(staleState);
 
   sameIds(staleState.rejectedIds, ['starter-1'], 'entry rejection should override stale pending profile array');
-  sameIds(staleState.pendingIds, ['starter-2', 'starter-3'], 'profile fallback should only fill Starter IDs not backed by entries');
-  sameIds(mirrors.submittedPendingChallengeIds, ['starter-2', 'starter-3'], 'repair mirrors should rebuild pending Starter IDs from canonical state');
+  sameIds(staleState.pendingIds, [], 'stale profile pending arrays should not burn Starter IDs without active entries');
+  sameIds(mirrors.submittedPendingChallengeIds, [], 'repair mirrors should clear stale pending Starter IDs not backed by entries');
   sameIds(mirrors.rejectedChallengeIds, ['starter-1'], 'repair mirrors should preserve canonical rejected Starter IDs');
+}
+
+{
+  const legacyApprovedState = canonical(
+    [],
+    {
+      approvedCompletedChallengeIds: ['starter-1', 'starter-2', 'starter-3'],
+      completedChallengeIds: ['starter-1', 'starter-2', 'starter-3'],
+    }
+  );
+
+  sameIds(legacyApprovedState.approvedIds, ['starter-1', 'starter-2', 'starter-3'], 'legacy approved Starter mirrors should fill missing canonical links');
+  assert(legacyApprovedState.starterComplete === true, 'legacy approved Starter mirrors should complete Starter when active entries are missing');
 }
 
 assert(
