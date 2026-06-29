@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { DeckPack } from '../types/deckPacks';
 import { getActiveDeckPacks, getMissionsForPack } from '../data/deckPacks';
-import { getDeckCoverImage, BASE_DECK_PLACEHOLDER } from '../lib/deckUtils';
 import { HEATWAVE_CHALLENGE_BANK } from '../data/heatwaveChallengeBank';
 import { SOCAL_SUMMER_CHALLENGE_BANK } from '../data/socalSummerChallengeBank';
 import { FEATURE_FLAGS } from '../config/featureFlags';
@@ -13,6 +12,7 @@ import * as Icons from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { isHeatwaveDeckActive as isSummerDeckActive, isHeatwaveDeckStabilized as isSummerDeckStabilized } from '../logic/progression';
 import { StickerDecal, StickerCorner } from './StickerDecals';
+import { DeckArtwork } from './DeckArtwork';
 
 interface DeckPackSelectorProps {
   selectedPackId: string;
@@ -158,15 +158,7 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
               {locked ? (
                 <Lock className="w-4 h-4 text-error" />
               ) : (
-                <img 
-                  src={getDeckCoverImage(pack)} 
-                  alt={pack.packName} 
-                  className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    e.currentTarget.src = BASE_DECK_PLACEHOLDER;
-                  }}
-                />
+                <DeckArtwork pack={pack} alt={pack.packName} imageClassName="group-hover:scale-105" grayscale="" />
               )}
             </div>
 
@@ -291,15 +283,7 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
         <div className="relative z-10 flex items-center gap-4">
           {/* Card Icon / Decal Inset */}
           <div className="w-16 h-16 bg-white flex items-center justify-center border-2 border-on-surface shrink-0 overflow-hidden relative shadow-[inset_2px_2px_4px_rgba(0,0,0,0.1),2px_2px_0px_black] rotate-[-1deg]">
-            <img 
-              src={getDeckCoverImage(currentPack)} 
-              alt={currentPack.packName} 
-              className="w-full h-full object-cover grayscale-[10%]"
-              referrerPolicy="no-referrer"
-              onError={(e) => {
-                e.currentTarget.src = BASE_DECK_PLACEHOLDER;
-              }}
-            />
+            <DeckArtwork pack={currentPack} alt={currentPack.packName} />
             {/* Gloss on the icon */}
             <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-white/40 pointer-events-none" />
           </div>

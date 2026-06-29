@@ -22,6 +22,7 @@ import { DeckLibrary } from '../components/DeckLibrary';
 import { DeckStack } from '../components/DeckStack';
 import { getDefaultDeckPack, getDeckPackById, DECK_PACKS } from '../data/deckPacks';
 import { getDeckCoverImage, BASE_DECK_PLACEHOLDER } from '../lib/deckUtils';
+import { DeckArtwork } from '../components/DeckArtwork';
 import { getWeeklyBonusForWeek } from '../data/weeklyBonuses';
 import { StickerBackground } from '../components/StickerBackground';
 import { StickerDecal, StickerCorner, StickerScatter } from '../components/StickerDecals';
@@ -835,15 +836,11 @@ export default function DeckPage() {
             )}
           >
             <div className="absolute inset-0 bg-on-surface/5 border border-on-surface/10 rounded translate-x-1 translate-y-1" />
-             <div className="absolute inset-0 bg-white border-2 border-on-surface rounded flex items-center justify-center p-1 overflow-hidden shadow-sm">
-               <img 
-                 src={getDeckCoverImage(activePack)} 
-                 className="w-full h-full object-cover grayscale-[20%]" 
+             <div className="absolute inset-0 bg-white border-2 border-on-surface rounded overflow-hidden shadow-sm">
+               <DeckArtwork
+                 pack={activePack}
                  alt={`${activePack?.title || 'Active deck'} cover`}
-                 onError={(event) => {
-                   event.currentTarget.src = BASE_DECK_PLACEHOLDER;
-                 }}
-                 referrerPolicy="no-referrer"
+                 grayscale="grayscale-[20%]"
                />
              </div>
             {/* Status dot */}

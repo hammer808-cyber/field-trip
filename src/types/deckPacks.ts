@@ -22,6 +22,7 @@ export interface DeckPack {
   
   // Metadata & Visuals
   coverImage?: string;
+  artPosition?: string;
   fallbackIcon: string;
   sortOrder: number;
   
