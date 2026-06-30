@@ -296,6 +296,20 @@ export interface Entry {
   
   xpValue: number;
   xpAwarded: boolean;
+  scoring?: {
+    rubricVersion?: string;
+    normalizedRubricScore?: number;
+    rawRubricScore?: number;
+    maxUiPotentialXp?: 100 | 250 | number;
+    maxAdminAwardableXp?: 100 | 225 | number;
+    reservedPotentialXp?: 0 | 25 | number;
+    awardedXp?: number;
+    hiddenBonusXpAwarded?: number;
+    totalXpAwarded?: number;
+    scoringMode?: 'starter' | 'standard' | string;
+    totalPoints?: number;
+  };
+  totalXpAwarded?: number;
   
   createdAt: any;              // serverTimestamp()
   updatedAt: any;              // serverTimestamp()

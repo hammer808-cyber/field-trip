@@ -16,6 +16,7 @@ import { db, auth } from '../lib/firebase';
 import { Entry } from '../types/game';
 import { normalizeEntryStatus } from '../logic/entryLogic';
 import { awardSubmissionPointsOnce } from './submission-utils';
+import { getProofRubricScoring, type ProofRubricScoring } from '../logic/proofRubric';
 
 export type CanonicalProofStatus = 'draft' | 'uploading' | 'pending_review' | 'approved' | 'needs_more_proof' | 'rejected' | 'submission_failed' | 'upload_incomplete';
 export type ReviewableProofStatus = 'pending_review' | 'approved' | 'needs_more_proof' | 'rejected';
@@ -50,6 +51,7 @@ export interface ProofReviewRubricInput {
 
 export interface ProofTransitionReviewMetadata {
   rubric?: ProofReviewRubricInput;
+  scoring?: ProofRubricScoring;
 }
 
 export const REVIEWABLE_STATUSES: ReviewableProofStatus[] = ['pending_review', 'approved', 'needs_more_proof', 'rejected'];
@@ -232,12 +234,14 @@ export async function transitionProofReview(
         reviewedAt: serverTimestamp(),
       }
     : null;
+  let scoringForPersist: ProofRubricScoring | null = null;
 
   if (nextStatus === 'approved') {
     await runTransaction(db, async (transaction) => {
       const entrySnap = await transaction.get(entryRef);
       if (!entrySnap.exists()) throw new Error('ENTRY_NOT_FOUND');
       const data = entrySnap.data();
+      scoringForPersist = metadata.rubric ? getProofRubricScoring(metadata.rubric, data) : null;
       const currentStatus = normalizeProofStatus(data.status || data.reviewStatus);
       if (!isAllowedProofTransition(currentStatus, nextStatus)) {
         throw new Error(`INVALID_PROOF_TRANSITION: ${currentStatus} -> ${nextStatus}`);
@@ -255,9 +259,15 @@ export async function transitionProofReview(
         updatedAt: serverTimestamp()
       };
       if (rubric) entryUpdate.rubric = rubricSummary;
+      if (scoringForPersist) {
+        entryUpdate.scoring = scoringForPersist;
+        entryUpdate.awardedXP = scoringForPersist.totalXpAwarded;
+        entryUpdate.pointsAwarded = scoringForPersist.totalXpAwarded;
+        entryUpdate.xpValue = scoringForPersist.totalXpAwarded;
+      }
       transaction.update(entryRef, entryUpdate);
     });
-    if (rubric) await persistProofReviewRubric(canonicalEntryId, nextStatus, notes, reviewerId, rubric);
+    if (rubric) await persistProofReviewRubric(canonicalEntryId, nextStatus, notes, reviewerId, rubric, scoringForPersist);
     const awardResult = await awardSubmissionPointsOnce(canonicalEntryId, notes);
     return { success: awardResult.success, status: 'approved', points: awardResult.points, reason: awardResult.reason };
   }
@@ -266,6 +276,7 @@ export async function transitionProofReview(
     const entrySnap = await transaction.get(entryRef);
     if (!entrySnap.exists()) throw new Error('ENTRY_NOT_FOUND');
     const data = entrySnap.data();
+    scoringForPersist = metadata.rubric ? getProofRubricScoring(metadata.rubric, data) : null;
     const currentStatus = normalizeProofStatus(data.status || data.reviewStatus);
     if (!isAllowedProofTransition(currentStatus, nextStatus)) {
       throw new Error(`INVALID_PROOF_TRANSITION: ${currentStatus} -> ${nextStatus}`);
@@ -291,6 +302,7 @@ export async function transitionProofReview(
       updatedAt: serverTimestamp()
     };
     if (rubric) entryUpdate.rubric = rubricSummary;
+    if (scoringForPersist) entryUpdate.scoring = scoringForPersist;
     transaction.update(entryRef, entryUpdate);
 
     if (userRef && userSnap?.exists()) {
@@ -315,7 +327,7 @@ export async function transitionProofReview(
       reason: userRef && !userSnap?.exists() ? 'USER_PROFILE_NOT_FOUND' : undefined
     };
   });
-  if (rubric) await persistProofReviewRubric(canonicalEntryId, nextStatus, notes, reviewerId, rubric);
+  if (rubric) await persistProofReviewRubric(canonicalEntryId, nextStatus, notes, reviewerId, rubric, scoringForPersist);
   return transitionResult;
 }
 
@@ -324,7 +336,8 @@ async function persistProofReviewRubric(
   status: ReviewableProofStatus,
   notes: string,
   reviewerId: string,
-  rubric: any
+  rubric: any,
+  scoring: ProofRubricScoring | null = null
 ) {
   const batch = writeBatch(db);
   const directReviewRef = doc(db, 'proofReviews', canonicalEntryId);
@@ -349,6 +362,7 @@ async function persistProofReviewRubric(
     reviewNotes: notes,
     adminNotes: notes,
     rubric,
+    ...(scoring ? { scoring } : {}),
     reviewedAt: serverTimestamp(),
     reviewedBy: reviewerId,
     updatedAt: serverTimestamp(),
@@ -363,6 +377,7 @@ async function persistProofReviewRubric(
       reviewNotes: notes,
       adminNotes: notes,
       rubric,
+      ...(scoring ? { scoring } : {}),
       reviewedAt: serverTimestamp(),
       reviewedBy: reviewerId,
       updatedAt: serverTimestamp(),

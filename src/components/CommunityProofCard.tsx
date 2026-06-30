@@ -47,6 +47,12 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
   const formattedDate = approvedTime ? new Date(approvedTime).toLocaleDateString() : 'Recently';
   const statusLabel = normalizeEntryStatus(proof.status);
   const canShowSus = !!user && ownerId !== user.uid && !susState.alreadyReported && susState.canReport;
+  const scoring = proof.scoring || {};
+  const awardedXp = Number(scoring.totalXpAwarded ?? scoring.awardedXp ?? proof.awardedXP ?? proof.awardedPoints ?? (typeof proof.pointsAwarded === 'number' ? proof.pointsAwarded : 0) ?? 0);
+  const maxUiPotentialXp = Number(scoring.maxUiPotentialXp || (scoring.scoringMode === 'starter' ? 100 : awardedXp || proof.xpValue || 100));
+  const reservedPotentialXp = Number(scoring.reservedPotentialXp || 0);
+  const hasXpDisplay = awardedXp > 0 || proof.pointsAwarded || proof.awardedPoints;
+  const hasClassifiedReserve = reservedPotentialXp > 0 && maxUiPotentialXp > awardedXp;
 
   useEffect(() => {
     if (user?.uid && proof.id) {
@@ -165,9 +171,13 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
                 <AvatarPreview avatar={proof.userAvatar || DEFAULT_AVATAR} size="xs" className="w-5 h-5 rounded-full border-2 border-on-surface shadow-[1px_1px_0px_black]" />
                 <span className="text-[9px] font-mono font-black uppercase tracking-widest text-on-surface truncate">{displayName}</span>
               </div>
-              {(proof.pointsAwarded || proof.awardedPoints) && (
-                <div className="bg-brand-magenta text-white text-[8px] font-black px-2 py-0.5 rounded border border-on-surface shadow-[1px_1.5px_0px_black] shrink-0">
-                  {proof.pointsAwarded || proof.awardedPoints} XP
+              {hasXpDisplay && (
+                <div
+                  className="bg-brand-magenta text-white text-[8px] font-black px-2 py-0.5 rounded border border-on-surface shadow-[1px_1.5px_0px_black] shrink-0"
+                  title={hasClassifiedReserve ? 'Not every signal is visible yet. Some Fieldtrip points remain reserved for future discoveries, special conditions, and seasonal surprises.' : undefined}
+                >
+                  {awardedXp} / {maxUiPotentialXp} XP
+                  {hasClassifiedReserve && <span className="block text-[6px] leading-tight opacity-80">{reservedPotentialXp} XP classified</span>}
                 </div>
               )}
             </div>

@@ -75,7 +75,13 @@ export async function awardSubmissionPointsOnce(submissionId: string, notes: str
 
     // Calculate Points
     const rawData = data as any;
-    const xpAward = data.xpValue || data.awardedXP || (typeof pointsAwardedRaw === 'number' ? pointsAwardedRaw : 0) || (data as any).estimatedPoints || 100;
+    const scoringTotal = Number(rawData.scoring?.totalXpAwarded);
+    const xpAward = (Number.isFinite(scoringTotal) && scoringTotal >= 0 ? scoringTotal : 0) ||
+      data.xpValue ||
+      data.awardedXP ||
+      (typeof pointsAwardedRaw === 'number' ? pointsAwardedRaw : 0) ||
+      (data as any).estimatedPoints ||
+      100;
     const userId = data.userId || data.uid;
     const userName = data.displayName || data.userName || (data as any).username || 'Agent';
 
@@ -87,6 +93,7 @@ export async function awardSubmissionPointsOnce(submissionId: string, notes: str
       xpAwarded: false,
       pointsAwarded: false, // compatibility mirror
       awardedXP: xpAward,  // compatibility mirror
+      totalXpAwarded: xpAward,
       scoreAwardStatus: 'pending_award',
       scoreAwardError: null,
       reviewedAt: serverTimestamp(),
@@ -168,6 +175,7 @@ export async function awardSubmissionPointsOnce(submissionId: string, notes: str
           xpAwarded: true,
           pointsAwarded: true,
           awardedXP: p.xpAward,
+          totalXpAwarded: p.xpAward,
           scoreAwardStatus: awardResult?.reason === 'ALREADY_AWARDED' ? 'already_awarded' : 'awarded',
           scoreAwardedAt: serverTimestamp(),
           updatedAt: serverTimestamp()

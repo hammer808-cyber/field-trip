@@ -34,6 +34,31 @@ export interface ProofRubricScore {
   recommendation: ProofRubricRecommendation;
 }
 
+export type ProofScoringMode = 'starter' | 'standard';
+
+export interface ProofRubricScoring {
+  rubricVersion: 'v1';
+  normalizedRubricScore: number;
+  rawRubricScore: number;
+  maxUiPotentialXp: 100 | 250;
+  maxAdminAwardableXp: 100 | 225;
+  reservedPotentialXp: 0 | 25;
+  awardedXp: number;
+  hiddenBonusXpAwarded: 0;
+  totalXpAwarded: number;
+  scoringMode: ProofScoringMode;
+}
+
+export interface ProofScoringMissionLike {
+  deckId?: string | null;
+  deckType?: string | null;
+  challengeId?: string | null;
+  missionId?: string | null;
+  tripId?: string | null;
+  isStarter?: boolean | null;
+  countsTowardStarter?: boolean | null;
+}
+
 export const PROOF_RUBRIC_VERSION = 'v1' as const;
 
 export const PROOF_RUBRIC_CATEGORIES: ProofRubricCategory[] = [
@@ -153,4 +178,46 @@ export function calculateProofRubricScore(ratings: ProofRubricRatings): ProofRub
     weightedScore: Number(weightedScore.toFixed(2)),
     recommendation: getProofRubricRecommendation(weightedScore),
   };
+}
+
+export function isStarterScoringMission(mission: ProofScoringMissionLike | null | undefined): boolean {
+  if (!mission) return false;
+  const deckId = String(mission.deckId || '').toLowerCase().trim();
+  const deckType = String(mission.deckType || '').toLowerCase().trim();
+  const missionId = String(mission.challengeId || mission.missionId || mission.tripId || '').toLowerCase().trim();
+
+  return mission.isStarter === true ||
+    mission.countsTowardStarter === true ||
+    deckType === 'starter' ||
+    deckId === 'starter-signals' ||
+    missionId.startsWith('starter-');
+}
+
+export function getProofRubricScoring(
+  score: Pick<ProofRubricScore, 'version' | 'rawScore' | 'normalizedScore' | 'weightedScore'>,
+  mission: ProofScoringMissionLike | null | undefined
+): ProofRubricScoring {
+  const scoringMode: ProofScoringMode = isStarterScoringMission(mission) ? 'starter' : 'standard';
+  const maxUiPotentialXp = scoringMode === 'starter' ? 100 : 250;
+  const maxAdminAwardableXp = scoringMode === 'starter' ? 100 : 225;
+  const reservedPotentialXp = scoringMode === 'starter' ? 0 : 25;
+  const awardedXp = Math.round((score.weightedScore / 100) * maxAdminAwardableXp);
+  const finalAwardedXp = Math.min(Math.max(0, awardedXp), maxAdminAwardableXp);
+
+  return {
+    rubricVersion: score.version,
+    normalizedRubricScore: score.normalizedScore,
+    rawRubricScore: score.rawScore,
+    maxUiPotentialXp,
+    maxAdminAwardableXp,
+    reservedPotentialXp,
+    awardedXp: finalAwardedXp,
+    hiddenBonusXpAwarded: 0,
+    totalXpAwarded: finalAwardedXp,
+    scoringMode,
+  };
+}
+
+export function getProofRubricScoringContextLabel(scoring: ProofRubricScoring): string {
+  return scoring.scoringMode === 'starter' ? 'Starter Signal Scoring' : 'Field Scoring';
 }

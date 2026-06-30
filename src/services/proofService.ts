@@ -1021,7 +1021,12 @@ export async function adminOverrideReview(reviewId: string, entryId: string, new
         const isRejected = newStatus === 'rejected';
         const isNeedsMoreProof = newStatus === 'needs_more_proof' || (newStatus as string) === 'needs-more-proof' || (newStatus as string) === 'needsMoreProof';
         const isPendingReview = newStatus === 'pending_review' || (newStatus as string) === 'pending' || (newStatus as string) === 'pendingReview' || (newStatus as string) === 'submitted_pending_review' || (newStatus as string) === 'resubmitted_pending_review';
-        const totalPointsToAward = entry.estimatedPoints || entry.pointsAwarded || entry.awardedPoints || 100;
+        const scoringTotal = Number((entry as any).scoring?.totalXpAwarded);
+        const totalPointsToAward = (Number.isFinite(scoringTotal) && scoringTotal >= 0 ? scoringTotal : 0) ||
+          entry.estimatedPoints ||
+          entry.pointsAwarded ||
+          entry.awardedPoints ||
+          100;
         
         const updateStatusValue = isApproving ? 'approved' : isRejected ? 'rejected' : isNeedsMoreProof ? 'needs_more_proof' : 'pending_review';
 

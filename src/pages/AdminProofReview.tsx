@@ -29,8 +29,11 @@ import { cn } from '../lib/utils';
 import {
   calculateProofRubricScore,
   DEFAULT_PROOF_RUBRIC_RATINGS,
+  getProofRubricScoring,
+  getProofRubricScoringContextLabel,
   getProofRubricRecommendationLabel,
   PROOF_RUBRIC_CATEGORIES,
+  type ProofRubricScoring,
   type ProofRubricRatings,
   type ProofRubricScore
 } from '../logic/proofRubric';
@@ -107,7 +110,7 @@ export default function AdminProofReview() {
   const handleAction = async (
     id: string,
     action: 'approve' | 'reject' | 'request_info',
-    review?: { notes: string; rubric: ProofRubricScore; adminOverrideUsed: boolean; adminOverrideReason: string | null }
+    review?: { notes: string; rubric: ProofRubricScore; scoring: ProofRubricScoring; adminOverrideUsed: boolean; adminOverrideReason: string | null }
   ) => {
     if (!review?.rubric) {
       alert('Score the rubric in card view before issuing a final review decision.');
@@ -120,7 +123,8 @@ export default function AdminProofReview() {
         ...review.rubric,
         adminOverrideUsed: review.adminOverrideUsed,
         adminOverrideReason: review.adminOverrideReason,
-      }
+      },
+      scoring: review.scoring
     };
     try {
       if (action === 'approve') {
@@ -496,13 +500,15 @@ function suggestedActionForRubric(score: ProofRubricScore): 'approve' | 'request
 function createReviewPayload(
   action: 'approve' | 'reject' | 'request_info',
   notes: string,
-  score: ProofRubricScore
+  score: ProofRubricScore,
+  scoring: ProofRubricScoring
 ) {
   const suggestedAction = suggestedActionForRubric(score);
   const adminOverrideUsed = !!suggestedAction && suggestedAction !== action;
   return {
     notes,
     rubric: score,
+    scoring,
     adminOverrideUsed,
     adminOverrideReason: adminOverrideUsed ? (notes.trim() || `Admin chose ${action} despite rubric recommendation.`) : null,
   };
@@ -512,13 +518,16 @@ function RubricCard({
   ratings,
   onChange,
   score,
+  scoring,
   recommendationLabel,
 }: {
   ratings: ProofRubricRatings;
   onChange: (key: keyof ProofRubricRatings, value: number) => void;
   score: ProofRubricScore;
+  scoring: ProofRubricScoring;
   recommendationLabel: string;
 }) {
+  const contextLabel = getProofRubricScoringContextLabel(scoring);
   return (
     <div className="bg-white border-2 border-on-surface p-5 rounded-2xl shadow-[5px_5px_0px_black] space-y-5">
       <div className="flex items-start justify-between gap-4">
@@ -531,6 +540,25 @@ function RubricCard({
         <div className="text-right">
           <p className="text-[9px] font-mono font-black uppercase opacity-40">Weighted</p>
           <p className="text-3xl font-display font-black italic text-brand-orange leading-none">{score.weightedScore}</p>
+        </div>
+      </div>
+
+      <div className="rounded-xl border-2 border-brand-orange/30 bg-brand-orange/5 p-4 font-mono uppercase">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-[10px] font-black text-brand-orange">{contextLabel}</p>
+            {scoring.scoringMode === 'starter' ? (
+              <p className="mt-1 text-[9px] font-black text-on-surface/55">Up to 100 XP can be awarded.</p>
+            ) : (
+              <p className="mt-1 text-[9px] font-black text-on-surface/55">
+                Up to 225 XP is currently awardable. 25 XP remains classified for future bonus conditions.
+              </p>
+            )}
+          </div>
+          <div className="text-right">
+            <p className="text-[9px] font-black opacity-45">Mission Potential</p>
+            <p className="text-2xl font-display font-black italic leading-none">{scoring.maxUiPotentialXp} XP</p>
+          </div>
         </div>
       </div>
 
@@ -571,21 +599,38 @@ function RubricCard({
         ))}
       </div>
 
-      <div className="grid gap-3 rounded-xl border-2 border-on-surface bg-on-surface text-white p-4 font-mono text-[10px] uppercase sm:grid-cols-3">
+      <div className="grid gap-3 rounded-xl border-2 border-on-surface bg-on-surface text-white p-4 font-mono text-[10px] uppercase sm:grid-cols-4">
         <div>
           <p className="opacity-45 font-black">Raw</p>
           <p className="text-lg font-black">{score.rawScore} / 20</p>
         </div>
         <div>
-          <p className="opacity-45 font-black">Normalized</p>
+          <p className="opacity-45 font-black">Rubric Quality</p>
           <p className="text-lg font-black">{score.normalizedScore} / 100</p>
+        </div>
+        <div>
+          <p className="opacity-45 font-black">Admin Awardable XP</p>
+          <p className="text-lg font-black text-brand-lime">{scoring.awardedXp} / {scoring.maxAdminAwardableXp}</p>
+        </div>
+        <div>
+          <p className="opacity-45 font-black">Reserved Potential</p>
+          <p className="text-lg font-black">{scoring.reservedPotentialXp} XP</p>
         </div>
         <div>
           <p className="opacity-45 font-black">Recommendation</p>
           <p className="text-sm font-black text-brand-lime">{recommendationLabel}</p>
         </div>
-        <div className="sm:col-span-3 border-t border-white/10 pt-3 text-[9px] leading-relaxed opacity-75">
+        <div>
+          <p className="opacity-45 font-black">Mission Potential</p>
+          <p className="text-sm font-black">{scoring.maxUiPotentialXp} XP</p>
+        </div>
+        <div className="sm:col-span-4 border-t border-white/10 pt-3 text-[9px] leading-relaxed opacity-75">
           Weighted score = mission match/4 x 40 + clarity/4 x 25 + trust/4 x 20 + note/4 x 10 + energy/4 x 5.
+          {scoring.reservedPotentialXp > 0 && (
+            <span className="block mt-2 text-brand-lime">
+              The classified {scoring.reservedPotentialXp} XP is reserved potential, not a missing review field.
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -616,9 +661,10 @@ function SwipeView({ entry, onAction, busy }: any) {
   }, [entry.id, entry.entryId, entry.rubric, entry.reviewNotes, entry.adminNotes]);
 
   const score = React.useMemo(() => calculateProofRubricScore(ratings), [ratings]);
+  const scoring = React.useMemo(() => getProofRubricScoring(score, entry), [score, entry]);
   const recommendationLabel = getProofRubricRecommendationLabel(score.recommendation);
   const handleDecision = (action: 'approve' | 'reject' | 'request_info') => {
-    onAction(action, createReviewPayload(action, reviewNote, score));
+    onAction(action, createReviewPayload(action, reviewNote, score, scoring));
   };
 
   return (
@@ -668,6 +714,7 @@ function SwipeView({ entry, onAction, busy }: any) {
                ratings={ratings}
                onChange={(key, value) => setRatings(prev => ({ ...prev, [key]: value }))}
                score={score}
+               scoring={scoring}
                recommendationLabel={recommendationLabel}
              />
 

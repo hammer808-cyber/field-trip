@@ -28,6 +28,11 @@ export function EntryCard({ entry, className }: EntryCardProps) {
   const isOwnEntry = user?.uid === entry.userId;
   const normalizedStatus = normalizeEntryStatus(entry.status);
   const isApproved = normalizedStatus === 'approved';
+  const scoring = (entry as any).scoring || {};
+  const awardedXp = Number(scoring.totalXpAwarded ?? scoring.awardedXp ?? entry.awardedXP ?? entry.awardedPoints ?? (typeof entry.pointsAwarded === 'number' ? entry.pointsAwarded : 0) ?? 0);
+  const maxUiPotentialXp = Number(scoring.maxUiPotentialXp || (scoring.scoringMode === 'starter' ? 100 : awardedXp || entry.xpValue || 100));
+  const reservedPotentialXp = Number(scoring.reservedPotentialXp || 0);
+  const hasClassifiedReserve = isApproved && reservedPotentialXp > 0 && maxUiPotentialXp > awardedXp;
 
   const getStatusInfo = () => {
     switch (normalizedStatus) {
@@ -177,11 +182,21 @@ export function EntryCard({ entry, className }: EntryCardProps) {
         </div>
         <div className="text-right">
           <div className="relative inline-block">
-            <span className="font-display text-4xl text-brand-orange font-black italic drop-shadow-[5px_5px_0_var(--color-on-surface)]">+{entry.pointsAwarded}_XP</span>
+            <span className="font-display text-4xl text-brand-orange font-black italic drop-shadow-[5px_5px_0_var(--color-on-surface)]">
+              {isApproved ? `${awardedXp} / ${maxUiPotentialXp}_XP` : `+${entry.xpValue || 0}_XP`}
+            </span>
             <div className="absolute -top-1 -right-1">
                <Sparkles className="w-4 h-4 text-brand-orange animate-pulse" />
             </div>
           </div>
+          {hasClassifiedReserve && (
+            <p
+              className="mt-2 max-w-44 text-[9px] font-mono font-black uppercase tracking-widest text-on-surface/45"
+              title="Not every signal is visible yet. Some Fieldtrip points remain reserved for future discoveries, special conditions, and seasonal surprises."
+            >
+              {reservedPotentialXp} XP remains classified
+            </p>
+          )}
         </div>
       </div>
 
