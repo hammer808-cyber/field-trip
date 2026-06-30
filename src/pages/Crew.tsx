@@ -18,9 +18,17 @@ import {
   MoreHorizontal
 } from 'lucide-react';
 import { cn, formatSafeDateOnly } from '../lib/utils';
-import { getCrew, getCrewLore, subscribeToCrewLore, getLatestDispatch } from '../services/crewService';
+import {
+  createCrew,
+  getCrew,
+  getCrewLore,
+  getCurrentCrewMembership,
+  getLatestDispatch,
+  leaveCrew,
+  subscribeToCrewLore
+} from '../services/crewService';
 import { getWeeklySummary } from '../services/summaryService';
-import { Crew, CrewLore, CrewDispatch } from '../types/crew';
+import { Crew, CrewLore, CrewDispatch, CrewMembershipState, CrewMode, CrewPrivacy } from '../types/crew';
 import { Card } from '../components/UI';
 import { CrewArtifactsGallery } from '../components/CrewArtifactsGallery';
 import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
@@ -30,31 +38,44 @@ export default function CrewPage() {
   const { user, profile, crewArtifacts, activeSeason, currentWeekNumber, isCrewUnlocked, canonicalProgress } = useApp();
   const [searchParams] = useSearchParams();
   const initialTab = (searchParams.get('tab') as any) || 'home';
-  const [activeTab, setActiveTab ] = useState<'home' | 'memories' | 'lore' | 'members' | 'stats' | 'dispatch'>(initialTab);
+  const [activeTab, setActiveTab ] = useState<'home' | 'memories' | 'lore' | 'members' | 'stats' | 'dispatch' | 'settings'>(initialTab);
   const [crew, setCrew] = useState<Crew | null>(null);
+  const [membershipState, setMembershipState] = useState<CrewMembershipState | null>(null);
   const [lore, setLore] = useState<CrewLore | null>(null);
   const [dispatch, setDispatch] = useState<CrewDispatch | null>(null);
   const [weeklySummary, setWeeklySummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [crewForm, setCrewForm] = useState({
+    name: '',
+    motto: '',
+    mode: 'friendly' as CrewMode,
+    privacy: 'invite_only' as CrewPrivacy,
+  });
+  const [crewActionError, setCrewActionError] = useState<string | null>(null);
+  const [crewActionBusy, setCrewActionBusy] = useState(false);
   const navigate = useNavigate();
 
-  // For demo purposes, we'll assume the user belongs to a crew or is looking at one
-  // In a real app, we'd fetch the user's crewId from their profile
-  const crewId = profile?.crewId; 
+  const crewId = profile?.activeCrewId || profile?.crewId || membershipState?.membership?.crewId || null;
 
   useEffect(() => {
-    if (!crewId) {
-      setLoading(false);
-      return;
-    }
     async function init() {
       try {
-        const c = await getCrew(crewId!);
+        const state = await getCurrentCrewMembership().catch(() => null);
+        setMembershipState(state);
+        const resolvedCrewId = state?.membership?.crewId || profile?.activeCrewId || profile?.crewId || null;
+        if (!resolvedCrewId) {
+          setCrew(null);
+          setLore(null);
+          setDispatch(null);
+          setLoading(false);
+          return;
+        }
+        const c = state?.crew || await getCrew(resolvedCrewId);
         if (c) {
           setCrew(c);
-          const l = await getCrewLore(crewId!);
+          const l = await getCrewLore(resolvedCrewId);
           setLore(l);
-          const d = await getLatestDispatch(crewId!);
+          const d = await getLatestDispatch(resolvedCrewId);
           setDispatch(d);
           
           if (activeSeason?.id) {
@@ -70,9 +91,44 @@ export default function CrewPage() {
     }
     init();
 
-    const unsub = subscribeToCrewLore(crewId!, (data) => setLore(data));
+    if (!crewId) return;
+    const unsub = subscribeToCrewLore(crewId, (data) => setLore(data));
     return () => unsub();
-  }, [crewId, activeSeason?.id, currentWeekNumber]);
+  }, [crewId, profile?.activeCrewId, profile?.crewId, activeSeason?.id, currentWeekNumber]);
+
+  const handleCreateCrew = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setCrewActionError(null);
+    setCrewActionBusy(true);
+    try {
+      const state = await createCrew(crewForm);
+      setMembershipState(state);
+      setCrew(state.crew);
+      setActiveTab('home');
+    } catch (err: any) {
+      setCrewActionError(err?.message || 'Crew creation failed.');
+    } finally {
+      setCrewActionBusy(false);
+    }
+  };
+
+  const handleLeaveCrew = async () => {
+    if (!window.confirm('Leave this Crew? Your personal receipts stay yours, but you will have a 7-day Crew cooldown.')) return;
+    setCrewActionError(null);
+    setCrewActionBusy(true);
+    try {
+      const result = await leaveCrew('user_requested');
+      setMembershipState({ crew: null, membership: null, zine: null, cooldownUntil: result.cooldownUntil });
+      setCrew(null);
+      setLore(null);
+      setDispatch(null);
+      setActiveTab('home');
+    } catch (err: any) {
+      setCrewActionError(err?.message || 'Could not leave Crew.');
+    } finally {
+      setCrewActionBusy(false);
+    }
+  };
 
   const crewStanding = weeklySummary?.crewStats?.[crewId!] || null;
   const crewRank = weeklySummary ? (Object.entries(weeklySummary.crewStats)
@@ -88,7 +144,7 @@ export default function CrewPage() {
           </div>
           <h1 className="font-display font-black uppercase text-3xl italic leading-none">Crew Is Locked</h1>
           <p className="font-serif italic text-on-surface/70">
-            Complete all 3 Starter Signals to unlock this.
+            Finish account setup and field classification to unlock Crew operations.
           </p>
           <div className="w-full bg-white border-2 border-on-surface h-5 rounded-full overflow-hidden">
             <div className="h-full bg-brand-lime" style={{ width: `${canonicalProgress.starter.percent}%` }} />
@@ -107,16 +163,93 @@ export default function CrewPage() {
   if (loading) return <div className="flex items-center justify-center min-h-screen font-mono">LOADING_CREW_IDENTITY...</div>;
 
   if (!crew) {
+    const cooldownUntil = membershipState?.cooldownUntil || profile?.crewCooldownUntil || null;
+    const cooldownText = cooldownUntil?.seconds
+      ? new Date(cooldownUntil.seconds * 1000).toLocaleString()
+      : cooldownUntil?.toDate
+        ? cooldownUntil.toDate().toLocaleString()
+        : null;
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center space-y-8">
-        <Users className="w-16 h-16 opacity-10" />
-        <div className="space-y-4">
-           <h1 className="text-huge text-4xl">NO_CREW_ASSIGNED</h1>
-           <p className="font-serif italic opacity-60 max-w-sm">
-             Standalone agents are efficient, but Fieldtrip HQ incentivizes group fieldtrips. Join or initialize a crew to access Lore and Dispatches.
-           </p>
-        </div>
-        <button onClick={() => navigate('/frontlines')} className="bureau-btn">JOIN_HUB</button>
+      <div className="min-h-screen p-6 pb-32 flex items-center justify-center">
+        <form onSubmit={handleCreateCrew} className="w-full max-w-xl bg-white border-[6px] border-on-surface shadow-[14px_14px_0px_black] p-6 sm:p-8 space-y-6">
+          <div className="space-y-2 text-center">
+            <Users className="w-14 h-14 mx-auto text-brand-orange" />
+            <h1 className="font-display text-4xl italic font-black uppercase leading-none">Create Your Crew</h1>
+            <p className="font-serif italic text-sm opacity-70">
+              Crews can start before Starter Signals. Starter receipts stay personal; seasonal receipts join the Crew archive after approval.
+            </p>
+          </div>
+
+          {cooldownText && (
+            <div className="border-2 border-brand-orange bg-brand-orange/10 p-3 font-mono text-xs font-black uppercase">
+              Crew switch cooldown active until {cooldownText}
+            </div>
+          )}
+
+          {crewActionError && (
+            <div className="border-2 border-red-500 bg-red-50 p-3 font-mono text-xs font-black text-red-700 uppercase">
+              {crewActionError}
+            </div>
+          )}
+
+          <label className="block space-y-2">
+            <span className="micro-label">Crew Name</span>
+            <input
+              value={crewForm.name}
+              onChange={(e) => setCrewForm(prev => ({ ...prev, name: e.target.value }))}
+              className="w-full border-4 border-on-surface p-4 font-display font-black uppercase outline-none"
+              placeholder="THE PARKING LOT LEGENDS"
+              required
+              minLength={3}
+              maxLength={64}
+            />
+          </label>
+
+          <label className="block space-y-2">
+            <span className="micro-label">Motto</span>
+            <input
+              value={crewForm.motto}
+              onChange={(e) => setCrewForm(prev => ({ ...prev, motto: e.target.value }))}
+              className="w-full border-4 border-on-surface p-4 font-serif italic outline-none"
+              placeholder="We saw it, we submitted it."
+              maxLength={140}
+            />
+          </label>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="block space-y-2">
+              <span className="micro-label">Mode</span>
+              <select
+                value={crewForm.mode}
+                onChange={(e) => setCrewForm(prev => ({ ...prev, mode: e.target.value as CrewMode }))}
+                className="w-full border-4 border-on-surface p-4 font-mono font-black uppercase bg-white"
+              >
+                <option value="friendly">Friendly</option>
+                <option value="competitive">Competitive</option>
+              </select>
+            </label>
+            <label className="block space-y-2">
+              <span className="micro-label">Privacy</span>
+              <select
+                value={crewForm.privacy}
+                onChange={(e) => setCrewForm(prev => ({ ...prev, privacy: e.target.value as CrewPrivacy }))}
+                className="w-full border-4 border-on-surface p-4 font-mono font-black uppercase bg-white"
+              >
+                <option value="invite_only">Invite Only</option>
+                <option value="link_request">Link Request</option>
+                <option value="discoverable">Discoverable</option>
+              </select>
+            </label>
+          </div>
+
+          <button
+            type="submit"
+            disabled={crewActionBusy || !!cooldownText}
+            className="bureau-btn w-full bg-brand-lime text-on-surface disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {crewActionBusy ? 'CREATING_CREW...' : 'INITIALIZE CREW'}
+          </button>
+        </form>
       </div>
     );
   }
@@ -127,6 +260,7 @@ export default function CrewPage() {
     { id: 'lore', label: 'Lore', icon: MessageSquare },
     { id: 'stats', label: 'Stats', icon: BarChart3 },
     { id: 'dispatch', label: 'Dispatch', icon: FileText },
+    { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   return (
@@ -407,6 +541,62 @@ export default function CrewPage() {
                  </footer>
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+          <div className="space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-500 max-w-3xl">
+            <section className="bg-white border-8 border-on-surface p-8 shadow-[12px_12px_0px_black] space-y-6">
+              <div className="flex items-center gap-4">
+                <Settings className="w-8 h-8 text-brand-orange" />
+                <div>
+                  <h3 className="font-display text-4xl italic uppercase tracking-tighter font-black leading-none">Crew Settings</h3>
+                  <p className="font-mono text-[10px] uppercase tracking-widest opacity-50">
+                    Active membership is personal. Seasonal archive entries stay with the Crew.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono text-xs">
+                <div className="border-2 border-on-surface/20 p-4">
+                  <p className="opacity-50 uppercase">Crew ID</p>
+                  <p className="font-black break-all">{crew.id}</p>
+                </div>
+                <div className="border-2 border-on-surface/20 p-4">
+                  <p className="opacity-50 uppercase">Your Role</p>
+                  <p className="font-black uppercase">{membershipState?.membership?.role || profile?.crewRole || 'member'}</p>
+                </div>
+                <div className="border-2 border-on-surface/20 p-4">
+                  <p className="opacity-50 uppercase">Privacy</p>
+                  <p className="font-black uppercase">{crew.privacy || 'invite_only'}</p>
+                </div>
+                <div className="border-2 border-on-surface/20 p-4">
+                  <p className="opacity-50 uppercase">Mode</p>
+                  <p className="font-black uppercase">{crew.mode || 'friendly'}</p>
+                </div>
+              </div>
+
+              {crewActionError && (
+                <div className="border-2 border-red-500 bg-red-50 p-3 font-mono text-xs font-black text-red-700 uppercase">
+                  {crewActionError}
+                </div>
+              )}
+
+              <div className="border-4 border-red-500/50 bg-red-50 p-5 space-y-3">
+                <h4 className="font-display font-black italic text-2xl uppercase">Leave Crew</h4>
+                <p className="font-serif italic text-sm opacity-70">
+                  Leaving removes your active membership and starts a 7-day cooldown before you can join or create another Crew. Your already approved personal receipts are not changed.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleLeaveCrew}
+                  disabled={crewActionBusy}
+                  className="bureau-btn bg-red-500 text-white disabled:opacity-50"
+                >
+                  {crewActionBusy ? 'UPDATING...' : 'LEAVE CREW'}
+                </button>
+              </div>
+            </section>
           </div>
         )}
       </div>

@@ -52,6 +52,16 @@ import {
 } from "./src/logic/firelightTribunal";
 import { getCommunityFeedExclusionReasons, getCommunityFeedOwnerId, isCommunityFeedEligible } from "./src/logic/communityFeed";
 import { getDeckAccess, sanitizeDeckForUnauthorized } from "./src/logic/deckAccess";
+import {
+  CREW_MEMBER_LIMIT_DEFAULT,
+  CREW_SWITCH_COOLDOWN_DAYS,
+  CREW_ZINE_PAGE_BLUEPRINT,
+  addDays,
+  hasCrewOnboardingAccess,
+  normalizeCrewMode,
+  normalizeCrewPrivacy,
+  normalizeCrewSlug,
+} from "./src/logic/crewSystem";
 
 // Types for proof evaluation
 type MetadataStatus = 'verified' | 'missing' | 'mismatch' | 'unverified';
@@ -3011,6 +3021,260 @@ async function startServer() {
         valid: false, 
         error: 'CONNECTIVITY_ERROR. THE_BUREAU_IS_UNREACHABLE.' 
       });
+    }
+  });
+
+  const getActiveSeasonIdForCrew = async () => {
+    if (!dbAdmin) return 'heatwave-receipts';
+    const configSnap = await dbAdmin.collection('appConfig').doc('game').get();
+    return String(configSnap.data()?.activeSeasonId || 'heatwave-receipts');
+  };
+
+  const getCurrentLegalConsentForCrew = async (uid: string) => {
+    if (!dbAdmin) return false;
+    const consentSnap = await dbAdmin.collection('users').doc(uid).collection('legalConsents').doc('current').get();
+    return consentSnap.exists && consentSnap.data()?.accepted === true;
+  };
+
+  app.get("/api/crew/current", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const { uid } = req.user;
+
+    try {
+      const userSnap = await dbAdmin.collection('users').doc(uid).get();
+      if (!userSnap.exists) return res.status(404).json({ error: "USER_PROFILE_NOT_FOUND" });
+      const profile = userSnap.data() || {};
+      const crewId = profile.activeCrewId || profile.crewId || null;
+      if (!crewId) {
+        return res.json({ crew: null, membership: null, zine: null, cooldownUntil: profile.crewCooldownUntil || null });
+      }
+
+      const [crewSnap, memberSnap] = await Promise.all([
+        dbAdmin.collection('crews').doc(crewId).get(),
+        dbAdmin.collection('crews').doc(crewId).collection('members').doc(uid).get()
+      ]);
+      if (!crewSnap.exists || memberSnap.data()?.status !== 'active') {
+        return res.json({ crew: null, membership: null, zine: null, cooldownUntil: profile.crewCooldownUntil || null });
+      }
+
+      const crew = { id: crewSnap.id, ...crewSnap.data() } as any;
+      const seasonId = crew.activeSeasonId || await getActiveSeasonIdForCrew();
+      const zineSnap = await dbAdmin.collection('crewSeasonZines').doc(`${crewSnap.id}_${seasonId}`).get();
+      res.json({
+        crew,
+        membership: memberSnap.data(),
+        zine: zineSnap.exists ? { id: zineSnap.id, ...zineSnap.data() } : null,
+        cooldownUntil: profile.crewCooldownUntil || null
+      });
+    } catch (error: any) {
+      console.error("[CREW_CURRENT] Failed:", error);
+      res.status(500).json({ error: "CREW_CURRENT_FAILED", message: error.message || String(error) });
+    }
+  });
+
+  app.post("/api/crew/create", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const { uid, email } = req.user;
+    const name = String(req.body.name || '').trim();
+    const motto = String(req.body.motto || '').trim().slice(0, 160);
+    const icon = String(req.body.icon || 'crew-default').trim().slice(0, 80);
+    const mode = normalizeCrewMode(req.body.mode);
+    const privacy = normalizeCrewPrivacy(req.body.privacy);
+
+    if (name.length < 2 || name.length > 48) {
+      return res.status(400).json({ error: "INVALID_CREW_NAME", message: "Crew name must be 2-48 characters." });
+    }
+
+    try {
+      const activeSeasonId = await getActiveSeasonIdForCrew();
+      const hasLegalConsent = await getCurrentLegalConsentForCrew(uid);
+      const now = new Date();
+      const crewId = `crew_${normalizeCrewSlug(name) || 'fieldtrip'}_${crypto.randomBytes(4).toString('hex')}`;
+      const zineId = `${crewId}_${activeSeasonId}`;
+      const userRef = dbAdmin.collection('users').doc(uid);
+      const crewRef = dbAdmin.collection('crews').doc(crewId);
+      const memberRef = crewRef.collection('members').doc(uid);
+      const zineRef = dbAdmin.collection('crewSeasonZines').doc(zineId);
+      const loreRef = dbAdmin.collection('crewLore').doc(crewId);
+
+      const result = await dbAdmin.runTransaction(async transaction => {
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists) throw new Error("USER_PROFILE_NOT_FOUND");
+        const profile = { id: userSnap.id, ...userSnap.data() } as any;
+        if (!hasCrewOnboardingAccess(profile, hasLegalConsent)) throw new Error("CREW_ONBOARDING_REQUIRED");
+        if (profile.activeCrewId || profile.crewId) throw new Error("ALREADY_IN_ACTIVE_CREW");
+        const cooldownUntilMs = profile.crewCooldownUntil?.toMillis?.() || (profile.crewCooldownUntil ? new Date(profile.crewCooldownUntil).getTime() : 0);
+        if (cooldownUntilMs && cooldownUntilMs > now.getTime()) throw new Error("CREW_SWITCH_COOLDOWN_ACTIVE");
+
+        const crewDoc = {
+          id: crewId,
+          name,
+          slug: normalizeCrewSlug(name),
+          motto,
+          icon,
+          badge: '',
+          founderId: uid,
+          creatorId: uid,
+          captainIds: [],
+          mode,
+          privacy,
+          memberLimit: CREW_MEMBER_LIMIT_DEFAULT,
+          memberCount: 1,
+          members: [uid],
+          activeSeasonId,
+          currentSeason: activeSeasonId,
+          status: 'active',
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
+        };
+        const memberDoc = {
+          crewId,
+          userId: uid,
+          displayName: profile.name || email || 'Field Agent',
+          role: 'founder',
+          status: 'active',
+          joinedAt: FieldValue.serverTimestamp(),
+          crewEligibleFrom: FieldValue.serverTimestamp(),
+          seasonEligibility: {
+            [activeSeasonId]: {
+              joinedAt: FieldValue.serverTimestamp(),
+              eligibleFrom: FieldValue.serverTimestamp()
+            }
+          }
+        };
+        const zineDoc = {
+          crewId,
+          seasonId: activeSeasonId,
+          mode,
+          status: 'collecting',
+          coverSelection: null,
+          curatorUserId: null,
+          pageBlueprint: CREW_ZINE_PAGE_BLUEPRINT,
+          flexPageAssignments: [],
+          createdAt: FieldValue.serverTimestamp(),
+          publishedAt: null
+        };
+
+        transaction.set(crewRef, crewDoc);
+        transaction.set(memberRef, memberDoc);
+        transaction.set(zineRef, zineDoc);
+        transaction.set(loreRef, {
+          crewId,
+          insideJokes: [],
+          seasonStats: {},
+          highlights: {},
+          notes: [],
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+        transaction.set(userRef, {
+          activeCrewId: crewId,
+          crewId,
+          crewJoinedAt: FieldValue.serverTimestamp(),
+          crewRole: 'founder',
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        return { crewId, zineId };
+      });
+
+      await dbAdmin.collection('crewAuditLogs').add({
+        actorId: uid,
+        crewId,
+        action: 'create_crew',
+        mode,
+        privacy,
+        createdAt: FieldValue.serverTimestamp()
+      });
+
+      const [createdCrewSnap, createdMemberSnap, createdZineSnap] = await Promise.all([
+        dbAdmin.collection('crews').doc(result.crewId).get(),
+        dbAdmin.collection('crews').doc(result.crewId).collection('members').doc(uid).get(),
+        dbAdmin.collection('crewSeasonZines').doc(result.zineId).get()
+      ]);
+
+      res.json({
+        crew: createdCrewSnap.exists ? { id: createdCrewSnap.id, ...createdCrewSnap.data() } : null,
+        membership: createdMemberSnap.exists ? createdMemberSnap.data() : null,
+        zine: createdZineSnap.exists ? { id: createdZineSnap.id, ...createdZineSnap.data() } : null,
+        cooldownUntil: null
+      });
+    } catch (error: any) {
+      const message = error.message || String(error);
+      const status = ['ALREADY_IN_ACTIVE_CREW', 'CREW_SWITCH_COOLDOWN_ACTIVE'].includes(message) ? 409 :
+        message === 'CREW_ONBOARDING_REQUIRED' ? 403 : 500;
+      console.error("[CREW_CREATE] Failed:", error);
+      res.status(status).json({ error: message, message });
+    }
+  });
+
+  app.post("/api/crew/leave", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const { uid } = req.user;
+
+    try {
+      const now = new Date();
+      const cooldownUntil = addDays(now, CREW_SWITCH_COOLDOWN_DAYS);
+      const userRef = dbAdmin.collection('users').doc(uid);
+
+      const result = await dbAdmin.runTransaction(async transaction => {
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists) throw new Error("USER_PROFILE_NOT_FOUND");
+        const profile = userSnap.data() || {};
+        const crewId = profile.activeCrewId || profile.crewId;
+        if (!crewId) throw new Error("NO_ACTIVE_CREW");
+        const crewRef = dbAdmin!.collection('crews').doc(crewId);
+        const memberRef = crewRef.collection('members').doc(uid);
+        const [crewSnap, memberSnap] = await Promise.all([transaction.get(crewRef), transaction.get(memberRef)]);
+        if (!crewSnap.exists || memberSnap.data()?.status !== 'active') throw new Error("NO_ACTIVE_CREW");
+
+        const crewData = crewSnap.data() || {};
+        const activeMembers = Array.isArray(crewData.members) ? crewData.members.filter((id: string) => id !== uid) : [];
+        const memberRole = memberSnap.data()?.role;
+        const nextCrewUpdate: any = {
+          members: activeMembers,
+          memberCount: Math.max(0, Number(crewData.memberCount || activeMembers.length + 1) - 1),
+          updatedAt: FieldValue.serverTimestamp()
+        };
+        if (crewData.founderId === uid) {
+          const captainIds = Array.isArray(crewData.captainIds) ? crewData.captainIds.filter((id: string) => activeMembers.includes(id)) : [];
+          nextCrewUpdate.founderId = captainIds[0] || activeMembers[0] || null;
+          if (!nextCrewUpdate.founderId) nextCrewUpdate.status = 'archived';
+        }
+        if (memberRole === 'captain') {
+          nextCrewUpdate.captainIds = FieldValue.arrayRemove(uid);
+        }
+
+        transaction.set(memberRef, {
+          status: 'left',
+          leftAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+        transaction.set(crewRef, nextCrewUpdate, { merge: true });
+        transaction.set(userRef, {
+          activeCrewId: FieldValue.delete(),
+          crewId: FieldValue.delete(),
+          crewRole: FieldValue.delete(),
+          crewCooldownUntil: Timestamp.fromDate(cooldownUntil),
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        return { success: true, crewId, cooldownUntil: Timestamp.fromDate(cooldownUntil) };
+      });
+
+      await dbAdmin.collection('crewAuditLogs').add({
+        actorId: uid,
+        crewId: result.crewId,
+        action: 'leave_crew',
+        createdAt: FieldValue.serverTimestamp()
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      const message = error.message || String(error);
+      const status = message === 'NO_ACTIVE_CREW' ? 409 : 500;
+      console.error("[CREW_LEAVE] Failed:", error);
+      res.status(status).json({ error: message, message });
     }
   });
 

@@ -75,6 +75,9 @@ service cloud.firestore {
     function currentUserProfile() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
+    function activeCrewId() {
+      return currentUserProfile().get('activeCrewId', currentUserProfile().get('crewId', ''));
+    }
     function hasDeckInviteRedemption(deckId) {
       return isSignedIn() &&
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
@@ -107,7 +110,7 @@ service cloud.firestore {
             (
               get(/databases/$(database)/documents/decks/$(deckId)).data.visibility == 'crew_only' &&
               exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-              get(/databases/$(database)/documents/decks/$(deckId)).data.get('allowedCrewIds', []).hasAny([currentUserProfile().get('crewId', '')])
+              get(/databases/$(database)/documents/decks/$(deckId)).data.get('allowedCrewIds', []).hasAny([activeCrewId()])
             ) ||
             (
               get(/databases/$(database)/documents/decks/$(deckId)).data.visibility == 'invite_code' &&
@@ -521,6 +524,26 @@ service cloud.firestore {
     match /crews/{id} {
       allow read: if isApproved();
       allow write: if isAdmin();
+
+      match /members/{userId} {
+        allow read: if isApproved() && (isAdmin() || userId == request.auth.uid || id == activeCrewId());
+        allow write: if false;
+      }
+    }
+
+    match /crewSeasonZines/{id} {
+      allow read: if isApproved();
+      allow write: if false;
+    }
+
+    match /crewArchiveEntries/{id} {
+      allow read: if isApproved() && (isAdmin() || resource.data.crewId == activeCrewId());
+      allow write: if isAdmin();
+    }
+
+    match /crewAuditLogs/{id} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
     
     // PROOF SYSTEM

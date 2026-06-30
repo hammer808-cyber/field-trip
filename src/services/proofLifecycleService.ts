@@ -17,6 +17,7 @@ import { Entry } from '../types/game';
 import { normalizeEntryStatus } from '../logic/entryLogic';
 import { awardSubmissionPointsOnce } from './submission-utils';
 import { getProofRubricScoring, type ProofRubricScoring } from '../logic/proofRubric';
+import { isCrewArchiveEligible } from '../logic/crewSystem';
 
 export type CanonicalProofStatus = 'draft' | 'uploading' | 'pending_review' | 'approved' | 'needs_more_proof' | 'rejected' | 'submission_failed' | 'upload_incomplete';
 export type ReviewableProofStatus = 'pending_review' | 'approved' | 'needs_more_proof' | 'rejected';
@@ -269,6 +270,9 @@ export async function transitionProofReview(
     });
     if (rubric) await persistProofReviewRubric(canonicalEntryId, nextStatus, notes, reviewerId, rubric, scoringForPersist);
     const awardResult = await awardSubmissionPointsOnce(canonicalEntryId, notes);
+    await persistCrewArchiveSnapshot(canonicalEntryId).catch(err => {
+      console.warn('[ProofLifecycle] Crew archive snapshot failed:', err);
+    });
     return { success: awardResult.success, status: 'approved', points: awardResult.points, reason: awardResult.reason };
   }
 
@@ -384,6 +388,87 @@ async function persistProofReviewRubric(
     }, { merge: true });
   });
 
+  await batch.commit();
+}
+
+async function persistCrewArchiveSnapshot(canonicalEntryId: string) {
+  const entryRef = doc(db, 'entries', canonicalEntryId);
+  const entrySnap = await getDoc(entryRef);
+  if (!entrySnap.exists()) return;
+
+  const entryData: any = { id: canonicalEntryId, ...entrySnap.data() };
+  const crewId = String(entryData.crewId || '').trim();
+  const userId = getCanonicalUserId(entryData);
+  if (!crewId || !userId) return;
+
+  const [userSnap, memberSnap] = await Promise.all([
+    getDoc(doc(db, 'users', userId)),
+    getDoc(doc(db, 'crews', crewId, 'members', userId)),
+  ]);
+
+  const userData: any = userSnap.exists() ? userSnap.data() : {};
+  const legacyStarterIds = Array.isArray(userData.approvedCompletedChallengeIds)
+    ? userData.approvedCompletedChallengeIds.map((id: any) => String(id).toLowerCase())
+    : [];
+  const starterComplete = userData.starterDeckComplete === true ||
+    userData.onboardingCompleted === true ||
+    ['starter-1', 'starter-2', 'starter-3'].every(id => legacyStarterIds.includes(id));
+  const memberData: any = memberSnap.exists() ? memberSnap.data() : null;
+  const seasonId = entryData.seasonId || memberData?.seasonEligibility?.seasonId || null;
+
+  if (!isCrewArchiveEligible({
+    entry: { ...entryData, userId, crewId, seasonId },
+    member: memberData,
+    activeSeasonId: seasonId,
+    starterComplete,
+  })) {
+    return;
+  }
+
+  const snapshotId = `${crewId}_${canonicalEntryId}`;
+  const archiveRef = doc(db, 'crewArchiveEntries', snapshotId);
+  const imageRef = getCanonicalImageUrl(entryData) || getCanonicalStoragePath(entryData);
+  const score = Number(
+    entryData.awardedXP ??
+    entryData.pointsAwarded ??
+    entryData.awardedPoints ??
+    entryData.estimatedPoints ??
+    entryData.xpValue ??
+    0
+  );
+
+  const batch = writeBatch(db);
+  batch.set(archiveRef, {
+    id: snapshotId,
+    crewId,
+    seasonId,
+    deckId: entryData.deckId || null,
+    entryId: canonicalEntryId,
+    userId,
+    displayName: entryData.displayName || entryData.userName || entryData.name || null,
+    userAvatar: entryData.userAvatar || null,
+    missionId: getCanonicalChallengeId(entryData),
+    tripId: entryData.tripId || getCanonicalChallengeId(entryData),
+    missionTitle: entryData.tripTitle || entryData.challengeTitle || entryData.missionTitle || 'Field Mission',
+    challengeTitle: entryData.challengeTitle || entryData.tripTitle || entryData.missionTitle || 'Field Mission',
+    caption: entryData.fieldNote || entryData.note || '',
+    fieldNote: entryData.fieldNote || entryData.note || '',
+    imageRef,
+    imageUrl: getCanonicalImageUrl(entryData) || null,
+    storagePath: getCanonicalStoragePath(entryData) || null,
+    score,
+    zineEligible: true,
+    likeCount: entryData.likeCount || 0,
+    submittedAt: entryData.submittedAt || entryData.createdAt || null,
+    approvedAt: entryData.approvedAt || entryData.reviewedAt || serverTimestamp(),
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+  batch.set(entryRef, {
+    crewArchiveSnapshotId: snapshotId,
+    crewArchiveEligible: true,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
   await batch.commit();
 }
 

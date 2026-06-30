@@ -1,11 +1,60 @@
+import type { CrewMemberRole, CrewMemberStatus, CrewMode, CrewPrivacy, CrewStatus, CrewZineStatus } from '../logic/crewSystem';
+export type { CrewMemberRole, CrewMemberStatus, CrewMode, CrewPrivacy, CrewStatus, CrewZineStatus } from '../logic/crewSystem';
+
 export interface Crew {
   id: string;
   name: string;
-  badge: string; // URL to badge image or SVG string
-  members: string[]; // User IDs
-  creatorId: string;
-  createdAt: string;
+  slug?: string;
+  motto?: string;
+  icon?: string;
+  badge?: string; // URL to badge image or SVG string
+  members: string[]; // User IDs, compatibility roster
+  memberCount?: number;
+  memberLimit?: number;
+  founderId?: string;
+  captainIds?: string[];
+  creatorId?: string;
+  mode?: CrewMode;
+  privacy?: CrewPrivacy;
+  status?: CrewStatus;
+  activeSeasonId?: string;
+  createdAt: any;
+  updatedAt?: any;
   currentSeason: string;
+}
+
+export interface CrewMember {
+  userId: string;
+  crewId?: string;
+  role: CrewMemberRole;
+  status: CrewMemberStatus;
+  joinedAt: any;
+  crewEligibleFrom: any;
+  removedAt?: any;
+  leftAt?: any;
+  displayName?: string;
+  seasonEligibility?: Record<string, any>;
+}
+
+export interface CrewSeasonZine {
+  id: string;
+  crewId: string;
+  seasonId: string;
+  mode: CrewMode;
+  status: CrewZineStatus;
+  coverSelection: any | null;
+  curatorUserId: string | null;
+  pageBlueprint: string[];
+  flexPageAssignments: any[];
+  createdAt: any;
+  publishedAt?: any;
+}
+
+export interface CrewMembershipState {
+  crew: Crew | null;
+  membership: CrewMember | null;
+  zine: CrewSeasonZine | null;
+  cooldownUntil?: any;
 }
 
 export interface CrewLore {

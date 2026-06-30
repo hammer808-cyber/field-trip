@@ -43,9 +43,10 @@ export function CrewMemoriesFeed() {
   const [loading, setLoading] = useState(true);
   const [activePickerId, setActivePickerId] = useState<string | null>(null);
 
-  const crewId = profile?.crewId;
+  const crewId = profile?.activeCrewId || profile?.crewId;
 
-  // 1. Subscribe to approved entries from this crew
+  // 1. Subscribe to stable Crew archive snapshots. These are created only after
+  // approval and intentionally do not retro-import personal Starter receipts.
   useEffect(() => {
     if (!crewId) {
       setLoading(false);
@@ -53,35 +54,58 @@ export function CrewMemoriesFeed() {
     }
 
     setLoading(true);
-    // Fetch all entries where crewId matches
     const q = query(
-      collection(db, 'entries'),
+      collection(db, 'crewArchiveEntries'),
       where('crewId', '==', crewId)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const allEntries = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }) as Entry);
+      const archivedEntries = snapshot.docs.map(docSnap => {
+        const data = docSnap.data() as any;
+        const entryId = data.entryId || docSnap.id.replace(`${crewId}_`, '');
+        return {
+          id: entryId,
+          entryId,
+          crewId: data.crewId,
+          userId: data.userId,
+          uid: data.userId,
+          displayName: data.displayName,
+          userAvatar: data.userAvatar,
+          seasonId: data.seasonId,
+          deckId: data.deckId || data.seasonId || 'crew-archive',
+          status: 'approved',
+          reviewStatus: 'approved',
+          tripId: data.tripId || data.missionId,
+          challengeId: data.challengeId || data.missionId,
+          tripTitle: data.tripTitle || data.missionTitle,
+          challengeTitle: data.challengeTitle || data.missionTitle,
+          fieldNote: data.fieldNote || data.caption || '',
+          username: data.displayName || 'Crew Agent',
+          imageUrl: data.imageRef || data.imageUrl || data.photoUrl || data.proofImage,
+          photoUrl: data.imageRef || data.photoUrl || data.imageUrl || data.proofImage,
+          proofImage: data.imageRef || data.proofImage || data.imageUrl || data.photoUrl,
+          storagePath: data.storagePath,
+          likeCount: data.likeCount || 0,
+          awardedXP: data.score || data.awardedXP || data.pointsAwarded || 0,
+          xpValue: data.score || data.awardedXP || data.pointsAwarded || 0,
+          xpAwarded: data.score || data.awardedXP || data.pointsAwarded || 0,
+          createdAt: data.approvedAt || data.submittedAt || data.createdAt,
+          updatedAt: data.updatedAt || data.approvedAt || data.createdAt,
+          submittedAt: data.submittedAt,
+          approvedAt: data.approvedAt,
+        } as Entry;
+      }).filter(e => e.imageUrl || e.photoUrl || e.proofImage);
 
-      // Filter only approved ones on client side to avoid index requirement issues
-      const approvedStatuses = ['approved', 'approved_by_admin', 'auto_approved', 'completed'];
-      const approved = allEntries.filter(e => 
-        approvedStatuses.includes(e.status || '') && (e.imageUrl || e.photoUrl || e.proofImage)
-      );
-
-      // Sort by createdAt descending
-      approved.sort((a, b) => {
+      archivedEntries.sort((a, b) => {
         const timeA = a.createdAt?.seconds || a.createdAt?.toMillis?.() || 0;
         const timeB = b.createdAt?.seconds || b.createdAt?.toMillis?.() || 0;
         return timeB - timeA;
       });
 
-      setEntries(approved);
+      setEntries(archivedEntries);
       setLoading(false);
     }, (error) => {
-      console.error("Error subscribing to crew entries:", error);
+      console.error("Error subscribing to crew archive entries:", error);
       setLoading(false);
     });
 

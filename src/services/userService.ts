@@ -81,7 +81,10 @@ export interface UserProfile {
   rerollsAvailable: number;
   activeTrip: any | null;
   lastSnitchDate: string | null;
+  activeCrewId?: string | null;
   crewId?: string | null;
+  crewCooldownUntil?: any;
+  crewRole?: string | null;
   seenBadges?: string[];
   previousRank?: number;
   maybeList?: string[];

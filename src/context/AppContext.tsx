@@ -1339,14 +1339,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Sync Crew Artifacts
   useEffect(() => {
-    if (!profile?.crewId) {
+    const activeCrewId = profile?.activeCrewId || profile?.crewId;
+    if (!activeCrewId) {
       setCrewArtifacts([]);
       return;
     }
-    return subscribeToCrewArtifacts(profile.crewId, (data) => {
+    return subscribeToCrewArtifacts(activeCrewId, (data) => {
       setCrewArtifacts(data);
     });
-  }, [profile?.crewId]);
+  }, [profile?.activeCrewId, profile?.crewId]);
 
   // Sync Observations
   useEffect(() => {
@@ -2213,6 +2214,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       throw new Error('DECK_ACCESS_RESTRICTED');
     }
 
+    const activeCrewId = profile.activeCrewId || profile.crewId || undefined;
+
     const result = await submitEntryLogic(
       user.uid,
       profile.name,
@@ -2223,7 +2226,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         fieldNote: entryData.fieldNote || '',
         selectedLevel: (entryData.selectedLevel || 'Standard') as any,
         detourCompleted: entryData.detourCompleted || false,
-        crewId: entryData.crewId || profile.crewId || undefined,
+        crewId: entryData.crewId || activeCrewId,
         userAvatar: profile.avatar || undefined, 
         
         // Pass through viewfinder meta
@@ -2259,9 +2262,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const { entryId, status, review, scoring, ftBonus, ftText, newRewards } = result;
     setLastReview(review);
 
-    if (profile.crewId && status === 'approved') {
+    if (activeCrewId && status === 'approved') {
       try {
-        await processLoreForEntry(profile.crewId, { id: entryId, status: 'approved' } as any);
+        await processLoreForEntry(activeCrewId, { id: entryId, status: 'approved' } as any);
       } catch (err) {
         console.warn("[AppContext] Crew lore processing failed:", err);
       }
@@ -2288,12 +2291,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         evaluateEntryForBadges(user.uid, entryObj as any).catch(e => console.warn("[AppContext] Badge evaluation failed:", e));
       }
 
-      if (profile.crewId && isFeatureEnabled('crewArtifactsEnabled')) {
-        evaluateEntryForArtifacts(profile.crewId, user.uid, profile.name, entryObj as any).catch(e => console.warn("[AppContext] Artifact evaluation failed:", e));
+      if (activeCrewId && isFeatureEnabled('crewArtifactsEnabled')) {
+        evaluateEntryForArtifacts(activeCrewId, user.uid, profile.name, entryObj as any).catch(e => console.warn("[AppContext] Artifact evaluation failed:", e));
       }
 
       if (isFeatureEnabled('appObservationsEnabled')) {
-        generateObservation(user.uid, profile.crewId || null, [entryObj as any, ...entries], { rankImproved: false }).catch(e => console.warn("[AppContext] Observation generation failed:", e));
+        generateObservation(user.uid, activeCrewId || null, [entryObj as any, ...entries], { rankImproved: false }).catch(e => console.warn("[AppContext] Observation generation failed:", e));
       }
 
       // Check for discovery stickers
