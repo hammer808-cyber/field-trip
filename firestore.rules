@@ -72,6 +72,51 @@ service cloud.firestore {
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
     function requestTime() { return request.time; }
+    function currentUserProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function hasDeckInviteRedemption(deckId) {
+      return isSignedIn() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             currentUserProfile().get('deckInviteRedemptions', {}).get(deckId, null) != null;
+    }
+    function deckAccessWindowOpen(deck) {
+      return (deck.get('accessStartsAt', null) == null || request.time >= deck.accessStartsAt) &&
+             (deck.get('accessEndsAt', null) == null || request.time <= deck.accessEndsAt);
+    }
+    function deckPrerequisitesMet(deck) {
+      let profile = currentUserProfile();
+      return !deck.keys().hasAny(['requiredCredentialIds']) || deck.requiredCredentialIds.size() == 0 ||
+             profile.get('credentialIds', []).hasAll(deck.requiredCredentialIds);
+    }
+    function canUseDeck(deckId) {
+      return isSignedIn() && (
+        deckId == null ||
+        deckId == '' ||
+        !exists(/databases/$(database)/documents/decks/$(deckId)) ||
+        isAdmin() ||
+        (
+          deckAccessWindowOpen(get(/databases/$(database)/documents/decks/$(deckId)).data) &&
+          deckPrerequisitesMet(get(/databases/$(database)/documents/decks/$(deckId)).data) &&
+          (
+            get(/databases/$(database)/documents/decks/$(deckId)).data.get('visibility', 'public') == 'public' ||
+            (
+              get(/databases/$(database)/documents/decks/$(deckId)).data.visibility == 'assigned_users' &&
+              get(/databases/$(database)/documents/decks/$(deckId)).data.get('assignedUserIds', []).hasAny([request.auth.uid])
+            ) ||
+            (
+              get(/databases/$(database)/documents/decks/$(deckId)).data.visibility == 'crew_only' &&
+              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+              get(/databases/$(database)/documents/decks/$(deckId)).data.get('allowedCrewIds', []).hasAny([currentUserProfile().get('crewId', '')])
+            ) ||
+            (
+              get(/databases/$(database)/documents/decks/$(deckId)).data.visibility == 'invite_code' &&
+              hasDeckInviteRedemption(deckId)
+            )
+          )
+        )
+      );
+    }
 
     // ADMIN COLLECTION-GROUP DIAGNOSTICS
     // Allows Admin Proof Review to scan proof records regardless of whether
@@ -138,7 +183,9 @@ service cloud.firestore {
           'xp', 'weeklyXp', 'seasonXp', 'level', 'role',
           'submittedPendingChallengeIds', 'submittedChallengeIds', 
           'approvedCompletedChallengeIds', 'approvedEntriesCount',
-          'points', 'score', 'totalPoints', 'rank', 'tokens' // legacy but still protected
+          'points', 'score', 'totalPoints', 'rank', 'tokens', // legacy but still protected
+          'deckInviteRedemptions', 'redeemedDeckInviteIds',
+          'credentialIds', 'completedCredentialIds', 'completedDeckIds', 'approvedCompletedDeckIds'
         ];
         
         // Block if any protected field is being changed
@@ -265,6 +312,7 @@ service cloud.firestore {
       // Approval gates review/admin/public systems; it should not block creating
       // the canonical pending_review entry itself.
       allow create: if (isSignedIn() && isValidId(entryId) && isValidEntry(incoming()) &&
+                    canUseDeck(incoming().get('deckId', '')) &&
                     incoming().createdAt == requestTime() &&
                     incoming().status in ['pending', 'submitted', 'pending_upload', 'pending_review']) || isAdmin();
       
@@ -277,6 +325,7 @@ service cloud.firestore {
           'reviewStatus', 'submissionStatus', 'proofStatus',
           'submissionVersion', 'submissionValidatedAt'
         ]) &&
+        canUseDeck(incoming().get('deckId', existing().get('deckId', ''))) &&
         incoming().status in ['pending', 'submitted', 'pending_upload', 'pending_review'] &&
         isValidEntry(incoming())
       ));
@@ -292,8 +341,16 @@ service cloud.firestore {
 
     // CHALLENGES
     match /challenges/{id} {
-      allow read: if isSignedIn();
+      allow get: if isSignedIn() && canUseDeck(resource.data.get('deckId', ''));
+      allow list: if isAdmin();
       allow write: if isAdmin();
+    }
+
+    // DECK ACCESS CONFIGS
+    // Deck documents may contain invite codes and assignment metadata. Normal
+    // users receive sanitized deck-access data through server APIs only.
+    match /decks/{deckId} {
+      allow read, write: if isAdmin();
     }
 
     // FIELD CHECKS (User Reports)

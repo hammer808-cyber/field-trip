@@ -111,7 +111,10 @@ import {
 } from '../services/legalService';
 import { DEFAULT_AVATAR } from '../constants/avatarAssets';
 import { subscribeToBlocks } from '../services/moderationService';
-import { getDeckPackById } from '../data/deckPacks';
+import { DECK_PACKS, getDeckPackById } from '../data/deckPacks';
+import { DeckPack } from '../types/deckPacks';
+import { getDeckAccess, DeckAccessResult } from '../logic/deckAccess';
+import { mergeDeckAccessConfigs, redeemDeckInvite, subscribeToDeckAccessConfigs } from '../services/deckAccessService';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 
 import { 
@@ -260,6 +263,10 @@ interface AppContextType {
   completeFieldKitOnboarding: () => Promise<void>;
   isTribunalUnlocked: boolean;
   getEligibleDrawPool: (packId?: string) => EligibleDrawPoolResult;
+  deckPacks: DeckPack[];
+  visibleDeckPacks: DeckPack[];
+  getDeckAccessForPack: (pack: DeckPack | null | undefined) => DeckAccessResult;
+  redeemDeckInviteCode: (deckId: string, inviteCode: string) => Promise<void>;
   isHeatwaveDeckUnlocked: boolean;
   isSocalSummerUnlocked: boolean;
   fieldGuideAssistEnabled: boolean;
@@ -322,6 +329,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [pendingEntries, setPendingEntries] = useState<Entry[]>([]);
   const [drawnMissionCards, setDrawnMissionCards] = useState<DrawnMissionCard[]>([]);
   const [memories, setMemories] = useState<MemoryEntry[]>([]);
+  const [deckAccessConfigs, setDeckAccessConfigs] = useState<Record<string, any>>({});
   const pendingUnlocksRef = useRef<Set<string>>(new Set());
   
   function isFeatureEnabled(flag: keyof AppConfig['featureFlags']) {
@@ -747,6 +755,49 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     return isOnboardingComplete;
   }, [isAdmin, overrides.forceUnlocked, isOnboardingComplete, completedChallengeIds, trips]);
+
+  useEffect(() => {
+    if (!user) {
+      setDeckAccessConfigs({});
+      return;
+    }
+    return subscribeToDeckAccessConfigs(setDeckAccessConfigs);
+  }, [user]);
+
+  const deckPacks = React.useMemo(() => {
+    return mergeDeckAccessConfigs(DECK_PACKS, deckAccessConfigs);
+  }, [deckAccessConfigs]);
+
+  const completedDeckIdsForAccess = React.useMemo(() => {
+    const completed: string[] = [];
+    Object.values(canonicalProgress.deckProgressById).forEach(deck => {
+      if (deck.totalCards > 0 && deck.approvedCount >= deck.totalCards) completed.push(deck.deckId);
+    });
+    return completed;
+  }, [canonicalProgress]);
+
+  const getDeckAccessForPack = React.useCallback((pack: DeckPack | null | undefined) => {
+    return getDeckAccess(pack, {
+      userId: user?.uid || null,
+      profile,
+      isAdmin: isAdmin || overrides.forceUnlocked,
+      now: gameState.currentDate,
+      completedDeckIds: completedDeckIdsForAccess,
+    });
+  }, [user?.uid, profile, isAdmin, overrides.forceUnlocked, gameState.currentDate, completedDeckIdsForAccess]);
+
+  const visibleDeckPacks = React.useMemo(() => {
+    return deckPacks.filter(pack => getDeckAccessForPack(pack).visible);
+  }, [deckPacks, getDeckAccessForPack]);
+
+  const resolveDeckPack = React.useCallback((packId?: string | null) => {
+    if (!packId) return null;
+    return deckPacks.find(pack => pack.packId === packId || pack.id === packId || pack.deckId === packId) || getDeckPackById(packId);
+  }, [deckPacks]);
+
+  const redeemDeckInviteCode = React.useCallback(async (deckId: string, inviteCode: string) => {
+    await redeemDeckInvite(deckId, inviteCode);
+  }, []);
 
   const fieldGuideAssistEnabled = isFeatureEnabled('fieldGuideAssistEnabled');
   
@@ -1922,7 +1973,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       effectivePackId = 'starter-signals';
     }
 
-    const pack = effectivePackId ? getDeckPackById(effectivePackId) : null;
+    const pack = effectivePackId ? resolveDeckPack(effectivePackId) : null;
+    const deckAccess = pack ? getDeckAccessForPack(pack) : null;
+    if (pack && !deckAccess?.playable && !overrides.forceUnlocked) {
+      return { eligibleMissions: [], reason: 'deck_access_restricted' };
+    }
     
     // 2. Prevent selecting locked summer deck if not unlocked
     if (effectivePackId === 'heatwave-receipts' && !isHeatwaveDeckUnlocked && !isAdmin && !overrides.forceUnlocked) {
@@ -1949,7 +2004,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
     
     return result;
-  }, [trips, completedChallengeIds, submittedPendingChallengeIds, needsMoreProofChallengeIds, rejectedChallengeIds, profile?.activeTrip?.id, profile?.activeMissionId, isOnboardingComplete, isHeatwaveDeckUnlocked, isSocalSummerUnlocked, isAdmin, canonicalStarterDeckState]);
+  }, [trips, completedChallengeIds, submittedPendingChallengeIds, needsMoreProofChallengeIds, rejectedChallengeIds, profile?.activeTrip?.id, profile?.activeMissionId, isOnboardingComplete, isHeatwaveDeckUnlocked, isSocalSummerUnlocked, isAdmin, canonicalStarterDeckState, resolveDeckPack, getDeckAccessForPack, overrides.forceUnlocked]);
 
   const drawTrip = async (tripId?: string, packId?: string): Promise<TripType | null> => {
     if (!user || trips.length === 0) return null;
@@ -1974,11 +2029,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (tripId) {
         const specific = trips.find(t => t.id === tripId);
         if (specific) {
+          const specificDeckId = packId || specific.deckId || deckPacks.find(pack => pack.missionIds.includes(specific.id))?.packId || 'unknown';
+          const specificPack = resolveDeckPack(specificDeckId);
+          if (specificPack && !getDeckAccessForPack(specificPack).playable && !overrides.forceUnlocked) {
+            throw new Error('DECK_ACCESS_RESTRICTED');
+          }
           await handleUpdateProfile(user.uid, { activeTrip: specific });
           await saveDrawnMissionCard(user.uid, {
             missionId: specific.id,
             challengeId: specific.id,
-            deckId: packId || 'unknown',
+            deckId: specificDeckId,
             missionTitle: specific.title,
             missionSummary: specific.description,
             status: 'active',
@@ -1993,6 +2053,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // 1. Get the current eligible pool for the pack
     const effectivePackId = packId || (isOnboardingComplete ? (localStorage.getItem('active_deck_pack_id') || 'urban-recon') : 'starter-signals');
+    const effectivePack = resolveDeckPack(effectivePackId);
+    if (effectivePack && !getDeckAccessForPack(effectivePack).playable && !overrides.forceUnlocked) {
+      console.warn('[Deck Draw] Blocked restricted deck draw', { uid: user.uid, deckId: effectivePackId });
+      return null;
+    }
     const poolResult = getEligibleDrawPool(effectivePackId);
     const eligiblePool = poolResult.eligibleMissions;
     const isStarterPackDraw = effectivePackId === 'starter-signals';
@@ -2141,6 +2206,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const currentTrip = trips.find(t => t.id === targetTripId) || profile.activeTrip || trips[0];
     
     if (!currentTrip) throw new Error('No valid trip found for submission');
+
+    const submissionDeckId = (entryData as any).deckId || currentTrip.deckId || deckPacks.find(pack => pack.missionIds.includes(currentTrip.id))?.packId || null;
+    const submissionPack = submissionDeckId ? resolveDeckPack(submissionDeckId) : null;
+    if (submissionPack && !getDeckAccessForPack(submissionPack).playable && !overrides.forceUnlocked) {
+      throw new Error('DECK_ACCESS_RESTRICTED');
+    }
 
     const result = await submitEntryLogic(
       user.uid,
@@ -2486,6 +2557,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       fieldGuideAssistEnabled,
       isTribunalUnlocked,
       getEligibleDrawPool,
+      deckPacks,
+      visibleDeckPacks,
+      getDeckAccessForPack,
+      redeemDeckInviteCode,
       isHeatwaveDeckUnlocked,
       isSocalSummerUnlocked,
       isIOS,

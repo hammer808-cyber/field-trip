@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { DeckPack } from '../types/deckPacks';
-import { getActiveDeckPacks, getMissionsForPack } from '../data/deckPacks';
+import { getMissionsForPack } from '../data/deckPacks';
 import { HEATWAVE_CHALLENGE_BANK } from '../data/heatwaveChallengeBank';
 import { SOCAL_SUMMER_CHALLENGE_BANK } from '../data/socalSummerChallengeBank';
 import { FEATURE_FLAGS } from '../config/featureFlags';
@@ -29,7 +29,9 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
     currentDate, 
     isHeatwaveDeckUnlocked: isSummerDeckUnlocked, 
     isSocalSummerUnlocked,
-    isOnboardingComplete 
+    isOnboardingComplete,
+    visibleDeckPacks,
+    getDeckAccessForPack
   } = useApp();
   
   const updateTriggerRect = () => {
@@ -52,6 +54,14 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
 
   const getPackLockState = (packId: string) => {
     const pack = activePacks.find(p => p.packId === packId);
+    const access = getDeckAccessForPack(pack);
+    if (pack && !access.playable) {
+      return {
+        locked: true,
+        bypassed: false,
+        reason: access.reason || "Private field assignment"
+      };
+    }
     
     // Future Drop Rule
     if (pack?.isFutureDrop) {
@@ -108,7 +118,7 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
     return { locked: false, bypassed: false, reason: "" };
   };
 
-  const activePacks = getActiveDeckPacks();
+  const activePacks = visibleDeckPacks;
   const currentPack = activePacks.find(p => p.packId === selectedPackId) || activePacks[0];
 
   const renderIcon = (iconName: string, className?: string) => {

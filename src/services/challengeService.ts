@@ -13,6 +13,7 @@ import {
   limit
 } from 'firebase/firestore';
 import { db, auth, logFirestoreError, OperationType } from '../lib/firebase';
+import { authenticatedFetch } from '../lib/api';
 import { logAdminAction } from './moderationService';
 import { ChallengeCard, ChallengeStatus } from '../types/challenges';
 
@@ -51,13 +52,24 @@ export async function saveChallenge(challenge: Partial<ChallengeCard>): Promise<
 }
 
 export function subscribeToChallenges(callback: (challenges: ChallengeCard[]) => void) {
-  // Limit to 100 challenges for app performance and billing safety
-  const q = query(collection(db, CHALLENGES_COLLECTION), orderBy('createdAt', 'desc'), limit(100));
-  return onSnapshot(q, (snapshot) => {
-    callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ChallengeCard)));
-  }, (error) => {
-    logFirestoreError(error, OperationType.LIST, CHALLENGES_COLLECTION);
-  });
+  let cancelled = false;
+  authenticatedFetch('/api/challenges/accessible')
+    .then(async response => {
+      if (!response.ok) throw new Error(`Accessible challenges fetch failed (${response.status})`);
+      return response.json();
+    })
+    .then(payload => {
+      if (!cancelled) callback((payload.challenges || []) as ChallengeCard[]);
+    })
+    .catch(error => {
+      if (!cancelled) {
+        logFirestoreError(error, OperationType.LIST, CHALLENGES_COLLECTION);
+        callback([]);
+      }
+    });
+  return () => {
+    cancelled = true;
+  };
 }
 
 export async function updateChallengeStatus(id: string, status: ChallengeStatus) {

@@ -20,7 +20,7 @@ import { MissionDecodedCard } from '../components/MissionDecodedCard';
 import { EntryCard } from '../components/EntryCard';
 import { DeckLibrary } from '../components/DeckLibrary';
 import { DeckStack } from '../components/DeckStack';
-import { getDefaultDeckPack, getDeckPackById, DECK_PACKS } from '../data/deckPacks';
+import { getDefaultDeckPack, getDeckPackById } from '../data/deckPacks';
 import { getDeckCoverImage, BASE_DECK_PLACEHOLDER } from '../lib/deckUtils';
 import { DeckArtwork } from '../components/DeckArtwork';
 import { getWeeklyBonusForWeek } from '../data/weeklyBonuses';
@@ -154,7 +154,8 @@ export default function DeckPage() {
     memories, toggleFavoriteMemory, getEligibleDrawPool, updateProfile, blockedIds, unlockDiscoverySticker, currentDate,
     isAdmin, isHeatwaveDeckUnlocked, isSocalSummerUnlocked, mustCompleteStarterMission,
     needsMoreProofChallengeIds, rejectedChallengeIds,
-    drawnMissionCards, updateMissionCardStatus, setActiveMissionCard, canonicalProgress, progressMismatches
+    drawnMissionCards, updateMissionCardStatus, setActiveMissionCard, canonicalProgress, progressMismatches,
+    deckPacks, visibleDeckPacks, getDeckAccessForPack
   } = useApp();
   const { frankieMode, skin, fc } = useTheme();
 
@@ -179,12 +180,17 @@ export default function DeckPage() {
     if (!isOnboardingComplete && !isAdmin && activePackId !== 'starter-signals') {
       setActivePackId('starter-signals');
     }
+
+    const activeVisible = visibleDeckPacks.some(pack => pack.packId === activePackId);
+    if (isOnboardingComplete && !activeVisible && visibleDeckPacks.length > 0) {
+      setActivePackId(visibleDeckPacks[0].packId);
+    }
     
     // Fallback if they somehow have Summer active but it's not even June 6 yet and they aren't Admin
     if (activePackId === 'heatwave-receipts' && !isHeatwaveDeckUnlocked && !isAdmin) {
-      setActivePackId(isOnboardingComplete ? 'urban-recon' : 'starter-signals');
+      setActivePackId(isOnboardingComplete ? (visibleDeckPacks[0]?.packId || 'starter-signals') : 'starter-signals');
     }
-  }, [isOnboardingComplete, isHeatwaveDeckUnlocked, isAdmin, activePackId]);
+  }, [isOnboardingComplete, isHeatwaveDeckUnlocked, isAdmin, activePackId, visibleDeckPacks]);
 
   // Save active pack ID to localStorage
   useEffect(() => {
@@ -249,6 +255,13 @@ export default function DeckPage() {
   const getPackLockState = (pack: any) => {
     if (!pack) return { locked: false, reason: "" };
     const packId = pack.packId;
+    const access = getDeckAccessForPack(pack);
+    if (!access.playable) {
+      return {
+        locked: true,
+        reason: access.reason || "Private field assignment"
+      };
+    }
     
     if (pack.isFutureDrop) {
       return {
@@ -303,7 +316,7 @@ export default function DeckPage() {
   const visibleActivity = recentActivity.filter(event => !blockedIds.includes(event.userId));
 
   // Real Deck-Specific progression calculations
-  const activePack = getDeckPackById(activePackId);
+  const activePack = deckPacks.find(pack => pack.packId === activePackId) || getDeckPackById(activePackId);
   const activeDeckName = activePack ? activePack.packName : (activePackId === 'starter-signals' ? 'Starter Deck' : 'Themed Deck');
   const activeDeckShortName = activePack ? activePack.shortName : 'DECK';
   const totalDeckChallenges = activePack ? activePack.missionIds.length : 0;
@@ -1188,7 +1201,7 @@ export default function DeckPage() {
                   </div>
               </summary>
               <div className="p-4 pt-0 space-y-3 bg-[#FCFAF5] border-t-2 border-on-surface/5">
-                 {DECK_PACKS.map((pack) => {
+                 {visibleDeckPacks.map((pack) => {
                     const { completed, total, percent } = getPackProgress(pack);
                     const { locked, reason } = getPackLockState(pack);
                     const isSelected = pack.packId === activePackId;

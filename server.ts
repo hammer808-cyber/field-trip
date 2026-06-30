@@ -51,6 +51,7 @@ import {
   isTribunalVerdict,
 } from "./src/logic/firelightTribunal";
 import { getCommunityFeedExclusionReasons, getCommunityFeedOwnerId, isCommunityFeedEligible } from "./src/logic/communityFeed";
+import { getDeckAccess, sanitizeDeckForUnauthorized } from "./src/logic/deckAccess";
 
 // Types for proof evaluation
 type MetadataStatus = 'verified' | 'missing' | 'mismatch' | 'unverified';
@@ -528,7 +529,165 @@ async function startServer() {
     }, { merge: true });
   };
 
+  const cleanStringList = (value: unknown): string[] => {
+    if (!Array.isArray(value)) return [];
+    return Array.from(new Set(value.map(item => cleanServerId(item)).filter(Boolean)));
+  };
+
+  const normalizeDeckAccessPayload = (deckId: string, body: any) => {
+    const visibility = cleanServerId(body.visibility) || 'public';
+    if (!['public', 'assigned_users', 'crew_only', 'invite_code', 'admin_only'].includes(visibility)) {
+      throw new Error('INVALID_DECK_VISIBILITY');
+    }
+    const normalizeDateValue = (value: unknown) => {
+      const raw = cleanServerId(value);
+      if (!raw) return null;
+      const parsed = new Date(raw);
+      if (Number.isNaN(parsed.getTime())) throw new Error('INVALID_ACCESS_DATE');
+      return Timestamp.fromDate(parsed);
+    };
+    return {
+      id: deckId,
+      packId: deckId,
+      visibility,
+      assignedUserIds: cleanStringList(body.assignedUserIds),
+      allowedCrewIds: cleanStringList(body.allowedCrewIds),
+      inviteCode: cleanServerId(body.inviteCode) || null,
+      accessStartsAt: normalizeDateValue(body.accessStartsAt),
+      accessEndsAt: normalizeDateValue(body.accessEndsAt),
+      showLockedTeaser: body.showLockedTeaser === true,
+      requiredCredentialIds: cleanStringList(body.requiredCredentialIds),
+      requiredCompletedDeckIds: cleanStringList(body.requiredCompletedDeckIds),
+      updatedAt: FieldValue.serverTimestamp()
+    };
+  };
+
   // API Routes
+  app.get("/api/decks/access-configs", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    try {
+      const uid = req.user.uid;
+      const isAdminUser = await checkIsAdmin(req.user);
+      const [deckSnap, userSnap] = await Promise.all([
+        dbAdmin!.collection('decks').get(),
+        dbAdmin!.collection('users').doc(uid).get()
+      ]);
+      const profile = userSnap.exists ? { id: uid, ...userSnap.data() } as any : { id: uid };
+
+      const decks = deckSnap.docs.flatMap(docSnap => {
+        const data = { id: docSnap.id, packId: docSnap.id, ...docSnap.data() } as any;
+        if (isAdminUser) return [data];
+        const access = getDeckAccess(data, {
+          userId: uid,
+          profile,
+          isAdmin: false,
+          now: new Date(),
+        });
+        if (!access.visible) return [];
+        const safe = sanitizeDeckForUnauthorized(data);
+        return [{
+          ...safe,
+          visibility: access.playable ? 'public' : 'admin_only',
+          showLockedTeaser: !access.playable,
+          accessReason: access.reason,
+          accessLocked: !access.playable
+        }];
+      });
+      res.json({ success: true, decks });
+    } catch (error: any) {
+      console.error('[DECK_ACCESS_CONFIGS] Failed:', error);
+      res.status(500).json({ error: error?.message || 'DECK_ACCESS_CONFIGS_FAILED' });
+    }
+  });
+
+  app.post("/api/decks/redeem-invite", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    try {
+      const uid = req.user.uid;
+      const deckId = cleanServerId(req.body.deckId);
+      const inviteCode = cleanServerId(req.body.inviteCode);
+      if (!deckId || !inviteCode) return res.status(400).json({ error: 'DECK_ID_AND_INVITE_REQUIRED' });
+
+      const deckRef = dbAdmin!.collection('decks').doc(deckId);
+      const deckSnap = await deckRef.get();
+      if (!deckSnap.exists) return res.status(404).json({ error: 'DECK_NOT_FOUND' });
+      const deck = { id: deckSnap.id, packId: deckSnap.id, ...deckSnap.data() } as any;
+      if (deck.visibility !== 'invite_code') return res.status(400).json({ error: 'DECK_NOT_INVITE_CODE' });
+      if (!deck.inviteCode || deck.inviteCode !== inviteCode) return res.status(403).json({ error: 'INVALID_DECK_INVITE' });
+
+      const startsAt = deck.accessStartsAt?.toDate?.();
+      const endsAt = deck.accessEndsAt?.toDate?.();
+      const now = new Date();
+      if (startsAt && now < startsAt) return res.status(403).json({ error: 'DECK_ACCESS_NOT_STARTED' });
+      if (endsAt && now > endsAt) return res.status(403).json({ error: 'DECK_ACCESS_ENDED' });
+
+      await dbAdmin!.collection('users').doc(uid).set({
+        [`deckInviteRedemptions.${deckId}`]: {
+          deckId,
+          redeemedAt: FieldValue.serverTimestamp()
+        },
+        redeemedDeckInviteIds: FieldValue.arrayUnion(deckId),
+        updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+
+      res.json({ success: true, deckId });
+    } catch (error: any) {
+      console.error('[DECK_INVITE_REDEEM] Failed:', error);
+      res.status(500).json({ error: error?.message || 'DECK_INVITE_REDEEM_FAILED' });
+    }
+  });
+
+  app.post("/api/admin/decks/:deckId/access", adminRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    if (!(await checkIsAdmin(req.user))) return res.status(403).json({ error: "ADMIN_ONLY" });
+    try {
+      const deckId = cleanServerId(req.params.deckId);
+      if (!deckId) return res.status(400).json({ error: 'DECK_ID_REQUIRED' });
+      const payload = normalizeDeckAccessPayload(deckId, req.body || {});
+      await dbAdmin!.collection('decks').doc(deckId).set(payload, { merge: true });
+      await writeAdminAudit(req.user.uid, deckId, 'deck', 'update_deck_access', {
+        visibility: payload.visibility,
+        showLockedTeaser: payload.showLockedTeaser
+      });
+      res.json({ success: true, deckId });
+    } catch (error: any) {
+      console.error('[ADMIN_DECK_ACCESS] Failed:', error);
+      res.status(400).json({ error: error?.message || 'ADMIN_DECK_ACCESS_FAILED' });
+    }
+  });
+
+  app.get("/api/challenges/accessible", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    try {
+      const uid = req.user.uid;
+      const isAdminUser = await checkIsAdmin(req.user);
+      const [challengeSnap, deckSnap, userSnap] = await Promise.all([
+        dbAdmin!.collection('challenges').limit(500).get(),
+        dbAdmin!.collection('decks').get(),
+        dbAdmin!.collection('users').doc(uid).get()
+      ]);
+      const profile = userSnap.exists ? { id: uid, ...userSnap.data() } as any : { id: uid };
+      const deckMap = new Map(deckSnap.docs.map(docSnap => [docSnap.id, { id: docSnap.id, packId: docSnap.id, ...docSnap.data() } as any]));
+      const challenges = challengeSnap.docs
+        .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any))
+        .filter(challenge => {
+          if (isAdminUser) return true;
+          const deckId = cleanServerId(challenge.deckId);
+          if (!deckId || !deckMap.has(deckId)) return true;
+          return getDeckAccess(deckMap.get(deckId), {
+            userId: uid,
+            profile,
+            isAdmin: false,
+            now: new Date()
+          }).playable;
+        });
+      res.json({ success: true, challenges });
+    } catch (error: any) {
+      console.error('[ACCESSIBLE_CHALLENGES] Failed:', error);
+      res.status(500).json({ error: error?.message || 'ACCESSIBLE_CHALLENGES_FAILED' });
+    }
+  });
+
   app.post("/api/voting/weekly/vote", authRateLimiter, authenticate, async (req: any, res) => {
     if (!assertAdminReady(res)) return;
     const approval = await ensureApprovedRequester(req, res);

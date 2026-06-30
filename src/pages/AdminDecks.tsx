@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle, Eye, Layers, Lock, Plus, Rocket, Send } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, CheckCircle, Eye, KeyRound, Layers, Lock, Plus, Rocket, Save, Send, Shuffle } from 'lucide-react';
 import { AdminLayout, ModuleCard } from '../components/admin/AdminShared';
 import { Card } from '../components/UI';
 import { DECK_PACKS, getMissionsForPack } from '../data/deckPacks';
@@ -7,6 +7,8 @@ import { HEATWAVE_CHALLENGE_BANK } from '../data/heatwaveChallengeBank';
 import { SOCAL_SUMMER_CHALLENGE_BANK } from '../data/socalSummerChallengeBank';
 import { STARTER_MISSION_BANK } from '../data/starterMissionBank';
 import { publishDeckCards, PublishDeckCardsReport } from '../services/repairService';
+import { mergeDeckAccessConfigs, saveDeckAccessConfig, subscribeToDeckAccessConfigs } from '../services/deckAccessService';
+import { getDeckAccess } from '../logic/deckAccess';
 import { cn } from '../lib/utils';
 
 const MISSION_BANK = [...STARTER_MISSION_BANK, ...HEATWAVE_CHALLENGE_BANK, ...SOCAL_SUMMER_CHALLENGE_BANK] as any[];
@@ -16,16 +18,40 @@ export default function AdminDecks() {
   const [publishLoadingDeckId, setPublishLoadingDeckId] = useState<string | null>(null);
   const [publishReport, setPublishReport] = useState<PublishDeckCardsReport | null>(null);
   const [publishError, setPublishError] = useState<string | null>(null);
+  const [accessSaving, setAccessSaving] = useState(false);
+  const [accessMessage, setAccessMessage] = useState<string | null>(null);
+  const [accessDraft, setAccessDraft] = useState<any>({});
+  const [previewUser, setPreviewUser] = useState({ userId: '', crewId: '', redeemedInvite: false, completedDeckIds: '', credentialIds: '' });
+  const [deckAccessConfigs, setDeckAccessConfigs] = useState<Record<string, any>>({});
+
+  useEffect(() => subscribeToDeckAccessConfigs(setDeckAccessConfigs), []);
+
+  const deckPacks = useMemo(() => mergeDeckAccessConfigs(DECK_PACKS, deckAccessConfigs), [deckAccessConfigs]);
 
   const selectedDeck = useMemo(
-    () => DECK_PACKS.find(deck => deck.packId === selectedDeckId) || DECK_PACKS[0],
-    [selectedDeckId]
+    () => deckPacks.find(deck => deck.packId === selectedDeckId) || deckPacks[0],
+    [selectedDeckId, deckPacks]
   );
 
   const selectedMissions = useMemo(
     () => getMissionsForPack(selectedDeck.packId, MISSION_BANK),
     [selectedDeck]
   );
+
+  useEffect(() => {
+    setAccessDraft({
+      visibility: selectedDeck.visibility || 'public',
+      assignedUserIds: selectedDeck.assignedUserIds || [],
+      allowedCrewIds: selectedDeck.allowedCrewIds || [],
+      inviteCode: selectedDeck.inviteCode || null,
+      accessStartsAt: selectedDeck.accessStartsAt || '',
+      accessEndsAt: selectedDeck.accessEndsAt || '',
+      showLockedTeaser: selectedDeck.showLockedTeaser === true,
+      requiredCredentialIds: selectedDeck.requiredCredentialIds || [],
+      requiredCompletedDeckIds: selectedDeck.requiredCompletedDeckIds || []
+    });
+    setAccessMessage(null);
+  }, [selectedDeck]);
 
   const publishDeck = async (deckId: string) => {
     setPublishLoadingDeckId(deckId);
@@ -39,6 +65,39 @@ export default function AdminDecks() {
       setPublishLoadingDeckId(null);
     }
   };
+
+  const listFromText = (value: string) => value.split(/[,\n]/).map(v => v.trim()).filter(Boolean);
+  const textFromList = (value: string[] = []) => value.join('\n');
+  const randomInvite = () => `FT-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+
+  const saveAccess = async () => {
+    setAccessSaving(true);
+    setAccessMessage(null);
+    try {
+      await saveDeckAccessConfig(selectedDeck.packId, accessDraft);
+      setAccessMessage('Access settings saved.');
+    } catch (err: any) {
+      setAccessMessage(err.message || String(err));
+    } finally {
+      setAccessSaving(false);
+    }
+  };
+
+  const previewAccess = getDeckAccess(
+    { ...selectedDeck, ...accessDraft },
+    {
+      userId: previewUser.userId,
+      profile: {
+        id: previewUser.userId,
+        crewId: previewUser.crewId || null,
+        deckInviteRedemptions: previewUser.redeemedInvite ? { [selectedDeck.packId]: { redeemedAt: new Date().toISOString() } } : {},
+        completedDeckIds: listFromText(previewUser.completedDeckIds),
+        credentialIds: listFromText(previewUser.credentialIds)
+      },
+      isAdmin: false,
+      now: new Date()
+    }
+  );
 
   return (
     <AdminLayout
@@ -124,6 +183,138 @@ export default function AdminDecks() {
           </div>
         )}
 
+        <div className="mt-8 grid grid-cols-1 xl:grid-cols-[1.4fr_0.8fr] gap-6">
+          <div className="border-2 border-on-surface/10 bg-[#FAF8F5] rounded-xl p-4 space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="font-mono text-[10px] font-black uppercase tracking-widest text-brand-orange">Restricted Access</p>
+                <h3 className="font-display text-2xl font-black uppercase italic">Visibility Controls</h3>
+              </div>
+              <button
+                onClick={saveAccess}
+                disabled={accessSaving}
+                className="px-4 py-3 bg-on-surface text-white border-2 border-on-surface shadow-[4px_4px_0px_black] font-mono text-[10px] font-black uppercase disabled:opacity-50 flex items-center gap-2"
+              >
+                <Save className="w-4 h-4" /> {accessSaving ? 'Saving' : 'Save Access'}
+              </button>
+            </div>
+
+            {accessMessage && (
+              <div className="p-3 bg-white border border-on-surface/20 rounded-lg font-mono text-[10px] font-black uppercase">
+                {accessMessage}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <DeckField label="Visibility">
+                <select
+                  value={accessDraft.visibility || 'public'}
+                  onChange={event => setAccessDraft((draft: any) => ({ ...draft, visibility: event.target.value }))}
+                  className="w-full border-2 border-on-surface bg-white p-3 font-mono text-xs"
+                >
+                  <option value="public">public</option>
+                  <option value="assigned_users">assigned_users</option>
+                  <option value="crew_only">crew_only</option>
+                  <option value="invite_code">invite_code</option>
+                  <option value="admin_only">admin_only</option>
+                </select>
+              </DeckField>
+
+              <DeckField label="Show locked teaser">
+                <label className="flex items-center gap-3 border-2 border-on-surface bg-white p-3 font-mono text-xs font-black uppercase">
+                  <input
+                    type="checkbox"
+                    checked={accessDraft.showLockedTeaser === true}
+                    onChange={event => setAccessDraft((draft: any) => ({ ...draft, showLockedTeaser: event.target.checked }))}
+                  />
+                  Show private locked card
+                </label>
+              </DeckField>
+
+              <DeckField label="Assigned user IDs">
+                <textarea
+                  value={textFromList(accessDraft.assignedUserIds)}
+                  onChange={event => setAccessDraft((draft: any) => ({ ...draft, assignedUserIds: listFromText(event.target.value) }))}
+                  placeholder="one uid per line"
+                  className="w-full min-h-24 border-2 border-on-surface bg-white p-3 font-mono text-xs"
+                />
+              </DeckField>
+
+              <DeckField label="Allowed crew IDs">
+                <textarea
+                  value={textFromList(accessDraft.allowedCrewIds)}
+                  onChange={event => setAccessDraft((draft: any) => ({ ...draft, allowedCrewIds: listFromText(event.target.value) }))}
+                  placeholder="crew-a, crew-b"
+                  className="w-full min-h-24 border-2 border-on-surface bg-white p-3 font-mono text-xs"
+                />
+              </DeckField>
+
+              <DeckField label="Invite code">
+                <div className="flex gap-2">
+                  <input
+                    value={accessDraft.inviteCode || ''}
+                    onChange={event => setAccessDraft((draft: any) => ({ ...draft, inviteCode: event.target.value.trim() || null }))}
+                    placeholder="FT-PRIVATE-2026"
+                    className="min-w-0 flex-1 border-2 border-on-surface bg-white p-3 font-mono text-xs"
+                  />
+                  <button
+                    onClick={() => setAccessDraft((draft: any) => ({ ...draft, inviteCode: randomInvite() }))}
+                    className="px-3 bg-brand-lime border-2 border-on-surface shadow-[3px_3px_0px_black]"
+                    title="Generate invite code"
+                  >
+                    <Shuffle className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setAccessDraft((draft: any) => ({ ...draft, inviteCode: null }))}
+                    className="px-3 bg-white border-2 border-on-surface shadow-[3px_3px_0px_black]"
+                    title="Reset invite code"
+                  >
+                    <KeyRound className="w-4 h-4" />
+                  </button>
+                </div>
+              </DeckField>
+
+              <DeckField label="Access window">
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="datetime-local" value={accessDraft.accessStartsAt || ''} onChange={event => setAccessDraft((draft: any) => ({ ...draft, accessStartsAt: event.target.value || null }))} className="border-2 border-on-surface bg-white p-3 font-mono text-xs" />
+                  <input type="datetime-local" value={accessDraft.accessEndsAt || ''} onChange={event => setAccessDraft((draft: any) => ({ ...draft, accessEndsAt: event.target.value || null }))} className="border-2 border-on-surface bg-white p-3 font-mono text-xs" />
+                </div>
+              </DeckField>
+
+              <DeckField label="Required credential IDs">
+                <input value={textFromList(accessDraft.requiredCredentialIds)} onChange={event => setAccessDraft((draft: any) => ({ ...draft, requiredCredentialIds: listFromText(event.target.value) }))} className="w-full border-2 border-on-surface bg-white p-3 font-mono text-xs" />
+              </DeckField>
+
+              <DeckField label="Required completed deck IDs">
+                <input value={textFromList(accessDraft.requiredCompletedDeckIds)} onChange={event => setAccessDraft((draft: any) => ({ ...draft, requiredCompletedDeckIds: listFromText(event.target.value) }))} className="w-full border-2 border-on-surface bg-white p-3 font-mono text-xs" />
+              </DeckField>
+            </div>
+          </div>
+
+          <div className="border-2 border-on-surface/10 bg-white rounded-xl p-4 space-y-4">
+            <div>
+              <p className="font-mono text-[10px] font-black uppercase tracking-widest text-brand-orange">Preview Mode</p>
+              <h3 className="font-display text-2xl font-black uppercase italic">Test User Access</h3>
+            </div>
+            <input placeholder="test user id" value={previewUser.userId} onChange={event => setPreviewUser(prev => ({ ...prev, userId: event.target.value }))} className="w-full border-2 border-on-surface bg-white p-3 font-mono text-xs" />
+            <input placeholder="test crew id" value={previewUser.crewId} onChange={event => setPreviewUser(prev => ({ ...prev, crewId: event.target.value }))} className="w-full border-2 border-on-surface bg-white p-3 font-mono text-xs" />
+            <input placeholder="completed deck ids" value={previewUser.completedDeckIds} onChange={event => setPreviewUser(prev => ({ ...prev, completedDeckIds: event.target.value }))} className="w-full border-2 border-on-surface bg-white p-3 font-mono text-xs" />
+            <input placeholder="credential ids" value={previewUser.credentialIds} onChange={event => setPreviewUser(prev => ({ ...prev, credentialIds: event.target.value }))} className="w-full border-2 border-on-surface bg-white p-3 font-mono text-xs" />
+            <label className="flex items-center gap-3 font-mono text-xs font-black uppercase">
+              <input type="checkbox" checked={previewUser.redeemedInvite} onChange={event => setPreviewUser(prev => ({ ...prev, redeemedInvite: event.target.checked }))} />
+              Invite redeemed
+            </label>
+            <div className={cn(
+              "p-4 border-2 rounded-xl font-mono text-xs font-black uppercase",
+              previewAccess.playable ? "border-emerald-400 bg-emerald-50 text-emerald-700" : previewAccess.visible ? "border-amber-300 bg-amber-50 text-amber-700" : "border-rose-300 bg-rose-50 text-rose-700"
+            )}>
+              <div>visible: {String(previewAccess.visible)}</div>
+              <div>playable: {String(previewAccess.playable)}</div>
+              <div>reason: {previewAccess.reason || 'allowed'}</div>
+            </div>
+          </div>
+        </div>
+
         <div className="mt-8 overflow-x-auto">
           <table className="w-full min-w-[720px] text-left font-mono text-[10px] uppercase">
             <thead>
@@ -176,6 +367,15 @@ export default function AdminDecks() {
         </button>
       </div>
     </AdminLayout>
+  );
+}
+
+function DeckField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block space-y-2">
+      <span className="font-mono text-[9px] font-black uppercase tracking-widest text-on-surface/50">{label}</span>
+      {children}
+    </label>
   );
 }
 

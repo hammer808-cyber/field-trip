@@ -13,6 +13,7 @@ export type DrawPoolReason =
   | 'active_mission_in_progress'
   | 'all_starter_signals_pending_review'
   | 'no_eligible_cards'
+  | 'deck_access_restricted'
   | 'loading' 
   | 'no_missions';
 

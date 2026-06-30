@@ -1,5 +1,15 @@
 export type UnlockRule = 'immediate' | 'rank_limit' | 'archetype_match' | 'beta_only' | 'seasonal' | 'starter-complete';
 
+export type DeckVisibility =
+  | 'public'
+  | 'assigned_users'
+  | 'crew_only'
+  | 'invite_code'
+  | 'admin_only'
+  | 'internal'
+  | 'planned'
+  | 'hidden';
+
 export interface DeckPack {
   packId: string;
   packName: string;
@@ -11,7 +21,15 @@ export interface DeckPack {
   
   // Rules & Scaffolding
   unlockRule: UnlockRule;
-  visibility: 'public' | 'internal' | 'planned' | 'hidden';
+  visibility: DeckVisibility;
+  assignedUserIds?: string[];
+  allowedCrewIds?: string[];
+  inviteCode?: string | null;
+  accessStartsAt?: any | null;
+  accessEndsAt?: any | null;
+  showLockedTeaser?: boolean;
+  requiredCredentialIds?: string[];
+  requiredCompletedDeckIds?: string[];
   requiredArchetype?: string;
   requiredRank?: number;
   
