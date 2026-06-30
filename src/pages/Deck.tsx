@@ -142,6 +142,7 @@ export default function DeckPage() {
   const navigate = useNavigate();
   const [isDrawing, setIsDrawing] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [deckChooserIntroDismissed, setDeckChooserIntroDismissed] = useState(false);
   const { 
     fieldType, soloTripsCount, entries, activeTrip, drawTrip, 
     rerollsAvailable, useReroll, incomingFieldCheck, resolveIncomingFieldCheck, user,
@@ -293,6 +294,32 @@ export default function DeckPage() {
     }
 
     return { locked: false, reason: "" };
+  };
+
+  const getFirstPlayablePostStarterPackId = () => {
+    const preferred = visibleDeckPacks.find(pack => pack.packId === 'heatwave-receipts');
+    if (preferred && getPackLockState(preferred).locked === false) return preferred.packId;
+
+    const playable = visibleDeckPacks.find(pack => (
+      pack.packId !== 'starter-signals' && getPackLockState(pack).locked === false
+    ));
+
+    return playable?.packId || visibleDeckPacks[0]?.packId || 'starter-signals';
+  };
+
+  const acknowledgeDeckChooserIntro = async () => {
+    if (!user) return;
+    setDeckChooserIntroDismissed(true);
+    try {
+      await updateProfile(user.uid, { hasSeenDeckChooserIntro: true });
+    } catch (err) {
+      console.error("Failed to save deck chooser intro acknowledgement:", err);
+    }
+  };
+
+  const choosePostStarterDeck = async () => {
+    setActivePackId(getFirstPlayablePostStarterPackId());
+    await acknowledgeDeckChooserIntro();
   };
 
   useEffect(() => {
@@ -534,7 +561,7 @@ export default function DeckPage() {
   ) : null;
 
   // Full-Screen Training Protocol Complete Screen (Intro)
-  if (user && isOnboardingComplete && !profile?.hasSeenDeckChooserIntro) {
+  if (user && isOnboardingComplete && !profile?.hasSeenDeckChooserIntro && !deckChooserIntroDismissed) {
     return (
       <div className={cn(
         "min-h-screen flex flex-col justify-center items-center p-4 sm:p-8 font-sans relative overflow-hidden",
@@ -564,6 +591,14 @@ export default function DeckPage() {
           <div className="absolute top-[-10px] right-[-10px] w-24 h-24 bg-brand-lime rotate-12 field-card field-card--sticker shadow-md flex items-center justify-center -translate-x-2 translate-y-2">
              <Trophy className="w-10 h-10 text-on-surface" />
           </div>
+          <button
+            type="button"
+            aria-label="Close starter completion intro"
+            onClick={acknowledgeDeckChooserIntro}
+            className="absolute top-3 right-3 z-40 w-10 h-10 rounded-full bg-white border-2 border-on-surface shadow-[3px_3px_0px_black] flex items-center justify-center text-on-surface hover:bg-brand-lime active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+          >
+            <X className="w-5 h-5 stroke-[3]" />
+          </button>
 
           <div className="space-y-6">
             <div className="flex items-center gap-3">
@@ -605,28 +640,15 @@ export default function DeckPage() {
 
           <div className="pt-4 flex flex-col sm:flex-row gap-5">
             <button
-              onClick={async () => {
-                try {
-                  setActivePackId('heatwave-receipts');
-                  await updateProfile(user.uid, { hasSeenDeckChooserIntro: true });
-                } catch (err) {
-                  console.error("Failed to start Heatwave Receipts deck:", err);
-                }
-              }}
+              onClick={choosePostStarterDeck}
               className="flex-1 field-cta field-cta--urgent py-5 text-xl flex items-center justify-center gap-3"
             >
-              <span>{fc('Load Heatwave Deck', 'LOAD HEATWAVE DECK')}</span>
+              <span>{fc('Choose Summer Deck', 'CHOOSE SUMMER DECK')}</span>
               <ArrowRight className="w-6 h-6 stroke-[3]" />
             </button>
 
             <button
-              onClick={async () => {
-                try {
-                  await updateProfile(user.uid, { hasSeenDeckChooserIntro: true });
-                } catch (err) {
-                  console.error("Failed to dismiss intro:", err);
-                }
-              }}
+              onClick={acknowledgeDeckChooserIntro}
               className="py-5 px-8 field-card field-card--paper hover:bg-on-surface hover:text-white transition-all font-display text-lg uppercase tracking-wider font-black italic shadow-[8px_8px_0px_black] active:shadow-none active:translate-x-1 active:translate-y-1 flex items-center justify-center"
             >
               {fc('Maybe Later', 'NOT YET')}
@@ -925,7 +947,7 @@ export default function DeckPage() {
                   </div>
                   <button
                     onClick={() => {
-                      setActivePackId('heatwave-receipts');
+                      setActivePackId(getFirstPlayablePostStarterPackId());
                       setIsDrawn(false);
                       setDrawnTrip(null);
                       setHasRevealedInActiveSession(false);

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Trophy, Users, Home, Target, LayoutGrid, Lock } from 'lucide-react';
+import { Trophy, Users, Home, Target, LayoutGrid, Lock, Vote } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
@@ -47,6 +47,7 @@ export function BottomNav() {
     { icon: Home, label: 'BASECAMP', path: '/basecamp' },
     { icon: Target, label: 'MISSIONS', path: '/deck' },
     { icon: LayoutGrid, label: 'MEMORIES', path: '/memories', special: true },
+    { icon: Vote, label: 'VOTE', path: '/voting' },
     { icon: Users, label: 'CREW', path: '/crew' },
     { icon: Trophy, label: 'STANDINGS', path: '/big-board' }
   ];
@@ -56,7 +57,7 @@ export function BottomNav() {
       onTouchStart={handleInteraction}
       onMouseDown={handleInteraction}
       className={cn(
-        "fixed bottom-0 left-0 w-full z-100 px-3 pb-[env(safe-area-inset-bottom,0px)] h-[calc(80px+env(safe-area-inset-bottom,0px))] grid grid-cols-5 items-center md:max-w-xl md:left-1/2 md:-translate-x-1/2 md:bottom-6 md:rounded-[2.5rem] md:h-22",
+        "fixed bottom-0 left-0 w-full z-100 px-2 sm:px-3 pb-[env(safe-area-inset-bottom,0px)] h-[calc(80px+env(safe-area-inset-bottom,0px))] grid grid-cols-6 items-center md:max-w-xl md:left-1/2 md:-translate-x-1/2 md:bottom-6 md:rounded-[2.5rem] md:h-22",
         // Soft opacity transition with automatic full interaction overrides
         "transition-all duration-300 ease-in-out",
         isNavActive 
@@ -77,10 +78,11 @@ export function BottomNav() {
       )}
       {navItems.map((item) => {
         const itemPathname = item.path.split('?')[0];
-        const isActive = location.pathname === itemPathname;
+        const isActive = location.pathname === itemPathname || (itemPathname !== '/basecamp' && location.pathname.startsWith(`${itemPathname}/`));
         let dataOnboarding = undefined;
         if (itemPathname === '/deck') dataOnboarding = 'deck-nav';
         else if (itemPathname === '/big-board') dataOnboarding = 'big-board-nav';
+        else if (itemPathname === '/voting') dataOnboarding = 'voting-nav';
         else if (itemPathname === '/profile') dataOnboarding = 'profile-nav';
         else if (itemPathname === '/memories' || itemPathname === '/collection') dataOnboarding = 'dex-nav';
         
@@ -120,6 +122,7 @@ export function BottomNav() {
 
         const isLockedTab = (
           (itemPathname === '/crew' && !canAccessFeature(canonicalProgress, 'crew', { isAdmin })) ||
+          (itemPathname === '/voting' && !canAccessFeature(canonicalProgress, 'voting', { isAdmin })) ||
           (itemPathname === '/big-board' && !canAccessFeature(canonicalProgress, 'voting', { isAdmin }))
         );
 

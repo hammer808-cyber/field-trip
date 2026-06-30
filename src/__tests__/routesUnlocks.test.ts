@@ -9,6 +9,7 @@ const deckDiagnosticsSource = readFileSync('src/components/DeckDiagnosticsPanel.
 const bottomNavSource = readFileSync('src/components/BottomNav.tsx', 'utf8');
 const basecampSource = readFileSync('src/pages/Basecamp.tsx', 'utf8');
 const submittedSource = readFileSync('src/pages/MissionSubmitted.tsx', 'utf8');
+const deckSource = readFileSync('src/pages/Deck.tsx', 'utf8');
 
 test('unlocked crew and memories have stable route targets', () => {
   assert.match(appSource, /<Route path="\/crew" element=\{<StarterGate requiredFeature="crew"><Crew \/><\/StarterGate>\}/);
@@ -33,6 +34,24 @@ test('Memories entry points route to the canonical memories alias', () => {
   assert.match(bottomNavSource, /label: 'MEMORIES', path: '\/memories'/);
   assert.match(basecampSource, /navigate\('\/memories'\)/);
   assert.match(submittedSource, /navigate\('\/memories'\)/);
+});
+
+test('Voting routes remain reachable from the primary nav', () => {
+  assert.match(appSource, /<Route path="\/voting">/);
+  assert.match(appSource, /<Route index element=\{<StarterGate requiredFeature="voting"><VotingHubPage \/><\/StarterGate>\}/);
+  assert.match(appSource, /<Route path="ballot" element=\{<StarterGate requiredFeature="voting"><VotingBallotPage \/><\/StarterGate>\}/);
+  assert.match(appSource, /<Route path="council" element=\{<StarterGate requiredFeature="voting"><SnitchCouncilPage \/><\/StarterGate>\}/);
+  assert.match(appSource, /<Route path="awards" element=\{<StarterGate requiredFeature="voting"><WeeklyAwardsPage \/><\/StarterGate>\}/);
+  assert.match(bottomNavSource, /label: 'VOTE', path: '\/voting'/);
+  assert.match(bottomNavSource, /itemPathname === '\/voting' && !canAccessFeature\(canonicalProgress, 'voting'/);
+});
+
+test('Starter completion intro cannot globally trap completed users away from Crew or Voting', () => {
+  assert.doesNotMatch(appSource, /hasSeenDeckChooserIntro[\s\S]{0,240}<Navigate to="\/deck" replace \/>/);
+  assert.match(appSource, /Starter completion intro is optional and lives on \/deck/);
+  assert.match(deckSource, /deckChooserIntroDismissed/);
+  assert.match(deckSource, /acknowledgeDeckChooserIntro/);
+  assert.match(deckSource, /getFirstPlayablePostStarterPackId/);
 });
 
 test('Deck diagnostics exposes Starter completion sources and admin repair action', () => {

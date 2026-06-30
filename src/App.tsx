@@ -409,10 +409,9 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     return <Navigate to="/voting" replace />;
   }
 
-  // Once onboarding is approved/complete, force guide them to /deck once to see the "Training Protocol Complete" screen
-  if (user && hasConfirmedLegal && fieldClassificationComplete && isOnboardingComplete && !profile?.hasSeenDeckChooserIntro && !isDeckPage && !isBypassingGuards) {
-    return <Navigate to="/deck" replace />;
-  }
+  // Starter completion intro is optional and lives on /deck. Do not globally
+  // redirect post-Starter users, because that traps Crew/Voting deep links when
+  // the intro flag fails to save or the deck chooser is dismissed.
 
   // Redirect completed or uncompleted logged-in users away from Welcome page (isAuthPage) to avoid form flashes or being stranded
   if (user && hasConfirmedLegal && isAuthPage && !isBypassingGuards) {
