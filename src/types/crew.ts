@@ -16,6 +16,9 @@ export interface Crew {
   creatorId?: string;
   mode?: CrewMode;
   privacy?: CrewPrivacy;
+  allowMemberInvites?: boolean;
+  allowCaptainRoleManagement?: boolean;
+  autoApproveShareLinks?: boolean;
   status?: CrewStatus;
   activeSeasonId?: string;
   createdAt: any;
@@ -30,10 +33,56 @@ export interface CrewMember {
   status: CrewMemberStatus;
   joinedAt: any;
   crewEligibleFrom: any;
+  displayNameSnapshot?: string;
+  usernameSnapshot?: string | null;
+  avatarSnapshot?: any;
+  removedBy?: string;
   removedAt?: any;
   leftAt?: any;
   displayName?: string;
   seasonEligibility?: Record<string, any>;
+}
+
+export interface CrewInvite {
+  id: string;
+  crewId: string;
+  inviterId: string;
+  inviteeUserId?: string | null;
+  type: 'direct' | 'share_link';
+  token?: string;
+  status: 'pending' | 'accepted' | 'declined' | 'revoked' | 'expired';
+  expiresAt: any;
+  createdAt: any;
+  acceptedAt?: any;
+  declinedAt?: any;
+  revokedAt?: any;
+  inviteeSnapshot?: any;
+  crew?: Partial<Crew> | null;
+}
+
+export interface CrewJoinRequest {
+  id: string;
+  crewId: string;
+  userId: string;
+  status: 'pending' | 'approved' | 'declined' | 'cancelled';
+  createdAt: any;
+  resolvedAt?: any;
+  resolvedBy?: string | null;
+  applicantSnapshot?: any;
+}
+
+export interface CrewRosterState {
+  crew: Crew | null;
+  viewerMembership: CrewMember | null;
+  permissions: {
+    canInvite: boolean;
+    canApproveRequests: boolean;
+    canPromoteCaptains: boolean;
+    canRemoveMembers: boolean;
+  };
+  members: CrewMember[];
+  pendingInvites: CrewInvite[];
+  pendingRequests: CrewJoinRequest[];
 }
 
 export interface CrewSeasonZine {

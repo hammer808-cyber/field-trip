@@ -188,7 +188,8 @@ service cloud.firestore {
           'approvedCompletedChallengeIds', 'approvedEntriesCount',
           'points', 'score', 'totalPoints', 'rank', 'tokens', // legacy but still protected
           'deckInviteRedemptions', 'redeemedDeckInviteIds',
-          'credentialIds', 'completedCredentialIds', 'completedDeckIds', 'approvedCompletedDeckIds'
+          'credentialIds', 'completedCredentialIds', 'completedDeckIds', 'approvedCompletedDeckIds',
+          'activeCrewId', 'crewId', 'crewRole', 'crewCooldownUntil', 'crewJoinedAt'
         ];
         
         // Block if any protected field is being changed
@@ -533,6 +534,25 @@ service cloud.firestore {
 
     match /crewSeasonZines/{id} {
       allow read: if isApproved();
+      allow write: if false;
+    }
+
+    match /crewInvites/{id} {
+      allow get, list: if isSignedIn() && (
+        isAdmin() ||
+        resource.data.inviteeUserId == request.auth.uid ||
+        resource.data.inviterId == request.auth.uid ||
+        resource.data.crewId == activeCrewId()
+      );
+      allow write: if false;
+    }
+
+    match /crewJoinRequests/{id} {
+      allow get, list: if isSignedIn() && (
+        isAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        resource.data.crewId == activeCrewId()
+      );
       allow write: if false;
     }
 

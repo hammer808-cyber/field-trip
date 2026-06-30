@@ -65,6 +65,7 @@ const Profile = lazy(() => import('./pages/Profile'));
 const FieldIdentity = lazy(() => import('./pages/FieldIdentity'));
 const Classification = lazy(() => import('./pages/Classification'));
 const Crew = lazy(() => import('./pages/Crew'));
+const CrewInvite = lazy(() => import('./pages/CrewInvite'));
 const BigBoard = lazy(() => import('./pages/BigBoard'));
 const VotingHubPage = lazy(() => import('./pages/VotingHubPage'));
 const VotingBallotPage = lazy(() => import('./pages/VotingBallotPage'));
@@ -620,6 +621,7 @@ export default function App() {
                     <Route path="/field-id" element={<FieldIdentity />} />
                     <Route path="/classification" element={<Classification />} />
                     <Route path="/crew" element={<StarterGate requiredFeature="crew"><Crew /></StarterGate>} />
+                    <Route path="/crew/invite/:token" element={<CrewInvite />} />
                     <Route path="/memories" element={<StarterGate requiredFeature="memories"><Navigate to="/collection?tab=crew_memories" replace /></StarterGate>} />
                     <Route path="/big-board" element={<StarterGate requiredFeature="leaderboard"><BigBoard /></StarterGate>} />
                     <Route path="/mission-briefing" element={<MissionBriefing />} />

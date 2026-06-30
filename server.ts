@@ -55,9 +55,17 @@ import { getDeckAccess, sanitizeDeckForUnauthorized } from "./src/logic/deckAcce
 import {
   CREW_MEMBER_LIMIT_DEFAULT,
   CREW_SWITCH_COOLDOWN_DAYS,
+  CREW_INVITE_EXPIRY_DAYS,
   CREW_ZINE_PAGE_BLUEPRINT,
   addDays,
+  canApproveJoinRequest,
+  canInviteToCrew,
+  canPromoteCrewMember,
+  canRemoveCrewCaptainRole,
+  canRemoveCrewMember,
+  getCrewJoinBlockReason,
   hasCrewOnboardingAccess,
+  normalizeInviteStatus,
   normalizeCrewMode,
   normalizeCrewPrivacy,
   normalizeCrewSlug,
@@ -3036,6 +3044,96 @@ async function startServer() {
     return consentSnap.exists && consentSnap.data()?.accepted === true;
   };
 
+  const makeCrewToken = () => crypto.randomBytes(24).toString('base64url');
+
+  const getCrewMemberForActor = async (crewId: string, uid: string) => {
+    if (!dbAdmin) return null;
+    const snap = await dbAdmin.collection('crews').doc(crewId).collection('members').doc(uid).get();
+    return snap.exists ? { userId: uid, ...snap.data() } as any : null;
+  };
+
+  const getProfileSnapshot = (profile: any, uid: string) => ({
+    displayNameSnapshot: profile?.name || profile?.displayName || profile?.username || 'Field Agent',
+    usernameSnapshot: profile?.username || profile?.handle || null,
+    avatarSnapshot: profile?.avatar || profile?.avatarUrl || profile?.photoURL || null,
+    userId: uid,
+  });
+
+  const getCrewPublicPreview = (crewSnap: FirebaseFirestore.DocumentSnapshot) => {
+    const crew = crewSnap.data() || {};
+    return {
+      id: crewSnap.id,
+      name: crew.name || 'Crew',
+      icon: crew.icon || crew.badge || null,
+      motto: crew.motto || '',
+      mode: crew.mode || 'friendly',
+      privacy: crew.privacy || 'invite_only',
+      memberCount: crew.memberCount || 0,
+      memberLimit: crew.memberLimit || CREW_MEMBER_LIMIT_DEFAULT,
+      status: crew.status || 'active',
+    };
+  };
+
+  const getCrewJoinEligibilityInTransaction = async (
+    transaction: FirebaseFirestore.Transaction,
+    crewRef: FirebaseFirestore.DocumentReference,
+    userRef: FirebaseFirestore.DocumentReference,
+    uid: string,
+    now = new Date()
+  ) => {
+    const [crewSnap, userSnap, memberSnap] = await Promise.all([
+      transaction.get(crewRef),
+      transaction.get(userRef),
+      transaction.get(crewRef.collection('members').doc(uid))
+    ]);
+    const crew = crewSnap.exists ? { id: crewSnap.id, ...crewSnap.data() } as any : null;
+    const profile = userSnap.exists ? userSnap.data() as any : null;
+    const existingMember = memberSnap.exists ? { userId: uid, ...memberSnap.data() } as any : null;
+    const blockReason = getCrewJoinBlockReason({ profile, crew, existingMember, now });
+    return { crewSnap, userSnap, memberSnap, crew, profile, existingMember, blockReason };
+  };
+
+  const setCrewMembershipInTransaction = (
+    transaction: FirebaseFirestore.Transaction,
+    params: {
+      crewRef: FirebaseFirestore.DocumentReference;
+      userRef: FirebaseFirestore.DocumentReference;
+      uid: string;
+      profile: any;
+      role?: 'member' | 'captain' | 'founder';
+      nowTimestamp?: FirebaseFirestore.Timestamp;
+    }
+  ) => {
+    const { crewRef, userRef, uid, profile, role = 'member' } = params;
+    const memberRef = crewRef.collection('members').doc(uid);
+    const profileSnapshot = getProfileSnapshot(profile, uid);
+    transaction.set(memberRef, {
+      crewId: crewRef.id,
+      ...profileSnapshot,
+      displayName: profileSnapshot.displayNameSnapshot,
+      role,
+      status: 'active',
+      joinedAt: FieldValue.serverTimestamp(),
+      crewEligibleFrom: FieldValue.serverTimestamp(),
+      leftAt: FieldValue.delete(),
+      removedAt: FieldValue.delete(),
+      removedBy: FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    transaction.set(crewRef, {
+      members: FieldValue.arrayUnion(uid),
+      memberCount: FieldValue.increment(1),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    transaction.set(userRef, {
+      activeCrewId: crewRef.id,
+      crewId: crewRef.id,
+      crewRole: role,
+      crewJoinedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  };
+
   app.get("/api/crew/current", authRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
     const { uid } = req.user;
@@ -3069,6 +3167,520 @@ async function startServer() {
     } catch (error: any) {
       console.error("[CREW_CURRENT] Failed:", error);
       res.status(500).json({ error: "CREW_CURRENT_FAILED", message: error.message || String(error) });
+    }
+  });
+
+  app.get("/api/crew/members", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const crewId = String(req.query.crewId || '').trim();
+    if (!crewId) return res.status(400).json({ error: "MISSING_CREW_ID" });
+    try {
+      const actorMember = await getCrewMemberForActor(crewId, req.user.uid);
+      if (!actorMember || actorMember.status !== 'active') return res.status(403).json({ error: "CREW_MEMBER_REQUIRED" });
+      const [crewSnap, membersSnap, invitesSnap, requestsSnap] = await Promise.all([
+        dbAdmin.collection('crews').doc(crewId).get(),
+        dbAdmin.collection('crews').doc(crewId).collection('members').get(),
+        dbAdmin.collection('crewInvites').where('crewId', '==', crewId).where('status', '==', 'pending').limit(50).get(),
+        dbAdmin.collection('crewJoinRequests').where('crewId', '==', crewId).where('status', '==', 'pending').limit(50).get()
+      ]);
+      const crew = crewSnap.exists ? { id: crewSnap.id, ...crewSnap.data() } as any : null;
+      res.json({
+        crew,
+        viewerMembership: actorMember,
+        permissions: {
+          canInvite: canInviteToCrew(actorMember, crew),
+          canApproveRequests: canApproveJoinRequest(actorMember),
+          canPromoteCaptains: actorMember.role === 'founder',
+          canRemoveMembers: actorMember.role === 'founder' || actorMember.role === 'captain',
+        },
+        members: membersSnap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })),
+        pendingInvites: invitesSnap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data(), token: undefined })),
+        pendingRequests: requestsSnap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })),
+      });
+    } catch (error: any) {
+      console.error("[CREW_MEMBERS] Failed:", error);
+      res.status(500).json({ error: "CREW_MEMBERS_FAILED", message: error.message || String(error) });
+    }
+  });
+
+  app.get("/api/crew/search-users", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const crewId = String(req.query.crewId || '').trim();
+    const q = String(req.query.q || '').trim().toLowerCase();
+    if (!crewId || q.length < 2) return res.json({ users: [] });
+    try {
+      const actorMember = await getCrewMemberForActor(crewId, req.user.uid);
+      const crewSnap = await dbAdmin.collection('crews').doc(crewId).get();
+      const crew = crewSnap.exists ? { id: crewSnap.id, ...crewSnap.data() } as any : null;
+      if (!canInviteToCrew(actorMember, crew)) return res.status(403).json({ error: "CREW_INVITE_FORBIDDEN" });
+
+      const usersSnap = await dbAdmin.collection('users').limit(500).get();
+      const pendingInvitesSnap = await dbAdmin.collection('crewInvites').where('crewId', '==', crewId).where('status', '==', 'pending').get();
+      const pendingInvitees = new Set(pendingInvitesSnap.docs.map(d => d.data().inviteeUserId).filter(Boolean));
+      const crewMembers = new Set(Array.isArray(crew?.members) ? crew.members : []);
+      const users = usersSnap.docs
+        .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any))
+        .filter(userDoc => {
+          const haystack = `${userDoc.name || ''} ${userDoc.displayName || ''} ${userDoc.username || ''} ${userDoc.email || ''}`.toLowerCase();
+          if (!haystack.includes(q)) return false;
+          if (userDoc.id === req.user.uid) return false;
+          if (crewMembers.has(userDoc.id)) return false;
+          if (userDoc.activeCrewId || userDoc.crewId) return false;
+          if (pendingInvitees.has(userDoc.id)) return false;
+          const cooldownMs = userDoc.crewCooldownUntil?.toMillis?.() || 0;
+          if (cooldownMs > Date.now()) return false;
+          return true;
+        })
+        .slice(0, 12)
+        .map(userDoc => ({
+          userId: userDoc.id,
+          displayName: userDoc.name || userDoc.displayName || userDoc.username || 'Field Agent',
+          username: userDoc.username || null,
+          avatar: userDoc.avatar || userDoc.avatarUrl || null,
+        }));
+      res.json({ users });
+    } catch (error: any) {
+      console.error("[CREW_SEARCH_USERS] Failed:", error);
+      res.status(500).json({ error: "CREW_SEARCH_FAILED", message: error.message || String(error) });
+    }
+  });
+
+  app.get("/api/crew/invites/incoming", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const { uid } = req.user;
+    try {
+      const snap = await dbAdmin.collection('crewInvites')
+        .where('inviteeUserId', '==', uid)
+        .where('status', '==', 'pending')
+        .limit(50)
+        .get();
+      const invites = await Promise.all(snap.docs.map(async docSnap => {
+        const invite = docSnap.data();
+        const status = normalizeInviteStatus(invite.status, invite.expiresAt);
+        const crewSnap = await dbAdmin!.collection('crews').doc(invite.crewId).get();
+        return {
+          id: docSnap.id,
+          ...invite,
+          status,
+          token: undefined,
+          crew: crewSnap.exists ? getCrewPublicPreview(crewSnap) : null,
+        };
+      }));
+      res.json({ invites });
+    } catch (error: any) {
+      console.error("[CREW_INCOMING_INVITES] Failed:", error);
+      res.status(500).json({ error: "CREW_INCOMING_INVITES_FAILED", message: error.message || String(error) });
+    }
+  });
+
+  app.post("/api/crew/invites/direct", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const { uid } = req.user;
+    const crewId = String(req.body.crewId || '').trim();
+    const inviteeUserId = String(req.body.inviteeUserId || '').trim();
+    if (!crewId || !inviteeUserId) return res.status(400).json({ error: "MISSING_CREW_OR_INVITEE" });
+
+    try {
+      const inviteId = `${crewId}_${inviteeUserId}`;
+      const crewRef = dbAdmin.collection('crews').doc(crewId);
+      const inviteeRef = dbAdmin.collection('users').doc(inviteeUserId);
+      const inviteRef = dbAdmin.collection('crewInvites').doc(inviteId);
+      const result = await dbAdmin.runTransaction(async transaction => {
+        const [crewSnap, actorMemberSnap, inviteeSnap, inviteSnap, removedMemberSnap] = await Promise.all([
+          transaction.get(crewRef),
+          transaction.get(crewRef.collection('members').doc(uid)),
+          transaction.get(inviteeRef),
+          transaction.get(inviteRef),
+          transaction.get(crewRef.collection('members').doc(inviteeUserId)),
+        ]);
+        const crew = crewSnap.exists ? { id: crewSnap.id, ...crewSnap.data() } as any : null;
+        const actorMember = actorMemberSnap.exists ? { userId: uid, ...actorMemberSnap.data() } as any : null;
+        if (!canInviteToCrew(actorMember, crew)) throw new Error("CREW_INVITE_FORBIDDEN");
+        if (!inviteeSnap.exists) throw new Error("INVITEE_NOT_FOUND");
+        const inviteeProfile = inviteeSnap.data() as any;
+        const blockReason = getCrewJoinBlockReason({
+          profile: inviteeProfile,
+          crew,
+          existingMember: removedMemberSnap.exists ? { userId: inviteeUserId, ...removedMemberSnap.data() } as any : null
+        });
+        if (blockReason && blockReason !== 'REMOVED_MEMBER_REQUIRES_REINVITE') throw new Error(blockReason);
+        if (inviteSnap.exists && normalizeInviteStatus(inviteSnap.data()?.status, inviteSnap.data()?.expiresAt) === 'pending') {
+          throw new Error("INVITE_ALREADY_PENDING");
+        }
+        const inviteDoc = {
+          crewId,
+          inviterId: uid,
+          inviteeUserId,
+          type: 'direct',
+          token: makeCrewToken(),
+          status: 'pending',
+          inviteeSnapshot: getProfileSnapshot(inviteeProfile, inviteeUserId),
+          expiresAt: Timestamp.fromDate(addDays(new Date(), CREW_INVITE_EXPIRY_DAYS)),
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+          acceptedAt: null,
+          declinedAt: null,
+          revokedAt: null,
+        };
+        transaction.set(inviteRef, inviteDoc, { merge: true });
+        return { id: inviteId, ...inviteDoc, token: undefined };
+      });
+      await dbAdmin.collection('crewAuditLogs').add({ actorId: uid, crewId, action: 'create_direct_invite', inviteId, inviteeUserId, createdAt: FieldValue.serverTimestamp() });
+      res.json({ invite: result });
+    } catch (error: any) {
+      const message = error.message || String(error);
+      const status = ['CREW_INVITE_FORBIDDEN'].includes(message) ? 403 : ['INVITE_ALREADY_PENDING', 'ALREADY_IN_ANOTHER_CREW', 'CREW_SWITCH_COOLDOWN_ACTIVE', 'CREW_AT_CAPACITY'].includes(message) ? 409 : 400;
+      console.error("[CREW_DIRECT_INVITE] Failed:", error);
+      res.status(status).json({ error: message, message });
+    }
+  });
+
+  app.post("/api/crew/invites/link", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const { uid } = req.user;
+    const crewId = String(req.body.crewId || '').trim();
+    if (!crewId) return res.status(400).json({ error: "MISSING_CREW_ID" });
+    try {
+      const crewSnap = await dbAdmin.collection('crews').doc(crewId).get();
+      const crew = crewSnap.exists ? { id: crewSnap.id, ...crewSnap.data() } as any : null;
+      const actorMember = await getCrewMemberForActor(crewId, uid);
+      if (!canInviteToCrew(actorMember, crew)) return res.status(403).json({ error: "CREW_INVITE_LINK_FORBIDDEN" });
+      const existingSnap = await dbAdmin.collection('crewInvites')
+        .where('crewId', '==', crewId)
+        .where('type', '==', 'share_link')
+        .where('status', '==', 'pending')
+        .limit(1)
+        .get();
+      const active = existingSnap.docs.find(docSnap => normalizeInviteStatus(docSnap.data().status, docSnap.data().expiresAt) === 'pending');
+      if (active) {
+        const data = active.data();
+        return res.json({ invite: { id: active.id, ...data }, inviteUrl: `/crew/invite/${data.token}` });
+      }
+      const token = makeCrewToken();
+      const inviteRef = dbAdmin.collection('crewInvites').doc(`share_${crewId}_${crypto.randomBytes(4).toString('hex')}`);
+      const inviteDoc = {
+        crewId,
+        inviterId: uid,
+        inviteeUserId: null,
+        type: 'share_link',
+        token,
+        status: 'pending',
+        expiresAt: Timestamp.fromDate(addDays(new Date(), CREW_INVITE_EXPIRY_DAYS)),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        acceptedAt: null,
+        declinedAt: null,
+        revokedAt: null,
+      };
+      await inviteRef.set(inviteDoc);
+      await dbAdmin.collection('crewAuditLogs').add({ actorId: uid, crewId, action: 'create_share_invite', inviteId: inviteRef.id, createdAt: FieldValue.serverTimestamp() });
+      res.json({ invite: { id: inviteRef.id, ...inviteDoc }, inviteUrl: `/crew/invite/${token}` });
+    } catch (error: any) {
+      console.error("[CREW_INVITE_LINK] Failed:", error);
+      res.status(500).json({ error: "CREW_INVITE_LINK_FAILED", message: error.message || String(error) });
+    }
+  });
+
+  app.post("/api/crew/invites/:inviteId/revoke", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const inviteId = req.params.inviteId;
+    try {
+      const inviteRef = dbAdmin.collection('crewInvites').doc(inviteId);
+      const inviteSnap = await inviteRef.get();
+      if (!inviteSnap.exists) return res.status(404).json({ error: "INVITE_NOT_FOUND" });
+      const invite = inviteSnap.data() || {};
+      const actorMember = await getCrewMemberForActor(invite.crewId, req.user.uid);
+      const crewSnap = await dbAdmin.collection('crews').doc(invite.crewId).get();
+      const crew = crewSnap.exists ? { id: crewSnap.id, ...crewSnap.data() } as any : null;
+      if (!canInviteToCrew(actorMember, crew)) return res.status(403).json({ error: "CREW_INVITE_REVOKE_FORBIDDEN" });
+      await inviteRef.set({ status: 'revoked', revokedAt: FieldValue.serverTimestamp(), revokedBy: req.user.uid, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      await dbAdmin.collection('crewAuditLogs').add({ actorId: req.user.uid, crewId: invite.crewId, action: 'revoke_invite', inviteId, createdAt: FieldValue.serverTimestamp() });
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[CREW_REVOKE_INVITE] Failed:", error);
+      res.status(500).json({ error: "CREW_REVOKE_INVITE_FAILED", message: error.message || String(error) });
+    }
+  });
+
+  app.post("/api/crew/invites/:inviteId/accept", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const { uid } = req.user;
+    const inviteId = req.params.inviteId;
+    try {
+      const result = await dbAdmin.runTransaction(async transaction => {
+        const inviteRef = dbAdmin!.collection('crewInvites').doc(inviteId);
+        const inviteSnap = await transaction.get(inviteRef);
+        if (!inviteSnap.exists) throw new Error("INVITE_NOT_FOUND");
+        const invite = inviteSnap.data() || {};
+        if (invite.inviteeUserId !== uid) throw new Error("INVITE_NOT_FOR_USER");
+        if (normalizeInviteStatus(invite.status, invite.expiresAt) !== 'pending') throw new Error("INVITE_NOT_PENDING");
+        const crewRef = dbAdmin!.collection('crews').doc(invite.crewId);
+        const userRef = dbAdmin!.collection('users').doc(uid);
+        const eligible = await getCrewJoinEligibilityInTransaction(transaction, crewRef, userRef, uid);
+        if (eligible.blockReason && eligible.blockReason !== 'REMOVED_MEMBER_REQUIRES_REINVITE') throw new Error(eligible.blockReason);
+        setCrewMembershipInTransaction(transaction, { crewRef, userRef, uid, profile: eligible.profile, role: 'member' });
+        transaction.set(inviteRef, { status: 'accepted', acceptedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+        return { crewId: invite.crewId };
+      });
+      await dbAdmin.collection('crewAuditLogs').add({ actorId: uid, crewId: result.crewId, action: 'accept_invite', inviteId, createdAt: FieldValue.serverTimestamp() });
+      res.json({ success: true, crewId: result.crewId });
+    } catch (error: any) {
+      const message = error.message || String(error);
+      const status = ['INVITE_NOT_FOR_USER'].includes(message) ? 403 : ['INVITE_NOT_PENDING', 'ALREADY_IN_ANOTHER_CREW', 'CREW_SWITCH_COOLDOWN_ACTIVE', 'CREW_AT_CAPACITY'].includes(message) ? 409 : 400;
+      console.error("[CREW_ACCEPT_INVITE] Failed:", error);
+      res.status(status).json({ error: message, message });
+    }
+  });
+
+  app.post("/api/crew/invites/:inviteId/decline", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const inviteRef = dbAdmin.collection('crewInvites').doc(req.params.inviteId);
+    const inviteSnap = await inviteRef.get();
+    if (!inviteSnap.exists) return res.status(404).json({ error: "INVITE_NOT_FOUND" });
+    const invite = inviteSnap.data() || {};
+    if (invite.inviteeUserId !== req.user.uid) return res.status(403).json({ error: "INVITE_NOT_FOR_USER" });
+    if (normalizeInviteStatus(invite.status, invite.expiresAt) !== 'pending') return res.status(409).json({ error: "INVITE_NOT_PENDING" });
+    await inviteRef.set({ status: 'declined', declinedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    res.json({ success: true });
+  });
+
+  app.get("/api/crew/invite-token/:token", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const token = String(req.params.token || '').trim();
+    try {
+      const snap = await dbAdmin.collection('crewInvites').where('token', '==', token).limit(1).get();
+      if (snap.empty) return res.status(404).json({ valid: false, error: "INVITE_NOT_FOUND" });
+      const inviteDoc = snap.docs[0];
+      const invite = inviteDoc.data();
+      const status = normalizeInviteStatus(invite.status, invite.expiresAt);
+      if (status !== 'pending') return res.status(409).json({ valid: false, error: `INVITE_${status.toUpperCase()}` });
+      const crewSnap = await dbAdmin.collection('crews').doc(invite.crewId).get();
+      if (!crewSnap.exists || crewSnap.data()?.status !== 'active') return res.status(404).json({ valid: false, error: "CREW_NOT_ACTIVE" });
+      const userSnap = await dbAdmin.collection('users').doc(req.user.uid).get();
+      const profile = userSnap.data() || {};
+      res.json({
+        valid: true,
+        invite: { id: inviteDoc.id, type: invite.type, expiresAt: invite.expiresAt },
+        crew: getCrewPublicPreview(crewSnap),
+        viewer: { activeCrewId: profile.activeCrewId || profile.crewId || null }
+      });
+    } catch (error: any) {
+      console.error("[CREW_INVITE_TOKEN] Failed:", error);
+      res.status(500).json({ valid: false, error: "INVITE_TOKEN_LOOKUP_FAILED", message: error.message || String(error) });
+    }
+  });
+
+  app.post("/api/crew/invite-token/:token/join", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const { uid } = req.user;
+    const token = String(req.params.token || '').trim();
+    try {
+      const snap = await dbAdmin.collection('crewInvites').where('token', '==', token).limit(1).get();
+      if (snap.empty) return res.status(404).json({ error: "INVITE_NOT_FOUND" });
+      const inviteDoc = snap.docs[0];
+      const invite = inviteDoc.data();
+      if (invite.type !== 'share_link') return res.status(400).json({ error: "NOT_SHARE_LINK" });
+      if (normalizeInviteStatus(invite.status, invite.expiresAt) !== 'pending') return res.status(409).json({ error: "INVITE_NOT_PENDING" });
+      const crewSnap = await dbAdmin.collection('crews').doc(invite.crewId).get();
+      const crew = crewSnap.exists ? { id: crewSnap.id, ...crewSnap.data() } as any : null;
+      if (!crew || crew.status !== 'active') return res.status(404).json({ error: "CREW_NOT_ACTIVE" });
+      if (crew.privacy === 'discoverable' && crew.autoApproveShareLinks === true) {
+        const result = await dbAdmin.runTransaction(async transaction => {
+          const crewRef = dbAdmin!.collection('crews').doc(invite.crewId);
+          const userRef = dbAdmin!.collection('users').doc(uid);
+          const eligible = await getCrewJoinEligibilityInTransaction(transaction, crewRef, userRef, uid);
+          if (eligible.blockReason && eligible.blockReason !== 'REMOVED_MEMBER_REQUIRES_REINVITE') throw new Error(eligible.blockReason);
+          setCrewMembershipInTransaction(transaction, { crewRef, userRef, uid, profile: eligible.profile, role: 'member' });
+          return { crewId: invite.crewId, joined: true };
+        });
+        return res.json(result);
+      }
+      const requestId = `${invite.crewId}_${uid}`;
+      const requestRef = dbAdmin.collection('crewJoinRequests').doc(requestId);
+      const requestSnap = await requestRef.get();
+      if (requestSnap.exists && requestSnap.data()?.status === 'pending') return res.status(409).json({ error: "JOIN_REQUEST_ALREADY_PENDING" });
+      const userSnap = await dbAdmin.collection('users').doc(uid).get();
+      const blockReason = getCrewJoinBlockReason({ profile: userSnap.data() as any, crew, existingMember: null });
+      if (blockReason && blockReason !== 'REMOVED_MEMBER_REQUIRES_REINVITE') return res.status(409).json({ error: blockReason });
+      await requestRef.set({
+        crewId: invite.crewId,
+        userId: uid,
+        sourceInviteId: inviteDoc.id,
+        status: 'pending',
+        applicantSnapshot: getProfileSnapshot(userSnap.data(), uid),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        resolvedAt: null,
+        resolvedBy: null,
+      }, { merge: true });
+      res.json({ success: true, requested: true, requestId });
+    } catch (error: any) {
+      console.error("[CREW_SHARE_JOIN] Failed:", error);
+      res.status(500).json({ error: error.message || "CREW_SHARE_JOIN_FAILED", message: error.message || String(error) });
+    }
+  });
+
+  app.post("/api/crew/join-requests", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const { uid } = req.user;
+    const crewId = String(req.body.crewId || '').trim();
+    if (!crewId) return res.status(400).json({ error: "MISSING_CREW_ID" });
+    try {
+      const crewSnap = await dbAdmin.collection('crews').doc(crewId).get();
+      const crew = crewSnap.exists ? { id: crewSnap.id, ...crewSnap.data() } as any : null;
+      if (!crew || crew.status !== 'active') return res.status(404).json({ error: "CREW_NOT_ACTIVE" });
+      if (crew.privacy === 'invite_only') return res.status(403).json({ error: "CREW_INVITE_ONLY" });
+      const requestId = `${crewId}_${uid}`;
+      const requestRef = dbAdmin.collection('crewJoinRequests').doc(requestId);
+      const result = await dbAdmin.runTransaction(async transaction => {
+        const crewRef = dbAdmin!.collection('crews').doc(crewId);
+        const userRef = dbAdmin!.collection('users').doc(uid);
+        const [requestSnap, eligible] = await Promise.all([
+          transaction.get(requestRef),
+          getCrewJoinEligibilityInTransaction(transaction, crewRef, userRef, uid)
+        ]);
+        if (eligible.blockReason && eligible.blockReason !== 'REMOVED_MEMBER_REQUIRES_REINVITE') throw new Error(eligible.blockReason);
+        if (requestSnap.exists && requestSnap.data()?.status === 'pending') throw new Error("JOIN_REQUEST_ALREADY_PENDING");
+        transaction.set(requestRef, {
+          crewId,
+          userId: uid,
+          status: 'pending',
+          applicantSnapshot: getProfileSnapshot(eligible.profile, uid),
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+          resolvedAt: null,
+          resolvedBy: null,
+        }, { merge: true });
+        return { requestId };
+      });
+      res.json({ success: true, requestId: result.requestId });
+    } catch (error: any) {
+      const message = error.message || String(error);
+      const status = ['JOIN_REQUEST_ALREADY_PENDING', 'ALREADY_IN_ANOTHER_CREW', 'CREW_SWITCH_COOLDOWN_ACTIVE', 'CREW_AT_CAPACITY'].includes(message) ? 409 : 400;
+      console.error("[CREW_REQUEST_JOIN] Failed:", error);
+      res.status(status).json({ error: message, message });
+    }
+  });
+
+  app.post("/api/crew/join-requests/:requestId/cancel", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const requestRef = dbAdmin.collection('crewJoinRequests').doc(req.params.requestId);
+    const requestSnap = await requestRef.get();
+    if (!requestSnap.exists) return res.status(404).json({ error: "JOIN_REQUEST_NOT_FOUND" });
+    const data = requestSnap.data() || {};
+    if (data.userId !== req.user.uid) return res.status(403).json({ error: "JOIN_REQUEST_NOT_OWNED" });
+    if (data.status !== 'pending') return res.status(409).json({ error: "JOIN_REQUEST_NOT_PENDING" });
+    await requestRef.set({ status: 'cancelled', resolvedAt: FieldValue.serverTimestamp(), resolvedBy: req.user.uid, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    res.json({ success: true });
+  });
+
+  app.post("/api/crew/join-requests/:requestId/:action", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const { uid } = req.user;
+    const { requestId, action } = req.params;
+    if (!['approve', 'decline'].includes(action)) return res.status(400).json({ error: "INVALID_JOIN_REQUEST_ACTION" });
+    try {
+      const result = await dbAdmin.runTransaction(async transaction => {
+        const requestRef = dbAdmin!.collection('crewJoinRequests').doc(requestId);
+        const requestSnap = await transaction.get(requestRef);
+        if (!requestSnap.exists) throw new Error("JOIN_REQUEST_NOT_FOUND");
+        const request = requestSnap.data() || {};
+        if (request.status !== 'pending') throw new Error("JOIN_REQUEST_NOT_PENDING");
+        const crewRef = dbAdmin!.collection('crews').doc(request.crewId);
+        const actorMemberSnap = await transaction.get(crewRef.collection('members').doc(uid));
+        const actorMember = actorMemberSnap.exists ? { userId: uid, ...actorMemberSnap.data() } as any : null;
+        if (!canApproveJoinRequest(actorMember)) throw new Error("JOIN_REQUEST_REVIEW_FORBIDDEN");
+        if (action === 'decline') {
+          transaction.set(requestRef, { status: 'declined', resolvedAt: FieldValue.serverTimestamp(), resolvedBy: uid, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+          return { crewId: request.crewId, approved: false };
+        }
+        const userRef = dbAdmin!.collection('users').doc(request.userId);
+        const eligible = await getCrewJoinEligibilityInTransaction(transaction, crewRef, userRef, request.userId);
+        if (eligible.blockReason && eligible.blockReason !== 'REMOVED_MEMBER_REQUIRES_REINVITE') throw new Error(eligible.blockReason);
+        setCrewMembershipInTransaction(transaction, { crewRef, userRef, uid: request.userId, profile: eligible.profile, role: 'member' });
+        transaction.set(requestRef, { status: 'approved', resolvedAt: FieldValue.serverTimestamp(), resolvedBy: uid, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+        return { crewId: request.crewId, approved: true };
+      });
+      await dbAdmin.collection('crewAuditLogs').add({ actorId: uid, crewId: result.crewId, action: result.approved ? 'approve_join_request' : 'decline_join_request', requestId, createdAt: FieldValue.serverTimestamp() });
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      const message = error.message || String(error);
+      const status = message === 'JOIN_REQUEST_REVIEW_FORBIDDEN' ? 403 : ['JOIN_REQUEST_NOT_PENDING', 'ALREADY_IN_ANOTHER_CREW', 'CREW_AT_CAPACITY'].includes(message) ? 409 : 400;
+      console.error("[CREW_REVIEW_JOIN_REQUEST] Failed:", error);
+      res.status(status).json({ error: message, message });
+    }
+  });
+
+  app.post("/api/crew/members/:targetUserId/:action", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const { uid } = req.user;
+    const crewId = String(req.body.crewId || '').trim();
+    const targetUserId = String(req.params.targetUserId || '').trim();
+    const action = String(req.params.action || '').trim();
+    if (!crewId || !targetUserId) return res.status(400).json({ error: "MISSING_CREW_OR_TARGET" });
+    if (!['promote-captain', 'remove-captain', 'remove-member'].includes(action)) return res.status(400).json({ error: "INVALID_MEMBER_ACTION" });
+    try {
+      const result = await dbAdmin.runTransaction(async transaction => {
+        const crewRef = dbAdmin!.collection('crews').doc(crewId);
+        const actorRef = crewRef.collection('members').doc(uid);
+        const targetRef = crewRef.collection('members').doc(targetUserId);
+        const targetUserRef = dbAdmin!.collection('users').doc(targetUserId);
+        const [crewSnap, actorSnap, targetSnap, targetUserSnap] = await Promise.all([
+          transaction.get(crewRef),
+          transaction.get(actorRef),
+          transaction.get(targetRef),
+          transaction.get(targetUserRef),
+        ]);
+        if (!crewSnap.exists || !targetSnap.exists) throw new Error("CREW_MEMBER_NOT_FOUND");
+        const crew = { id: crewSnap.id, ...crewSnap.data() } as any;
+        const actor = actorSnap.exists ? { userId: uid, ...actorSnap.data() } as any : null;
+        const target = { userId: targetUserId, ...targetSnap.data() } as any;
+
+        if (action === 'promote-captain') {
+          if (!canPromoteCrewMember(actor, target)) throw new Error("PROMOTE_CAPTAIN_FORBIDDEN");
+          transaction.set(targetRef, { role: 'captain', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+          transaction.set(crewRef, { captainIds: FieldValue.arrayUnion(targetUserId), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+          transaction.set(targetUserRef, { crewRole: 'captain', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+        } else if (action === 'remove-captain') {
+          if (!canRemoveCrewCaptainRole(actor, target)) throw new Error("REMOVE_CAPTAIN_FORBIDDEN");
+          transaction.set(targetRef, { role: 'member', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+          transaction.set(crewRef, { captainIds: FieldValue.arrayRemove(targetUserId), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+          transaction.set(targetUserRef, { crewRole: 'member', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+        } else {
+          if (!canRemoveCrewMember(actor, target)) throw new Error("REMOVE_MEMBER_FORBIDDEN");
+          const nextCrewUpdate: any = {
+            members: FieldValue.arrayRemove(targetUserId),
+            memberCount: Math.max(0, Number(crew.memberCount || crew.members?.length || 1) - 1),
+            captainIds: target.role === 'captain' ? FieldValue.arrayRemove(targetUserId) : crew.captainIds || [],
+            updatedAt: FieldValue.serverTimestamp(),
+          };
+          transaction.set(targetRef, {
+            status: 'removed',
+            removedAt: FieldValue.serverTimestamp(),
+            removedBy: uid,
+            updatedAt: FieldValue.serverTimestamp(),
+          }, { merge: true });
+          transaction.set(crewRef, nextCrewUpdate, { merge: true });
+          const targetProfile = targetUserSnap.data() || {};
+          if ((targetProfile.activeCrewId || targetProfile.crewId) === crewId) {
+            transaction.set(targetUserRef, {
+              activeCrewId: FieldValue.delete(),
+              crewId: FieldValue.delete(),
+              crewRole: FieldValue.delete(),
+              crewCooldownUntil: Timestamp.fromDate(addDays(new Date(), CREW_SWITCH_COOLDOWN_DAYS)),
+              updatedAt: FieldValue.serverTimestamp(),
+            }, { merge: true });
+          }
+        }
+        return { crewId, targetUserId, action };
+      });
+      await dbAdmin.collection('crewAuditLogs').add({ actorId: uid, ...result, createdAt: FieldValue.serverTimestamp() });
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      const message = error.message || String(error);
+      const status = message.endsWith('_FORBIDDEN') ? 403 : 400;
+      console.error("[CREW_MEMBER_ACTION] Failed:", error);
+      res.status(status).json({ error: message, message });
     }
   });
 

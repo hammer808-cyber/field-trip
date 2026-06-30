@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { authenticatedFetch } from '../lib/api';
-import { Crew, CrewLore, CrewDispatch, CrewMembershipState } from '../types/crew';
+import { Crew, CrewLore, CrewDispatch, CrewInvite, CrewJoinRequest, CrewMembershipState, CrewRosterState } from '../types/crew';
 import { Entry } from '../constants';
 import type { CrewMode, CrewPrivacy } from '../logic/crewSystem';
 
@@ -54,6 +54,112 @@ export async function leaveCrew(reason = 'User left Crew.'): Promise<{ success: 
     body: JSON.stringify({ reason })
   });
   return readCrewResponse<{ success: boolean; cooldownUntil: any }>(response, `Crew leave failed with HTTP ${response.status}`);
+}
+
+export async function getCrewMembers(crewId: string): Promise<CrewRosterState> {
+  const response = await authenticatedFetch(`/api/crew/members?crewId=${encodeURIComponent(crewId)}`);
+  return readCrewResponse<CrewRosterState>(response, `Crew roster failed with HTTP ${response.status}`);
+}
+
+export async function searchCrewInviteUsers(crewId: string, q: string): Promise<Array<{ userId: string; displayName: string; username?: string | null; avatar?: any }>> {
+  const response = await authenticatedFetch(`/api/crew/search-users?crewId=${encodeURIComponent(crewId)}&q=${encodeURIComponent(q)}`);
+  const payload = await readCrewResponse<{ users: Array<{ userId: string; displayName: string; username?: string | null; avatar?: any }> }>(response, `Crew user search failed with HTTP ${response.status}`);
+  return payload.users;
+}
+
+export async function createDirectCrewInvite(crewId: string, inviteeUserId: string): Promise<CrewInvite> {
+  const response = await authenticatedFetch('/api/crew/invites/direct', {
+    method: 'POST',
+    body: JSON.stringify({ crewId, inviteeUserId })
+  });
+  const payload = await readCrewResponse<{ invite: CrewInvite }>(response, `Crew direct invite failed with HTTP ${response.status}`);
+  return payload.invite;
+}
+
+export async function generateCrewInviteLink(crewId: string): Promise<{ invite: CrewInvite; inviteUrl: string }> {
+  const response = await authenticatedFetch('/api/crew/invites/link', {
+    method: 'POST',
+    body: JSON.stringify({ crewId })
+  });
+  return readCrewResponse<{ invite: CrewInvite; inviteUrl: string }>(response, `Crew invite link failed with HTTP ${response.status}`);
+}
+
+export async function revokeCrewInviteLink(inviteId: string): Promise<void> {
+  const response = await authenticatedFetch(`/api/crew/invites/${encodeURIComponent(inviteId)}/revoke`, { method: 'POST' });
+  await readCrewResponse<{ success: boolean }>(response, `Crew invite revoke failed with HTTP ${response.status}`);
+}
+
+export async function getIncomingCrewInvites(): Promise<CrewInvite[]> {
+  const response = await authenticatedFetch('/api/crew/invites/incoming');
+  const payload = await readCrewResponse<{ invites: CrewInvite[] }>(response, `Incoming Crew invites failed with HTTP ${response.status}`);
+  return payload.invites;
+}
+
+export async function acceptCrewInvite(inviteId: string): Promise<{ success: boolean; crewId: string }> {
+  const response = await authenticatedFetch(`/api/crew/invites/${encodeURIComponent(inviteId)}/accept`, { method: 'POST' });
+  return readCrewResponse<{ success: boolean; crewId: string }>(response, `Crew invite accept failed with HTTP ${response.status}`);
+}
+
+export async function declineCrewInvite(inviteId: string): Promise<void> {
+  const response = await authenticatedFetch(`/api/crew/invites/${encodeURIComponent(inviteId)}/decline`, { method: 'POST' });
+  await readCrewResponse<{ success: boolean }>(response, `Crew invite decline failed with HTTP ${response.status}`);
+}
+
+export async function getCrewInviteByToken(token: string): Promise<any> {
+  const response = await authenticatedFetch(`/api/crew/invite-token/${encodeURIComponent(token)}`);
+  return readCrewResponse<any>(response, `Crew invite token lookup failed with HTTP ${response.status}`);
+}
+
+export async function joinCrewByInviteToken(token: string): Promise<any> {
+  const response = await authenticatedFetch(`/api/crew/invite-token/${encodeURIComponent(token)}/join`, { method: 'POST' });
+  return readCrewResponse<any>(response, `Crew invite join failed with HTTP ${response.status}`);
+}
+
+export async function requestToJoinCrew(crewId: string): Promise<{ success: boolean; requestId: string }> {
+  const response = await authenticatedFetch('/api/crew/join-requests', {
+    method: 'POST',
+    body: JSON.stringify({ crewId })
+  });
+  return readCrewResponse<{ success: boolean; requestId: string }>(response, `Crew join request failed with HTTP ${response.status}`);
+}
+
+export async function approveCrewJoinRequest(requestId: string): Promise<void> {
+  const response = await authenticatedFetch(`/api/crew/join-requests/${encodeURIComponent(requestId)}/approve`, { method: 'POST' });
+  await readCrewResponse<{ success: boolean }>(response, `Crew join request approve failed with HTTP ${response.status}`);
+}
+
+export async function declineCrewJoinRequest(requestId: string): Promise<void> {
+  const response = await authenticatedFetch(`/api/crew/join-requests/${encodeURIComponent(requestId)}/decline`, { method: 'POST' });
+  await readCrewResponse<{ success: boolean }>(response, `Crew join request decline failed with HTTP ${response.status}`);
+}
+
+export async function cancelCrewJoinRequest(requestId: string): Promise<void> {
+  const response = await authenticatedFetch(`/api/crew/join-requests/${encodeURIComponent(requestId)}/cancel`, { method: 'POST' });
+  await readCrewResponse<{ success: boolean }>(response, `Crew join request cancel failed with HTTP ${response.status}`);
+}
+
+export async function promoteCrewMemberToCaptain(crewId: string, targetUserId: string): Promise<void> {
+  const response = await authenticatedFetch(`/api/crew/members/${encodeURIComponent(targetUserId)}/promote-captain`, {
+    method: 'POST',
+    body: JSON.stringify({ crewId })
+  });
+  await readCrewResponse<{ success: boolean }>(response, `Crew promote captain failed with HTTP ${response.status}`);
+}
+
+export async function removeCrewCaptainRole(crewId: string, targetUserId: string): Promise<void> {
+  const response = await authenticatedFetch(`/api/crew/members/${encodeURIComponent(targetUserId)}/remove-captain`, {
+    method: 'POST',
+    body: JSON.stringify({ crewId })
+  });
+  await readCrewResponse<{ success: boolean }>(response, `Crew remove captain failed with HTTP ${response.status}`);
+}
+
+export async function removeCrewMember(crewId: string, targetUserId: string): Promise<void> {
+  const response = await authenticatedFetch(`/api/crew/members/${encodeURIComponent(targetUserId)}/remove-member`, {
+    method: 'POST',
+    body: JSON.stringify({ crewId })
+  });
+  await readCrewResponse<{ success: boolean }>(response, `Crew remove member failed with HTTP ${response.status}`);
 }
 
 export async function getCrew(crewId: string): Promise<Crew | null> {

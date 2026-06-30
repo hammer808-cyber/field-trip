@@ -4,8 +4,15 @@ import {
   CREW_SWITCH_COOLDOWN_DAYS,
   CREW_ZINE_PAGE_BLUEPRINT,
   addDays,
+  canApproveJoinRequest,
+  canInviteToCrew,
+  canPromoteCrewMember,
+  canRemoveCrewCaptainRole,
+  canRemoveCrewMember,
+  getCrewJoinBlockReason,
   hasCrewOnboardingAccess,
   isCrewArchiveEligible,
+  normalizeInviteStatus,
   normalizeCrewSlug,
 } from '../logic/crewSystem';
 
@@ -101,4 +108,43 @@ test('Crew switch cooldown is seven days and zine blueprint keeps the 16-page sh
 
 test('Crew slugs are normalized for stable server-created IDs', () => {
   assert.equal(normalizeCrewSlug(' The Parking Lot Legends!! '), 'the-parking-lot-legends');
+});
+
+test('Crew role permissions follow Founder, Captain, and Member rules', () => {
+  const crew = { id: 'crew-1', status: 'active' as const, allowMemberInvites: false };
+  const founder = { userId: 'founder', role: 'founder' as const, status: 'active' as const };
+  const captain = { userId: 'captain', role: 'captain' as const, status: 'active' as const };
+  const member = { userId: 'member', role: 'member' as const, status: 'active' as const };
+
+  assert.equal(canInviteToCrew(founder, crew), true);
+  assert.equal(canInviteToCrew(captain, crew), true);
+  assert.equal(canInviteToCrew(member, crew), false);
+  assert.equal(canInviteToCrew(member, { ...crew, allowMemberInvites: true }), true);
+  assert.equal(canApproveJoinRequest(captain), true);
+
+  assert.equal(canPromoteCrewMember(founder, member), true);
+  assert.equal(canPromoteCrewMember(captain, member), false);
+  assert.equal(canRemoveCrewCaptainRole(founder, captain), true);
+  assert.equal(canRemoveCrewCaptainRole(captain, captain), false);
+  assert.equal(canRemoveCrewMember(captain, founder), false);
+  assert.equal(canRemoveCrewMember(captain, member), true);
+  assert.equal(canRemoveCrewMember(captain, captain), false);
+  assert.equal(canRemoveCrewMember(founder, captain), true);
+  assert.equal(canRemoveCrewMember(member, captain), false);
+});
+
+test('Crew join eligibility blocks duplicate crews, capacity, cooldown, and archived crews', () => {
+  const crew = { id: 'crew-1', status: 'active' as const, memberCount: 2, memberLimit: 8 };
+  assert.equal(getCrewJoinBlockReason({ profile: { activeCrewId: 'crew-2' }, crew }), 'ALREADY_IN_ANOTHER_CREW');
+  assert.equal(getCrewJoinBlockReason({ profile: { activeCrewId: 'crew-1' }, crew }), 'ALREADY_IN_THIS_CREW');
+  assert.equal(getCrewJoinBlockReason({ profile: { crewCooldownUntil: { seconds: 2_000_000_000 } }, crew, now: new Date('2026-06-30T00:00:00Z') }), 'CREW_SWITCH_COOLDOWN_ACTIVE');
+  assert.equal(getCrewJoinBlockReason({ profile: {}, crew: { ...crew, memberCount: 8, memberLimit: 8 } }), 'CREW_AT_CAPACITY');
+  assert.equal(getCrewJoinBlockReason({ profile: {}, crew: { ...crew, status: 'archived' } }), 'CREW_NOT_ACTIVE');
+  assert.equal(getCrewJoinBlockReason({ profile: {}, crew }), null);
+});
+
+test('invite status normalizes expired links without allowing legacy values for new writes', () => {
+  assert.equal(normalizeInviteStatus('pending', { seconds: 1 }, new Date('2026-06-30T00:00:00Z')), 'expired');
+  assert.equal(normalizeInviteStatus('revoked', { seconds: 4_000_000_000 }), 'revoked');
+  assert.equal(normalizeInviteStatus('accepted', { seconds: 4_000_000_000 }), 'accepted');
 });
