@@ -19,7 +19,7 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { StickerDecal } from '../components/StickerDecals';
-import { Card, FieldBadge } from '../components/UI';
+import { FieldBadge } from '../components/UI';
 import { useTheme } from '../context/ThemeContext';
 import { getDeckPackById, getDefaultDeckPack, getActiveDeckPacks } from '../data/deckPacks';
 import { FieldPageHero } from '../components/FieldPageHero';
@@ -27,8 +27,10 @@ import { MissionCard } from '../components/ChallengeCard';
 import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
 import { markEarnedStickersSeen } from '../services/stickerService';
 import { canAccessFeature, getDeckProgress, getStarterProgress } from '../services/canonicalProgress';
+import { getCurrentCrewMembership } from '../services/crewService';
+import type { CrewMembershipState } from '../types/crew';
 
-type CollectionTab = 'stickers' | 'badges' | 'skins' | 'decks' | 'missions' | 'crew_memories';
+type CollectionTab = 'crew_home' | 'stickers' | 'badges' | 'decks' | 'missions' | 'crew_memories';
 
 export default function CollectionPage() {
   const { 
@@ -43,11 +45,13 @@ export default function CollectionPage() {
     drawnMissionCards,
     canonicalProgress
   } = useApp();
-  const { skin: currentSkin, allSkins, setSkin } = useTheme();
+  const { allSkins } = useTheme();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const initialTab = (searchParams.get('tab') as CollectionTab) || 'stickers';
+  const initialTabParam = searchParams.get('tab');
+  const initialTab = (initialTabParam === 'skins' ? 'crew_home' : (initialTabParam as CollectionTab)) || 'crew_home';
   const [activeTab, setActiveTab] = useState<CollectionTab>(initialTab);
+  const [crewMembership, setCrewMembership] = useState<CrewMembershipState | null>(null);
 
   const activePacks = getActiveDeckPacks();
   const starterProgress = getStarterProgress(canonicalProgress);
@@ -92,9 +96,18 @@ export default function CollectionPage() {
   }, []);
 
   useEffect(() => {
-    const tab = searchParams.get('tab') as CollectionTab | null;
-    if (tab) setActiveTab(tab);
+    const tabParam = searchParams.get('tab');
+    const tab = tabParam as CollectionTab | null;
+    if (tabParam === 'skins') setActiveTab('crew_home');
+    else if (tab) setActiveTab(tab);
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    getCurrentCrewMembership()
+      .then(setCrewMembership)
+      .catch(err => console.warn('[Collection] crew membership lookup failed:', err));
+  }, [user?.uid]);
 
   const handleTabChange = (id: CollectionTab) => {
     setActiveTab(id);
@@ -220,11 +233,11 @@ export default function CollectionPage() {
         infoCardAccent="orange"
         infoCardVariant="sticker"
         tabs={[
+          { id: 'crew_home', label: 'Crew Home' },
           { id: 'missions', label: 'Mission Cards' },
           { id: 'crew_memories', label: 'Crew Memories' },
           { id: 'stickers', label: 'Sticker Deck' },
           { id: 'badges', label: 'Medals' },
-          { id: 'skins', label: 'Personas' },
           { id: 'decks', label: 'Catalog' }
         ]}
         activeTab={activeTab}
@@ -234,6 +247,76 @@ export default function CollectionPage() {
       <main className="px-4 sm:px-10 py-10 max-w-6xl mx-auto min-h-[45vh] bg-white border-x-4 border-b-4 border-on-surface shadow-[10px_10px_0px_black] relative rounded-b-[2.5rem] z-10 -mt-1">
          <div className="absolute inset-0 bg-[radial-gradient(rgba(0,0,0,0.015)_1.5px,transparent_0)] bg-[size:16px_16px] pointer-events-none rounded-b-[2.5rem]" />
         <AnimatePresence mode="wait">
+          {activeTab === 'crew_home' && (
+            <motion.div
+              key="crew-home-tab"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              className="space-y-8"
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-8">
+                <section className="bg-[#FFFCEB] border-4 border-on-surface shadow-[8px_8px_0px_black] rounded-[2rem] p-8 space-y-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 bg-brand-lime border-4 border-on-surface shadow-[5px_5px_0px_black] rounded-2xl flex items-center justify-center">
+                      <Users className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <p className="font-mono text-[10px] uppercase tracking-widest opacity-50">Crew Home</p>
+                      <h2 className="font-display text-4xl font-black uppercase italic tracking-tight leading-none">
+                        {crewMembership?.crew?.name || 'No Crew Assigned'}
+                      </h2>
+                    </div>
+                  </div>
+
+                  {crewMembership?.crew ? (
+                    <div className="space-y-5">
+                      <p className="font-serif italic text-on-surface/70">
+                        "{crewMembership.crew.motto || 'Your field team, seasonal receipts, and zine trail live here.'}"
+                      </p>
+                      <div className="grid grid-cols-2 gap-3 font-mono text-[10px] uppercase">
+                        <div className="border-2 border-on-surface/20 bg-white p-3">
+                          <span className="opacity-50">Members</span><br />
+                          <b>{crewMembership.crew.memberCount || crewMembership.crew.members?.length || 0} / {crewMembership.crew.memberLimit || 8}</b>
+                        </div>
+                        <div className="border-2 border-on-surface/20 bg-white p-3">
+                          <span className="opacity-50">Role</span><br />
+                          <b>{crewMembership.membership?.role || 'member'}</b>
+                        </div>
+                        <div className="border-2 border-on-surface/20 bg-white p-3">
+                          <span className="opacity-50">Mode</span><br />
+                          <b>{crewMembership.crew.mode || 'friendly'}</b>
+                        </div>
+                        <div className="border-2 border-on-surface/20 bg-white p-3">
+                          <span className="opacity-50">Privacy</span><br />
+                          <b>{crewMembership.crew.privacy || 'invite_only'}</b>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-3">
+                        <button onClick={() => navigate('/crew')} className="bureau-btn bg-brand-lime text-on-surface text-xs">Open Crew HQ</button>
+                        <button onClick={() => setActiveTab('crew_memories')} className="bureau-btn bg-white text-on-surface text-xs">View Crew Memories</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-5">
+                      <p className="font-serif italic text-on-surface/70">
+                        "Start or join a Crew to collect shared field memories and build a seasonal zine."
+                      </p>
+                      <button onClick={() => navigate('/crew')} className="bureau-btn bg-brand-lime text-on-surface text-xs">Create or Join Crew</button>
+                    </div>
+                  )}
+                </section>
+
+                <section className="bg-white border-4 border-on-surface shadow-[8px_8px_0px_var(--color-brand-cyan)] rounded-[2rem] p-8 space-y-4">
+                  <p className="font-mono text-[10px] uppercase tracking-widest opacity-50">Quick Dex Links</p>
+                  <button onClick={() => setActiveTab('missions')} className="w-full bureau-btn bg-white text-on-surface text-xs justify-center">Mission Cards</button>
+                  <button onClick={() => setActiveTab('stickers')} className="w-full bureau-btn bg-white text-on-surface text-xs justify-center">Sticker Deck</button>
+                  <button onClick={() => navigate('/big-board?tab=proofs')} className="w-full bureau-btn bg-brand-orange text-white text-xs justify-center">Community Feed</button>
+                </section>
+              </div>
+            </motion.div>
+          )}
+
           {activeTab === 'missions' && (
             <motion.div 
               key="missions-tab"
@@ -362,87 +445,6 @@ export default function CollectionPage() {
               {badges.map(r => (
                 <RewardItem key={r.id} reward={r} isUnlocked={unlockedBadges.has(r.id)} />
               ))}
-            </motion.div>
-          )}
-
-          {activeTab === 'skins' && (
-            <motion.div 
-              key="skins-tab"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
-            >
-              {allSkins.map(item => {
-                const isUnlocked = unlockedSkins.has(item.id) || item.isDefault;
-                const isCurrent = currentSkin.id === item.id;
-                
-                return (
-                  <div 
-                    key={item.id}
-                    className={cn(
-                      "group p-6 rounded-[2.5rem] border-3 transition-all relative overflow-hidden flex flex-col gap-5",
-                      isUnlocked 
-                        ? (isCurrent ? "bg-white border-on-surface shadow-[8px_8px_0px_black] scale-[1.01]" : "bg-white border-on-surface/10 hover:border-on-surface/40 hover:shadow-md")
-                        : "bg-[#F5F2EC] border-on-surface/5 grayscale opacity-45 border-dashed"
-                    )}
-                  >
-                    <div className="flex items-center gap-4 relative z-10">
-                       <div 
-                         className="w-16 h-16 border-2 border-on-surface/15 rounded-[1.5rem] flex items-center justify-center shrink-0 group-hover:rotate-2 transition-transform relative overflow-hidden shadow-inner"
-                         style={{ backgroundColor: item.themeTokens.backgroundColor }}
-                       >
-                          {item.assets.backgroundTexture && (
-                            <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: item.assets.backgroundTexture }} />
-                          )}
-                          <div 
-                            className="w-10 h-10 rounded-full border-2 border-white/50 shadow-md" 
-                            style={{ backgroundColor: item.themeTokens.primaryColor }}
-                          />
-                       </div>
-                       <div className="min-w-0 text-left">
-                          <h4 className="text-xl sm:text-2xl font-display font-black uppercase italic tracking-tight truncate leading-none text-on-surface">
-                            {item.name}
-                          </h4>
-                          <div className="flex items-center gap-1.5 mt-1">
-                             <div className="w-1.5 h-1.5 rounded-full bg-brand-orange" />
-                             <span className="text-[9px] font-mono font-black uppercase text-on-surface/40">
-                                {item.rarity} Look
-                             </span>
-                          </div>
-                       </div>
-                    </div>
-
-                    <p className="text-xs sm:text-sm font-serif italic text-on-surface/60 line-clamp-3 leading-relaxed text-left">
-                      "{item.description}"
-                    </p>
-
-                    <div className="mt-auto pt-4 border-t border-on-surface/5 flex items-center justify-between">
-                       {isUnlocked && !isCurrent ? (
-                         <button
-                           onClick={() => setSkin(item.id)}
-                           className="text-[10px] font-black uppercase tracking-widest bg-on-surface text-white px-5 py-2.5 rounded-xl shadow-[3px_3px_0px_rgba(0,0,0,0.15)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 transition-all"
-                         >
-                           Equip Theme
-                         </button>
-                       ) : isCurrent ? (
-                         <FieldBadge variant="sticker" color="lime" rotation={0} size="sm" className="px-3 py-1 shadow-none leading-none">ACTIVE_THEME</FieldBadge>
-                       ) : (
-                         <div className="text-[9px] font-mono font-black uppercase tracking-wider text-on-surface/30 flex items-center gap-1.5 italic">
-                           <Lock className="w-3.5 h-3.5 opacity-55" />
-                           Unavailable
-                         </div>
-                       )}
-                       
-                       <div className="flex gap-1">
-                          {item.previewColors?.slice(0, 3).map((color, i) => (
-                            <div key={i} className="w-3.5 h-3.5 rounded-full border border-on-surface/10 shadow-xs" style={{ backgroundColor: color }} />
-                          ))}
-                       </div>
-                    </div>
-                  </div>
-                );
-              })}
             </motion.div>
           )}
 

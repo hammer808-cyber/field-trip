@@ -1505,7 +1505,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           ? "Starter Pack complete! Summer Deck is now live."
           : "Starter Pack complete! Summer Deck opens Saturday.",
         rewardText: isSeasonStarted ? "CHOOSE SUMMER DECK" : "CHECK COUNTDOWN",
-        redirectPath: '/deck',
+        redirectPath: isSeasonStarted ? '/deck?pack=heatwave-receipts&intro=ack' : '/deck?intro=ack',
         iconName: 'Zap'
       });
       setStarterRewardShown(true);

@@ -10,10 +10,13 @@ const bottomNavSource = readFileSync('src/components/BottomNav.tsx', 'utf8');
 const basecampSource = readFileSync('src/pages/Basecamp.tsx', 'utf8');
 const submittedSource = readFileSync('src/pages/MissionSubmitted.tsx', 'utf8');
 const deckSource = readFileSync('src/pages/Deck.tsx', 'utf8');
+const appContextSource = readFileSync('src/context/AppContext.tsx', 'utf8');
+const rewardFeedbackSource = readFileSync('src/components/RewardFeedback.tsx', 'utf8');
+const collectionSource = readFileSync('src/pages/Collection.tsx', 'utf8');
 
 test('unlocked crew and memories have stable route targets', () => {
   assert.match(appSource, /<Route path="\/crew" element=\{<StarterGate requiredFeature="crew"><Crew \/><\/StarterGate>\}/);
-  assert.match(appSource, /<Route path="\/memories" element=\{<StarterGate requiredFeature="memories"><Navigate to="\/collection\?tab=crew_memories" replace \/><\/StarterGate>\}/);
+  assert.match(appSource, /<Route path="\/memories" element=\{<StarterGate requiredFeature="memories"><Navigate to="\/collection\?tab=crew_home" replace \/><\/StarterGate>\}/);
   assert.match(appSource, /'\/memories'/);
 });
 
@@ -31,9 +34,17 @@ test('route guards use canonical progress backed by the shared Starter selector'
 });
 
 test('Memories entry points route to the canonical memories alias', () => {
-  assert.match(bottomNavSource, /label: 'MEMORIES', path: '\/memories'/);
+  assert.match(bottomNavSource, /label: 'THE DEX', path: '\/memories'/);
   assert.match(basecampSource, /navigate\('\/memories'\)/);
   assert.match(submittedSource, /navigate\('\/memories'\)/);
+});
+
+test('Dex opens on Crew Home and no longer exposes Personas as a tab', () => {
+  assert.match(collectionSource, /type CollectionTab = 'crew_home'/);
+  assert.match(collectionSource, /const initialTab = .* \|\| 'crew_home'/);
+  assert.match(collectionSource, /\{ id: 'crew_home', label: 'Crew Home' \}/);
+  assert.doesNotMatch(collectionSource, /label: 'Personas'/);
+  assert.doesNotMatch(collectionSource, /activeTab === 'skins'/);
 });
 
 test('Voting routes remain reachable from the primary nav', () => {
@@ -52,6 +63,10 @@ test('Starter completion intro cannot globally trap completed users away from Cr
   assert.match(deckSource, /deckChooserIntroDismissed/);
   assert.match(deckSource, /acknowledgeDeckChooserIntro/);
   assert.match(deckSource, /getFirstPlayablePostStarterPackId/);
+  assert.match(appContextSource, /redirectPath: isSeasonStarted \? '\/deck\?pack=heatwave-receipts&intro=ack'/);
+  assert.match(deckSource, /DECK_CHOOSER_INTRO_ACK_KEY/);
+  assert.match(deckSource, /localStorage\.setItem\(DECK_CHOOSER_INTRO_ACK_KEY, 'true'\)/);
+  assert.match(rewardFeedbackSource, /onDismiss\(\);\s*if \(reward\.redirectPath\)/);
 });
 
 test('Deck diagnostics exposes Starter completion sources and admin repair action', () => {

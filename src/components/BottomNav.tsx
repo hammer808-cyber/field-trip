@@ -46,7 +46,7 @@ export function BottomNav() {
   const navItems = [
     { icon: Home, label: 'BASECAMP', path: '/basecamp' },
     { icon: Target, label: 'MISSIONS', path: '/deck' },
-    { icon: LayoutGrid, label: 'MEMORIES', path: '/memories', special: true },
+    { icon: LayoutGrid, label: 'THE DEX', path: '/memories', special: true },
     { icon: Vote, label: 'VOTE', path: '/voting' },
     { icon: Users, label: 'CREW', path: '/crew' },
     { icon: Trophy, label: 'STANDINGS', path: '/big-board' }

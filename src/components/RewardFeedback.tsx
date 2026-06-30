@@ -175,10 +175,10 @@ const MajorReveal: React.FC<MajorRevealProps> = ({ reward, onDismiss, skinConfig
           ) : (
             <button
               onClick={() => {
+                onDismiss();
                 if (reward.redirectPath) {
                   window.location.href = reward.redirectPath;
                 }
-                onDismiss();
               }}
               className={cn(
                 "w-full py-5 font-display font-black uppercase tracking-widest transition-all text-lg italic px-4",

@@ -5,7 +5,7 @@ import { MOCK_TRIPS, FIELD_TYPES } from '../constants';
 import { Card } from '../components/UI';
 import { useTheme } from '../context/ThemeContext';
 import { CheckCircle2, MapPin, AlertTriangle, ShieldAlert, Timer, Zap, Camera, Sun, RotateCcw, Info, Users, Lock, HelpCircle, CheckCircle, X, Sparkles, ArrowRight, FileText, Trophy, ChevronDown, Layers, Book } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { getFieldCheckLabel } from '../logic/fieldCheckLogic';
 import { Hibiscus, ChromeStar, BeachTag, GlossOverlay } from '../components/BajaBratzAssets';
@@ -38,6 +38,8 @@ import { LAUNCH_MISSION, LAUNCH_MISSION_ID } from '../data/specialMissions';
 import { canAccessFeature, getChallengeStatus, getDeckProgress, getStarterProgress } from '../services/canonicalProgress';
 
 import { FIELD_MATERIALS, FIELD_SHADOWS, FIELD_TYPOGRAPHY } from '../utils/styleHelpers';
+
+const DECK_CHOOSER_INTRO_ACK_KEY = 'fieldtrip_deck_chooser_intro_ack';
 
 interface DeckMetricBadgeProps {
   type: 'challenges' | 'tokens';
@@ -140,9 +142,14 @@ import { FieldPageHero } from '../components/FieldPageHero';
 
 export default function DeckPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedPackId = searchParams.get('pack');
+  const shouldAckIntroFromUrl = searchParams.get('intro') === 'ack';
   const [isDrawing, setIsDrawing] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [deckChooserIntroDismissed, setDeckChooserIntroDismissed] = useState(false);
+  const [deckChooserIntroDismissed, setDeckChooserIntroDismissed] = useState(() => (
+    typeof window !== 'undefined' && localStorage.getItem(DECK_CHOOSER_INTRO_ACK_KEY) === 'true'
+  ));
   const { 
     fieldType, soloTripsCount, entries, activeTrip, drawTrip, 
     rerollsAvailable, useReroll, incomingFieldCheck, resolveIncomingFieldCheck, user,
@@ -164,6 +171,9 @@ export default function DeckPage() {
     if (!isOnboardingComplete && !isAdmin) return 'starter-signals';
     
     if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const packFromUrl = params.get('pack');
+      if (packFromUrl) return packFromUrl;
       const saved = localStorage.getItem('active_deck_pack_id');
       if (saved) {
         // Simple security check: if it's summer and not unlocked by date/admin, fallback
@@ -199,6 +209,24 @@ export default function DeckPage() {
       localStorage.setItem('active_deck_pack_id', activePackId);
     }
   }, [activePackId]);
+
+  useEffect(() => {
+    if (requestedPackId && requestedPackId !== activePackId) {
+      setActivePackId(requestedPackId);
+    }
+  }, [requestedPackId, activePackId]);
+
+  useEffect(() => {
+    if (!shouldAckIntroFromUrl || !user) return;
+    localStorage.setItem(DECK_CHOOSER_INTRO_ACK_KEY, 'true');
+    setDeckChooserIntroDismissed(true);
+    updateProfile(user.uid, { hasSeenDeckChooserIntro: true }).catch(err => {
+      console.warn('[Deck] Failed to persist deck chooser intro URL acknowledgement:', err);
+    });
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('intro');
+    setSearchParams(nextParams, { replace: true });
+  }, [shouldAckIntroFromUrl, user?.uid]);
   
   const isPlain = frankieMode;
   const onboardingRequired = onboardingRequiredCount;
@@ -309,6 +337,9 @@ export default function DeckPage() {
 
   const acknowledgeDeckChooserIntro = async () => {
     if (!user) return;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(DECK_CHOOSER_INTRO_ACK_KEY, 'true');
+    }
     setDeckChooserIntroDismissed(true);
     try {
       await updateProfile(user.uid, { hasSeenDeckChooserIntro: true });
@@ -318,7 +349,11 @@ export default function DeckPage() {
   };
 
   const choosePostStarterDeck = async () => {
-    setActivePackId(getFirstPlayablePostStarterPackId());
+    const nextPackId = getFirstPlayablePostStarterPackId();
+    setActivePackId(nextPackId);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('active_deck_pack_id', nextPackId);
+    }
     await acknowledgeDeckChooserIntro();
   };
 

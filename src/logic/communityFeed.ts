@@ -2,7 +2,7 @@ import { normalizeEntryStatus } from './entryLogic';
 
 const APPROVED_FEED_STATUSES = new Set(['approved']);
 
-export const COMMUNITY_FEED_APPROVED_STATUSES = ['approved'];
+export const COMMUNITY_FEED_APPROVED_STATUSES = ['approved', 'approved_by_admin', 'auto_approved', 'completed', 'retry-approved'];
 
 export function getCommunityFeedImageUrl(entry: any): string {
   return String(

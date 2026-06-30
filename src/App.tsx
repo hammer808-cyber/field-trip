@@ -622,7 +622,7 @@ export default function App() {
                     <Route path="/classification" element={<Classification />} />
                     <Route path="/crew" element={<StarterGate requiredFeature="crew"><Crew /></StarterGate>} />
                     <Route path="/crew/invite/:token" element={<CrewInvite />} />
-                    <Route path="/memories" element={<StarterGate requiredFeature="memories"><Navigate to="/collection?tab=crew_memories" replace /></StarterGate>} />
+                    <Route path="/memories" element={<StarterGate requiredFeature="memories"><Navigate to="/collection?tab=crew_home" replace /></StarterGate>} />
                     <Route path="/big-board" element={<StarterGate requiredFeature="leaderboard"><BigBoard /></StarterGate>} />
                     <Route path="/mission-briefing" element={<MissionBriefing />} />
                     <Route path="/mission-submitted" element={<MissionSubmitted />} />

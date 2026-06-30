@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  COMMUNITY_FEED_APPROVED_STATUSES,
   getCommunityFeedExclusionReasons,
   getCommunityFeedImageReference,
   hasCommunityFeedImageReference,
@@ -36,6 +37,24 @@ test('community feed accepts only approved public renderable entries', () => {
   assert.equal(isCommunityFeedEligible({ ...base, showInCommunityFeed: false }), false);
   assert.equal(isCommunityFeedEligible({ ...base, photoUrl: '' }), false);
   assert.equal(isCommunityFeedEligible({ ...base, userId: '' }), false);
+});
+
+test('community feed queries all canonical and legacy approved entry statuses', () => {
+  assert.deepEqual(
+    COMMUNITY_FEED_APPROVED_STATUSES,
+    ['approved', 'approved_by_admin', 'auto_approved', 'completed', 'retry-approved']
+  );
+
+  const base = {
+    id: 'entry-1',
+    isPublic: true,
+    userId: 'user-1',
+    photoUrl: 'https://example.com/proof.jpg',
+  };
+
+  for (const status of COMMUNITY_FEED_APPROVED_STATUSES) {
+    assert.equal(isCommunityFeedEligible({ ...base, status }), true, status);
+  }
 });
 
 test('community feed accepts legacy approved proof image fields and storage references', () => {
