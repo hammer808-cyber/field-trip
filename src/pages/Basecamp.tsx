@@ -161,7 +161,7 @@ export default function Basecamp() {
       return {
         label: "Finish Starter Pack",
         sublabel: `${starterProgress.starterApprovedCount}/${starterProgress.starterRequiredCount} APPROVED`,
-        path: "/deck?pack=starter-signals",
+        path: "/missions?pack=starter-signals",
         color: "bg-brand-orange",
         variant: "primary" as const
       };
@@ -171,7 +171,7 @@ export default function Basecamp() {
       return {
         label: "Enter Heatwave Receipts",
         sublabel: "Season Active",
-        path: "/deck?pack=heatwave-receipts",
+        path: "/missions?pack=heatwave-receipts",
         color: "bg-brand-lime",
         variant: "primary" as const
       };
@@ -180,7 +180,7 @@ export default function Basecamp() {
     return {
       label: "Missions Deck",
       sublabel: "Draw new signals",
-      path: "/deck",
+      path: "/missions",
       color: "bg-brand-orange",
       variant: "primary" as const
     };
@@ -241,6 +241,24 @@ export default function Basecamp() {
       />
 
       <div className="max-w-xl mx-auto px-4 mt-8 space-y-6 relative">
+        <div className="flex flex-wrap justify-end gap-3">
+          <button
+            onClick={() => navigate('/settings')}
+            className="inline-flex items-center gap-2 px-4 py-3 bg-white border-[3px] border-on-surface shadow-[5px_5px_0px_black] font-mono text-[10px] font-black uppercase tracking-widest hover:bg-brand-lime transition-colors"
+          >
+            <Settings className="w-4 h-4" />
+            Settings
+          </button>
+          {isAdmin && (
+            <button
+              onClick={() => navigate('/admin')}
+              className="inline-flex items-center gap-2 px-4 py-3 bg-on-surface text-white border-[3px] border-on-surface shadow-[5px_5px_0px_var(--color-brand-orange)] font-mono text-[10px] font-black uppercase tracking-widest hover:bg-brand-orange transition-colors"
+            >
+              <Shield className="w-4 h-4" />
+              Admin Console
+            </button>
+          )}
+        </div>
         
         {/* 2. Main Priority CTA - Take photo mission */}
         <section className="space-y-4">
@@ -334,6 +352,52 @@ export default function Basecamp() {
           </FieldCard>
         </section>
 
+        <section className="space-y-3">
+          <FieldCard id="crew-access-card" variant="paper" className={cn(
+            "p-5 border-[4px] border-on-surface shadow-[8px_8px_0px_black] bg-white space-y-4",
+            !isStarterComplete && !isAdmin && "opacity-80"
+          )}>
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <p className="font-mono text-[9px] font-black uppercase tracking-[0.25em] text-on-surface/40">Crew Access</p>
+                <h3 className="font-display text-3xl font-black uppercase italic tracking-tight leading-none">
+                  {isStarterComplete || isAdmin ? 'Crew Home' : 'Crew Access Locked'}
+                </h3>
+              </div>
+              <div className={cn(
+                "w-12 h-12 border-[3px] border-on-surface rounded-2xl flex items-center justify-center shadow-[4px_4px_0px_black]",
+                isStarterComplete || isAdmin ? "bg-brand-lime" : "bg-on-surface/5 text-on-surface/35"
+              )}>
+                {isStarterComplete || isAdmin ? <Users className="w-6 h-6" /> : <Lock className="w-6 h-6" />}
+              </div>
+            </div>
+
+            {!isStarterComplete && !isAdmin ? (
+              <div className="space-y-3">
+                <p className="font-serif italic text-sm text-on-surface/65">
+                  Complete Starter Signals: {starterApprovedCount}/{starterProgress.starterRequiredCount} Approved
+                </p>
+                <div className="h-3 rounded-full border-2 border-on-surface bg-white overflow-hidden">
+                  <div className="h-full bg-brand-lime transition-all duration-500" style={{ width: `${starterPercent}%` }} />
+                </div>
+                <button onClick={() => navigate('/missions?pack=starter-signals')} className="bureau-btn bg-brand-orange text-white text-xs">
+                  Finish Starter Signals
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="font-serif italic text-sm text-on-surface/65">
+                  Create or join a crew, view your current crew, manage invites and membership, and use captain controls when applicable.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button onClick={() => navigate('/crew')} className="bureau-btn bg-brand-lime text-on-surface text-xs">View Current Crew</button>
+                  <button onClick={() => navigate('/crew')} className="bureau-btn bg-white text-on-surface text-xs">Create / Join Crew</button>
+                </div>
+              </div>
+            )}
+          </FieldCard>
+        </section>
+
         {/* 3. Secondary Actions Grid */}
         <section className="space-y-3">
           <div className="grid grid-cols-3 gap-3">
@@ -344,7 +408,7 @@ export default function Basecamp() {
                 if (isLocked) {
                   showHelpToast("Finish your Starter Deck first! Clear 3 unique Starter Mission approvals.");
                 } else {
-                  navigate('/memories');
+                  navigate('/dex/memories');
                 }
               }}
               className={cn(

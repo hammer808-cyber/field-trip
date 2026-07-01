@@ -154,7 +154,7 @@ const MajorReveal: React.FC<MajorRevealProps> = ({ reward, onDismiss, skinConfig
             <div className="space-y-4 pt-2">
               <button
                 onClick={() => {
-                  window.location.href = '/collection?tab=stickers';
+                  window.location.href = '/dex/collection';
                   onDismiss();
                 }}
                 className={cn(

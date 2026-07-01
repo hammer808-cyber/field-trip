@@ -60,7 +60,7 @@ export default function FieldTypeResult() {
       }
       
       console.log('[FieldTypeResult] Routing to /deck...');
-      navigate('/deck');
+      navigate('/missions');
     } catch (err) {
       console.error('[FieldTypeResult] Navigation failed:', err);
       setIsNavigating(false);

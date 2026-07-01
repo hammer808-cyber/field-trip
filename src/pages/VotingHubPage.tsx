@@ -146,7 +146,7 @@ export default function VotingHubPage() {
         title="PEER VOTE"
         subtitle="Sector 7-B // Field Headquarters"
         backLabel="My_Findings"
-        backTo="/deck"
+        backTo="/missions"
         backgroundIcon={<Trophy className="w-64 h-64" />}
         infoCardLabel="STATION_CLOCK"
         infoCardValue={
@@ -233,7 +233,7 @@ export default function VotingHubPage() {
                           <h3 className="font-display text-4xl uppercase italic font-black">Docket Locked</h3>
                           <p className="font-serif italic text-xl text-on-surface/50 font-bold">Complete all 3 Starter Missions to access the Tribunal.</p>
                        </div>
-                       <button onClick={() => navigate('/deck')} className="px-8 py-3 bg-on-surface text-white rounded-xl font-display text-xl font-black uppercase italic shadow-[6px_6px_0px_var(--color-brand-orange)] active:shadow-none hover:bg-brand-magenta transition-all">Go to Missions</button>
+                       <button onClick={() => navigate('/missions')} className="px-8 py-3 bg-on-surface text-white rounded-xl font-display text-xl font-black uppercase italic shadow-[6px_6px_0px_var(--color-brand-orange)] active:shadow-none hover:bg-brand-magenta transition-all">Go to Missions</button>
                     </div>
                  ) : tribunalCases.length === 0 ? (
                     <div className="py-32 border-4 border-dashed border-on-surface/10 rounded-[3rem] text-center space-y-6">

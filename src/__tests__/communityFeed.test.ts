@@ -10,6 +10,7 @@ import {
 } from '../logic/communityFeed';
 
 const bigBoardSource = readFileSync('src/pages/BigBoard.tsx', 'utf8');
+const communityProofsFeedSource = readFileSync('src/components/CommunityProofsFeed.tsx', 'utf8');
 const proofServiceSource = readFileSync('src/services/proofService.ts', 'utf8');
 const cardSource = readFileSync('src/components/CommunityProofCard.tsx', 'utf8');
 const proofImageSource = readFileSync('src/components/ProofImage.tsx', 'utf8');
@@ -90,11 +91,13 @@ test('community feed diagnostics explain exclusions', () => {
   assert.ok(reasons.includes('missing_owner'));
 });
 
-test('Big Board Proofs tab does not merge local pending entries into public feed', () => {
-  assert.doesNotMatch(bigBoardSource, /const userPending =/);
-  assert.doesNotMatch(bigBoardSource, /\[\.\.\.userPending,\s*\.\.\.filteredPublic\]/);
-  assert.match(bigBoardSource, /publicProofs\.filter\(isCommunityFeedEligible\)/);
-  assert.match(bigBoardSource, /No receipts on the board yet/);
+test('Dex Community Proofs feed does not merge local pending entries into public feed', () => {
+  assert.doesNotMatch(communityProofsFeedSource, /const userPending =/);
+  assert.doesNotMatch(communityProofsFeedSource, /\[\.\.\.userPending,\s*\.\.\.filteredPublic\]/);
+  assert.match(communityProofsFeedSource, /publicProofs\.filter\(isCommunityFeedEligible\)/);
+  assert.match(communityProofsFeedSource, /No receipts on the board yet/);
+  assert.match(bigBoardSource, /navigate\('\/dex\/memories\/community'/);
+  assert.doesNotMatch(bigBoardSource, /\{ id: "proofs", label: "Proofs" \}/);
 });
 
 test('Community feed subscription does not require legacy visibility flags or approvedAt ordering', () => {

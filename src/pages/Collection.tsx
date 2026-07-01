@@ -9,7 +9,6 @@ import {
   Sparkles, 
   Zap, 
   Book, 
-  Users, 
   Star, 
   ArrowRight, 
   LayoutGrid, 
@@ -25,12 +24,12 @@ import { getDeckPackById, getDefaultDeckPack, getActiveDeckPacks } from '../data
 import { FieldPageHero } from '../components/FieldPageHero';
 import { MissionCard } from '../components/ChallengeCard';
 import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
+import { CommunityProofsFeed } from '../components/CommunityProofsFeed';
 import { markEarnedStickersSeen } from '../services/stickerService';
 import { canAccessFeature, getDeckProgress, getStarterProgress } from '../services/canonicalProgress';
-import { getCurrentCrewMembership } from '../services/crewService';
-import type { CrewMembershipState } from '../types/crew';
 
-type CollectionTab = 'crew_home' | 'stickers' | 'badges' | 'decks' | 'missions' | 'crew_memories';
+type CollectionTab = 'collection' | 'zines' | 'memories' | 'stickers' | 'badges' | 'decks' | 'missions' | 'crew_memories';
+type MemoriesView = 'mine' | 'community';
 
 export default function CollectionPage() {
   const { 
@@ -49,9 +48,20 @@ export default function CollectionPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialTabParam = searchParams.get('tab');
-  const initialTab = (initialTabParam === 'skins' ? 'crew_home' : (initialTabParam as CollectionTab)) || 'crew_home';
+  const initialTab = (
+    initialTabParam === 'skins' ||
+    initialTabParam === 'stickers' ||
+    initialTabParam === 'badges' ||
+    initialTabParam === 'crew_home'
+      ? 'collection'
+      : initialTabParam === 'crew_memories'
+        ? 'memories'
+        : (initialTabParam as CollectionTab)
+  ) || 'collection';
   const [activeTab, setActiveTab] = useState<CollectionTab>(initialTab);
-  const [crewMembership, setCrewMembership] = useState<CrewMembershipState | null>(null);
+  const [memoriesView, setMemoriesView] = useState<MemoriesView>(
+    typeof window !== 'undefined' && window.location.pathname.includes('/community') ? 'community' : 'mine'
+  );
 
   const activePacks = getActiveDeckPacks();
   const starterProgress = getStarterProgress(canonicalProgress);
@@ -98,16 +108,31 @@ export default function CollectionPage() {
   useEffect(() => {
     const tabParam = searchParams.get('tab');
     const tab = tabParam as CollectionTab | null;
-    if (tabParam === 'skins') setActiveTab('crew_home');
-    else if (tab) setActiveTab(tab);
+    if (tabParam === 'skins' || tabParam === 'stickers' || tabParam === 'badges' || tabParam === 'crew_home') {
+      setActiveTab('collection');
+    } else if (tabParam === 'crew_memories') {
+      setActiveTab('memories');
+      setMemoriesView('mine');
+    } else if (tab) {
+      setActiveTab(tab);
+    }
   }, [searchParams]);
 
   useEffect(() => {
-    if (!user?.uid) return;
-    getCurrentCrewMembership()
-      .then(setCrewMembership)
-      .catch(err => console.warn('[Collection] crew membership lookup failed:', err));
-  }, [user?.uid]);
+    if (typeof window === 'undefined') return;
+    const path = window.location.pathname;
+    if (path.includes('/dex/memories/community')) {
+      setActiveTab('memories');
+      setMemoriesView('community');
+    } else if (path.includes('/dex/memories')) {
+      setActiveTab('memories');
+      setMemoriesView('mine');
+    } else if (path.includes('/dex/zines')) {
+      setActiveTab('zines');
+    } else if (path.includes('/dex/collection')) {
+      setActiveTab('collection');
+    }
+  }, []);
 
   const handleTabChange = (id: CollectionTab) => {
     setActiveTab(id);
@@ -207,7 +232,7 @@ export default function CollectionPage() {
       </div>
       <h2 className="font-display text-3xl font-black uppercase italic tracking-tight text-on-surface">Access Restricted</h2>
       <p className="font-serif italic text-on-surface/70">Complete all 3 Starter Signals to unlock {label}.</p>
-      <button onClick={() => navigate('/deck')} className="bureau-btn bg-brand-lime text-on-surface text-xs">Go to Starter Signals</button>
+      <button onClick={() => navigate('/missions')} className="bureau-btn bg-brand-lime text-on-surface text-xs">Go to Starter Signals</button>
     </div>
   );
 
@@ -233,12 +258,9 @@ export default function CollectionPage() {
         infoCardAccent="orange"
         infoCardVariant="sticker"
         tabs={[
-          { id: 'crew_home', label: 'Crew Home' },
-          { id: 'missions', label: 'Mission Cards' },
-          { id: 'crew_memories', label: 'Crew Memories' },
-          { id: 'stickers', label: 'Sticker Deck' },
-          { id: 'badges', label: 'Medals' },
-          { id: 'decks', label: 'Catalog' }
+          { id: 'collection', label: 'Collection' },
+          { id: 'zines', label: 'Zines' },
+          { id: 'memories', label: 'Memories' }
         ]}
         activeTab={activeTab}
         onTabChange={(id) => handleTabChange(id as CollectionTab)}
@@ -247,73 +269,88 @@ export default function CollectionPage() {
       <main className="px-4 sm:px-10 py-10 max-w-6xl mx-auto min-h-[45vh] bg-white border-x-4 border-b-4 border-on-surface shadow-[10px_10px_0px_black] relative rounded-b-[2.5rem] z-10 -mt-1">
          <div className="absolute inset-0 bg-[radial-gradient(rgba(0,0,0,0.015)_1.5px,transparent_0)] bg-[size:16px_16px] pointer-events-none rounded-b-[2.5rem]" />
         <AnimatePresence mode="wait">
-          {activeTab === 'crew_home' && (
+          {activeTab === 'collection' && (
             <motion.div
-              key="crew-home-tab"
+              key="collection-tab"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              className="space-y-10"
+            >
+              <section className="space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="font-display text-2xl font-black uppercase italic tracking-tight text-on-surface">Stickers</h2>
+                  <span className="font-mono text-[10px] font-black uppercase text-on-surface/40">{stickers.filter(r => unlockedStickers.has(r.id)).length} earned</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
+                  {stickers.map(r => (
+                    <RewardItem key={r.id} reward={r} isUnlocked={unlockedStickers.has(r.id)} />
+                  ))}
+                </div>
+              </section>
+
+              <section className="space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="font-display text-2xl font-black uppercase italic tracking-tight text-on-surface">Medals</h2>
+                  <span className="font-mono text-[10px] font-black uppercase text-on-surface/40">{badges.filter(r => unlockedBadges.has(r.id)).length} earned</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
+                  {badges.map(r => (
+                    <RewardItem key={r.id} reward={r} isUnlocked={unlockedBadges.has(r.id)} />
+                  ))}
+                </div>
+              </section>
+            </motion.div>
+          )}
+
+          {activeTab === 'zines' && (
+            <motion.div
+              key="zines-tab"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              className="bg-[#FFFCEB] border-4 border-on-surface shadow-[8px_8px_0px_black] rounded-[2rem] p-8 space-y-5"
+            >
+              <p className="font-mono text-[10px] uppercase tracking-widest opacity-50">Seasonal Archive</p>
+              <h2 className="font-display text-4xl font-black uppercase italic tracking-tight leading-none">Zines</h2>
+              <p className="font-serif italic text-on-surface/70">
+                Personal seasonal zines, crew zines, cover choices, and archive curation will live here.
+              </p>
+              <button onClick={() => navigate('/crew')} className="bureau-btn bg-brand-lime text-on-surface text-xs">Open Crew Zine Tools</button>
+            </motion.div>
+          )}
+
+          {activeTab === 'memories' && (
+            <motion.div
+              key="memories-tab"
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
               className="space-y-8"
             >
-              <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-8">
-                <section className="bg-[#FFFCEB] border-4 border-on-surface shadow-[8px_8px_0px_black] rounded-[2rem] p-8 space-y-6">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-brand-lime border-4 border-on-surface shadow-[5px_5px_0px_black] rounded-2xl flex items-center justify-center">
-                      <Users className="w-8 h-8" />
-                    </div>
-                    <div>
-                      <p className="font-mono text-[10px] uppercase tracking-widest opacity-50">Crew Home</p>
-                      <h2 className="font-display text-4xl font-black uppercase italic tracking-tight leading-none">
-                        {crewMembership?.crew?.name || 'No Crew Assigned'}
-                      </h2>
-                    </div>
-                  </div>
-
-                  {crewMembership?.crew ? (
-                    <div className="space-y-5">
-                      <p className="font-serif italic text-on-surface/70">
-                        "{crewMembership.crew.motto || 'Your field team, seasonal receipts, and zine trail live here.'}"
-                      </p>
-                      <div className="grid grid-cols-2 gap-3 font-mono text-[10px] uppercase">
-                        <div className="border-2 border-on-surface/20 bg-white p-3">
-                          <span className="opacity-50">Members</span><br />
-                          <b>{crewMembership.crew.memberCount || crewMembership.crew.members?.length || 0} / {crewMembership.crew.memberLimit || 8}</b>
-                        </div>
-                        <div className="border-2 border-on-surface/20 bg-white p-3">
-                          <span className="opacity-50">Role</span><br />
-                          <b>{crewMembership.membership?.role || 'member'}</b>
-                        </div>
-                        <div className="border-2 border-on-surface/20 bg-white p-3">
-                          <span className="opacity-50">Mode</span><br />
-                          <b>{crewMembership.crew.mode || 'friendly'}</b>
-                        </div>
-                        <div className="border-2 border-on-surface/20 bg-white p-3">
-                          <span className="opacity-50">Privacy</span><br />
-                          <b>{crewMembership.crew.privacy || 'invite_only'}</b>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-3">
-                        <button onClick={() => navigate('/crew')} className="bureau-btn bg-brand-lime text-on-surface text-xs">Open Crew HQ</button>
-                        <button onClick={() => setActiveTab('crew_memories')} className="bureau-btn bg-white text-on-surface text-xs">View Crew Memories</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-5">
-                      <p className="font-serif italic text-on-surface/70">
-                        "Start or join a Crew to collect shared field memories and build a seasonal zine."
-                      </p>
-                      <button onClick={() => navigate('/crew')} className="bureau-btn bg-brand-lime text-on-surface text-xs">Create or Join Crew</button>
-                    </div>
-                  )}
-                </section>
-
-                <section className="bg-white border-4 border-on-surface shadow-[8px_8px_0px_var(--color-brand-cyan)] rounded-[2rem] p-8 space-y-4">
-                  <p className="font-mono text-[10px] uppercase tracking-widest opacity-50">Quick Dex Links</p>
-                  <button onClick={() => setActiveTab('missions')} className="w-full bureau-btn bg-white text-on-surface text-xs justify-center">Mission Cards</button>
-                  <button onClick={() => setActiveTab('stickers')} className="w-full bureau-btn bg-white text-on-surface text-xs justify-center">Sticker Deck</button>
-                  <button onClick={() => navigate('/big-board?tab=proofs')} className="w-full bureau-btn bg-brand-orange text-white text-xs justify-center">Community Feed</button>
-                </section>
+              <div className="flex justify-center">
+                <div className="inline-flex border-4 border-on-surface shadow-[5px_5px_0px_black] bg-white p-1">
+                  {[
+                    ['mine', 'My Memories'],
+                    ['community', 'Community Proofs']
+                  ].map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setMemoriesView(id as MemoriesView)}
+                      className={cn(
+                        "px-4 py-2 font-mono text-[10px] font-black uppercase tracking-widest",
+                        memoriesView === id ? "bg-brand-lime text-on-surface" : "text-on-surface/45 hover:text-on-surface"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
+              {memoriesView === 'community'
+                ? <CommunityProofsFeed />
+                : (isStarterComplete || isAdmin ? <CrewMemoriesFeed /> : <LockedStarterPanel label="Memories" />)}
             </motion.div>
           )}
 
@@ -331,7 +368,7 @@ export default function CollectionPage() {
                     <Box className="w-6 h-6 text-on-surface/20" />
                   </div>
                   <p className="font-serif italic text-on-surface/40">"No field dossiers have been synchronized to this unit."</p>
-                  <button onClick={() => navigate('/deck')} className="bureau-btn text-xs">Access Deck</button>
+                  <button onClick={() => navigate('/missions')} className="bureau-btn text-xs">Access Deck</button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -516,7 +553,7 @@ export default function CollectionPage() {
                       <button 
                         onClick={() => {
                           localStorage.setItem('active_deck_pack_id', pack.packId);
-                          navigate('/deck');
+                          navigate('/missions');
                         }}
                         className="w-full py-2 bg-on-surface/5 hover:bg-on-surface/10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
                       >

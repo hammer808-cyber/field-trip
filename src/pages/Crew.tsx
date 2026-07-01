@@ -214,7 +214,7 @@ export default function CrewPage() {
           <p className="font-mono text-[10px] uppercase font-black tracking-widest">
             {canonicalProgress.starter.label} approved
           </p>
-          <button onClick={() => navigate('/deck?pack=starter-signals')} className="bureau-btn bg-brand-lime text-on-surface text-xs">
+          <button onClick={() => navigate('/missions?pack=starter-signals')} className="bureau-btn bg-brand-lime text-on-surface text-xs">
             Go To Starter Signals
           </button>
         </div>

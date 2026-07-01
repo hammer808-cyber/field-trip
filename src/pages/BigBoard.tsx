@@ -48,7 +48,7 @@ import {
   GlossOverlay,
 } from "../components/BajaBratzAssets";
 import { DiamondStar, Sparkle, SunFlare } from "../components/SkinAssets";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import * as LucideIcons from "lucide-react";
 import { BADGE_DEFINITIONS, UserBadgeProgress } from "../types/badges";
 import { MARKER_STICKERS } from "../data/markers";
@@ -866,15 +866,30 @@ export default function BigBoardPage() {
   } = useApp();
   const { skin, frankieMode, fc } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState<"standings" | "proofs" | "pulse">("standings");
+  const [activeTab, setActiveTab] = useState<"standings" | "proofs" | "results" | "pulse">("standings");
   const [feedFilter, setFeedFilter] = useState<"latest" | "hyped" | "week" | "season" | "crew">("latest");
   const [selectedBadgeId, setSelectedBadgeId] = useState<string | null>(null);
   const [badgeFilter, setBadgeFilter] = useState<
     "all" | "earned" | "in-progress" | "locked"
   >("all");
   const [catalyst, setCatalyst] = useState<any>(null);
+
+  useEffect(() => {
+    if (searchParams.get('tab') === 'proofs') {
+      navigate('/dex/memories/community', { replace: true });
+      return;
+    }
+    if (location.pathname.includes('/big-board/results')) {
+      setActiveTab('results');
+    } else if (location.pathname.includes('/big-board/field-conditions')) {
+      setActiveTab('pulse');
+    } else if (location.pathname.includes('/big-board/live')) {
+      setActiveTab('standings');
+    }
+  }, [location.pathname, navigate, searchParams]);
 
   useEffect(() => {
     let active = true;
@@ -916,7 +931,7 @@ export default function BigBoardPage() {
     requestAnimationFrame(resetScroll);
   }, [activeTab, crewTab]);
 
-  const toggleTab = (tabId: "standings" | "proofs" | "pulse") => {
+  const toggleTab = (tabId: "standings" | "proofs" | "results" | "pulse") => {
     setActiveTab(tabId);
   };
 
@@ -1398,9 +1413,9 @@ export default function BigBoardPage() {
         infoCardSubtext=""
         infoCardAccent="lime"
         tabs={[
-          { id: "standings", label: "Standings" },
-          { id: "proofs", label: "Proofs" },
-          { id: "pulse", label: "Field Pulse" },
+          { id: "standings", label: "Live Board" },
+          { id: "results", label: "Results" },
+          { id: "pulse", label: "Field Conditions" },
         ]}
         activeTab={activeTab}
         onTabChange={(id) => setActiveTab(id as any)}
@@ -1517,6 +1532,59 @@ export default function BigBoardPage() {
                     </div>
                   )}
                 </div>
+              </div>
+            </motion.section>
+          )}
+
+          {activeTab === "results" && (
+            <motion.section
+              key="results"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="max-w-5xl mx-auto space-y-8 p-4 sm:p-8"
+            >
+              <div className="bg-white border-[4px] border-on-surface rounded-[2rem] p-6 sm:p-10 shadow-[10px_10px_0px_black] space-y-6">
+                <div className="space-y-2">
+                  <p className="font-mono text-[10px] font-black uppercase tracking-[0.25em] text-brand-orange">Weekly Outcomes</p>
+                  <h2 className="text-4xl sm:text-6xl font-display font-black uppercase italic tracking-tighter text-on-surface leading-none">
+                    Results Desk
+                  </h2>
+                  <p className="font-serif italic text-on-surface/60">
+                    Weekly vote results, tribunal outcomes, winners, awards, and seasonal recap beats live here.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <StickerStatCard
+                    title="Week"
+                    value={currentWeekNumber || 1}
+                    variant="orange"
+                    icon={LucideIcons.Calendar}
+                    subtext={weeklySummary?.isLocked ? 'Snapshot locked' : 'Awaiting final snapshot'}
+                  />
+                  <StickerStatCard
+                    title="Winners"
+                    value={weeklySummary?.voteWinners ? Object.keys(weeklySummary.voteWinners).length : 0}
+                    variant="lime"
+                    icon={LucideIcons.Award}
+                    subtext="Weekly awards recorded"
+                  />
+                  <StickerStatCard
+                    title="Phase"
+                    value={phase === 'awards' ? 'Awards' : phase || 'Idle'}
+                    variant="cyan"
+                    icon={LucideIcons.Flag}
+                    subtext="Current cycle state"
+                  />
+                </div>
+
+                <button
+                  onClick={() => navigate('/voting/awards')}
+                  className="bureau-btn bg-brand-lime text-on-surface text-xs"
+                >
+                  Open Weekly Awards
+                </button>
               </div>
             </motion.section>
           )}

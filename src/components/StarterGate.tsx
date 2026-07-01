@@ -90,7 +90,7 @@ export function StarterGate({ requiredFeature, children }: StarterGateProps) {
           {/* CTAs */}
           <div className="flex flex-col gap-3 w-full">
             <button
-              onClick={() => navigate('/deck')}
+              onClick={() => navigate('/missions')}
               className="bg-brand-lime hover:bg-brand-lime/90 text-on-surface font-display font-black uppercase italic tracking-wider py-4 px-4 border-4 border-on-surface rounded-xl shadow-[5px_5px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-1 active:translate-y-1 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <Layers className="w-5 h-5 stroke-[2.5]" />

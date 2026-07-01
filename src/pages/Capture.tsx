@@ -226,7 +226,7 @@ export default function CapturePage() {
             System initialization is taking longer than expected. This could be due to signal loss or account synchronization delays.
           </p>
           <div className="grid grid-cols-2 gap-4">
-            <ActionButton label="Back to Missions" onClick={() => navigate('/deck')} />
+            <ActionButton label="Back to Missions" onClick={() => navigate('/missions')} />
             <ActionButton label="Retry System" onClick={() => window.location.reload()} variant="primary" />
           </div>
         </div>
@@ -248,7 +248,7 @@ export default function CapturePage() {
            <p className="text-xs leading-relaxed opacity-60">
              The requested mission profile could not be retrieved from the central bank.
            </p>
-           <ActionButton label="Return to Mission Deck" onClick={() => navigate('/deck')} variant="primary" className="w-full" />
+           <ActionButton label="Return to Mission Deck" onClick={() => navigate('/missions')} variant="primary" className="w-full" />
          </div>
        </div>
     );
@@ -348,7 +348,7 @@ export default function CapturePage() {
     if ((isCompleted || isPending) && !isNeedsMore && fcState !== 'result' && submissionStatus !== 'submitted') {
        console.log(`[Capture Guard] Mission ${lowerId} already submitted/approved. Redirecting back to Deck.`);
        // Use replace: true to prevent back-button loops
-       navigate('/deck', { replace: true });
+       navigate('/missions', { replace: true });
     }
   }, [tripIdParam, completedChallengeIds, submittedPendingChallengeIds, needsMoreProofChallengeIds, user, navigate, fcState, submissionStatus]);
 
@@ -450,7 +450,7 @@ export default function CapturePage() {
       const timer = setTimeout(() => {
         // Only redirect if still true after 0.5s (proactive recovery)
         if ((!currentTrip && !completeRecord && (fcState as string) !== 'result') || (isUnavailable && !completeRecord && (fcState as string) !== 'result' && submissionStatus !== 'submitted')) {
-          navigate('/deck');
+          navigate('/missions');
         }
       }, 500);
       return () => clearTimeout(timer);

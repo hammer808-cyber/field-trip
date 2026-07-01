@@ -77,7 +77,7 @@ export default function ProfilePage() {
         if (targetId) {
           navigate(`/capture?id=${targetId}`, { replace: true });
         } else {
-          navigate('/deck', { replace: true });
+          navigate('/missions', { replace: true });
         }
       }
     }

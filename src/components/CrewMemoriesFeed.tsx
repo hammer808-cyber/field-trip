@@ -255,7 +255,7 @@ export function CrewMemoriesFeed() {
           <p className="text-xs font-mono text-on-surface/50 uppercase tracking-wider">Approved snapshots from your scouting crew</p>
         </div>
         <button
-          onClick={() => navigate('/deck')}
+          onClick={() => navigate('/missions')}
           className="self-start sm:self-center px-4 py-2 bg-white hover:bg-[#FFFCEB] border-2 border-on-surface font-mono text-xs font-black uppercase tracking-wider shadow-[3px_3px_0px_black] active:translate-y-0.5 active:shadow-none transition-all flex items-center gap-2"
         >
           <ImageIcon className="w-4 h-4" />
@@ -273,7 +273,7 @@ export function CrewMemoriesFeed() {
             </p>
           </div>
           <button 
-            onClick={() => navigate('/deck')}
+            onClick={() => navigate('/missions')}
             className="w-full sm:w-auto px-6 py-4 bg-brand-lime text-black font-display font-black uppercase text-sm border-3 border-on-surface shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none transition-all hover:bg-opacity-90 flex items-center justify-center gap-2 mx-auto"
           >
             <span>Draw a Mission Card</span>

@@ -70,7 +70,7 @@ export default function WelcomePage() {
   // Redirect if already logged in and everything is good
   useEffect(() => {
     if (user && fieldClassificationComplete && onboardingCompleted) {
-      navigate('/deck');
+      navigate('/missions');
     }
   }, [user, fieldClassificationComplete, onboardingCompleted, navigate]);
 

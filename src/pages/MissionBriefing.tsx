@@ -20,7 +20,7 @@ export default function MissionBriefingPage() {
       <div className="min-h-screen flex items-center justify-center bg-paper-light p-6">
         <div className="text-center space-y-4">
           <p className="font-mono text-xs uppercase opacity-40">Error: Mission not found</p>
-          <button onClick={() => navigate('/deck')} className="bureau-btn">Back to Missions</button>
+          <button onClick={() => navigate('/missions')} className="bureau-btn">Back to Missions</button>
         </div>
       </div>
     );
@@ -39,7 +39,7 @@ export default function MissionBriefingPage() {
   const handleSaveForLater = async () => {
     try {
       await updateMissionCardStatus(mission.id, 'saved_for_later', { isActive: false });
-      navigate('/deck');
+      navigate('/missions');
     } catch (err: any) {
       console.error("[MissionBriefing] Failed to save mission for later:", err.message);
     }
@@ -120,7 +120,7 @@ export default function MissionBriefingPage() {
         </div>
 
         <button 
-          onClick={() => navigate('/deck')}
+          onClick={() => navigate('/missions')}
           className="w-full py-4 text-center text-on-surface/40 hover:text-on-surface font-mono text-[10px] font-black uppercase tracking-[0.2em] transition-colors"
         >
           Dismiss Data

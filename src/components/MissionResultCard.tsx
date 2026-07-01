@@ -244,7 +244,7 @@ export function MissionResultCard({ trip, scoringData, evidence, showMathWizard,
         {/* 6. Footer Actions */}
         <motion.div variants={itemVariants} className="pt-4 flex flex-col gap-4">
            <button 
-             onClick={() => window.location.href = '/deck'}
+             onClick={() => window.location.href = '/missions'}
              className="w-full py-6 bg-brand-lime text-on-surface border-4 border-on-surface rounded-2xl font-display text-2xl font-black uppercase italic tracking-widest shadow-[8px_8px_0px_black] active:translate-y-1 active:shadow-none transition-all hover:bg-on-surface hover:text-white"
            >
              RETURN TO MISSIONS

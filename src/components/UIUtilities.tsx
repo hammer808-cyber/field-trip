@@ -103,7 +103,7 @@ export function RecoveryScreen({ message = "It looks like we took a wrong turn."
         <div className="space-y-4 pt-4">
           <ActionButton 
             label="Back to Missions" 
-            onClick={() => navigate('/deck')}
+            onClick={() => navigate('/missions')}
             variant="primary"
             icon={Target}
           />

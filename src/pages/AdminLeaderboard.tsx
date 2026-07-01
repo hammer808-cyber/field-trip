@@ -95,7 +95,7 @@ export default function AdminLeaderboard() {
         <p className="text-[10px] opacity-40 uppercase tracking-widest leading-relaxed max-w-xs mx-auto">
           Clearance Level 4 required for Leaderboard Scaling Management.
         </p>
-        <button onClick={() => navigate('/deck')} className="px-6 py-2 border border-on-surface/20 text-[10px] uppercase tracking-widest hover:bg-on-surface/5 transition-colors">Return to Deck</button>
+        <button onClick={() => navigate('/missions')} className="px-6 py-2 border border-on-surface/20 text-[10px] uppercase tracking-widest hover:bg-on-surface/5 transition-colors">Return to Deck</button>
       </div>
     );
   }

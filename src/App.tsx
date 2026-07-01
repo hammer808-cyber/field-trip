@@ -274,7 +274,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Admin Guard
   if (isAdminRoute && !isAdmin && !loading) {
-    return <Navigate to="/deck" replace />;
+    return <Navigate to="/missions" replace />;
   }
 
   // Bypass all gameplay gates for admins accessing admin routes
@@ -328,7 +328,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     return <Navigate to="/banned" replace />;
   }
   if (user && !isBanned && isBannedPage) {
-    return <Navigate to="/deck" replace />;
+    return <Navigate to="/missions" replace />;
   }
 
   // Legal Gate
@@ -339,14 +339,14 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   // Onboarding Routing Logic
   const isClassificationPage = location.pathname === '/classification' || location.pathname === '/onboarding';
   const isFieldTypePage = location.pathname === '/field-type' || location.pathname === '/persona';
-  const isDeckPage = location.pathname === '/deck';
+  const isDeckPage = location.pathname === '/deck' || location.pathname.startsWith('/missions');
   const isCapturePage = location.pathname.startsWith('/capture');
   const isProfilePage = location.pathname === '/profile';
   const isBigBoardPage = location.pathname === '/big-board';
   const isBasecampPage = location.pathname === '/basecamp';
   const isCrewPage = location.pathname.startsWith('/crew');
-  const isCollectionPage = location.pathname.startsWith('/collection');
-  const isMemoriesPage = location.pathname.startsWith('/memories');
+  const isCollectionPage = location.pathname.startsWith('/collection') || location.pathname.startsWith('/dex');
+  const isMemoriesPage = location.pathname.startsWith('/memories') || location.pathname.startsWith('/dex/memories');
   const isVotingPage = location.pathname.startsWith('/voting');
 
   // Centralized login/returning destination selector
@@ -360,9 +360,9 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   } else if (!onboardingCompleted) {
     correctDestination = "/onboarding";
   } else if (activeSubmissionStatus === "needs_more_proof") {
-    correctDestination = "/deck";
+    correctDestination = "/missions";
   } else if (starterApprovedCount < 3) {
-    correctDestination = "/deck";
+    correctDestination = "/missions";
   } else {
     correctDestination = "/basecamp";
   }
@@ -400,7 +400,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   // Allow all pages used in the tour: Deck, Capture, Profile, Big Board, and Field Type.
   const isAllowedOnboardingPage = isDeckPage || isCapturePage || isProfilePage || isBigBoardPage || isFieldTypePage || isBasecampPage || isCrewPage || isCollectionPage || isMemoriesPage;
   if (user && hasConfirmedLegal && fieldClassificationComplete && hasSeenFieldTypeResults && !onboardingCompleted && !isAllowedOnboardingPage && !isBypassingGuards) {
-    return <Navigate to="/deck" replace />;
+    return <Navigate to="/missions" replace />;
   }
 
   // Step 4: Tribunal / Voting Guard
@@ -410,7 +410,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     return <Navigate to="/voting" replace />;
   }
 
-  // Starter completion intro is optional and lives on /deck. Do not globally
+  // Starter completion intro is optional and lives on Mission Control. Do not globally
   // redirect post-Starter users, because that traps Crew/Voting deep links when
   // the intro flag fails to save or the deck chooser is dismissed.
 
@@ -453,6 +453,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     '/deck',
     '/missions',
     '/collection',
+    '/dex',
     '/memories',
     '/voting',
     '/big-board',
@@ -611,19 +612,32 @@ export default function App() {
                     <Route path="/onboarding" element={<Quiz />} />
                     <Route path="/field-type" element={<FieldTypeResult />} />
                     <Route path="/persona" element={<Navigate to="/field-type" replace />} />
-                    <Route path="/deck" element={<Deck />} />
+                    <Route path="/missions" element={<Deck />} />
+                    <Route path="/missions/decks" element={<Deck />} />
+                    <Route path="/missions/logbook" element={<Navigate to="/profile?tab=logbook" replace />} />
+                    <Route path="/missions/saved" element={<Deck />} />
+                    <Route path="/deck" element={<Navigate to="/missions/decks" replace />} />
                     <Route path="/basecamp" element={<Basecamp />} />
                     <Route path="/journal" element={<Navigate to="/voting" replace />} />
                     <Route path="/capture" element={<Capture />} />
                     <Route path="/frontlines" element={<Frontlines />} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/logbook" element={<Profile />} />
+                    <Route path="/settings" element={<Navigate to="/profile?tab=settings" replace />} />
                     <Route path="/field-id" element={<FieldIdentity />} />
                     <Route path="/classification" element={<Classification />} />
                     <Route path="/crew" element={<StarterGate requiredFeature="crew"><Crew /></StarterGate>} />
                     <Route path="/crew/invite/:token" element={<CrewInvite />} />
-                    <Route path="/memories" element={<StarterGate requiredFeature="memories"><Navigate to="/collection?tab=crew_home" replace /></StarterGate>} />
+                    <Route path="/dex" element={<StarterGate requiredFeature="memories"><Collection /></StarterGate>} />
+                    <Route path="/dex/collection" element={<StarterGate requiredFeature="memories"><Collection /></StarterGate>} />
+                    <Route path="/dex/zines" element={<StarterGate requiredFeature="memories"><Collection /></StarterGate>} />
+                    <Route path="/dex/memories" element={<StarterGate requiredFeature="memories"><Collection /></StarterGate>} />
+                    <Route path="/dex/memories/community" element={<StarterGate requiredFeature="memories"><Collection /></StarterGate>} />
+                    <Route path="/memories" element={<StarterGate requiredFeature="memories"><Navigate to="/dex/memories" replace /></StarterGate>} />
                     <Route path="/big-board" element={<StarterGate requiredFeature="leaderboard"><BigBoard /></StarterGate>} />
+                    <Route path="/big-board/live" element={<StarterGate requiredFeature="leaderboard"><BigBoard /></StarterGate>} />
+                    <Route path="/big-board/results" element={<StarterGate requiredFeature="leaderboard"><BigBoard /></StarterGate>} />
+                    <Route path="/big-board/field-conditions" element={<StarterGate requiredFeature="leaderboard"><BigBoard /></StarterGate>} />
                     <Route path="/mission-briefing" element={<MissionBriefing />} />
                     <Route path="/mission-submitted" element={<MissionSubmitted />} />
                     <Route path="/voting">
@@ -647,7 +661,7 @@ export default function App() {
                     <Route path="/admin/leaderboard" element={<AdminLeaderboard />} />
                     <Route path="/admin/qa" element={<AdminQALenses />} />
                     <Route path="/admin/ops" element={<AdminDevTools />} />
-                    <Route path="/collection" element={<Collection />} />
+                    <Route path="/collection" element={<Navigate to="/dex" replace />} />
                     <Route path="/banned" element={<Banned />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>

@@ -31,7 +31,7 @@ export function LockedViewfinder({ reason, nextSteps, seasonDate, onboardingRema
         <p className="text-xs font-mono">{nextSteps}</p>
         
         {reason === 'onboarding_required' && (
-          <Link to="/deck" className="flex items-center justify-center gap-2 text-brand-orange font-bold uppercase text-[10px] hover:underline">
+          <Link to="/missions" className="flex items-center justify-center gap-2 text-brand-orange font-bold uppercase text-[10px] hover:underline">
             Go to Mission Deck <ArrowRight className="w-3 h-3" />
           </Link>
         )}

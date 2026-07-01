@@ -1156,7 +1156,7 @@ export default function DeckPage() {
                       const mission = drawnTrip || activeTrip;
                       if (!mission) {
                         console.warn("[Deck] No mission found for Start Mission button.");
-                        navigate('/deck');
+                        navigate('/missions');
                         return;
                       }
 
@@ -1214,7 +1214,7 @@ export default function DeckPage() {
 
                 <div className="text-center pt-2">
                   <button
-                    onClick={() => navigate('/collection?tab=missions')}
+                    onClick={() => navigate('/missions')}
                     className="text-[10px] font-mono font-black uppercase tracking-[0.3em] text-on-surface/40 hover:text-on-surface transition-colors"
                   >
                     View Mission Dex

@@ -8,16 +8,21 @@ const canonicalProgressSource = readFileSync('src/services/canonicalProgress.ts'
 const deckDiagnosticsSource = readFileSync('src/components/DeckDiagnosticsPanel.tsx', 'utf8');
 const bottomNavSource = readFileSync('src/components/BottomNav.tsx', 'utf8');
 const basecampSource = readFileSync('src/pages/Basecamp.tsx', 'utf8');
-const submittedSource = readFileSync('src/pages/MissionSubmitted.tsx', 'utf8');
 const deckSource = readFileSync('src/pages/Deck.tsx', 'utf8');
 const appContextSource = readFileSync('src/context/AppContext.tsx', 'utf8');
 const rewardFeedbackSource = readFileSync('src/components/RewardFeedback.tsx', 'utf8');
 const collectionSource = readFileSync('src/pages/Collection.tsx', 'utf8');
 
-test('unlocked crew and memories have stable route targets', () => {
+test('stable IA routes exist and legacy routes redirect safely', () => {
+  assert.match(appSource, /<Route path="\/missions" element=\{<Deck \/>}/);
+  assert.match(appSource, /<Route path="\/missions\/decks" element=\{<Deck \/>}/);
+  assert.match(appSource, /<Route path="\/missions\/logbook" element=\{<Navigate to="\/profile\?tab=logbook" replace \/>}/);
+  assert.match(appSource, /<Route path="\/dex" element=\{<StarterGate requiredFeature="memories"><Collection \/><\/StarterGate>}/);
+  assert.match(appSource, /<Route path="\/dex\/memories\/community" element=\{<StarterGate requiredFeature="memories"><Collection \/><\/StarterGate>}/);
   assert.match(appSource, /<Route path="\/crew" element=\{<StarterGate requiredFeature="crew"><Crew \/><\/StarterGate>\}/);
-  assert.match(appSource, /<Route path="\/memories" element=\{<StarterGate requiredFeature="memories"><Navigate to="\/collection\?tab=crew_home" replace \/><\/StarterGate>\}/);
-  assert.match(appSource, /'\/memories'/);
+  assert.match(appSource, /<Route path="\/deck" element=\{<Navigate to="\/missions\/decks" replace \/>}/);
+  assert.match(appSource, /<Route path="\/collection" element=\{<Navigate to="\/dex" replace \/>}/);
+  assert.match(appSource, /<Route path="\/memories" element=\{<StarterGate requiredFeature="memories"><Navigate to="\/dex\/memories" replace \/><\/StarterGate>}/);
 });
 
 test('StarterGate uses the requested feature instead of a hardcoded crew check', () => {
@@ -33,18 +38,32 @@ test('route guards use canonical progress backed by the shared Starter selector'
   assert.match(starterGateSource, /canAccessFeature\(canonicalProgress, featureKey, \{ isAdmin \}\)/);
 });
 
-test('Memories entry points route to the canonical memories alias', () => {
-  assert.match(bottomNavSource, /label: 'THE DEX', path: '\/memories'/);
-  assert.match(basecampSource, /navigate\('\/memories'\)/);
-  assert.match(submittedSource, /navigate\('\/memories'\)/);
+test('primary nav has exactly five canonical destinations and no Crew tab', () => {
+  assert.match(bottomNavSource, /label: 'BASECAMP', path: '\/basecamp'/);
+  assert.match(bottomNavSource, /label: 'MISSIONS', path: '\/missions'/);
+  assert.match(bottomNavSource, /label: 'DEX', path: '\/dex'/);
+  assert.match(bottomNavSource, /label: 'VOTING', path: '\/voting'/);
+  assert.match(bottomNavSource, /label: 'BIG BOARD', path: '\/big-board'/);
+  assert.match(bottomNavSource, /grid-cols-5/);
+  assert.doesNotMatch(bottomNavSource, /label: 'CREW'/);
 });
 
-test('Dex opens on Crew Home and no longer exposes Personas as a tab', () => {
-  assert.match(collectionSource, /type CollectionTab = 'crew_home'/);
-  assert.match(collectionSource, /const initialTab = .* \|\| 'crew_home'/);
-  assert.match(collectionSource, /\{ id: 'crew_home', label: 'Crew Home' \}/);
+test('Basecamp owns settings, admin, and Crew entry points', () => {
+  assert.match(basecampSource, /navigate\('\/settings'\)/);
+  assert.match(basecampSource, /Admin Console/);
+  assert.match(basecampSource, /Crew Access Locked/);
+  assert.match(basecampSource, /Complete Starter Signals:/);
+  assert.match(basecampSource, /navigate\('\/crew'\)/);
+});
+
+test('Dex exposes Collection, Zines, and Memories without Personas or Crew Home tabs', () => {
+  assert.match(collectionSource, /\{ id: 'collection', label: 'Collection' \}/);
+  assert.match(collectionSource, /\{ id: 'zines', label: 'Zines' \}/);
+  assert.match(collectionSource, /\{ id: 'memories', label: 'Memories' \}/);
+  assert.match(collectionSource, /Community Proofs/);
+  assert.match(collectionSource, /CommunityProofsFeed/);
   assert.doesNotMatch(collectionSource, /label: 'Personas'/);
-  assert.doesNotMatch(collectionSource, /activeTab === 'skins'/);
+  assert.doesNotMatch(collectionSource, /label: 'Crew Home'/);
 });
 
 test('Voting routes remain reachable from the primary nav', () => {
@@ -53,17 +72,17 @@ test('Voting routes remain reachable from the primary nav', () => {
   assert.match(appSource, /<Route path="ballot" element=\{<StarterGate requiredFeature="voting"><VotingBallotPage \/><\/StarterGate>\}/);
   assert.match(appSource, /<Route path="council" element=\{<StarterGate requiredFeature="voting"><SnitchCouncilPage \/><\/StarterGate>\}/);
   assert.match(appSource, /<Route path="awards" element=\{<StarterGate requiredFeature="voting"><WeeklyAwardsPage \/><\/StarterGate>\}/);
-  assert.match(bottomNavSource, /label: 'VOTE', path: '\/voting'/);
+  assert.match(bottomNavSource, /label: 'VOTING', path: '\/voting'/);
   assert.match(bottomNavSource, /itemPathname === '\/voting' && !canAccessFeature\(canonicalProgress, 'voting'/);
 });
 
 test('Starter completion intro cannot globally trap completed users away from Crew or Voting', () => {
   assert.doesNotMatch(appSource, /hasSeenDeckChooserIntro[\s\S]{0,240}<Navigate to="\/deck" replace \/>/);
-  assert.match(appSource, /Starter completion intro is optional and lives on \/deck/);
+  assert.match(appSource, /Starter completion intro is optional and lives on Mission Control/);
   assert.match(deckSource, /deckChooserIntroDismissed/);
   assert.match(deckSource, /acknowledgeDeckChooserIntro/);
   assert.match(deckSource, /getFirstPlayablePostStarterPackId/);
-  assert.match(appContextSource, /redirectPath: isSeasonStarted \? '\/deck\?pack=heatwave-receipts&intro=ack'/);
+  assert.match(appContextSource, /redirectPath: isSeasonStarted \? '\/missions\?pack=heatwave-receipts&intro=ack'/);
   assert.match(deckSource, /DECK_CHOOSER_INTRO_ACK_KEY/);
   assert.match(deckSource, /localStorage\.setItem\(DECK_CHOOSER_INTRO_ACK_KEY, 'true'\)/);
   assert.match(rewardFeedbackSource, /onDismiss\(\);\s*if \(reward\.redirectPath\)/);

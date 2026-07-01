@@ -177,7 +177,7 @@ export default function AdminDevTools() {
             Your clearance level is insufficient for this terminal. Return to the field immediately.
           </p>
           <button 
-            onClick={() => navigate('/deck')}
+            onClick={() => navigate('/missions')}
             className="px-6 py-2 border border-white/20 text-[10px] uppercase tracking-widest hover:bg-white/5 transition-colors"
           >
             Return to Deck
