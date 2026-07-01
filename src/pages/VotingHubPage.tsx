@@ -13,7 +13,7 @@ import {
   Award,
   HelpCircle,
   X,
-  Zap,
+  Vote,
   Sparkles,
   ArrowRight,
   Gavel,
@@ -191,17 +191,36 @@ export default function VotingHubPage() {
                 exit={{ opacity: 0, y: -20 }}
                 className="space-y-12"
               >
-                 <div className="bg-brand-lime border-4 border-on-surface p-6 shadow-[10px_10px_0px_black] flex items-center justify-between group overflow-hidden relative">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(255,255,255,0.4),transparent)] opacity-50" />
-                    <div className="flex items-center gap-4 relative z-10">
-                       <Zap className="w-8 h-8 text-on-surface animate-bounce" />
-                       <div className="space-y-0.5 text-left">
-                          <h4 className="text-2xl font-display font-black uppercase italic tracking-tighter">Participation Bonus</h4>
-                          <p className="text-[10px] font-mono font-black uppercase tracking-widest text-on-surface/60">Uplink confirmed // +5 XP per category casted</p>
-                       </div>
-                    </div>
-                    <div className="bg-on-surface text-brand-lime px-6 py-2 font-display text-3xl font-black italic border-2 border-white shadow-[4px_4px_0px_black] relative z-10">
-                       +50 XP MAX
+                 <div className="bg-white border-4 border-on-surface p-5 sm:p-6 shadow-[8px_8px_0px_black] rounded-[1.75rem] overflow-hidden relative">
+                    <div className="absolute inset-0 bg-[radial-gradient(rgba(0,0,0,0.018)_1.5px,transparent_0)] bg-[size:14px_14px] pointer-events-none" />
+                    <div className="relative z-10 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-5 items-center">
+                      <div className="flex items-start gap-4">
+                        <div className={cn(
+                          "w-14 h-14 border-4 border-on-surface rounded-2xl flex items-center justify-center shadow-[4px_4px_0px_black]",
+                          clockInfo.phase === 'voting' ? "bg-brand-lime" : "bg-brand-cyan"
+                        )}>
+                          {clockInfo.phase === 'voting' ? <Vote className="w-7 h-7" /> : <Clock className="w-7 h-7" />}
+                        </div>
+                        <div className="space-y-1 text-left">
+                          <p className="font-mono text-[9px] font-black uppercase tracking-[0.24em] text-on-surface/40">Weekly Voting</p>
+                          <h4 className="text-3xl sm:text-4xl font-display font-black uppercase italic tracking-tighter leading-none">
+                            {clockInfo.phase === 'voting' ? 'Ballot Is Open' : clockInfo.phase === 'submission' ? 'Building The Ballot' : 'Results Window'}
+                          </h4>
+                          <p className="text-xs sm:text-sm font-serif italic text-on-surface/65 leading-relaxed">
+                            {clockInfo.phase === 'voting'
+                              ? 'Pick the receipts that deserve weekly recognition. Votes are recorded once per category.'
+                              : clockInfo.phase === 'submission'
+                                ? 'Approved receipts are still arriving. Voting opens when the weekly ballot locks.'
+                                : 'Weekly outcomes live on the Big Board Results desk after final review.'}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => navigate(clockInfo.phase === 'awards' ? '/big-board/results' : '/voting/ballot')}
+                        className="bureau-btn bg-brand-lime text-on-surface text-xs justify-center"
+                      >
+                        {clockInfo.phase === 'awards' ? 'View Results' : 'Open Ballot'}
+                      </button>
                     </div>
                  </div>
 

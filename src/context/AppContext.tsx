@@ -134,6 +134,8 @@ import {
   CanonicalProgressSnapshot,
   ProgressMismatch
 } from '../services/canonicalProgress';
+
+const STARTER_COMPLETION_REWARD_ACK_KEY = 'fieldtrip_starter_completion_reward_ack';
 import { buildCanonicalStarterDeckState, STARTER_SIGNAL_IDS } from '../logic/starterDeckState';
 
 import { 
@@ -1478,7 +1480,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     prevPointsRef.current = points;
   }, [points]);
 
-  const [starterRewardShown, setStarterRewardShown] = useState(false);
+  const [starterRewardShown, setStarterRewardShown] = useState(() => (
+    typeof window !== 'undefined' && localStorage.getItem(STARTER_COMPLETION_REWARD_ACK_KEY) === 'true'
+  ));
   const [isCompassOpen, setIsCompassOpen] = useState(false);
 
   const showHelpToast = (message: string) => {
@@ -1506,6 +1510,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           : "Starter Pack complete! Summer Deck opens Saturday.",
         rewardText: isSeasonStarted ? "CHOOSE SUMMER DECK" : "CHECK COUNTDOWN",
         redirectPath: isSeasonStarted ? '/missions?pack=heatwave-receipts&intro=ack' : '/missions?intro=ack',
+        persistentKey: STARTER_COMPLETION_REWARD_ACK_KEY,
         iconName: 'Zap'
       });
       setStarterRewardShown(true);
@@ -2407,6 +2412,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const queueReward = (reward: Omit<RewardQueueItem, 'id'>) => {
     const id = Math.random().toString(36).substring(7);
     const item = { ...reward, id };
+
+    if (item.persistentKey && typeof window !== 'undefined' && localStorage.getItem(item.persistentKey) === 'true') {
+      return;
+    }
     
     // Check session limits for MAJOR_REVEAL
     if (item.intensity === RewardIntensity.MAJOR_REVEAL) {
@@ -2422,7 +2431,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   const dismissReward = (id: string) => {
-    setRewardQueue(prev => prev.filter(r => r.id !== id));
+    setRewardQueue(prev => {
+      const reward = prev.find(r => r.id === id);
+      if (reward?.persistentKey && typeof window !== 'undefined') {
+        localStorage.setItem(reward.persistentKey, 'true');
+      }
+      return prev.filter(r => r.id !== id);
+    });
   };
 
   const isSeasonActive = activeSeason?.status === 'active' || isAdmin || import.meta.env.DEV;

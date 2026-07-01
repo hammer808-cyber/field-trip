@@ -16,5 +16,6 @@ export interface RewardQueueItem {
   iconName?: string; // Lucide icon name
   rarity?: 'common' | 'uncommon' | 'rare' | 'bureau-secret';
   redirectPath?: string;
+  persistentKey?: string;
   metadata?: any;
 }

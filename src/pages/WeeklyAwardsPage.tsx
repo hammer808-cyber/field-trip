@@ -3,7 +3,6 @@ import { ChevronRight, Trophy, Sparkles, AlertCircle, Zap, Clock, Lock, BookOpen
 import { Link } from 'react-router-dom';
 import { Card } from '../components/UI';
 import { useApp } from '../context/AppContext';
-import { TabbedSection } from '../components/TabbedSection';
 import { getServerDate } from '../services/timeService';
 import { getCurrentVotingCycle, getVotingPhase } from '../services/votingCycleService';
 import { getWeeklySummary } from '../services/summaryService';
@@ -60,59 +59,62 @@ export default function WeeklyAwardsPage() {
 
   const hasWinnersReleased = phase === 'awards' && weeklySummary?.isLocked && weeklySummary?.voteWinners;
 
-  return (
-    <div className="min-h-screen bg-white pb-64 relative overflow-x-hidden">
-      {/* Background decoration */}
-      <div className="fixed top-0 right-0 p-12 opacity-[0.03] pointer-events-none select-none overflow-hidden h-full z-0">
-        <h1 className="text-[25vw] font-display uppercase tracking-tighter leading-none italic rotate-90 origin-top-right font-black">
-          LAUREATES
-        </h1>
-      </div>
+  const statusLabel = hasWinnersReleased
+    ? 'Results Released'
+    : phase === 'awards'
+      ? 'Final Review'
+      : 'Standby';
 
-      <header className="max-w-6xl mx-auto px-6 pt-16 space-y-10 relative z-20">
-        <div className="flex items-center gap-6">
-          <Link to="/voting" className="p-3 bg-white border-4 border-on-surface shadow-[4px_4px_0px_black] hover:bg-brand-lime transition-all active:translate-x-0.5 active:translate-y-0.5 active:shadow-none">
-            <ChevronRight className="w-6 h-6 rotate-180 stroke-[3]" />
+  return (
+    <div className="min-h-screen bg-[#FAF8F5] pb-48 relative overflow-x-hidden ft-paper-texture">
+      <header className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 sm:pt-14 relative z-20">
+        <div className="flex items-center justify-between gap-4 mb-8">
+          <Link to="/voting" className="inline-flex items-center gap-2 px-4 py-3 bg-white border-4 border-on-surface shadow-[4px_4px_0px_black] hover:bg-brand-lime transition-all active:translate-x-0.5 active:translate-y-0.5 active:shadow-none">
+            <ChevronRight className="w-5 h-5 rotate-180 stroke-[3]" />
+            <span className="font-mono text-[10px] font-black uppercase tracking-widest">Voting</span>
           </Link>
-          <div className="space-y-1">
-             <div className="flex items-center gap-2">
-                 <span className="w-2 h-2 bg-brand-orange animate-pulse" />
-                 <p className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-orange">PROTOCOL_HONORS</p>
-             </div>
-             <p className="font-mono text-[9px] opacity-40 uppercase tracking-widest">Protocol_Archival // Weekly_Awards</p>
+          <div className="bg-on-surface text-white px-3 py-2 border-2 border-on-surface shadow-[3px_3px_0px_var(--color-brand-orange)] font-mono text-[9px] font-black uppercase tracking-widest">
+            {statusLabel}
           </div>
         </div>
-        
-        <div className="space-y-6">
-          <div className="field-label-wrapper">
-             <div className="field-label-white-on-blue">
-                <div className="field-label-white-on-blue-inner">
-                   <h1 className="text-[3.5rem] sm:text-[6rem] md:text-[10rem] leading-[0.8] mb-0 break-words">
-                      The_Honors
-                   </h1>
+
+        <section className="bg-white border-[5px] border-on-surface shadow-[12px_12px_0px_black] rounded-[2rem] p-6 sm:p-10 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(rgba(0,0,0,0.018)_1.5px,transparent_0)] bg-[size:15px_15px] pointer-events-none" />
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-8 items-center">
+            <div className="space-y-4">
+              <div className="inline-flex items-center gap-2 bg-brand-cyan text-on-surface border-2 border-on-surface px-3 py-1 shadow-[3px_3px_0px_black]">
+                <span className="w-2 h-2 bg-brand-orange rounded-full animate-pulse" />
+                <span className="font-mono text-[9px] font-black uppercase tracking-[0.22em]">{getDisplayLabel('CURRENT_CYCLE')}</span>
+              </div>
+              <h1 className="font-display text-5xl sm:text-7xl lg:text-8xl font-black uppercase italic tracking-tighter leading-[0.85] text-on-surface">
+                Cycle {currentWeekNumber} Laureates
+              </h1>
+              <p className="font-serif italic text-base sm:text-lg text-on-surface/65 max-w-2xl">
+                The Bureau is distilling weekly votes into final honors. Winners publish here after the weekly review snapshot is locked.
+              </p>
+            </div>
+            <div className="bg-[#FFFCEB] border-4 border-on-surface p-5 sm:p-6 shadow-[7px_7px_0px_black] space-y-4">
+              <div className="flex items-center gap-3">
+                {hasWinnersReleased ? <Trophy className="w-8 h-8 text-brand-orange" /> : <Clock className="w-8 h-8 text-brand-orange" />}
+                <div>
+                  <p className="font-mono text-[9px] font-black uppercase tracking-widest text-on-surface/45">Release State</p>
+                  <p className="font-display text-2xl font-black uppercase italic leading-none">{statusLabel}</p>
                 </div>
-             </div>
+              </div>
+              <p className="font-serif italic text-sm text-on-surface/65">
+                {hasWinnersReleased
+                  ? 'The weekly snapshot is locked. Laureates are live.'
+                  : phase === 'awards'
+                    ? 'Awards phase is active. Final admin review is pending.'
+                    : 'Come back during awards phase for winners and recap notes.'}
+              </p>
+            </div>
           </div>
-          <div className="bg-brand-lime text-on-surface p-8 border-4 border-on-surface shadow-[12px_12px_0px_black] max-w-3xl rotate-1">
-            <p className="font-display text-2xl italic leading-tight uppercase font-black">
-              "Ceremonial recognition for exceptional field performance. The Bureau acknowledges your contribution to the vibe landscape."
-            </p>
-          </div>
-        </div>
+        </section>
       </header>
 
-      <main className="relative z-10 mt-12">
-        {/* 1. Cycle Laureates */}
-        <TabbedSection
-          id="cycle-laureates"
-          eyebrow={getDisplayLabel('CURRENT_CYCLE')}
-          title={`Cycle ${currentWeekNumber} Laureates`}
-          quote="The Bureau is currently distilling field transmissions to identify the cycle laureates."
-          colorClass="bg-brand-lime"
-          statusLabel={hasWinnersReleased ? getDisplayLabel("broadcast_released") : phase === 'awards' ? getDisplayLabel("consensus_pending") : getDisplayLabel("standby_mode")}
-          statusVariant={hasWinnersReleased ? "success" : phase === 'awards' ? "active" : "locked"}
-        >
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
+      <main className="relative z-10 mt-8 max-w-6xl mx-auto px-4 sm:px-6 space-y-8">
+        <section className="bg-white/80 border-4 border-on-surface rounded-[2rem] shadow-[8px_8px_0px_black] p-4 sm:p-8">
             {loading ? (
               <div className="p-12 text-center font-mono text-xs uppercase animate-pulse">
                 Uplinking core database...
@@ -165,139 +167,71 @@ export default function WeeklyAwardsPage() {
                   );
                 })}
               </div>
-            ) : phase !== 'awards' ? (
-              // Standby / Early Phase View
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12 text-left">
-                <Card className="p-12 border-8 border-on-surface bg-white shadow-[24px_24px_0px_black] relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 w-64 h-full bg-brand-orange/5 -skew-x-12 translate-x-16" />
-                  
-                  <div className="space-y-10 relative z-10 text-left">
-                    <div className="flex items-start gap-8">
-                       <div className="p-5 bg-on-surface text-brand-orange border-4 border-on-surface shadow-[8px_8px_0px_var(--color-brand-orange)] group-hover:rotate-12 transition-transform">
-                          <Lock className="w-12 h-12 stroke-[2.5]" />
-                       </div>
-                       <div className="space-y-2">
-                          <p className="text-[11px] font-black tracking-widest text-[#B5A585] uppercase">BROADCAST_STANDBY</p>
-                          <h2 className="font-display text-6xl uppercase tracking-tighter leading-[0.9] font-black italic">The_Honored_Class</h2>
-                       </div>
-                    </div>
-                    
-                    <div className="p-10 bg-paper-dark border-4 border-on-surface shadow-inner space-y-8">
-                       <div className="space-y-4">
-                          <div className="flex items-center gap-3">
-                             <Clock className="w-5 h-5 text-brand-orange animate-pulse" />
-                             <p className="font-black text-sm uppercase tracking-widest">Enroute to Sunday Release</p>
-                          </div>
-                          <p className="font-display text-xl italic text-on-surface/80 leading-relaxed uppercase font-black">
-                             Crowning of Cycle {currentWeekNumber} laureates, consensus statistics, and XP rewards release here live on Sunday 00:00 UTC.
-                          </p>
-                       </div>
-                       
-                       <div className="pt-8 border-t-2 border-on-surface/10 flex justify-between items-center">
-                          <span className="text-[10px] font-mono opacity-40 uppercase tracking-widest">Come back Sunday to view</span>
-                          <span className="text-[10px] font-mono opacity-40 uppercase tracking-widest">TRANSMISSION_ENCRYPTED</span>
-                       </div>
-                    </div>
-                  </div>
-                </Card>
-
-                <div className="flex flex-col justify-center space-y-10">
-                   <div className="bg-white border-4 border-on-surface p-10 shadow-[12px_12px_0px_black] rotate-2">
-                      <p className="font-display text-3xl font-black uppercase text-on-surface italic leading-tight">"A legacy written in field code."</p>
-                   </div>
-                   <div className="flex items-center gap-6 p-8 bg-on-surface text-brand-lime border-4 border-on-surface shadow-[12px_12px_0px_var(--color-brand-orange)] -rotate-1">
-                      <AlertCircle className="w-10 h-10 shrink-0" />
-                      <p className="text-xs font-mono uppercase tracking-widest leading-loose">All winners get a final human look. Fake receipts get tossed into the metaphorical volcano.</p>
-                   </div>
-                </div>
-              </div>
             ) : (
-              // Sunday / Awards Phase but pending finalization View
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-12 text-left">
-                <Card className="p-12 border-8 border-on-surface bg-white shadow-[24px_24px_0px_black] relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 w-64 h-full bg-brand-lime/5 -skew-x-12 translate-x-16" />
-                  
-                  <div className="space-y-10 relative z-10 text-left">
-                    <div className="flex items-start gap-8">
-                       <div className="p-5 bg-on-surface text-brand-lime border-4 border-on-surface shadow-[8px_8px_0px_var(--color-brand-orange)] group-hover:rotate-12 transition-transform">
-                          <Trophy className="w-12 h-12 stroke-[2.5]" />
-                       </div>
-                       <div className="space-y-2">
-                          <p className="text-[11px] font-black tracking-widest text-[#B5A585] uppercase">IDENTITY_VERIFIED</p>
-                          <h2 className="font-display text-6xl uppercase tracking-tighter leading-[0.9] font-black italic">The_Honored_Class</h2>
-                       </div>
+              <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-6 items-stretch">
+                <Card className="p-6 sm:p-8 border-4 border-on-surface bg-white shadow-[8px_8px_0px_black] rounded-[1.5rem] relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-40 h-full bg-brand-orange/5 -skew-x-12 translate-x-12" />
+                  <div className="relative z-10 space-y-6">
+                    <div className="flex items-start gap-4">
+                      <div className="p-4 bg-on-surface text-brand-orange border-4 border-on-surface shadow-[5px_5px_0px_var(--color-brand-orange)]">
+                        {phase === 'awards' ? <Trophy className="w-8 h-8 stroke-[2.5]" /> : <Lock className="w-8 h-8 stroke-[2.5]" />}
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black tracking-widest text-[#B5A585] uppercase">
+                          {phase === 'awards' ? 'CONSENSUS_PENDING' : 'BROADCAST_STANDBY'}
+                        </p>
+                        <h2 className="font-display text-3xl sm:text-5xl uppercase tracking-tighter leading-[0.9] font-black italic">
+                          Honors Pending
+                        </h2>
+                      </div>
                     </div>
-                    
-                    <div className="p-10 bg-paper-dark border-4 border-on-surface shadow-inner space-y-8">
-                       <div className="space-y-4">
-                          <div className="flex items-center gap-3">
-                             <div className="w-4 h-4 bg-brand-magenta animate-ping" />
-                             <p className="font-black text-sm uppercase tracking-widest">Consensus_Pending_Uplink</p>
-                          </div>
-                          <p className="font-display text-xl italic text-on-surface/80 leading-relaxed uppercase font-black">
-                             Weekly consensus is wrapping up. Awaiting final terminal archive command to unlock accolades.
-                          </p>
-                       </div>
-                       
-                       <div className="pt-8 border-t-2 border-on-surface/10 flex justify-between items-center flex-wrap gap-4">
-                          <div className="flex -space-x-4">
-                             {[1,2,3,4].map(i => (
-                               <div key={i} className="w-12 h-12 rounded-full bg-white border-4 border-on-surface shadow-[4px_4px_0px_rgba(0,0,0,0.1)] flex items-center justify-center text-[10px] font-black text-on-surface/20">?</div>
-                             ))}
-                          </div>
-                          <span className="text-[10px] font-mono opacity-40 uppercase tracking-widest">Awaiting_Consensus</span>
-                       </div>
+
+                    <div className="p-5 bg-paper-dark border-4 border-on-surface space-y-4">
+                      <div className="flex items-center gap-3">
+                        <Clock className="w-5 h-5 text-brand-orange animate-pulse" />
+                        <p className="font-black text-xs uppercase tracking-widest">
+                          {phase === 'awards' ? 'Final review is active' : 'Enroute to Sunday release'}
+                        </p>
+                      </div>
+                      <p className="font-serif italic text-on-surface/75 leading-relaxed">
+                        {phase === 'awards'
+                          ? 'Weekly consensus is wrapping up. The final archive command unlocks the official accolades.'
+                          : `Crowning of Cycle ${currentWeekNumber} laureates, consensus statistics, and awards release here during the weekly results window.`}
+                      </p>
                     </div>
                   </div>
                 </Card>
 
-                <div className="flex flex-col justify-center space-y-10">
-                   <div className="bg-white border-4 border-on-surface p-10 shadow-[12px_12px_0px_black] rotate-2">
-                      <p className="font-display text-3xl font-black uppercase text-on-surface italic leading-tight">"A legacy written in field code."</p>
-                   </div>
-                   <div className="flex items-center gap-6 p-8 bg-on-surface text-brand-lime border-4 border-on-surface shadow-[12px_12px_0px_var(--color-brand-orange)] -rotate-1">
-                      <AlertCircle className="w-10 h-10 shrink-0" />
-                      <p className="text-xs font-mono uppercase tracking-widest leading-loose">All winners get a final human look. Fake receipts get tossed into the metaphorical volcano.</p>
-                   </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {CATEGORIES.slice(0, 4).map((cat, idx) => {
+                    const Icon = cat.icon;
+                    return (
+                      <div key={cat.id} className="bg-white border-4 border-on-surface p-5 shadow-[6px_6px_0px_black] rounded-[1.25rem] space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <Icon className="w-6 h-6 text-brand-orange" />
+                          <span className="font-mono text-[8px] font-black uppercase text-on-surface/35">CAT_{idx + 1}</span>
+                        </div>
+                        <h3 className="font-display text-xl font-black uppercase italic leading-none">{cat.label}</h3>
+                        <p className="text-xs font-serif italic text-on-surface/60 leading-relaxed">{cat.description}</p>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
-          </div>
-        </TabbedSection>
+        </section>
 
         {/* 2. Hall of Records */}
-        <TabbedSection
-          id="hall-of-records"
-          eyebrow={getDisplayLabel('PROTOCOL_HISTORY')}
-          title="Hall of Records"
-          quote="Digital dust on the archives. No historical data clusters detected in this sector."
-          colorClass="bg-brand-orange"
-          statusLabel={getDisplayLabel("standby_mode")}
-          statusVariant="locked"
-        >
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-24">
-             <div className="max-w-3xl mx-auto text-center space-y-12 bg-white border-8 border-dashed border-on-surface/20 p-20 rounded-[4rem] relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-8">
-                   <Sparkles className="w-10 h-10 text-brand-lime animate-pulse opacity-40" />
-                </div>
-                
-                <div className="p-10 bg-white border-4 border-on-surface inline-block shadow-[16px_16px_0px_rgba(0,0,0,0.05)] rotate-6">
-                   <Trophy className="w-24 h-24 opacity-5 stroke-[1]" />
-                </div>
-                
-                <div className="space-y-4">
-                  <h3 className="font-display text-5xl uppercase tracking-tighter font-black text-on-surface/30">Archive_Null</h3>
-                  <p className="font-display text-xl italic text-on-surface/40 leading-relaxed uppercase font-black max-w-sm mx-auto">"The halls remain silent. History is waiting for your imprint."</p>
-                </div>
-
-                <div className="pt-10 flex justify-center gap-3">
-                   {[...Array(5)].map((_, i) => (
-                      <div key={i} className="w-3 h-3 rounded-full bg-on-surface/10" />
-                   ))}
-                </div>
-             </div>
+        <section className="bg-white border-4 border-dashed border-on-surface/20 rounded-[2rem] p-8 sm:p-12 text-center space-y-6">
+          <Sparkles className="w-10 h-10 text-brand-lime animate-pulse opacity-60 mx-auto" />
+          <div className="space-y-2">
+            <p className="font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/35">{getDisplayLabel('PROTOCOL_HISTORY')}</p>
+            <h3 className="font-display text-3xl sm:text-5xl uppercase tracking-tighter font-black text-on-surface/35">Hall of Records</h3>
+            <p className="font-serif italic text-on-surface/45 leading-relaxed max-w-xl mx-auto">
+              Digital dust on the archives. Historical weekly results will stack here once more cycles close.
+            </p>
           </div>
-        </TabbedSection>
+        </section>
       </main>
     </div>
   );

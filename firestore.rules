@@ -473,6 +473,43 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // CANONICAL WEEKLY CYCLES
+    // Server/admin owned weekly cycle tree. Clients may read eligible public
+    // cycle material, but they cannot create votes, mutate proof snapshots, or
+    // alter finalized result snapshots directly.
+    match /weeklyCycles/{weekId} {
+      allow read: if isApproved();
+      allow create, update, delete: if isAdmin();
+
+      match /proofs/{entryId} {
+        allow read: if isApproved() && (
+          isAdmin() ||
+          (
+            resource.data.get('isEligible', false) == true &&
+            resource.data.get('isDisqualified', false) != true
+          )
+        );
+        allow create, update, delete: if isAdmin();
+      }
+
+      match /votes/{voteId} {
+        allow read: if isApproved() && (
+          isAdmin() ||
+          resource.data.get('userId', resource.data.get('voterId', '')) == request.auth.uid
+        );
+        allow create, update, delete: if false;
+      }
+
+      match /results/{resultId} {
+        allow read: if isApproved();
+        allow create, update, delete: if isAdmin();
+      }
+
+      match /diagnostics/{diagnosticId} {
+        allow read, write: if isAdmin();
+      }
+    }
+
     // NOTIFICATIONS
     match /notifications/{id} {
       allow read, delete: if isOwner(resource.data.userId);

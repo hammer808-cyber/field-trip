@@ -25,6 +25,7 @@ test('community feed accepts only approved public renderable entries', () => {
     isPublic: true,
     userId: 'user-1',
     photoUrl: 'https://example.com/proof.jpg',
+    approvedAt: '2026-06-20T10:00:00.000Z',
   };
 
   assert.equal(isCommunityFeedEligible(base), true);
@@ -51,6 +52,7 @@ test('community feed queries all canonical and legacy approved entry statuses', 
     isPublic: true,
     userId: 'user-1',
     photoUrl: 'https://example.com/proof.jpg',
+    reviewedAt: '2026-06-20T10:00:00.000Z',
   };
 
   for (const status of COMMUNITY_FEED_APPROVED_STATUSES) {
@@ -63,6 +65,8 @@ test('community feed accepts legacy approved proof image fields and storage refe
     id: 'entry-1',
     status: 'approved',
     userId: 'user-1',
+    showInCommunityFeed: true,
+    approvedAt: '2026-06-20T10:00:00.000Z',
   };
 
   assert.equal(isCommunityFeedEligible({ ...base, photoUrl: 'https://example.com/photo.jpg' }), true);
@@ -86,7 +90,7 @@ test('community feed diagnostics explain exclusions', () => {
 
   assert.ok(reasons.includes('status:pending_review'));
   assert.ok(reasons.includes('not_public_feed_enabled'));
-  assert.ok(reasons.includes('private_visibility'));
+  assert.ok(reasons.includes('missing_approved_at'));
   assert.ok(reasons.includes('missing_or_invalid_image'));
   assert.ok(reasons.includes('missing_owner'));
 });

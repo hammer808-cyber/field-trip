@@ -84,6 +84,9 @@ test('Firestore rules block direct client manipulation of weekly votes and resul
   assert.match(rules, /match \/votes\/\{voteId\}[\s\S]*allow create, update: if false;/);
   assert.match(rules, /match \/weeklyBallots\/\{ballotId\}[\s\S]*allow create: if isAdmin\(\)/);
   assert.match(rules, /match \/weeklySummaries\/\{id\}[\s\S]*allow write: if isAdmin\(\)/);
+  assert.match(rules, /match \/weeklyCycles\/\{weekId\}[\s\S]*match \/proofs\/\{entryId\}[\s\S]*allow create, update, delete: if isAdmin\(\);/);
+  assert.match(rules, /match \/weeklyCycles\/\{weekId\}[\s\S]*match \/votes\/\{voteId\}[\s\S]*allow create, update, delete: if false;/);
+  assert.match(rules, /match \/weeklyCycles\/\{weekId\}[\s\S]*match \/results\/\{resultId\}[\s\S]*allow create, update, delete: if isAdmin\(\);/);
 });
 
 test('server weekly vote endpoint uses transactions and immutable vote creation', () => {
