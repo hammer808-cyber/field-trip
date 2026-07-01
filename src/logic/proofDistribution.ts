@@ -116,7 +116,8 @@ export function getEntryApprovedTime(entry: any): number {
 }
 
 export function hasEffectiveApprovedAt(entry: any): boolean {
-  return toMillis(entry?.approvedAt || entry?.reviewedAt || entry?.completedAt) > 0;
+  if (toMillis(entry?.approvedAt || entry?.reviewedAt || entry?.completedAt) > 0) return true;
+  return isCanonicalApprovedProof(entry) && toMillis(entry?.createdAt || entry?.submittedAt) > 0;
 }
 
 export function normalizeProofVisibility(entry: any): ProofDistributionVisibility {

@@ -60,6 +60,17 @@ test('community feed queries all canonical and legacy approved entry statuses', 
   }
 });
 
+test('community feed accepts legacy approved entries with createdAt but no approvedAt mirror', () => {
+  assert.equal(isCommunityFeedEligible({
+    id: 'legacy-approved-entry',
+    status: 'approved',
+    userId: 'user-1',
+    isPublic: true,
+    photoUrl: 'https://example.com/proof.jpg',
+    createdAt: '2026-06-20T10:00:00.000Z',
+  }), true);
+});
+
 test('community feed accepts legacy approved proof image fields and storage references', () => {
   const base = {
     id: 'entry-1',
@@ -119,6 +130,10 @@ test('Hype writes go through server endpoint and direct Firestore like writes ar
   assert.match(proofServiceSource, /authenticatedFetch\('\/api\/community\/hype'/);
   assert.doesNotMatch(proofServiceSource, /collection\(db,\s*'likes'\)[\s\S]{0,500}(setDoc|deleteDoc)/);
   assert.match(rulesSource, /match \/likes\/\{likeId\}[\s\S]*allow read: if isSignedIn\(\);[\s\S]*allow write: if false;/);
+});
+
+test('Firestore rules allow approved users to list entries for Community Feed subscriptions', () => {
+  assert.match(rulesSource, /match \/entries\/\{entryId\}[\s\S]*allow list: if isAdmin\(\) \|\| isApproved\(\);/);
 });
 
 test('Community proof card reuses private Sus endpoint and does not render pending labels', () => {
