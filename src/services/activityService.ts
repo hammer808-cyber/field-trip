@@ -8,7 +8,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { ScoreEvent } from '../types/game';
-import { COMMUNITY_FEED_APPROVED_STATUSES, getCommunityFeedApprovedTime, isCommunityFeedEligible } from '../logic/communityFeed';
+import { COMMUNITY_FEED_QUERY_STATUSES, getCommunityFeedApprovedTime, isCommunityFeedEligible } from '../logic/communityFeed';
 
 export function subscribeToRecentScoreEvents(limitCount: number, callback: (events: ScoreEvent[]) => void) {
   const q = query(
@@ -53,7 +53,7 @@ export function subscribeToPublicProofs(limitCount: number, callback: (entries: 
   const fetchLimit = Math.max(limitCount, Math.min(limitCount * 4, 120));
   const q = query(
     collection(db, 'entries'),
-    where('status', 'in', COMMUNITY_FEED_APPROVED_STATUSES),
+    where('status', 'in', COMMUNITY_FEED_QUERY_STATUSES),
     limit(fetchLimit)
   );
 

@@ -130,11 +130,24 @@ export async function applyTribunalDiagnosticsRepair(confirmation: string) {
   return response.json();
 }
 
-export async function previewCommunityFeedDiagnostics() {
-  const response = await authenticatedFetch('/api/admin/community-feed/diagnostics');
+export async function previewCommunityFeedDiagnostics(userId?: string) {
+  const params = userId ? `?userId=${encodeURIComponent(userId)}` : '';
+  const response = await authenticatedFetch(`/api/admin/community-feed/diagnostics${params}`);
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || 'FAILED_TO_PREVIEW_COMMUNITY_FEED_DIAGNOSTICS');
+  }
+  return response.json();
+}
+
+export async function repairCommunityFeedDistribution(options: { userId?: string; dryRun?: boolean } = {}) {
+  const response = await authenticatedFetch('/api/admin/community-feed/repair', {
+    method: 'POST',
+    body: JSON.stringify({ userId: options.userId, dryRun: options.dryRun !== false })
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'FAILED_TO_REPAIR_COMMUNITY_FEED_DISTRIBUTION');
   }
   return response.json();
 }

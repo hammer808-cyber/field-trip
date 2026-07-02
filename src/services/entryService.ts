@@ -18,6 +18,7 @@ import { db, handleFirestoreError, OperationType, logFirestoreError } from '../l
 import { Entry } from '../constants';
 import { guardedCall } from './guardedService';
 import { isArchivedEntry } from '../logic/entryLogic';
+import { COMMUNITY_FEED_QUERY_STATUSES, isCommunityFeedEligible } from '../logic/communityFeed';
 
 const COLLECTION = 'entries';
 
@@ -70,12 +71,9 @@ export async function getUserEntriesPage(userId: string, pageSize = 10, lastVisi
  * PAGINATION: Global approved entries.
  */
 export async function getGlobalEntriesPage(pageSize = 10, lastVisible?: QueryDocumentSnapshot<DocumentData>) {
-  const approvedStatuses = ['approved', 'approved_by_admin', 'auto_approved', 'completed'];
-  
   let q = query(
     collection(db, COLLECTION),
-    where('status', 'in', approvedStatuses),
-    where('showInCommunityFeed', '==', true),
+    where('status', 'in', COMMUNITY_FEED_QUERY_STATUSES),
     orderBy('createdAt', 'desc'),
     limit(pageSize)
   );
@@ -88,7 +86,7 @@ export async function getGlobalEntriesPage(pageSize = 10, lastVisible?: QueryDoc
     const snapshot = await getDocs(q);
     const docs = snapshot.docs
       .map(doc => ({ id: doc.id, ...doc.data() } as Entry))
-      .filter(e => e.archived !== true && e.countsTowardLiveStats !== false);
+      .filter(isCommunityFeedEligible);
     return {
       docs,
       lastVisible: snapshot.docs[snapshot.docs.length - 1]
@@ -99,12 +97,9 @@ export async function getGlobalEntriesPage(pageSize = 10, lastVisible?: QueryDoc
 }
 
 export function subscribeToLatestGlobalEntries(callback: (entries: Entry[]) => void, count = 5) {
-  const approvedStatuses = ['approved', 'approved_by_admin', 'auto_approved', 'completed'];
-
   const q = query(
     collection(db, COLLECTION),
-    where('status', 'in', approvedStatuses),
-    where('showInCommunityFeed', '==', true),
+    where('status', 'in', COMMUNITY_FEED_QUERY_STATUSES),
     orderBy('createdAt', 'desc'),
     limit(count)
   );
@@ -112,7 +107,7 @@ export function subscribeToLatestGlobalEntries(callback: (entries: Entry[]) => v
   return onSnapshot(q, (snapshot) => {
     const entries = snapshot.docs
       .map(doc => ({ id: doc.id, ...doc.data() } as Entry))
-      .filter(e => e.archived !== true && e.countsTowardLiveStats !== false);
+      .filter(isCommunityFeedEligible);
     callback(entries);
   }, (error) => {
     logFirestoreError(error, OperationType.LIST, COLLECTION);

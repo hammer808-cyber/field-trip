@@ -20,6 +20,34 @@ export interface ProofDistributionContext {
   requireApprovedAt?: boolean;
 }
 
+export interface NormalizedProofModel {
+  id: string;
+  userId: string;
+  challengeId: string;
+  deckId: string;
+  seasonId: string;
+  crewId: string;
+  status: CanonicalProofStatus;
+  rawStatus: string;
+  approvalTime: number;
+  submittedTime: number;
+  mediaReference: string;
+  fieldNote: string;
+  earnedXp: number;
+  visibility: ProofDistributionVisibility;
+  moderation: ProofDistributionModeration;
+  isCommunityEligible: boolean;
+  communityExclusionReasons: string[];
+}
+
+export interface ProofLogbookCounts {
+  totalSubmitted: number;
+  pendingReview: number;
+  approvedVerified: number;
+  rejectedOrNeedsMoreProof: number;
+  communityEligible: number;
+}
+
 export const CANONICAL_PROOF_STATUSES: CanonicalProofStatus[] = [
   'pending_review',
   'approved',
@@ -48,7 +76,8 @@ export function getEntrySeasonId(entry: any): string {
 }
 
 export function getEntryCrewId(entry: any): string {
-  return String(entry?.crewId || entry?.activeCrewId || '').trim();
+  const crewIds = Array.isArray(entry?.crewIds) ? entry.crewIds : [];
+  return String(entry?.crewId || entry?.activeCrewId || entry?.crew?.id || crewIds[0] || '').trim();
 }
 
 export function getEntryFieldNote(entry: any): string {
@@ -125,15 +154,16 @@ export function normalizeProofVisibility(entry: any): ProofDistributionVisibilit
   const visibilityMap = visibility && typeof visibility === 'object' ? visibility : {};
   const visibilityString = typeof visibility === 'string' ? visibility : '';
   const publicLegacy = entry?.isPublic === true || entry?.communityVisible === true || visibilityString === 'public';
+  const approvedLike = isCanonicalApprovedProof(entry);
   const privateLegacy =
     visibilityMap.showInCommunityFeed === false ||
-    entry?.showInCommunityFeed === false ||
-    entry?.isPublic === false ||
-    entry?.communityVisible === false ||
+    entry?.isPrivate === true ||
+    entry?.private === true ||
+    entry?.visibilityPrivate === true ||
     visibilityString === 'private';
   const crewPrivateLegacy =
     visibilityMap.showInCrewFeed === false ||
-    entry?.showInCrewFeed === false ||
+    (entry?.showInCrewFeed === false && !approvedLike) ||
     entry?.crewVisible === false;
 
   const showInCommunityFeed =
@@ -141,7 +171,8 @@ export function normalizeProofVisibility(entry: any): ProofDistributionVisibilit
     (
       visibilityMap.showInCommunityFeed === true ||
       entry?.showInCommunityFeed === true ||
-      publicLegacy
+      publicLegacy ||
+      approvedLike
     );
 
   const showInCrewFeed =
@@ -183,7 +214,7 @@ export function normalizeProofModeration(entry: any): ProofDistributionModeratio
 }
 
 export function isCanonicalApprovedProof(entry: any): boolean {
-  return normalizeEntryStatus(entry?.status) === 'approved';
+  return normalizeEntryStatus(entry?.status || entry?.reviewStatus || entry?.approvalStatus || entry?.submissionStatus || entry?.proofStatus) === 'approved';
 }
 
 export function isArchivedOrDeletedProof(entry: any): boolean {
@@ -224,6 +255,53 @@ export function getProofDistributionExclusionReasons(entry: any, context: ProofD
 
   return reasons;
 }
+
+export function normalizeProofForDistribution(entry: any, context: ProofDistributionContext = {}): NormalizedProofModel {
+  const status = normalizeEntryStatus(entry?.status || entry?.reviewStatus || entry?.approvalStatus || entry?.submissionStatus || entry?.proofStatus);
+  const proof = { ...entry, status };
+  const communityExclusionReasons = getProofDistributionExclusionReasons(proof, context);
+
+  return {
+    id: getEntryId(proof),
+    userId: getEntryOwnerId(proof),
+    challengeId: getEntryChallengeId(proof),
+    deckId: getEntryDeckId(proof),
+    seasonId: getEntrySeasonId(proof),
+    crewId: getEntryCrewId(proof),
+    status,
+    rawStatus: String(entry?.status || entry?.reviewStatus || entry?.approvalStatus || entry?.submissionStatus || entry?.proofStatus || '').trim(),
+    approvalTime: getEntryApprovedTime(proof),
+    submittedTime: getEntrySubmittedTime(proof),
+    mediaReference: getProofImageReference(proof),
+    fieldNote: getEntryFieldNote(proof),
+    earnedXp: getEntryEarnedXp(proof),
+    visibility: normalizeProofVisibility(proof),
+    moderation: normalizeProofModeration(proof),
+    isCommunityEligible: communityExclusionReasons.length === 0,
+    communityExclusionReasons
+  };
+}
+
+export function getProofLogbookCounts(entries: any[]): ProofLogbookCounts {
+  return entries.reduce<ProofLogbookCounts>((counts, entry) => {
+    if (isArchivedOrDeletedProof(entry)) return counts;
+    const normalized = normalizeProofForDistribution(entry, { requireApprovedAt: false });
+    counts.totalSubmitted++;
+    if (normalized.status === 'pending_review') counts.pendingReview++;
+    if (normalized.status === 'approved') counts.approvedVerified++;
+    if (normalized.status === 'rejected' || normalized.status === 'needs_more_proof') counts.rejectedOrNeedsMoreProof++;
+    if (normalized.isCommunityEligible) counts.communityEligible++;
+    return counts;
+  }, {
+    totalSubmitted: 0,
+    pendingReview: 0,
+    approvedVerified: 0,
+    rejectedOrNeedsMoreProof: 0,
+    communityEligible: 0
+  });
+}
+
+export const isCommunityEligibleProof = isCommunityProofEligible;
 
 export function isCommunityProofEligible(entry: any, context: ProofDistributionContext = {}): boolean {
   const visibility = normalizeProofVisibility(entry);

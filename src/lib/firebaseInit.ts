@@ -11,6 +11,20 @@ import firebaseConfig from '../../firebase-applet-config.json';
 let app: FirebaseApp;
 let appCheckInitialized = false;
 
+function ensureCryptoRandomUUID(globalObj: any) {
+  const cryptoObj = globalObj?.crypto;
+  if (!cryptoObj || typeof cryptoObj.randomUUID === 'function' || typeof cryptoObj.getRandomValues !== 'function') return;
+
+  cryptoObj.randomUUID = () => {
+    const bytes = new Uint8Array(16);
+    cryptoObj.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0'));
+    return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10, 16).join('')}`;
+  };
+}
+
 export function initializeFirebase() {
   const isBrowser = typeof window !== 'undefined';
   const globalObj = isBrowser ? (window as any) : (global as any);
@@ -63,6 +77,10 @@ export function initializeFirebase() {
   // 2. Initialize App Check IMMEDIATELY after initializeApp and BEFORE any other services
   if (!appCheckInitialized && !globalObj.FIREBASE_APP_CHECK_INITIALIZED) {
     try {
+      if (isBrowser) {
+        ensureCryptoRandomUUID(globalObj);
+      }
+
       if (SHOULD_USE_DEBUG) {
         // Set debug token before initializeAppCheck().
         globalObj.FIREBASE_APPCHECK_DEBUG_TOKEN = true;

@@ -5,6 +5,7 @@ import { CommunityProofCard } from './CommunityProofCard';
 import { subscribeToPublicProofs } from '../services/activityService';
 import { normalizeEntryStatus } from '../logic/entryLogic';
 import { getCommunityFeedApprovedTime, isCommunityFeedEligible } from '../logic/communityFeed';
+import { isCrewProofEligible } from '../logic/proofDistribution';
 import { cn } from '../lib/utils';
 
 type FeedFilter = 'latest' | 'hyped' | 'week' | 'season' | 'crew';
@@ -32,7 +33,7 @@ export function CommunityProofsFeed() {
     } else if (feedFilter === 'season' && seasonStart > 0) {
       items = items.filter(entry => getCommunityFeedApprovedTime(entry) >= seasonStart);
     } else if (feedFilter === 'crew' && crewId) {
-      items = items.filter(entry => (entry as any).crewId === crewId || (entry as any).activeCrewId === crewId);
+      items = items.filter(entry => isCrewProofEligible(entry, crewId));
     }
 
     return items.sort((a: any, b: any) => {

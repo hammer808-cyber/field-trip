@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   COMMUNITY_FEED_APPROVED_STATUSES,
+  COMMUNITY_FEED_QUERY_STATUSES,
   getCommunityFeedExclusionReasons,
   getCommunityFeedImageReference,
   hasCommunityFeedImageReference,
@@ -17,6 +18,7 @@ const proofImageSource = readFileSync('src/components/ProofImage.tsx', 'utf8');
 const serverSource = readFileSync('server.ts', 'utf8');
 const adminModerationSource = readFileSync('src/pages/AdminModeration.tsx', 'utf8');
 const rulesSource = readFileSync('firestore.rules', 'utf8');
+const deckSource = readFileSync('src/pages/Deck.tsx', 'utf8');
 
 test('community feed accepts only approved public renderable entries', () => {
   const base = {
@@ -36,7 +38,7 @@ test('community feed accepts only approved public renderable entries', () => {
   assert.equal(isCommunityFeedEligible({ ...base, hidden: true }), false);
   assert.equal(isCommunityFeedEligible({ ...base, isDisqualified: true }), false);
   assert.equal(isCommunityFeedEligible({ ...base, visibility: 'private' }), false);
-  assert.equal(isCommunityFeedEligible({ ...base, showInCommunityFeed: false }), false);
+  assert.equal(isCommunityFeedEligible({ ...base, visibility: { showInCommunityFeed: false } }), false);
   assert.equal(isCommunityFeedEligible({ ...base, photoUrl: '' }), false);
   assert.equal(isCommunityFeedEligible({ ...base, userId: '' }), false);
 });
@@ -46,6 +48,7 @@ test('community feed queries all canonical and legacy approved entry statuses', 
     COMMUNITY_FEED_APPROVED_STATUSES,
     ['approved', 'approved_by_admin', 'auto_approved', 'completed', 'retry-approved']
   );
+  assert.ok(COMMUNITY_FEED_QUERY_STATUSES.includes('verified'));
 
   const base = {
     id: 'entry-1',
@@ -58,6 +61,7 @@ test('community feed queries all canonical and legacy approved entry statuses', 
   for (const status of COMMUNITY_FEED_APPROVED_STATUSES) {
     assert.equal(isCommunityFeedEligible({ ...base, status }), true, status);
   }
+  assert.equal(isCommunityFeedEligible({ ...base, status: 'verified' }), true);
 });
 
 test('community feed accepts legacy approved entries with createdAt but no approvedAt mirror', () => {
@@ -119,7 +123,7 @@ test('Community feed subscription does not require legacy visibility flags or ap
   const activitySource = readFileSync('src/services/activityService.ts', 'utf8');
   const publicProofs = activitySource.match(/export function subscribeToPublicProofs[\s\S]*?\n\}/)?.[0] || '';
 
-  assert.match(publicProofs, /where\('status', 'in', COMMUNITY_FEED_APPROVED_STATUSES\)/);
+  assert.match(publicProofs, /where\('status', 'in', COMMUNITY_FEED_QUERY_STATUSES\)/);
   assert.doesNotMatch(publicProofs, /where\('showInCommunityFeed'/);
   assert.doesNotMatch(publicProofs, /orderBy\('approvedAt'/);
   assert.match(publicProofs, /filter\(isCommunityFeedEligible\)/);
@@ -134,6 +138,18 @@ test('Hype writes go through server endpoint and direct Firestore like writes ar
 
 test('Firestore rules allow approved users to list entries for Community Feed subscriptions', () => {
   assert.match(rulesSource, /match \/entries\/\{entryId\}[\s\S]*allow list: if isAdmin\(\) \|\| isApproved\(\);/);
+});
+
+test('Community feed My Crew filter uses canonical crew eligibility helper', () => {
+  assert.match(communityProofsFeedSource, /isCrewProofEligible\(entry, crewId\)/);
+});
+
+test('Logbook header reports state counts instead of active logs label', () => {
+  assert.match(deckSource, /getProofLogbookCounts/);
+  assert.match(deckSource, /SUBMITTED/);
+  assert.match(deckSource, /VERIFIED/);
+  assert.match(deckSource, /PENDING/);
+  assert.doesNotMatch(deckSource, /ACTIVE LOGS/);
 });
 
 test('Community proof card reuses private Sus endpoint and does not render pending labels', () => {
@@ -153,8 +169,12 @@ test('ProofImage treats Firebase Storage paths as renderable image references', 
 
 test('admin community feed diagnostics are read-only and exposed in Internal Affairs', () => {
   assert.match(serverSource, /app\.get\("\/api\/admin\/community-feed\/diagnostics"/);
+  assert.match(serverSource, /targetUserId/);
+  assert.match(serverSource, /approvedExclusions/);
+  assert.match(serverSource, /app\.post\("\/api\/admin\/community-feed\/repair"/);
   assert.match(serverSource, /readOnly:\s*true/);
   assert.match(serverSource, /duplicateLikes/);
   assert.match(adminModerationSource, /Community Feed Diagnostics/);
   assert.match(adminModerationSource, /previewCommunityFeedDiagnostics/);
+  assert.match(adminModerationSource, /repairCommunityFeedDistribution/);
 });

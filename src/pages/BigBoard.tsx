@@ -33,6 +33,7 @@ import { getServerDate } from "../services/timeService";
 import { getCurrentVotingCycle, getVotingPhase } from "../services/votingCycleService";
 import { normalizeEntryStatus } from "../logic/entryLogic";
 import { getCommunityFeedApprovedTime, isCommunityFeedEligible } from "../logic/communityFeed";
+import { isCrewProofEligible } from "../logic/proofDistribution";
 import { ContentMenu } from "../components/ContentMenu";
 import { SabotageHub } from "../components/SabotageHub";
 import { CrewArtifactsGallery } from "../components/CrewArtifactsGallery";
@@ -1318,7 +1319,7 @@ export default function BigBoardPage() {
     } else if (feedFilter === "season" && seasonStart > 0) {
       list = list.filter(p => getCommunityFeedApprovedTime(p) >= seasonStart);
     } else if (feedFilter === "crew" && crewId) {
-      list = list.filter(p => p.crewId === crewId);
+      list = list.filter(p => isCrewProofEligible(p, crewId));
     }
 
     return [...list].sort((a, b) => {

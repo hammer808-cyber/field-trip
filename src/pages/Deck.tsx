@@ -27,6 +27,7 @@ import { getWeeklyBonusForWeek } from '../data/weeklyBonuses';
 import { StickerBackground } from '../components/StickerBackground';
 import { StickerDecal, StickerCorner, StickerScatter } from '../components/StickerDecals';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
+import { getProofLogbookCounts } from '../logic/proofDistribution';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { StarterCompletionState } from '../utils/starterHelper';
 import { getSummerCountdown } from '../utils/seasonCountdown';
@@ -248,6 +249,7 @@ export default function DeckPage() {
   const [isFieldLogExpanded, setIsFieldLogExpanded] = useState(false);
 
   const activeLogEntries = React.useMemo(() => entries.filter(entry => !isArchivedEntry(entry)), [entries]);
+  const logbookCounts = React.useMemo(() => getProofLogbookCounts(entries), [entries]);
 
   const pendingSubmissions = activeLogEntries.filter(e => 
     normalizeEntryStatus(e.status) === 'pending_review'
@@ -1406,7 +1408,9 @@ export default function DeckPage() {
                          )}
                       </div>
                       <p className="text-[10px] font-mono font-black uppercase tracking-widest text-[#FF5A00] mt-1 leading-none">
-                         {activeLogEntries.length === 0 ? "NO ACTIVE FIELD LOGS" : `${activeLogEntries.length} ACTIVE LOGS`}
+                         {logbookCounts.totalSubmitted === 0
+                           ? "NO FIELD LOGS"
+                           : `${logbookCounts.totalSubmitted} SUBMITTED · ${logbookCounts.approvedVerified} VERIFIED · ${logbookCounts.pendingReview} PENDING · ${logbookCounts.rejectedOrNeedsMoreProof} ACTION`}
                       </p>
                     </div>
                  </div>

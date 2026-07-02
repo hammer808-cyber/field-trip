@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, AlertTriangle, CheckCircle, XCircle, Eye, User, FileText, ExternalLink, Trophy, Zap, Search, ShieldCheck, ClipboardList, Clock } from 'lucide-react';
-import { subscribeToPendingReports, performModerationAction, updateReportStatus, subscribeToAdminLogs, fetchPendingSusReports, resolveSusReport, escalateSusReportToTribunal, previewTribunalDiagnostics, applyTribunalDiagnosticsRepair, previewCommunityFeedDiagnostics } from '../services/moderationService';
+import { subscribeToPendingReports, performModerationAction, updateReportStatus, subscribeToAdminLogs, fetchPendingSusReports, resolveSusReport, escalateSusReportToTribunal, previewTribunalDiagnostics, applyTribunalDiagnosticsRepair, previewCommunityFeedDiagnostics, repairCommunityFeedDistribution } from '../services/moderationService';
 import { subscribeToAllOpenFieldChecks } from '../services/fieldCheckService';
 import { resolveFieldCheck } from '../services/gameService';
 import { finalizeVoteWinners } from '../services/voteService';
@@ -30,7 +30,10 @@ export default function AdminModerationPage() {
   const [isScanningTribunal, setIsScanningTribunal] = useState(false);
   const [isRepairingTribunal, setIsRepairingTribunal] = useState(false);
   const [communityFeedDiagnostics, setCommunityFeedDiagnostics] = useState<any | null>(null);
+  const [communityFeedRepairResult, setCommunityFeedRepairResult] = useState<any | null>(null);
+  const [communityFeedTargetUserId, setCommunityFeedTargetUserId] = useState('');
   const [isScanningCommunityFeed, setIsScanningCommunityFeed] = useState(false);
+  const [isRepairingCommunityFeed, setIsRepairingCommunityFeed] = useState(false);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -171,11 +174,29 @@ export default function AdminModerationPage() {
   const handlePreviewCommunityFeedDiagnostics = async () => {
     setIsScanningCommunityFeed(true);
     try {
-      setCommunityFeedDiagnostics(await previewCommunityFeedDiagnostics());
+      setCommunityFeedDiagnostics(await previewCommunityFeedDiagnostics(communityFeedTargetUserId.trim() || undefined));
     } catch (err: any) {
       alert(`BUREAU_ERROR: Community Feed diagnostics failed. ${err.message || 'Unknown error'}`);
     } finally {
       setIsScanningCommunityFeed(false);
+    }
+  };
+
+  const handleRepairCommunityFeedDistribution = async (dryRun: boolean) => {
+    setIsRepairingCommunityFeed(true);
+    try {
+      const result = await repairCommunityFeedDistribution({
+        userId: communityFeedTargetUserId.trim() || undefined,
+        dryRun
+      });
+      setCommunityFeedRepairResult(result);
+      if (!dryRun) {
+        setCommunityFeedDiagnostics(await previewCommunityFeedDiagnostics(communityFeedTargetUserId.trim() || undefined));
+      }
+    } catch (err: any) {
+      alert(`BUREAU_ERROR: Community Feed repair failed. ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsRepairingCommunityFeed(false);
     }
   };
 
@@ -254,8 +275,13 @@ export default function AdminModerationPage() {
       ) : view === 'communityFeedDiagnostics' ? (
         <CommunityFeedDiagnosticsPanel
           diagnostics={communityFeedDiagnostics}
+          repairResult={communityFeedRepairResult}
+          targetUserId={communityFeedTargetUserId}
           isScanning={isScanningCommunityFeed}
+          isRepairing={isRepairingCommunityFeed}
+          onTargetUserIdChange={setCommunityFeedTargetUserId}
           onPreview={handlePreviewCommunityFeedDiagnostics}
+          onRepair={handleRepairCommunityFeedDistribution}
         />
       ) : (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -496,10 +522,16 @@ function ReportDetails({ report, actionReason, onActionReasonChange, onAction }:
   );
 }
 
-function CommunityFeedDiagnosticsPanel({ diagnostics, isScanning, onPreview }: any) {
+function CommunityFeedDiagnosticsPanel({ diagnostics, repairResult, targetUserId, isScanning, isRepairing, onTargetUserIdChange, onPreview, onRepair }: any) {
   const report = diagnostics?.report;
   const rows = [
+    ['Total submitted logs', report?.logbook?.totalSubmitted],
+    ['Pending review', report?.logbook?.pendingReview],
+    ['Approved / verified', report?.logbook?.approvedVerified],
+    ['Rejected / needs proof', report?.logbook?.rejectedOrNeedsMoreProof],
     ['Eligible feed entries', report?.eligibleFeedEntries],
+    ['Current crew eligible', report?.logbook?.currentCrewEligible],
+    ['No crew, general eligible', report?.logbook?.noCrewButGeneralEligible],
     ['Excluded approved entries', report?.excludedApprovedEntries],
     ['Missing image paths', report?.missingImagePaths],
     ['Orphaned users', report?.orphanedUsers],
@@ -516,6 +548,7 @@ function CommunityFeedDiagnosticsPanel({ diagnostics, isScanning, onPreview }: a
     ['Invalid visibility samples', report?.samples?.invalidVisibility],
     ['Duplicate like samples', report?.samples?.duplicateLikes],
     ['Non-approved visible samples', report?.samples?.nonApprovedVisible],
+    ['Approved exclusion reasons', report?.samples?.approvedExclusions],
   ];
 
   return (
@@ -531,13 +564,39 @@ function CommunityFeedDiagnosticsPanel({ diagnostics, isScanning, onPreview }: a
             Scans canonical entries and likes for public feed eligibility, missing images, orphaned identities, invalid visibility, duplicate Hype records, and non-approved feed leaks.
           </p>
         </div>
-        <button
-          onClick={onPreview}
-          disabled={isScanning}
-          className="bureau-btn-sm bg-on-surface text-paper hover:bg-brand-orange"
-        >
-          {isScanning ? 'SCANNING...' : 'PREVIEW_SCAN'}
-        </button>
+        <div className="space-y-3 min-w-[280px]">
+          <input
+            value={targetUserId}
+            onChange={event => onTargetUserIdChange(event.target.value)}
+            placeholder="Optional userId / UID"
+            className="w-full border-2 border-on-surface bg-white px-3 py-2 font-mono text-xs"
+          />
+          <div className="flex flex-wrap gap-2 justify-end">
+            <button
+              onClick={onPreview}
+              disabled={isScanning}
+              className="bureau-btn-sm bg-on-surface text-paper hover:bg-brand-orange"
+            >
+              {isScanning ? 'SCANNING...' : 'PREVIEW_SCAN'}
+            </button>
+            <button
+              onClick={() => onRepair(true)}
+              disabled={isRepairing}
+              className="bureau-btn-sm bg-white text-on-surface"
+            >
+              PREVIEW_REPAIR
+            </button>
+            <button
+              onClick={() => {
+                if (window.confirm('Apply safe Community Feed repairs? This will not overwrite explicit private or hidden entries.')) onRepair(false);
+              }}
+              disabled={isRepairing || !repairResult?.dryRun}
+              className="bureau-btn-sm bg-brand-lime text-on-surface"
+            >
+              {isRepairing ? 'REPAIRING...' : 'APPLY_REPAIR'}
+            </button>
+          </div>
+        </div>
       </div>
 
       {!report ? (
@@ -554,6 +613,22 @@ function CommunityFeedDiagnosticsPanel({ diagnostics, isScanning, onPreview }: a
               </div>
             ))}
           </div>
+
+          {repairResult && (
+            <div className="border-2 border-on-surface/10 p-4 bg-brand-lime/10">
+              <p className="text-[10px] font-black uppercase tracking-widest mb-2">Repair Preview / Result</p>
+              <pre className="bg-white border border-on-surface/10 p-3 text-[10px] font-mono whitespace-pre-wrap break-all">
+                {JSON.stringify({
+                  dryRun: repairResult.dryRun,
+                  scanned: repairResult.scanned,
+                  repairedCount: repairResult.repairedCount,
+                  skippedCount: repairResult.skippedCount,
+                  repaired: repairResult.repaired,
+                  skipped: repairResult.skipped
+                }, null, 2)}
+              </pre>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {sampleGroups.map(([label, samples]) => (

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   getProofDistributionExclusionReasons,
+  getProofLogbookCounts,
   getProofImageReference,
   isCommunityProofEligible,
   isCrewProofEligible,
@@ -51,10 +52,53 @@ test('legacy visibility and storage fields remain compatible with canonical dist
   assert.equal(isCommunityProofEligible(legacy), true);
 });
 
+test('approved proof with missing legacy community flags appears by default', () => {
+  assert.equal(isCommunityProofEligible({
+    id: 'legacy-default-visible',
+    userId: 'user-1',
+    status: 'verified',
+    createdAt: '2026-06-20T10:00:00.000Z',
+    storagePath: 'proofs/user-1/legacy-default-visible.jpg'
+  }), true);
+});
+
+test('explicitly private approved proof does not appear in community feed', () => {
+  assert.equal(isCommunityProofEligible({
+    ...approvedBase,
+    visibility: 'private'
+  }), false);
+
+  assert.equal(isCommunityProofEligible({
+    ...approvedBase,
+    visibility: { showInCommunityFeed: false }
+  }), false);
+});
+
 test('crew feed requires the active crew and does not leak other crew proofs', () => {
   assert.equal(isCrewProofEligible(approvedBase, 'crew-1'), true);
   assert.equal(isCrewProofEligible(approvedBase, 'crew-2'), false);
   assert.equal(isCrewProofEligible({ ...approvedBase, visibility: { showInCommunityFeed: true, showInCrewFeed: false } }, 'crew-1'), false);
+  const noCrewProof = { ...approvedBase, crewId: '', activeCrewId: '', crewIds: [] };
+  assert.equal(isCommunityProofEligible(noCrewProof), true);
+  assert.equal(isCrewProofEligible(noCrewProof, 'crew-1'), false);
+});
+
+test('logbook counts are grouped by normalized proof state', () => {
+  const counts = getProofLogbookCounts([
+    approvedBase,
+    { id: 'pending-1', status: 'pending_review', userId: 'user-1' },
+    { id: 'needs-1', status: 'needs_more_proof', userId: 'user-1' },
+    { id: 'rejected-1', status: 'rejected', userId: 'user-1' },
+    { id: 'archived-1', status: 'approved', archived: true, userId: 'user-1' }
+  ]);
+
+  assert.deepEqual(counts, {
+    totalSubmitted: 4,
+    pendingReview: 1,
+    approvedVerified: 1,
+    rejectedOrNeedsMoreProof: 2,
+    communityEligible: 1
+  });
 });
 
 test('distribution diagnostics expose exact exclusion reasons', () => {

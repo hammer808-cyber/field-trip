@@ -46,7 +46,10 @@ test('admin sus review actions are constrained to private review statuses', () =
 });
 
 test('server rate-limits Sus reports and tracks abuse signals without touching proof status', () => {
-  const susEndpoint = serverSource.slice(serverSource.indexOf('app.post("/api/reports/sus"'), serverSource.indexOf('app.get("/api/admin/sus-reports"'));
+  const susEndpoint = serverSource.slice(
+    serverSource.indexOf('app.post("/api/reports/sus"'),
+    serverSource.indexOf('app.get("/api/reports/sus/:entryId/status"')
+  );
   assert.match(susEndpoint, /SUS_DAILY_REPORT_LIMIT/);
   assert.match(susEndpoint, /collection\('susReportCounters'\)/);
   assert.match(susEndpoint, /collection\('susAbuseSignals'\)/);

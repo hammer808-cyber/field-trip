@@ -1309,13 +1309,41 @@ async function startServer() {
     if (!(await checkIsAdmin(req.user))) return res.status(403).json({ error: "ADMIN_REQUIRED" });
 
     try {
-      const [entriesSnap, likesSnap] = await Promise.all([
-        dbAdmin!.collection('entries').limit(500).get(),
-        dbAdmin!.collection('likes').limit(1000).get()
+      const targetUserId = getBackendString(req.query?.userId || req.query?.uid);
+      const targetCrewId = getBackendString(req.query?.crewId);
+      const entryDocsById = new Map<string, any>();
+
+      const entriesPromise = targetUserId
+        ? Promise.all([
+            dbAdmin!.collection('entries').where('userId', '==', targetUserId).limit(200).get(),
+            dbAdmin!.collection('entries').where('uid', '==', targetUserId).limit(200).get()
+          ]).then(snaps => {
+            snaps.forEach((snap: any) => snap.docs.forEach((docSnap: any) => entryDocsById.set(docSnap.id, docSnap)));
+            return { size: entryDocsById.size, docs: Array.from(entryDocsById.values()) } as any;
+          })
+        : dbAdmin!.collection('entries').limit(500).get();
+
+      const [entriesSnap, likesSnap, targetProfileSnap] = await Promise.all([
+        entriesPromise,
+        dbAdmin!.collection('likes').limit(1000).get(),
+        targetUserId ? dbAdmin!.collection('users').doc(targetUserId).get() : Promise.resolve(null)
       ]);
+      const targetProfile = targetProfileSnap?.data?.() || {};
+      const resolvedCrewId = targetCrewId || getBackendString(targetProfile.activeCrewId || targetProfile.crewId);
 
       const report: any = {
+        targetUserId: targetUserId || null,
+        targetCrewId: resolvedCrewId || null,
         scannedEntries: entriesSnap.size,
+        logbook: {
+          totalSubmitted: 0,
+          pendingReview: 0,
+          approvedVerified: 0,
+          rejectedOrNeedsMoreProof: 0,
+          communityEligible: 0,
+          currentCrewEligible: 0,
+          noCrewButGeneralEligible: 0
+        },
         eligibleFeedEntries: 0,
         excludedApprovedEntries: 0,
         missingImagePaths: 0,
@@ -1331,14 +1359,15 @@ async function startServer() {
           orphanedUsers: [] as string[],
           invalidVisibility: [] as string[],
           duplicateLikes: [] as any[],
-          nonApprovedVisible: [] as string[]
+          nonApprovedVisible: [] as string[],
+          approvedExclusions: [] as any[]
         }
       };
 
       const ownerIds = new Set<string>();
       const ownerIdByEntry = new Map<string, string>();
 
-      entriesSnap.docs.forEach(entryDoc => {
+      entriesSnap.docs.forEach((entryDoc: any) => {
         const entry = { id: entryDoc.id, ...entryDoc.data() } as any;
         const ownerId = getCommunityFeedOwnerId(entry);
         if (ownerId) {
@@ -1348,22 +1377,44 @@ async function startServer() {
 
         const reasons = getCommunityFeedExclusionReasons(entry);
         const eligible = isCommunityFeedEligible(entry);
-        const status = String(entry.status || '').toLowerCase();
+        const status = normalizeStatusBackend(entry.status || entry.reviewStatus || entry.approvalStatus || entry.submissionStatus || entry.proofStatus);
         const isApprovedLike = status === 'approved';
+        const entryCrewId = getBackendString(entry.crewId || entry.activeCrewId || (Array.isArray(entry.crewIds) ? entry.crewIds[0] : ''));
+
+        report.logbook.totalSubmitted++;
+        if (status === 'pending_review') report.logbook.pendingReview++;
+        if (status === 'approved') report.logbook.approvedVerified++;
+        if (status === 'rejected' || status === 'needs_more_proof') report.logbook.rejectedOrNeedsMoreProof++;
 
         if (eligible) {
+          report.logbook.communityEligible++;
+          if (!entryCrewId) report.logbook.noCrewButGeneralEligible++;
+          if (resolvedCrewId && entryCrewId === resolvedCrewId) report.logbook.currentCrewEligible++;
           report.eligibleFeedEntries++;
           if (report.samples.eligible.length < 8) report.samples.eligible.push(entryDoc.id);
         } else if (isApprovedLike) {
           report.excludedApprovedEntries++;
+          const sample = {
+            id: entryDoc.id,
+            status: entry.status || null,
+            reviewStatus: entry.reviewStatus || null,
+            crewId: entryCrewId || null,
+            hasDirectImage: !!getBackendImageUrl(entry),
+            hasStoragePath: !!getBackendStoragePath(entry),
+            showInCommunityFeed: entry.showInCommunityFeed ?? null,
+            isPublic: entry.isPublic ?? null,
+            communityVisible: entry.communityVisible ?? null,
+            reasons
+          };
           if (report.samples.excludedApproved.length < 8) report.samples.excludedApproved.push({ id: entryDoc.id, reasons });
+          if (report.samples.approvedExclusions.length < 30) report.samples.approvedExclusions.push(sample);
         }
 
         if (reasons.includes('missing_or_invalid_image')) {
           report.missingImagePaths++;
           if (report.samples.missingImages.length < 8) report.samples.missingImages.push(entryDoc.id);
         }
-        if (reasons.includes('private_visibility') || reasons.includes('not_public_feed_enabled')) {
+        if (reasons.includes('private_visibility') || reasons.includes('not_public_feed_enabled') || reasons.includes('community_feed_disabled')) {
           report.invalidPublicVisibilityFlags++;
           if (report.samples.invalidVisibility.length < 8) report.samples.invalidVisibility.push(entryDoc.id);
         }
@@ -1401,6 +1452,107 @@ async function startServer() {
       res.json({ success: true, readOnly: true, report });
     } catch (error: any) {
       res.status(500).json({ error: "FAILED_COMMUNITY_FEED_DIAGNOSTICS", message: error?.message || String(error) });
+    }
+  });
+
+  app.post("/api/admin/community-feed/repair", adminRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    if (!(await checkIsAdmin(req.user))) return res.status(403).json({ error: "ADMIN_REQUIRED" });
+
+    try {
+      const dryRun = req.body?.dryRun !== false;
+      const targetUserId = getBackendString(req.body?.userId || req.body?.uid);
+      const querySnap = targetUserId
+        ? await dbAdmin!.collection('entries').where('userId', '==', targetUserId).limit(200).get()
+        : await dbAdmin!.collection('entries').limit(500).get();
+
+      const repaired: any[] = [];
+      const skipped: any[] = [];
+      let batch = dbAdmin!.batch();
+      let batchCount = 0;
+
+      for (const entryDoc of querySnap.docs) {
+        const entry = { id: entryDoc.id, ...entryDoc.data() } as any;
+        const status = normalizeStatusBackend(entry.status || entry.reviewStatus || entry.approvalStatus || entry.submissionStatus || entry.proofStatus);
+        const imageUrl = getBackendImageUrl(entry);
+        const storagePath = getBackendStoragePath(entry);
+        const visibility = entry.visibility && typeof entry.visibility === 'object' ? entry.visibility : {};
+        const explicitlyPrivate =
+          visibility.showInCommunityFeed === false ||
+          entry.visibility === 'private' ||
+          entry.isPrivate === true ||
+          entry.private === true ||
+          entry.hidden === true ||
+          entry.isHidden === true ||
+          entry.moderation?.isHidden === true;
+
+        if (status !== 'approved') {
+          skipped.push({ id: entryDoc.id, reason: `not_approved:${status}` });
+          continue;
+        }
+        if (!imageUrl && !storagePath) {
+          skipped.push({ id: entryDoc.id, reason: 'missing_media' });
+          continue;
+        }
+        if (explicitlyPrivate) {
+          skipped.push({ id: entryDoc.id, reason: 'explicitly_private_or_hidden' });
+          continue;
+        }
+
+        const update: any = {
+          status: 'approved',
+          reviewStatus: 'approved',
+          submissionStatus: 'approved',
+          proofStatus: 'approved',
+          showInCommunityFeed: true,
+          isPublic: true,
+          communityVisible: true,
+          updatedAt: FieldValue.serverTimestamp()
+        };
+
+        if (!entry.approvedAt) update.approvedAt = entry.reviewedAt || entry.verifiedAt || entry.completedAt || entry.createdAt || FieldValue.serverTimestamp();
+        if (!entry.photoUrl && imageUrl) update.photoUrl = imageUrl;
+        if (!entry.imageUrl && imageUrl) update.imageUrl = imageUrl;
+        if (!entry.proofImage && imageUrl) update.proofImage = imageUrl;
+        if (!entry.storagePath && storagePath) update.storagePath = storagePath;
+        if (!entry.photoStoragePath && storagePath) update.photoStoragePath = storagePath;
+        if (!entry.imageStoragePath && storagePath) update.imageStoragePath = storagePath;
+
+        repaired.push({ id: entryDoc.id, updateKeys: Object.keys(update) });
+        if (!dryRun) {
+          batch.set(entryDoc.ref, update, { merge: true });
+          batchCount++;
+          if (batchCount >= 450) {
+            await batch.commit();
+            batch = dbAdmin!.batch();
+            batchCount = 0;
+          }
+        }
+      }
+
+      if (!dryRun && batchCount > 0) await batch.commit();
+      if (!dryRun) {
+        await dbAdmin!.collection('adminRepairLogs').add({
+          actionType: 'repair_community_feed_proof_distribution',
+          adminUid: req.user.uid,
+          targetUserId: targetUserId || null,
+          repairedCount: repaired.length,
+          skippedCount: skipped.length,
+          createdAt: FieldValue.serverTimestamp()
+        });
+      }
+
+      res.json({
+        success: true,
+        dryRun,
+        scanned: querySnap.size,
+        repairedCount: repaired.length,
+        skippedCount: skipped.length,
+        repaired: repaired.slice(0, 30),
+        skipped: skipped.slice(0, 30)
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: "FAILED_COMMUNITY_FEED_REPAIR", message: error?.message || String(error) });
     }
   });
 
