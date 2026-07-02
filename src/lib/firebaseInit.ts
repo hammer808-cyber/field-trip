@@ -27,7 +27,6 @@ export function initializeFirebase() {
   const IS_PROD = typeof import.meta !== 'undefined' && import.meta.env
     ? import.meta.env.PROD
     : typeof process !== 'undefined' && process.env?.NODE_ENV === 'production';
-  const IS_DEV_PREVIEW = !IS_PROD;
   
   if (globalObj.FIREBASE_INITIALIZED) {
     if (!IS_PROD) console.info(" [Firebase] Re-using existing initialized instances.");
@@ -37,13 +36,11 @@ export function initializeFirebase() {
   const currentHostname = isBrowser ? window.location.hostname : 'localhost';
   
   // App Check is initialized if a reCAPTCHA key exists, or if debug mode is explicitly set.
-  // In previews, debug is usually needed if on a non-whitelisted domain.
   const SHOULD_INITIALIZE_APP_CHECK = !!RECAPTCHA_SITE_KEY || !!RECAPTCHA_ENTERPRISE_SITE_KEY || DEBUG_FLAG;
   
-  // Debug mode logic: 
-  // - Explicit flag
-  // - Dev preview (AI Studio, local) should use debug by default to avoid hostname mismatches
-  const SHOULD_USE_DEBUG = DEBUG_FLAG || IS_DEV_PREVIEW;
+  // Debug mode must be opt-in. It prints a browser-specific debug token and
+  // bypasses normal App Check attestation after registration in Firebase.
+  const SHOULD_USE_DEBUG = DEBUG_FLAG;
 
   const appCheckMode = SHOULD_INITIALIZE_APP_CHECK ? (SHOULD_USE_DEBUG ? 'DEBUG' : (RECAPTCHA_ENTERPRISE_SITE_KEY ? 'RECAPTCHA_ENTERPRISE' : 'RECAPTCHA_V3')) : 'DISABLED';
 
@@ -67,7 +64,7 @@ export function initializeFirebase() {
   if (!appCheckInitialized && !globalObj.FIREBASE_APP_CHECK_INITIALIZED) {
     try {
       if (SHOULD_USE_DEBUG) {
-        // Set debug token before initialization
+        // Set debug token before initializeAppCheck().
         globalObj.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
         if (!IS_PROD) console.log(` [App Check] ENABLE_DEBUG: self.FIREBASE_APPCHECK_DEBUG_TOKEN = true`);
       }
