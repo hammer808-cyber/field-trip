@@ -54,9 +54,19 @@ export interface AdminReviewQueueDiagnostics {
   missingRequiredFieldsCount: number;
   missingImageReferenceCount: number;
   missingLinkageCount: number;
+  unresolvedCanonicalEntryCount: number;
   invalidStatusCount: number;
   statusCounts: Record<'pending_review' | 'approved' | 'rejected' | 'needs_more_proof', number>;
   excluded: Array<{ id: string; source: 'entry' | 'proofReview'; status: string; normalizedStatus: string; reason: string }>;
+  unresolvedCanonicalEntries: Array<{
+    reviewId: string;
+    attemptedEntryId: string;
+    userId: string;
+    sourcePath: string;
+    sourceCollection: 'entries' | 'proofReviews';
+    aliases: string[];
+    reason: string;
+  }>;
   reviewableButNotRendered: string[];
   errors: Array<{ source: 'entries' | 'proofReviews' | 'collectionGroup'; message: string; code?: string }>;
   updatedAt: string;
@@ -95,6 +105,7 @@ function createEmptyDiagnostics(
     missingRequiredFieldsCount: 0,
     missingImageReferenceCount: 0,
     missingLinkageCount: 0,
+    unresolvedCanonicalEntryCount: 0,
     invalidStatusCount: 0,
     statusCounts: {
       pending_review: 0,
@@ -103,6 +114,7 @@ function createEmptyDiagnostics(
       needs_more_proof: 0
     },
     excluded: [],
+    unresolvedCanonicalEntries: [],
     reviewableButNotRendered: [],
     errors: [],
     updatedAt: new Date().toISOString()
@@ -123,13 +135,127 @@ function sortNewestFirst<T extends Record<string, any>>(items: T[]): T[] {
   );
 }
 
-function normalizeReviewQueueRecord(docId: string, data: any, source: 'entry' | 'proofReview'): Entry {
-  const entryId = data.entryId || data.submissionId || data.id || docId;
+function cleanId(value: any): string {
+  return String(value || '').trim();
+}
+
+function pathTail(value: any): string {
+  const raw = cleanId(value);
+  if (!raw) return '';
+  return raw.split('/').filter(Boolean).pop() || raw;
+}
+
+function uniqueIds(values: any[]): string[] {
+  return Array.from(new Set(values.map(cleanId).filter(Boolean)));
+}
+
+function collectReviewEntryAliases(docId: string, data: any, source: 'entry' | 'proofReview'): string[] {
+  const explicitAliases = [
+    data.entryId,
+    data.sourceEntryId,
+    data.canonicalEntryId,
+    data.entryRef,
+    data.entryPath,
+    data.review?.entryId,
+    data.proof?.entryId,
+  ].map(pathTail);
+
+  if (source === 'entry') {
+    explicitAliases.push(docId, data.id, data.submissionId);
+  } else {
+    explicitAliases.push(data.submissionId, data.proofId);
+    // proofReviews often mirror their own review id into `id`, so only use it
+    // as an entry alias when it is not just the review document id.
+    if (cleanId(data.id) && cleanId(data.id) !== docId && cleanId(data.id) !== cleanId(data.reviewId)) {
+      explicitAliases.push(data.id);
+    }
+  }
+
+  return uniqueIds(explicitAliases);
+}
+
+function buildRootEntryIndex(records: any[]): Map<string, any> {
+  const index = new Map<string, any>();
+  records.forEach(record => {
+    const sourcePath = cleanId(record.__path) || `entries/${record.id}`;
+    if (sourcePath !== `entries/${record.id}`) return;
+    index.set(cleanId(record.id), record);
+    if (cleanId(record.entryId)) index.set(cleanId(record.entryId), record);
+  });
+  return index;
+}
+
+function resolveQueueEntryLink(
+  docId: string,
+  data: any,
+  source: 'entry' | 'proofReview',
+  rootEntryIndex: Map<string, any>
+) {
+  const aliases = collectReviewEntryAliases(docId, data, source);
+  const matchingEntries = new Map<string, any>();
+  aliases.forEach(alias => {
+    const match = rootEntryIndex.get(alias);
+    if (match) matchingEntries.set(cleanId(match.id), match);
+  });
+
+  const sourcePath = cleanId(data.__path) || `${source === 'entry' ? 'entries' : 'proofReviews'}/${docId}`;
+  if (source === 'entry' && sourcePath === `entries/${docId}`) {
+    return {
+      resolved: true,
+      entryId: docId,
+      entryPath: sourcePath,
+      aliases: uniqueIds([docId, ...aliases]),
+      reason: 'root_entry_source'
+    };
+  }
+
+  if (matchingEntries.size === 1) {
+    const [entryId] = Array.from(matchingEntries.keys());
+    return {
+      resolved: true,
+      entryId,
+      entryPath: `entries/${entryId}`,
+      aliases,
+      reason: 'single_alias_match'
+    };
+  }
+
+  return {
+    resolved: false,
+    entryId: aliases[0] || '',
+    entryPath: '',
+    aliases,
+    reason: matchingEntries.size > 1
+      ? `ambiguous_entry_aliases:${Array.from(matchingEntries.keys()).join(',')}`
+      : source === 'entry'
+        ? `non_root_or_missing_entry_path:${sourcePath}`
+        : 'missing_source_entry'
+  };
+}
+
+function normalizeReviewQueueRecord(
+  docId: string,
+  data: any,
+  source: 'entry' | 'proofReview',
+  rootEntryIndex: Map<string, any>
+): Entry {
+  const resolution = resolveQueueEntryLink(docId, data, source, rootEntryIndex);
+  const reviewId = source === 'proofReview' ? (data.reviewId || data.id || docId) : (data.proofReviewId || data.proofCheckId || '');
+  const entryId = resolution.entryId;
   return {
     ...data,
-    id: source === 'proofReview' ? entryId : (data.id || docId),
+    id: entryId || `${source}:${docId}`,
     entryId,
-    proofReviewId: source === 'proofReview' ? (data.reviewId || data.id || docId) : (data.proofReviewId || data.proofCheckId),
+    reviewId,
+    proofReviewId: reviewId,
+    sourceDocumentId: docId,
+    sourcePath: data.__path || `${source === 'proofReview' ? REVIEWS_COLLECTION : ENTRIES_COLLECTION}/${docId}`,
+    sourceCollection: source === 'proofReview' ? REVIEWS_COLLECTION : ENTRIES_COLLECTION,
+    idAliases: resolution.aliases,
+    canonicalEntryResolved: resolution.resolved,
+    canonicalEntryPath: resolution.entryPath || null,
+    canonicalEntryResolutionReason: resolution.reason,
+    attemptedEntryId: entryId || resolution.aliases[0] || '',
     userId: data.userId || data.uid || '',
     uid: data.uid || data.userId || '',
     displayName: data.displayName || data.userName || data.username || 'Unknown scout',
@@ -581,8 +707,8 @@ export function subscribeToAdminPendingReviews(
   logDev(`Subscribing to canonical administrative proof queue for filtered status: ${statusFilter}`);
   console.log("[AdminQueue] canonical collection-group query started", { statusFilter, projectId: firebaseConfig.projectId });
 
-  let latestEntries: Entry[] = [];
-  let latestReviews: Entry[] = [];
+  let rawEntriesForQueue: any[] = [];
+  let rawReviewsForQueue: any[] = [];
   let monitorEntriesForDiagnostics: any[] = [];
   let rawReviewsForDiagnostics: any[] = [];
   let entriesReady = false;
@@ -595,7 +721,10 @@ export function subscribeToAdminPendingReviews(
   const excluded = new Map<string, AdminReviewQueueDiagnostics['excluded'][number]>();
 
   const emit = () => {
-    if (!entriesReady && !reviewsReady && !monitorReady) return;
+    if (!entriesReady || !reviewsReady || !monitorReady) return;
+    const rootEntryIndex = buildRootEntryIndex(monitorEntriesForDiagnostics);
+    const latestEntries = rawEntriesForQueue.map(entry => normalizeReviewQueueRecord(entry.id, entry, 'entry', rootEntryIndex));
+    const latestReviews = rawReviewsForQueue.map(review => normalizeReviewQueueRecord(review.id, review, 'proofReview', rootEntryIndex));
     const merged = mergeReviewQueueRecords(latestEntries, latestReviews);
     const renderedIds = new Set(merged.map(item => String((item as any).entryId || item.id)));
     const diagnostics = createEmptyDiagnostics(statusFilter);
@@ -621,6 +750,22 @@ export function subscribeToAdminPendingReviews(
       }
       if (!getCanonicalUserId(record) || !getCanonicalChallengeId(record) || !(record as any).deckId) {
         diagnostics.missingLinkageCount += 1;
+      }
+      const source = (record as any).__path?.includes('/proofReviews/') || (record as any).__path?.startsWith('proofReviews/') ? 'proofReview' : 'entry';
+      const resolution = resolveQueueEntryLink(String((record as any).id || ''), record, source, rootEntryIndex);
+      if (!resolution.resolved) {
+        diagnostics.unresolvedCanonicalEntryCount += 1;
+        if (diagnostics.unresolvedCanonicalEntries.length < 40) {
+          diagnostics.unresolvedCanonicalEntries.push({
+            reviewId: String((record as any).reviewId || (source === 'proofReview' ? (record as any).id : (record as any).proofReviewId) || ''),
+            attemptedEntryId: resolution.entryId || resolution.aliases[0] || '',
+            userId: getCanonicalUserId(record),
+            sourcePath: String((record as any).__path || `${source === 'proofReview' ? REVIEWS_COLLECTION : ENTRIES_COLLECTION}/${(record as any).id}`),
+            sourceCollection: source === 'proofReview' ? 'proofReviews' : 'entries',
+            aliases: resolution.aliases,
+            reason: resolution.reason
+          });
+        }
       }
       if (!rawStatus || (!getCanonicalImageUrl(record) && !getCanonicalStoragePath(record)) || !getCanonicalUserId(record) || !getCanonicalChallengeId(record) || !(record as any).deckId) {
         diagnostics.missingRequiredFieldsCount += 1;
@@ -659,7 +804,7 @@ export function subscribeToAdminPendingReviews(
     rawEntriesCount = rawEntries.length;
     console.log("[AdminQueue] canonical entry-group docs returned", rawEntries.length);
 
-    latestEntries = rawEntries.filter(e => {
+    rawEntriesForQueue = rawEntries.filter(e => {
       const normalizedStatus = normalizeProofStatus((e as any).status || (e as any).reviewStatus);
       const isArchived = e.archived === true;
       if (isArchived) {
@@ -683,7 +828,7 @@ export function subscribeToAdminPendingReviews(
         return false;
       }
       return true;
-    }).map(entry => normalizeReviewQueueRecord(entry.id, entry, 'entry'));
+    });
 
     entriesReady = true;
     emit();
@@ -711,7 +856,7 @@ export function subscribeToAdminPendingReviews(
     const rawReviews = snap.docs.map(doc => ({ id: doc.id, __path: doc.ref.path, ...doc.data() }));
     rawReviewsForDiagnostics = rawReviews;
     rawReviewsCount = rawReviews.length;
-    latestReviews = rawReviews
+    rawReviewsForQueue = rawReviews
       .filter(review => {
         const normalizedStatus = normalizeProofStatus((review as any).status || (review as any).reviewStatus);
         if ((review as any).archived === true) {
@@ -735,9 +880,8 @@ export function subscribeToAdminPendingReviews(
           return false;
         }
         return true;
-      })
-      .map(review => normalizeReviewQueueRecord(review.id, review, 'proofReview'));
-    console.log("[AdminQueue] proofReviews returned", latestReviews.length);
+      });
+    console.log("[AdminQueue] proofReviews returned", rawReviewsForQueue.length);
     reviewsReady = true;
     emit();
   }, (err) => {

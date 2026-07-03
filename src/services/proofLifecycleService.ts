@@ -18,6 +18,7 @@ import { normalizeEntryStatus } from '../logic/entryLogic';
 import { awardSubmissionPointsOnce } from './submission-utils';
 import { getProofRubricScoring, type ProofRubricScoring } from '../logic/proofRubric';
 import { isCrewArchiveEligible } from '../logic/crewSystem';
+import firebaseConfig from '../../firebase-applet-config.json';
 
 export type CanonicalProofStatus = 'draft' | 'uploading' | 'pending_review' | 'approved' | 'needs_more_proof' | 'rejected' | 'submission_failed' | 'upload_incomplete';
 export type ReviewableProofStatus = 'pending_review' | 'approved' | 'needs_more_proof' | 'rejected';
@@ -115,6 +116,51 @@ export function getCanonicalSubmissionId(data: any, fallbackId = ''): string {
   return data?.entryId || data?.submissionId || data?.id || fallbackId;
 }
 
+function cleanReviewId(value: any): string {
+  return String(value || '').trim();
+}
+
+function pathTail(value: any): string {
+  const raw = cleanReviewId(value);
+  if (!raw) return '';
+  return raw.split('/').filter(Boolean).pop() || raw;
+}
+
+function uniqueIds(values: any[]): string[] {
+  return Array.from(new Set(values.map(cleanReviewId).filter(Boolean)));
+}
+
+function collectReviewActionAliases(submissionId: string, reviewData: any = {}): string[] {
+  const reviewDocId = cleanReviewId(reviewData.reviewId || reviewData.id);
+  const aliases = [
+    submissionId,
+    reviewData.entryId,
+    reviewData.sourceEntryId,
+    reviewData.canonicalEntryId,
+    reviewData.entryRef,
+    reviewData.entryPath,
+    reviewData.review?.entryId,
+    reviewData.proof?.entryId,
+    reviewData.submissionId,
+    reviewData.proofId,
+  ].map(pathTail);
+
+  if (cleanReviewId(reviewData.id) && cleanReviewId(reviewData.id) !== reviewDocId) {
+    aliases.push(reviewData.id);
+  }
+
+  return uniqueIds(aliases);
+}
+
+interface CanonicalEntryResolution {
+  entryId: string;
+  entryPath: string;
+  reviewId: string | null;
+  reviewPath: string | null;
+  aliases: string[];
+  resolvedFrom: 'direct_entry' | 'proof_review_alias';
+}
+
 export function getCanonicalChallengeId(data: any): string {
   return (data?.challengeId || data?.missionId || data?.tripId || '').toString().toLowerCase().trim();
 }
@@ -194,17 +240,70 @@ export async function markCanonicalSubmissionPending(entryRefPathId: string, dat
   });
 }
 
-async function resolveCanonicalEntryId(submissionId: string): Promise<string> {
-  const directEntry = await getDoc(doc(db, 'entries', submissionId));
-  if (directEntry.exists()) return submissionId;
-
-  const reviewSnap = await getDoc(doc(db, 'proofReviews', submissionId));
-  if (reviewSnap.exists()) {
-    const linkedEntryId = getCanonicalSubmissionId(reviewSnap.data(), '');
-    if (linkedEntryId) return linkedEntryId;
+async function resolveCanonicalEntryForReviewAction(submissionId: string): Promise<CanonicalEntryResolution> {
+  const incomingId = cleanReviewId(submissionId);
+  const directEntry = incomingId ? await getDoc(doc(db, 'entries', incomingId)) : null;
+  if (directEntry?.exists()) {
+    return {
+      entryId: incomingId,
+      entryPath: `entries/${incomingId}`,
+      reviewId: null,
+      reviewPath: null,
+      aliases: [incomingId],
+      resolvedFrom: 'direct_entry'
+    };
   }
 
-  return submissionId;
+  const reviewSnap = incomingId ? await getDoc(doc(db, 'proofReviews', incomingId)) : null;
+  if (reviewSnap?.exists()) {
+    const reviewData = reviewSnap.data() || {};
+    const aliases = collectReviewActionAliases(incomingId, { ...reviewData, id: reviewSnap.id });
+    const matches: string[] = [];
+    for (const alias of aliases) {
+      const candidateSnap = await getDoc(doc(db, 'entries', alias));
+      if (candidateSnap.exists()) matches.push(alias);
+    }
+    const uniqueMatches = uniqueIds(matches);
+    if (uniqueMatches.length === 1) {
+      return {
+        entryId: uniqueMatches[0],
+        entryPath: `entries/${uniqueMatches[0]}`,
+        reviewId: reviewSnap.id,
+        reviewPath: `proofReviews/${reviewSnap.id}`,
+        aliases,
+        resolvedFrom: 'proof_review_alias'
+      };
+    }
+    const error: any = new Error(uniqueMatches.length > 1 ? 'ENTRY_AMBIGUOUS' : 'ENTRY_NOT_RESOLVED');
+    error.details = {
+      actionType: 'review_transition',
+      reviewId: reviewSnap.id,
+      canonicalEntryId: null,
+      incomingSubmissionId: incomingId,
+      incomingIdAliases: aliases,
+      resolvedFirestorePath: null,
+      databaseId: firebaseConfig.firestoreDatabaseId,
+      projectId: firebaseConfig.projectId,
+      userId: getCanonicalUserId(reviewData),
+      failureReason: uniqueMatches.length > 1 ? `multiple_alias_matches:${uniqueMatches.join(',')}` : 'missing_source_entry'
+    };
+    throw error;
+  }
+
+  const error: any = new Error('ENTRY_NOT_RESOLVED');
+  error.details = {
+    actionType: 'review_transition',
+    reviewId: null,
+    canonicalEntryId: null,
+    incomingSubmissionId: incomingId,
+    incomingIdAliases: incomingId ? [incomingId] : [],
+    resolvedFirestorePath: null,
+    databaseId: firebaseConfig.firestoreDatabaseId,
+    projectId: firebaseConfig.projectId,
+    userId: null,
+    failureReason: 'no_entry_or_review_document_for_incoming_id'
+  };
+  throw error;
 }
 
 export async function transitionProofReview(
@@ -213,9 +312,22 @@ export async function transitionProofReview(
   notes: string,
   metadata: ProofTransitionReviewMetadata = {}
 ): Promise<ProofTransitionResult> {
-  const canonicalEntryId = await resolveCanonicalEntryId(submissionId);
+  const resolution = await resolveCanonicalEntryForReviewAction(submissionId);
+  const canonicalEntryId = resolution.entryId;
   const entryRef = doc(db, 'entries', canonicalEntryId);
   const reviewerId = auth.currentUser?.uid || 'system';
+  const baseDiagnostic = {
+    actionType: nextStatus,
+    reviewId: resolution.reviewId,
+    canonicalEntryId,
+    incomingSubmissionId: submissionId,
+    incomingIdAliases: resolution.aliases,
+    resolvedFirestorePath: resolution.entryPath,
+    databaseId: firebaseConfig.firestoreDatabaseId,
+    projectId: firebaseConfig.projectId,
+    reviewerId
+  };
+  console.info('[ProofLifecycle] Review action resolved canonical entry', baseDiagnostic);
   const rubric = metadata.rubric
     ? {
         ...metadata.rubric,
@@ -240,7 +352,10 @@ export async function transitionProofReview(
   if (nextStatus === 'approved') {
     await runTransaction(db, async (transaction) => {
       const entrySnap = await transaction.get(entryRef);
-      if (!entrySnap.exists()) throw new Error('ENTRY_NOT_FOUND');
+      if (!entrySnap.exists()) {
+        console.error('[ProofLifecycle] Review action failed after resolution', { ...baseDiagnostic, failureReason: 'resolved_entry_missing_at_transaction_read' });
+        throw new Error('ENTRY_NOT_FOUND');
+      }
       const data = entrySnap.data();
       scoringForPersist = metadata.rubric ? getProofRubricScoring(metadata.rubric, data) : null;
       const currentStatus = normalizeProofStatus(data.status || data.reviewStatus);
@@ -278,7 +393,10 @@ export async function transitionProofReview(
 
   const transitionResult = await runTransaction(db, async (transaction) => {
     const entrySnap = await transaction.get(entryRef);
-    if (!entrySnap.exists()) throw new Error('ENTRY_NOT_FOUND');
+    if (!entrySnap.exists()) {
+      console.error('[ProofLifecycle] Review action failed after resolution', { ...baseDiagnostic, failureReason: 'resolved_entry_missing_at_transaction_read' });
+      throw new Error('ENTRY_NOT_FOUND');
+    }
     const data = entrySnap.data();
     scoringForPersist = metadata.rubric ? getProofRubricScoring(metadata.rubric, data) : null;
     const currentStatus = normalizeProofStatus(data.status || data.reviewStatus);

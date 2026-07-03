@@ -105,13 +105,17 @@ export default function AdminProofReview() {
     };
   }, [isAdminAuthorized, filter]);
 
-  const getActionId = (record: any) => String(record?.entryId || record?.submissionId || record?.id || '');
+  const getActionId = (record: any) => String(record?.canonicalEntryResolved ? record?.entryId : '');
 
   const handleAction = async (
     id: string,
     action: 'approve' | 'reject' | 'request_info',
     review?: { notes: string; rubric: ProofRubricScore; scoring: ProofRubricScoring; adminOverrideUsed: boolean; adminOverrideReason: string | null }
   ) => {
+    if (!id) {
+      alert('Missing source entry. This review record must be repaired or archived before it can be actioned.');
+      return;
+    }
     if (!review?.rubric) {
       alert('Score the rubric in card view before issuing a final review decision.');
       return;
@@ -127,6 +131,18 @@ export default function AdminProofReview() {
       scoring: review.scoring
     };
     try {
+      const record = reviews.find(item => String(item.entryId || '') === id);
+      console.info('[AdminProofReview] Review action dispatch', {
+        actionType: action,
+        reviewId: record?.proofReviewId || record?.reviewId || null,
+        canonicalEntryId: id,
+        incomingIdAliases: record?.idAliases || [],
+        sourcePath: record?.sourcePath || null,
+        sourceCollection: record?.sourceCollection || null,
+        canonicalEntryPath: record?.canonicalEntryPath || null,
+        databaseId: 'ai-studio-6bdf91b5-28e9-46f3-ae49-89cf99e2d88a',
+        userId: record?.userId || null,
+      });
       if (action === 'approve') {
         await approveSubmission(id, notes, metadata);
       } else if (action === 'request_info') {
@@ -135,7 +151,12 @@ export default function AdminProofReview() {
         await rejectSubmission(id, notes, metadata);
       }
     } catch (err: any) {
-      console.error('[AdminProofReview] Review action failed:', err);
+      console.error('[AdminProofReview] Review action failed:', {
+        actionType: action,
+        canonicalEntryId: id,
+        failureReason: err?.message || String(err),
+        details: err?.details || null
+      });
       alert(`Review action failed: ${err?.message || err}`);
     } finally {
       setActionBusyId(null);
@@ -363,6 +384,7 @@ function QueueDiagnosticsPanel({
           <DiagnosticRow label="Missing required fields" value={String(diagnostics?.missingRequiredFieldsCount ?? 0)} danger={(diagnostics?.missingRequiredFieldsCount ?? 0) > 0} />
           <DiagnosticRow label="Missing image reference" value={String(diagnostics?.missingImageReferenceCount ?? 0)} danger={(diagnostics?.missingImageReferenceCount ?? 0) > 0} />
           <DiagnosticRow label="Missing linkage" value={String(diagnostics?.missingLinkageCount ?? 0)} danger={(diagnostics?.missingLinkageCount ?? 0) > 0} />
+          <DiagnosticRow label="Unresolved canonical entries" value={String(diagnostics?.unresolvedCanonicalEntryCount ?? 0)} danger={(diagnostics?.unresolvedCanonicalEntryCount ?? 0) > 0} />
           <DiagnosticRow label="Invalid status values" value={String(diagnostics?.invalidStatusCount ?? 0)} danger={(diagnostics?.invalidStatusCount ?? 0) > 0} />
           <DiagnosticRow
             label="Reviewable not rendered"
@@ -370,6 +392,18 @@ function QueueDiagnosticsPanel({
             danger={!!diagnostics?.reviewableButNotRendered.length}
           />
           {queryError && <DiagnosticRow label="Query error" value={queryError} danger />}
+          {diagnostics?.unresolvedCanonicalEntries && diagnostics.unresolvedCanonicalEntries.length > 0 && (
+            <div className="mt-2 rounded-xl border border-red-300 bg-red-50 p-3">
+              <div className="font-black text-red-700">Missing source entry diagnostics</div>
+              <div className="mt-2 max-h-36 overflow-y-auto space-y-1">
+                {diagnostics.unresolvedCanonicalEntries.slice(0, 12).map(item => (
+                  <div key={`${item.sourcePath}-${item.attemptedEntryId}`} className="break-all text-red-700">
+                    reviewId={item.reviewId || 'unknown'} attemptedEntryId={item.attemptedEntryId || 'none'} userId={item.userId || 'unknown'} source={item.sourcePath} reason={item.reason}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {diagnostics?.errors.map((err, index) => (
             <DiagnosticRow key={`${err.source}-${index}`} label={`${err.source} error`} value={`${err.code || 'error'}: ${err.message}`} danger />
           ))}
@@ -663,7 +697,9 @@ function SwipeView({ entry, onAction, busy }: any) {
   const score = React.useMemo(() => calculateProofRubricScore(ratings), [ratings]);
   const scoring = React.useMemo(() => getProofRubricScoring(score, entry), [score, entry]);
   const recommendationLabel = getProofRubricRecommendationLabel(score.recommendation);
+  const entryResolved = entry.canonicalEntryResolved !== false && !!entry.entryId;
   const handleDecision = (action: 'approve' | 'reject' | 'request_info') => {
+    if (!entryResolved) return;
     onAction(action, createReviewPayload(action, reviewNote, score, scoring));
   };
 
@@ -689,9 +725,27 @@ function SwipeView({ entry, onAction, busy }: any) {
              </div>
           </div>
 
-          {/* Details & Controls */}
-          <div className="space-y-8 pt-4">
-             <div className="space-y-2">
+	          {/* Details & Controls */}
+	          <div className="space-y-8 pt-4">
+             {!entryResolved && (
+               <div className="rounded-2xl border-2 border-red-400 bg-red-50 p-5 font-mono text-[10px] uppercase text-red-700 shadow-[4px_4px_0px_rgba(0,0,0,0.35)]">
+                 <div className="flex items-center gap-2 font-black">
+                   <AlertCircle className="h-4 w-4" />
+                   Missing source entry
+                 </div>
+                 <div className="mt-3 grid gap-1">
+                   <div>reviewId: {entry.proofReviewId || entry.reviewId || 'unknown'}</div>
+                   <div>attempted entryId: {entry.attemptedEntryId || entry.entryId || 'none'}</div>
+                   <div>userId: {entry.userId || 'unknown'}</div>
+                   <div>source: {entry.sourcePath || entry.sourceCollection || 'unknown'}</div>
+                   <div>reason: {entry.canonicalEntryResolutionReason || 'unresolved'}</div>
+                 </div>
+                 <p className="mt-3 normal-case text-xs leading-relaxed">
+                   This queue record is a review projection without a resolvable canonical entries document. Repair or archive it before approving so XP and mission state are not changed from the wrong source.
+                 </p>
+               </div>
+             )}
+	             <div className="space-y-2">
                 <div className="flex items-center gap-3">
                    <div className="w-2 h-2 bg-brand-orange" />
                    <h2 className="text-4xl font-display font-black uppercase italic tracking-tighter leading-tight">
@@ -730,24 +784,24 @@ function SwipeView({ entry, onAction, busy }: any) {
 
              {/* Action Grid */}
              <div className="grid grid-cols-2 gap-4">
-                <button 
-                  onClick={() => handleDecision('approve')}
-                  disabled={busy}
+	                <button 
+	                  onClick={() => handleDecision('approve')}
+	                  disabled={busy || !entryResolved}
                   className="col-span-2 py-6 bg-brand-lime text-on-surface border-4 border-on-surface shadow-[8px_8px_0px_black] flex flex-col items-center justify-center gap-2 group hover:shadow-[4px_4px_0px_black] active:translate-y-1 transition-all"
                 >
                    <Check className="w-8 h-8 group-hover:scale-125 transition-transform" />
                    <span className="font-display text-xl font-black uppercase italic tracking-tighter">{busy ? 'WORKING...' : 'APPROVE_PROTOCOL'}</span>
                 </button>
-                <button 
-                  onClick={() => handleDecision('request_info')}
-                  disabled={busy}
+	                <button 
+	                  onClick={() => handleDecision('request_info')}
+	                  disabled={busy || !entryResolved}
                   className="py-4 bg-[#FFDD00] text-on-surface border-4 border-on-surface shadow-[6px_6px_0px_black] flex items-center justify-center gap-2 font-display font-black uppercase italic text-sm hover:shadow-[2px_2px_0px_black] active:translate-y-1 transition-all"
                 >
                    <Clock className="w-4 h-4" /> REQ_INFO
                 </button>
-                <button 
-                  onClick={() => handleDecision('reject')}
-                  disabled={busy}
+	                <button 
+	                  onClick={() => handleDecision('reject')}
+	                  disabled={busy || !entryResolved}
                   className="py-4 bg-rose-500 text-white border-4 border-on-surface shadow-[6px_6px_0px_black] flex items-center justify-center gap-2 font-display font-black uppercase italic text-sm hover:shadow-[2px_2px_0px_black] active:translate-y-1 transition-all"
                 >
                    <X className="w-4 h-4" /> REJECT
@@ -780,41 +834,49 @@ function QueueView({ entries, busyId, onAction }: { entries: any[]; busyId: stri
              </tr>
           </thead>
           <tbody className="divide-y divide-on-surface/10 font-mono text-[10px] uppercase font-bold">
-             {entries.map((e) => (
-                <tr key={e.id} className="hover:bg-on-surface/5 cursor-pointer transition-all">
+	             {entries.map((e) => {
+                  const entryResolved = e.canonicalEntryResolved !== false && !!e.entryId;
+                  const actionId = entryResolved ? e.entryId : '';
+                  return (
+	                <tr key={`${e.sourcePath || e.sourceCollection || 'entry'}-${e.id}`} className="hover:bg-on-surface/5 cursor-pointer transition-all">
                    <td className="py-4 px-6 opacity-40 whitespace-nowrap">
                      {e.createdAt?.toDate ? format(e.createdAt.toDate(), 'MM/dd HH:mm') : e.submittedAt?.toDate ? format(e.submittedAt.toDate(), 'MM/dd HH:mm') : '---'}
                    </td>
                    <td className="py-4 px-6 font-black text-on-surface">
                      {e.displayName || 'Anon'}
                    </td>
-                   <td className="py-4 px-6 truncate max-w-[200px]">
-                     {e.tripTitle || e.missionTitle || 'Undefined'}
-                   </td>
+	                   <td className="py-4 px-6 truncate max-w-[200px]">
+	                     {e.tripTitle || e.missionTitle || 'Undefined'}
+                       {!entryResolved && (
+                         <div className="mt-1 text-[9px] text-red-600 normal-case">
+                           Missing source entry: {e.attemptedEntryId || 'none'}
+                         </div>
+                       )}
+	                   </td>
                    <td className="py-4 px-6 font-black text-brand-orange">
                      {e.aiScore || 'N/A'}%
                    </td>
                    <td className="py-4 px-6">
                      <div className="flex items-center justify-center gap-2">
-                       <button
-                         disabled={busyId === (e.entryId || e.submissionId || e.id)}
-                         onClick={() => onAction(e.entryId || e.submissionId || e.id, 'approve')}
+	                       <button
+	                         disabled={!entryResolved || busyId === actionId}
+	                         onClick={() => onAction(actionId, 'approve')}
                          className="p-2 border border-on-surface rounded bg-brand-lime hover:bg-on-surface hover:text-white disabled:opacity-40"
                          title="Approve"
                        >
                           <Check className="w-3 h-3" />
                        </button>
-                       <button
-                         disabled={busyId === (e.entryId || e.submissionId || e.id)}
-                         onClick={() => onAction(e.entryId || e.submissionId || e.id, 'request_info')}
+	                       <button
+	                         disabled={!entryResolved || busyId === actionId}
+	                         onClick={() => onAction(actionId, 'request_info')}
                          className="p-2 border border-on-surface rounded bg-[#FFDD00] hover:bg-on-surface hover:text-white disabled:opacity-40"
                          title="Needs more proof"
                        >
                           <Clock className="w-3 h-3" />
                        </button>
-                       <button
-                         disabled={busyId === (e.entryId || e.submissionId || e.id)}
-                         onClick={() => onAction(e.entryId || e.submissionId || e.id, 'reject')}
+	                       <button
+	                         disabled={!entryResolved || busyId === actionId}
+	                         onClick={() => onAction(actionId, 'reject')}
                          className="p-2 border border-on-surface rounded bg-rose-500 text-white hover:bg-on-surface disabled:opacity-40"
                          title="Reject"
                        >
@@ -825,8 +887,9 @@ function QueueView({ entries, busyId, onAction }: { entries: any[]; busyId: stri
                        </button>
                      </div>
                    </td>
-                </tr>
-             ))}
+	                </tr>
+                  );
+                })}
           </tbody>
        </table>
     </div>
