@@ -56,6 +56,7 @@ export default function AdminProofReview() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'pending_review' | 'approved' | 'rejected' | 'needs_more_proof'>('pending_review');
   const [viewMode, setViewMode] = useState<'swipe' | 'queue'>('swipe');
+  const [selectedQueueEntryId, setSelectedQueueEntryId] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<AdminReviewQueueDiagnostics | null>(null);
   const [queryError, setQueryError] = useState<string | null>(null);
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
@@ -75,6 +76,7 @@ export default function AdminProofReview() {
   const { profile } = useApp();
   const navigate = useNavigate();
   const isAdminAuthorized = isAdmin || profile?.role === 'admin' || (profile as any)?.isAdmin;
+  const getActionId = (record: any) => String(record?.canonicalEntryResolved ? record?.entryId : '');
 
   useEffect(() => {
     if (!isAdminAuthorized) {
@@ -105,7 +107,16 @@ export default function AdminProofReview() {
     };
   }, [isAdminAuthorized, filter]);
 
-  const getActionId = (record: any) => String(record?.canonicalEntryResolved ? record?.entryId : '');
+  useEffect(() => {
+    if (reviews.length === 0) {
+      setSelectedQueueEntryId(null);
+      return;
+    }
+    if (!selectedQueueEntryId || !reviews.some(record => getActionId(record) === selectedQueueEntryId || record.id === selectedQueueEntryId)) {
+      const firstResolvable = reviews.find(record => getActionId(record)) || reviews[0];
+      setSelectedQueueEntryId(getActionId(firstResolvable) || firstResolvable.id || null);
+    }
+  }, [reviews, selectedQueueEntryId]);
 
   const handleAction = async (
     id: string,
@@ -131,7 +142,16 @@ export default function AdminProofReview() {
       scoring: review.scoring
     };
     try {
-      const record = reviews.find(item => String(item.entryId || '') === id);
+      const record = reviews.find(item => String(item.entryId || '') === id || String(item.id || '') === id);
+      const reviewContext = {
+        reviewId: record?.reviewId || null,
+        proofReviewId: record?.proofReviewId || null,
+        proofId: record?.proofId || null,
+        submissionId: record?.submissionId || null,
+        sourcePath: record?.sourcePath || null,
+        sourceCollection: record?.sourceCollection || null,
+        idAliases: record?.idAliases || []
+      };
       console.info('[AdminProofReview] Review action dispatch', {
         actionType: action,
         reviewId: record?.proofReviewId || record?.reviewId || null,
@@ -144,11 +164,11 @@ export default function AdminProofReview() {
         userId: record?.userId || null,
       });
       if (action === 'approve') {
-        await approveSubmission(id, notes, metadata);
+        await approveSubmission(id, notes, metadata, reviewContext);
       } else if (action === 'request_info') {
-        await requestMoreProof(id, notes, metadata);
+        await requestMoreProof(id, notes, metadata, reviewContext);
       } else {
-        await rejectSubmission(id, notes, metadata);
+        await rejectSubmission(id, notes, metadata, reviewContext);
       }
     } catch (err: any) {
       console.error('[AdminProofReview] Review action failed:', {
@@ -202,6 +222,7 @@ export default function AdminProofReview() {
     }
   };
 
+  const selectedQueueEntry = reviews.find(record => getActionId(record) === selectedQueueEntryId || record.id === selectedQueueEntryId) || reviews[0];
   const hasQueueIntegrityWarning = !!diagnostics && diagnostics.reviewableButNotRendered.length > 0;
   const hasPermissionOrQueryFailure = !!queryError || !!diagnostics?.errors.length;
 
@@ -301,15 +322,29 @@ export default function AdminProofReview() {
                   </p>
                 )}
              </div>
-           ) : viewMode === 'swipe' ? (
-              <SwipeView 
-                entry={reviews[0]} 
-                busy={actionBusyId === getActionId(reviews[0])}
-                onAction={(action: any, review: any) => handleAction(getActionId(reviews[0]), action, review)}
-              />
-           ) : (
-              <QueueView entries={reviews} busyId={actionBusyId} onAction={handleAction} />
-           )}
+	           ) : viewMode === 'swipe' ? (
+	              <SwipeView 
+	                entry={reviews[0]} 
+	                busy={actionBusyId === getActionId(reviews[0])}
+	                onAction={(action: any, review: any) => handleAction(getActionId(reviews[0]), action, review)}
+	              />
+	           ) : (
+              <div className="space-y-8">
+                <QueueView
+                  entries={reviews}
+                  selectedId={selectedQueueEntryId}
+                  onSelect={(entry: any) => setSelectedQueueEntryId(getActionId(entry) || entry.id)}
+                />
+                {selectedQueueEntry && (
+                  <SwipeView
+                    key={`${selectedQueueEntry.sourcePath || selectedQueueEntry.id}-${getActionId(selectedQueueEntry)}`}
+                    entry={selectedQueueEntry}
+                    busy={actionBusyId === getActionId(selectedQueueEntry)}
+                    onAction={(action: any, review: any) => handleAction(getActionId(selectedQueueEntry), action, review)}
+                  />
+                )}
+              </div>
+	           )}
         </div>
 
       </div>
@@ -820,7 +855,15 @@ function SwipeView({ entry, onAction, busy }: any) {
   );
 }
 
-function QueueView({ entries, busyId, onAction }: { entries: any[]; busyId: string | null; onAction: (id: string, action: 'approve' | 'reject' | 'request_info') => void }) {
+function QueueView({
+  entries,
+  selectedId,
+  onSelect
+}: {
+  entries: any[];
+  selectedId: string | null;
+  onSelect: (entry: any) => void;
+}) {
   return (
     <div className="overflow-x-auto border-2 border-on-surface shadow-[8px_8px_0px_black] rounded-[2.5rem] bg-white">
        <table className="w-full text-left border-collapse">
@@ -833,12 +876,20 @@ function QueueView({ entries, busyId, onAction }: { entries: any[]; busyId: stri
                 <th className="py-4 px-6 text-center">Protocol</th>
              </tr>
           </thead>
-          <tbody className="divide-y divide-on-surface/10 font-mono text-[10px] uppercase font-bold">
-	             {entries.map((e) => {
-                  const entryResolved = e.canonicalEntryResolved !== false && !!e.entryId;
-                  const actionId = entryResolved ? e.entryId : '';
-                  return (
-	                <tr key={`${e.sourcePath || e.sourceCollection || 'entry'}-${e.id}`} className="hover:bg-on-surface/5 cursor-pointer transition-all">
+	          <tbody className="divide-y divide-on-surface/10 font-mono text-[10px] uppercase font-bold">
+		             {entries.map((e) => {
+	                  const entryResolved = e.canonicalEntryResolved !== false && !!e.entryId;
+	                  const actionId = entryResolved ? e.entryId : '';
+                  const selected = selectedId === actionId || selectedId === e.id;
+	                  return (
+		                <tr
+                      key={`${e.sourcePath || e.sourceCollection || 'entry'}-${e.id}`}
+                      onClick={() => onSelect(e)}
+                      className={cn(
+                        "hover:bg-on-surface/5 cursor-pointer transition-all",
+                        selected && "bg-brand-orange/10"
+                      )}
+                    >
                    <td className="py-4 px-6 opacity-40 whitespace-nowrap">
                      {e.createdAt?.toDate ? format(e.createdAt.toDate(), 'MM/dd HH:mm') : e.submittedAt?.toDate ? format(e.submittedAt.toDate(), 'MM/dd HH:mm') : '---'}
                    </td>
@@ -856,37 +907,25 @@ function QueueView({ entries, busyId, onAction }: { entries: any[]; busyId: stri
                    <td className="py-4 px-6 font-black text-brand-orange">
                      {e.aiScore || 'N/A'}%
                    </td>
-                   <td className="py-4 px-6">
-                     <div className="flex items-center justify-center gap-2">
+	                   <td className="py-4 px-6">
+	                     <div className="flex items-center justify-center gap-2">
 	                       <button
-	                         disabled={!entryResolved || busyId === actionId}
-	                         onClick={() => onAction(actionId, 'approve')}
-                         className="p-2 border border-on-surface rounded bg-brand-lime hover:bg-on-surface hover:text-white disabled:opacity-40"
-                         title="Approve"
-                       >
-                          <Check className="w-3 h-3" />
-                       </button>
-	                       <button
-	                         disabled={!entryResolved || busyId === actionId}
-	                         onClick={() => onAction(actionId, 'request_info')}
-                         className="p-2 border border-on-surface rounded bg-[#FFDD00] hover:bg-on-surface hover:text-white disabled:opacity-40"
-                         title="Needs more proof"
-                       >
-                          <Clock className="w-3 h-3" />
-                       </button>
-	                       <button
-	                         disabled={!entryResolved || busyId === actionId}
-	                         onClick={() => onAction(actionId, 'reject')}
-                         className="p-2 border border-on-surface rounded bg-rose-500 text-white hover:bg-on-surface disabled:opacity-40"
-                         title="Reject"
-                       >
-                          <X className="w-3 h-3" />
-                       </button>
-                       <button className="p-2 border border-on-surface rounded hover:bg-on-surface hover:text-white" title="View">
-                          <Eye className="w-3 h-3" />
-                       </button>
-                     </div>
-                   </td>
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onSelect(e);
+                          }}
+                          className={cn(
+                            "px-3 py-2 border border-on-surface rounded font-black uppercase hover:bg-on-surface hover:text-white",
+                            selected && "bg-on-surface text-white"
+                          )}
+                          title={entryResolved ? "Score this proof" : "Missing source entry"}
+                        >
+	                          <Eye className="inline-block w-3 h-3 mr-1" />
+                            {entryResolved ? 'Score' : 'Inspect'}
+	                       </button>
+	                     </div>
+	                   </td>
 	                </tr>
                   );
                 })}

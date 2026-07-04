@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
-import { Camera, RefreshCw, Zap, Target, Image as ImageIcon, CheckCircle2, AlertCircle, Loader2, Sparkles, Filter } from 'lucide-react';
+import { Camera, RefreshCw, Zap, Target, Image as ImageIcon, CheckCircle2, AlertCircle, Loader2, Sparkles, Filter, SwitchCamera, ZoomIn, ZoomOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, safeToDate } from '../lib/utils';
 import { getDisplayLabel } from '../utils/labelUtils';
@@ -32,6 +32,59 @@ export interface ViewfinderCameraHandle {
 interface SimulatedStreamResult {
   stream: MediaStream;
   stop: () => void;
+}
+
+type CameraZoomMode = 'native' | 'digital' | 'disabled';
+
+interface ZoomState {
+  supported: boolean;
+  mode: CameraZoomMode;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+}
+
+const DEFAULT_ZOOM_STATE: ZoomState = {
+  supported: false,
+  mode: 'disabled',
+  min: 1,
+  max: 1,
+  step: 0.1,
+  value: 1,
+};
+
+function stopMediaStream(targetStream: MediaStream | null) {
+  targetStream?.getTracks().forEach(track => track.stop());
+}
+
+function clampZoom(value: number, state: ZoomState) {
+  const min = Number.isFinite(state.min) ? state.min : 1;
+  const max = Number.isFinite(state.max) ? state.max : min;
+  return Math.min(max, Math.max(min, value));
+}
+
+function getZoomCapabilities(track: MediaStreamTrack | undefined): ZoomState {
+  if (!track || typeof track.getCapabilities !== 'function') return { ...DEFAULT_ZOOM_STATE };
+  const capabilities = track.getCapabilities() as MediaTrackCapabilities & {
+    zoom?: { min?: number; max?: number; step?: number } | number[] | number;
+  };
+  const rawZoom = capabilities.zoom as any;
+  if (!rawZoom) return { ...DEFAULT_ZOOM_STATE };
+
+  const min = Number(rawZoom.min ?? (Array.isArray(rawZoom) ? rawZoom[0] : 1));
+  const max = Number(rawZoom.max ?? (Array.isArray(rawZoom) ? rawZoom[rawZoom.length - 1] : rawZoom));
+  const step = Number(rawZoom.step ?? 0.1);
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return { ...DEFAULT_ZOOM_STATE };
+
+  return {
+    supported: true,
+    mode: 'native',
+    min,
+    max,
+    step: Number.isFinite(step) && step > 0 ? step : 0.1,
+    value: min,
+  };
 }
 
 function createSimulatedStream(challengeImage?: string): SimulatedStreamResult {
@@ -146,6 +199,11 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
   
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
+  const streamRef = useRef<MediaStream | null>(null);
+  const facingModeRef = useRef<'user' | 'environment'>('environment');
+  const pinchStartRef = useRef<{ distance: number; zoom: number } | null>(null);
+  const [hasMultipleCameras, setHasMultipleCameras] = useState(false);
+  const [zoomState, setZoomState] = useState<ZoomState>({ ...DEFAULT_ZOOM_STATE });
   const [error, setError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isFlashing, setIsFlashing] = useState(false);
@@ -185,43 +243,65 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
   }, []);
 
   useEffect(() => {
-    let currentStream: MediaStream | null = null;
     let isMounted = true;
 
-    async function startCamera() {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+    async function refreshVideoInputCount() {
+      if (!navigator.mediaDevices?.enumerateDevices) return;
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        setHasMultipleCameras(devices.filter(device => device.kind === 'videoinput').length > 1);
+      } catch (deviceErr) {
+        console.warn("Could not enumerate video inputs:", deviceErr);
       }
+    }
+
+    async function attachStream(nextStream: MediaStream, requestedFacingMode: 'user' | 'environment', mode: 'camera' | 'simulated' = 'camera') {
+      if (!isMounted) {
+        stopMediaStream(nextStream);
+        return;
+      }
+      streamRef.current = nextStream;
+      setStream(nextStream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = nextStream;
+      }
+      const track = nextStream.getVideoTracks()[0];
+      const nativeZoom = mode === 'camera' ? getZoomCapabilities(track) : { ...DEFAULT_ZOOM_STATE };
+      const nextZoom = nativeZoom.supported
+        ? nativeZoom
+        : mode === 'camera'
+          ? { supported: true, mode: 'digital' as const, min: 1, max: 3, step: 0.1, value: 1 }
+          : { ...DEFAULT_ZOOM_STATE };
+      setZoomState(nextZoom);
+      setFacingMode(requestedFacingMode);
+      facingModeRef.current = requestedFacingMode;
+      setIsInitializing(false);
+      refreshVideoInputCount();
+    }
+
+    async function startCamera(requestedFacingMode: 'user' | 'environment') {
+      stopMediaStream(streamRef.current);
+      streamRef.current = null;
       setIsInitializing(true);
       setError(null);
+      setZoomState({ ...DEFAULT_ZOOM_STATE });
 
       try {
-        currentStream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode },
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new Error("CAMERA_UNSUPPORTED: This browser does not expose getUserMedia.");
+        }
+        const currentStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: { ideal: requestedFacingMode } },
           audio: false 
         });
-        
-        if (!isMounted) {
-          currentStream.getTracks().forEach(track => track.stop());
-          return;
-        }
-
-        setStream(currentStream);
-        if (videoRef.current) {
-          videoRef.current.srcObject = currentStream;
-        }
-        setIsInitializing(false);
+        await attachStream(currentStream, requestedFacingMode);
       } catch (err: any) {
         console.warn("Camera access warning (expected if headless/unpermitted):", err);
         if (isMounted) {
-          // If we failed with facingMode, let's try ANY default camera
+          // If the requested facingMode failed, try any available camera.
           try {
-            currentStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-            setStream(currentStream);
-            if (videoRef.current) {
-              videoRef.current.srcObject = currentStream;
-            }
-            setIsInitializing(false);
+            const currentStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            await attachStream(currentStream, requestedFacingMode);
             return;
           } catch (innerErr: any) {
             console.warn("Default camera fallback warning (expected if headless/unpermitted):", innerErr);
@@ -231,12 +311,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
               console.log("No physical camera detected. Initializing strike-team live simulator...");
               const sim = createSimulatedStream(challenge.image);
               if (sim.stream) {
-                currentStream = sim.stream;
-                setStream(currentStream);
-                if (videoRef.current) {
-                   videoRef.current.srcObject = currentStream;
-                }
-                setIsInitializing(false);
+                await attachStream(sim.stream, requestedFacingMode, 'simulated');
                 (window as any).__vcamera_cleanup = sim.stop;
                 return;
               } else {
@@ -266,13 +341,12 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
       }
     }
 
-    startCamera();
+    startCamera(facingMode);
 
     return () => {
       isMounted = false;
-      if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
-      }
+      stopMediaStream(streamRef.current);
+      streamRef.current = null;
       if (typeof (window as any).__vcamera_cleanup === 'function') {
         try {
           (window as any).__vcamera_cleanup();
@@ -285,7 +359,32 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
   }, [facingMode]);
 
   const toggleCamera = () => {
+    if (!hasMultipleCameras || isInitializing || isProcessing) return;
     setFacingMode(prev => prev === 'environment' ? 'user' : 'environment');
+  };
+
+  const applyZoom = async (requestedZoom: number) => {
+    const currentZoomState = zoomState;
+    const value = clampZoom(requestedZoom, currentZoomState);
+    setZoomState(prev => ({ ...prev, value: clampZoom(requestedZoom, prev) }));
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track || currentZoomState.mode !== 'native') return;
+    try {
+      await track.applyConstraints({ advanced: [{ zoom: value } as any] });
+    } catch (zoomErr) {
+      console.warn("Native camera zoom failed; falling back to matched digital crop:", zoomErr);
+      setZoomState(prev => ({ ...prev, mode: 'digital', supported: true, min: 1, max: Math.max(prev.max, 3), value: clampZoom(value, { ...prev, min: 1, max: Math.max(prev.max, 3) }) }));
+    }
+  };
+
+  const nudgeZoom = (direction: -1 | 1) => {
+    applyZoom(zoomState.value + (zoomState.step || 0.1) * direction);
+  };
+
+  const getPinchDistance = (touches: React.TouchList | TouchList) => {
+    if (touches.length < 2) return 0;
+    const [a, b] = [touches[0], touches[1]];
+    return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
   };
 
   const activeRules = getViewfinderRulesForChallenge(challenge);
@@ -336,7 +435,16 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
       setIsProcessing(true);
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const digitalZoom = zoomState.mode === 'digital' ? Math.max(1, zoomState.value) : 1;
+      if (digitalZoom > 1) {
+        const sourceWidth = video.videoWidth / digitalZoom;
+        const sourceHeight = video.videoHeight / digitalZoom;
+        const sourceX = (video.videoWidth - sourceWidth) / 2;
+        const sourceY = (video.videoHeight - sourceHeight) / 2;
+        context.drawImage(video, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
+      } else {
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      }
       const originalImageUrl = canvas.toDataURL('image/jpeg', 0.9);
       
       try {
@@ -402,6 +510,8 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
     const file = e.target.files?.[0];
     if (!file || isProcessing) return;
 
+    stopMediaStream(streamRef.current);
+    streamRef.current = null;
     setIsProcessing(true);
     try {
       const metadata = await extractImageMetadata(file);
@@ -444,6 +554,13 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
     }
   };
 
+  const openFileUpload = () => {
+    stopMediaStream(streamRef.current);
+    streamRef.current = null;
+    setStream(null);
+    fileInputRef.current?.click();
+  };
+
   if (error) {
     return (
       <div className="absolute inset-0 flex items-center justify-center bg-black/95 p-8 text-center z-50 overflow-y-auto">
@@ -459,7 +576,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
           <p className="font-mono text-[11px] text-brand-orange uppercase tracking-widest leading-relaxed break-all">{error}</p>
           
           <button 
-            onClick={() => fileInputRef.current?.click()}
+            onClick={openFileUpload}
             className="w-full py-3 bg-brand-lime text-on-surface font-mono text-[10px] uppercase font-black tracking-widest hover:bg-brand-lime/90 transition-colors shadow-[4px_4px_0px_black] border border-on-surface"
           >
             Upload Photo Evidence
@@ -491,6 +608,11 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
     );
   }
 
+  const videoTransform = [
+    facingMode === 'user' ? 'scaleX(-1)' : '',
+    zoomState.mode === 'digital' ? `scale(${zoomState.value})` : ''
+  ].filter(Boolean).join(' ') || undefined;
+
   return (
     <div className="absolute inset-0 bg-black overflow-hidden flex items-center justify-center">
       <div className="relative w-full h-full">
@@ -500,7 +622,6 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
           autoPlay 
           playsInline 
           muted
-          style={{ filter: FILTER_CSS[selectedFilter] }}
           className={cn(
             "w-full h-full object-cover transition-all duration-700",
             isInitializing ? "opacity-0" : "opacity-100",
@@ -508,6 +629,25 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
             isBaja && "sepia hue-rotate-[320deg] saturate-150",
             isHeat && "invert hue-rotate-180 saturate-200 contrast-200 brightness-150"
           )}
+          style={{
+            filter: FILTER_CSS[selectedFilter],
+            transform: videoTransform,
+            transformOrigin: 'center center'
+          }}
+          onTouchStart={(event) => {
+            const distance = getPinchDistance(event.touches);
+            if (distance > 0) pinchStartRef.current = { distance, zoom: zoomState.value };
+          }}
+          onTouchMove={(event) => {
+            if (!pinchStartRef.current || event.touches.length < 2 || !zoomState.supported) return;
+            event.preventDefault();
+            const distance = getPinchDistance(event.touches);
+            const scale = distance / pinchStartRef.current.distance;
+            applyZoom(pinchStartRef.current.zoom * scale);
+          }}
+          onTouchEnd={() => {
+            pinchStartRef.current = null;
+          }}
         />
 
         {/* Decorative Overlays */}
@@ -540,6 +680,73 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
           <div className="mt-1 text-brand-orange">FLTR_{VIEWFINDER_FILTERS.find(f => f.id === selectedFilter)?.name.toUpperCase()}</div>
         </div>
 
+        {/* Camera Flip + Zoom Controls */}
+        <div className="absolute top-24 right-5 z-50 flex flex-col items-end gap-3">
+          <button
+            type="button"
+            onClick={toggleCamera}
+            disabled={!hasMultipleCameras || isInitializing || isProcessing}
+            className={cn(
+              "flex items-center gap-2 rounded-full border border-white/20 bg-black/60 px-3 py-2 text-white shadow-lg backdrop-blur-md transition-all",
+              hasMultipleCameras && !isInitializing && !isProcessing
+                ? "hover:bg-black/80 hover:border-brand-lime"
+                : "opacity-45 grayscale"
+            )}
+            aria-label={`Switch to ${facingMode === 'environment' ? 'front' : 'rear'} camera`}
+          >
+            <SwitchCamera className="h-4 w-4" />
+            <span className="font-mono text-[8px] font-black uppercase tracking-widest">
+              {facingMode === 'environment' ? 'Rear' : 'Front'}
+            </span>
+          </button>
+
+          <div className="w-[188px] rounded-2xl border border-white/15 bg-black/60 p-3 text-white shadow-lg backdrop-blur-md">
+            <div className="mb-2 flex items-center justify-between font-mono text-[8px] uppercase tracking-widest">
+              <span className="text-white/60">Zoom</span>
+              <span className={cn(
+                "font-black",
+                zoomState.mode === 'native' ? "text-brand-lime" : zoomState.mode === 'digital' ? "text-brand-orange" : "text-white/40"
+              )}>
+                {zoomState.mode === 'native' ? 'Optical' : zoomState.mode === 'digital' ? 'Crop' : 'N/A'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => nudgeZoom(-1)}
+                disabled={!zoomState.supported || isProcessing}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 disabled:opacity-30"
+                aria-label="Zoom out"
+              >
+                <ZoomOut className="h-4 w-4" />
+              </button>
+              <input
+                type="range"
+                min={zoomState.min}
+                max={zoomState.max}
+                step={zoomState.step}
+                value={zoomState.value}
+                disabled={!zoomState.supported || isProcessing}
+                onChange={(event) => applyZoom(Number(event.target.value))}
+                className="min-w-0 flex-1 accent-brand-lime disabled:opacity-30"
+                aria-label="Camera zoom"
+              />
+              <button
+                type="button"
+                onClick={() => nudgeZoom(1)}
+                disabled={!zoomState.supported || isProcessing}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 disabled:opacity-30"
+                aria-label="Zoom in"
+              >
+                <ZoomIn className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="mt-2 text-center font-mono text-[10px] font-black tracking-widest text-brand-lime">
+              {zoomState.supported ? `${zoomState.value.toFixed(1)}x` : '1.0x'}
+            </div>
+          </div>
+        </div>
+
         {/* Brackets */}
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-12">
           <div className="relative w-full h-full">
@@ -564,7 +771,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
               disabled={isProcessing || !activeRules.allowCameraRollUpload}
             />
             <button 
-              onClick={() => fileInputRef.current?.click()}
+              onClick={openFileUpload}
               disabled={isProcessing || !activeRules.allowCameraRollUpload}
               className={cn(
                 "group flex flex-col items-center gap-1.5 transition-all text-white/75 hover:text-white",

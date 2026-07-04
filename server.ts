@@ -5037,6 +5037,320 @@ async function startServer() {
     }
   }
 
+  type AdminProofReviewAction = "approve" | "request_info" | "reject";
+
+  function backendPathTail(value: any): string {
+    const raw = getBackendString(value);
+    return raw ? raw.split("/").filter(Boolean).pop() || raw : "";
+  }
+
+  function uniqueBackendIds(values: any[]): string[] {
+    return Array.from(new Set(values.map(backendPathTail).filter(Boolean)));
+  }
+
+  function collectBackendReviewEntryAliases(incomingId: string, reviewData?: any): string[] {
+    const aliases = [
+      incomingId,
+      reviewData?.entryId,
+      reviewData?.sourceEntryId,
+      reviewData?.canonicalEntryId,
+      reviewData?.entryRef,
+      reviewData?.entryPath,
+      reviewData?.review?.entryId,
+      reviewData?.proof?.entryId,
+      reviewData?.submissionId,
+      reviewData?.proofId,
+    ];
+    if (reviewData?.id && getBackendString(reviewData.id) !== incomingId && getBackendString(reviewData.id) !== getBackendString(reviewData.reviewId)) {
+      aliases.push(reviewData.id);
+    }
+    return uniqueBackendIds(aliases);
+  }
+
+  async function resolveBackendReviewEntry(incomingId: string, reviewId?: string) {
+    if (!dbAdmin) throw new Error("DB_ADMIN_NOT_READY");
+    const normalizedIncomingId = backendPathTail(incomingId);
+    const normalizedReviewId = backendPathTail(reviewId);
+    const reviewRefs = new Map<string, FirebaseFirestore.DocumentReference>();
+    let reviewData: any = null;
+    let reviewDocId = normalizedReviewId || "";
+
+    const candidateReviewIds = uniqueBackendIds([normalizedReviewId, normalizedIncomingId]);
+    for (const candidateReviewId of candidateReviewIds) {
+      const reviewRef = dbAdmin.collection("proofReviews").doc(candidateReviewId);
+      const reviewSnap = await reviewRef.get();
+      if (reviewSnap.exists) {
+        reviewData = reviewSnap.data() || {};
+        reviewDocId = candidateReviewId;
+        reviewRefs.set(reviewRef.path, reviewRef);
+        break;
+      }
+    }
+
+    const aliases = collectBackendReviewEntryAliases(normalizedIncomingId, reviewData);
+    const matchedEntries = new Map<string, FirebaseFirestore.DocumentSnapshot>();
+    for (const alias of aliases) {
+      const entrySnap = await dbAdmin.collection("entries").doc(alias).get();
+      if (entrySnap.exists) matchedEntries.set(entrySnap.id, entrySnap);
+    }
+
+    if (matchedEntries.size !== 1) {
+      const error: any = new Error(matchedEntries.size > 1 ? "ENTRY_ID_AMBIGUOUS" : "ENTRY_NOT_RESOLVED");
+      error.status = matchedEntries.size > 1 ? 409 : 404;
+      error.details = {
+        actionType: "resolve_admin_proof_review",
+        reviewId: reviewDocId || null,
+        incomingId,
+        aliases,
+        matchedEntryIds: Array.from(matchedEntries.keys()),
+        resolvedFirestorePath: null,
+        databaseId: FIELDTRIP_FIRESTORE_DATABASE_ID,
+        projectId: FIELDTRIP_PROJECT_ID,
+        failureReason: matchedEntries.size > 1 ? "multiple_aliases_matched_entries" : "no_alias_matched_entries"
+      };
+      throw error;
+    }
+
+    const [entryId, entrySnap] = Array.from(matchedEntries.entries())[0];
+    const linkedReviewSnap = await dbAdmin.collection("proofReviews").where("entryId", "==", entryId).limit(10).get();
+    linkedReviewSnap.docs.forEach(docSnap => reviewRefs.set(docSnap.ref.path, docSnap.ref));
+    reviewRefs.set(dbAdmin.collection("proofReviews").doc(entryId).path, dbAdmin.collection("proofReviews").doc(entryId));
+
+    return {
+      entryId,
+      entryRef: dbAdmin.collection("entries").doc(entryId),
+      entrySnap,
+      reviewId: reviewDocId || null,
+      reviewRefs: Array.from(reviewRefs.values()),
+      aliases,
+      entryPath: `entries/${entryId}`
+    };
+  }
+
+  function getReviewAwardPoints(entry: any, scoring: any): number {
+    const scoringPoints = Number(scoring?.totalXpAwarded ?? scoring?.pointsAwarded);
+    if (Number.isFinite(scoringPoints) && scoringPoints >= 0) return Math.round(scoringPoints);
+    const entryPoints = Number(entry?.xpValue ?? entry?.awardedXP ?? entry?.pointsAwarded ?? entry?.points ?? entry?.basePoints);
+    return Number.isFinite(entryPoints) && entryPoints >= 0 ? Math.round(entryPoints) : 100;
+  }
+
+  function buildServerReviewRubric(metadata: any, reviewerId: string) {
+    if (!metadata?.rubric) return null;
+    return {
+      ...metadata.rubric,
+      adminOverrideUsed: metadata.rubric.adminOverrideUsed === true,
+      adminOverrideReason: metadata.rubric.adminOverrideReason || null,
+      reviewerId,
+      reviewedAt: FieldValue.serverTimestamp()
+    };
+  }
+
+  app.post("/api/admin/proof-review/action", adminRateLimiter, authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+
+    const action = getBackendString(req.body?.action) as AdminProofReviewAction;
+    const incomingEntryId = getBackendString(req.body?.entryId || req.body?.submissionId || req.body?.proofId);
+    const reviewId = getBackendString(req.body?.reviewId);
+    const notes = getBackendString(req.body?.notes);
+    const metadata = req.body?.metadata || {};
+
+    try {
+      await requireAdminUser(req);
+      if (!["approve", "request_info", "reject"].includes(action)) {
+        return res.status(400).json({ error: "INVALID_REVIEW_ACTION" });
+      }
+      if (!incomingEntryId && !reviewId) {
+        return res.status(400).json({ error: "MISSING_ENTRY_ID" });
+      }
+
+      const resolution = await resolveBackendReviewEntry(incomingEntryId || reviewId, reviewId);
+      const reviewerId = req.user.uid;
+      const rubric = buildServerReviewRubric(metadata, reviewerId);
+      const scoring = metadata?.scoring || null;
+      const nextStatus = action === "approve" ? "approved" : action === "request_info" ? "needs_more_proof" : "rejected";
+
+      console.info("[AdminProofReview] Server action resolved", {
+        actionType: action,
+        reviewId: resolution.reviewId,
+        canonicalEntryId: resolution.entryId,
+        incomingIdAliases: resolution.aliases,
+        resolvedFirestorePath: resolution.entryPath,
+        databaseId: FIELDTRIP_FIRESTORE_DATABASE_ID,
+        projectId: FIELDTRIP_PROJECT_ID,
+        userId: getBackendUserId(resolution.entrySnap.data() || {})
+      });
+
+      const result = await dbAdmin.runTransaction(async (transaction) => {
+        const entrySnap = await transaction.get(resolution.entryRef);
+        if (!entrySnap.exists) {
+          const error: any = new Error("ENTRY_NOT_FOUND");
+          error.status = 404;
+          throw error;
+        }
+
+        const entry = entrySnap.data() || {};
+        const ownerId = getBackendUserId(entry);
+        const challengeId = getBackendChallengeId(entry);
+        const currentStatus = normalizeStatusBackend(entry.status || entry.reviewStatus || entry.submissionStatus || entry.proofStatus);
+        const now = FieldValue.serverTimestamp();
+        const baseUpdate: any = {
+          status: nextStatus,
+          reviewStatus: nextStatus,
+          submissionStatus: nextStatus,
+          proofStatus: nextStatus,
+          reviewDecision: nextStatus,
+          reviewNotes: notes,
+          adminNotes: notes,
+          reviewedAt: now,
+          reviewedBy: reviewerId,
+          updatedAt: now
+        };
+        if (rubric) baseUpdate.rubric = rubric;
+        if (scoring) baseUpdate.scoring = scoring;
+
+        let pointsAwarded = 0;
+        let awardReason = action === "approve" ? "ALREADY_AWARDED_OR_NOT_ELIGIBLE" : "NO_POINTS_FOR_REVIEW_ACTION";
+
+        if (action === "approve") {
+          baseUpdate.approvedAt = entry.approvedAt || now;
+          baseUpdate.approvedBy = reviewerId;
+          baseUpdate.retryAvailable = false;
+          baseUpdate.retryPointMultiplier = null;
+
+          const scoreEventRef = dbAdmin!.collection("scoreEvents").doc(`score_${resolution.entryId}`);
+          const scoreEventSnap = await transaction.get(scoreEventRef);
+          const existingAwardedPoints = Number(entry.awardedXP || entry.awardedPoints || (typeof entry.pointsAwarded === "number" ? entry.pointsAwarded : 0));
+          const alreadyAwarded = scoreEventSnap.exists || entry.xpAwarded === true || entry.pointsAwarded === true || existingAwardedPoints > 0;
+          const awardPoints = getReviewAwardPoints(entry, scoring);
+
+          if (!alreadyAwarded && ownerId && awardPoints > 0) {
+            const userRef = dbAdmin!.collection("users").doc(ownerId);
+            const userSnap = await transaction.get(userRef);
+            const userData = userSnap.exists ? userSnap.data() || {} : {};
+            const existingApproved = new Set<string>([
+              ...((Array.isArray(userData.approvedCompletedChallengeIds) && userData.approvedCompletedChallengeIds) || []),
+              ...((Array.isArray(userData.completedChallengeIds) && userData.completedChallengeIds) || []),
+              ...(challengeId ? [challengeId] : [])
+            ].map(value => String(value).toLowerCase()));
+            const starterComplete = STARTER_SIGNAL_IDS.every(id => existingApproved.has(id));
+
+            const starterApprovedCount = STARTER_SIGNAL_IDS.filter(id => existingApproved.has(id)).length;
+            const userUpdate: any = {
+              points: FieldValue.increment(awardPoints),
+              totalPoints: FieldValue.increment(awardPoints),
+              seasonPoints: FieldValue.increment(awardPoints),
+              weeklyPoints: FieldValue.increment(awardPoints),
+              xp: FieldValue.increment(awardPoints),
+              score: FieldValue.increment(awardPoints),
+              starterDeckComplete: starterComplete,
+              starterCompleted: starterComplete,
+              starterApprovedCount,
+              updatedAt: now
+            };
+            if (challengeId) {
+              userUpdate.approvedCompletedChallengeIds = FieldValue.arrayUnion(challengeId);
+              userUpdate.completedChallengeIds = FieldValue.arrayUnion(challengeId);
+              userUpdate.completedMissionIds = FieldValue.arrayUnion(challengeId);
+              userUpdate.submittedPendingChallengeIds = FieldValue.arrayRemove(challengeId);
+              userUpdate.submittedChallengeIds = FieldValue.arrayRemove(challengeId);
+            }
+
+            transaction.set(userRef, userUpdate, { merge: true });
+
+            transaction.create(scoreEventRef, {
+              userId: ownerId,
+              entryId: resolution.entryId,
+              challengeId,
+              points: awardPoints,
+              type: "proof_approved",
+              reason: "admin_proof_review",
+              awardedBy: reviewerId,
+              awardedAt: now,
+              createdAt: now
+            });
+
+            pointsAwarded = awardPoints;
+            awardReason = "AWARDED";
+          }
+
+          baseUpdate.xpAwarded = true;
+          baseUpdate.pointsAwarded = alreadyAwarded ? existingAwardedPoints : awardPoints;
+          baseUpdate.awardedXP = alreadyAwarded ? existingAwardedPoints : awardPoints;
+        } else {
+          baseUpdate.retryAvailable = true;
+          baseUpdate.retryPointMultiplier = action === "reject" ? 0.5 : null;
+          if (ownerId && challengeId) {
+            transaction.set(dbAdmin!.collection("users").doc(ownerId), {
+              submittedPendingChallengeIds: FieldValue.arrayRemove(challengeId),
+              submittedChallengeIds: FieldValue.arrayRemove(challengeId),
+              [action === "request_info" ? "needsMoreProofChallengeIds" : "rejectedMissionIds"]: FieldValue.arrayUnion(challengeId),
+              updatedAt: now
+            }, { merge: true });
+          }
+        }
+
+        transaction.update(resolution.entryRef, baseUpdate);
+        resolution.reviewRefs.forEach(reviewRef => {
+          transaction.set(reviewRef, {
+            entryId: resolution.entryId,
+            status: nextStatus,
+            reviewStatus: nextStatus,
+            reviewDecision: nextStatus,
+            notes,
+            adminNotes: notes,
+            reviewedAt: now,
+            reviewedBy: reviewerId,
+            rubric: rubric || FieldValue.delete(),
+            scoring: scoring || FieldValue.delete(),
+            updatedAt: now
+          }, { merge: true });
+        });
+
+        transaction.set(dbAdmin!.collection("adminLogs").doc(), {
+          actionType: "proof_review_action",
+          action,
+          nextStatus,
+          reviewId: resolution.reviewId,
+          entryId: resolution.entryId,
+          userId: ownerId || null,
+          challengeId: challengeId || null,
+          reviewerId,
+          currentStatus,
+          pointsAwarded,
+          awardReason,
+          aliases: resolution.aliases,
+          databaseId: FIELDTRIP_FIRESTORE_DATABASE_ID,
+          createdAt: now
+        });
+
+        return {
+          success: true,
+          status: nextStatus,
+          entryId: resolution.entryId,
+          reviewId: resolution.reviewId,
+          userId: ownerId || null,
+          points: pointsAwarded,
+          reason: awardReason,
+          databaseId: FIELDTRIP_FIRESTORE_DATABASE_ID
+        };
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      const status = Number(error?.status) || (error?.message === "ADMIN_REQUIRED" ? 403 : 500);
+      console.error("[AdminProofReview] Server action failed:", {
+        actionType: action,
+        incomingEntryId,
+        reviewId,
+        databaseId: FIELDTRIP_FIRESTORE_DATABASE_ID,
+        projectId: FIELDTRIP_PROJECT_ID,
+        failureReason: error?.message || String(error),
+        details: error?.details || null
+      });
+      res.status(status).json({ error: error?.message || "REVIEW_ACTION_FAILED", details: error?.details || null });
+    }
+  });
+
   app.post("/api/admin/grant-starter-bypass", adminRateLimiter, authRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
 

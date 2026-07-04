@@ -21,7 +21,6 @@ import { Entry } from '../constants';
 import { ProofReview, ProofStatus } from '../types/proof';
 import { uploadBase64Image } from './storageService';
 import { evaluateProof } from './proofService';
-import { logAdminAction } from './moderationService';
 import {
   getCanonicalChallengeId,
   getCanonicalImageUrl,
@@ -88,6 +87,16 @@ export interface OrphanSlotReport {
   linkedReviews: Array<{ reviewId: string; entryId: string }>;
   skippedExisting: Array<{ reviewId: string; entryId: string }>;
   ambiguousRecords: Array<{ reviewId: string; entryId: string; reasons: string[] }>;
+}
+
+export interface AdminProofReviewActionContext {
+  reviewId?: string | null;
+  proofReviewId?: string | null;
+  proofId?: string | null;
+  submissionId?: string | null;
+  sourcePath?: string | null;
+  sourceCollection?: string | null;
+  idAliases?: string[];
 }
 
 function createEmptyDiagnostics(
@@ -636,46 +645,75 @@ export async function updateSubmissionStatus(
 import { awardSubmissionPointsOnce } from './submission-utils';
 export { awardSubmissionPointsOnce };
 
+async function submitAdminProofReviewAction(
+  submissionId: string,
+  action: 'approve' | 'request_info' | 'reject',
+  notes: string,
+  metadata?: ProofTransitionReviewMetadata,
+  context: AdminProofReviewActionContext = {}
+) {
+  const response = await authenticatedFetch('/api/admin/proof-review/action', {
+    method: 'POST',
+    body: JSON.stringify({
+      entryId: submissionId,
+      submissionId,
+      proofId: context.proofId || null,
+      reviewId: context.reviewId || context.proofReviewId || null,
+      sourcePath: context.sourcePath || null,
+      sourceCollection: context.sourceCollection || null,
+      aliases: context.idAliases || [],
+      action,
+      notes,
+      metadata: metadata || {}
+    })
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const err: any = new Error(payload?.error || payload?.message || `REVIEW_ACTION_FAILED_${response.status}`);
+    err.details = payload?.details || null;
+    throw err;
+  }
+  return payload;
+}
+
 /**
  * 6. Approve submission wrapper.
  */
-export async function approveSubmission(submissionId: string, notes: string, metadata?: ProofTransitionReviewMetadata) {
+export async function approveSubmission(
+  submissionId: string,
+  notes: string,
+  metadata?: ProofTransitionReviewMetadata,
+  context?: AdminProofReviewActionContext
+) {
   logDev(`Approving submission ${submissionId}`);
-  const pointsResult = await transitionProofReview(submissionId, 'approved', notes, metadata);
-
-  if (auth.currentUser) {
-    await logAdminAction(auth.currentUser.uid, submissionId, 'proofReview', 'approve', { 
-      notes,
-      rubric: metadata?.rubric || null,
-      pointsAwarded: pointsResult.points || 0
-    });
-  }
-
-  return pointsResult;
+  return submitAdminProofReviewAction(submissionId, 'approve', notes, metadata, context);
 }
 
 /**
  * 7. Request more proof wrapper.
  */
-export async function requestMoreProof(submissionId: string, notes: string, metadata?: ProofTransitionReviewMetadata) {
+export async function requestMoreProof(
+  submissionId: string,
+  notes: string,
+  metadata?: ProofTransitionReviewMetadata,
+  context?: AdminProofReviewActionContext
+) {
   logDev(`Requesting more proof for ${submissionId}`);
-  const result = await transitionProofReview(submissionId, 'needs_more_proof', notes, metadata);
-  if (auth.currentUser) {
-    await logAdminAction(auth.currentUser.uid, submissionId, 'proofReview', 'request_more_proof', { notes, rubric: metadata?.rubric || null });
-  }
-  return result;
+  return submitAdminProofReviewAction(submissionId, 'request_info', notes, metadata, context);
 }
 
 /**
  * 8. Reject submission wrapper.
  */
-export async function rejectSubmission(submissionId: string, notes: string, metadata?: ProofTransitionReviewMetadata) {
+export async function rejectSubmission(
+  submissionId: string,
+  notes: string,
+  metadata?: ProofTransitionReviewMetadata,
+  context?: AdminProofReviewActionContext
+) {
   logDev(`Rejecting submission ${submissionId}`);
-  const result = await transitionProofReview(submissionId, 'rejected', notes, metadata);
-  if (auth.currentUser) {
-    await logAdminAction(auth.currentUser.uid, submissionId, 'proofReview', 'reject', { notes, rubric: metadata?.rubric || null });
-  }
-  return result;
+  return submitAdminProofReviewAction(submissionId, 'reject', notes, metadata, context);
 }
 
 /**
@@ -800,7 +838,7 @@ export function subscribeToAdminPendingReviews(
   );
 
   const unsubEntries = onSnapshot(entryQuery, (snap) => {
-    const rawEntries = snap.docs.map(doc => ({ id: doc.id, __path: doc.ref.path, ...doc.data() } as unknown as Entry));
+    const rawEntries = snap.docs.map(doc => ({ ...doc.data(), id: doc.id, __path: doc.ref.path } as unknown as Entry));
     rawEntriesCount = rawEntries.length;
     console.log("[AdminQueue] canonical entry-group docs returned", rawEntries.length);
 
@@ -841,7 +879,7 @@ export function subscribeToAdminPendingReviews(
   });
 
   const unsubMonitorEntries = onSnapshot(monitorEntryQuery, (snap) => {
-    monitorEntriesForDiagnostics = snap.docs.map(doc => ({ id: doc.id, __path: doc.ref.path, ...doc.data() }));
+    monitorEntriesForDiagnostics = snap.docs.map(doc => ({ ...doc.data(), id: doc.id, __path: doc.ref.path }));
     monitorEntriesCount = monitorEntriesForDiagnostics.length;
     monitorReady = true;
     emit();
@@ -853,7 +891,7 @@ export function subscribeToAdminPendingReviews(
   });
 
   const unsubReviews = onSnapshot(reviewQuery, (snap) => {
-    const rawReviews = snap.docs.map(doc => ({ id: doc.id, __path: doc.ref.path, ...doc.data() }));
+    const rawReviews = snap.docs.map(doc => ({ ...doc.data(), id: doc.id, __path: doc.ref.path }));
     rawReviewsForDiagnostics = rawReviews;
     rawReviewsCount = rawReviews.length;
     rawReviewsForQueue = rawReviews

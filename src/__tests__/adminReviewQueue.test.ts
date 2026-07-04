@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const submissionServiceSource = readFileSync('src/services/submissionService.ts', 'utf8');
 const proofLifecycleSource = readFileSync('src/services/proofLifecycleService.ts', 'utf8');
+const serverSource = readFileSync('server.ts', 'utf8');
 
 test('admin review queue normalizes status variants instead of querying one raw status', () => {
   const queueStart = submissionServiceSource.indexOf('export function subscribeToAdminPendingReviews');
@@ -24,6 +25,9 @@ test('admin review actions require a resolved canonical entryId before buttons c
   assert.match(adminProofReviewSource, /Missing source entry/);
   assert.match(adminProofReviewSource, /record\?\.idAliases/);
   assert.doesNotMatch(adminProofReviewSource, /onAction\(e\.entryId \|\| e\.submissionId \|\| e\.id/);
+  assert.match(adminProofReviewSource, /selectedQueueEntry/);
+  assert.match(adminProofReviewSource, /Score/);
+  assert.doesNotMatch(adminProofReviewSource, /onAction\(actionId,\s*'approve'\)/);
 });
 
 test('review transition resolves proofReview aliases against a real entries document before mutation', () => {
@@ -32,4 +36,21 @@ test('review transition resolves proofReview aliases against a real entries docu
   assert.match(proofLifecycleSource, /databaseId: firebaseConfig\.firestoreDatabaseId/);
   assert.match(proofLifecycleSource, /resolvedFirestorePath: resolution\.entryPath/);
   assert.match(proofLifecycleSource, /collection\(db, 'proofReviews'\), where\('entryId', '==', canonicalEntryId\)/);
+});
+
+test('admin review decisions are sent through a server-authorized canonical entry action', () => {
+  const adminActionRouteStart = serverSource.indexOf('app.post("/api/admin/proof-review/action"');
+  assert.notEqual(adminActionRouteStart, -1);
+  const adminActionRoute = serverSource.slice(adminActionRouteStart, serverSource.indexOf('app.post("/api/admin/grant-starter-bypass"', adminActionRouteStart));
+
+  assert.match(submissionServiceSource, /authenticatedFetch\('\/api\/admin\/proof-review\/action'/);
+  assert.match(submissionServiceSource, /submitAdminProofReviewAction/);
+  assert.match(adminActionRoute, /await requireAdminUser\(req\)/);
+  assert.match(adminActionRoute, /resolveBackendReviewEntry/);
+  assert.match(adminActionRoute, /FIELDTRIP_FIRESTORE_DATABASE_ID/);
+  assert.match(adminActionRoute, /scoreEvents"\)\.doc\(`score_\$\{resolution\.entryId\}`\)/);
+  assert.match(adminActionRoute, /transaction\.create\(scoreEventRef/);
+  assert.match(adminActionRoute, /reviewRefs\.forEach/);
+  assert.match(adminActionRoute, /adminLogs/);
+  assert.doesNotMatch(submissionServiceSource, /logAdminAction\(auth\.currentUser\.uid, submissionId, 'proofReview'/);
 });
