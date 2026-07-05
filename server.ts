@@ -815,19 +815,20 @@ async function startServer() {
       }
 
       const ballotId = getWeeklyBallotId(seasonId, weekNumber);
-      const entriesSnap = await dbAdmin!.collection('entries').where('status', '==', 'approved').get();
+      const entriesSnap = await dbAdmin!.collection('entries').where('status', 'in', Array.from(APPROVED_PROOF_STATUSES)).get();
       const eligibleEntries = entriesSnap.docs
         .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any))
         .filter(entry => {
           const entrySeasonId = entry.seasonId || seasonId;
           const entryWeek = Number(entry.eligibleWeekNumber || entry.weekNumber || weekNumber);
+          const proofImage = entry.proofImage || entry.imageUrl || entry.photoUrl || entry.mediaUrl || entry.storagePath || entry.photoStoragePath || entry.imageStoragePath;
           return entrySeasonId === seasonId &&
             entryWeek === weekNumber &&
-            (entry.proofImage || entry.imageUrl || entry.photoUrl) &&
+            isWeeklyEntryEligible(entry) &&
+            !!proofImage &&
             entry.isPrivate !== true &&
             entry.private !== true &&
-            entry.visibility !== 'private' &&
-            entry.disqualified !== true;
+            entry.visibility !== 'private';
         });
 
       const batch = dbAdmin!.batch();
@@ -863,13 +864,14 @@ async function startServer() {
           displayName: entry.userName || entry.displayName || 'Agent',
           userName: entry.userName || entry.displayName || 'Agent',
           avatarUrl: entry.avatarUrl || '',
-          photoUrl: entry.proofImage || entry.imageUrl || entry.photoUrl || '',
-          thumbnailUrl: entry.thumbnailUrl || entry.proofImage || entry.imageUrl || entry.photoUrl || '',
+          photoUrl: entry.proofImage || entry.imageUrl || entry.photoUrl || entry.mediaUrl || '',
+          storagePath: entry.storagePath || entry.photoStoragePath || entry.imageStoragePath || entry.proofStoragePath || '',
+          thumbnailUrl: entry.thumbnailUrl || entry.proofImage || entry.imageUrl || entry.photoUrl || entry.mediaUrl || '',
           missionId,
           missionTitle: entry.tripTitle || entry.challengeTitle || entry.missionTitle || 'Field Trip Mission',
           tripId: missionId,
           tripTitle: entry.tripTitle || entry.challengeTitle || entry.missionTitle || 'Field Trip Mission',
-          proofImage: entry.proofImage || entry.imageUrl || entry.photoUrl || '',
+          proofImage: entry.proofImage || entry.imageUrl || entry.photoUrl || entry.mediaUrl || '',
           fieldNote: entry.fieldNote || entry.note || '',
           deckId: entry.deckId || 'starter',
           approvedAt: entry.approvedAt || FieldValue.serverTimestamp(),

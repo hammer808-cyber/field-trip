@@ -204,14 +204,14 @@ export default function VotingHubPage() {
                         <div className="space-y-1 text-left">
                           <p className="font-mono text-[9px] font-black uppercase tracking-[0.24em] text-on-surface/40">Weekly Voting</p>
                           <h4 className="text-3xl sm:text-4xl font-display font-black uppercase italic tracking-tighter leading-none">
-                            {clockInfo.phase === 'voting' ? 'Ballot Is Open' : clockInfo.phase === 'submission' ? 'Building The Ballot' : 'Results Window'}
+                            {clockInfo.phase === 'voting' ? 'Vote Now' : clockInfo.phase === 'submission' ? 'Ballot Building' : 'Results Ready'}
                           </h4>
                           <p className="text-xs sm:text-sm font-serif italic text-on-surface/65 leading-relaxed">
                             {clockInfo.phase === 'voting'
-                              ? 'Pick the receipts that deserve weekly recognition. Votes are recorded once per category.'
+                              ? 'Choose one approved receipt per category. Your vote is locked by the server.'
                               : clockInfo.phase === 'submission'
-                                ? 'Approved receipts are still arriving. Voting opens when the weekly ballot locks.'
-                                : 'Weekly outcomes live on the Big Board Results desk after final review.'}
+                                ? 'Approved submissions are being added to the weekly ballot.'
+                                : 'Final winners appear after admin review.'}
                           </p>
                         </div>
                       </div>
@@ -219,7 +219,7 @@ export default function VotingHubPage() {
                         onClick={() => navigate(clockInfo.phase === 'awards' ? '/big-board/results' : '/voting/ballot')}
                         className="bureau-btn bg-brand-lime text-on-surface text-xs justify-center"
                       >
-                        {clockInfo.phase === 'awards' ? 'View Results' : 'Open Ballot'}
+                        {clockInfo.phase === 'awards' ? 'View Results' : clockInfo.phase === 'voting' ? 'Vote Now' : 'Preview Ballot'}
                       </button>
                     </div>
                  </div>
@@ -411,9 +411,9 @@ export default function VotingHubPage() {
 
                   <div className="space-y-6 font-serif text-lg italic text-on-surface/80">
                      <p>01. You can't vote for your own findings.</p>
-                     <p>02. Every vote earns you 5 XP immediately.</p>
-                     <p>03. Win a 2.5x XP bonus if your pick wins the category!</p>
-                     <p>04. Results are final at the end of the week.</p>
+                     <p>02. Vote once per category during the voting window.</p>
+                     <p>03. Only approved receipt submissions are eligible.</p>
+                     <p>04. Points are finalized after admin review.</p>
                   </div>
 
                   <button 

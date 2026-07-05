@@ -98,6 +98,35 @@ test('server weekly vote endpoint uses transactions and immutable vote creation'
   assert.doesNotMatch(server, /Participated in Tribunal Consensus/);
 });
 
+test('weekly ballot UI reads the canonical ballot schema before legacy candidates', () => {
+  const votingHub = fs.readFileSync('src/components/VotingHub.tsx', 'utf8');
+  assert.match(votingHub, /getWeeklyBallotId\(seasonId, currentWeekNumber\)/);
+  assert.match(votingHub, /collection\(db, 'weeklyBallots', ballotId, 'candidates'\)/);
+  assert.match(votingHub, /collection\(db, 'ballotCandidates'\)/);
+  assert.ok(
+    votingHub.indexOf("collection(db, 'weeklyBallots', ballotId, 'candidates')") <
+      votingHub.indexOf("collection(db, 'ballotCandidates')")
+  );
+  assert.match(votingHub, /isWeeklyCandidateEligible\(\{ \.\.\.entry, categories, isEligible: true \}, selectedCategory\)/);
+});
+
+test('weekly ballot builder accepts approved legacy submitted proofs with storage-backed media', () => {
+  const server = fs.readFileSync('server.ts', 'utf8');
+  const buildStart = server.indexOf('app.post("/api/admin/voting/build-weekly-ballot"');
+  const buildRoute = server.slice(buildStart, server.indexOf('app.post("/api/admin/voting/finalize-week"', buildStart));
+  assert.match(buildRoute, /where\('status', 'in', Array\.from\(APPROVED_PROOF_STATUSES\)\)/);
+  assert.match(buildRoute, /isWeeklyEntryEligible\(entry\)/);
+  assert.match(buildRoute, /entry\.storagePath/);
+  assert.match(buildRoute, /storagePath: entry\.storagePath \|\| entry\.photoStoragePath \|\| entry\.imageStoragePath/);
+});
+
+test('weekly voting page copy does not promise instant vote XP', () => {
+  const votingPage = fs.readFileSync('src/pages/VotingHubPage.tsx', 'utf8');
+  assert.doesNotMatch(votingPage, /Every vote earns you 5 XP immediately/);
+  assert.match(votingPage, /Only approved receipt submissions are eligible/);
+  assert.match(votingPage, /Points are finalized after admin review/);
+});
+
 test('weekly diagnostics endpoint documents legacy compatibility instead of deleting data', () => {
   const server = fs.readFileSync('server.ts', 'utf8');
   assert.match(server, /\/api\/admin\/voting\/diagnostics/);

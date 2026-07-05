@@ -10,6 +10,7 @@ import { cn } from '../lib/utils';
 import { motion } from 'motion/react';
 import { getServerDate } from '../services/timeService';
 import { getCurrentVotingCycle, getVotingPhase } from '../services/votingCycleService';
+import { getWeeklyBallotId, isWeeklyCandidateEligible } from '../logic/weeklyVoting';
 
 const CATEGORIES: { id: VoteCategory; label: string; description: string }[] = [
   { id: 'best_field_note', label: 'Best Field Note', description: 'Profound or evocative field commentary.' },
@@ -32,6 +33,37 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
   const [showResults, setShowResults] = useState(false);
   const [isSummaryLocked, setIsSummaryLocked] = useState(false);
   const [currentIndexes, setCurrentIndexes] = useState<Record<string, number>>({});
+
+  const mapCandidateToEntry = (candidate: any): Entry => {
+    const tripId = candidate.tripId || candidate.missionId || candidate.challengeId || '';
+    const proofImage = candidate.proofImage || candidate.photoUrl || candidate.imageUrl || candidate.thumbnailUrl || '';
+    return {
+      id: candidate.entryId, // canonical entry id used by the server vote endpoint
+      entryId: candidate.entryId,
+      uid: candidate.userId,
+      userId: candidate.userId,
+      userName: candidate.userName || candidate.displayName || 'Agent',
+      displayName: candidate.displayName || candidate.userName || 'Agent',
+      username: candidate.userName || candidate.displayName || 'Agent',
+      missionId: tripId,
+      challengeId: tripId,
+      tripId,
+      deckId: candidate.deckId || 'd1',
+      tripTitle: candidate.tripTitle || candidate.missionTitle || 'Field Trip Mission',
+      proofImage,
+      imageUrl: proofImage,
+      storagePath: candidate.storagePath || null,
+      fieldNote: candidate.fieldNote || candidate.note || '',
+      weekNumber: candidate.weekNumber,
+      seasonId: candidate.seasonId,
+      categories: Array.isArray(candidate.categories) ? candidate.categories : CATEGORIES.map(cat => cat.id),
+      status: 'approved',
+      xpValue: 150,
+      xpAwarded: true,
+      createdAt: candidate.createdAt || candidate.approvedAt || new Date().toISOString(),
+      updatedAt: candidate.updatedAt || candidate.createdAt || new Date().toISOString()
+    } as Entry;
+  };
 
   const [phase, setPhase] = useState(() => {
     const now = getServerDate();
@@ -72,42 +104,34 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
           }
         }
 
-        const seasonId = activeSeason?.id || 'season-1';
-        const q = query(
+        const seasonId = activeSeason?.id || 'heatwave-receipts';
+        const ballotId = getWeeklyBallotId(seasonId, currentWeekNumber);
+        const ballotSnap = await getDoc(doc(db, 'weeklyBallots', ballotId));
+        let fetchedCandidates: Entry[] = [];
+
+        if (ballotSnap.exists()) {
+          const candidatesSnap = await getDocs(query(
+            collection(db, 'weeklyBallots', ballotId, 'candidates'),
+            limit(120)
+          ));
+          fetchedCandidates = candidatesSnap.docs
+            .map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))
+            .filter(candidate => candidate.entryId && candidate.userId && candidate.isEligible !== false && candidate.isDisqualified !== true)
+            .map(mapCandidateToEntry);
+        }
+
+        if (fetchedCandidates.length === 0) {
+          const q = query(
           collection(db, 'ballotCandidates'),
           where('weekNumber', '==', currentWeekNumber),
           where('seasonId', '==', seasonId)
-        );
-        const snap = await getDocs(q);
-        const fetchedCandidates = snap.docs.map(docSnap => {
-          const candidate = docSnap.data();
-          const tripId = candidate.tripId || '';
-          return {
-            id: candidate.entryId, // Map back to entryId for compatibility with voting actions
-            entryId: candidate.entryId,
-            uid: candidate.userId,
-            userId: candidate.userId,
-            userName: candidate.userName,
-            displayName: candidate.userName,
-            username: candidate.userName,
-            missionId: tripId,
-            challengeId: tripId,
-            tripId: tripId,
-            deckId: candidate.deckId || 'd1',
-            tripTitle: candidate.tripTitle,
-            proofImage: candidate.proofImage,
-            imageUrl: candidate.proofImage,
-            storagePath: candidate.storagePath || null,
-            fieldNote: candidate.fieldNote,
-            weekNumber: candidate.weekNumber,
-            seasonId: candidate.seasonId,
-            status: 'approved',
-            xpValue: 150,
-            xpAwarded: true,
-            createdAt: candidate.createdAt || new Date().toISOString(),
-            updatedAt: candidate.createdAt || new Date().toISOString()
-          } as Entry;
-        });
+          );
+          const snap = await getDocs(q);
+          fetchedCandidates = snap.docs
+            .map(docSnap => ({ id: docSnap.id, ...docSnap.data() }))
+            .filter(candidate => candidate.entryId && candidate.userId)
+            .map(mapCandidateToEntry);
+        }
 
         setEligibleEntries(fetchedCandidates);
 
@@ -169,11 +193,15 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
 
   // Selected vote details
   const myVote = getVoteForCategory(selectedCategory);
-  const votedEntry = myVote ? eligibleEntries.find(e => e.id === myVote.entryId) : undefined;
+  const votedEntry = myVote ? eligibleEntries.find(e => e.id === myVote.entryId || (e as any).entryId === myVote.entryId) : undefined;
   const isRevoting = forceRevote[selectedCategory];
 
   // Candidates that are not submitted by the user
-  const votableCandidates = eligibleEntries.filter(entry => entry.userId !== user?.uid);
+  const categoryEntries = eligibleEntries.filter(entry => {
+    const categories = Array.isArray((entry as any).categories) ? (entry as any).categories : CATEGORIES.map(cat => cat.id);
+    return isWeeklyCandidateEligible({ ...entry, categories, isEligible: true }, selectedCategory);
+  });
+  const votableCandidates = categoryEntries.filter(entry => entry.userId !== user?.uid);
   const currentIdx = currentIndexes[selectedCategory] || 0;
 
   const content = (

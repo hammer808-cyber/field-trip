@@ -197,77 +197,83 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
             exit={{ opacity: 0, y: -10 }}
             className="space-y-4"
           >
-            <div className="bg-white border-2 border-on-surface p-6 rounded-2xl shadow-[8px_8px_0px_black] text-left space-y-4 overflow-hidden relative">
+            <div className="bg-white border-2 border-on-surface p-5 rounded-2xl shadow-[8px_8px_0px_black] text-left space-y-4 overflow-hidden relative">
                {/* Subtle background strip */}
                <div className="absolute top-0 left-0 right-0 h-1 bg-brand-orange/10" />
 
-               <div className="flex items-center gap-3">
-                 <div className="w-8 h-8 bg-brand-orange/10 rounded-lg flex items-center justify-center border border-brand-orange/20">
+               <div className="flex items-center gap-3 border-b border-dashed border-on-surface/10 pb-4">
+                 <div className="w-9 h-9 bg-brand-orange/10 rounded-xl flex items-center justify-center border border-brand-orange/20 shrink-0">
                    <ShieldCheck className="w-5 h-5 text-brand-orange" />
                  </div>
-                 <span className="font-display font-black uppercase italic text-xl tracking-tighter text-on-surface">Trevor's Receipt Checklist</span>
-                 <div className="ml-auto text-[9px] font-mono font-black uppercase text-on-surface/30">3 Steps</div>
+                 <div className="min-w-0">
+                   <span className="block font-display font-black uppercase italic text-xl tracking-tighter text-on-surface leading-none">Receipt Checklist</span>
+                   <span className="block font-mono text-[9px] font-black uppercase tracking-widest text-on-surface/35 mt-1">Photo + note + submit</span>
+                 </div>
                </div>
 
-               <div className="space-y-4 relative z-10 border-t border-dashed border-on-surface/10 pt-4">
-                 <div className="flex gap-4 items-start group">
-                   <div className="w-6 h-6 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-[10px] font-black shadow-[2px_2px_0px_black]">1</div>
-                   <p className="font-serif italic text-base leading-snug text-on-surface/80">
-                     <strong className="font-display uppercase not-italic">Hunt it down.</strong><br />
-                     Something weird. Something beautiful. Something very specifically today's vibe.
-                   </p>
+               <div className="grid grid-cols-1 gap-3 relative z-10">
+                 <div className="flex gap-3 items-center group rounded-xl bg-on-surface/[0.025] border border-on-surface/5 px-3 py-3">
+                   <div className="w-7 h-7 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-[10px] font-black shadow-[2px_2px_0px_black]">1</div>
+                   <div className="min-w-0">
+                     <p className="font-display uppercase italic text-base font-black leading-none text-on-surface">Find it</p>
+                     <p className="text-xs text-on-surface/55 font-sans mt-1">Spot something that fits the mission.</p>
+                   </div>
                  </div>
-                 <div className="flex gap-4 items-start group">
-                   <div className="w-6 h-6 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-[10px] font-black shadow-[2px_2px_0px_black]">2</div>
-                   <p className="font-serif italic text-base leading-snug text-on-surface/80">
-                     <strong className="font-display uppercase not-italic">Grab your receipt.</strong><br />
-                     Take a photo before it disappears back into legend.
-                   </p>
+                 <div className="flex gap-3 items-center group rounded-xl bg-on-surface/[0.025] border border-on-surface/5 px-3 py-3">
+                   <div className="w-7 h-7 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-[10px] font-black shadow-[2px_2px_0px_black]">2</div>
+                   <div className="min-w-0">
+                     <p className="font-display uppercase italic text-base font-black leading-none text-on-surface">Snap it</p>
+                     <p className="text-xs text-on-surface/55 font-sans mt-1">Take one clear proof photo.</p>
+                   </div>
                  </div>
-                 <div className="flex gap-4 items-start group">
-                   <div className="w-6 h-6 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-[10px] font-black shadow-[2px_2px_0px_black]">3</div>
-                   <p className="font-serif italic text-base leading-snug text-on-surface/80">
-                     <strong className="font-display uppercase not-italic">Tell me everything.</strong><br />
-                     What'd you find? How'd you stumble into it?
-                   </p>
+                 <div className="flex gap-3 items-center group rounded-xl bg-on-surface/[0.025] border border-on-surface/5 px-3 py-3">
+                   <div className="w-7 h-7 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-[10px] font-black shadow-[2px_2px_0px_black]">3</div>
+                   <div className="min-w-0">
+                     <p className="font-display uppercase italic text-base font-black leading-none text-on-surface">Say why</p>
+                     <p className="text-xs text-on-surface/55 font-sans mt-1">Add a short field note.</p>
+                   </div>
                  </div>
                </div>
                
+               {(receiptChallenge || showCatalystSticker) && (
+                 <div className="grid grid-cols-1 gap-3">
                {receiptChallenge && (
-                 <div className="bg-brand-orange/5 border-2 border-dashed border-brand-orange p-5 rounded-2xl space-y-2 relative overflow-hidden">
+                 <div className="bg-brand-orange/5 border-2 border-dashed border-brand-orange p-4 rounded-2xl space-y-2 relative overflow-hidden">
                    <div className="absolute top-0 right-0 p-2 opacity-10">
                       <Zap className="w-12 h-12 text-brand-orange" />
                    </div>
                    <div className="flex items-center justify-between">
                      <div className="flex items-center gap-2">
                        <Zap className="w-4 h-4 text-brand-orange animate-pulse" />
-                       <span className="font-mono text-[10px] font-black uppercase text-brand-orange tracking-widest">Trevor's Side Quest</span>
+                       <span className="font-mono text-[9px] font-black uppercase text-brand-orange tracking-widest">Optional Boost</span>
                      </div>
                      <div className="bg-white border-2 border-on-surface px-2 py-1 text-[10px] font-black italic shadow-[3px_3px_0px_black] rotate-[-2deg]">
                         1.25x BOOST
                      </div>
                    </div>
-                   <p className="text-sm font-bold text-on-surface/80 italic leading-snug pr-8 pt-1">{receiptChallenge.instructions}</p>
+                   <p className="text-xs font-bold text-on-surface/75 leading-snug pr-8 pt-1">{receiptChallenge.instructions}</p>
                  </div>
                )}
 
                {showCatalystSticker && (
-                 <div className="bg-brand-lime/10 border-2 border-dashed border-brand-lime p-5 rounded-2xl space-y-2 relative overflow-hidden">
+                 <div className="bg-brand-lime/10 border-2 border-dashed border-brand-lime p-4 rounded-2xl space-y-2 relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-2 opacity-10">
                       <Sparkles className="w-12 h-12 text-brand-lime" />
                    </div>
                    <div className="flex items-center justify-between">
                      <div className="flex items-center gap-2">
                        <Sparkles className="w-4 h-4 text-brand-lime" />
-                       <span className="font-mono text-[10px] font-black uppercase text-brand-lime tracking-widest">Trevor's Weekly Bonus</span>
+                       <span className="font-mono text-[9px] font-black uppercase text-brand-lime tracking-widest">Weekly Bonus</span>
                      </div>
                      <div className="bg-on-surface text-brand-lime px-2 py-1 text-[10px] font-black italic shadow-[3px_3px_0px_white] rotate-[2deg]">
                         1.5x CATALYST
                      </div>
                    </div>
-                   <p className="text-sm font-bold text-on-surface/80 italic leading-snug pr-8 pt-1">
+                   <p className="text-xs font-bold text-on-surface/75 leading-snug pr-8 pt-1">
                      {catalyst.title}: {catalyst.description}
                    </p>
+                 </div>
+               )}
                  </div>
                )}
             </div>
