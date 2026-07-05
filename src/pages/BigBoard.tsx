@@ -32,7 +32,7 @@ import { ScoreEvent, WeeklySummary } from "../types/game";
 import { getServerDate } from "../services/timeService";
 import { getCurrentVotingCycle, getVotingPhase } from "../services/votingCycleService";
 import { normalizeEntryStatus } from "../logic/entryLogic";
-import { getCommunityFeedApprovedTime, isCommunityFeedEligible } from "../logic/communityFeed";
+import { dedupeCommunityFeedProofs, getCommunityFeedApprovedTime, isCommunityFeedEligible } from "../logic/communityFeed";
 import { isCrewProofEligible } from "../logic/proofDistribution";
 import { ContentMenu } from "../components/ContentMenu";
 import { SabotageHub } from "../components/SabotageHub";
@@ -1300,13 +1300,7 @@ export default function BigBoardPage() {
     playerRankings.findIndex((u: any) => u.id === user?.uid) + 1;
 
   const communityFeedProofs = useMemo(() => {
-    const combined = publicProofs.filter(isCommunityFeedEligible);
-    const seen = new Set();
-    let list = combined.filter(p => {
-      if (seen.has(p.id)) return false;
-      seen.add(p.id);
-      return true;
-    });
+    let list = dedupeCommunityFeedProofs(publicProofs.filter(isCommunityFeedEligible));
 
     const now = getServerDate();
     const weekAgo = now.getTime() - (7 * 24 * 60 * 60 * 1000);

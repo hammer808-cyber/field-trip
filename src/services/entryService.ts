@@ -18,7 +18,7 @@ import { db, handleFirestoreError, OperationType, logFirestoreError } from '../l
 import { Entry } from '../constants';
 import { guardedCall } from './guardedService';
 import { isArchivedEntry } from '../logic/entryLogic';
-import { COMMUNITY_FEED_QUERY_STATUSES, isCommunityFeedEligible } from '../logic/communityFeed';
+import { COMMUNITY_FEED_QUERY_STATUSES, dedupeCommunityFeedProofs, isCommunityFeedEligible } from '../logic/communityFeed';
 
 const COLLECTION = 'entries';
 
@@ -84,9 +84,9 @@ export async function getGlobalEntriesPage(pageSize = 10, lastVisible?: QueryDoc
 
   try {
     const snapshot = await getDocs(q);
-    const docs = snapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() } as Entry))
-      .filter(isCommunityFeedEligible);
+    const docs = dedupeCommunityFeedProofs(snapshot.docs
+      .map(doc => ({ ...doc.data(), id: doc.id, sourceDocumentId: doc.id } as Entry))
+      .filter(isCommunityFeedEligible));
     return {
       docs,
       lastVisible: snapshot.docs[snapshot.docs.length - 1]
@@ -105,9 +105,9 @@ export function subscribeToLatestGlobalEntries(callback: (entries: Entry[]) => v
   );
 
   return onSnapshot(q, (snapshot) => {
-    const entries = snapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() } as Entry))
-      .filter(isCommunityFeedEligible);
+    const entries = dedupeCommunityFeedProofs(snapshot.docs
+      .map(doc => ({ ...doc.data(), id: doc.id, sourceDocumentId: doc.id } as Entry))
+      .filter(isCommunityFeedEligible));
     callback(entries);
   }, (error) => {
     logFirestoreError(error, OperationType.LIST, COLLECTION);

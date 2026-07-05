@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import { CommunityProofCard } from './CommunityProofCard';
 import { subscribeToPublicProofs } from '../services/activityService';
 import { normalizeEntryStatus } from '../logic/entryLogic';
-import { getCommunityFeedApprovedTime, isCommunityFeedEligible } from '../logic/communityFeed';
+import { dedupeCommunityFeedProofs, getCommunityFeedApprovedTime, isCommunityFeedEligible } from '../logic/communityFeed';
 import { isCrewProofEligible } from '../logic/proofDistribution';
 import { cn } from '../lib/utils';
 
@@ -26,7 +26,7 @@ export function CommunityProofsFeed() {
   const communityFeedProofs = useMemo(() => {
     const seasonStart = activeSeason?.startDate ? new Date(activeSeason.startDate as any).getTime() : 0;
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    let items = publicProofs.filter(isCommunityFeedEligible);
+    let items = dedupeCommunityFeedProofs(publicProofs.filter(isCommunityFeedEligible));
 
     if (feedFilter === 'week') {
       items = items.filter(entry => getCommunityFeedApprovedTime(entry) >= weekAgo);

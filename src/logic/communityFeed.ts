@@ -1,6 +1,7 @@
 import { normalizeEntryStatus } from './entryLogic';
 import {
   getEntryApprovedTime,
+  getEntryChallengeId,
   getEntryOwnerId,
   getProofDistributionExclusionReasons,
   getProofImageReference,
@@ -42,6 +43,35 @@ export function hasCommunityFeedImageReference(entry: any): boolean {
 export function isCommunityFeedEligible(entry: any): boolean {
   const status = normalizeEntryStatus(entry?.status || entry?.reviewStatus || entry?.approvalStatus || entry?.submissionStatus || entry?.proofStatus);
   return APPROVED_FEED_STATUSES.has(status) && isCommunityProofEligible(entry);
+}
+
+export function getCommunityFeedDedupeKey(entry: any): string {
+  const explicitEntryId = String(entry?.entryId || entry?.canonicalEntryId || entry?.sourceEntryId || '').trim();
+  if (explicitEntryId) return `entry:${explicitEntryId}`;
+
+  const proofAlias = String(entry?.proofId || entry?.submissionId || entry?.proofReviewId || entry?.reviewId || '').trim();
+  if (proofAlias) return `proof:${proofAlias}`;
+
+  const ownerId = getEntryOwnerId(entry);
+  const challengeId = getEntryChallengeId(entry);
+  const mediaReference = getProofImageReference(entry);
+  if (ownerId && challengeId && mediaReference) {
+    return `media:${ownerId}:${challengeId}:${mediaReference}`;
+  }
+
+  return `doc:${String(entry?.id || '').trim()}`;
+}
+
+export function dedupeCommunityFeedProofs<T extends Record<string, any>>(entries: T[]): T[] {
+  const bestByKey = new Map<string, T>();
+  for (const entry of entries) {
+    const key = getCommunityFeedDedupeKey(entry);
+    const existing = bestByKey.get(key);
+    if (!existing || getCommunityFeedApprovedTime(entry) >= getCommunityFeedApprovedTime(existing)) {
+      bestByKey.set(key, entry);
+    }
+  }
+  return Array.from(bestByKey.values());
 }
 
 export function getCommunityFeedExclusionReasons(entry: any): string[] {

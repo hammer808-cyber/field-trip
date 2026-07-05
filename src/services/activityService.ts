@@ -8,7 +8,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { ScoreEvent } from '../types/game';
-import { COMMUNITY_FEED_QUERY_STATUSES, getCommunityFeedApprovedTime, isCommunityFeedEligible } from '../logic/communityFeed';
+import { COMMUNITY_FEED_QUERY_STATUSES, dedupeCommunityFeedProofs, getCommunityFeedApprovedTime, isCommunityFeedEligible } from '../logic/communityFeed';
 
 export function subscribeToRecentScoreEvents(limitCount: number, callback: (events: ScoreEvent[]) => void) {
   const q = query(
@@ -58,11 +58,16 @@ export function subscribeToPublicProofs(limitCount: number, callback: (entries: 
   );
 
   return onSnapshot(q, (snap) => {
-    const entries = snap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }))
+    const entries = dedupeCommunityFeedProofs(snap.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        sourceDocumentId: doc.id
+      };
+    })
       .filter(isCommunityFeedEligible)
+    )
       .sort((a: any, b: any) => getCommunityFeedApprovedTime(b) - getCommunityFeedApprovedTime(a))
       .slice(0, limitCount);
     callback(entries);

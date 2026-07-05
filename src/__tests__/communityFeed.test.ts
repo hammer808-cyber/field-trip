@@ -4,7 +4,9 @@ import { readFileSync } from 'node:fs';
 import {
   COMMUNITY_FEED_APPROVED_STATUSES,
   COMMUNITY_FEED_QUERY_STATUSES,
+  dedupeCommunityFeedProofs,
   getCommunityFeedExclusionReasons,
+  getCommunityFeedDedupeKey,
   getCommunityFeedImageReference,
   hasCommunityFeedImageReference,
   isCommunityFeedEligible
@@ -95,6 +97,44 @@ test('community feed accepts legacy approved proof image fields and storage refe
   assert.equal(hasCommunityFeedImageReference({ ...base, storagePath: 'blob:local' }), false);
 });
 
+test('community feed dedupes canonical and legacy copies before rendering', () => {
+  const canonical = {
+    id: 'doc-a',
+    entryId: 'entry-1',
+    status: 'approved',
+    userId: 'user-1',
+    challengeId: 'starter-1',
+    photoUrl: 'https://example.com/proof.jpg',
+    approvedAt: '2026-06-20T10:00:00.000Z',
+  };
+  const copied = {
+    ...canonical,
+    id: 'doc-b',
+    sourceEntryId: 'entry-1',
+    approvedAt: '2026-06-20T11:00:00.000Z',
+  };
+  const legacyWithoutAlias = {
+    id: 'legacy-doc-a',
+    status: 'approved',
+    userId: 'user-1',
+    challengeId: 'starter-2',
+    storagePath: 'proofs/user-1/starter-2.jpg',
+    approvedAt: '2026-06-20T12:00:00.000Z',
+  };
+  const legacyCopyWithoutAlias = {
+    ...legacyWithoutAlias,
+    id: 'legacy-doc-b',
+    reviewedAt: '2026-06-20T12:05:00.000Z',
+  };
+
+  assert.equal(getCommunityFeedDedupeKey(canonical), 'entry:entry-1');
+  assert.equal(getCommunityFeedDedupeKey(copied), 'entry:entry-1');
+  assert.deepEqual(
+    dedupeCommunityFeedProofs([canonical, copied, legacyWithoutAlias, legacyCopyWithoutAlias]).map(entry => entry.id).sort(),
+    ['doc-b', 'legacy-doc-b']
+  );
+});
+
 test('community feed diagnostics explain exclusions', () => {
   const reasons = getCommunityFeedExclusionReasons({
     status: 'pending_review',
@@ -126,6 +166,8 @@ test('Community feed subscription does not require legacy visibility flags or ap
   assert.match(publicProofs, /where\('status', 'in', COMMUNITY_FEED_QUERY_STATUSES\)/);
   assert.doesNotMatch(publicProofs, /where\('showInCommunityFeed'/);
   assert.doesNotMatch(publicProofs, /orderBy\('approvedAt'/);
+  assert.match(publicProofs, /dedupeCommunityFeedProofs/);
+  assert.match(publicProofs, /sourceDocumentId: doc\.id/);
   assert.match(publicProofs, /filter\(isCommunityFeedEligible\)/);
   assert.match(publicProofs, /sort\(\(a: any, b: any\) => getCommunityFeedApprovedTime\(b\) - getCommunityFeedApprovedTime\(a\)\)/);
 });
