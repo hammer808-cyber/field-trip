@@ -23,6 +23,7 @@ import { getCurrentVotingCycle, getVotingPhase } from "./src/services/votingCycl
 import {
   WEEKLY_VOTE_CATEGORIES,
   WEEKLY_VOTING_COMPATIBILITY_NOTE,
+  APPROVED_PROOF_STATUSES,
   getWeeklyBallotId,
   getWeeklyVoteId,
   getWeeklyVotingRestriction,

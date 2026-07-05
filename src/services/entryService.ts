@@ -85,7 +85,7 @@ export async function getGlobalEntriesPage(pageSize = 10, lastVisible?: QueryDoc
   try {
     const snapshot = await getDocs(q);
     const docs = dedupeCommunityFeedProofs(snapshot.docs
-      .map(doc => ({ ...doc.data(), id: doc.id, sourceDocumentId: doc.id } as Entry))
+      .map(doc => ({ ...doc.data(), id: doc.id, sourceDocumentId: doc.id } as unknown as Entry))
       .filter(isCommunityFeedEligible));
     return {
       docs,
@@ -106,7 +106,7 @@ export function subscribeToLatestGlobalEntries(callback: (entries: Entry[]) => v
 
   return onSnapshot(q, (snapshot) => {
     const entries = dedupeCommunityFeedProofs(snapshot.docs
-      .map(doc => ({ ...doc.data(), id: doc.id, sourceDocumentId: doc.id } as Entry))
+      .map(doc => ({ ...doc.data(), id: doc.id, sourceDocumentId: doc.id } as unknown as Entry))
       .filter(isCommunityFeedEligible));
     callback(entries);
   }, (error) => {
