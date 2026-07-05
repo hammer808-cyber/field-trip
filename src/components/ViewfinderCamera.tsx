@@ -202,7 +202,6 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
   const streamRef = useRef<MediaStream | null>(null);
   const facingModeRef = useRef<'user' | 'environment'>('environment');
   const pinchStartRef = useRef<{ distance: number; zoom: number } | null>(null);
-  const [hasMultipleCameras, setHasMultipleCameras] = useState(false);
   const [zoomState, setZoomState] = useState<ZoomState>({ ...DEFAULT_ZOOM_STATE });
   const [error, setError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -210,6 +209,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<ViewfinderFilterId>('original');
   const [showFilters, setShowFilters] = useState(false);
+  const [showZoomControls, setShowZoomControls] = useState(false);
   
   const [readouts, setReadouts] = useState({
     iso: 100,
@@ -245,16 +245,6 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
   useEffect(() => {
     let isMounted = true;
 
-    async function refreshVideoInputCount() {
-      if (!navigator.mediaDevices?.enumerateDevices) return;
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        setHasMultipleCameras(devices.filter(device => device.kind === 'videoinput').length > 1);
-      } catch (deviceErr) {
-        console.warn("Could not enumerate video inputs:", deviceErr);
-      }
-    }
-
     async function attachStream(nextStream: MediaStream, requestedFacingMode: 'user' | 'environment', mode: 'camera' | 'simulated' = 'camera') {
       if (!isMounted) {
         stopMediaStream(nextStream);
@@ -276,7 +266,6 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
       setFacingMode(requestedFacingMode);
       facingModeRef.current = requestedFacingMode;
       setIsInitializing(false);
-      refreshVideoInputCount();
     }
 
     async function startCamera(requestedFacingMode: 'user' | 'environment') {
@@ -359,7 +348,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
   }, [facingMode]);
 
   const toggleCamera = () => {
-    if (!hasMultipleCameras || isInitializing || isProcessing) return;
+    if (isInitializing || isProcessing || !streamRef.current) return;
     setFacingMode(prev => prev === 'environment' ? 'user' : 'environment');
   };
 
@@ -670,7 +659,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
           <div className="max-w-[200px] truncate bg-white/10 px-2">MISSION: {challenge.title.toUpperCase()}</div>
         </div>
 
-        <div className="absolute top-6 right-6 font-mono text-[9px] text-white/60 uppercase tracking-widest text-right z-40">
+        <div className="absolute top-16 right-4 font-mono text-[8px] text-white/60 uppercase tracking-widest text-right z-40">
           <div className="flex items-center justify-end gap-2">
              <div className="w-12 h-2 bg-white/20 border border-white/10 p-0.5">
                 <div className="h-full bg-brand-lime" style={{ width: `${readouts.battery}%` }} />
@@ -680,27 +669,53 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
           <div className="mt-1 text-brand-orange">FLTR_{VIEWFINDER_FILTERS.find(f => f.id === selectedFilter)?.name.toUpperCase()}</div>
         </div>
 
-        {/* Camera Flip + Zoom Controls */}
-        <div className="absolute top-24 right-5 z-50 flex flex-col items-end gap-3">
+        {/* Camera Flip + Compact Lens Controls */}
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowZoomControls(prev => !prev)}
+            disabled={!zoomState.supported || isProcessing}
+            className={cn(
+              "flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-full border border-white/20 bg-black/55 px-3 text-white shadow-lg backdrop-blur-md transition-all",
+              zoomState.supported && !isProcessing
+                ? "hover:bg-black/75 hover:border-brand-lime"
+                : "opacity-45 grayscale"
+            )}
+            aria-pressed={showZoomControls}
+            aria-label="Toggle camera zoom controls"
+          >
+            <ZoomIn className="h-4 w-4" />
+            <span className="font-mono text-[8px] font-black uppercase tracking-widest">
+              {zoomState.supported ? `${zoomState.value.toFixed(1)}x` : '1x'}
+            </span>
+          </button>
           <button
             type="button"
             onClick={toggleCamera}
-            disabled={!hasMultipleCameras || isInitializing || isProcessing}
+            disabled={isInitializing || isProcessing || !stream}
             className={cn(
-              "flex items-center gap-2 rounded-full border border-white/20 bg-black/60 px-3 py-2 text-white shadow-lg backdrop-blur-md transition-all",
-              hasMultipleCameras && !isInitializing && !isProcessing
+              "flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-full border border-white/20 bg-black/55 px-3 text-white shadow-lg backdrop-blur-md transition-all",
+              !isInitializing && !isProcessing && stream
                 ? "hover:bg-black/80 hover:border-brand-lime"
                 : "opacity-45 grayscale"
             )}
             aria-label={`Switch to ${facingMode === 'environment' ? 'front' : 'rear'} camera`}
           >
             <SwitchCamera className="h-4 w-4" />
-            <span className="font-mono text-[8px] font-black uppercase tracking-widest">
+            <span className="hidden font-mono text-[8px] font-black uppercase tracking-widest min-[390px]:inline">
               {facingMode === 'environment' ? 'Rear' : 'Front'}
             </span>
           </button>
+        </div>
 
-          <div className="w-[188px] rounded-2xl border border-white/15 bg-black/60 p-3 text-white shadow-lg backdrop-blur-md">
+        <AnimatePresence>
+          {showZoomControls && (
+            <motion.div
+              initial={{ y: 16, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 16, opacity: 0 }}
+              className="absolute bottom-[7.25rem] left-4 right-4 z-50 rounded-2xl border border-white/15 bg-black/70 p-3 text-white shadow-lg backdrop-blur-md sm:left-auto sm:right-5 sm:w-[220px]"
+            >
             <div className="mb-2 flex items-center justify-between font-mono text-[8px] uppercase tracking-widest">
               <span className="text-white/60">Zoom</span>
               <span className={cn(
@@ -744,8 +759,9 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
             <div className="mt-2 text-center font-mono text-[10px] font-black tracking-widest text-brand-lime">
               {zoomState.supported ? `${zoomState.value.toFixed(1)}x` : '1.0x'}
             </div>
-          </div>
-        </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Brackets */}
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-12">
@@ -759,7 +775,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
         </div>
 
         {/* Bottom Controls */}
-        <div className="absolute bottom-6 inset-x-0 flex items-center justify-between px-8 z-50">
+        <div className="absolute bottom-0 inset-x-0 z-50 flex items-end justify-between gap-4 bg-gradient-to-t from-black via-black/85 to-transparent px-5 pb-5 pt-10 sm:px-8 sm:pb-6">
           {/* Upload Button - Secondary */}
           <div className="relative">
             <input 

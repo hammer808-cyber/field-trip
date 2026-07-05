@@ -1345,7 +1345,7 @@ export default function CapturePage() {
                     </div>
                   )}
 
-                  <div id="viewfinder-area" className="relative w-full aspect-[3/4] overflow-hidden group transition-all border-4 border-on-surface bg-black rounded-xl">
+                  <div id="viewfinder-area" className="relative w-full h-[min(78dvh,760px)] min-h-[520px] overflow-hidden group transition-all border-4 border-on-surface bg-black rounded-xl sm:h-[min(80dvh,820px)]">
                       <Suspense fallback={
                         <div className="absolute inset-0 flex items-center justify-center bg-black">
                           <Loader2 className="w-10 h-10 text-brand-orange animate-spin" />
