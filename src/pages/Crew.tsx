@@ -128,11 +128,26 @@ export default function CrewPage() {
   }, [crewId, profile?.activeCrewId, profile?.crewId, activeSeason?.id, currentWeekNumber]);
 
   const refreshCrewManagement = async () => {
-    const resolvedCrewId = profile?.activeCrewId || profile?.crewId || membershipState?.membership?.crewId || crew?.id || null;
+    const current = await getCurrentCrewMembership().catch(() => null);
+    if (current) {
+      setMembershipState(current);
+      setCrew(current.crew);
+    }
+    const resolvedCrewId = current?.membership?.crewId || membershipState?.membership?.crewId || crew?.id || profile?.activeCrewId || profile?.crewId || null;
     if (resolvedCrewId) {
       const roster = await getCrewMembers(resolvedCrewId);
       setRosterState(roster);
       if (roster.crew) setCrew(roster.crew);
+      setDiscoverableCrews([]);
+      setOutgoingRequests([]);
+    } else {
+      setRosterState(null);
+      const [discovery, requests] = await Promise.all([
+        discoverCrews().catch(() => ({ crews: [], viewer: { activeCrewId: null } })),
+        getOutgoingCrewJoinRequests().catch(() => []),
+      ]);
+      setDiscoverableCrews(discovery.crews || []);
+      setOutgoingRequests(requests);
     }
     const invites = await getIncomingCrewInvites().catch(() => []);
     setIncomingInvites(invites);
@@ -255,6 +270,15 @@ export default function CrewPage() {
             </p>
           </div>
 
+          <div className="grid grid-cols-2 border-4 border-on-surface bg-white p-1" role="tablist" aria-label="Crew start options">
+            <button type="button" role="tab" aria-selected={noCrewView === 'create'} onClick={() => setNoCrewView('create')} className={cn('p-3 font-mono text-[10px] font-black uppercase', noCrewView === 'create' ? 'bg-brand-lime' : 'text-on-surface/45')}>
+              Create Crew
+            </button>
+            <button type="button" role="tab" aria-selected={noCrewView === 'join'} onClick={() => setNoCrewView('join')} className={cn('p-3 font-mono text-[10px] font-black uppercase', noCrewView === 'join' ? 'bg-brand-cyan' : 'text-on-surface/45')}>
+              Find Crew
+            </button>
+          </div>
+
           {incomingInvites.length > 0 && (
             <div className="border-4 border-brand-cyan bg-brand-cyan/10 p-4 space-y-3 text-left">
               <h2 className="font-display font-black italic text-2xl uppercase">Crew Invitations</h2>
@@ -265,9 +289,24 @@ export default function CrewPage() {
                     {invite.crew?.mode || 'friendly'} / {invite.crew?.memberCount || 0} members / expires {formatSafeDateOnly(invite.expiresAt)}
                   </p>
                   <div className="flex gap-2">
-                    <button className="bureau-btn bg-brand-lime text-on-surface text-[10px]" onClick={() => runCrewAction('accept invite', () => acceptCrewInvite(invite.id))}>Accept</button>
-                    <button className="bureau-btn bg-white text-on-surface text-[10px]" onClick={() => runCrewAction('decline invite', () => declineCrewInvite(invite.id))}>Decline</button>
+                    <button type="button" className="bureau-btn bg-brand-lime text-on-surface text-[10px]" onClick={() => runCrewAction('accept invite', () => acceptCrewInvite(invite.id))}>Accept</button>
+                    <button type="button" className="bureau-btn bg-white text-on-surface text-[10px]" onClick={() => runCrewAction('decline invite', () => declineCrewInvite(invite.id))}>Decline</button>
                   </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {outgoingRequests.some(request => request.status === 'pending') && (
+            <div className="border-4 border-brand-orange bg-brand-orange/10 p-4 space-y-3 text-left">
+              <h2 className="font-display font-black italic text-2xl uppercase">Join Request Pending</h2>
+              {outgoingRequests.filter(request => request.status === 'pending').map(request => (
+                <div key={request.id} className="bg-white border-2 border-on-surface p-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-display font-black uppercase">{(request as any).crew?.name || request.crewId}</p>
+                    <p className="font-mono text-[9px] uppercase opacity-50">Waiting for the Crew captain</p>
+                  </div>
+                  <button type="button" className="bureau-btn bg-white text-on-surface text-[9px]" onClick={() => runCrewAction('cancel request', () => cancelCrewJoinRequest(request.id))}>Cancel</button>
                 </div>
               ))}
             </div>
