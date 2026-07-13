@@ -1,0 +1,601 @@
+/* Clubhouse Wall: graph paper shell, cork workspaces, pinned receipts, and marker controls. */
+html[data-skin="clubhouse-wall"] body {
+  color: var(--skin-text);
+  background-color: var(--skin-background);
+  background-image: var(--skin-background-texture);
+  background-size: 22px 22px;
+}
+
+html[data-skin="clubhouse-wall"] body::before {
+  background: none;
+  opacity: 0;
+}
+
+html[data-skin="clubhouse-wall"] body::after {
+  z-index: 0;
+  opacity: 0.08;
+  background-image: radial-gradient(rgba(23, 23, 23, 0.26) 0.6px, transparent 0.8px);
+  background-size: 7px 7px;
+  mix-blend-mode: multiply;
+}
+
+[data-skin="clubhouse-wall"] .skin-page {
+  color: var(--skin-text);
+  background-color: transparent !important;
+  background-image: var(--skin-background-texture) !important;
+  background-size: 22px 22px !important;
+}
+
+[data-skin="clubhouse-wall"] :is(h1, h2, h3, h4, .font-display, .text-huge) {
+  font-family: var(--skin-font-heading) !important;
+  font-style: normal !important;
+  font-weight: var(--skin-heading-weight) !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+[data-skin="clubhouse-wall"] :is(.micro-label, .font-mono, .bureau-tag, .field-label) {
+  font-family: var(--skin-font-mono) !important;
+  letter-spacing: var(--skin-label-spacing) !important;
+}
+
+[data-skin="clubhouse-wall"] :is(.font-serif, blockquote) {
+  font-family: var(--skin-font-accent) !important;
+}
+
+[data-skin="clubhouse-wall"] :is(.bg-white, .bg-paper, .bg-paper-light) {
+  background-color: var(--skin-surface) !important;
+}
+
+[data-skin="clubhouse-wall"] :is(
+  .skin-card,
+  .notice-card,
+  .bureau-panel,
+  .field-card,
+  .field-card--paper,
+  .field-card--ticket,
+  .field-card--id,
+  .field-card--receipt,
+  .field-card--photo,
+  .field-card--admin,
+  .sticker-card
+) {
+  color: var(--skin-text) !important;
+  background-color: var(--skin-surface) !important;
+  background-image: radial-gradient(rgba(23, 23, 23, 0.055) 0.6px, transparent 0.8px) !important;
+  background-size: 8px 8px !important;
+  border-color: var(--skin-border) !important;
+  border-width: var(--skin-border-width) !important;
+  border-radius: var(--skin-card-radius) !important;
+  box-shadow: var(--skin-card-shadow) !important;
+}
+
+[data-skin="clubhouse-wall"] .skin-card:hover {
+  transform: translateY(var(--skin-hover-lift)) rotate(var(--skin-hover-rotation));
+  box-shadow: var(--skin-elevated-shadow) !important;
+}
+
+[data-skin-button="marker-label"] :is(.skin-button, .field-cta, .bureau-btn, .bureau-btn-outline) {
+  min-height: var(--skin-control-height);
+  color: var(--skin-on-primary) !important;
+  background: var(--skin-primary) !important;
+  border: var(--skin-border-width) solid var(--skin-border) !important;
+  border-radius: var(--skin-control-radius) !important;
+  box-shadow: var(--skin-button-shadow) !important;
+  font-family: var(--skin-font-accent) !important;
+  font-style: normal !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+[data-skin-button="marker-label"] :is(.skin-button, .field-cta, .bureau-btn, .bureau-btn-outline):hover {
+  filter: brightness(1.06);
+  transform: translate(-1px, -2px) rotate(-0.3deg);
+  box-shadow: 6px 7px 0 var(--skin-border) !important;
+}
+
+[data-skin-button="marker-label"] :is(.skin-button, .field-cta, .bureau-btn, .bureau-btn-outline):active {
+  transform: translate(2px, 3px);
+  box-shadow: 1px 1px 0 var(--skin-border) !important;
+}
+
+/* A white clubhouse dock with colored paper tabs and an orange center badge. */
+[data-skin-navigation="clubhouse-dock"] .skin-navigation {
+  height: calc(82px + env(safe-area-inset-bottom, 0px));
+  padding-inline: 0.4rem;
+  background: var(--skin-surface) !important;
+  border: 2px solid var(--skin-border) !important;
+  border-bottom: 0 !important;
+  border-radius: 18px 18px 0 0 !important;
+  box-shadow: 0 -5px 0 var(--skin-accent), 0 -12px 24px rgba(23, 23, 23, 0.18) !important;
+}
+
+[data-skin-navigation="clubhouse-dock"] .skin-navigation::before {
+  content: "CREW CLUBHOUSE";
+  position: absolute;
+  top: -18px;
+  left: 18px;
+  z-index: 2;
+  padding: 3px 10px 2px;
+  color: var(--skin-on-secondary);
+  background: var(--skin-secondary);
+  border: 2px solid var(--skin-border);
+  box-shadow: 2px 2px 0 var(--skin-border);
+  font: 700 8px/1 var(--skin-font-mono);
+  letter-spacing: 0.08em;
+  transform: rotate(-1deg);
+}
+
+[data-skin-navigation="clubhouse-dock"] .skin-navigation [data-nav-item] {
+  color: var(--skin-text-muted) !important;
+  transform: none !important;
+}
+
+[data-skin-navigation="clubhouse-dock"] .skin-navigation [data-nav-item][data-active="true"] > div:first-child {
+  color: var(--skin-text) !important;
+  background: var(--skin-secondary) !important;
+  border: 2px solid var(--skin-border) !important;
+  border-radius: 2px !important;
+  box-shadow: 3px 4px 0 var(--skin-border) !important;
+  transform: rotate(-1deg) !important;
+}
+
+[data-skin-navigation="clubhouse-dock"] .skin-navigation [data-nav-special="true"] > div:first-child {
+  width: 58px !important;
+  height: 58px !important;
+  color: #ffffff !important;
+  background: #eb5b22 !important;
+  border: 3px solid var(--skin-border) !important;
+  border-radius: 50% !important;
+  box-shadow: 4px 5px 0 var(--skin-border) !important;
+  transform: translateY(10px) rotate(-2deg) !important;
+}
+
+[data-skin-navigation="clubhouse-dock"] .skin-navigation [data-nav-special="true"] > div:last-child {
+  bottom: -4px !important;
+  color: var(--skin-text) !important;
+  background: var(--skin-accent) !important;
+  border: 2px solid var(--skin-border) !important;
+  border-radius: 2px !important;
+  box-shadow: 2px 2px 0 var(--skin-border) !important;
+  transform: translateX(-50%) rotate(1deg) !important;
+}
+
+/* Assignments are bright notes pinned over the board rather than bureau tickets. */
+[data-skin-mission-card="sticky-assignment"] .skin-mission-card {
+  position: relative;
+  overflow: visible !important;
+  color: var(--skin-text) !important;
+  background-color: #e4f75f !important;
+  background-image:
+    linear-gradient(100deg, transparent 0 88%, rgba(23, 23, 23, 0.06) 88% 100%),
+    radial-gradient(rgba(23, 23, 23, 0.08) 0.6px, transparent 0.8px) !important;
+  border: 2px solid var(--skin-border) !important;
+  border-radius: 2px !important;
+  box-shadow: 7px 8px 0 var(--skin-border) !important;
+  transform: rotate(-0.35deg);
+}
+
+[data-skin-mission-card="sticky-assignment"] .skin-mission-card::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  z-index: 40;
+  width: 44px;
+  height: 18px;
+  background: rgba(245, 105, 164, 0.8) var(--skin-tape-texture);
+  border: 1px solid rgba(23, 23, 23, 0.16);
+  transform: translateX(-50%) rotate(2deg);
+}
+
+[data-skin-mission-card="sticky-assignment"] .skin-mission-card::after {
+  content: "CLUBHOUSE ASSIGNMENT";
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 39;
+  padding: 3px 7px;
+  color: var(--skin-on-accent);
+  background: var(--skin-accent);
+  border: 1px solid var(--skin-border);
+  font: 700 7px/1 var(--skin-font-mono);
+  letter-spacing: 0.06em;
+  transform: rotate(1deg);
+}
+
+[data-skin-mission-card="sticky-assignment"] .skin-mission-card [class*="rounded-"] {
+  border-radius: 2px !important;
+}
+
+/* Community receipts become pinned Polaroids with room for handwritten captions. */
+[data-skin-proof-card="pinned-polaroid"] .skin-proof-card {
+  position: relative;
+  overflow: visible !important;
+  padding: 9px 9px 2.8rem !important;
+  background: var(--skin-surface-raised) !important;
+  border: 2px solid var(--skin-border) !important;
+  border-radius: 2px !important;
+  box-shadow: 5px 7px 0 var(--skin-border), 10px 14px 24px rgba(23, 23, 23, 0.16) !important;
+  transform: rotate(0.4deg);
+}
+
+[data-skin-proof-card="pinned-polaroid"] .skin-proof-card::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  z-index: 40;
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--skin-border);
+  border-radius: 50%;
+  background: var(--skin-primary);
+  box-shadow: 1px 2px 0 var(--skin-border), inset 2px 2px 0 rgba(255, 255, 255, 0.35);
+  transform: translateX(-50%);
+}
+
+[data-skin-proof-card="pinned-polaroid"] .skin-proof-card .photo-image-slot,
+[data-skin-proof-card="pinned-polaroid"] .skin-proof-card img {
+  border: 1px solid var(--skin-border) !important;
+  border-radius: 0 !important;
+  filter: var(--skin-image-filter);
+}
+
+[data-skin-proof-card="pinned-polaroid"] .skin-proof-card :is(h3, h4) {
+  font-family: var(--skin-font-accent) !important;
+}
+
+[data-skin-modal="clubhouse-notice"] .skin-modal {
+  position: relative;
+  overflow: visible;
+  color: var(--skin-text) !important;
+  background: #fff6c7 !important;
+  border: 2px solid var(--skin-border) !important;
+  border-radius: 3px !important;
+  box-shadow: 8px 9px 0 var(--skin-border), var(--skin-elevated-shadow) !important;
+}
+
+[data-skin-modal="clubhouse-notice"] .skin-modal::before {
+  content: "PINNED NOTICE";
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  z-index: 5;
+  padding: 5px 14px 4px;
+  color: var(--skin-text);
+  background: var(--skin-accent);
+  border: 2px solid var(--skin-border);
+  box-shadow: 2px 3px 0 var(--skin-border);
+  font: 700 8px/1 var(--skin-font-mono);
+  letter-spacing: 0.08em;
+  transform: translateX(-50%) rotate(-1deg);
+}
+
+[data-skin-modal="clubhouse-notice"] .skin-modal-backdrop {
+  background: var(--skin-overlay) !important;
+  backdrop-filter: blur(2px) saturate(0.8);
+}
+
+[data-skin-progress="tally-strip"] .skin-progress {
+  height: 14px !important;
+  overflow: hidden;
+  background: repeating-linear-gradient(90deg, var(--skin-surface) 0 10px, var(--skin-surface-muted) 10px 12px) !important;
+  border: 2px solid var(--skin-border) !important;
+  border-radius: 2px !important;
+  box-shadow: 2px 3px 0 var(--skin-border) !important;
+}
+
+[data-skin-progress="tally-strip"] .skin-progress > * {
+  background: repeating-linear-gradient(135deg, var(--skin-secondary) 0 9px, #80bd16 9px 12px) !important;
+  border-right: 2px solid var(--skin-border);
+}
+
+[data-skin-profile-frame="crew-patch"] .skin-profile .field-card--id,
+[data-skin-profile-frame="crew-patch"] .skin-crew header > div:first-child {
+  position: relative;
+  border: 3px double var(--skin-border) !important;
+  border-radius: 4px !important;
+  background-color: var(--skin-surface) !important;
+  box-shadow: 6px 7px 0 var(--skin-accent), 9px 10px 0 var(--skin-border) !important;
+}
+
+[data-skin-viewfinder="clubhouse-camera"] .skin-viewfinder {
+  inset: 0 !important;
+  border: 5px solid var(--skin-surface) !important;
+  border-radius: 4px !important;
+  box-shadow: inset 0 0 0 2px var(--skin-border), inset 0 0 42px rgba(0, 0, 0, 0.48) !important;
+}
+
+[data-skin-viewfinder="clubhouse-camera"] .skin-viewfinder::after {
+  content: "CLUBHOUSE CAM / LIVE RECEIPT";
+  position: absolute;
+  left: 12px;
+  bottom: 96px;
+  z-index: 39;
+  padding: 4px 8px 3px;
+  color: var(--skin-text);
+  background: var(--skin-secondary);
+  border: 2px solid var(--skin-border);
+  box-shadow: 2px 2px 0 var(--skin-border);
+  font: 700 7px/1 var(--skin-font-mono);
+  letter-spacing: 0.06em;
+  pointer-events: none;
+  transform: rotate(-1deg);
+}
+
+[data-skin-viewfinder="clubhouse-camera"] .skin-viewfinder-panel {
+  color: var(--skin-text) !important;
+  background: color-mix(in srgb, var(--skin-surface) 94%, transparent) !important;
+  border: 2px solid var(--skin-border) !important;
+  border-radius: 3px !important;
+  box-shadow: 4px 5px 0 var(--skin-border) !important;
+}
+
+[data-skin-viewfinder="clubhouse-camera"] .skin-viewfinder button {
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50% !important;
+}
+
+[data-skin-loading="wall-setup"] .skin-loading-state {
+  position: relative;
+  color: var(--skin-text) !important;
+  background: #fff6c7 !important;
+  border: 2px solid var(--skin-border) !important;
+  border-radius: 2px !important;
+  box-shadow: 6px 7px 0 var(--skin-border) !important;
+  transform: rotate(-0.5deg);
+}
+
+[data-skin-loading="wall-setup"] .skin-loading-state::before {
+  content: "SETTING UP THE WALL";
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  padding: 4px 10px;
+  color: var(--skin-on-primary);
+  background: var(--skin-primary);
+  font: 700 7px/1 var(--skin-font-mono);
+  transform: translateX(-50%) rotate(1deg);
+}
+
+[data-skin-loading="wall-setup"] .skin-loading-state [class*="animate-"] {
+  animation: clubhouse-pin-note 820ms steps(2, end) infinite;
+}
+
+@keyframes clubhouse-pin-note {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-3px) rotate(1deg); }
+}
+
+[data-skin-state="pinned-note"] .skin-state-panel {
+  position: relative;
+  color: var(--skin-text) !important;
+  background: #fff6c7 !important;
+  border: 2px solid var(--skin-border) !important;
+  border-radius: 2px !important;
+  box-shadow: 5px 6px 0 var(--skin-border) !important;
+}
+
+[data-skin-state="pinned-note"] .skin-state-panel::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--skin-border);
+  border-radius: 50%;
+  background: var(--skin-accent);
+  box-shadow: 1px 2px 0 var(--skin-border);
+  transform: translateX(-50%);
+}
+
+[data-skin="clubhouse-wall"] .skin-locked-state {
+  filter: grayscale(0.72) contrast(0.92);
+  background-image: repeating-linear-gradient(135deg, transparent 0 11px, rgba(23, 23, 23, 0.09) 11px 13px) !important;
+}
+
+[data-skin="clubhouse-wall"] .skin-success-state .skin-state-panel {
+  border-left: 8px solid var(--skin-success) !important;
+}
+
+[data-skin="clubhouse-wall"] .skin-error-state .skin-state-panel {
+  border-left: 8px solid var(--skin-error) !important;
+}
+
+/* Major destinations share a bulletin-board vocabulary without becoming one brown surface. */
+[data-skin="clubhouse-wall"] :is(.skin-basecamp, .skin-deck-browser, .skin-logbook, .skin-memories, .skin-voting, .skin-crew, .skin-profile) [role="tablist"] {
+  padding: 4px !important;
+  background: var(--skin-surface) !important;
+  border: 2px solid var(--skin-border) !important;
+  border-radius: 3px !important;
+  box-shadow: 3px 4px 0 var(--skin-border) !important;
+}
+
+[data-skin="clubhouse-wall"] :is(.skin-basecamp, .skin-deck-browser, .skin-memories, .skin-voting, .skin-crew) > section,
+[data-skin="clubhouse-wall"] .skin-crew > div > section {
+  position: relative;
+}
+
+[data-skin="clubhouse-wall"] .skin-crew :is(.skin-card, .field-card--photo),
+[data-skin="clubhouse-wall"] .skin-voting :is(.skin-card, .field-card--photo) {
+  background-color: var(--skin-surface) !important;
+}
+
+[data-skin="clubhouse-wall"] .skin-zine {
+  position: relative;
+  padding: 1rem;
+  background-color: #b98a5d;
+  background-image: var(--skin-surface-texture);
+  background-size: 18px 18px;
+  border: 3px solid var(--skin-border);
+  box-shadow: inset 0 0 0 5px rgba(255, 255, 255, 0.16), 7px 8px 0 var(--skin-border);
+}
+
+[data-skin="clubhouse-wall"] .skin-zine-page {
+  transform: rotate(-0.35deg);
+  background: var(--skin-surface) !important;
+  border-radius: 2px !important;
+}
+
+[data-skin="clubhouse-wall"] .skin-zine-page::after {
+  content: "PINNED TO THE WALL";
+  position: absolute;
+  top: -9px;
+  right: 14px;
+  z-index: 5;
+  padding: 4px 8px;
+  color: var(--skin-text);
+  background: var(--skin-secondary);
+  border: 1px solid var(--skin-border);
+  font: 700 7px/1 var(--skin-font-mono);
+  transform: rotate(2deg);
+}
+
+[data-skin="clubhouse-wall"] .skin-welcome-title {
+  max-width: 100%;
+  font-family: var(--skin-font-display) !important;
+  font-size: clamp(3.5rem, 7vw, 6rem) !important;
+  line-height: 0.86 !important;
+}
+
+[data-skin="clubhouse-wall"] .skin-welcome-tagline {
+  max-width: 13ch !important;
+  font-family: var(--skin-font-heading) !important;
+  font-size: clamp(2rem, 4.2vw, 3.4rem) !important;
+  line-height: 0.95 !important;
+  text-transform: none !important;
+}
+
+[data-skin="clubhouse-wall"] .skin-welcome-photo {
+  padding: 7px 7px 22px;
+  overflow: visible !important;
+  background: var(--skin-surface) !important;
+  border: 2px solid var(--skin-border) !important;
+  border-radius: 2px !important;
+  box-shadow: 5px 6px 0 var(--skin-border) !important;
+}
+
+[data-skin="clubhouse-wall"] .skin-welcome-photo:nth-child(2n) {
+  transform: rotate(1deg);
+}
+
+[data-skin="clubhouse-wall"] .skin-welcome-photo:nth-child(3n) {
+  transform: rotate(-1deg);
+}
+
+[data-skin="clubhouse-wall"] .skin-welcome-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0;
+  filter: var(--skin-image-filter);
+}
+
+/* The selector miniature communicates cork, a paper dock, and a sticky assignment. */
+[data-preview-navigation="clubhouse-dock"].skin-preview-stage {
+  background-color: #b98a5d;
+  background-image:
+    radial-gradient(circle at 24% 30%, rgba(66, 36, 20, 0.2) 0 1px, transparent 1.4px),
+    radial-gradient(circle at 70% 66%, rgba(255, 255, 255, 0.22) 0 1px, transparent 1.4px);
+  background-size: 17px 17px, 23px 23px;
+  border: 5px solid #8b643f;
+}
+
+[data-preview-navigation="clubhouse-dock"] .skin-preview-nav {
+  border-radius: 7px 7px 1px 1px;
+  box-shadow: 2px 3px 0 var(--preview-border);
+}
+
+[data-preview-navigation="clubhouse-dock"] .skin-preview-nav span:first-child {
+  color: var(--preview-text);
+  background: var(--preview-secondary);
+  transform: rotate(-1deg);
+}
+
+[data-preview-mission-card="sticky-assignment"].skin-preview-stage .skin-preview-mission {
+  position: relative;
+  width: 70%;
+  color: var(--preview-text);
+  background: #e4f75f;
+  border-radius: 1px;
+  box-shadow: 4px 5px 0 var(--preview-border);
+  transform: rotate(-1deg);
+}
+
+[data-preview-mission-card="sticky-assignment"].skin-preview-stage .skin-preview-mission::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  width: 34px;
+  height: 12px;
+  background: rgba(245, 105, 164, 0.82);
+  transform: translateX(-50%) rotate(2deg);
+}
+
+[data-preview-navigation="clubhouse-dock"] .skin-preview-button {
+  color: var(--preview-on-primary);
+  background: var(--preview-primary);
+  border-radius: 2px;
+  transform: rotate(0.5deg);
+}
+
+@media (min-width: 768px) {
+  [data-skin-navigation="clubhouse-dock"] .skin-navigation {
+    bottom: 1.5rem;
+    border-bottom: 2px solid var(--skin-border) !important;
+    border-radius: 18px !important;
+  }
+}
+
+@media (max-width: 430px) {
+  html[data-skin="clubhouse-wall"] body,
+  [data-skin="clubhouse-wall"] .skin-page {
+    background-size: 18px 18px !important;
+  }
+
+  [data-skin-navigation="clubhouse-dock"] .skin-navigation {
+    height: calc(78px + env(safe-area-inset-bottom, 0px));
+  }
+
+  [data-skin-navigation="clubhouse-dock"] .skin-navigation::before {
+    left: 10px;
+  }
+
+  [data-skin-navigation="clubhouse-dock"] .skin-navigation [data-nav-item] span {
+    max-width: 54px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  [data-skin-mission-card="sticky-assignment"] .skin-mission-card {
+    box-shadow: 5px 6px 0 var(--skin-border) !important;
+  }
+
+  [data-skin-viewfinder="clubhouse-camera"] .skin-viewfinder {
+    border-width: 3px !important;
+  }
+
+  [data-skin="clubhouse-wall"] .skin-welcome-title {
+    font-size: clamp(2.7rem, 13vw, 3.8rem) !important;
+  }
+
+  [data-skin="clubhouse-wall"] .skin-welcome-tagline {
+    max-width: 12ch !important;
+    font-size: clamp(1.75rem, 8vw, 2.45rem) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-skin="clubhouse-wall"] *,
+  [data-skin="clubhouse-wall"] *::before,
+  [data-skin="clubhouse-wall"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

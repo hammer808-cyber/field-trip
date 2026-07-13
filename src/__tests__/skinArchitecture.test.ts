@@ -9,6 +9,7 @@ import {
 } from '../logic/skinSystem';
 import {
   APP_SKINS,
+  CLUBHOUSE_WALL_SKIN_ID,
   DEFAULT_APP_SKIN,
   FIELD_NOTEBOOK_SKIN_ID,
   normalizeAppSkin,
@@ -193,6 +194,34 @@ test('Field Notebook exposes structural variants and complete semantic CSS varia
   assert.match(variables['--skin-background-texture'], /repeating-linear-gradient/);
 });
 
+test('Clubhouse Wall is a complete registry skin with its own structural variants', () => {
+  const clubhouse = APP_SKINS.find((skin) => skin.id === CLUBHOUSE_WALL_SKIN_ID)!;
+  assert.ok(clubhouse);
+  assert.deepEqual(clubhouse.components, {
+    navigation: 'clubhouse-dock',
+    missionCard: 'sticky-assignment',
+    proofCard: 'pinned-polaroid',
+    modal: 'clubhouse-notice',
+    button: 'marker-label',
+    progress: 'tally-strip',
+    profileFrame: 'crew-patch',
+    viewfinder: 'clubhouse-camera',
+    loading: 'wall-setup',
+    statePanel: 'pinned-note',
+  });
+  assert.equal(clubhouse.features.graphPaper, true);
+  assert.equal(clubhouse.features.corkboard, true);
+  assert.equal(clubhouse.features.pushpins, true);
+  assert.equal(clubhouse.features.stickyNotes, true);
+  assert.equal(clubhouse.experience.decorativeLanguage, 'clubhouse');
+  assert.equal(clubhouse.experience.imageTreatment, 'collage');
+
+  const variables = getSkinCssVariables(clubhouse);
+  assert.equal(variables['--skin-card-radius'], '4px');
+  assert.equal(variables['--skin-primary'], clubhouse.designTokens.primary);
+  assert.match(variables['--skin-background-texture'], /linear-gradient/);
+});
+
 test('Field Notebook primary text and control pairs meet WCAG AA contrast', () => {
   const notebook = APP_SKINS.find((skin) => skin.id === FIELD_NOTEBOOK_SKIN_ID)!;
   const pairs = [
@@ -202,6 +231,24 @@ test('Field Notebook primary text and control pairs meet WCAG AA contrast', () =
     [notebook.designTokens.onPrimary, notebook.designTokens.primary],
     [notebook.designTokens.onSecondary, notebook.designTokens.secondary],
     [notebook.designTokens.onAccent, notebook.designTokens.accent],
+  ];
+  pairs.forEach(([foreground, background]) => {
+    assert.ok(
+      contrastRatio(foreground, background) >= 4.5,
+      `${foreground} on ${background} must meet 4.5:1 contrast`,
+    );
+  });
+});
+
+test('Clubhouse Wall primary text and control pairs meet WCAG AA contrast', () => {
+  const clubhouse = APP_SKINS.find((skin) => skin.id === CLUBHOUSE_WALL_SKIN_ID)!;
+  const pairs = [
+    [clubhouse.designTokens.text, clubhouse.designTokens.background],
+    [clubhouse.designTokens.text, clubhouse.designTokens.surface],
+    [clubhouse.designTokens.textMuted, clubhouse.designTokens.surface],
+    [clubhouse.designTokens.onPrimary, clubhouse.designTokens.primary],
+    [clubhouse.designTokens.onSecondary, clubhouse.designTokens.secondary],
+    [clubhouse.designTokens.onAccent, clubhouse.designTokens.accent],
   ];
   pairs.forEach(([foreground, background]) => {
     assert.ok(
@@ -221,5 +268,5 @@ test('normalizing partial legacy tokens preserves complete defaults and does not
   assert.equal(partial.designTokens.primary, '#123456');
   assert.equal(partial.designTokens.surface, DEFAULT_APP_SKIN.designTokens.surface);
   assert.equal(partial.components.navigation, DEFAULT_APP_SKIN.components.navigation);
-  assert.equal(APP_SKINS.length, 4);
+  assert.equal(APP_SKINS.length, 5);
 });

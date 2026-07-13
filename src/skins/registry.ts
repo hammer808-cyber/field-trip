@@ -17,6 +17,7 @@ import type {
 
 export const DEFAULT_SKIN_ID = 'classic';
 export const FIELD_NOTEBOOK_SKIN_ID = 'journal';
+export const CLUBHOUSE_WALL_SKIN_ID = 'clubhouse-wall';
 
 const DEFAULT_DESIGN_TOKENS: SkinDesignTokens = {
   background: '#f4f3ef',
@@ -128,6 +129,10 @@ const DEFAULT_FEATURES: SkinOptionalFeatures = {
   handwrittenNotes: false,
   scanlines: true,
   glossyHighlights: true,
+  graphPaper: false,
+  corkboard: false,
+  pushpins: false,
+  stickyNotes: false,
 };
 
 const DEFAULT_COPY: CopyOverrides = {
@@ -440,6 +445,128 @@ const FIELD_NOTEBOOK_SKIN = defineAppSkin({
   },
 });
 
+const CLUBHOUSE_WALL_SKIN = defineAppSkin({
+  id: CLUBHOUSE_WALL_SKIN_ID,
+  name: 'Clubhouse Wall',
+  description: 'A crew-built bulletin wall with cork panels, taped receipts, pinned Polaroids, bright sticky notes, and marker-lettered controls.',
+  slug: 'clubhouse-wall',
+  rarity: 'uncommon',
+  unlockCondition: 'Unlock through Crew rewards',
+  metadata: { shortName: 'Clubhouse' },
+  designTokens: {
+    background: '#f4f5ef',
+    backgroundAlt: '#dce8e7',
+    surface: '#fffdf5',
+    surfaceRaised: '#ffffff',
+    surfaceMuted: '#ece7d8',
+    text: '#171717',
+    textMuted: '#5f5b51',
+    primary: '#a71856',
+    onPrimary: '#ffffff',
+    secondary: '#b4e600',
+    onSecondary: '#171717',
+    accent: '#45bfd3',
+    onAccent: '#171717',
+    border: '#171717',
+    borderMuted: 'rgba(23, 23, 23, 0.24)',
+    focus: '#0759d3',
+    success: '#28734b',
+    warning: '#b94c09',
+    error: '#b5233b',
+    locked: '#65635d',
+  },
+  typography: {
+    display: '"Permanent Marker", "Kalam", cursive',
+    heading: '"Kalam", "Comic Sans MS", cursive',
+    body: '"Inter", sans-serif',
+    mono: '"Courier Prime", monospace',
+    accent: '"Permanent Marker", "Kalam", cursive',
+    headingWeight: 700,
+    bodyWeight: 500,
+    labelLetterSpacing: '0.04em',
+    headingTransform: 'none',
+  },
+  shape: {
+    cardRadius: '4px',
+    controlRadius: '5px',
+    modalRadius: '5px',
+    mediaRadius: '2px',
+    badgeRadius: '999px',
+    borderWidth: '2px',
+    controlHeight: '46px',
+  },
+  effects: {
+    cardShadow: '6px 7px 0 #171717',
+    elevatedShadow: '10px 14px 28px rgba(23, 23, 23, 0.24)',
+    buttonShadow: '4px 5px 0 #171717',
+    insetShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.42)',
+    overlay: 'rgba(23, 23, 23, 0.78)',
+    imageFilter: 'saturate(1.08) contrast(1.03) sepia(0.04)',
+    textureOpacity: 0.14,
+  },
+  motion: {
+    durationFast: '110ms',
+    durationBase: '190ms',
+    durationSlow: '360ms',
+    easing: 'cubic-bezier(0.2, 0.74, 0.2, 1)',
+    hoverLift: '-3px',
+    hoverRotation: '-0.4deg',
+    decorativeMotion: true,
+  },
+  components: {
+    navigation: 'clubhouse-dock',
+    missionCard: 'sticky-assignment',
+    proofCard: 'pinned-polaroid',
+    modal: 'clubhouse-notice',
+    button: 'marker-label',
+    progress: 'tally-strip',
+    profileFrame: 'crew-patch',
+    viewfinder: 'clubhouse-camera',
+    loading: 'wall-setup',
+    statePanel: 'pinned-note',
+  },
+  assets: {
+    backgroundTexture: 'linear-gradient(rgba(48, 119, 139, 0.09) 1px, transparent 1px), linear-gradient(90deg, rgba(48, 119, 139, 0.09) 1px, transparent 1px)',
+    surfaceTexture: 'radial-gradient(circle at 25% 35%, rgba(67, 38, 22, 0.16) 0 1px, transparent 1.4px), radial-gradient(circle at 72% 65%, rgba(255, 255, 255, 0.2) 0 1px, transparent 1.5px)',
+    tapeTexture: 'repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.34) 0 7px, rgba(255, 255, 255, 0.1) 7px 14px)',
+    previewImage: '/images/welcome/field-trip-01.png',
+  },
+  experience: {
+    density: 'comfortable',
+    decorativeLanguage: 'clubhouse',
+    imageTreatment: 'collage',
+    statusPresentation: 'pin',
+    uppercaseLabels: false,
+    tactileControls: true,
+  },
+  features: {
+    paperTexture: true,
+    ruledLines: false,
+    tornEdges: true,
+    tapedPhotos: true,
+    rubberStamps: false,
+    handwrittenNotes: true,
+    scanlines: false,
+    glossyHighlights: false,
+    graphPaper: true,
+    corkboard: true,
+    pushpins: true,
+    stickyNotes: true,
+  },
+  previewColors: ['#b98a5d', '#b4e600', '#a71856', '#45bfd3', '#fffdf5'],
+  preview: {
+    label: 'Crew Wall',
+    sampleMissionTitle: 'Pin the Best Receipt',
+    sampleButtonLabel: 'Post to Wall',
+  },
+  copyOverrides: {
+    fieldNotesLabel: 'Wall Notes',
+    viewfinderLabel: 'Clubhouse Cam',
+    leaderboardLabel: 'Clubhouse Wall',
+    crewLoreLabel: 'Crew Wall',
+  },
+});
+
 const BAJA_SKIN = defineAppSkin({
   id: 'baja-bratz',
   name: 'Baja Bratz',
@@ -465,7 +592,13 @@ const BAJA_SKIN = defineAppSkin({
   preview: { label: 'Baja Bratz', sampleMissionTitle: 'Heat Check', sampleButtonLabel: 'Take the Trip' },
 });
 
-export const APP_SKINS: AppSkin[] = [CLASSIC_SKIN, ARCADE_SKIN, FIELD_NOTEBOOK_SKIN, BAJA_SKIN];
+export const APP_SKINS: AppSkin[] = [
+  CLASSIC_SKIN,
+  ARCADE_SKIN,
+  FIELD_NOTEBOOK_SKIN,
+  CLUBHOUSE_WALL_SKIN,
+  BAJA_SKIN,
+];
 export const DEFAULT_APP_SKIN = CLASSIC_SKIN;
 
 export function getBuiltInSkin(skinId?: string | null): AppSkin | undefined {

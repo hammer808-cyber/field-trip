@@ -82,13 +82,13 @@ export interface SkinMotionTokens {
   decorativeMotion: boolean;
 }
 
-export type NavigationSkinVariant = 'field-dock' | 'notebook-tabs' | 'arcade-console' | 'summer-float';
-export type MissionCardSkinVariant = 'field-ticket' | 'evidence-file' | 'arcade-card' | 'summer-pass';
-export type ProofCardSkinVariant = 'field-photo' | 'contact-sheet' | 'score-screen' | 'postcard';
-export type ModalSkinVariant = 'bureau-panel' | 'evidence-folder' | 'arcade-overlay' | 'pool-card';
-export type ButtonSkinVariant = 'bureau' | 'rubber-stamp' | 'arcade-key' | 'float-button';
-export type ProgressSkinVariant = 'signal-bar' | 'ruled-meter' | 'pixel-meter' | 'sun-meter';
-export type ProfileFrameSkinVariant = 'field-id' | 'case-file' | 'player-card' | 'travel-pass';
+export type NavigationSkinVariant = 'field-dock' | 'notebook-tabs' | 'arcade-console' | 'summer-float' | 'clubhouse-dock';
+export type MissionCardSkinVariant = 'field-ticket' | 'evidence-file' | 'arcade-card' | 'summer-pass' | 'sticky-assignment';
+export type ProofCardSkinVariant = 'field-photo' | 'contact-sheet' | 'score-screen' | 'postcard' | 'pinned-polaroid';
+export type ModalSkinVariant = 'bureau-panel' | 'evidence-folder' | 'arcade-overlay' | 'pool-card' | 'clubhouse-notice';
+export type ButtonSkinVariant = 'bureau' | 'rubber-stamp' | 'arcade-key' | 'float-button' | 'marker-label';
+export type ProgressSkinVariant = 'signal-bar' | 'ruled-meter' | 'pixel-meter' | 'sun-meter' | 'tally-strip';
+export type ProfileFrameSkinVariant = 'field-id' | 'case-file' | 'player-card' | 'travel-pass' | 'crew-patch';
 
 export interface SkinComponentVariants {
   navigation: NavigationSkinVariant;
@@ -98,9 +98,9 @@ export interface SkinComponentVariants {
   button: ButtonSkinVariant;
   progress: ProgressSkinVariant;
   profileFrame: ProfileFrameSkinVariant;
-  viewfinder: 'field-camera' | 'evidence-camera' | 'arcade-scanner' | 'summer-camera';
-  loading: 'field-checkin' | 'paper-sort' | 'pixel-load' | 'sun-spin';
-  statePanel: 'field-notice' | 'case-note' | 'arcade-alert' | 'postcard-note';
+  viewfinder: 'field-camera' | 'evidence-camera' | 'arcade-scanner' | 'summer-camera' | 'clubhouse-camera';
+  loading: 'field-checkin' | 'paper-sort' | 'pixel-load' | 'sun-spin' | 'wall-setup';
+  statePanel: 'field-notice' | 'case-note' | 'arcade-alert' | 'postcard-note' | 'pinned-note';
 }
 
 export interface SkinAssetReferences {
@@ -119,9 +119,9 @@ export interface SkinAssetReferences {
 
 export interface SkinExperienceSettings {
   density: 'compact' | 'comfortable' | 'roomy';
-  decorativeLanguage: 'bureau' | 'scrapbook' | 'arcade' | 'summer';
-  imageTreatment: 'natural' | 'documentary' | 'saturated' | 'glossy';
-  statusPresentation: 'badge' | 'stamp' | 'screen' | 'sticker';
+  decorativeLanguage: 'bureau' | 'scrapbook' | 'arcade' | 'summer' | 'clubhouse';
+  imageTreatment: 'natural' | 'documentary' | 'saturated' | 'glossy' | 'collage';
+  statusPresentation: 'badge' | 'stamp' | 'screen' | 'sticker' | 'pin';
   uppercaseLabels: boolean;
   tactileControls: boolean;
 }
@@ -135,6 +135,10 @@ export interface SkinOptionalFeatures {
   handwrittenNotes: boolean;
   scanlines: boolean;
   glossyHighlights: boolean;
+  graphPaper: boolean;
+  corkboard: boolean;
+  pushpins: boolean;
+  stickyNotes: boolean;
 }
 
 export interface SkinPreview {
