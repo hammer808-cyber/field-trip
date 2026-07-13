@@ -1,4 +1,5 @@
-import type { CrewMemberRole, CrewMemberStatus, CrewMode, CrewPrivacy, CrewStatus, CrewZineStatus } from '../logic/crewSystem';
+import type { CrewMemberRole, CrewMemberStatus, CrewMode, CrewPrivacy, CrewStatus } from '../logic/crewSystem';
+import type { ZineEdition } from './zine';
 export type { CrewMemberRole, CrewMemberStatus, CrewMode, CrewPrivacy, CrewStatus, CrewZineStatus } from '../logic/crewSystem';
 
 export interface Crew {
@@ -12,6 +13,7 @@ export interface Crew {
   memberCount?: number;
   memberLimit?: number;
   founderId?: string;
+  captainId?: string;
   captainIds?: string[];
   creatorId?: string;
   mode?: CrewMode;
@@ -77,6 +79,7 @@ export interface CrewRosterState {
   permissions: {
     canInvite: boolean;
     canApproveRequests: boolean;
+    canTransferCaptain?: boolean;
     canPromoteCaptains: boolean;
     canRemoveMembers: boolean;
   };
@@ -85,19 +88,15 @@ export interface CrewRosterState {
   pendingRequests: CrewJoinRequest[];
 }
 
-export interface CrewSeasonZine {
-  id: string;
-  crewId: string;
-  seasonId: string;
-  mode: CrewMode;
-  status: CrewZineStatus;
-  coverSelection: any | null;
-  curatorUserId: string | null;
-  pageBlueprint: string[];
-  flexPageAssignments: any[];
-  createdAt: any;
-  publishedAt?: any;
+export interface CrewDiscoveryState {
+  crews: Crew[];
+  viewer: {
+    activeCrewId: string | null;
+    cooldownUntil?: any;
+  };
 }
+
+export type CrewSeasonZine = ZineEdition;
 
 export interface CrewMembershipState {
   crew: Crew | null;

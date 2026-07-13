@@ -4,10 +4,10 @@ export const CREW_SWITCH_COOLDOWN_DAYS = 7;
 
 export type CrewMode = 'competitive' | 'friendly';
 export type CrewPrivacy = 'invite_only' | 'link_request' | 'discoverable';
-export type CrewStatus = 'active' | 'archived';
+export type CrewStatus = 'active' | 'archived' | 'disbanded';
 export type CrewMemberRole = 'founder' | 'captain' | 'member';
 export type CrewMemberStatus = 'active' | 'removed' | 'left';
-export type CrewZineStatus = 'collecting' | 'curating' | 'published';
+export type CrewZineStatus = 'shell' | 'generating' | 'draft' | 'curating' | 'ready_for_review' | 'finalized' | 'archived' | 'generation_failed';
 export type CrewInviteType = 'direct' | 'share_link';
 export type CrewInviteStatus = 'pending' | 'accepted' | 'declined' | 'revoked' | 'expired';
 export type CrewJoinRequestStatus = 'pending' | 'approved' | 'declined' | 'cancelled';
@@ -99,6 +99,7 @@ export interface CrewMemberLike {
 export interface CrewLike {
   id?: string;
   founderId?: string | null;
+  captainId?: string | null;
   captainIds?: string[];
   members?: string[];
   memberCount?: number;
@@ -137,19 +138,30 @@ export function isCrewManager(member: CrewMemberLike | null | undefined): boolea
   return member?.status === 'active' && (member.role === 'founder' || member.role === 'captain');
 }
 
+export function getCanonicalCrewCaptainId(crew: CrewLike | null | undefined): string | null {
+  return String(crew?.captainId || crew?.founderId || crew?.captainIds?.[0] || '').trim() || null;
+}
+
+export function isCanonicalCrewCaptain(
+  member: CrewMemberLike | null | undefined,
+  crew: CrewLike | null | undefined
+): boolean {
+  const captainId = getCanonicalCrewCaptainId(crew);
+  return member?.status === 'active' && !!member?.userId && !!captainId && member.userId === captainId;
+}
+
 export function isCrewFounder(member: CrewMemberLike | null | undefined): boolean {
   return member?.status === 'active' && member.role === 'founder';
 }
 
 export function canInviteToCrew(member: CrewMemberLike | null | undefined, crew: CrewLike | null | undefined): boolean {
-  if (!member || member.status !== 'active' || crew?.status === 'archived') return false;
-  if (member.role === 'founder') return true;
-  if (member.role === 'captain') return true;
+  if (!member || member.status !== 'active' || crew?.status !== 'active') return false;
+  if (isCanonicalCrewCaptain(member, crew)) return true;
   return crew?.allowMemberInvites === true;
 }
 
-export function canApproveJoinRequest(member: CrewMemberLike | null | undefined): boolean {
-  return isCrewManager(member);
+export function canApproveJoinRequest(member: CrewMemberLike | null | undefined, crew?: CrewLike | null): boolean {
+  return crew ? isCanonicalCrewCaptain(member, crew) : isCrewManager(member);
 }
 
 export function canPromoteCrewMember(actor: CrewMemberLike | null | undefined, target: CrewMemberLike | null | undefined): boolean {
@@ -167,6 +179,17 @@ export function canRemoveCrewMember(actor: CrewMemberLike | null | undefined, ta
   if (actor.role === 'founder') return target.role === 'captain' || target.role === 'member';
   if (actor.role === 'captain') return target.role === 'member';
   return false;
+}
+
+export function canTransferCrewCaptain(
+  actor: CrewMemberLike | null | undefined,
+  target: CrewMemberLike | null | undefined,
+  crew: CrewLike | null | undefined
+): boolean {
+  return isCanonicalCrewCaptain(actor, crew) &&
+    target?.status === 'active' &&
+    !!target.userId &&
+    target.userId !== actor?.userId;
 }
 
 export function isCrewAtCapacity(crew: CrewLike | null | undefined): boolean {
@@ -190,6 +213,7 @@ export function getCrewJoinBlockReason(params: {
   const activeCrewId = profile?.activeCrewId || profile?.crewId || null;
   if (activeCrewId && activeCrewId !== crew?.id) return 'ALREADY_IN_ANOTHER_CREW';
   if (activeCrewId && activeCrewId === crew?.id) return 'ALREADY_IN_THIS_CREW';
+  if (existingMember?.status === 'active') return 'ALREADY_IN_THIS_CREW';
   if (hasCrewCooldown(profile, now)) return 'CREW_SWITCH_COOLDOWN_ACTIVE';
   if (!crew || crew.status !== 'active') return 'CREW_NOT_ACTIVE';
   if (isCrewAtCapacity(crew)) return 'CREW_AT_CAPACITY';

@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { authenticatedFetch } from '../lib/api';
-import { Crew, CrewLore, CrewDispatch, CrewInvite, CrewJoinRequest, CrewMembershipState, CrewRosterState } from '../types/crew';
+import { Crew, CrewLore, CrewDispatch, CrewInvite, CrewJoinRequest, CrewMembershipState, CrewRosterState, CrewDiscoveryState } from '../types/crew';
 import { Entry } from '../constants';
 import type { CrewMode, CrewPrivacy } from '../logic/crewSystem';
 
@@ -123,6 +123,17 @@ export async function requestToJoinCrew(crewId: string): Promise<{ success: bool
   return readCrewResponse<{ success: boolean; requestId: string }>(response, `Crew join request failed with HTTP ${response.status}`);
 }
 
+export async function discoverCrews(): Promise<CrewDiscoveryState> {
+  const response = await authenticatedFetch('/api/crew/discover');
+  return readCrewResponse<CrewDiscoveryState>(response, `Crew discovery failed with HTTP ${response.status}`);
+}
+
+export async function getOutgoingCrewJoinRequests(): Promise<CrewJoinRequest[]> {
+  const response = await authenticatedFetch('/api/crew/join-requests/outgoing');
+  const payload = await readCrewResponse<{ requests: CrewJoinRequest[] }>(response, `Outgoing Crew requests failed with HTTP ${response.status}`);
+  return payload.requests;
+}
+
 export async function approveCrewJoinRequest(requestId: string): Promise<void> {
   const response = await authenticatedFetch(`/api/crew/join-requests/${encodeURIComponent(requestId)}/approve`, { method: 'POST' });
   await readCrewResponse<{ success: boolean }>(response, `Crew join request approve failed with HTTP ${response.status}`);
@@ -139,12 +150,14 @@ export async function cancelCrewJoinRequest(requestId: string): Promise<void> {
 }
 
 export async function promoteCrewMemberToCaptain(crewId: string, targetUserId: string): Promise<void> {
-  const response = await authenticatedFetch(`/api/crew/members/${encodeURIComponent(targetUserId)}/promote-captain`, {
+  const response = await authenticatedFetch(`/api/crew/members/${encodeURIComponent(targetUserId)}/transfer-captain`, {
     method: 'POST',
     body: JSON.stringify({ crewId })
   });
   await readCrewResponse<{ success: boolean }>(response, `Crew promote captain failed with HTTP ${response.status}`);
 }
+
+export const transferCrewCaptain = promoteCrewMemberToCaptain;
 
 export async function removeCrewCaptainRole(crewId: string, targetUserId: string): Promise<void> {
   const response = await authenticatedFetch(`/api/crew/members/${encodeURIComponent(targetUserId)}/remove-captain`, {
@@ -160,6 +173,38 @@ export async function removeCrewMember(crewId: string, targetUserId: string): Pr
     body: JSON.stringify({ crewId })
   });
   await readCrewResponse<{ success: boolean }>(response, `Crew remove member failed with HTTP ${response.status}`);
+}
+
+export async function updateCrewSettings(crewId: string, input: {
+  name: string;
+  motto?: string;
+  mode: CrewMode;
+  privacy: CrewPrivacy;
+  allowMemberInvites: boolean;
+  autoApproveShareLinks: boolean;
+}): Promise<Crew> {
+  const response = await authenticatedFetch('/api/crew/settings', {
+    method: 'PATCH',
+    body: JSON.stringify({ crewId, ...input }),
+  });
+  const payload = await readCrewResponse<{ crew: Crew }>(response, `Crew settings failed with HTTP ${response.status}`);
+  return payload.crew;
+}
+
+export async function disbandCrew(crewId: string, reason: string): Promise<void> {
+  const response = await authenticatedFetch('/api/crew/disband', {
+    method: 'POST',
+    body: JSON.stringify({ crewId, reason }),
+  });
+  await readCrewResponse<{ success: boolean }>(response, `Crew disband failed with HTTP ${response.status}`);
+}
+
+export async function addCrewLoreNote(crewId: string, note: string): Promise<void> {
+  const response = await authenticatedFetch('/api/crew/lore', {
+    method: 'POST',
+    body: JSON.stringify({ crewId, note }),
+  });
+  await readCrewResponse<{ success: boolean }>(response, `Crew lore update failed with HTTP ${response.status}`);
 }
 
 export async function getCrew(crewId: string): Promise<Crew | null> {
