@@ -42,13 +42,15 @@ import {
   getDaysLeftInSubmissionWindow, 
   getVotingHoursLeft 
 } from '../services/votingCycleService';
+import { getStarterProgress } from '../services/canonicalProgress';
+import { FieldtripLoader } from '../components/FieldtripLoader';
 
 type VotingTab = 'vote' | 'tribunal' | 'results';
 
 import { FieldPageHero } from '../components/FieldPageHero';
 
 export default function VotingHubPage() {
-  const { user, currentWeekNumber, activeSeason, isVotingWindowOpen, unlockDiscoverySticker, isTribunalUnlocked } = useApp();
+  const { user, currentWeekNumber, activeSeason, isVotingWindowOpen, unlockDiscoverySticker, isTribunalUnlocked, canonicalProgress } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const activeTab = (searchParams.get('tab') as VotingTab) || 'vote';
@@ -67,6 +69,8 @@ export default function VotingHubPage() {
     const hoursLeft = getVotingHoursLeft(now, cycle);
     return { phase, daysLeft, hoursLeft };
   });
+  const starterProgress = getStarterProgress(canonicalProgress);
+  const isVotingUnlocked = starterProgress.starterComplete === true;
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -217,6 +221,7 @@ export default function VotingHubPage() {
                       </div>
                       <button
                         onClick={() => navigate(clockInfo.phase === 'awards' ? '/big-board/results' : '/voting/ballot')}
+                        disabled={!isVotingUnlocked && clockInfo.phase !== 'awards'}
                         className="bureau-btn bg-brand-lime text-on-surface text-xs justify-center"
                       >
                         {clockInfo.phase === 'awards' ? 'View Results' : clockInfo.phase === 'voting' ? 'Vote Now' : 'Preview Ballot'}
@@ -224,7 +229,7 @@ export default function VotingHubPage() {
                     </div>
                  </div>
 
-                 <VotingModule noCard />
+                 {isVotingUnlocked ? <VotingModule noCard /> : <VotingLockedPanel approvedCount={starterProgress.starterApprovedCount} />}
               </motion.div>
             )}
 
@@ -243,7 +248,9 @@ export default function VotingHubPage() {
                     </p>
                  </div>
 
-                 {!isTribunalUnlocked ? (
+	                 {isLoading && isTribunalUnlocked ? (
+                      <FieldtripLoader variant="voting" label="Tribunal Docket" estimatedStep="LOADING CASE FILES" showProgress />
+                   ) : !isTribunalUnlocked ? (
                     <div className="py-32 border-4 border-on-surface rounded-[3rem] bg-white text-center space-y-6 shadow-[10px_10px_0px_black]">
                        <div className="w-20 h-20 bg-brand-orange text-white rounded-3xl mx-auto flex items-center justify-center border-4 border-on-surface shadow-[4px_4px_0px_black] rotate-2">
                           <Lock className="w-10 h-10" />
@@ -427,6 +434,34 @@ export default function VotingHubPage() {
           </div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function VotingLockedPanel({ approvedCount }: { approvedCount: number }) {
+  return (
+    <div className="border-4 border-on-surface bg-[#fff8e8] p-8 text-center shadow-[8px_8px_0px_black] rounded-[2rem]">
+      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border-4 border-on-surface bg-brand-magenta text-white shadow-[5px_5px_0px_black]">
+        <Lock className="h-10 w-10" />
+      </div>
+      <h3 className="mt-5 font-display text-4xl font-black italic uppercase leading-none">
+        Voting unlocks after Starter Signals
+      </h3>
+      <p className="mx-auto mt-3 max-w-lg font-serif italic text-on-surface/65">
+        Finish your field onboarding, then come back and judge the receipts. The Voting page is open; the ballot booth stays sealed until all 3 Starter Signals are approved.
+      </p>
+      <div className="mx-auto mt-6 max-w-sm border-2 border-on-surface bg-white p-3 shadow-[3px_3px_0px_black]">
+        <p className="font-mono text-[10px] font-black uppercase tracking-widest text-brand-orange">
+          Starter approvals: {Math.min(3, Math.max(0, approvedCount))} / 3
+        </p>
+      </div>
+      <Link
+        to="/missions"
+        className="mt-6 inline-flex items-center justify-center gap-2 border-4 border-on-surface bg-brand-lime px-6 py-3 font-display text-lg font-black italic uppercase shadow-[5px_5px_0px_black] active:translate-y-1 active:shadow-none"
+      >
+        Finish Starter Missions
+        <ArrowRight className="h-5 w-5" />
+      </Link>
     </div>
   );
 }

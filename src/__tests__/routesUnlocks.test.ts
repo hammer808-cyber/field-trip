@@ -12,6 +12,11 @@ const deckSource = readFileSync('src/pages/Deck.tsx', 'utf8');
 const appContextSource = readFileSync('src/context/AppContext.tsx', 'utf8');
 const rewardFeedbackSource = readFileSync('src/components/RewardFeedback.tsx', 'utf8');
 const collectionSource = readFileSync('src/pages/Collection.tsx', 'utf8');
+const votingHubPageSource = readFileSync('src/pages/VotingHubPage.tsx', 'utf8');
+const votingBallotPageSource = readFileSync('src/pages/VotingBallotPage.tsx', 'utf8');
+const pageLoaderSource = readFileSync('src/components/PageLoader.tsx', 'utf8');
+const fieldtripLoaderSource = readFileSync('src/components/FieldtripLoader.tsx', 'utf8');
+const crewMemoriesFeedSource = readFileSync('src/components/CrewMemoriesFeed.tsx', 'utf8');
 
 test('stable IA routes exist and legacy routes redirect safely', () => {
   assert.match(appSource, /<Route path="\/missions" element=\{<Deck \/>}/);
@@ -68,12 +73,26 @@ test('Dex exposes Collection, Zines, and Memories without Personas or Crew Home 
 
 test('Voting routes remain reachable from the primary nav', () => {
   assert.match(appSource, /<Route path="\/voting">/);
-  assert.match(appSource, /<Route index element=\{<StarterGate requiredFeature="voting"><VotingHubPage \/><\/StarterGate>\}/);
-  assert.match(appSource, /<Route path="ballot" element=\{<StarterGate requiredFeature="voting"><VotingBallotPage \/><\/StarterGate>\}/);
-  assert.match(appSource, /<Route path="council" element=\{<StarterGate requiredFeature="voting"><SnitchCouncilPage \/><\/StarterGate>\}/);
-  assert.match(appSource, /<Route path="awards" element=\{<StarterGate requiredFeature="voting"><WeeklyAwardsPage \/><\/StarterGate>\}/);
+  assert.match(appSource, /<Route index element=\{<VotingHubPage \/>}/);
+  assert.match(appSource, /<Route path="weekly" element=\{<Navigate to="\/voting\?tab=vote" replace \/>}/);
+  assert.match(appSource, /<Route path="tribunal" element=\{<Navigate to="\/voting\?tab=tribunal" replace \/>}/);
+  assert.match(appSource, /<Route path="results" element=\{<Navigate to="\/voting\?tab=results" replace \/>}/);
+  assert.match(appSource, /<Route path="ballot" element=\{<VotingBallotPage \/>}/);
+  assert.match(appSource, /<Route path="council" element=\{<SnitchCouncilPage \/>}/);
+  assert.match(appSource, /<Route path="awards" element=\{<WeeklyAwardsPage \/>}/);
   assert.match(bottomNavSource, /label: 'VOTING', path: '\/voting'/);
-  assert.match(bottomNavSource, /itemPathname === '\/voting' && !canAccessFeature\(canonicalProgress, 'voting'/);
+  assert.doesNotMatch(bottomNavSource, /itemPathname === '\/voting' && !canAccessFeature\(canonicalProgress, 'voting'/);
+  assert.match(votingHubPageSource, /VotingLockedPanel/);
+  assert.match(votingBallotPageSource, /Ballot booth locked/);
+});
+
+test('Fieldtrip loading system is shared by app boot, voting, and crew memories', () => {
+  assert.match(fieldtripLoaderSource, /export function FieldtripLoader/);
+  assert.match(fieldtripLoaderSource, /export type FieldtripLoaderVariant =[\s\S]*'checkin'[\s\S]*'community'[\s\S]*'voting'[\s\S]*'memories'/);
+  assert.match(fieldtripLoaderSource, /useReducedMotion/);
+  assert.match(pageLoaderSource, /variant="checkin"/);
+  assert.match(votingHubPageSource, /variant="voting"/);
+  assert.match(crewMemoriesFeedSource, /variant="memories"/);
 });
 
 test('Starter completion intro cannot globally trap completed users away from Crew or Voting', () => {

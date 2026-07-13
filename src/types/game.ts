@@ -339,6 +339,33 @@ export interface Entry {
   countsTowardFeed?: boolean;
   fastFindAttempt?: any;
   seasonId?: string;
+  crewContext?: {
+    crewId: string | null;
+    crewNameSnapshot: string | null;
+    crewMembershipId: string | null;
+    submittedAsCrewMember: boolean;
+    crewSeasonId: string | null;
+    submittedAt: any;
+  } | null;
+  crewMemory?: {
+    isEligible: boolean;
+    eligibilityReasons: string[];
+    archiveStatus: 'not_eligible' | 'candidate' | 'archived' | 'featured' | 'excluded';
+    seasonId: string | null;
+    crewId: string | null;
+    featuredBy: 'system' | 'captain' | 'admin' | 'weekly_vote' | 'tribunal' | null;
+    featuredAt: any;
+    zineSelectionStatus: 'not_selected' | 'candidate' | 'selected' | 'cover_candidate' | 'published';
+    zinePageId: string | null;
+    zinePageType: string | null;
+  };
+  personalMemory?: {
+    isEligible: boolean;
+    seasonId: string | null;
+    archiveStatus: 'candidate' | 'archived' | 'featured' | 'excluded';
+    zineSelectionStatus: 'not_selected' | 'selected' | 'published';
+    zinePageId: string | null;
+  };
   hintUsed?: boolean;
   crewId?: string;
   userAvatar?: any;

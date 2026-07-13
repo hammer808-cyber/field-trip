@@ -6,6 +6,7 @@ import { Card, FieldBadge } from './UI';
 import { Lock, Clock, GraduationCap, Users } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatSafeDateOnly, cn } from '../lib/utils';
+import { FieldtripLoader } from './FieldtripLoader';
 
 export function GameWrapper({ children }: { children: React.ReactNode }) {
   const { 
@@ -23,12 +24,13 @@ export function GameWrapper({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-paper font-mono">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-on-surface border-t-brand-orange animate-spin" />
-          <span className="text-[10px] uppercase tracking-widest opacity-40">Synchronizing Bureau DNA...</span>
-        </div>
-      </div>
+      <FieldtripLoader
+        variant="checkin"
+        label="Fieldtrip Check-In"
+        estimatedStep="PROFILE SYNC"
+        fullScreen
+        showProgress
+      />
     );
   }
 

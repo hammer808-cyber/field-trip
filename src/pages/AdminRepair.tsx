@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   AlertTriangle,
+  Archive,
   CheckCircle,
   Database,
   RefreshCw,
@@ -23,13 +24,15 @@ import {
   runBetaHardReset,
   resetUserState,
   lookupAdminUsers,
+  backfillCrewMemories,
   RepairReport,
   DiagnosticsReport,
   StrandedStarterRepairReport,
   BetaHardResetReport,
   UserResetReport,
   AdminUserLookupResult,
-  OrphanReviewCleanupReport
+  OrphanReviewCleanupReport,
+  CrewMemoriesBackfillReport
 } from '../services/repairService';
 import { cn } from '../lib/utils';
 
@@ -53,6 +56,9 @@ export default function AdminRepair() {
 
   const [repairingStranded, setRepairingStranded] = useState(false);
   const [strandedReport, setStrandedReport] = useState<StrandedStarterRepairReport | null>(null);
+  const [crewMemoriesDryRun, setCrewMemoriesDryRun] = useState(true);
+  const [crewMemoriesBackfilling, setCrewMemoriesBackfilling] = useState(false);
+  const [crewMemoriesReport, setCrewMemoriesReport] = useState<CrewMemoriesBackfillReport | null>(null);
 
   const [diagnostics, setDiagnostics] = useState<DiagnosticsReport | null>(null);
   const [loadingDiagnostics, setLoadingDiagnostics] = useState(false);
@@ -134,6 +140,16 @@ export default function AdminRepair() {
       setStrandedReport(await repairStrandedStarterUsers(false));
     } finally {
       setRepairingStranded(false);
+    }
+  };
+
+  const handleCrewMemoriesBackfill = async () => {
+    setCrewMemoriesBackfilling(true);
+    setCrewMemoriesReport(null);
+    try {
+      setCrewMemoriesReport(await backfillCrewMemories({ dryRun: crewMemoriesDryRun }));
+    } finally {
+      setCrewMemoriesBackfilling(false);
     }
   };
 
@@ -392,6 +408,31 @@ export default function AdminRepair() {
             </ModuleCard>
             <ModuleCard title="Stranded Starter Patch" description="Repairs users stuck because starter statuses drifted." icon={Shield} status={strandedReport?.errors?.length ? 'red' : strandedReport ? 'green' : 'yellow'} statusLabel={strandedReport?.errors?.length ? 'FAILED' : strandedReport ? 'COMPLETE' : 'READY'} primaryAction={{ label: repairingStranded ? 'PATCHING...' : 'APPLY PATCH', onClick: handleRepairStranded, loading: repairingStranded, disabled: repairingStranded }}>
               {strandedReport && <RepairActionReceipt title="Starter Patch Receipt" failed={strandedReport.errors?.length > 0 || strandedReport.success === false} rows={[['Mode', strandedReport.dryRun ? 'Dry Run' : 'Live Write'], ['Users Scanned', strandedReport.totalUsersScanned || 0], ['Stranded Detected', strandedReport.strandedDetected || 0], ['Users Repaired', strandedReport.usersRepaired || 0], ['Entries Updated', strandedReport.entriesUpdated || 0]]} error={strandedReport.errors?.[0]} />}
+            </ModuleCard>
+            <ModuleCard
+              title="Crew Memories Backfill"
+              description="Preview or materialize approved historical crew receipts into the Crew Archive without guessing current crew ownership."
+              icon={Archive}
+              status={crewMemoriesReport ? 'green' : 'neutral'}
+              statusLabel={crewMemoriesReport ? (crewMemoriesReport.dryRun ? 'PREVIEWED' : 'WRITTEN') : 'READY'}
+              primaryAction={{ label: crewMemoriesBackfilling ? 'SCANNING...' : crewMemoriesDryRun ? 'PREVIEW BACKFILL' : 'APPLY BACKFILL', onClick: handleCrewMemoriesBackfill, loading: crewMemoriesBackfilling, disabled: crewMemoriesBackfilling }}
+              secondaryAction={{ label: crewMemoriesDryRun ? 'Switch To Live Write' : 'Switch To Dry Run', onClick: () => setCrewMemoriesDryRun(!crewMemoriesDryRun), disabled: crewMemoriesBackfilling }}
+            >
+              {crewMemoriesReport && (
+                <RepairActionReceipt
+                  title={crewMemoriesReport.dryRun ? 'Crew Memories Preview' : 'Crew Memories Backfill'}
+                  failed={crewMemoriesReport.success === false}
+                  rows={[
+                    ['Mode', crewMemoriesReport.dryRun ? 'Dry Run' : 'Live Write'],
+                    ['Entries Scanned', crewMemoriesReport.scanned || 0],
+                    ['Personal Eligible', crewMemoriesReport.personalArchiveEligible || 0],
+                    ['Crew Eligible', crewMemoriesReport.crewArchiveEligible || 0],
+                    ['Archive Records', crewMemoriesReport.crewArchiveWritten || 0],
+                    ['Skipped', crewMemoriesReport.skipped?.length || 0]
+                  ]}
+                  error={crewMemoriesReport.samples?.skipped?.slice(0, 4).map(item => `${item.id}: ${item.reason}`).join(' | ')}
+                />
+              )}
             </ModuleCard>
             <Card className="md:col-span-2 p-8 border-2 border-rose-600 bg-rose-50 shadow-[8px_8px_0px_black] space-y-6">
               <SectionTitle icon={AlertTriangle} title="Beta Hard Reset" description="Deletes stale gameplay roots, clears proof queues, and returns every user to clean Starter state. Firebase Auth and admin roles are preserved." />

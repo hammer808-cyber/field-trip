@@ -19,17 +19,24 @@ import {
   resolveServerFirebaseProjectId,
   resolveServerFirestoreDatabaseId,
 } from "./src/server/firebaseAdmin";
-import { getCurrentVotingCycle, getVotingPhase } from "./src/services/votingCycleService";
+import { getCurrentVotingCycle, getVotingPhase, getCycleDocumentData } from "./src/services/votingCycleService";
 import {
   WEEKLY_VOTE_CATEGORIES,
   WEEKLY_VOTING_COMPATIBILITY_NOTE,
   APPROVED_PROOF_STATUSES,
+  BallotScope,
+  getCanonicalBallotId,
+  getWeeklyApprovedAtMillis,
   getWeeklyBallotId,
+  getWeeklyEntryCrewId,
+  getWeeklyEntryMediaRef,
   getWeeklyVoteId,
+  getWeeklyProofExclusionReasons,
   getWeeklyVotingRestriction,
   isApprovedWeeklyProofStatus,
   isWeeklyCandidateEligible,
   isWeeklyEntryEligible,
+  isWeeklyProofEligible,
   isWeeklyVoteCategory,
 } from "./src/logic/weeklyVoting";
 import {
@@ -64,8 +71,12 @@ import {
   canPromoteCrewMember,
   canRemoveCrewCaptainRole,
   canRemoveCrewMember,
+  buildCrewMemoryState,
+  buildPersonalMemoryState,
+  getCrewMemoryExclusionReasons,
   getCrewJoinBlockReason,
   hasCrewOnboardingAccess,
+  isCrewArchiveEligible,
   normalizeInviteStatus,
   normalizeCrewMode,
   normalizeCrewPrivacy,
@@ -548,6 +559,74 @@ async function startServer() {
     }, { merge: true });
   };
 
+  const toAdminTimestamp = (date: Date) => Timestamp.fromDate(date);
+
+  const getServerCycle = (seasonId: string, now = new Date()) => getCurrentVotingCycle(now, 'America/Los_Angeles', seasonId);
+
+  const writeVotingCycleDoc = (batch: FirebaseFirestore.WriteBatch, seasonId: string, cycle = getServerCycle(seasonId)) => {
+    const cycleRef = dbAdmin!.collection('votingCycles').doc(cycle.id);
+    const cycleData = getCycleDocumentData(cycle, seasonId);
+    batch.set(cycleRef, {
+      ...cycleData,
+      submissionStartsAt: toAdminTimestamp(cycle.submissionStart),
+      submissionEndsAt: toAdminTimestamp(cycle.submissionEnd),
+      ballotLocksAt: toAdminTimestamp(cycle.ballotLocksAt),
+      votingStartsAt: toAdminTimestamp(cycle.votingStart),
+      votingEndsAt: toAdminTimestamp(cycle.votingEnd),
+      resultsPublishAt: toAdminTimestamp(cycle.resultsPublishAt),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return cycleRef;
+  };
+
+  const getEntryApprovedAtDate = (entry: any): Date | null => {
+    const millis = getWeeklyApprovedAtMillis(entry);
+    return millis ? new Date(millis) : null;
+  };
+
+  const publicWeeklyCandidateSnapshot = (entry: any, entryId: string, seasonId: string, cycleId: string, scope: BallotScope, crewId?: string | null) => {
+    const missionId = entry.tripId || entry.challengeId || entry.missionId || '';
+    const mediaRef = getWeeklyEntryMediaRef(entry);
+    return {
+      id: entryId,
+      entryId,
+      proofId: entryId,
+      cycleId,
+      seasonId,
+      scope,
+      crewId: crewId || getWeeklyEntryCrewId(entry) || null,
+      userId: entry.userId || entry.uid || entry.ownerId || '',
+      displayName: entry.userName || entry.displayName || entry.name || 'Agent',
+      userName: entry.userName || entry.displayName || entry.name || 'Agent',
+      avatarUrl: entry.avatarUrl || entry.userAvatar || '',
+      proofImage: entry.proofImage || entry.imageUrl || entry.photoUrl || entry.mediaUrl || '',
+      photoUrl: entry.proofImage || entry.imageUrl || entry.photoUrl || entry.mediaUrl || '',
+      imageUrl: entry.proofImage || entry.imageUrl || entry.photoUrl || entry.mediaUrl || '',
+      storagePath: entry.storagePath || entry.photoStoragePath || entry.imageStoragePath || entry.proofStoragePath || '',
+      mediaRef,
+      missionId,
+      missionTitle: entry.tripTitle || entry.challengeTitle || entry.missionTitle || 'Field Trip Mission',
+      tripId: missionId,
+      tripTitle: entry.tripTitle || entry.challengeTitle || entry.missionTitle || 'Field Trip Mission',
+      fieldNote: entry.fieldNote || entry.note || '',
+      deckId: entry.deckId || null,
+      approvedAt: entry.approvedAt || entry.reviewedAt || null,
+      adminScore: Number(entry.scoring?.weightedRubricScore || entry.adminScore || entry.rubricScore || 0),
+      likeCount: Number(entry.likeCount || entry.reactionCount || 0),
+      isEligible: true,
+      isDisqualified: false,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+  };
+
+  const getDefaultMaxVotes = async () => {
+    const configSnap = await dbAdmin!.collection('appConfig').doc('main').get();
+    const config = configSnap.exists ? configSnap.data() || {} : {};
+    return Math.max(1, Math.min(10, Number(config.weeklyVoting?.maxVotesPerVoter || config.voting?.maxVotesPerVoter || 3)));
+  };
+
   const cleanStringList = (value: unknown): string[] => {
     if (!Array.isArray(value)) return [];
     return Array.from(new Set(value.map(item => cleanServerId(item)).filter(Boolean)));
@@ -714,6 +793,73 @@ async function startServer() {
 
     try {
       const uid = req.user.uid;
+      const cycleId = cleanServerId(req.body.cycleId);
+      const canonicalRequestBallotId = cleanServerId(req.body.ballotId);
+      const selectedProofIds = cleanStringList(req.body.selectedProofIds);
+
+      if (cycleId && canonicalRequestBallotId && selectedProofIds.length > 0) {
+        const now = new Date();
+        const result = await dbAdmin!.runTransaction(async (transaction) => {
+          const cycleRef = dbAdmin!.collection('votingCycles').doc(cycleId);
+          const ballotRef = cycleRef.collection('ballots').doc(canonicalRequestBallotId);
+          const voteRef = ballotRef.collection('votes').doc(uid);
+          const [cycleSnap, ballotSnap, voterSnap, existingVoteSnap] = await Promise.all([
+            transaction.get(cycleRef),
+            transaction.get(ballotRef),
+            transaction.get(dbAdmin!.collection('users').doc(uid)),
+            transaction.get(voteRef),
+          ]);
+          if (!cycleSnap.exists) throw new Error("CYCLE_NOT_FOUND");
+          if (!ballotSnap.exists) throw new Error("BALLOT_NOT_FOUND");
+          const cycle = cycleSnap.data() || {};
+          const ballot = ballotSnap.data() || {};
+          const voter = voterSnap.exists ? voterSnap.data() || {} : {};
+          const closesAt = ballot.closesAt?.toDate?.() || cycle.votingEndsAt?.toDate?.();
+          const opensAt = ballot.opensAt?.toDate?.() || cycle.votingStartsAt?.toDate?.();
+          if (!opensAt || now < opensAt) throw new Error("BALLOT_NOT_OPEN");
+          if (!closesAt || now > closesAt) throw new Error("VOTING_WINDOW_CLOSED");
+          if (!['locked', 'open'].includes(String(ballot.status || ''))) throw new Error("BALLOT_NOT_OPEN");
+          const maxVotes = Math.max(1, Number(ballot.maxVotesPerVoter || 3));
+          const uniqueProofIds = Array.from(new Set(selectedProofIds));
+          if (uniqueProofIds.length !== selectedProofIds.length) throw new Error("DUPLICATE_SELECTIONS");
+          if (uniqueProofIds.length > maxVotes) throw new Error("TOO_MANY_SELECTIONS");
+          const eligibleProofIds = new Set(Array.isArray(ballot.eligibleProofIds) ? ballot.eligibleProofIds.map((id: any) => String(id)) : []);
+          for (const proofId of uniqueProofIds) {
+            if (!eligibleProofIds.has(proofId)) throw new Error("PROOF_NOT_IN_BALLOT");
+          }
+          if (ballot.scope === 'crew_weekly') {
+            const crewId = cleanServerId(ballot.crewId);
+            const memberSnap = await transaction.get(dbAdmin!.collection('crews').doc(crewId).collection('members').doc(uid));
+            const member = memberSnap.exists ? memberSnap.data() || {} : null;
+            const joinedAt = member?.joinedAt?.toDate?.() || member?.crewEligibleFrom?.toDate?.();
+            const ballotLock = cycle.ballotLocksAt?.toDate?.();
+            if (!member || member.status !== 'active') throw new Error("CREW_MEMBER_REQUIRED");
+            if (joinedAt && ballotLock && joinedAt > ballotLock) throw new Error("CREW_JOINED_AFTER_BALLOT_LOCK");
+            if (voter.banned === true || voter.suspended === true || voter.accessStatus === 'banned') throw new Error("VOTER_NOT_ELIGIBLE");
+          }
+          const entrySnaps = await Promise.all(uniqueProofIds.map(proofId => transaction.get(dbAdmin!.collection('entries').doc(proofId))));
+          for (const entrySnap of entrySnaps) {
+            if (!entrySnap.exists) throw new Error("ENTRY_NOT_FOUND");
+            const entry = entrySnap.data() || {};
+            if ((entry.userId || entry.uid || entry.ownerId) === uid && ballot.allowSelfVote !== true) throw new Error("SELF_VOTE_PROHIBITED");
+          }
+
+          const voteData = {
+            voterId: uid,
+            userId: uid,
+            ballotId: canonicalRequestBallotId,
+            cycleId,
+            selectedProofIds: uniqueProofIds,
+            submittedAt: existingVoteSnap.exists ? existingVoteSnap.data()?.submittedAt || FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
+            updatedAt: existingVoteSnap.exists ? FieldValue.serverTimestamp() : null,
+            status: existingVoteSnap.exists ? 'replaced' : 'submitted'
+          };
+          transaction.set(voteRef, voteData, { merge: true });
+          return { ballotId: canonicalRequestBallotId, cycleId, selectedProofIds: uniqueProofIds, replaced: existingVoteSnap.exists };
+        });
+        return res.json({ success: true, ...result });
+      }
+
       const entryId = cleanServerId(req.body.entryId);
       const seasonId = cleanServerId(req.body.seasonId) || 'heatwave-receipts';
       const weekNumber = Number(req.body.weekNumber);
@@ -723,7 +869,7 @@ async function startServer() {
         return res.status(400).json({ error: "INVALID_WEEKLY_VOTE_REQUEST" });
       }
 
-      const cycle = getCurrentVotingCycle(new Date(), 'UTC');
+      const cycle = getServerCycle(seasonId);
       if (getVotingPhase(new Date(), cycle) !== 'voting') {
         return res.status(403).json({ error: "VOTING_WINDOW_CLOSED" });
       }
@@ -736,10 +882,10 @@ async function startServer() {
       const appConfig = appConfigSnap.exists ? appConfigSnap.data() || {} : {};
       const enforceCrewRestriction = appConfig?.weeklyVoting?.enforceCrewRestriction === true || appConfig?.voting?.enforceCrewRestriction === true;
 
-      const ballotId = getWeeklyBallotId(seasonId, weekNumber);
+      const legacyBallotId = getWeeklyBallotId(seasonId, weekNumber);
       const voteId = getWeeklyVoteId(uid, seasonId, weekNumber, category);
       const result = await dbAdmin!.runTransaction(async (transaction) => {
-        const ballotRef = dbAdmin!.collection('weeklyBallots').doc(ballotId);
+        const ballotRef = dbAdmin!.collection('weeklyBallots').doc(legacyBallotId);
         const candidateRef = ballotRef.collection('candidates').doc(entryId);
         const entryRef = dbAdmin!.collection('entries').doc(entryId);
         const voteRef = dbAdmin!.collection('votes').doc(voteId);
@@ -794,7 +940,7 @@ async function startServer() {
       res.json({ success: true, ...result });
     } catch (error: any) {
       const message = error?.message || String(error);
-      const status = ['SELF_VOTE_PROHIBITED', 'CREW_VOTE_PROHIBITED', 'VOTING_WINDOW_CLOSED', 'VOTE_ALREADY_CAST'].includes(message) ? 403 : 400;
+      const status = ['SELF_VOTE_PROHIBITED', 'CREW_VOTE_PROHIBITED', 'VOTING_WINDOW_CLOSED', 'VOTE_ALREADY_CAST', 'CREW_MEMBER_REQUIRED', 'CREW_JOINED_AFTER_BALLOT_LOCK', 'VOTER_NOT_ELIGIBLE'].includes(message) ? 403 : 400;
       console.warn("[WEEKLY_VOTE] Rejected:", message);
       res.status(status).json({ error: message });
     }
@@ -807,46 +953,113 @@ async function startServer() {
     try {
       const seasonId = cleanServerId(req.body.seasonId) || 'heatwave-receipts';
       const weekNumber = Number(req.body.weekNumber);
+      const requestedCycleId = cleanServerId(req.body.cycleId);
+      const requestedScope = cleanServerId(req.body.scope) as BallotScope;
+      const scope: BallotScope = ['crew_weekly', 'community_weekly', 'tribunal'].includes(requestedScope) ? requestedScope : 'community_weekly';
+      const targetCrewId = cleanServerId(req.body.crewId);
       const reason = cleanServerId(req.body.reason);
-      if (!Number.isInteger(weekNumber) || weekNumber <= 0) {
+      if (!requestedCycleId && (!Number.isInteger(weekNumber) || weekNumber <= 0)) {
         return res.status(400).json({ error: "INVALID_WEEK_NUMBER" });
       }
       if (reason.length < 5) {
         return res.status(400).json({ error: "ADMIN_REASON_REQUIRED" });
       }
 
+      const cycle = requestedCycleId
+        ? getServerCycle(seasonId, new Date())
+        : getServerCycle(seasonId);
+      const cycleId = requestedCycleId || cycle.id;
       const ballotId = getWeeklyBallotId(seasonId, weekNumber);
       const entriesSnap = await dbAdmin!.collection('entries').where('status', 'in', Array.from(APPROVED_PROOF_STATUSES)).get();
-      const eligibleEntries = entriesSnap.docs
-        .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any))
-        .filter(entry => {
-          const entrySeasonId = entry.seasonId || seasonId;
-          const entryWeek = Number(entry.eligibleWeekNumber || entry.weekNumber || weekNumber);
-          const proofImage = entry.proofImage || entry.imageUrl || entry.photoUrl || entry.mediaUrl || entry.storagePath || entry.photoStoragePath || entry.imageStoragePath;
-          return entrySeasonId === seasonId &&
-            entryWeek === weekNumber &&
-            isWeeklyEntryEligible(entry) &&
-            !!proofImage &&
-            entry.isPrivate !== true &&
-            entry.private !== true &&
-            entry.visibility !== 'private';
-        });
+      const allEntries = entriesSnap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any));
+      const ballotScopes: Array<{ scope: BallotScope; crewId: string | null }> = [];
+      if (scope === 'crew_weekly') {
+        if (targetCrewId) {
+          ballotScopes.push({ scope, crewId: targetCrewId });
+        } else {
+          const crewsSnap = await dbAdmin!.collection('crews').where('status', '==', 'active').limit(200).get();
+          crewsSnap.docs.forEach(crewDoc => ballotScopes.push({ scope, crewId: crewDoc.id }));
+        }
+      } else {
+        ballotScopes.push({ scope, crewId: null });
+      }
 
       const batch = dbAdmin!.batch();
-      const ballotRef = dbAdmin!.collection('weeklyBallots').doc(ballotId);
+      writeVotingCycleDoc(batch, seasonId, { ...cycle, id: cycleId });
+      const generatedBallots: Array<{ ballotId: string; scope: BallotScope; crewId: string | null; candidates: number; excluded: number }> = [];
+      let legacyEligibleEntries: any[] = [];
+
+      for (const target of ballotScopes) {
+        const canonicalBallotId = getCanonicalBallotId(cycleId, target.scope, target.crewId);
+        const ballotRef = dbAdmin!.collection('votingCycles').doc(cycleId).collection('ballots').doc(canonicalBallotId);
+        const eligibleEntries: any[] = [];
+        const excludedEntries: Array<{ entryId: string; reasons: string[] }> = [];
+        for (const entry of allEntries) {
+          const reasons = getWeeklyProofExclusionReasons(entry, {
+            seasonId,
+            scope: target.scope,
+            crewId: target.crewId,
+            submissionStartsAt: cycle.submissionStart,
+            submissionEndsAt: cycle.submissionEnd,
+            ballotLocksAt: cycle.ballotLocksAt
+          });
+          if (reasons.length === 0) eligibleEntries.push(entry);
+          else if (reasons.some(reason => reason === 'approved_after_ballot_lock' || reason === 'approved_after_submission_window')) excludedEntries.push({ entryId: entry.id, reasons });
+        }
+        if (target.scope === 'community_weekly') legacyEligibleEntries = eligibleEntries;
+        const eligibleProofIds = eligibleEntries.map(entry => entry.id);
+        batch.set(ballotRef, {
+          id: canonicalBallotId,
+          ballotId: canonicalBallotId,
+          cycleId,
+          seasonId,
+          scope: target.scope,
+          crewId: target.crewId,
+          status: req.body.status || (req.body.phase === 'voting' ? 'open' : 'locked'),
+          eligibleProofIds,
+          maxVotesPerVoter: await getDefaultMaxVotes(),
+          allowSelfVote: false,
+          opensAt: toAdminTimestamp(cycle.votingStart),
+          closesAt: toAdminTimestamp(cycle.votingEnd),
+          createdAt: FieldValue.serverTimestamp(),
+          lockedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+          excludedLateProofs: excludedEntries.slice(0, 50),
+          diagnostics: {
+            excludedCount: excludedEntries.length,
+            fewerThanTwoEligible: eligibleProofIds.length < 2
+          }
+        }, { merge: true });
+        for (const entry of eligibleEntries) {
+          batch.set(ballotRef.collection('entries').doc(entry.id), publicWeeklyCandidateSnapshot(entry, entry.id, seasonId, cycleId, target.scope, target.crewId), { merge: true });
+        }
+        generatedBallots.push({ ballotId: canonicalBallotId, scope: target.scope, crewId: target.crewId, candidates: eligibleEntries.length, excluded: excludedEntries.length });
+      }
+
+      const legacyBallotRef = dbAdmin!.collection('weeklyBallots').doc(ballotId);
+      const eligibleEntries = legacyEligibleEntries.length > 0
+        ? legacyEligibleEntries
+        : allEntries.filter(entry => isWeeklyProofEligible(entry, {
+          seasonId,
+          scope: 'community_weekly',
+          submissionStartsAt: cycle.submissionStart,
+          submissionEndsAt: cycle.submissionEnd,
+          ballotLocksAt: cycle.ballotLocksAt
+        }));
       const categoryCandidateMap: Record<string, string[]> = {};
       WEEKLY_VOTE_CATEGORIES.forEach(category => {
         categoryCandidateMap[category] = eligibleEntries.map(entry => entry.id);
       });
 
-      batch.set(ballotRef, {
+      batch.set(legacyBallotRef, {
         ballotId,
+        cycleId,
         seasonId,
         weekNumber,
-        cycleStartAt: FieldValue.serverTimestamp(),
-        votingOpensAt: FieldValue.serverTimestamp(),
-        votingClosesAt: FieldValue.serverTimestamp(),
-        awardsReleaseAt: FieldValue.serverTimestamp(),
+        cycleStartAt: toAdminTimestamp(cycle.weekStart),
+        votingOpensAt: toAdminTimestamp(cycle.votingStart),
+        votingClosesAt: toAdminTimestamp(cycle.votingEnd),
+        awardsReleaseAt: toAdminTimestamp(cycle.resultsPublishAt),
         phase: req.body.phase || 'submission',
         candidateEntryIds: eligibleEntries.map(entry => entry.id),
         categoryCandidateMap,
@@ -887,7 +1100,7 @@ async function startServer() {
           createdAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp()
         };
-        batch.set(ballotRef.collection('candidates').doc(entry.id), candidateData, { merge: true });
+        batch.set(legacyBallotRef.collection('candidates').doc(entry.id), candidateData, { merge: true });
         batch.set(dbAdmin!.collection('ballotCandidates').doc(`${seasonId}_w${weekNumber}_${entry.id}`), {
           id: `${seasonId}_w${weekNumber}_${entry.id}`,
           entryId: entry.id,
@@ -904,8 +1117,8 @@ async function startServer() {
       }
 
       await batch.commit();
-      await writeAdminAudit(req.user.uid, ballotId, 'weeklyBallot', 'build_weekly_ballot', { seasonId, weekNumber, candidates: eligibleEntries.length, reason });
-      res.json({ success: true, ballotId, candidates: eligibleEntries.length });
+      await writeAdminAudit(req.user.uid, cycleId, 'weeklyVotingCycle', 'build_weekly_ballot', { seasonId, weekNumber, generatedBallots, legacyCandidates: eligibleEntries.length, reason });
+      res.json({ success: true, cycleId, legacyBallotId: ballotId, generatedBallots, candidates: eligibleEntries.length });
     } catch (error: any) {
       console.error("[WEEKLY_BALLOT_BUILD] Failed:", error);
       res.status(500).json({ error: "FAILED_TO_BUILD_WEEKLY_BALLOT", message: error.message || String(error) });
@@ -919,9 +1132,156 @@ async function startServer() {
     try {
       const seasonId = cleanServerId(req.body.seasonId) || 'heatwave-receipts';
       const weekNumber = Number(req.body.weekNumber);
+      const cycleId = cleanServerId(req.body.cycleId);
+      const requestedBallotId = cleanServerId(req.body.ballotId);
       const reason = cleanServerId(req.body.reason);
-      if (!Number.isInteger(weekNumber) || weekNumber <= 0) return res.status(400).json({ error: "INVALID_WEEK_NUMBER" });
+      if (!cycleId && (!Number.isInteger(weekNumber) || weekNumber <= 0)) return res.status(400).json({ error: "INVALID_WEEK_NUMBER" });
       if (reason.length < 5) return res.status(400).json({ error: "ADMIN_REASON_REQUIRED" });
+
+      if (cycleId) {
+        const cycleRef = dbAdmin!.collection('votingCycles').doc(cycleId);
+        const cycleSnap = await cycleRef.get();
+        if (!cycleSnap.exists) return res.status(404).json({ error: "CYCLE_NOT_FOUND" });
+        const ballotsSnap = requestedBallotId
+          ? { docs: [await cycleRef.collection('ballots').doc(requestedBallotId).get()].filter(snap => snap.exists) } as any
+          : await cycleRef.collection('ballots').get();
+        const finalized: any[] = [];
+        let batch = dbAdmin!.batch();
+        let writes = 0;
+        const flush = async () => {
+          if (writes > 0) {
+            await batch.commit();
+            batch = dbAdmin!.batch();
+            writes = 0;
+          }
+        };
+
+        for (const ballotSnap of ballotsSnap.docs) {
+          const ballot = ballotSnap.data() || {};
+          const ballotId = ballotSnap.id;
+          const resultRef = cycleRef.collection('results').doc(ballotId);
+          const existingResult = await resultRef.get();
+          if (existingResult.exists && existingResult.data()?.isFinal === true) {
+            finalized.push({ ballotId, alreadyFinalized: true });
+            continue;
+          }
+
+          const [entriesSnap, votesSnap] = await Promise.all([
+            ballotSnap.ref.collection('entries').get(),
+            ballotSnap.ref.collection('votes').get()
+          ]);
+          const entriesById = new Map<string, any>(entriesSnap.docs.map((docSnap: any) => [docSnap.id, { id: docSnap.id, ...docSnap.data() } as any]));
+          const eligibleProofIds = new Set<string>(Array.isArray(ballot.eligibleProofIds) ? ballot.eligibleProofIds.map((id: any) => String(id)) : entriesSnap.docs.map((docSnap: any) => String(docSnap.id)));
+          const validVotes: any[] = [];
+          const rejectedVotes: any[] = [];
+          for (const voteDoc of votesSnap.docs) {
+            const vote = { id: voteDoc.id, ...voteDoc.data() } as any;
+            const selections = cleanStringList(vote.selectedProofIds);
+            const voterId = cleanServerId(vote.voterId || vote.userId || voteDoc.id);
+            const duplicateSelections = new Set(selections).size !== selections.length;
+            const tooManySelections = selections.length > Number(ballot.maxVotesPerVoter || 3);
+            const outsideBallot = selections.some(id => !eligibleProofIds.has(id));
+            const selfVote = selections.some(id => {
+              const entry = entriesById.get(id) || {};
+              return (entry.userId || entry.uid || entry.ownerId) === voterId;
+            });
+            const submittedAt = vote.submittedAt?.toDate?.() || vote.updatedAt?.toDate?.() || new Date(0);
+            const closesAt = ballot.closesAt?.toDate?.() || cycleSnap.data()?.votingEndsAt?.toDate?.();
+            if (vote.status === 'voided' || duplicateSelections || tooManySelections || outsideBallot || selfVote || (closesAt && submittedAt > closesAt)) {
+              rejectedVotes.push({ voteId: voteDoc.id, reasons: [
+                vote.status === 'voided' ? 'voided' : '',
+                duplicateSelections ? 'duplicate_proof_ids' : '',
+                tooManySelections ? 'too_many_selections' : '',
+                outsideBallot ? 'proof_not_in_ballot' : '',
+                selfVote ? 'self_vote' : '',
+                closesAt && submittedAt > closesAt ? 'after_deadline' : ''
+              ].filter(Boolean) });
+              continue;
+            }
+            validVotes.push(vote);
+          }
+
+          const counts = new Map<string, number>();
+          validVotes.forEach(vote => cleanStringList(vote.selectedProofIds).forEach(id => counts.set(id, (counts.get(id) || 0) + 1)));
+          const ranked = Array.from(eligibleProofIds).map((proofId: string) => {
+            const entry = entriesById.get(proofId) || {};
+            return {
+              proofId,
+              entryId: proofId,
+              userId: entry.userId || entry.uid || entry.ownerId || null,
+              displayName: entry.displayName || entry.userName || 'Agent',
+              voteTotal: counts.get(proofId) || 0,
+              adminScore: Number(entry.adminScore || 0),
+              likeCount: Number(entry.likeCount || 0),
+              approvedAtMillis: getWeeklyApprovedAtMillis(entry),
+              deterministicSeed: crypto.createHash('sha256').update(`${cycleId}:${proofId}`).digest('hex')
+            };
+          }).sort((a, b) => {
+            if (b.voteTotal !== a.voteTotal) return b.voteTotal - a.voteTotal;
+            if (b.adminScore !== a.adminScore) return b.adminScore - a.adminScore;
+            if (b.likeCount !== a.likeCount) return b.likeCount - a.likeCount;
+            if (a.approvedAtMillis !== b.approvedAtMillis) return a.approvedAtMillis - b.approvedAtMillis;
+            return a.deterministicSeed.localeCompare(b.deterministicSeed);
+          });
+          const winner = ranked[0] || null;
+
+          batch.set(resultRef, {
+            id: ballotId,
+            resultId: ballotId,
+            cycleId,
+            ballotId,
+            seasonId: ballot.seasonId || seasonId,
+            scope: ballot.scope,
+            crewId: ballot.crewId || null,
+            rankedResults: ranked,
+            winner,
+            validVoteCount: validVotes.length,
+            rejectedVoteCount: rejectedVotes.length,
+            rejectedVotes: rejectedVotes.slice(0, 100),
+            calculatedBy: req.user.uid,
+            calculatedReason: reason,
+            calculatedAt: FieldValue.serverTimestamp(),
+            publishedAt: FieldValue.serverTimestamp(),
+            isFinal: true
+          }, { merge: true });
+          batch.set(ballotSnap.ref, {
+            status: 'published',
+            calculatedAt: FieldValue.serverTimestamp(),
+            publishedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp()
+          }, { merge: true });
+          writes += 2;
+
+          if (winner?.userId) {
+            const awardId = `weekly_award_${cycleId}_${winner.userId}_${ballot.scope}_${ballot.crewId || 'community'}`;
+            const awardSnap = await dbAdmin!.collection('scoreEvents').doc(awardId).get();
+            if (!awardSnap.exists) {
+              awardWeeklyPointsOnce(batch, {
+                eventId: awardId,
+                userId: winner.userId,
+                userName: winner.displayName || 'Agent',
+                points: 25,
+                entryId: winner.entryId,
+                description: `Weekly award: ${ballot.scope} ${cycleId}`
+              });
+              writes += 2;
+            }
+          }
+
+          finalized.push({ ballotId, validVotes: validVotes.length, rejectedVotes: rejectedVotes.length, winner: winner?.entryId || null });
+          if (writes >= 440) await flush();
+        }
+
+        batch.set(cycleRef, {
+          status: 'results_published',
+          awardsDistributedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+        writes++;
+        await flush();
+        await writeAdminAudit(req.user.uid, cycleId, 'weeklyVotingCycle', 'finalize_weekly_cycle_results', { seasonId, finalized, reason });
+        return res.json({ success: true, cycleId, finalized });
+      }
 
       const summaryId = getWeeklyBallotId(seasonId, weekNumber);
       const summaryRef = dbAdmin!.collection('weeklySummaries').doc(summaryId);
@@ -1029,6 +1389,69 @@ async function startServer() {
     }
   });
 
+  app.post("/api/admin/voting/void-vote", adminRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    if (!(await checkIsAdmin(req.user))) return res.status(403).json({ error: "ADMIN_ONLY" });
+    try {
+      const cycleId = cleanServerId(req.body.cycleId);
+      const ballotId = cleanServerId(req.body.ballotId);
+      const voterId = cleanServerId(req.body.voterId);
+      const reason = cleanServerId(req.body.reason);
+      if (!cycleId || !ballotId || !voterId) return res.status(400).json({ error: "CYCLE_BALLOT_AND_VOTER_REQUIRED" });
+      if (reason.length < 5) return res.status(400).json({ error: "ADMIN_REASON_REQUIRED" });
+      const voteRef = dbAdmin!.collection('votingCycles').doc(cycleId).collection('ballots').doc(ballotId).collection('votes').doc(voterId);
+      await voteRef.set({
+        status: 'voided',
+        voidedBy: req.user.uid,
+        voidReason: reason,
+        voidedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+      await writeAdminAudit(req.user.uid, `${cycleId}/${ballotId}/${voterId}`, 'weeklyBallotVote', 'void_weekly_vote', { cycleId, ballotId, voterId, reason });
+      res.json({ success: true, cycleId, ballotId, voterId });
+    } catch (error: any) {
+      res.status(500).json({ error: "FAILED_TO_VOID_WEEKLY_VOTE", message: error.message || String(error) });
+    }
+  });
+
+  app.post("/api/admin/voting/remove-proof", adminRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    if (!(await checkIsAdmin(req.user))) return res.status(403).json({ error: "ADMIN_ONLY" });
+    try {
+      const cycleId = cleanServerId(req.body.cycleId);
+      const ballotId = cleanServerId(req.body.ballotId);
+      const proofId = cleanServerId(req.body.proofId || req.body.entryId);
+      const reason = cleanServerId(req.body.reason);
+      if (!cycleId || !ballotId || !proofId) return res.status(400).json({ error: "CYCLE_BALLOT_AND_PROOF_REQUIRED" });
+      if (reason.length < 5) return res.status(400).json({ error: "ADMIN_REASON_REQUIRED" });
+      const ballotRef = dbAdmin!.collection('votingCycles').doc(cycleId).collection('ballots').doc(ballotId);
+      await dbAdmin!.runTransaction(async transaction => {
+        const ballotSnap = await transaction.get(ballotRef);
+        if (!ballotSnap.exists) throw new Error("BALLOT_NOT_FOUND");
+        const ballot = ballotSnap.data() || {};
+        if (['calculated', 'published'].includes(String(ballot.status || ''))) throw new Error("RESULTS_ALREADY_PUBLISHED");
+        const nextIds = (Array.isArray(ballot.eligibleProofIds) ? ballot.eligibleProofIds : []).filter((id: any) => String(id) !== proofId);
+        transaction.set(ballotRef, {
+          eligibleProofIds: nextIds,
+          removedProofs: FieldValue.arrayUnion({ proofId, reason, removedBy: req.user.uid, removedAt: new Date().toISOString() }),
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+        transaction.set(ballotRef.collection('entries').doc(proofId), {
+          isEligible: false,
+          isDisqualified: true,
+          disqualifiedReason: reason,
+          disqualifiedBy: req.user.uid,
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+      });
+      await writeAdminAudit(req.user.uid, `${cycleId}/${ballotId}/${proofId}`, 'weeklyBallotEntry', 'remove_proof_from_weekly_ballot', { cycleId, ballotId, proofId, reason });
+      res.json({ success: true, cycleId, ballotId, proofId });
+    } catch (error: any) {
+      const message = error.message || String(error);
+      res.status(message === 'RESULTS_ALREADY_PUBLISHED' ? 409 : 500).json({ error: message });
+    }
+  });
+
   app.get("/api/admin/voting/diagnostics", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!assertAdminReady(res)) return;
     if (!(await checkIsAdmin(req.user))) return res.status(403).json({ error: "ADMIN_ONLY" });
@@ -1040,8 +1463,11 @@ async function startServer() {
 
       const ballotId = getWeeklyBallotId(seasonId, weekNumber);
       const now = new Date();
-      const expectedPhase = getVotingPhase(now, getCurrentVotingCycle(now, 'UTC'));
-      const [ballotSnap, votesSnap, summarySnap, legacyWeeklyVotesSnap, legacyVoteEventsSnap] = await Promise.all([
+      const cycle = getServerCycle(seasonId, now);
+      const expectedPhase = getVotingPhase(now, cycle);
+      const [cycleSnap, canonicalBallotsSnap, ballotSnap, votesSnap, summarySnap, legacyWeeklyVotesSnap, legacyVoteEventsSnap] = await Promise.all([
+        dbAdmin!.collection('votingCycles').doc(cycle.id).get(),
+        dbAdmin!.collection('votingCycles').doc(cycle.id).collection('ballots').get(),
         dbAdmin!.collection('weeklyBallots').doc(ballotId).get(),
         dbAdmin!.collection('votes').where('seasonId', '==', seasonId).where('weekNumber', '==', weekNumber).get(),
         dbAdmin!.collection('weeklySummaries').doc(ballotId).get(),
@@ -1096,18 +1522,43 @@ async function startServer() {
       const missingResultSnapshots = expectedPhase === 'awards' && !(summary?.isLocked && summary?.voteWinners)
         ? [ballotId]
         : [];
+      const canonicalBallots = canonicalBallotsSnap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any));
+      const canonicalIssues: any[] = [];
+      for (const canonicalBallot of canonicalBallots) {
+        const entriesSnap = await dbAdmin!.collection('votingCycles').doc(cycle.id).collection('ballots').doc(canonicalBallot.id).collection('entries').get();
+        const resultSnap = await dbAdmin!.collection('votingCycles').doc(cycle.id).collection('results').doc(canonicalBallot.id).get();
+        if ((canonicalBallot.eligibleProofIds || []).length < 2) canonicalIssues.push({ ballotId: canonicalBallot.id, issue: 'fewer_than_two_eligible_entries' });
+        if (cycle.status === 'results_published' && !resultSnap.exists) canonicalIssues.push({ ballotId: canonicalBallot.id, issue: 'missing_result_snapshot' });
+        const entryIds = new Set(entriesSnap.docs.map(docSnap => docSnap.id));
+        (canonicalBallot.eligibleProofIds || []).forEach((id: string) => {
+          if (!entryIds.has(id)) canonicalIssues.push({ ballotId: canonicalBallot.id, issue: 'eligible_id_missing_entry_snapshot', proofId: id });
+        });
+      }
 
       res.json({
         success: true,
         seasonId,
         weekNumber,
+        cycle: {
+          id: cycle.id,
+          timezone: cycle.timezone,
+          status: cycle.status,
+          submissionStartsAt: cycle.submissionStart.toISOString(),
+          submissionEndsAt: cycle.submissionEnd.toISOString(),
+          ballotLocksAt: cycle.ballotLocksAt.toISOString(),
+          votingStartsAt: cycle.votingStart.toISOString(),
+          votingEndsAt: cycle.votingEnd.toISOString(),
+          resultsPublishAt: cycle.resultsPublishAt.toISOString()
+        },
         canonicalModel: {
-          cycleModel: 'src/services/votingCycleService.ts',
-          voteCollection: 'votes',
-          voteIdFormat: 'userId_seasonId_w{weekNumber}_{category}',
+          cycleModel: 'votingCycles/{cycleId}',
+          voteCollection: 'votingCycles/{cycleId}/ballots/{ballotId}/votes/{voterId}',
+          voteIdFormat: 'one document per voter per ballot',
           compatibility: WEEKLY_VOTING_COMPATIBILITY_NOTE
         },
         counts: {
+          canonicalCycleExists: cycleSnap.exists,
+          canonicalBallots: canonicalBallots.length,
           votes: votes.length,
           ballotExists: ballotSnap.exists,
           summaryExists: summarySnap.exists,
@@ -1117,6 +1568,7 @@ async function startServer() {
         duplicateSlots,
         malformedVoteIds,
         invalidVotes,
+        canonicalIssues,
         staleCycles,
         missingResultSnapshots,
         finalizedSnapshot: summary?.isLocked === true && !!summary?.voteWinners
@@ -1556,6 +2008,225 @@ async function startServer() {
       });
     } catch (error: any) {
       res.status(500).json({ error: "FAILED_COMMUNITY_FEED_REPAIR", message: error?.message || String(error) });
+    }
+  });
+
+  app.post("/api/admin/crew-memories/backfill", adminRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    if (!(await checkIsAdmin(req.user))) return res.status(403).json({ error: "ADMIN_REQUIRED" });
+
+    try {
+      const dryRun = req.body?.dryRun !== false;
+      const targetUserId = getBackendString(req.body?.userId || req.body?.uid);
+      const targetCrewId = getBackendString(req.body?.crewId);
+      const entriesSnap = targetUserId
+        ? await dbAdmin!.collection('entries').where('userId', '==', targetUserId).limit(500).get()
+        : await dbAdmin!.collection('entries').limit(1000).get();
+
+      const report = {
+        success: true,
+        dryRun,
+        scanned: entriesSnap.size,
+        personalArchiveEligible: 0,
+        crewArchiveEligible: 0,
+        crewArchiveWritten: 0,
+        entriesUpdated: 0,
+        skipped: [] as Array<{ id: string; reason: string; details?: any }>,
+        samples: {
+          personal: [] as string[],
+          crew: [] as string[],
+          skipped: [] as Array<{ id: string; reason: string; details?: any }>
+        }
+      };
+
+      let batch = dbAdmin!.batch();
+      let batchCount = 0;
+      const flush = async () => {
+        if (!dryRun && batchCount > 0) {
+          await batch.commit();
+          batch = dbAdmin!.batch();
+          batchCount = 0;
+        }
+      };
+
+      for (const entryDoc of entriesSnap.docs) {
+        const entry = { id: entryDoc.id, ...entryDoc.data() } as any;
+        const status = normalizeStatusBackend(entry.status || entry.reviewStatus || entry.approvalStatus || entry.submissionStatus || entry.proofStatus);
+        const userId = getBackendString(entry.userId || entry.uid || entry.ownerId);
+        const imageUrl = getBackendImageUrl(entry);
+        const storagePath = getBackendStoragePath(entry);
+        const hasMedia = !!(imageUrl || storagePath);
+        const hidden = entry.hidden === true || entry.isHidden === true || entry.deleted === true || entry.isDeleted === true || entry.moderation?.isHidden === true;
+
+        if (status !== 'approved') {
+          report.skipped.push({ id: entryDoc.id, reason: `not_approved:${status}` });
+          continue;
+        }
+        if (!userId) {
+          report.skipped.push({ id: entryDoc.id, reason: 'missing_owner' });
+          continue;
+        }
+        if (!hasMedia) {
+          report.skipped.push({ id: entryDoc.id, reason: 'missing_media' });
+          continue;
+        }
+        if (hidden) {
+          report.skipped.push({ id: entryDoc.id, reason: 'hidden_or_deleted' });
+          continue;
+        }
+
+        const seasonId = getBackendString(entry.crewContext?.crewSeasonId || entry.seasonId || entry.activeSeasonId) || null;
+        const submittedAt = entry.crewContext?.submittedAt || entry.submittedAt || entry.createdAt || entry.approvedAt || null;
+        const personalMemory = buildPersonalMemoryState({ ...entry, userId, seasonId, submittedAt });
+        report.personalArchiveEligible++;
+        if (report.samples.personal.length < 12) report.samples.personal.push(entryDoc.id);
+
+        const reliableCrewId = getBackendString(entry.crewContext?.crewId || entry.crewId);
+        if (!reliableCrewId) {
+          const update = {
+            personalMemory,
+            updatedAt: FieldValue.serverTimestamp()
+          };
+          if (!dryRun) {
+            batch.set(entryDoc.ref, update, { merge: true });
+            batchCount++;
+          }
+          report.entriesUpdated++;
+          if (batchCount >= 400) await flush();
+          continue;
+        }
+
+        if (targetCrewId && reliableCrewId !== targetCrewId) {
+          report.skipped.push({ id: entryDoc.id, reason: 'target_crew_mismatch', details: { reliableCrewId, targetCrewId } });
+          continue;
+        }
+
+        const [userSnap, memberSnap] = await Promise.all([
+          dbAdmin!.collection('users').doc(userId).get(),
+          dbAdmin!.collection('crews').doc(reliableCrewId).collection('members').doc(userId).get(),
+        ]);
+        const userData: any = userSnap.exists ? userSnap.data() : {};
+        const memberData: any = memberSnap.exists ? memberSnap.data() : null;
+        const legacyStarterIds = Array.isArray(userData.approvedCompletedChallengeIds)
+          ? userData.approvedCompletedChallengeIds.map((id: any) => String(id).toLowerCase())
+          : [];
+        const starterComplete = userData.starterDeckComplete === true ||
+          userData.onboardingCompleted === true ||
+          ['starter-1', 'starter-2', 'starter-3'].every(id => legacyStarterIds.includes(id));
+        const crewContext = {
+          crewId: reliableCrewId,
+          crewNameSnapshot: entry.crewContext?.crewNameSnapshot || entry.crewNameSnapshot || null,
+          crewMembershipId: entry.crewContext?.crewMembershipId || `${reliableCrewId}_${userId}`,
+          submittedAsCrewMember: true,
+          crewSeasonId: seasonId,
+          submittedAt,
+        };
+        const crewEntry = { ...entry, userId, crewId: reliableCrewId, seasonId, submittedAt, crewContext };
+        const exclusionReasons = getCrewMemoryExclusionReasons({
+          entry: crewEntry,
+          member: memberData,
+          activeSeasonId: seasonId,
+          starterComplete
+        });
+
+        if (!isCrewArchiveEligible({ entry: crewEntry, member: memberData, activeSeasonId: seasonId, starterComplete })) {
+          report.skipped.push({ id: entryDoc.id, reason: 'crew_memory_not_eligible', details: exclusionReasons });
+          continue;
+        }
+
+        const crewMemory = buildCrewMemoryState(crewEntry);
+        const snapshotId = `${reliableCrewId}_${entryDoc.id}`;
+        const archiveRef = dbAdmin!.collection('crewArchiveEntries').doc(snapshotId);
+        const score = Number(
+          entry.awardedXP ??
+          entry.pointsAwarded ??
+          entry.awardedPoints ??
+          entry.estimatedPoints ??
+          entry.xpValue ??
+          0
+        );
+        const archiveRecord = {
+          id: snapshotId,
+          crewId: reliableCrewId,
+          seasonId,
+          crewContext,
+          deckId: entry.deckId || null,
+          entryId: entryDoc.id,
+          ownerId: userId,
+          userId,
+          displayName: entry.displayName || entry.userName || entry.name || null,
+          ownerDisplayName: entry.displayName || entry.userName || entry.name || null,
+          userAvatar: entry.userAvatar || null,
+          missionId: entry.challengeId || entry.missionId || entry.tripId || null,
+          tripId: entry.tripId || entry.challengeId || entry.missionId || null,
+          missionTitle: entry.tripTitle || entry.challengeTitle || entry.missionTitle || 'Field Mission',
+          challengeTitle: entry.challengeTitle || entry.tripTitle || entry.missionTitle || 'Field Mission',
+          caption: entry.fieldNote || entry.note || '',
+          fieldNote: entry.fieldNote || entry.note || '',
+          imageRef: imageUrl || storagePath,
+          imageUrl: imageUrl || null,
+          photoUrl: imageUrl || null,
+          storagePath: storagePath || null,
+          score,
+          stickerIds: Array.isArray(entry.stickerIds) ? entry.stickerIds : [],
+          weeklyAwardIds: Array.isArray(entry.weeklyAwardIds) ? entry.weeklyAwardIds : [],
+          reactionCount: Number(entry.reactionCount || entry.likeCount || 0),
+          eligibilityReasons: crewMemory.eligibilityReasons,
+          archiveStatus: crewMemory.archiveStatus,
+          zineSelectionStatus: crewMemory.zineSelectionStatus,
+          zinePageId: crewMemory.zinePageId,
+          zinePageType: crewMemory.zinePageType,
+          crewMemory,
+          personalMemory,
+          zineEligible: true,
+          likeCount: entry.likeCount || 0,
+          submittedAt,
+          approvedAt: entry.approvedAt || entry.reviewedAt || FieldValue.serverTimestamp(),
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+          backfilledBy: req.user.uid,
+          backfilledAt: FieldValue.serverTimestamp()
+        };
+
+        report.crewArchiveEligible++;
+        report.crewArchiveWritten++;
+        report.entriesUpdated++;
+        if (report.samples.crew.length < 12) report.samples.crew.push(entryDoc.id);
+        if (!dryRun) {
+          batch.set(archiveRef, archiveRecord, { merge: true });
+          batch.set(entryDoc.ref, {
+            crewContext,
+            crewMemory,
+            personalMemory,
+            crewArchiveSnapshotId: snapshotId,
+            crewArchiveEligible: true,
+            updatedAt: FieldValue.serverTimestamp()
+          }, { merge: true });
+          batchCount += 2;
+          if (batchCount >= 400) await flush();
+        }
+      }
+
+      await flush();
+      report.samples.skipped = report.skipped.slice(0, 20);
+      if (!dryRun) {
+        await dbAdmin!.collection('adminRepairLogs').add({
+          actionType: 'backfill_crew_memories',
+          adminUid: req.user.uid,
+          targetUserId: targetUserId || null,
+          targetCrewId: targetCrewId || null,
+          scanned: report.scanned,
+          personalArchiveEligible: report.personalArchiveEligible,
+          crewArchiveEligible: report.crewArchiveEligible,
+          crewArchiveWritten: report.crewArchiveWritten,
+          skippedCount: report.skipped.length,
+          createdAt: FieldValue.serverTimestamp()
+        });
+      }
+
+      res.json(report);
+    } catch (error: any) {
+      res.status(500).json({ error: "FAILED_CREW_MEMORIES_BACKFILL", message: error?.message || String(error) });
     }
   });
 

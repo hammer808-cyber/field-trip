@@ -119,10 +119,7 @@ export function BottomNav() {
           );
         }
 
-        const isLockedTab = (
-          (itemPathname === '/voting' && !canAccessFeature(canonicalProgress, 'voting', { isAdmin })) ||
-          (itemPathname === '/big-board' && !canAccessFeature(canonicalProgress, 'voting', { isAdmin }))
-        );
+        const isLockedTab = itemPathname === '/big-board' && !canAccessFeature(canonicalProgress, 'voting', { isAdmin });
 
         return (
           <Link

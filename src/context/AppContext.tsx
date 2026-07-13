@@ -2220,6 +2220,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     const activeCrewId = profile.activeCrewId || profile.crewId || undefined;
+    const submittedAt = (entryData as any).submittedAt || new Date().toISOString();
+    const crewContext = activeCrewId ? {
+      crewId: activeCrewId,
+      crewNameSnapshot: (profile as any).crewName || (profile as any).activeCrewName || null,
+      crewMembershipId: `${activeCrewId}_${user.uid}`,
+      submittedAsCrewMember: true,
+      crewSeasonId: activeSeason?.id || (entryData as any).seasonId || null,
+      submittedAt,
+    } : {
+      crewId: null,
+      crewNameSnapshot: null,
+      crewMembershipId: null,
+      submittedAsCrewMember: false,
+      crewSeasonId: activeSeason?.id || (entryData as any).seasonId || null,
+      submittedAt,
+    };
 
     const result = await submitEntryLogic(
       user.uid,
@@ -2232,6 +2248,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         selectedLevel: (entryData.selectedLevel || 'Standard') as any,
         detourCompleted: entryData.detourCompleted || false,
         crewId: entryData.crewId || activeCrewId,
+        crewContext,
         userAvatar: profile.avatar || undefined, 
         
         // Pass through viewfinder meta
@@ -2240,7 +2257,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         uploadSource: entryData.uploadSource as any,
         photoTakenAt: (entryData as any).photoTakenAt,
         fileLastModifiedAt: (entryData as any).fileLastModifiedAt,
-        submittedAt: entryData.submittedAt,
+        submittedAt,
         metadataStatus: entryData.metadataStatus as any,
         captureTrustLevel: entryData.captureTrustLevel as any,
         filterUsed: (entryData as any).filterUsed,

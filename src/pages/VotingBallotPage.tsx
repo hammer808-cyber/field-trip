@@ -1,9 +1,15 @@
 import React from 'react';
 import { VotingHub } from '../components/VotingHub';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useApp } from '../context/AppContext';
+import { getStarterProgress } from '../services/canonicalProgress';
 
 export default function VotingBallotPage() {
+  const { canonicalProgress } = useApp();
+  const starterProgress = getStarterProgress(canonicalProgress);
+  const isVotingUnlocked = starterProgress.starterComplete === true;
+
   return (
     <div className="pb-40 px-6 pt-24 space-y-20 max-w-7xl mx-auto relative overflow-hidden bg-white min-h-screen">
       {/* Decorative background element */}
@@ -40,7 +46,32 @@ export default function VotingBallotPage() {
       </header>
 
       <main className="animate-in fade-in slide-in-from-bottom-12 duration-700 relative z-10">
-        <VotingHub />
+        {isVotingUnlocked ? (
+          <VotingHub />
+        ) : (
+          <section className="max-w-3xl mx-auto border-4 border-on-surface bg-[#fff8e8] p-8 text-center shadow-[10px_10px_0px_black] rounded-[2rem]">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border-4 border-on-surface bg-brand-magenta text-white shadow-[5px_5px_0px_black]">
+              <Lock className="h-10 w-10" />
+            </div>
+            <h2 className="mt-5 font-display text-4xl sm:text-6xl font-black italic uppercase leading-none">
+              Ballot booth locked
+            </h2>
+            <p className="mx-auto mt-3 max-w-lg font-serif italic text-on-surface/65">
+              Voting unlocks after your 3 Starter Signals are approved. The Voting page still opens; the ballot itself waits for field onboarding.
+            </p>
+            <div className="mx-auto mt-6 max-w-sm border-2 border-on-surface bg-white p-3 shadow-[3px_3px_0px_black]">
+              <p className="font-mono text-[10px] font-black uppercase tracking-widest text-brand-orange">
+                Starter approvals: {Math.min(3, Math.max(0, starterProgress.starterApprovedCount))} / 3
+              </p>
+            </div>
+            <Link
+              to="/voting"
+              className="mt-6 inline-flex items-center justify-center gap-2 border-4 border-on-surface bg-brand-lime px-6 py-3 font-display text-lg font-black italic uppercase shadow-[5px_5px_0px_black] active:translate-y-1 active:shadow-none"
+            >
+              Back to Voting
+            </Link>
+          </section>
+        )}
       </main>
     </div>
   );

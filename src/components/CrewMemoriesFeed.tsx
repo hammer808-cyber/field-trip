@@ -14,7 +14,9 @@ import {
   Award,
   CheckCircle2, 
   HelpCircle,
-  ThumbsUp
+  ThumbsUp,
+  Archive,
+  BookOpen
 } from 'lucide-react';
 import { auth, db } from '../lib/firebase';
 import { useApp } from '../context/AppContext';
@@ -29,11 +31,13 @@ import {
 } from '../services/reactionService';
 
 import { ProofImage } from './ProofImage';
+import { EmptyStatePanel, FieldtripLoader } from './FieldtripLoader';
+import { cn } from '../lib/utils';
 
 const AVAILABLE_EMOJIS = ['🔥', '😂', '🤯', '😎', '👏', '🙌', '🎉', '❤️'];
 
 export function CrewMemoriesFeed() {
-  const { profile } = useApp();
+  const { profile, activeSeason } = useApp();
   const navigate = useNavigate();
   const currentUser = auth.currentUser;
   
@@ -86,6 +90,11 @@ export function CrewMemoriesFeed() {
           proofImage: data.imageRef || data.proofImage || data.imageUrl || data.photoUrl,
           storagePath: data.storagePath,
           likeCount: data.likeCount || 0,
+          crewMemory: data.crewMemory || null,
+          personalMemory: data.personalMemory || null,
+          eligibilityReasons: Array.isArray(data.eligibilityReasons) ? data.eligibilityReasons : data.crewMemory?.eligibilityReasons || [],
+          archiveStatus: data.archiveStatus || data.crewMemory?.archiveStatus || 'candidate',
+          zineSelectionStatus: data.zineSelectionStatus || data.crewMemory?.zineSelectionStatus || 'not_selected',
           awardedXP: data.score || data.awardedXP || data.pointsAwarded || 0,
           xpValue: data.score || data.awardedXP || data.pointsAwarded || 0,
           xpAwarded: data.score || data.awardedXP || data.pointsAwarded || 0,
@@ -219,14 +228,11 @@ export function CrewMemoriesFeed() {
 
   if (!crewId) {
     return (
-      <div className="p-8 border-[3.5px] border-on-surface bg-[#FFFCEB] rounded-2xl shadow-[8px_8px_0px_black] text-center space-y-6 max-w-xl mx-auto rotate-[-0.5deg]">
-        <Users className="w-16 h-16 mx-auto text-brand-orange animate-bounce" />
-        <div className="space-y-2">
-          <h3 className="font-display font-black text-2xl uppercase tracking-tight text-on-surface">No Scattered Crew Found</h3>
-          <p className="font-serif italic text-sm text-on-surface/70 leading-relaxed">
-            "Every summer memory needs an audience. Form or join a crew in Basecamp so your weird little discoveries have somewhere to land."
-          </p>
-        </div>
+      <EmptyStatePanel
+        title="No crew on the clipboard yet"
+        body="A Fieldtrip with one person is still a trip. It is just less chaotic. Join or form a crew so shared receipts can become Crew Archive material."
+        icon={<Users className="w-8 h-8" />}
+        action={
         <button 
           onClick={() => navigate('/basecamp')}
           className="px-6 py-3 bg-brand-orange text-white font-display font-black uppercase text-sm border-3 border-on-surface shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none transition-all hover:bg-brand-orange-dark inline-flex items-center gap-2"
@@ -234,25 +240,31 @@ export function CrewMemoriesFeed() {
           <span>Go to Basecamp</span>
           <ArrowRight className="w-4 h-4" />
         </button>
-      </div>
+        }
+      />
     );
   }
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 space-y-4">
-        <div className="w-10 h-10 border-4 border-brand-orange border-t-transparent rounded-full animate-spin" />
-        <p className="font-mono text-xs uppercase tracking-widest text-on-surface/60">Scanning memory reels...</p>
-      </div>
+      <FieldtripLoader
+        variant="memories"
+        label="Crew Archive"
+        estimatedStep="ASSEMBLING ZINE MATERIAL"
+        showProgress
+      />
     );
   }
 
   return (
-    <div className="space-y-8 max-w-2xl mx-auto">
+    <div className="space-y-8 max-w-3xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b-4 border-on-surface/10 pb-6">
         <div>
-          <h2 className="text-3xl font-display font-black uppercase italic tracking-tighter text-on-surface">Crew Memories Feed</h2>
-          <p className="text-xs font-mono text-on-surface/50 uppercase tracking-wider">Approved snapshots from your scouting crew</p>
+          <p className="font-mono text-[9px] font-black uppercase tracking-[0.24em] text-brand-orange">The shared evidence locker</p>
+          <h2 className="text-4xl font-display font-black uppercase italic tracking-tighter text-on-surface">Crew Archive</h2>
+          <p className="text-xs font-mono text-on-surface/50 uppercase tracking-wider">
+            Approved crew-season receipts. Zine selections are curated from this archive.
+          </p>
         </div>
         <button
           onClick={() => navigate('/missions')}
@@ -264,29 +276,44 @@ export function CrewMemoriesFeed() {
       </div>
 
       {entries.length === 0 ? (
-        <div className="p-10 border-[3.5px] border-on-surface bg-[#FAFAFA] rounded-2xl shadow-[6px_6px_0px_black] text-center space-y-6 max-w-lg mx-auto">
-          <div className="text-5xl select-none animate-pulse">🎞️</div>
-          <div className="space-y-2">
-            <h4 className="font-display font-black text-xl uppercase text-on-surface">Reel is Empty</h4>
-            <p className="font-serif italic text-xs leading-relaxed text-on-surface/60 max-w-sm mx-auto">
-              "No approved field photos have landed here yet. Gear up, head outside, draw a card, and submit matching proof to earn points and populate the feed!"
-            </p>
-          </div>
+        <EmptyStatePanel
+          title="No crew memories yet"
+          body="The archive is waiting for evidence. Approved crew submissions appear here automatically; weekly winners, captain picks, and crew lore can become zine moments later."
+          icon={<Archive className="w-8 h-8" />}
+          action={
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <button 
             onClick={() => navigate('/missions')}
-            className="w-full sm:w-auto px-6 py-4 bg-brand-lime text-black font-display font-black uppercase text-sm border-3 border-on-surface shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none transition-all hover:bg-opacity-90 flex items-center justify-center gap-2 mx-auto"
+            className="px-5 py-3 bg-brand-lime text-black font-display font-black uppercase text-sm border-3 border-on-surface shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none transition-all hover:bg-opacity-90 flex items-center justify-center gap-2"
           >
-            <span>Draw a Mission Card</span>
+            <span>Submit a Crew Receipt</span>
             <ArrowRight className="w-4 h-4" />
           </button>
+          <button
+            onClick={() => navigate('/crew')}
+            className="px-5 py-3 bg-white text-on-surface font-display font-black uppercase text-sm border-3 border-on-surface shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2"
+          >
+            <span>View Crew Challenges</span>
+            <Users className="w-4 h-4" />
+          </button>
         </div>
+          }
+        />
       ) : (
         <div className="space-y-12">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <ArchiveMetric label="Archive Receipts" value={entries.length} />
+            <ArchiveMetric label="Zine Candidates" value={entries.filter(e => String((e as any).zineSelectionStatus || '').includes('candidate') || String((e as any).zineSelectionStatus || '').includes('selected')).length} />
+            <ArchiveMetric label="Season" value={activeSeason?.title || activeSeason?.id || 'Active'} compact />
+          </div>
           {entries.map((entry, idx) => {
             const displayImage = entry.imageUrl || entry.photoUrl || entry.proofImage;
             const pointsValue = entry.awardedXP || entry.pointsAwarded || entry.awardedPoints || entry.estimatedPoints || 100;
             const entryReactions = getReactionsSummary(entry.id);
             const isLiked = !!likedMap[entry.id];
+            const eligibilityReasons = Array.isArray((entry as any).eligibilityReasons) ? (entry as any).eligibilityReasons : [];
+            const archiveStatus = String((entry as any).archiveStatus || 'candidate');
+            const zineSelectionStatus = String((entry as any).zineSelectionStatus || 'not_selected');
             
             // Random slant angles for scrapbook/polaroid effect
             const slant = (idx % 2 === 0 ? 'rotate-[1deg]' : 'rotate-[-1deg]');
@@ -326,12 +353,20 @@ export function CrewMemoriesFeed() {
                   </div>
 
                   {/* Points Earned Sticker */}
-                  <div className="bg-brand-cyan border-2 border-on-surface px-2.5 py-1 text-center shadow-[2px_2px_0px_black] rotate-[4deg]">
+	                  <div className="bg-brand-cyan border-2 border-on-surface px-2.5 py-1 text-center shadow-[2px_2px_0px_black] rotate-[4deg]">
                     <span className="font-display font-black text-xs uppercase tracking-wider text-on-surface flex items-center gap-1">
                       <Award className="w-3 h-3" />
                       +{pointsValue} XP
                     </span>
-                  </div>
+	                  </div>
+	                </div>
+
+                <div className="mb-4 flex flex-wrap gap-2">
+                  <CrewMemoryBadge icon={<Archive className="w-3 h-3" />} label={archiveStatus.replace(/_/g, ' ')} tone={archiveStatus === 'featured' ? 'lime' : 'cyan'} />
+                  <CrewMemoryBadge icon={<BookOpen className="w-3 h-3" />} label={`zine: ${zineSelectionStatus.replace(/_/g, ' ')}`} tone={zineSelectionStatus === 'not_selected' ? 'paper' : 'orange'} />
+                  {(eligibilityReasons.length ? eligibilityReasons : ['approved_crew_submission']).slice(0, 3).map((reason: string) => (
+                    <CrewMemoryBadge key={reason} label={reason.replace(/_/g, ' ')} tone="paper" />
+                  ))}
                 </div>
 
                 {/* Subtitle / Challenge Descriptor */}
@@ -462,5 +497,37 @@ export function CrewMemoriesFeed() {
         </div>
       )}
     </div>
+  );
+}
+
+function ArchiveMetric({ label, value, compact = false }: { label: string; value: React.ReactNode; compact?: boolean }) {
+  return (
+    <div className="border-2 border-on-surface bg-white p-3 shadow-[3px_3px_0px_black]">
+      <p className="font-mono text-[8px] font-black uppercase tracking-widest text-on-surface/40">{label}</p>
+      <p className={cn("mt-1 font-display font-black italic uppercase leading-none", compact ? "text-lg" : "text-3xl")}>{value}</p>
+    </div>
+  );
+}
+
+function CrewMemoryBadge({
+  label,
+  icon,
+  tone = 'paper',
+}: {
+  label: string;
+  icon?: React.ReactNode;
+  tone?: 'paper' | 'cyan' | 'lime' | 'orange';
+}) {
+  return (
+    <span className={cn(
+      "inline-flex items-center gap-1 border-2 border-on-surface px-2 py-1 font-mono text-[8px] font-black uppercase tracking-widest shadow-[2px_2px_0px_black]",
+      tone === 'cyan' && "bg-brand-cyan text-on-surface",
+      tone === 'lime' && "bg-brand-lime text-on-surface",
+      tone === 'orange' && "bg-brand-orange text-white",
+      tone === 'paper' && "bg-[#fff8e8] text-on-surface"
+    )}>
+      {icon}
+      {label}
+    </span>
   );
 }

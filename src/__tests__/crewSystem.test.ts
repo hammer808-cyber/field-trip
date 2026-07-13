@@ -4,11 +4,14 @@ import {
   CREW_SWITCH_COOLDOWN_DAYS,
   CREW_ZINE_PAGE_BLUEPRINT,
   addDays,
+  buildCrewMemoryState,
+  buildPersonalMemoryState,
   canApproveJoinRequest,
   canInviteToCrew,
   canPromoteCrewMember,
   canRemoveCrewCaptainRole,
   canRemoveCrewMember,
+  getCrewMemoryExclusionReasons,
   getCrewJoinBlockReason,
   hasCrewOnboardingAccess,
   isCrewArchiveEligible,
@@ -75,6 +78,78 @@ test('approved seasonal receipts submitted after joining are Crew archive eligib
         submittedAt: afterJoin,
       },
       member: { status: 'active', crewEligibleFrom: joinedAt },
+      activeSeasonId: 'heatwave-receipts',
+      starterComplete: true,
+    }),
+    true
+  );
+});
+
+test('approved personal-only proof becomes a Personal Memory but not a Crew Memory', () => {
+  const personal = buildPersonalMemoryState({
+    userId: 'user-1',
+    seasonId: 'heatwave-receipts',
+    status: 'approved',
+    submittedAt: afterJoin,
+  });
+  const crewReasons = getCrewMemoryExclusionReasons({
+    entry: {
+      userId: 'user-1',
+      seasonId: 'heatwave-receipts',
+      status: 'approved',
+      submittedAt: afterJoin,
+    },
+    member: null,
+    activeSeasonId: 'heatwave-receipts',
+    starterComplete: true,
+  });
+
+  assert.equal(personal.isEligible, true);
+  assert.equal(personal.archiveStatus, 'candidate');
+  assert.ok(crewReasons.includes('missing_crew_context'));
+  assert.ok(crewReasons.includes('missing_membership_snapshot'));
+});
+
+test('approved crew proof records archive and zine candidate state separately', () => {
+  const crewMemory = buildCrewMemoryState({
+    userId: 'user-1',
+    crewId: 'crew-1',
+    seasonId: 'heatwave-receipts',
+    status: 'approved',
+    submittedAt: afterJoin,
+    weeklyAwardIds: ['best_photo_proof'],
+  });
+
+  assert.equal(crewMemory.isEligible, true);
+  assert.equal(crewMemory.archiveStatus, 'featured');
+  assert.equal(crewMemory.zineSelectionStatus, 'candidate');
+  assert.equal(crewMemory.featuredBy, 'weekly_vote');
+  assert.deepEqual(
+    crewMemory.eligibilityReasons.filter(reason => reason === 'approved_crew_submission' || reason === 'weekly_vote_winner'),
+    ['approved_crew_submission', 'weekly_vote_winner']
+  );
+});
+
+test('user who leaves a crew after submitting keeps historical Crew archive eligibility', () => {
+  assert.equal(
+    isCrewArchiveEligible({
+      entry: {
+        userId: 'user-1',
+        crewContext: {
+          crewId: 'crew-1',
+          crewNameSnapshot: 'Parking Lot Legends',
+          crewMembershipId: 'crew-1_user-1',
+          submittedAsCrewMember: true,
+          crewSeasonId: 'heatwave-receipts',
+          submittedAt: afterJoin,
+        },
+        seasonId: 'heatwave-receipts',
+        deckId: 'heatwave-receipts',
+        missionId: 'heatwave-1',
+        status: 'approved',
+        submittedAt: afterJoin,
+      },
+      member: { status: 'left', crewEligibleFrom: joinedAt },
       activeSeasonId: 'heatwave-receipts',
       starterComplete: true,
     }),

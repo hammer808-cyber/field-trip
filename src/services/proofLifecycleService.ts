@@ -17,7 +17,7 @@ import { Entry } from '../types/game';
 import { normalizeEntryStatus } from '../logic/entryLogic';
 import { awardSubmissionPointsOnce } from './submission-utils';
 import { getProofRubricScoring, type ProofRubricScoring } from '../logic/proofRubric';
-import { isCrewArchiveEligible } from '../logic/crewSystem';
+import { buildCrewMemoryState, buildPersonalMemoryState, isCrewArchiveEligible } from '../logic/crewSystem';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 export type CanonicalProofStatus = 'draft' | 'uploading' | 'pending_review' | 'approved' | 'needs_more_proof' | 'rejected' | 'submission_failed' | 'upload_incomplete';
@@ -515,7 +515,7 @@ async function persistCrewArchiveSnapshot(canonicalEntryId: string) {
   if (!entrySnap.exists()) return;
 
   const entryData: any = { id: canonicalEntryId, ...entrySnap.data() };
-  const crewId = String(entryData.crewId || '').trim();
+  const crewId = String(entryData.crewContext?.crewId || entryData.crewId || '').trim();
   const userId = getCanonicalUserId(entryData);
   if (!crewId || !userId) return;
 
@@ -532,10 +532,20 @@ async function persistCrewArchiveSnapshot(canonicalEntryId: string) {
     userData.onboardingCompleted === true ||
     ['starter-1', 'starter-2', 'starter-3'].every(id => legacyStarterIds.includes(id));
   const memberData: any = memberSnap.exists() ? memberSnap.data() : null;
-  const seasonId = entryData.seasonId || memberData?.seasonEligibility?.seasonId || null;
+  const submittedAt = entryData.crewContext?.submittedAt || entryData.submittedAt || entryData.createdAt || null;
+  const seasonId = entryData.crewContext?.crewSeasonId || entryData.seasonId || memberData?.seasonEligibility?.seasonId || null;
+  const crewContext = {
+    crewId,
+    crewNameSnapshot: entryData.crewContext?.crewNameSnapshot || entryData.crewNameSnapshot || null,
+    crewMembershipId: entryData.crewContext?.crewMembershipId || `${crewId}_${userId}`,
+    submittedAsCrewMember: true,
+    crewSeasonId: seasonId,
+    submittedAt,
+  };
+  const archiveEntryLike = { ...entryData, userId, crewId, seasonId, crewContext, submittedAt };
 
   if (!isCrewArchiveEligible({
-    entry: { ...entryData, userId, crewId, seasonId },
+    entry: archiveEntryLike,
     member: memberData,
     activeSeasonId: seasonId,
     starterComplete,
@@ -556,14 +566,19 @@ async function persistCrewArchiveSnapshot(canonicalEntryId: string) {
   );
 
   const batch = writeBatch(db);
+  const crewMemory = buildCrewMemoryState(archiveEntryLike);
+  const personalMemory = buildPersonalMemoryState({ ...entryData, userId, seasonId });
   batch.set(archiveRef, {
     id: snapshotId,
     crewId,
     seasonId,
+    crewContext,
     deckId: entryData.deckId || null,
     entryId: canonicalEntryId,
+    ownerId: userId,
     userId,
     displayName: entryData.displayName || entryData.userName || entryData.name || null,
+    ownerDisplayName: entryData.displayName || entryData.userName || entryData.name || null,
     userAvatar: entryData.userAvatar || null,
     missionId: getCanonicalChallengeId(entryData),
     tripId: entryData.tripId || getCanonicalChallengeId(entryData),
@@ -573,16 +588,30 @@ async function persistCrewArchiveSnapshot(canonicalEntryId: string) {
     fieldNote: entryData.fieldNote || entryData.note || '',
     imageRef,
     imageUrl: getCanonicalImageUrl(entryData) || null,
+    photoUrl: getCanonicalImageUrl(entryData) || null,
     storagePath: getCanonicalStoragePath(entryData) || null,
     score,
+    stickerIds: Array.isArray(entryData.stickerIds) ? entryData.stickerIds : [],
+    weeklyAwardIds: Array.isArray(entryData.weeklyAwardIds) ? entryData.weeklyAwardIds : [],
+    reactionCount: Number(entryData.reactionCount || entryData.likeCount || 0),
+    eligibilityReasons: crewMemory.eligibilityReasons,
+    archiveStatus: crewMemory.archiveStatus,
+    zineSelectionStatus: crewMemory.zineSelectionStatus,
+    zinePageId: crewMemory.zinePageId,
+    zinePageType: crewMemory.zinePageType,
+    crewMemory,
+    personalMemory,
     zineEligible: true,
     likeCount: entryData.likeCount || 0,
-    submittedAt: entryData.submittedAt || entryData.createdAt || null,
+    submittedAt,
     approvedAt: entryData.approvedAt || entryData.reviewedAt || serverTimestamp(),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   }, { merge: true });
   batch.set(entryRef, {
+    crewContext,
+    crewMemory,
+    personalMemory,
     crewArchiveSnapshotId: snapshotId,
     crewArchiveEligible: true,
     updatedAt: serverTimestamp(),

@@ -112,6 +112,22 @@ export interface OrphanReviewCleanupReport {
   errors: string[];
 }
 
+export interface CrewMemoriesBackfillReport {
+  success: boolean;
+  dryRun: boolean;
+  scanned: number;
+  personalArchiveEligible: number;
+  crewArchiveEligible: number;
+  crewArchiveWritten: number;
+  entriesUpdated: number;
+  skipped: Array<{ id: string; reason: string; details?: any }>;
+  samples?: {
+    personal?: string[];
+    crew?: string[];
+    skipped?: Array<{ id: string; reason: string; details?: any }>;
+  };
+}
+
 async function readAdminJson<T = any>(response: Response, fallbackMessage: string): Promise<T> {
   const contentType = response.headers.get('content-type') || '';
 
@@ -438,4 +454,22 @@ export async function runBetaHardReset(params: {
   });
 
   return readAdminJson<BetaHardResetReport>(response, `Beta hard reset failed with HTTP ${response.status}`);
+}
+
+export async function backfillCrewMemories(params: {
+  dryRun?: boolean;
+  userId?: string;
+  crewId?: string;
+} = {}): Promise<CrewMemoriesBackfillReport> {
+  const response = await authenticatedFetch('/api/admin/crew-memories/backfill', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      dryRun: params.dryRun !== false,
+      userId: params.userId || undefined,
+      crewId: params.crewId || undefined,
+    })
+  });
+
+  return readAdminJson<CrewMemoriesBackfillReport>(response, `Crew Memories backfill failed with HTTP ${response.status}`);
 }

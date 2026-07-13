@@ -49,6 +49,14 @@ export async function submitTripEntry(
     selectedLevel: ChallengeLevel;
     detourCompleted: boolean;
     crewId?: string;
+    crewContext?: {
+      crewId: string | null;
+      crewNameSnapshot: string | null;
+      crewMembershipId: string | null;
+      submittedAsCrewMember: boolean;
+      crewSeasonId: string | null;
+      submittedAt: any;
+    };
     isChaosModifierCompleted?: boolean;
     isSabotageSurvived?: boolean;
     sabotageSeverity?: 'minor' | 'major';
@@ -294,6 +302,15 @@ export async function submitTripEntry(
       selectedCategory: (entryData as any).selectedCategory || entryData.selectedLevel || 'Standard',
       selectedLevel: entryData.selectedLevel || 'Standard', // Legacy
       findingType: entryData.findingType || null,
+      crewId: entryData.crewContext?.crewId || entryData.crewId || null,
+      crewContext: entryData.crewContext || {
+        crewId: entryData.crewId || null,
+        crewNameSnapshot: null,
+        crewMembershipId: null,
+        submittedAsCrewMember: !!entryData.crewId,
+        crewSeasonId: activeSeason?.id || null,
+        submittedAt: entryData.submittedAt || null,
+      },
 
       // Catalyst Meta
       catalystId: catalyst ? catalyst.id : null,

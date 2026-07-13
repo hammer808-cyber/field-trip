@@ -11,6 +11,9 @@ export type CrewZineStatus = 'collecting' | 'curating' | 'published';
 export type CrewInviteType = 'direct' | 'share_link';
 export type CrewInviteStatus = 'pending' | 'accepted' | 'declined' | 'revoked' | 'expired';
 export type CrewJoinRequestStatus = 'pending' | 'approved' | 'declined' | 'cancelled';
+export type CrewMemoryArchiveStatus = 'not_eligible' | 'candidate' | 'archived' | 'featured' | 'excluded';
+export type CrewMemoryZineSelectionStatus = 'not_selected' | 'candidate' | 'selected' | 'cover_candidate' | 'published';
+export type PersonalMemoryArchiveStatus = 'candidate' | 'archived' | 'featured' | 'excluded';
 
 export const CREW_PRIVACY_VALUES: CrewPrivacy[] = ['invite_only', 'link_request', 'discoverable'];
 export const CREW_MODE_VALUES: CrewMode[] = ['competitive', 'friendly'];
@@ -54,6 +57,33 @@ export interface CrewArchiveEntryLike {
   missionId?: string | null;
   tripId?: string | null;
   status?: string | null;
+  crewContext?: {
+    crewId?: string | null;
+    crewNameSnapshot?: string | null;
+    crewMembershipId?: string | null;
+    submittedAsCrewMember?: boolean;
+    crewSeasonId?: string | null;
+    submittedAt?: any;
+  } | null;
+  crewChallengeId?: string | null;
+  crewMissionId?: string | null;
+  isCrewChallenge?: boolean;
+  weeklyAwardIds?: string[];
+  stickerIds?: string[];
+  reactionCount?: number;
+  captainHighlight?: boolean;
+  adminHighlight?: boolean;
+  tribunalLore?: boolean;
+  hidden?: boolean;
+  archived?: boolean;
+  deleted?: boolean;
+  isDeleted?: boolean;
+  disqualified?: boolean;
+  isDisqualified?: boolean;
+  moderation?: {
+    isHidden?: boolean;
+    excludedFromCrewMemories?: boolean;
+  } | null;
   submittedAt?: any;
   createdAt?: any;
 }
@@ -199,22 +229,113 @@ export function isApprovedStatus(status: unknown): boolean {
   return ['approved', 'approved_by_admin', 'auto_approved', 'completed', 'retry-approved'].includes(String(status || '').toLowerCase());
 }
 
+export function getCrewContextCrewId(entry: CrewArchiveEntryLike): string {
+  return String(entry.crewContext?.crewId || entry.crewId || '').trim();
+}
+
+export function getCrewMemorySeasonId(entry: CrewArchiveEntryLike): string {
+  return String(entry.crewContext?.crewSeasonId || entry.seasonId || '').trim();
+}
+
+export function getCrewMemorySubmittedAt(entry: CrewArchiveEntryLike): any {
+  return entry.crewContext?.submittedAt || entry.submittedAt || entry.createdAt;
+}
+
+export function getCrewMemoryExclusionReasons(params: {
+  entry: CrewArchiveEntryLike;
+  member: CrewMemberLike | null | undefined;
+  activeSeasonId?: string | null;
+  starterComplete: boolean;
+}): string[] {
+  const { entry, member, activeSeasonId, starterComplete } = params;
+  const reasons: string[] = [];
+  const crewId = getCrewContextCrewId(entry);
+  const seasonId = getCrewMemorySeasonId(entry);
+  const userId = entry.userId || entry.uid;
+  if (!crewId) reasons.push('missing_crew_context');
+  if (!seasonId) reasons.push('missing_season');
+  if (!userId) reasons.push('missing_owner');
+  if (!isApprovedStatus(entry.status)) reasons.push(`status:${String(entry.status || 'missing')}`);
+  if (isStarterReceipt(entry)) reasons.push('starter_receipt');
+  if (starterComplete !== true) reasons.push('starter_incomplete');
+  if (activeSeasonId && seasonId && seasonId !== activeSeasonId) reasons.push('season_mismatch');
+  if (entry.hidden || entry.archived || entry.deleted || entry.isDeleted || entry.disqualified || entry.isDisqualified || entry.moderation?.isHidden || entry.moderation?.excludedFromCrewMemories) {
+    reasons.push('hidden_or_disqualified');
+  }
+  if (!member) {
+    reasons.push('missing_membership_snapshot');
+  } else if (member.status === 'removed') {
+    reasons.push('member_removed');
+  }
+
+  const submittedAt = toMillis(getCrewMemorySubmittedAt(entry));
+  const eligibleFrom = toMillis(member?.crewEligibleFrom || member?.joinedAt);
+  if (!submittedAt) reasons.push('missing_submitted_at');
+  if (!eligibleFrom) reasons.push('missing_membership_start');
+  if (submittedAt && eligibleFrom && submittedAt < eligibleFrom) reasons.push('pre_membership_submission');
+  return reasons;
+}
+
+export function getCrewMemoryEligibilityReasons(entry: CrewArchiveEntryLike): string[] {
+  const reasons = new Set<string>();
+  if (getCrewContextCrewId(entry)) reasons.add('approved_crew_submission');
+  if (entry.isCrewChallenge || entry.crewChallengeId || entry.crewMissionId) reasons.add('crew_challenge');
+  if (Array.isArray(entry.weeklyAwardIds) && entry.weeklyAwardIds.length > 0) {
+    reasons.add('weekly_vote_nominee');
+    reasons.add('weekly_vote_winner');
+  }
+  if (entry.tribunalLore) reasons.add('tribunal_lore');
+  if (entry.captainHighlight) reasons.add('captain_highlight');
+  if (entry.adminHighlight) reasons.add('admin_highlight');
+  if (Number(entry.reactionCount || 0) >= 3) reasons.add('high_reaction_count');
+  if (Array.isArray(entry.stickerIds) && entry.stickerIds.length > 0) reasons.add('sticker_milestone');
+  return Array.from(reasons);
+}
+
+export function buildCrewMemoryState(entry: CrewArchiveEntryLike) {
+  const eligibilityReasons = getCrewMemoryEligibilityReasons(entry);
+  const featured = eligibilityReasons.some(reason => [
+    'weekly_vote_winner',
+    'tribunal_lore',
+    'captain_highlight',
+    'admin_highlight',
+    'high_reaction_count',
+  ].includes(reason));
+  return {
+    isEligible: eligibilityReasons.length > 0,
+    eligibilityReasons,
+    archiveStatus: (featured ? 'featured' : 'candidate') as CrewMemoryArchiveStatus,
+    seasonId: getCrewMemorySeasonId(entry) || null,
+    crewId: getCrewContextCrewId(entry) || null,
+    featuredBy: featured
+      ? (eligibilityReasons.includes('admin_highlight') ? 'admin'
+        : eligibilityReasons.includes('captain_highlight') ? 'captain'
+          : eligibilityReasons.includes('weekly_vote_winner') ? 'weekly_vote'
+            : eligibilityReasons.includes('tribunal_lore') ? 'tribunal'
+              : 'system')
+      : null,
+    featuredAt: null,
+    zineSelectionStatus: (featured ? 'candidate' : 'not_selected') as CrewMemoryZineSelectionStatus,
+    zinePageId: null,
+    zinePageType: null,
+  };
+}
+
+export function buildPersonalMemoryState(entry: CrewArchiveEntryLike) {
+  return {
+    isEligible: isApprovedStatus(entry.status) && !entry.hidden && !entry.deleted && !entry.isDeleted,
+    seasonId: entry.seasonId || null,
+    archiveStatus: 'candidate' as PersonalMemoryArchiveStatus,
+    zineSelectionStatus: 'not_selected' as 'not_selected' | 'selected' | 'published',
+    zinePageId: null,
+  };
+}
+
 export function isCrewArchiveEligible(params: {
   entry: CrewArchiveEntryLike;
   member: CrewMemberLike | null | undefined;
   activeSeasonId?: string | null;
   starterComplete: boolean;
 }): boolean {
-  const { entry, member, activeSeasonId, starterComplete } = params;
-  if (!entry.crewId || !entry.seasonId || !entry.userId && !entry.uid) return false;
-  if (!isApprovedStatus(entry.status)) return false;
-  if (isStarterReceipt(entry)) return false;
-  if (starterComplete !== true) return false;
-  if (activeSeasonId && entry.seasonId !== activeSeasonId) return false;
-  if (!member || member.status !== 'active') return false;
-
-  const submittedAt = toMillis(entry.submittedAt || entry.createdAt);
-  const eligibleFrom = toMillis(member.crewEligibleFrom || member.joinedAt);
-  if (!submittedAt || !eligibleFrom) return false;
-  return submittedAt >= eligibleFrom;
+  return getCrewMemoryExclusionReasons(params).length === 0;
 }

@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Card } from './UI';
+import { FieldtripLoader } from './FieldtripLoader';
 import { VoteCategory, Entry } from '../types/game';
 import { getVoteStandings } from '../services/voteService';
 import { collection, query, where, getDocs, limit, getDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Award, Check, FileCheck2, Inbox, Lock, MapPin, Sparkles, Stamp, Ticket, Trophy } from 'lucide-react';
+import { Award, Check, FileCheck2, Lock, MapPin, Sparkles, Stamp, Ticket, Trophy } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { getServerDate } from '../services/timeService';
@@ -357,12 +358,13 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
             </div>
 
             {loading ? (
-              <div className="border-4 border-dashed border-on-surface/20 bg-on-surface/[0.03] p-12 text-center">
-                <motion.div animate={reduceMotion ? {} : { rotate: 360 }} transition={{ repeat: Infinity, duration: 2 }}>
-                  <Inbox className="mx-auto h-12 w-12 text-on-surface/30" />
-                </motion.div>
-                <p className="mt-4 font-display text-2xl font-black italic uppercase text-on-surface/45">Sorting receipts</p>
-              </div>
+              <FieldtripLoader
+                variant="voting"
+                label="Opening Field Awards"
+                estimatedStep="BALLOT BOX"
+                compact
+                showProgress
+              />
             ) : isLocked ? (
               <ResultsState winners={winners} selectedCategory={selectedCategory} entries={eligibleEntries} />
             ) : !isVotingOpen ? (

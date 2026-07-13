@@ -9,17 +9,116 @@
  */
 
 export interface VotingCycle {
+  id: string;
+  seasonId?: string;
+  timezone: 'America/Los_Angeles';
   weekStart: Date;
   weekEnd: Date;
   submissionStart: Date;
   submissionEnd: Date;
+  ballotLocksAt: Date;
   votingStart: Date;
   votingEnd: Date;
+  resultsPublishAt: Date;
   awardsStart: Date;
   awardsEnd: Date;
+  status: VotingCycleStatus;
+  ballotVersion: number;
 }
 
 export type VotingPhase = 'submission' | 'voting' | 'awards';
+export type VotingCycleStatus =
+  | 'upcoming'
+  | 'submissions_open'
+  | 'ballots_locked'
+  | 'voting_open'
+  | 'results_pending'
+  | 'results_published'
+  | 'archived';
+
+export const FIELDTRIP_VOTING_TIMEZONE = 'America/Los_Angeles' as const;
+
+function getZonedParts(date: Date, timezone = FIELDTRIP_VOTING_TIMEZONE) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    weekday: 'short',
+  }).formatToParts(date);
+  const part = (type: string) => parts.find(item => item.type === type)?.value || '';
+  const hourRaw = Number(part('hour'));
+  return {
+    year: Number(part('year')),
+    month: Number(part('month')),
+    day: Number(part('day')),
+    hour: hourRaw === 24 ? 0 : hourRaw,
+    minute: Number(part('minute')),
+    second: Number(part('second')),
+    weekday: part('weekday'),
+  };
+}
+
+function getTimeZoneOffsetMs(date: Date, timezone = FIELDTRIP_VOTING_TIMEZONE): number {
+  const parts = getZonedParts(date, timezone);
+  const zonedAsUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second, 0);
+  return zonedAsUtc - Math.floor(date.getTime() / 1000) * 1000;
+}
+
+function zonedLocalToUtc(
+  year: number,
+  month: number,
+  day: number,
+  hour = 0,
+  minute = 0,
+  second = 0,
+  millisecond = 0,
+  timezone = FIELDTRIP_VOTING_TIMEZONE
+): Date {
+  const guess = new Date(Date.UTC(year, month - 1, day, hour, minute, second, millisecond));
+  const offset = getTimeZoneOffsetMs(guess, timezone);
+  return new Date(guess.getTime() - offset);
+}
+
+function addLocalDays(year: number, month: number, day: number, days: number) {
+  const date = new Date(Date.UTC(year, month - 1, day + days, 12, 0, 0, 0));
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    day: date.getUTCDate(),
+  };
+}
+
+function weekdayIndex(weekday: string): number {
+  return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(weekday);
+}
+
+function getWeekIdFromLocalMonday(year: number, month: number, day: number): string {
+  const localNoon = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+  const thursday = new Date(localNoon);
+  thursday.setUTCDate(localNoon.getUTCDate() + 3);
+  const weekYear = thursday.getUTCFullYear();
+  const firstThursday = new Date(Date.UTC(weekYear, 0, 4, 12, 0, 0, 0));
+  const firstDay = firstThursday.getUTCDay() || 7;
+  firstThursday.setUTCDate(firstThursday.getUTCDate() + 4 - firstDay);
+  const weekNumber = 1 + Math.round((thursday.getTime() - firstThursday.getTime()) / (7 * 24 * 60 * 60 * 1000));
+  return `${weekYear}-W${String(weekNumber).padStart(2, '0')}`;
+}
+
+function getCycleStatus(now: Date, cycle: Pick<VotingCycle, 'submissionStart' | 'ballotLocksAt' | 'votingStart' | 'votingEnd' | 'resultsPublishAt' | 'awardsEnd'>): VotingCycleStatus {
+  const time = now.getTime();
+  if (time < cycle.submissionStart.getTime()) return 'upcoming';
+  if (time < cycle.ballotLocksAt.getTime()) return 'submissions_open';
+  if (time < cycle.votingStart.getTime()) return 'ballots_locked';
+  if (time <= cycle.votingEnd.getTime()) return 'voting_open';
+  if (time < cycle.resultsPublishAt.getTime()) return 'results_pending';
+  if (time <= cycle.awardsEnd.getTime()) return 'results_published';
+  return 'archived';
+}
 
 /**
  * Builds the canonical weekly voting cycle mapping for a given reference date and optional timezone.
@@ -30,87 +129,60 @@ export type VotingPhase = 'submission' | 'voting' | 'awards';
  * - Saturday 00:00 to Saturday 23:59 = voting
  * - Sunday 00:00 to Sunday 23:59 = awards
  */
-export function getCurrentVotingCycle(now: Date | number, timezone?: string): VotingCycle {
+export function getCurrentVotingCycle(now: Date | number, timezone: string = FIELDTRIP_VOTING_TIMEZONE, seasonId?: string): VotingCycle {
   const reference = typeof now === 'number' ? new Date(now) : new Date(now);
-  
-  // Choose whether to parse with UTC or local
-  const isUtc = timezone && timezone.toUpperCase() === 'UTC';
-
-  // Find Monday of the current week (Sunday is 0, Monday is 1, ..., Saturday is 6)
-  const day = isUtc ? reference.getUTCDay() : reference.getDay();
-  // Saturday has day=6, Sunday has day=0, Friday has day=5.
-  // If Sunday (day=0), Monday was 6 days ago. Otherwise, day-1 days ago.
+  const normalizedTimezone = timezone === 'UTC' ? 'UTC' : FIELDTRIP_VOTING_TIMEZONE;
+  const parts = normalizedTimezone === 'UTC'
+    ? {
+      year: reference.getUTCFullYear(),
+      month: reference.getUTCMonth() + 1,
+      day: reference.getUTCDate(),
+      weekday: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][reference.getUTCDay()],
+    }
+    : getZonedParts(reference, normalizedTimezone);
+  const day = weekdayIndex(parts.weekday);
   const daysSinceMonday = day === 0 ? 6 : day - 1;
+  const mondayLocal = addLocalDays(parts.year, parts.month, parts.day, -daysSinceMonday);
+  const localToUtc = (days: number, hour: number, minute = 0, second = 0, ms = 0) => {
+    const local = addLocalDays(mondayLocal.year, mondayLocal.month, mondayLocal.day, days);
+    return normalizedTimezone === 'UTC'
+      ? new Date(Date.UTC(local.year, local.month - 1, local.day, hour, minute, second, ms))
+      : zonedLocalToUtc(local.year, local.month, local.day, hour, minute, second, ms, normalizedTimezone);
+  };
 
-  // Let's establish Monday 00:00:00.000 for the cycle
-  const monday = new Date(reference);
-  if (isUtc) {
-    monday.setUTCDate(monday.getUTCDate() - daysSinceMonday);
-    monday.setUTCHours(0, 0, 0, 0);
-  } else {
-    monday.setDate(monday.getDate() - daysSinceMonday);
-    monday.setHours(0, 0, 0, 0);
-  }
-
-  // Create Friday 23:59:59.999 (Submission End)
-  const fridayEnd = new Date(monday);
-  if (isUtc) {
-    fridayEnd.setUTCDate(fridayEnd.getUTCDate() + 4);
-    fridayEnd.setUTCHours(23, 59, 59, 999);
-  } else {
-    fridayEnd.setDate(fridayEnd.getDate() + 4);
-    fridayEnd.setHours(23, 59, 59, 999);
-  }
-
-  // Create Saturday 00:00:00.000 (Voting Start)
-  const saturdayStart = new Date(monday);
-  if (isUtc) {
-    saturdayStart.setUTCDate(saturdayStart.getUTCDate() + 5);
-    saturdayStart.setUTCHours(0, 0, 0, 0);
-  } else {
-    saturdayStart.setDate(saturdayStart.getDate() + 5);
-    saturdayStart.setHours(0, 0, 0, 0);
-  }
-
-  // Create Saturday 23:59:59.999 (Voting End)
-  const saturdayEnd = new Date(monday);
-  if (isUtc) {
-    saturdayEnd.setUTCDate(saturdayEnd.getUTCDate() + 5);
-    saturdayEnd.setUTCHours(23, 59, 59, 999);
-  } else {
-    saturdayEnd.setDate(saturdayEnd.getDate() + 5);
-    saturdayEnd.setHours(23, 59, 59, 999);
-  }
-
-  // Create Sunday 00:00:00.000 (Awards Start)
-  const sundayStart = new Date(monday);
-  if (isUtc) {
-    sundayStart.setUTCDate(sundayStart.getUTCDate() + 6);
-    sundayStart.setUTCHours(0, 0, 0, 0);
-  } else {
-    sundayStart.setDate(sundayStart.getDate() + 6);
-    sundayStart.setHours(0, 0, 0, 0);
-  }
-
-  // Create Sunday 23:59:59.999 (Awards End)
-  const sundayEnd = new Date(monday);
-  if (isUtc) {
-    sundayEnd.setUTCDate(sundayEnd.getUTCDate() + 6);
-    sundayEnd.setUTCHours(23, 59, 59, 999);
-  } else {
-    sundayEnd.setDate(sundayEnd.getDate() + 6);
-    sundayEnd.setHours(23, 59, 59, 999);
-  }
+  const monday = localToUtc(0, 0);
+  const fridayEnd = localToUtc(4, 23, 59, 59, 999);
+  const saturdayStart = localToUtc(5, 0);
+  const saturdayEnd = localToUtc(5, 23, 59, 59, 999);
+  const sundayStart = localToUtc(6, 0);
+  const sundayResults = localToUtc(6, 9);
+  const sundayEnd = localToUtc(6, 23, 59, 59, 999);
+  const id = getWeekIdFromLocalMonday(mondayLocal.year, mondayLocal.month, mondayLocal.day);
+  const status = getCycleStatus(reference, {
+    submissionStart: monday,
+    ballotLocksAt: saturdayStart,
+    votingStart: saturdayStart,
+    votingEnd: saturdayEnd,
+    resultsPublishAt: sundayResults,
+    awardsEnd: sundayEnd,
+  });
 
   return {
+    id,
+    seasonId,
+    timezone: FIELDTRIP_VOTING_TIMEZONE,
     weekStart: monday,
     weekEnd: sundayEnd,
     submissionStart: monday,
     submissionEnd: fridayEnd,
+    ballotLocksAt: saturdayStart,
     votingStart: saturdayStart,
     votingEnd: saturdayEnd,
+    resultsPublishAt: sundayResults,
     awardsStart: sundayStart,
     awardsEnd: sundayEnd,
+    status,
+    ballotVersion: 1,
   };
 }
 
@@ -129,6 +201,22 @@ export function getVotingPhase(now: Date | number, cycle: VotingCycle): VotingPh
   } else {
     return 'awards';
   }
+}
+
+export function getCycleDocumentData(cycle: VotingCycle, seasonId: string) {
+  return {
+    id: cycle.id,
+    seasonId,
+    timezone: FIELDTRIP_VOTING_TIMEZONE,
+    submissionStartsAt: cycle.submissionStart,
+    submissionEndsAt: cycle.submissionEnd,
+    ballotLocksAt: cycle.ballotLocksAt,
+    votingStartsAt: cycle.votingStart,
+    votingEndsAt: cycle.votingEnd,
+    resultsPublishAt: cycle.resultsPublishAt,
+    status: cycle.status,
+    ballotVersion: cycle.ballotVersion,
+  };
 }
 
 /**
