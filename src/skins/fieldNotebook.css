@@ -1,0 +1,641 @@
+/* Shared semantic skin surface. Component-specific structure comes from root data attributes. */
+.skin-app-root {
+  min-height: 100dvh;
+  color: var(--skin-text);
+  background-color: var(--skin-background);
+  font-family: var(--skin-font-body);
+  font-weight: var(--skin-body-weight);
+}
+
+.skin-page {
+  color: var(--skin-text);
+  background-color: var(--skin-background);
+}
+
+.skin-card {
+  border-radius: var(--skin-card-radius);
+  transition-duration: var(--skin-duration-base);
+  transition-timing-function: var(--skin-easing);
+}
+
+.skin-modal {
+  border-radius: var(--skin-modal-radius);
+  background-color: var(--skin-surface);
+  color: var(--skin-text);
+  box-shadow: var(--skin-elevated-shadow);
+}
+
+.skin-button,
+.skin-app-root .field-cta,
+.skin-app-root .bureau-btn,
+.skin-app-root .bureau-btn-outline {
+  min-height: var(--skin-control-height);
+  border-radius: var(--skin-control-radius);
+  transition-duration: var(--skin-duration-fast);
+  transition-timing-function: var(--skin-easing);
+}
+
+.skin-app-root :is(button, a, input, select, textarea, [role="button"]):focus-visible {
+  outline: 3px solid var(--skin-focus) !important;
+  outline-offset: 3px;
+}
+
+html[data-skin-motion="reduced"] *,
+html[data-skin-motion="reduced"] *::before,
+html[data-skin-motion="reduced"] *::after {
+  scroll-behavior: auto !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Field Notebook / Evidence Scrapbook reference skin. */
+html[data-skin="journal"] body {
+  background-color: var(--skin-background);
+  background-image: var(--skin-background-texture);
+  background-size: 100% 28px;
+  color: var(--skin-text);
+}
+
+html[data-skin="journal"] body::before {
+  background: none;
+  opacity: 0;
+}
+
+html[data-skin="journal"] body::after {
+  z-index: 0;
+  opacity: var(--skin-texture-opacity);
+  background-image: var(--skin-surface-texture);
+  background-size: 9px 9px;
+  mix-blend-mode: multiply;
+}
+
+[data-skin="journal"] .skin-app-shell,
+[data-skin="journal"] .skin-route-content {
+  isolation: isolate;
+}
+
+[data-skin="journal"] .skin-page {
+  background-color: transparent !important;
+  background-image:
+    linear-gradient(90deg, transparent 0 3.4rem, rgba(158, 61, 50, 0.18) 3.4rem 3.5rem, transparent 3.5rem),
+    repeating-linear-gradient(0deg, transparent 0 27px, rgba(31, 111, 120, 0.1) 27px 28px) !important;
+  background-size: 100% 28px !important;
+}
+
+[data-skin="journal"] .ft-paper-texture,
+[data-skin="journal"] .paper-texture {
+  background-image: var(--skin-surface-texture) !important;
+  background-size: 9px 9px !important;
+}
+
+[data-skin="journal"] :is(h1, h2, h3, h4, .font-display, .text-huge) {
+  font-family: var(--skin-font-heading) !important;
+  font-style: normal !important;
+  font-weight: var(--skin-heading-weight) !important;
+  letter-spacing: 0 !important;
+}
+
+[data-skin="journal"] .skin-page :is(h1, h2, h3) {
+  text-transform: none !important;
+}
+
+[data-skin="journal"] :is(.micro-label, .font-mono, .bureau-tag, .field-label) {
+  font-family: var(--skin-font-mono) !important;
+  letter-spacing: var(--skin-label-spacing) !important;
+}
+
+[data-skin="journal"] :is(.font-serif, blockquote) {
+  font-family: var(--skin-font-accent) !important;
+}
+
+[data-skin="journal"] .skin-welcome-title {
+  max-width: 100%;
+  font-size: clamp(3.75rem, 7vw, 5.75rem) !important;
+  line-height: 0.84 !important;
+  overflow-wrap: normal;
+}
+
+[data-skin="journal"] .skin-welcome-tagline {
+  max-width: 12ch !important;
+  font-size: clamp(2rem, 4.2vw, 3.5rem) !important;
+  line-height: 0.94 !important;
+}
+
+[data-skin="journal"] .skin-welcome-photo {
+  padding: 6px 6px 18px;
+  background-color: var(--skin-surface) !important;
+  border-radius: 1px !important;
+  box-shadow: 4px 6px 0 rgba(32, 38, 33, 0.72) !important;
+}
+
+[data-skin="journal"] .skin-welcome-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: cover;
+  border-radius: 0;
+  filter: var(--skin-image-filter);
+}
+
+[data-skin="journal"] .bg-white,
+[data-skin="journal"] .bg-paper,
+[data-skin="journal"] .bg-paper-light {
+  background-color: var(--skin-surface) !important;
+}
+
+[data-skin="journal"] :is(
+  .skin-card,
+  .notice-card,
+  .bureau-panel,
+  .field-card,
+  .field-card--paper,
+  .field-card--ticket,
+  .field-card--id,
+  .field-card--receipt,
+  .field-card--photo,
+  .field-card--admin,
+  .sticker-card
+) {
+  border-color: var(--skin-border) !important;
+  border-width: var(--skin-border-width) !important;
+  border-radius: var(--skin-card-radius) !important;
+  color: var(--skin-text) !important;
+  background-color: var(--skin-surface) !important;
+  background-image: var(--skin-surface-texture) !important;
+  background-size: 9px 9px !important;
+  box-shadow: var(--skin-card-shadow) !important;
+}
+
+[data-skin="journal"] .skin-card::before,
+[data-skin="journal"] .notice-card::before {
+  border-radius: inherit;
+}
+
+[data-skin="journal"] .skin-card:hover,
+[data-skin="journal"] .notice-card:hover {
+  transform: translateY(var(--skin-hover-lift)) rotate(var(--skin-hover-rotation));
+  box-shadow: var(--skin-elevated-shadow) !important;
+}
+
+[data-skin="journal"] :is(.skin-button, .field-cta, .bureau-btn, .bureau-btn-outline) {
+  border: var(--skin-border-width) solid var(--skin-border) !important;
+  border-radius: var(--skin-control-radius) !important;
+  color: var(--skin-on-primary) !important;
+  background: var(--skin-primary) !important;
+  box-shadow: var(--skin-button-shadow) !important;
+  font-family: var(--skin-font-mono) !important;
+  font-size: 0.82rem !important;
+  font-style: normal !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+}
+
+[data-skin="journal"] :is(.skin-button, .field-cta, .bureau-btn, .bureau-btn-outline)::after {
+  height: 2px;
+  top: auto;
+  bottom: 4px;
+  opacity: 0.38;
+  background: repeating-linear-gradient(90deg, transparent 0 5px, var(--skin-on-primary) 5px 7px);
+}
+
+[data-skin="journal"] :is(.skin-button, .field-cta, .bureau-btn, .bureau-btn-outline):hover {
+  filter: none;
+  transform: translate(-1px, -2px) rotate(-0.25deg);
+  box-shadow: 5px 7px 0 var(--skin-border) !important;
+}
+
+[data-skin="journal"] :is(.skin-button, .field-cta, .bureau-btn, .bureau-btn-outline):active {
+  transform: translate(2px, 3px);
+  box-shadow: 1px 1px 0 var(--skin-border) !important;
+}
+
+/* Binder-tab navigation: structural, squared, and legible without color. */
+[data-skin-navigation="notebook-tabs"] .skin-navigation {
+  height: calc(84px + env(safe-area-inset-bottom, 0px));
+  padding-inline: 0.5rem;
+  background: var(--skin-surface) !important;
+  background-image: var(--skin-surface-texture) !important;
+  border: 0 !important;
+  border-top: 3px double var(--skin-border) !important;
+  border-radius: 0 !important;
+  box-shadow: 0 -5px 0 rgba(32, 38, 33, 0.14), 0 -10px 24px rgba(32, 38, 33, 0.16) !important;
+}
+
+[data-skin-navigation="notebook-tabs"] .skin-navigation::before {
+  content: "FIELD INDEX";
+  position: absolute;
+  top: -18px;
+  left: 12px;
+  padding: 2px 10px 1px;
+  color: var(--skin-on-secondary);
+  background: var(--skin-secondary);
+  border: 2px solid var(--skin-border);
+  font: 700 8px/1.2 var(--skin-font-mono);
+  letter-spacing: 0.12em;
+}
+
+[data-skin-navigation="notebook-tabs"] .skin-navigation [data-nav-item] {
+  color: var(--skin-text-muted) !important;
+  transform: none !important;
+  border-inline: 1px dashed var(--skin-border-muted);
+}
+
+[data-skin-navigation="notebook-tabs"] .skin-navigation [data-nav-item][data-active="true"] {
+  color: var(--skin-text) !important;
+  background: var(--skin-surface-muted);
+  box-shadow: inset 0 4px 0 var(--skin-primary);
+}
+
+[data-skin-navigation="notebook-tabs"] .skin-navigation [data-nav-special="true"] > div:first-child {
+  width: 54px !important;
+  height: 54px !important;
+  transform: translateY(12px) rotate(-1deg) !important;
+  color: var(--skin-on-primary) !important;
+  background: var(--skin-primary) !important;
+  border: 2px solid var(--skin-border) !important;
+  border-radius: 2px !important;
+  box-shadow: var(--skin-button-shadow) !important;
+}
+
+[data-skin-navigation="notebook-tabs"] .skin-navigation [data-nav-special="true"] > div:last-child {
+  bottom: -5px !important;
+  color: var(--skin-text) !important;
+  background: var(--skin-accent) !important;
+  border: 2px solid var(--skin-border) !important;
+  border-radius: 1px !important;
+  box-shadow: 2px 2px 0 var(--skin-border) !important;
+  transform: translateX(-50%) rotate(1deg) !important;
+}
+
+/* Evidence-file mission cards use a ledger margin and clipped filing tab. */
+[data-skin-mission-card="evidence-file"] .skin-mission-card {
+  border-left-width: 9px !important;
+  border-radius: 2px !important;
+  background-image:
+    linear-gradient(90deg, transparent 0 36px, rgba(158, 61, 50, 0.22) 36px 38px, transparent 38px),
+    repeating-linear-gradient(0deg, transparent 0 26px, rgba(31, 111, 120, 0.1) 26px 27px),
+    var(--skin-surface-texture) !important;
+  box-shadow: 6px 8px 0 var(--skin-border) !important;
+  transform: rotate(-0.2deg);
+}
+
+[data-skin-mission-card="evidence-file"] .skin-mission-card::after {
+  content: "EVIDENCE / FIELD COPY";
+  position: absolute;
+  top: 0;
+  right: 18px;
+  z-index: 34;
+  padding: 4px 9px 3px;
+  color: var(--skin-on-secondary);
+  background: var(--skin-secondary);
+  border: 0 solid var(--skin-border);
+  border-width: 0 2px 2px;
+  font: 700 7px/1.2 var(--skin-font-mono);
+  letter-spacing: 0.08em;
+}
+
+[data-skin-mission-card="evidence-file"] .skin-mission-card [class*="rounded-"] {
+  border-radius: 2px !important;
+}
+
+[data-skin-mission-card="evidence-file"] .skin-mission-card h3 {
+  text-transform: none !important;
+  font-family: var(--skin-font-heading) !important;
+  font-style: normal !important;
+}
+
+/* Contact-sheet proof cards and evidence folders. */
+[data-skin-proof-card="contact-sheet"] .skin-proof-card {
+  padding: 10px 10px 2.6rem !important;
+  border: 2px solid var(--skin-border) !important;
+  border-radius: 1px !important;
+  background: var(--skin-surface) !important;
+  box-shadow: 4px 6px 0 var(--skin-border), 9px 12px 24px rgba(32, 38, 33, 0.16) !important;
+  transform: rotate(0.25deg);
+}
+
+[data-skin-proof-card="contact-sheet"] .skin-proof-card .photo-image-slot {
+  border: 1px solid var(--skin-border) !important;
+  border-radius: 0 !important;
+  filter: var(--skin-image-filter);
+}
+
+[data-skin-proof-card="contact-sheet"] .skin-proof-card h4 {
+  text-transform: none !important;
+  font-style: normal !important;
+}
+
+[data-skin-modal="evidence-folder"] .skin-modal {
+  position: relative;
+  border: 2px solid var(--skin-border) !important;
+  border-top-width: 9px !important;
+  border-radius: 3px !important;
+  background-image: var(--skin-surface-texture) !important;
+  box-shadow: 7px 9px 0 var(--skin-border), var(--skin-elevated-shadow) !important;
+}
+
+[data-skin-modal="evidence-folder"] .skin-modal::before {
+  content: "CASE FILE";
+  position: absolute;
+  top: -28px;
+  left: 12px;
+  padding: 4px 18px 3px;
+  color: var(--skin-on-accent);
+  background: var(--skin-accent);
+  border: 2px solid var(--skin-border);
+  font: 700 8px/1 var(--skin-font-mono);
+  letter-spacing: 0.12em;
+}
+
+[data-skin-modal="evidence-folder"] .skin-modal-backdrop {
+  background: var(--skin-overlay) !important;
+  backdrop-filter: grayscale(0.35) blur(2px);
+}
+
+/* Ruled progress meters remain readable in grayscale through hatch and border. */
+[data-skin-progress="ruled-meter"] .skin-progress {
+  height: 12px !important;
+  border: 2px solid var(--skin-border) !important;
+  border-radius: 0 !important;
+  background: repeating-linear-gradient(90deg, var(--skin-surface) 0 9px, var(--skin-surface-muted) 9px 11px) !important;
+  box-shadow: 2px 2px 0 var(--skin-border) !important;
+}
+
+[data-skin-progress="ruled-meter"] .skin-progress > * {
+  background: repeating-linear-gradient(135deg, var(--skin-secondary) 0 7px, var(--skin-surface) 7px 9px) !important;
+}
+
+/* Viewfinder becomes a labeled evidence camera without shrinking the live image. */
+[data-skin-viewfinder="evidence-camera"] .skin-viewfinder {
+  inset: 0 !important;
+  border: 7px solid var(--skin-surface) !important;
+  border-radius: 2px !important;
+  box-shadow: inset 0 0 0 2px var(--skin-border), inset 0 0 40px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-skin-viewfinder="evidence-camera"] .skin-viewfinder::after {
+  content: "FIELD CAMERA / EVIDENCE MODE";
+  position: absolute;
+  left: 12px;
+  bottom: 98px;
+  z-index: 39;
+  padding: 4px 8px 3px;
+  color: var(--skin-text);
+  background: var(--skin-accent);
+  border: 1px solid var(--skin-border);
+  font: 700 7px/1 var(--skin-font-mono);
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+
+[data-skin-viewfinder="evidence-camera"] .skin-viewfinder-panel {
+  color: var(--skin-text) !important;
+  background: color-mix(in srgb, var(--skin-surface) 92%, transparent) !important;
+  border: 2px solid var(--skin-border) !important;
+  border-radius: 2px !important;
+  box-shadow: 4px 5px 0 var(--skin-border) !important;
+}
+
+[data-skin-viewfinder="evidence-camera"] .skin-viewfinder button {
+  border-radius: 2px !important;
+}
+
+/* Loading, empty, locked, success, and error states use physical document language. */
+[data-skin-loading="paper-sort"] .skin-loading-state {
+  border: 2px solid var(--skin-border) !important;
+  border-left-width: 8px !important;
+  border-radius: 2px !important;
+  background: var(--skin-surface) !important;
+  background-image: var(--skin-surface-texture) !important;
+  box-shadow: 6px 8px 0 var(--skin-border) !important;
+}
+
+[data-skin-loading="paper-sort"] .skin-loading-state [class*="animate-"] {
+  animation-name: notebook-paper-sort;
+  animation-duration: 900ms;
+  animation-timing-function: steps(2, end);
+}
+
+@keyframes notebook-paper-sort {
+  0%, 100% { transform: translate(0, 0) rotate(-1deg); }
+  50% { transform: translate(3px, -3px) rotate(1deg); }
+}
+
+[data-skin-state="case-note"] .skin-state-panel {
+  border: 2px dashed var(--skin-border) !important;
+  border-left: 7px solid var(--skin-primary) !important;
+  border-radius: 2px !important;
+  background: var(--skin-surface) !important;
+  box-shadow: 4px 5px 0 var(--skin-border) !important;
+}
+
+[data-skin="journal"] .skin-locked-state {
+  filter: grayscale(0.75) contrast(0.94);
+  background-image: repeating-linear-gradient(135deg, transparent 0 12px, rgba(32,38,33,0.08) 12px 14px) !important;
+}
+
+[data-skin="journal"] .skin-success-state .skin-state-panel {
+  border-left-color: var(--skin-success) !important;
+}
+
+[data-skin="journal"] .skin-success-state .skin-state-panel::after {
+  content: "FILED";
+  position: absolute;
+  top: 16px;
+  right: 12px;
+  color: var(--skin-success);
+  border: 3px double var(--skin-success);
+  padding: 3px 8px;
+  font: 700 11px/1 var(--skin-font-mono);
+  transform: rotate(-5deg);
+}
+
+[data-skin="journal"] .skin-error-state .skin-state-panel {
+  border-left-color: var(--skin-error) !important;
+}
+
+/* Page-specific composition remains structural and non-destructive to data logic. */
+[data-skin="journal"] .skin-basecamp .field-card--id,
+[data-skin-profile-frame="case-file"] .skin-profile .field-card--id,
+[data-skin-profile-frame="case-file"] .skin-crew header > div:first-child {
+  border-radius: 2px !important;
+  border-left-width: 9px !important;
+  background-image: var(--skin-surface-texture) !important;
+}
+
+[data-skin="journal"] :is(.skin-deck-browser, .skin-memories, .skin-voting) > div:first-child > div {
+  border-radius: 2px !important;
+  background: var(--skin-surface-muted) !important;
+  box-shadow: inset 0 1px 3px rgba(32, 38, 33, 0.22) !important;
+}
+
+[data-skin="journal"] .skin-logbook [role="tablist"],
+[data-skin="journal"] .skin-memories [role="tablist"],
+[data-skin="journal"] .skin-crew [role="tablist"],
+[data-skin="journal"] .skin-voting [role="tablist"] {
+  border: 2px solid var(--skin-border) !important;
+  border-radius: 2px !important;
+  background: var(--skin-surface) !important;
+  box-shadow: 3px 4px 0 var(--skin-border) !important;
+}
+
+[data-skin="journal"] .skin-zine {
+  position: relative;
+  padding: 1rem;
+  border-inline: 1px dashed var(--skin-border-muted);
+  background-image: repeating-linear-gradient(0deg, transparent 0 27px, rgba(31, 111, 120, 0.08) 27px 28px);
+}
+
+[data-skin="journal"] .skin-zine-page {
+  transform: rotate(-0.25deg);
+  border-left-width: 10px !important;
+}
+
+[data-skin="journal"] .skin-zine-page::after {
+  content: "ARCHIVE COPY";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 5;
+  padding: 3px 6px;
+  color: var(--skin-primary);
+  border: 2px solid var(--skin-primary);
+  font: 700 7px/1 var(--skin-font-mono);
+  transform: rotate(2deg);
+}
+
+[data-skin="journal"] .skin-proof-card img,
+[data-skin="journal"] .skin-zine-page img {
+  filter: var(--skin-image-filter);
+}
+
+/* Rich selector preview: each card is a self-contained miniature skin. */
+.skin-preview-card {
+  color: var(--preview-text);
+  background: var(--preview-background);
+  border: 2px solid var(--preview-border);
+  border-radius: var(--preview-radius);
+  box-shadow: var(--preview-shadow);
+  overflow: hidden;
+}
+
+.skin-preview-stage {
+  min-height: 178px;
+  padding: 12px;
+  background-color: var(--preview-background);
+  background-image: var(--preview-texture);
+  background-size: 100% 28px;
+}
+
+.skin-preview-nav {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+  min-height: 24px;
+  padding: 3px;
+  color: var(--preview-text);
+  background: var(--preview-surface);
+  border: 1px solid var(--preview-border);
+  border-radius: var(--preview-control-radius);
+}
+
+.skin-preview-nav span {
+  display: grid;
+  place-items: center;
+  font: 700 6px/1 var(--preview-mono);
+  text-transform: uppercase;
+}
+
+.skin-preview-nav span:first-child {
+  color: var(--preview-on-primary);
+  background: var(--preview-primary);
+}
+
+.skin-preview-mission {
+  width: 74%;
+  margin: 12px auto 9px;
+  padding: 10px;
+  color: var(--preview-text);
+  background: var(--preview-surface);
+  border: 1px solid var(--preview-border);
+  border-left-width: 5px;
+  border-radius: var(--preview-radius);
+  box-shadow: 3px 4px 0 var(--preview-border);
+}
+
+.skin-preview-mission small {
+  display: block;
+  margin-bottom: 5px;
+  font: 700 6px/1 var(--preview-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.64;
+}
+
+.skin-preview-mission strong {
+  display: block;
+  font: 700 12px/1.05 var(--preview-heading);
+}
+
+.skin-preview-button {
+  display: block;
+  min-height: 28px;
+  margin-inline: auto;
+  padding: 6px 12px;
+  color: var(--preview-on-primary);
+  background: var(--preview-primary);
+  border: 1px solid var(--preview-border);
+  border-radius: var(--preview-control-radius);
+  box-shadow: 2px 3px 0 var(--preview-border);
+  font: 700 7px/1 var(--preview-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 430px) {
+  html[data-skin="journal"] body,
+  [data-skin="journal"] .skin-page {
+    background-image:
+      linear-gradient(90deg, transparent 0 2.1rem, rgba(158, 61, 50, 0.16) 2.1rem 2.18rem, transparent 2.18rem),
+      repeating-linear-gradient(0deg, transparent 0 27px, rgba(31, 111, 120, 0.09) 27px 28px) !important;
+  }
+
+  [data-skin-navigation="notebook-tabs"] .skin-navigation {
+    height: calc(78px + env(safe-area-inset-bottom, 0px));
+  }
+
+  [data-skin-navigation="notebook-tabs"] .skin-navigation [data-nav-item] span {
+    max-width: 56px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  [data-skin-mission-card="evidence-file"] .skin-mission-card {
+    border-left-width: 7px !important;
+  }
+
+  [data-skin-viewfinder="evidence-camera"] .skin-viewfinder {
+    border-width: 4px !important;
+  }
+
+  [data-skin="journal"] .skin-welcome-title {
+    font-size: clamp(2.75rem, 13vw, 3.75rem) !important;
+  }
+
+  [data-skin="journal"] .skin-welcome-tagline {
+    max-width: 11ch !important;
+    font-size: clamp(1.85rem, 9vw, 2.5rem) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-skin="journal"] *,
+  [data-skin="journal"] *::before,
+  [data-skin="journal"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

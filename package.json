@@ -18,7 +18,9 @@
     "test:admin-review-queue": "tsx --test src/__tests__/adminReviewQueue.test.ts",
     "test:onboarding": "tsx --test src/__tests__/onboardingClassification.test.ts",
     "test:voting-security": "tsx --test src/__tests__/weeklyVotingSecurity.test.ts src/__tests__/tribunalSecurity.test.ts src/__tests__/susReports.test.ts src/__tests__/firelightBehavior.test.ts",
-    "test:firestore-rules": "firebase emulators:exec --only firestore \"tsx --test src/__tests__/firelightRules.integration.test.ts\""
+    "test:firestore-rules": "firebase emulators:exec --only firestore \"tsx --test src/__tests__/firelightRules.integration.test.ts\"",
+    "test:skins": "tsx --test src/__tests__/skinArchitecture.test.ts",
+    "test:skin-rules": "firebase emulators:exec --only firestore \"tsx --test src/__tests__/skinRules.integration.test.ts\""
   },
   "dependencies": {
     "@google/genai": "^2.3.0",

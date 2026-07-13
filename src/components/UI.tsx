@@ -52,7 +52,7 @@ export function Card({
         </div>
       )}
       <div className={cn(
-        "transition-all duration-300 relative",
+        "skin-card transition-all duration-300 relative",
         variants[variant as keyof typeof variants] || variants.default,
         className
       )}>
@@ -107,6 +107,7 @@ export function FieldCard({
       id={id}
       onClick={onClick}
       className={cn(
+        "skin-card",
         classes[variant] || classes.paper,
         onClick && "cursor-pointer active:translate-y-[2px] transition-all",
         className
@@ -304,7 +305,7 @@ export function FieldCTA({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "field-cta w-full",
+        "skin-button field-cta w-full",
         disabled && "opacity-50 grayscale cursor-not-allowed",
         className
       )}
@@ -313,4 +314,3 @@ export function FieldCTA({
     </button>
   );
 }
-

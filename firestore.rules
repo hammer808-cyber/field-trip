@@ -9,6 +9,13 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
+    match /skins/{skinId} {
+      // Skin manifests contain presentation metadata only. Reading every status
+      // lets clients honor an admin-disabled built-in instead of restoring its
+      // local fallback; selection and writes remain separately enforced.
+      allow get, list: if true;
+      allow create, update, delete: if isAdmin();
+    }
     match /fieldSignals/{allPaths=**} {
       allow read: if true;
       allow write: if isAdmin();
@@ -28,7 +35,7 @@ service cloud.firestore {
     function isAdmin() { 
       return isSignedIn() && (
         // Allow developer email (ignore verified status in preview/dev mode)
-        (request.auth.token.email == 'hammer808@gmail.com') ||
+        (request.auth.token.get('email', '') == 'hammer808@gmail.com') ||
         // Hardcoded UID for the developer
         (request.auth.uid == 'vX7K0XGkXRM2yPzhidv79Q59GqC2') ||
         (request.auth.uid == 'oae0GwP7mpcUX7i93AeDGd22VNu2') ||
@@ -214,11 +221,15 @@ service cloud.firestore {
           'points', 'score', 'totalPoints', 'rank', 'tokens', // legacy but still protected
           'deckInviteRedemptions', 'redeemedDeckInviteIds',
           'credentialIds', 'completedCredentialIds', 'completedDeckIds', 'approvedCompletedDeckIds',
-          'activeCrewId', 'crewId', 'crewRole', 'crewCooldownUntil', 'crewJoinedAt'
+          'activeCrewId', 'crewId', 'crewRole', 'crewCooldownUntil', 'crewJoinedAt',
+          'equippedSkinId'
         ];
         
         // Block if any protected field is being changed
         let isEditingProtected = data.diff(existing).affectedKeys().hasAny(protectedFields);
+        let isEditingSkinOwnership =
+          data.get('unlockedRewards', {}).get('skins', ['classic']) !=
+          existing.get('unlockedRewards', {}).get('skins', ['classic']);
         
         // Special Case: fieldType. We protect it from UPDATES, but allow INITIAL SETTING if currently null.
         // This lets the onboarding quiz work while preventing users from changing it later to farm rewards.
@@ -227,13 +238,18 @@ service cloud.firestore {
 
         let isFieldTypeUpdate = data.diff(existing).affectedKeys().hasAny(['fieldType', 'fieldTypeName', 'fieldClassificationComplete']);
 
-        return (isEditingProtected || (isFieldTypeUpdate && !isInitialFieldTypeSet));
+        return (isEditingProtected || isEditingSkinOwnership || (isFieldTypeUpdate && !isInitialFieldTypeSet));
+      }
+
+      function hasSafeInitialSkinState(data) {
+        return data.get('equippedSkinId', 'classic') == 'classic' &&
+               data.get('unlockedRewards', {}).get('skins', ['classic']).hasOnly(['classic']);
       }
 
       // allow get is more robust for non-existent profiles during registration
       allow get: if isSignedIn() && (uId == request.auth.uid || isAdmin());
       allow list: if isSignedIn();
-      allow create: if isSignedIn() && (uId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && (isAdmin() || (uId == request.auth.uid && hasSafeInitialSkinState(incoming())));
       allow update: if isSignedIn() && (uId == request.auth.uid || isAdmin()) && (
         isAdmin() || !isSystemProtected(incoming(), existing())
       );
@@ -300,7 +316,43 @@ service cloud.firestore {
     }
 
     match /userPrefs/{userId} {
-      allow read, write: if isOwner(userId) || isAdmin();
+      function isBuiltInSkin(skinId) {
+        return skinId in ['classic', 'arcade', 'journal', 'baja-bratz'];
+      }
+      function isAvailableSkin(skinId) {
+        return skinId == 'classic' ||
+               (
+                 isBuiltInSkin(skinId) &&
+                 !exists(/databases/$(database)/documents/skins/$(skinId))
+               ) ||
+               (
+                 exists(/databases/$(database)/documents/skins/$(skinId)) &&
+                 get(/databases/$(database)/documents/skins/$(skinId)).data.get('status', 'inactive') == 'active'
+               );
+      }
+      function isGlobalDefaultSkin(skinId) {
+        return exists(/databases/$(database)/documents/appConfig/skinSettings) &&
+               get(/databases/$(database)/documents/appConfig/skinSettings).data.get('defaultSkinId', 'classic') == skinId;
+      }
+      function ownsRequestedSkin(skinId) {
+        let profile = get(/databases/$(database)/documents/users/$(userId)).data;
+        return isAvailableSkin(skinId) && (
+          skinId == 'classic' ||
+          isGlobalDefaultSkin(skinId) ||
+          profile.get('equippedSkinId', '') == skinId ||
+          profile.get('unlockedRewards', {}).get('skins', []).hasAny([skinId])
+        );
+      }
+      function isValidThemePreferenceWrite() {
+        return incoming().keys().hasOnly(['selectedSkinId', 'frankieMode', 'reduceCommentary', 'updatedAt']) &&
+               incoming().get('selectedSkinId', 'classic') is string &&
+               ownsRequestedSkin(incoming().get('selectedSkinId', 'classic'));
+      }
+
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAdmin() || (isOwner(userId) && isValidThemePreferenceWrite());
+      allow update: if isAdmin() || (isOwner(userId) && isValidThemePreferenceWrite());
+      allow delete: if isOwner(userId) || isAdmin();
     }
 
     match /badgeProgress/{id} {

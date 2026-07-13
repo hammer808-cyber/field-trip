@@ -292,6 +292,25 @@ export default function AdminBoard() {
           </div>
         </ModuleCard>
 
+        {/* Module 9: Skin Studio */}
+        <ModuleCard
+          title="Skin Studio"
+          description="Manage application skin tokens, variants, assets, availability, and defaults."
+          icon={LayoutGrid}
+          status="blue"
+          statusLabel="REGISTRY_READY"
+          primaryAction={{
+            label: "Open Skin Studio",
+            onClick: () => navigate('/admin/skins')
+          }}
+          lastActivity="Typed architecture active"
+        >
+          <div className="flex items-center justify-between border border-on-surface/10 bg-on-surface/5 p-3 font-mono text-[8px] font-black uppercase">
+            <span>Reference skin</span>
+            <span className="text-brand-orange">Field Notebook</span>
+          </div>
+        </ModuleCard>
+
         {/* Extra Module: Help / Documentation */}
         <div className="bg-brand-orange border-4 border-on-surface p-8 shadow-[8px_8px_0px_black] text-white space-y-6 flex flex-col justify-between">
            <div className="space-y-4">

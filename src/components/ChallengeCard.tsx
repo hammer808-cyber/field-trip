@@ -93,7 +93,7 @@ export function MissionCard({
     return (
       <div 
         className={cn(
-          "group relative flex flex-col transition-all overflow-hidden text-left rounded-[2rem] border-4 border-on-surface",
+          "skin-card skin-mission-card skin-locked-state group relative flex flex-col transition-all overflow-hidden text-left rounded-[2rem] border-4 border-on-surface",
           "bg-[#F3EFE3] shadow-[8px_8px_0px_rgba(0,0,0,0.1),12px_12px_0px_black] opacity-95",
           className
         )}
@@ -223,7 +223,9 @@ export function MissionCard({
 
   return (
     <div 
+      data-state={challenge.status || 'available'}
       className={cn(
+        "skin-card skin-mission-card",
         "group relative flex flex-col transition-all text-left field-card field-card--paper overflow-hidden border-[4px] border-on-surface shadow-[8px_8px_0px_black]",
         colorTheme.bg,
         "field-paper-shadow-lg hover:-translate-y-1.5 hover:shadow-2xl"

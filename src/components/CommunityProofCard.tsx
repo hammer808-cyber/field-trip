@@ -134,7 +134,7 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
     <>
       <FieldCard
         variant="photo"
-        className="w-full flex flex-col h-full group relative overflow-visible cursor-pointer"
+        className="skin-proof-card w-full flex flex-col h-full group relative overflow-visible cursor-pointer"
         onClick={() => setDetailOpen(true)}
       >
         <FieldTape className="absolute -top-3 left-1/3 z-20 w-16 h-6" rotation={-5} />
@@ -279,8 +279,8 @@ function ReceiptDetailModal({
   onClose,
 }: any) {
   return (
-    <motion.div className="fixed inset-0 z-[100] bg-black/70 p-4 sm:p-8 flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
-      <motion.div className="bg-paper max-w-5xl w-full max-h-[92vh] overflow-y-auto border-4 border-on-surface shadow-[12px_12px_0px_var(--color-brand-orange)] p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-5" initial={{ y: 30, rotate: -1 }} animate={{ y: 0, rotate: 0 }} exit={{ y: 30, opacity: 0 }} onClick={(event) => event.stopPropagation()}>
+    <motion.div className="skin-modal-backdrop fixed inset-0 z-[100] bg-black/70 p-4 sm:p-8 flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+      <motion.div className="skin-modal bg-paper max-w-5xl w-full max-h-[92vh] overflow-y-auto border-4 border-on-surface shadow-[12px_12px_0px_var(--color-brand-orange)] p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-5" initial={{ y: 30, rotate: -1 }} animate={{ y: 0, rotate: 0 }} exit={{ y: 30, opacity: 0 }} onClick={(event) => event.stopPropagation()}>
         <div className="relative border-[3px] border-on-surface bg-white aspect-square overflow-hidden">
           <ProofImage entry={proof} isCommunityFeed={true} className="w-full h-full object-contain bg-black/5" />
         </div>
@@ -318,8 +318,8 @@ function ReceiptDetailModal({
 
 function SignalCheckModal({ reason, details, busy, onReason, onDetails, onSubmit, onClose }: any) {
   return (
-    <motion.div className="fixed inset-0 z-[110] bg-black/70 p-4 flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
-      <motion.div className="bg-paper w-full max-w-lg border-4 border-on-surface shadow-[10px_10px_0px_var(--color-brand-magenta)] p-5 space-y-5" initial={{ y: 24 }} animate={{ y: 0 }} exit={{ y: 24, opacity: 0 }} onClick={(event) => event.stopPropagation()}>
+    <motion.div className="skin-modal-backdrop fixed inset-0 z-[110] bg-black/70 p-4 flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+      <motion.div className="skin-modal bg-paper w-full max-w-lg border-4 border-on-surface shadow-[10px_10px_0px_var(--color-brand-magenta)] p-5 space-y-5" initial={{ y: 24 }} animate={{ y: 0 }} exit={{ y: 24, opacity: 0 }} onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="font-mono text-[9px] font-black uppercase tracking-widest text-brand-orange">Private Signal Check</p>

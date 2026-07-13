@@ -83,7 +83,7 @@ export default function WelcomePage() {
   };
 
   const WelcomePhotoCollage = () => {
-    const tileClass = "overflow-hidden rounded-[8px] border-2 border-on-surface bg-white shadow-[6px_6px_0px_rgba(0,0,0,0.18)]";
+    const tileClass = "skin-welcome-photo overflow-hidden rounded-[8px] border-2 border-on-surface bg-white shadow-[6px_6px_0px_rgba(0,0,0,0.18)]";
     const imageClass = "h-full w-full object-cover";
 
     return (
@@ -153,7 +153,7 @@ export default function WelcomePage() {
 
   return (
     <div className={cn(
-      "page-scroll flex flex-col items-center justify-center p-4 md:p-6 text-center relative transition-colors duration-700",
+      "skin-page skin-welcome page-scroll flex flex-col items-center justify-center p-4 md:p-6 text-center relative transition-colors duration-700",
       authMode === 'welcome' ? "bg-transparent" : (isBaja ? "bg-[#f5e6d3]" : isDiamond ? "bg-[#0a0a0a]" : isHeat ? "bg-[#ffcc33]" : "bg-transparent")
     )}>
       {/* Decorative Shimmer / HUD Effect */}
@@ -192,11 +192,11 @@ export default function WelcomePage() {
                 <span className="micro-label text-brand-orange tracking-[0.35em]">WELCOME TO FIELDTRIP</span>
               </div>
 
-              <h1 className="font-display text-[clamp(4rem,18vw,9rem)] font-black italic leading-[0.78] tracking-normal text-on-surface">
+              <h1 className="skin-welcome-title font-display text-[clamp(4rem,18vw,9rem)] font-black italic leading-[0.78] tracking-normal text-on-surface">
                 FIELDTRIP
               </h1>
 
-              <p className="mt-5 max-w-[660px] font-display text-[clamp(2rem,8vw,5.5rem)] font-black italic uppercase leading-[0.9] tracking-normal text-on-surface">
+              <p className="skin-welcome-tagline mt-5 max-w-[660px] font-display text-[clamp(2rem,8vw,5.5rem)] font-black italic uppercase leading-[0.9] tracking-normal text-on-surface">
                 Get outside. Cause a scene. Get Receipts.
               </p>
 
@@ -211,7 +211,7 @@ export default function WelcomePage() {
               <div className="order-3 mt-2 flex w-full max-w-xl flex-col gap-3 sm:flex-row lg:mt-8">
                 <button 
                   onClick={handleStart}
-                  className="flex-1 border-[3.5px] border-on-surface bg-on-surface px-5 py-4 font-display text-xl font-black italic uppercase leading-tight tracking-normal text-white shadow-[8px_8px_0px_var(--color-brand-lime)] transition-all hover:bg-brand-orange active:translate-x-1 active:translate-y-1 active:shadow-none sm:text-2xl"
+                  className="skin-button flex-1 border-[3.5px] border-on-surface bg-on-surface px-5 py-4 font-display text-xl font-black italic uppercase leading-tight tracking-normal text-white shadow-[8px_8px_0px_var(--color-brand-lime)] transition-all hover:bg-brand-orange active:translate-x-1 active:translate-y-1 active:shadow-none sm:text-2xl"
                 >
                   <span className="flex items-center justify-center gap-3">
                     Start First Mission
@@ -221,7 +221,7 @@ export default function WelcomePage() {
 
                 <button 
                   onClick={handleSignInClick}
-                  className="flex-1 border-[3.5px] border-on-surface bg-white px-5 py-4 font-display text-xl font-black italic uppercase leading-tight tracking-normal text-on-surface shadow-[8px_8px_0px_var(--color-brand-cyan)] transition-all hover:bg-brand-lime active:translate-x-1 active:translate-y-1 active:shadow-none sm:text-2xl"
+                  className="skin-button flex-1 border-[3.5px] border-on-surface bg-white px-5 py-4 font-display text-xl font-black italic uppercase leading-tight tracking-normal text-on-surface shadow-[8px_8px_0px_var(--color-brand-cyan)] transition-all hover:bg-brand-lime active:translate-x-1 active:translate-y-1 active:shadow-none sm:text-2xl"
                 >
                   Log In
                 </button>
@@ -229,7 +229,7 @@ export default function WelcomePage() {
 
               <button 
                 onClick={() => setShowHowItWorks(true)}
-                className="order-4 mt-6 font-mono text-xs font-black uppercase tracking-widest text-on-surface/60 underline decoration-2 underline-offset-4 transition-colors hover:text-brand-orange"
+                className="order-4 mt-6 min-h-11 px-3 font-mono text-xs font-black uppercase tracking-widest text-on-surface/60 underline decoration-2 underline-offset-4 transition-colors hover:text-brand-orange"
               >
                 How it works
               </button>
@@ -249,7 +249,7 @@ export default function WelcomePage() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     onClick={() => setShowHowItWorks(false)}
-                    className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                    className="skin-modal-backdrop absolute inset-0 bg-black/60 backdrop-blur-sm"
                   />
                   
                   {/* Body */}
@@ -257,11 +257,11 @@ export default function WelcomePage() {
                     initial={{ scale: 0.9, opacity: 0, y: 30 }}
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ scale: 0.9, opacity: 0, y: 30 }}
-                    className="relative w-full max-w-xl bg-[#FFFDF9] border-[5px] border-on-surface p-6 sm:p-8 shadow-[12px_12px_0px_black] z-10 rotate-[-0.5deg]"
+                    className="skin-modal relative w-full max-w-xl bg-[#FFFDF9] border-[5px] border-on-surface p-6 sm:p-8 shadow-[12px_12px_0px_black] z-10 rotate-[-0.5deg]"
                   >
                     <button 
                       onClick={() => setShowHowItWorks(false)}
-                      className="absolute top-4 right-4 p-1.5 border-2 border-on-surface hover:bg-brand-orange-light bg-white rounded-full text-on-surface active:translate-y-0.5"
+                      className="absolute top-4 right-4 flex h-11 w-11 items-center justify-center border-2 border-on-surface hover:bg-brand-orange-light bg-white rounded-full text-on-surface active:translate-y-0.5"
                     >
                       <X className="w-5 h-5 stroke-[2.5]" />
                     </button>
@@ -291,7 +291,7 @@ export default function WelcomePage() {
                     <div className="mt-6 pt-4 border-t-2 border-on-surface/10 flex justify-end">
                       <button 
                         onClick={() => setShowHowItWorks(false)}
-                        className="px-6 py-2.5 bg-on-surface text-brand-lime border-2 border-on-surface shadow-[4px_4px_0px_black] active:translate-y-0.5 active:shadow-none font-display text-xs font-black uppercase italic tracking-wider"
+                        className="skin-button px-6 py-2.5 bg-on-surface text-brand-lime border-2 border-on-surface shadow-[4px_4px_0px_black] active:translate-y-0.5 active:shadow-none font-display text-xs font-black uppercase italic tracking-wider"
                       >
                         Let's Play!
                       </button>

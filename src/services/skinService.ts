@@ -2,6 +2,7 @@ import { doc, getDoc, setDoc, updateDoc, onSnapshot, collection, query, where, g
 import { db, auth, handleFirestoreError, OperationType, logFirestoreError } from '../lib/firebase';
 import { logAdminAction } from './moderationService';
 import { Skin, SkinSettings, UserThemePreference } from '../types/skin';
+import { DEFAULT_SKIN_ID, getBuiltInSkin, normalizeAppSkin } from '../skins/registry';
 
 const COLLECTION = 'appConfig';
 const DOC_ID = 'skinSettings';
@@ -50,13 +51,8 @@ export function subscribeToSkin(skinId: string, callback: (skin: Skin) => void) 
 /**
  * FETCH/REALTIME: Get all skins (for Admin/Settings).
  */
-export function subscribeToSkins(callback: (skins: Skin[]) => void, isAdminMode = false) {
-  let q = query(collection(db, 'skins'));
-  if (!isAdminMode) {
-    q = query(q, where('status', '==', 'active'));
-  }
-
-  return onSnapshot(q, (snap) => {
+export function subscribeToSkins(callback: (skins: Skin[]) => void, _isAdminMode = false) {
+  return onSnapshot(collection(db, 'skins'), (snap) => {
     callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as Skin)));
   }, (error) => {
     logFirestoreError(error, OperationType.LIST, 'skins');
@@ -119,7 +115,7 @@ export function subscribeToUserThemePreference(uid: string, callback: (prefs: Us
     } else {
       // Provide defaults if missing
       callback({
-        selectedSkinId: 'original',
+        selectedSkinId: DEFAULT_SKIN_ID,
         frankieMode: false
       });
     }
@@ -135,8 +131,15 @@ export async function saveSkin(skin: Partial<Skin>) {
     const skinRef = skin.id ? doc(db, 'skins', skin.id) : doc(collection(db, 'skins'));
     const skinId = skinRef.id;
     
-    await setDoc(skinRef, {
+    const normalized = normalizeAppSkin({
       ...skin,
+      id: skinId,
+      name: skin.name || 'Untitled Skin',
+      description: skin.description || 'Custom Fieldtrip skin.',
+    });
+
+    await setDoc(skinRef, {
+      ...normalized,
       id: skinId,
       updatedAt: serverTimestamp(),
       ...(isNew ? { createdAt: serverTimestamp() } : {}),
@@ -158,11 +161,27 @@ export async function setDefaultSkin(skinId: string) {
     const snap = await getDocs(q);
     
     // 2. Unset them
-    const batch = snap.docs.map(d => updateDoc(d.ref, { isDefault: false }));
+    const batch = snap.docs.map(d => updateDoc(d.ref, { isDefault: false, 'metadata.isDefault': false }));
     await Promise.all(batch);
     
-    // 3. Set the new default
-    await updateDoc(doc(db, 'skins', skinId), { isDefault: true });
+    // 3. Upsert the target. Local built-ins may not have a Firestore manifest yet.
+    const builtIn = getBuiltInSkin(skinId);
+    const targetRef = doc(db, 'skins', skinId);
+    if (builtIn) {
+      await setDoc(targetRef, {
+        ...builtIn,
+        id: skinId,
+        isDefault: true,
+        metadata: { ...builtIn.metadata, isDefault: true },
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    } else {
+      await updateDoc(targetRef, {
+        isDefault: true,
+        'metadata.isDefault': true,
+        updatedAt: serverTimestamp(),
+      });
+    }
     
     // 4. Update settings
     await updateSkinSettings({ defaultSkinId: skinId });
@@ -177,10 +196,25 @@ export async function setDefaultSkin(skinId: string) {
 
 export async function updateSkinStatus(skinId: string, status: Skin['status']) {
   try {
-    await updateDoc(doc(db, 'skins', skinId), {
-      status,
-      updatedAt: serverTimestamp()
-    });
+    const builtIn = getBuiltInSkin(skinId);
+    const targetRef = doc(db, 'skins', skinId);
+    if (builtIn) {
+      await setDoc(targetRef, {
+        ...builtIn,
+        id: skinId,
+        status,
+        isActive: status === 'active',
+        metadata: { ...builtIn.metadata, status },
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    } else {
+      await updateDoc(targetRef, {
+        status,
+        isActive: status === 'active',
+        'metadata.status': status,
+        updatedAt: serverTimestamp(),
+      });
+    }
 
     if (auth.currentUser) {
       await logAdminAction(auth.currentUser.uid, skinId, 'skin', 'update_status', { status });

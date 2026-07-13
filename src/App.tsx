@@ -509,10 +509,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   });
 
   return (
-    <div className="min-h-screen text-on-surface relative overflow-x-hidden">
+    <div className="skin-app-shell min-h-screen text-on-surface relative overflow-x-hidden">
       <ErrorBoundary fallback={
-        <div className="min-h-screen bg-paper flex items-center justify-center p-8 font-mono">
-          <div className="border-4 border-on-surface p-8 bg-white shadow-[8px_8px_0px_black] max-w-md text-center">
+        <div className="skin-page skin-error-state min-h-screen bg-paper flex items-center justify-center p-8 font-mono">
+          <div className="skin-card skin-state-panel border-4 border-on-surface p-8 bg-white shadow-[8px_8px_0px_black] max-w-md text-center">
             <h2 className="text-xl font-black mb-4">COMPONENT_RENDER_FAILURE</h2>
             <p className="text-xs opacity-60 mb-6 font-bold">A specific UI module failed to synchronize. The rest of the system remains stable.</p>
             <button onClick={() => window.location.reload()} className="px-6 py-3 bg-on-surface text-white font-black uppercase text-[10px]">Re-Sync Component</button>
@@ -530,6 +530,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         <GameWrapper>
           <Suspense fallback={<PageLoader />}>
             <main className={cn(
+              "skin-route-content",
               showNav ? "pb-[calc(110px+env(safe-area-inset-bottom,20px))] sm:pb-36" : "pb-safe"
             )}>
               {children}

@@ -238,7 +238,7 @@ export default function CollectionPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] pb-56 ft-paper-texture">
+    <div className="skin-page skin-memories min-h-screen bg-[#FAF8F5] pb-56 ft-paper-texture">
       <div className="w-full flex justify-center py-1 opacity-55 z-20 relative select-none pointer-events-none mb-3 pt-3">
         <div className="h-4 w-60 border-y-2 border-on-surface bg-[#EAE5D8] flex justify-between px-4 rounded-full shadow-[inset_0_2px_4.5px_rgba(0,0,0,0.15)]">
           {[...Array(5)].map((_, i) => (

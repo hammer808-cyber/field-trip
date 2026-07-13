@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
-import { Skin, SkinSettings, ThemeTokens } from '../types/skin';
+import { Skin } from '../types/skin';
 import { 
   saveSkin, 
   updateSkinStatus, 
@@ -28,13 +28,27 @@ import {
 import { Card, FieldBadge } from '../components/UI';
 import { cn } from '../lib/utils';
 import { useNavigate } from 'react-router-dom';
-import { DEFAULT_THEME_TOKENS, DEFAULT_SKIN_ASSETS, DEFAULT_COPY_OVERRIDES } from '../constants/skins';
+import { DEFAULT_COPY_OVERRIDES, DEFAULT_SKIN_ASSETS, DEFAULT_THEME_TOKENS } from '../constants/skins';
+import { DEFAULT_APP_SKIN } from '../skins/registry';
+
+const COMPONENT_VARIANT_OPTIONS: Record<string, string[]> = {
+  navigation: ['field-dock', 'notebook-tabs', 'arcade-console', 'summer-float'],
+  missionCard: ['field-ticket', 'evidence-file', 'arcade-card', 'summer-pass'],
+  proofCard: ['field-photo', 'contact-sheet', 'score-screen', 'postcard'],
+  modal: ['bureau-panel', 'evidence-folder', 'arcade-overlay', 'pool-card'],
+  button: ['bureau', 'rubber-stamp', 'arcade-key', 'float-button'],
+  progress: ['signal-bar', 'ruled-meter', 'pixel-meter', 'sun-meter'],
+  profileFrame: ['field-id', 'case-file', 'player-card', 'travel-pass'],
+  viewfinder: ['field-camera', 'evidence-camera', 'arcade-scanner', 'summer-camera'],
+  loading: ['field-checkin', 'paper-sort', 'pixel-load', 'sun-spin'],
+  statePanel: ['field-notice', 'case-note', 'arcade-alert', 'postcard-note'],
+};
 
 export default function AdminSkinsPage() {
   const { allSkins, settings, isAdmin, isLoading } = useTheme();
   const [editingSkin, setEditingSkin] = useState<Partial<Skin> | null>(null);
   const [isAddingSkin, setIsAddingSkin] = useState(false);
-  const [activeTab, setActiveTab] = useState<'manifest' | 'visuals' | 'assets' | 'copy'>('manifest');
+  const [activeTab, setActiveTab] = useState<'manifest' | 'visuals' | 'components' | 'assets' | 'copy'>('manifest');
   const navigate = useNavigate();
 
   if (isLoading) return <div className="flex items-center justify-center min-h-screen font-mono">ENCRYPTING ACCESS...</div>;
@@ -60,6 +74,11 @@ export default function AdminSkinsPage() {
   };
 
   const handleSetDefault = async (skinId: string) => {
+    const candidate = allSkins.find((skin) => skin.id === skinId);
+    if (!candidate || candidate.status !== 'active') {
+      console.error('Only an active skin can be the global default.');
+      return;
+    }
     if (window.confirm("Set this as the global default skin?")) {
       try {
         await setDefaultSkin(skinId);
@@ -97,6 +116,15 @@ export default function AdminSkinsPage() {
               isDefault: false,
               visualCalmSupported: true,
               themeTokens: { ...DEFAULT_THEME_TOKENS },
+              designTokens: { ...DEFAULT_APP_SKIN.designTokens },
+              typography: { ...DEFAULT_APP_SKIN.typography },
+              shape: { ...DEFAULT_APP_SKIN.shape },
+              effects: { ...DEFAULT_APP_SKIN.effects },
+              motion: { ...DEFAULT_APP_SKIN.motion },
+              components: { ...DEFAULT_APP_SKIN.components },
+              experience: { ...DEFAULT_APP_SKIN.experience },
+              features: { ...DEFAULT_APP_SKIN.features },
+              preview: { ...DEFAULT_APP_SKIN.preview },
               assets: { ...DEFAULT_SKIN_ASSETS },
               copyOverrides: { ...DEFAULT_COPY_OVERRIDES }
             });
@@ -121,11 +149,10 @@ export default function AdminSkinsPage() {
             <div>
               <p className="micro-label opacity-40 mb-3">DEFAULT_DNA_STRAND</p>
               <select 
-                value={settings?.defaultSkinId || 'base'}
+                value={settings?.defaultSkinId || DEFAULT_APP_SKIN.id}
                 onChange={(e) => handleSetDefault(e.target.value)}
                 className="w-full bg-transparent border-b-2 border-on-surface/20 py-2 font-display text-xl outline-none transition-colors focus:border-brand-orange"
               >
-                <option value="base">Standard Bureau</option>
                 {allSkins.map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
@@ -255,13 +282,15 @@ export default function AdminSkinsPage() {
 
                   <button 
                     onClick={() => handleSetDefault(skin.id)}
+                    disabled={skin.status !== 'active'}
+                    title={skin.status !== 'active' ? 'Activate this skin before making it the default.' : undefined}
                     className={cn(
-                      "w-full flex items-center justify-center gap-2 px-3 py-2 border-2 text-[10px] uppercase font-bold transition-all",
-                      skin.isDefault ? "bg-on-surface text-paper border-on-surface" : "border-on-surface/20 text-on-surface/40 hover:border-on-surface"
+                      "w-full min-h-11 flex items-center justify-center gap-2 px-3 py-2 border-2 text-[10px] uppercase font-bold transition-all disabled:cursor-not-allowed disabled:opacity-35",
+                      (settings?.defaultSkinId || DEFAULT_APP_SKIN.id) === skin.id ? "bg-on-surface text-paper border-on-surface" : "border-on-surface/20 text-on-surface/40 hover:border-on-surface"
                     )}
                   >
                     <Check className="w-3 h-3" />
-                    {skin.isDefault ? "GLOBAL_DEFAULT" : "SET_AS_DEFAULT"}
+                    {(settings?.defaultSkinId || DEFAULT_APP_SKIN.id) === skin.id ? "GLOBAL_DEFAULT" : "SET_AS_DEFAULT"}
                   </button>
 
                   <div className="h-px border-t border-dashed border-on-surface/10" />
@@ -275,7 +304,7 @@ export default function AdminSkinsPage() {
 
                   <div className="mt-auto pt-4 flex items-center justify-between">
                     <span className="micro-label opacity-40">SEASON: {skin.seasonId || 'NONE'}</span>
-                    {skin.isDefault && <FieldBadge variant="sticker" color="orange" size="xs" className="py-1">DEFAULT_STRAND</FieldBadge>}
+                    {(settings?.defaultSkinId || DEFAULT_APP_SKIN.id) === skin.id && <FieldBadge variant="sticker" color="orange" size="xs" className="py-1">DEFAULT_STRAND</FieldBadge>}
                   </div>
                 </div>
               </div>
@@ -302,7 +331,7 @@ export default function AdminSkinsPage() {
             </header>
 
             <div className="flex bg-on-surface border-b-2 border-on-surface/20">
-              {(['manifest', 'visuals', 'assets', 'copy'] as const).map(tab => (
+              {(['manifest', 'visuals', 'components', 'assets', 'copy'] as const).map(tab => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -331,6 +360,15 @@ export default function AdminSkinsPage() {
                              onChange={(e) => setEditingSkin({ ...editingSkin, name: e.target.value })}
                              className="w-full bg-transparent border-b-4 border-on-surface/10 p-2 text-2xl font-display uppercase tracking-tighter outline-none focus:border-brand-orange transition-colors"
                              placeholder="BUREAU_ADVENTURE_V1"
+                           />
+                         </div>
+                         <div>
+                           <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">DESCRIPTION</label>
+                           <textarea
+                             value={editingSkin.description || ''}
+                             onChange={(e) => setEditingSkin({ ...editingSkin, description: e.target.value })}
+                             className="w-full min-h-24 bg-transparent border-2 border-on-surface/20 p-3 text-sm outline-none focus:border-brand-orange"
+                             placeholder="Describe the visual and interaction character of this skin."
                            />
                          </div>
                          <div>
@@ -408,10 +446,10 @@ export default function AdminSkinsPage() {
 
               {activeTab === 'visuals' && (
                 <div className="space-y-8">
-                  <p className="micro-label font-bold text-on-surface">CHROMATIC_ENGINE_ARRAY</p>
+                  <p className="micro-label font-bold text-on-surface">SEMANTIC_DESIGN_TOKENS</p>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-6 bg-on-surface/5 p-6 border-2 border-on-surface/10">
-                    {Object.entries(editingSkin.themeTokens || {}).map(([key, value]) => {
-                      if (key.includes('Color')) {
+                    {Object.entries(editingSkin.designTokens || {}).map(([key, value]) => {
+                      if (typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value)) {
                         return (
                           <div key={key}>
                             <label className="block text-[8px] uppercase font-bold opacity-40 mb-1 leading-none">{key}</label>
@@ -421,7 +459,7 @@ export default function AdminSkinsPage() {
                                 value={value as string} 
                                 onChange={(e) => setEditingSkin({ 
                                   ...editingSkin, 
-                                  themeTokens: { ...editingSkin.themeTokens!, [key]: e.target.value } 
+                                  designTokens: { ...editingSkin.designTokens!, [key]: e.target.value }
                                 })}
                                 className="w-8 h-8 rounded-none border-2 border-on-surface cursor-pointer p-0 bg-transparent"
                               />
@@ -430,7 +468,7 @@ export default function AdminSkinsPage() {
                                 value={value as string} 
                                 onChange={(e) => setEditingSkin({ 
                                   ...editingSkin, 
-                                  themeTokens: { ...editingSkin.themeTokens!, [key]: e.target.value } 
+                                  designTokens: { ...editingSkin.designTokens!, [key]: e.target.value }
                                 })}
                                 className="w-full bg-transparent text-xs font-mono outline-none focus:text-brand-orange transition-colors"
                               />
@@ -446,13 +484,83 @@ export default function AdminSkinsPage() {
                             value={value as string} 
                             onChange={(e) => setEditingSkin({ 
                               ...editingSkin, 
-                              themeTokens: { ...editingSkin.themeTokens!, [key]: e.target.value } 
+                              designTokens: { ...editingSkin.designTokens!, [key]: e.target.value }
                             })}
                             className="w-full bg-transparent border-b-2 border-on-surface/20 p-1 text-[10px] font-mono outline-none focus:border-on-surface transition-colors"
                           />
                         </div>
                       )
                     })}
+                  </div>
+
+                  {([
+                    ['typography', editingSkin.typography],
+                    ['shape', editingSkin.shape],
+                    ['effects', editingSkin.effects],
+                    ['motion', editingSkin.motion],
+                  ] as const).map(([groupName, values]) => (
+                    <div key={groupName} className="space-y-3">
+                      <p className="micro-label font-bold text-on-surface">{groupName}_TOKENS</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-on-surface/5 p-5 border-2 border-on-surface/10">
+                        {Object.entries(values || {}).map(([key, value]) => (
+                          <label key={key} className="space-y-1">
+                            <span className="block text-[8px] uppercase font-bold opacity-40">{key}</span>
+                            {typeof value === 'boolean' ? (
+                              <select
+                                value={String(value)}
+                                onChange={(event) => setEditingSkin({
+                                  ...editingSkin,
+                                  [groupName]: { ...(editingSkin as any)[groupName], [key]: event.target.value === 'true' },
+                                })}
+                                className="w-full border-2 border-on-surface/20 bg-white p-2 font-mono text-[10px]"
+                              >
+                                <option value="true">true</option>
+                                <option value="false">false</option>
+                              </select>
+                            ) : (
+                              <input
+                                type={typeof value === 'number' ? 'number' : 'text'}
+                                value={String(value ?? '')}
+                                onChange={(event) => setEditingSkin({
+                                  ...editingSkin,
+                                  [groupName]: {
+                                    ...(editingSkin as any)[groupName],
+                                    [key]: typeof value === 'number' ? Number(event.target.value) : event.target.value,
+                                  },
+                                })}
+                                className="w-full border-b-2 border-on-surface/20 bg-transparent p-2 font-mono text-[10px] outline-none focus:border-brand-orange"
+                              />
+                            )}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeTab === 'components' && (
+                <div className="space-y-8">
+                  <div>
+                    <p className="micro-label font-bold text-on-surface">COMPONENT_VARIANT_MAP</p>
+                    <p className="mt-2 text-sm text-on-surface/60">Structural variants are applied as root data attributes. Pages do not need skin-ID checks.</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 bg-on-surface/5 p-6 border-2 border-on-surface/10">
+                    {Object.entries(editingSkin.components || {}).map(([key, value]) => (
+                      <label key={key} className="space-y-2">
+                        <span className="block text-[9px] uppercase font-bold opacity-50">{key}</span>
+                        <select
+                          value={value as string}
+                          onChange={(event) => setEditingSkin({
+                            ...editingSkin,
+                            components: { ...editingSkin.components!, [key]: event.target.value },
+                          })}
+                          className="w-full border-2 border-on-surface bg-white p-3 font-mono text-[10px]"
+                        >
+                          {(COMPONENT_VARIANT_OPTIONS[key] || [value as string]).map(option => <option key={option} value={option}>{option}</option>)}
+                        </select>
+                      </label>
+                    ))}
                   </div>
                 </div>
               )}
@@ -478,7 +586,7 @@ export default function AdminSkinsPage() {
                             className="flex-grow bg-transparent border-b-2 border-on-surface/20 p-2 text-[10px] font-mono outline-none focus:border-brand-orange transition-colors"
                             placeholder="/path/to/asset.svg"
                           />
-                          {value && (
+                          {value && (String(value).startsWith('/') || String(value).startsWith('http')) && (
                             <div className="w-10 h-10 border-2 border-on-surface bg-paper flex items-center justify-center overflow-hidden">
                               <img src={value as string} alt="" className="max-w-full max-h-full object-contain" />
                             </div>

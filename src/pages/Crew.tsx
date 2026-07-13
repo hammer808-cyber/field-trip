@@ -274,7 +274,7 @@ export default function CrewPage() {
     .sort(([, a]: any, [, b]: any) => b.totalScore - a.totalScore)
     .findIndex(([id]) => id === crewId) + 1) : 0;
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen font-mono">LOADING_CREW_IDENTITY...</div>;
+  if (loading) return <div className="skin-page skin-loading-state flex items-center justify-center min-h-screen font-mono">LOADING_CREW_IDENTITY...</div>;
 
   if (!crew) {
     const cooldownUntil = membershipState?.cooldownUntil || profile?.crewCooldownUntil || null;
@@ -284,7 +284,7 @@ export default function CrewPage() {
         ? cooldownUntil.toDate().toLocaleString()
         : null;
     return (
-      <div className="min-h-screen p-6 pb-32 flex items-center justify-center">
+      <div className="skin-page skin-crew min-h-screen p-6 pb-32 flex items-center justify-center">
         <form onSubmit={handleCreateCrew} className="w-full max-w-xl bg-white border-[6px] border-on-surface shadow-[14px_14px_0px_black] p-6 sm:p-8 space-y-6">
           <div className="space-y-2 text-center">
             <Users className="w-14 h-14 mx-auto text-brand-orange" />
@@ -423,7 +423,7 @@ export default function CrewPage() {
   ];
 
   return (
-    <div className="pb-40 px-6 pt-12 space-y-16 max-w-5xl mx-auto relative overflow-hidden">
+    <div className="skin-page skin-crew pb-40 px-6 pt-12 space-y-16 max-w-5xl mx-auto relative overflow-hidden">
       {/* Header */}
       <header className="space-y-12 border-b-8 border-on-surface pb-12">
         <div className="flex flex-col md:flex-row items-start md:items-end gap-8 relative">
@@ -635,7 +635,12 @@ export default function CrewPage() {
                   .map(member => {
                     const isSelf = member.userId === user?.uid;
                     const isCaptain = member.userId === crew.captainId;
-                    const viewerIsCaptain = rosterState?.viewerMembership?.userId === crew.captainId && rosterState.viewerMembership.status === 'active';
+                    const viewerMembership = rosterState?.viewerMembership;
+                    const viewerIsCaptain = Boolean(
+                      viewerMembership &&
+                      viewerMembership.userId === crew.captainId &&
+                      viewerMembership.status === 'active'
+                    );
                     const canTransfer = viewerIsCaptain && !isSelf;
                     const canRemove = viewerIsCaptain && !isSelf && !isCaptain;
                     return (

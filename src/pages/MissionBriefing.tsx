@@ -17,7 +17,7 @@ export default function MissionBriefingPage() {
 
   if (!mission) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-paper-light p-6">
+      <div className="skin-page skin-error-state min-h-screen flex items-center justify-center bg-paper-light p-6">
         <div className="text-center space-y-4">
           <p className="font-mono text-xs uppercase opacity-40">Error: Mission not found</p>
           <button onClick={() => navigate('/missions')} className="bureau-btn">Back to Missions</button>
@@ -46,7 +46,7 @@ export default function MissionBriefingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] pb-40 ft-paper-texture">
+    <div className="skin-page skin-mission-briefing min-h-screen bg-[#FAF8F5] pb-40 ft-paper-texture">
       <header className="px-4 pt-6 flex items-center justify-between">
         <button 
           onClick={() => navigate(-1)}

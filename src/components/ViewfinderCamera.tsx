@@ -552,7 +552,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
 
   if (error) {
     return (
-      <div className="absolute inset-0 flex items-center justify-center bg-black/95 p-8 text-center z-50 overflow-y-auto">
+      <div className="skin-viewfinder skin-error-state absolute inset-0 flex items-center justify-center bg-black/95 p-8 text-center z-50 overflow-y-auto">
         <input 
           type="file" 
           accept="image/*" 
@@ -603,7 +603,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
   ].filter(Boolean).join(' ') || undefined;
 
   return (
-    <div className="absolute inset-0 bg-black overflow-hidden flex items-center justify-center">
+    <div className="skin-viewfinder absolute inset-0 bg-black overflow-hidden flex items-center justify-center">
       <div className="relative w-full h-full">
         {/* Main Camera View */}
         <video 
@@ -714,7 +714,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
               initial={{ y: 16, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 16, opacity: 0 }}
-              className="absolute bottom-[7.25rem] left-4 right-4 z-50 rounded-2xl border border-white/15 bg-black/70 p-3 text-white shadow-lg backdrop-blur-md sm:left-auto sm:right-5 sm:w-[220px]"
+              className="skin-viewfinder-panel absolute bottom-[7.25rem] left-4 right-4 z-50 rounded-2xl border border-white/15 bg-black/70 p-3 text-white shadow-lg backdrop-blur-md sm:left-auto sm:right-5 sm:w-[220px]"
             >
             <div className="mb-2 flex items-center justify-between font-mono text-[8px] uppercase tracking-widest">
               <span className="text-white/60">Zoom</span>
@@ -881,7 +881,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
-              className="absolute bottom-32 inset-x-8 bg-black/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 z-40"
+              className="skin-viewfinder-panel absolute bottom-32 inset-x-8 bg-black/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 z-40"
             >
               <div className="flex items-center justify-between mb-4">
                 <span className="font-mono text-[10px] text-brand-orange uppercase tracking-tighter">Viewfinder Grader // V.0.4</span>

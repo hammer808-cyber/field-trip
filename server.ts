@@ -5438,7 +5438,9 @@ async function startServer() {
       if (!result.reused || result.canonicalized) {
         await dbAdmin.collection('crewAuditLogs').add({ actorId: uid, crewId, action: 'create_share_invite', inviteId: inviteRef.id, createdAt: FieldValue.serverTimestamp() });
       }
-      res.json({ invite: result.invite, inviteUrl: `/crew/invite/${result.invite.token}` });
+      const inviteToken = (result.invite as { token?: unknown }).token;
+      if (typeof inviteToken !== 'string' || !inviteToken) throw new Error('CREW_INVITE_TOKEN_MISSING');
+      res.json({ invite: result.invite, inviteUrl: `/crew/invite/${inviteToken}` });
     } catch (error: any) {
       console.error("[CREW_INVITE_LINK] Failed:", error);
       const message = error.message || String(error);

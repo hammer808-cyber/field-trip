@@ -56,7 +56,7 @@ export function BottomNav() {
       onTouchStart={handleInteraction}
       onMouseDown={handleInteraction}
       className={cn(
-        "fixed bottom-0 left-0 w-full z-100 px-2 sm:px-3 pb-[env(safe-area-inset-bottom,0px)] h-[calc(80px+env(safe-area-inset-bottom,0px))] grid grid-cols-5 items-center md:max-w-xl md:left-1/2 md:-translate-x-1/2 md:bottom-6 md:rounded-[2.5rem] md:h-22",
+        "skin-navigation fixed bottom-0 left-0 w-full z-100 px-2 sm:px-3 pb-[env(safe-area-inset-bottom,0px)] h-[calc(80px+env(safe-area-inset-bottom,0px))] grid grid-cols-5 items-center md:max-w-xl md:left-1/2 md:-translate-x-1/2 md:bottom-6 md:rounded-[2.5rem] md:h-22",
         // Soft opacity transition with automatic full interaction overrides
         "transition-all duration-300 ease-in-out",
         isNavActive 
@@ -91,6 +91,9 @@ export function BottomNav() {
               key={item.path}
               to={item.path}
               data-onboarding={dataOnboarding}
+              data-nav-item={itemPathname}
+              data-nav-special="true"
+              data-active={isActive ? 'true' : 'false'}
               className="relative -translate-y-6 group flex justify-center z-40"
             >
               <div className={cn(
@@ -126,6 +129,8 @@ export function BottomNav() {
             key={item.path}
             to={item.path}
             data-onboarding={dataOnboarding}
+            data-nav-item={itemPathname}
+            data-active={isActive ? 'true' : 'false'}
             className={cn(
               "flex flex-col items-center justify-center flex-1 h-full py-1 relative select-none",
               isActive 

@@ -228,7 +228,7 @@ export default function Basecamp() {
   }, [leaderboard, realUserRank, user?.uid, points, profile?.name]);
 
   return (
-    <div className="page-scroll ft-paper-texture pb-32 min-h-screen bg-paper-light">
+    <div className="skin-page skin-basecamp page-scroll ft-paper-texture pb-32 min-h-screen bg-paper-light">
       <FieldPageHero
         eyebrow="FIELD_START"
         title="BASECAMP"

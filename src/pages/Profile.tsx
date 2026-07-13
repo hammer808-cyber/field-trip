@@ -163,7 +163,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="page-scroll px-4 sm:px-8 pt-6 sm:pt-12 max-w-2xl mx-auto relative bg-[#F9F7F2] ft-paper-texture min-h-screen">
+    <div className="skin-page skin-profile skin-logbook page-scroll px-4 sm:px-8 pt-6 sm:pt-12 max-w-2xl mx-auto relative bg-[#F9F7F2] ft-paper-texture min-h-screen">
       {/* Global Grain Overlay */}
       <div className="fixed inset-0 pointer-events-none opacity-[0.03] z-50 bg-[url('https://www.transparenttextures.com/patterns/felt.png')]" />
       

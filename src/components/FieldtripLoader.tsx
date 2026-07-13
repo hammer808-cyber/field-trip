@@ -132,7 +132,7 @@ export function FieldtripLoader({
   const body = (
     <div
       className={cn(
-        'relative overflow-hidden border-4 border-on-surface bg-[#fff8e8] text-on-surface shadow-[8px_8px_0px_black]',
+        'skin-card skin-loading-state relative overflow-hidden border-4 border-on-surface bg-[#fff8e8] text-on-surface shadow-[8px_8px_0px_black]',
         compact ? 'p-4 rounded-2xl' : 'p-8 rounded-[2rem]',
         className
       )}
@@ -168,7 +168,7 @@ export function FieldtripLoader({
           </p>
         </div>
         {showProgress && (
-          <div className="h-3 w-full max-w-xs overflow-hidden border-2 border-on-surface bg-white shadow-[2px_2px_0px_black]">
+          <div className="skin-progress h-3 w-full max-w-xs overflow-hidden border-2 border-on-surface bg-white shadow-[2px_2px_0px_black]">
             <motion.div
               className="h-full w-1/2 bg-brand-cyan"
               animate={reduceMotion ? {} : { x: ['-100%', '220%'] }}
@@ -182,7 +182,7 @@ export function FieldtripLoader({
 
   if (!fullScreen) return body;
   return (
-    <div className="min-h-screen flex items-center justify-center bg-paper p-6 ft-paper-texture">
+    <div className="skin-page min-h-screen flex items-center justify-center bg-paper p-6 ft-paper-texture">
       {body}
     </div>
   );
@@ -202,7 +202,7 @@ export function EmptyStatePanel({
   className?: string;
 }) {
   return (
-    <div className={cn('border-4 border-dashed border-on-surface/20 bg-white/80 p-8 text-center shadow-[6px_6px_0px_rgba(0,0,0,0.12)] rounded-[2rem]', className)}>
+    <div className={cn('skin-card skin-state-panel skin-empty-state border-4 border-dashed border-on-surface/20 bg-white/80 p-8 text-center shadow-[6px_6px_0px_rgba(0,0,0,0.12)] rounded-[2rem]', className)}>
       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border-4 border-on-surface bg-brand-yellow shadow-[4px_4px_0px_black]">
         {icon || <Archive className="h-8 w-8" />}
       </div>
@@ -215,7 +215,7 @@ export function EmptyStatePanel({
 
 export function SkeletonProofCard({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={cn('border-4 border-on-surface bg-white p-4 shadow-[6px_6px_0px_black]', compact && 'p-3')}>
+    <div className={cn('skin-card skin-loading-state border-4 border-on-surface bg-white p-4 shadow-[6px_6px_0px_black]', compact && 'p-3')}>
       <div className="aspect-[4/3] bg-on-surface/10 border-2 border-on-surface/10 animate-pulse" />
       <div className="mt-4 space-y-2">
         <div className="h-3 w-1/2 bg-on-surface/10 animate-pulse" />

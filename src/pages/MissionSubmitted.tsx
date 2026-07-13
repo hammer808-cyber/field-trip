@@ -15,7 +15,7 @@ export default function MissionSubmittedPage() {
   const mission = trips.find(t => t.id === missionId);
 
   return (
-    <div className="min-h-screen bg-[#FCF8F2] flex flex-col items-center justify-center p-6 relative overflow-hidden">
+    <div className="skin-page skin-proof-status skin-success-state min-h-screen bg-[#FCF8F2] flex flex-col items-center justify-center p-6 relative overflow-hidden">
       <Confetti />
       
       {/* Background Grid Pattern (field trip dossier style) */}
@@ -34,7 +34,7 @@ export default function MissionSubmittedPage() {
         className="w-full max-w-sm space-y-8 relative z-10 text-center"
       >
         {/* Core Tactical Card Container */}
-        <div className="bg-white border-[4px] border-on-surface p-8 shadow-[10px_10px_0px_black] relative rotate-[-0.5deg]">
+        <div className="skin-card skin-state-panel bg-white border-[4px] border-on-surface p-8 shadow-[10px_10px_0px_black] relative rotate-[-0.5deg]">
           
           {/* Decorative Tape */}
           <FieldTape className="absolute -top-4 left-1/2 -translate-x-1/2 w-28 h-6 bg-brand-lime" rotation={-2} />

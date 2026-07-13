@@ -240,7 +240,7 @@ export function buildZineDraftPages(candidates: ZineCandidateLike[]): ZinePage[]
 
 export function buildZineCoverChoices(candidates: ZineCandidateLike[], title: string, seasonId: string): ZineCoverChoice[] {
   const ordered = [...candidates].sort((a, b) => Number(b.score ?? b.awardedXP ?? 0) - Number(a.score ?? a.awardedXP ?? 0) || getZineCandidateId(a).localeCompare(getZineCandidateId(b)));
-  const choices = ordered.slice(0, 3).map((candidate, index) => ({
+  const choices: ZineCoverChoice[] = ordered.slice(0, 3).map((candidate, index) => ({
     id: `cover_${index + 1}_${getZineCandidateId(candidate)}`,
     proofId: getZineCandidateId(candidate),
     layoutId: 'cover_full_bleed' as const,

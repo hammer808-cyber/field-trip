@@ -104,7 +104,7 @@ export function ZineWorkspace({ initialKind = 'personal', showScopeSwitch = true
   const displayedPages = zine?.status === 'finalized' && zine.finalizedPages?.length ? zine.finalizedPages : zine?.pages || [];
 
   return (
-    <section className="space-y-8" aria-label="Fieldtrip zine workspace">
+    <section className="skin-zine space-y-8" aria-label="Fieldtrip zine workspace">
       <header className="border-b-4 border-on-surface pb-6 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
         <div className="space-y-2">
           <p className="font-mono text-[10px] font-black uppercase tracking-[0.2em] text-brand-orange">Season edition / {workspace?.seasonId || 'active season'}</p>
@@ -249,7 +249,7 @@ function ZinePagePanel({ zine, page, candidates, earnedStickerIds, canEdit, comp
   const selected = page.proofSnapshots?.[0] || null;
   const imageEntry = proofImageEntry(selected);
   return (
-    <article className={cn('relative border-4 border-on-surface bg-[#FFFDF6] overflow-hidden', compact ? 'min-h-[480px] shadow-[8px_8px_0px_black]' : 'grid md:grid-cols-[240px_1fr]')}>
+    <article className={cn('skin-card skin-zine-page relative border-4 border-on-surface bg-[#FFFDF6] overflow-hidden', compact ? 'min-h-[480px] shadow-[8px_8px_0px_black]' : 'grid md:grid-cols-[240px_1fr]')}>
       <div className={cn('relative bg-neutral-900', compact ? 'h-72' : 'min-h-64 md:min-h-full')}>
         {imageEntry ? <ProofImage entry={imageEntry} className="absolute inset-0 w-full h-full" alt={selected?.missionTitle || page.title} /> : <div className="absolute inset-0 grid place-items-center text-center p-6 text-white/40 font-mono text-[10px] uppercase">Page waiting for a receipt</div>}
         <span className="absolute top-3 left-3 bg-brand-lime border-2 border-on-surface px-2 py-1 font-mono text-[8px] font-black uppercase">{page.order + 1} / {page.role.replace(/_/g, ' ')}</span>
@@ -301,4 +301,3 @@ function ZinePagePanel({ zine, page, candidates, earnedStickerIds, canEdit, comp
     </article>
   );
 }
-

@@ -601,7 +601,7 @@ export default function DeckPage() {
   if (user && isOnboardingComplete && !profile?.hasSeenDeckChooserIntro && !deckChooserIntroDismissed) {
     return (
       <div className={cn(
-        "min-h-screen flex flex-col justify-center items-center p-4 sm:p-8 font-sans relative overflow-hidden",
+        "skin-page skin-deck-browser min-h-screen flex flex-col justify-center items-center p-4 sm:p-8 font-sans relative overflow-hidden",
         isBaja ? "bg-baja-sand text-baja-pink" :
         isDiamond ? "bg-black text-white" :
         isHeat ? "bg-heat-yellow text-white" :
@@ -767,7 +767,7 @@ export default function DeckPage() {
     const launchMission = trips.find(t => t.id.toLowerCase() === LAUNCH_MISSION_ID.toLowerCase()) || LAUNCH_MISSION;
     
     return (
-      <div className="min-h-screen bg-neutral-50 flex flex-col items-center justify-center p-6 space-y-12 relative overflow-hidden">
+      <div className="skin-page skin-deck-browser min-h-screen bg-neutral-50 flex flex-col items-center justify-center p-6 space-y-12 relative overflow-hidden">
         {/* Background Grain */}
         <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')] mix-blend-multiply" />
         
@@ -870,7 +870,7 @@ export default function DeckPage() {
 
   return (
     <div className={cn(
-      "page-scroll relative px-4 sm:px-6 ft-paper-texture",
+      "skin-page skin-deck-browser page-scroll relative px-4 sm:px-6 ft-paper-texture",
       isBaja ? "bg-baja-sand" : isDiamond ? "bg-black" : isHeat ? "bg-heat-yellow" : "bg-paper-light",
       "text-on-surface"
     )}>
