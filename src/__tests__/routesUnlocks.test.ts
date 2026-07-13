@@ -24,7 +24,8 @@ test('stable IA routes exist and legacy routes redirect safely', () => {
   assert.match(appSource, /<Route path="\/missions\/logbook" element=\{<Navigate to="\/profile\?tab=logbook" replace \/>}/);
   assert.match(appSource, /<Route path="\/dex" element=\{<StarterGate requiredFeature="memories"><Collection \/><\/StarterGate>}/);
   assert.match(appSource, /<Route path="\/dex\/memories\/community" element=\{<StarterGate requiredFeature="memories"><Collection \/><\/StarterGate>}/);
-  assert.match(appSource, /<Route path="\/crew" element=\{<StarterGate requiredFeature="crew"><Crew \/><\/StarterGate>\}/);
+  assert.match(appSource, /<Route path="\/crew" element=\{<Crew \/>\} \/>/);
+  assert.match(appSource, /<Route path="\/crews" element=\{<Navigate to="\/crew" replace \/>\} \/>/);
   assert.match(appSource, /<Route path="\/deck" element=\{<Navigate to="\/missions\/decks" replace \/>}/);
   assert.match(appSource, /<Route path="\/collection" element=\{<Navigate to="\/dex" replace \/>}/);
   assert.match(appSource, /<Route path="\/memories" element=\{<StarterGate requiredFeature="memories"><Navigate to="\/dex\/memories" replace \/><\/StarterGate>}/);
@@ -53,11 +54,11 @@ test('primary nav has exactly five canonical destinations and no Crew tab', () =
   assert.doesNotMatch(bottomNavSource, /label: 'CREW'/);
 });
 
-test('Basecamp owns settings, admin, and Crew entry points', () => {
+test('Basecamp owns settings, admin, and pre-Starter Crew entry points', () => {
   assert.match(basecampSource, /navigate\('\/settings'\)/);
   assert.match(basecampSource, /Admin Console/);
-  assert.match(basecampSource, /Crew Access Locked/);
-  assert.match(basecampSource, /Complete Starter Signals:/);
+  assert.doesNotMatch(basecampSource, /Crew Access Locked/);
+  assert.match(basecampSource, /Starter Signals still gates seasonal Crew proofs, memories, and zine eligibility/);
   assert.match(basecampSource, /navigate\('\/crew'\)/);
 });
 

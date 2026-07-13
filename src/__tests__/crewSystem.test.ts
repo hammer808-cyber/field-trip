@@ -8,9 +8,9 @@ import {
   buildPersonalMemoryState,
   canApproveJoinRequest,
   canInviteToCrew,
-  canPromoteCrewMember,
-  canRemoveCrewCaptainRole,
   canRemoveCrewMember,
+  canTransferCrewCaptain,
+  getCanonicalCrewCaptainId,
   getCrewMemoryExclusionReasons,
   getCrewJoinBlockReason,
   hasCrewOnboardingAccess,
@@ -185,27 +185,25 @@ test('Crew slugs are normalized for stable server-created IDs', () => {
   assert.equal(normalizeCrewSlug(' The Parking Lot Legends!! '), 'the-parking-lot-legends');
 });
 
-test('Crew role permissions follow Founder, Captain, and Member rules', () => {
-  const crew = { id: 'crew-1', status: 'active' as const, allowMemberInvites: false };
+test('Crew authority follows one canonical captain after legacy founder roles are normalized', () => {
+  const crew = { id: 'crew-1', status: 'active' as const, founderId: 'founder', captainId: 'captain', captainIds: ['captain', 'stale-captain'], allowMemberInvites: false };
   const founder = { userId: 'founder', role: 'founder' as const, status: 'active' as const };
   const captain = { userId: 'captain', role: 'captain' as const, status: 'active' as const };
   const member = { userId: 'member', role: 'member' as const, status: 'active' as const };
 
-  assert.equal(canInviteToCrew(founder, crew), true);
+  assert.equal(getCanonicalCrewCaptainId(crew), 'captain');
+  assert.equal(canInviteToCrew(founder, crew), false);
   assert.equal(canInviteToCrew(captain, crew), true);
   assert.equal(canInviteToCrew(member, crew), false);
   assert.equal(canInviteToCrew(member, { ...crew, allowMemberInvites: true }), true);
-  assert.equal(canApproveJoinRequest(captain), true);
-
-  assert.equal(canPromoteCrewMember(founder, member), true);
-  assert.equal(canPromoteCrewMember(captain, member), false);
-  assert.equal(canRemoveCrewCaptainRole(founder, captain), true);
-  assert.equal(canRemoveCrewCaptainRole(captain, captain), false);
-  assert.equal(canRemoveCrewMember(captain, founder), false);
-  assert.equal(canRemoveCrewMember(captain, member), true);
-  assert.equal(canRemoveCrewMember(captain, captain), false);
-  assert.equal(canRemoveCrewMember(founder, captain), true);
-  assert.equal(canRemoveCrewMember(member, captain), false);
+  assert.equal(canApproveJoinRequest(captain, crew), true);
+  assert.equal(canApproveJoinRequest(founder, crew), false);
+  assert.equal(canTransferCrewCaptain(captain, member, crew), true);
+  assert.equal(canTransferCrewCaptain(founder, member, crew), false);
+  assert.equal(canRemoveCrewMember(captain, founder, crew), true);
+  assert.equal(canRemoveCrewMember(captain, member, crew), true);
+  assert.equal(canRemoveCrewMember(captain, captain, crew), false);
+  assert.equal(canRemoveCrewMember(founder, member, crew), false);
 });
 
 test('Crew join eligibility blocks duplicate crews, capacity, cooldown, and archived crews', () => {

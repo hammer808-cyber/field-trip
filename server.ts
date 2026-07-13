@@ -68,9 +68,6 @@ import {
   addDays,
   canApproveJoinRequest,
   canInviteToCrew,
-  canPromoteCrewMember,
-  canRemoveCrewCaptainRole,
-  canRemoveCrewMember,
   canTransferCrewCaptain,
   buildCrewMemoryState,
   buildPersonalMemoryState,
@@ -4840,10 +4837,11 @@ async function startServer() {
         return res.status(400).json({ error: 'ZINE_REPAIR_CONFIRMATION_REQUIRED' });
       }
       const seasonId = await getActiveSeasonIdForCrew();
-      const [usersSnap, entriesSnap, crewsSnap] = await Promise.all([
+      const [usersSnap, entriesSnap, crewsSnap, finalizedCrewZinesSnap] = await Promise.all([
         dbAdmin.collection('users').limit(1000).get(),
         dbAdmin.collection('entries').limit(1500).get(),
         dbAdmin.collection('crews').where('status', '==', 'active').limit(250).get(),
+        dbAdmin.collection('crewSeasonZines').where('status', 'in', ['finalized', 'archived']).limit(500).get(),
       ]);
       const eligibleUsers = usersSnap.docs.filter(docSnap => hasCompletedStarterForZine(docSnap.data()));
       const approvedEntries = entriesSnap.docs.filter(docSnap => normalizeStatusBackend(docSnap.data().status || docSnap.data().reviewStatus) === 'approved');
@@ -4855,26 +4853,89 @@ async function startServer() {
       const entryArchiveMissing = approvedEntries
         .filter(docSnap => !docSnap.data().personalArchiveEntryId || docSnap.data().zineArchiveSyncStatus !== 'complete')
         .map(docSnap => docSnap.id);
-      const crewShellsMissing: string[] = [];
+      const crewShellsMissing: Array<{ crewId: string; eligibleMemberId: string }> = [];
       for (const crewDoc of crewsSnap.docs) {
         const shell = await dbAdmin.collection('crewSeasonZines').doc(getCrewZineId(crewDoc.id, seasonId)).get();
-        if (!shell.exists) crewShellsMissing.push(crewDoc.id);
+        if (shell.exists) continue;
+        const membersSnap = await crewDoc.ref.collection('members').where('status', '==', 'active').limit(CREW_MEMBER_LIMIT_DEFAULT).get();
+        let eligibleMemberId = '';
+        for (const memberDoc of membersSnap.docs) {
+          const cachedProfile = usersSnap.docs.find(userDoc => userDoc.id === memberDoc.id)?.data();
+          const profile = cachedProfile || (await dbAdmin.collection('users').doc(memberDoc.id).get()).data();
+          if (hasCompletedStarterForZine(profile)) {
+            eligibleMemberId = memberDoc.id;
+            break;
+          }
+        }
+        if (eligibleMemberId) crewShellsMissing.push({ crewId: crewDoc.id, eligibleMemberId });
+      }
+      const finalizedViewerSnapshotRepairs = new Map<string, string[]>();
+      const manualReview: Array<{ zineId: string; reason: string }> = [];
+      const toTimestampMillis = (value: any) => {
+        if (!value) return 0;
+        if (typeof value.toMillis === 'function') return value.toMillis();
+        if (typeof value.toDate === 'function') return value.toDate().getTime();
+        if (typeof value.seconds === 'number') return value.seconds * 1000;
+        const parsed = new Date(value).getTime();
+        return Number.isFinite(parsed) ? parsed : 0;
+      };
+      for (const zineDoc of finalizedCrewZinesSnap.docs) {
+        const zine = zineDoc.data() || {};
+        if (Array.isArray(zine.viewerUserIdsSnapshot) && zine.viewerUserIdsSnapshot.length > 0) continue;
+        const finalizationId = String(zine.finalizationId || `finalize_${zineDoc.id}`);
+        const finalizationSnap = await dbAdmin.collection('zineFinalizations').doc(finalizationId).get();
+        const finalizationViewers = finalizationSnap.data()?.viewerUserIdsSnapshot;
+        if (Array.isArray(finalizationViewers) && finalizationViewers.length > 0) {
+          finalizedViewerSnapshotRepairs.set(zineDoc.id, Array.from(new Set(finalizationViewers.map((id: any) => String(id)).filter(Boolean))));
+          continue;
+        }
+        const cutoff = toTimestampMillis(zine.finalizedAt || zine.archivedAt);
+        if (!zine.crewId || !cutoff) {
+          manualReview.push({ zineId: zineDoc.id, reason: 'missing_crew_or_finalization_timestamp' });
+          continue;
+        }
+        const membersSnap = await dbAdmin.collection('crews').doc(String(zine.crewId)).collection('members').limit(CREW_MEMBER_LIMIT_DEFAULT + 20).get();
+        if (membersSnap.docs.some(memberDoc => !toTimestampMillis(memberDoc.data().joinedAt || memberDoc.data().crewEligibleFrom))) {
+          manualReview.push({ zineId: zineDoc.id, reason: 'membership_history_missing_join_timestamp' });
+          continue;
+        }
+        const viewerIds = membersSnap.docs.filter(memberDoc => {
+          const member = memberDoc.data() || {};
+          const joinedAt = toTimestampMillis(member.joinedAt || member.crewEligibleFrom);
+          const endedAt = toTimestampMillis(member.leftAt || member.removedAt);
+          return joinedAt <= cutoff && (!endedAt || endedAt >= cutoff);
+        }).map(memberDoc => memberDoc.id);
+        if (viewerIds.length === 0) {
+          manualReview.push({ zineId: zineDoc.id, reason: 'no_members_at_finalization_timestamp' });
+          continue;
+        }
+        finalizedViewerSnapshotRepairs.set(zineDoc.id, viewerIds);
       }
       const report: any = {
         dryRun,
         seasonId,
-        scanned: { users: usersSnap.size, entries: entriesSnap.size, crews: crewsSnap.size },
+        scanned: { users: usersSnap.size, entries: entriesSnap.size, crews: crewsSnap.size, finalizedCrewZines: finalizedCrewZinesSnap.size },
+        scanLimitsReached: {
+          users: usersSnap.size === 1000,
+          entries: entriesSnap.size === 1500,
+          crews: crewsSnap.size === 250,
+          finalizedCrewZines: finalizedCrewZinesSnap.size === 500,
+        },
         missing: {
           personalZineShells: personalShellsMissing.length,
           entryArchiveLinks: entryArchiveMissing.length,
           crewZineShells: crewShellsMissing.length,
+          finalizedViewerSnapshots: finalizedViewerSnapshotRepairs.size,
+          manualReview: manualReview.length,
         },
         samples: {
           personalZineShells: personalShellsMissing.slice(0, 20),
           entryArchiveLinks: entryArchiveMissing.slice(0, 20),
-          crewZineShells: crewShellsMissing.slice(0, 20),
+          crewZineShells: crewShellsMissing.slice(0, 20).map(item => item.crewId),
+          finalizedViewerSnapshots: Array.from(finalizedViewerSnapshotRepairs.keys()).slice(0, 20),
+          manualReview: manualReview.slice(0, 20),
         },
-        repaired: { personalZineShells: 0, entryArchiveLinks: 0, crewZineShells: 0 },
+        repaired: { personalZineShells: 0, entryArchiveLinks: 0, crewZineShells: 0, finalizedViewerSnapshots: 0 },
       };
       if (!dryRun) {
         for (const uid of personalShellsMissing) {
@@ -4885,19 +4946,23 @@ async function startServer() {
           await syncApprovedEntryToZineArchives(entryId);
           report.repaired.entryArchiveLinks += 1;
         }
-        for (const crewId of crewShellsMissing) {
+        for (const missingCrewShell of crewShellsMissing) {
+          const crewId = missingCrewShell.crewId;
           const crewDoc = crewsSnap.docs.find(docSnap => docSnap.id === crewId);
           if (!crewDoc) continue;
-          const membersSnap = await dbAdmin.collection('crews').doc(crewId).collection('members').where('status', '==', 'active').limit(8).get();
-          let eligibleMemberId = '';
-          for (const memberDoc of membersSnap.docs) {
-            const profile = usersSnap.docs.find(userDoc => userDoc.id === memberDoc.id)?.data() || (await dbAdmin.collection('users').doc(memberDoc.id).get()).data();
-            if (hasCompletedStarterForZine(profile)) {
-              eligibleMemberId = memberDoc.id;
-              break;
-            }
+          if (await ensureCrewZineShell({ id: crewDoc.id, ...crewDoc.data() }, missingCrewShell.eligibleMemberId, seasonId)) report.repaired.crewZineShells += 1;
+        }
+        for (const [zineId, viewerUserIdsSnapshot] of finalizedViewerSnapshotRepairs.entries()) {
+          const zineRef = dbAdmin.collection('crewSeasonZines').doc(zineId);
+          await zineRef.set({ viewerUserIdsSnapshot, viewerSnapshotBackfilledAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+          const zineSnap = await zineRef.get();
+          const finalizationId = String(zineSnap.data()?.finalizationId || `finalize_${zineId}`);
+          const finalizationRef = dbAdmin.collection('zineFinalizations').doc(finalizationId);
+          const finalizationSnap = await finalizationRef.get();
+          if (finalizationSnap.exists) {
+            await finalizationRef.set({ viewerUserIdsSnapshot, viewerSnapshotBackfilledAt: FieldValue.serverTimestamp() }, { merge: true });
           }
-          if (eligibleMemberId && await ensureCrewZineShell({ id: crewDoc.id, ...crewDoc.data() }, eligibleMemberId, seasonId)) report.repaired.crewZineShells += 1;
+          report.repaired.finalizedViewerSnapshots += 1;
         }
         await dbAdmin.collection('adminRepairLogs').add({ action: 'repair_zine_data', actorId: req.user.uid, report, createdAt: FieldValue.serverTimestamp() });
       }
@@ -5146,7 +5211,6 @@ async function startServer() {
           canInvite: canInviteToCrew(actorMember, crew),
           canApproveRequests: canApproveJoinRequest(actorMember, crew),
           canTransferCaptain: getCanonicalCrewCaptainId(crew) === req.user.uid,
-          canPromoteCaptains: getCanonicalCrewCaptainId(crew) === req.user.uid,
           canRemoveMembers: getCanonicalCrewCaptainId(crew) === req.user.uid,
         },
         members: membersSnap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })),
@@ -5273,7 +5337,6 @@ async function startServer() {
           inviterId: uid,
           inviteeUserId,
           type: 'direct',
-          token: makeCrewToken(),
           status: 'pending',
           inviteeSnapshot: getProfileSnapshot(inviteeProfile, inviteeUserId),
           expiresAt: Timestamp.fromDate(addDays(new Date(), CREW_INVITE_EXPIRY_DAYS)),
@@ -5283,7 +5346,7 @@ async function startServer() {
           declinedAt: null,
           revokedAt: null,
         };
-        transaction.set(inviteRef, inviteDoc, { merge: true });
+        transaction.set(inviteRef, inviteDoc);
         return { id: inviteId, ...inviteDoc, token: undefined };
       });
       await dbAdmin.collection('crewAuditLogs').add({ actorId: uid, crewId, action: 'create_direct_invite', inviteId, inviteeUserId, createdAt: FieldValue.serverTimestamp() });
@@ -5302,43 +5365,84 @@ async function startServer() {
     const crewId = String(req.body.crewId || '').trim();
     if (!crewId) return res.status(400).json({ error: "MISSING_CREW_ID" });
     try {
-      const crewSnap = await dbAdmin.collection('crews').doc(crewId).get();
-      const crew = crewSnap.exists ? { id: crewSnap.id, ...crewSnap.data() } as any : null;
-      const actorMember = await getCrewMemberForActor(crewId, uid);
-      if (!canInviteToCrew(actorMember, crew)) return res.status(403).json({ error: "CREW_INVITE_LINK_FORBIDDEN" });
-      const existingSnap = await dbAdmin.collection('crewInvites')
+      const inviteRef = dbAdmin.collection('crewInvites').doc(`share_${crewId}`);
+      const legacyInviteSnap = await dbAdmin.collection('crewInvites')
         .where('crewId', '==', crewId)
         .where('type', '==', 'share_link')
         .where('status', '==', 'pending')
-        .limit(1)
+        .limit(25)
         .get();
-      const active = existingSnap.docs.find(docSnap => normalizeInviteStatus(docSnap.data().status, docSnap.data().expiresAt) === 'pending');
-      if (active) {
-        const data = active.data();
-        return res.json({ invite: { id: active.id, ...data }, inviteUrl: `/crew/invite/${data.token}` });
+      const legacyInviteRefs = legacyInviteSnap.docs
+        .filter(docSnap => docSnap.id !== inviteRef.id)
+        .map(docSnap => docSnap.ref);
+      const result = await dbAdmin.runTransaction(async transaction => {
+        const crewRef = dbAdmin!.collection('crews').doc(crewId);
+        const [crewSnap, actorMemberSnap, inviteSnap, ...legacyInviteSnaps] = await Promise.all([
+          transaction.get(crewRef),
+          transaction.get(crewRef.collection('members').doc(uid)),
+          transaction.get(inviteRef),
+          ...legacyInviteRefs.map(ref => transaction.get(ref)),
+        ]);
+        const crew = crewSnap.exists ? { id: crewSnap.id, ...crewSnap.data() } as any : null;
+        const actorMember = actorMemberSnap.exists ? { userId: uid, ...actorMemberSnap.data() } as any : null;
+        if (!canInviteToCrew(actorMember, crew)) throw new Error('CREW_INVITE_LINK_FORBIDDEN');
+        if (inviteSnap.exists && normalizeInviteStatus(inviteSnap.data()?.status, inviteSnap.data()?.expiresAt) === 'pending') {
+          return { invite: { id: inviteRef.id, ...inviteSnap.data() }, reused: true };
+        }
+        const activeLegacyInvite = legacyInviteSnaps.find(docSnap => normalizeInviteStatus(docSnap.data()?.status, docSnap.data()?.expiresAt) === 'pending');
+        if (activeLegacyInvite) {
+          const legacyData = activeLegacyInvite.data() || {};
+          const canonicalInvite = {
+            ...legacyData,
+            crewId,
+            inviterId: legacyData.inviterId || uid,
+            inviteeUserId: null,
+            type: 'share_link',
+            status: 'pending',
+            canonicalizedFromInviteId: activeLegacyInvite.id,
+            updatedAt: FieldValue.serverTimestamp(),
+          };
+          transaction.set(inviteRef, canonicalInvite);
+          legacyInviteSnaps.forEach(docSnap => {
+            if (normalizeInviteStatus(docSnap.data()?.status, docSnap.data()?.expiresAt) === 'pending') {
+              transaction.set(docSnap.ref, {
+                status: 'revoked',
+                revokedAt: FieldValue.serverTimestamp(),
+                revokedBy: uid,
+                revokeReason: 'canonical_share_link_migration',
+                updatedAt: FieldValue.serverTimestamp(),
+              }, { merge: true });
+            }
+          });
+          return { invite: { id: inviteRef.id, ...canonicalInvite }, reused: true, canonicalized: true };
+        }
+        const token = makeCrewToken();
+        const inviteDoc = {
+          crewId,
+          inviterId: uid,
+          inviteeUserId: null,
+          type: 'share_link',
+          token,
+          status: 'pending',
+          expiresAt: Timestamp.fromDate(addDays(new Date(), CREW_INVITE_EXPIRY_DAYS)),
+          createdAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+          acceptedAt: null,
+          declinedAt: null,
+          revokedAt: null,
+          revokedBy: null,
+        };
+        transaction.set(inviteRef, inviteDoc);
+        return { invite: { id: inviteRef.id, ...inviteDoc }, reused: false };
+      });
+      if (!result.reused || result.canonicalized) {
+        await dbAdmin.collection('crewAuditLogs').add({ actorId: uid, crewId, action: 'create_share_invite', inviteId: inviteRef.id, createdAt: FieldValue.serverTimestamp() });
       }
-      const token = makeCrewToken();
-      const inviteRef = dbAdmin.collection('crewInvites').doc(`share_${crewId}_${crypto.randomBytes(4).toString('hex')}`);
-      const inviteDoc = {
-        crewId,
-        inviterId: uid,
-        inviteeUserId: null,
-        type: 'share_link',
-        token,
-        status: 'pending',
-        expiresAt: Timestamp.fromDate(addDays(new Date(), CREW_INVITE_EXPIRY_DAYS)),
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-        acceptedAt: null,
-        declinedAt: null,
-        revokedAt: null,
-      };
-      await inviteRef.set(inviteDoc);
-      await dbAdmin.collection('crewAuditLogs').add({ actorId: uid, crewId, action: 'create_share_invite', inviteId: inviteRef.id, createdAt: FieldValue.serverTimestamp() });
-      res.json({ invite: { id: inviteRef.id, ...inviteDoc }, inviteUrl: `/crew/invite/${token}` });
+      res.json({ invite: result.invite, inviteUrl: `/crew/invite/${result.invite.token}` });
     } catch (error: any) {
       console.error("[CREW_INVITE_LINK] Failed:", error);
-      res.status(500).json({ error: "CREW_INVITE_LINK_FAILED", message: error.message || String(error) });
+      const message = error.message || String(error);
+      res.status(message.endsWith('_FORBIDDEN') ? 403 : 500).json({ error: message || 'CREW_INVITE_LINK_FAILED', message });
     }
   });
 
@@ -5639,7 +5743,7 @@ async function startServer() {
     const targetUserId = String(req.params.targetUserId || '').trim();
     const action = String(req.params.action || '').trim();
     if (!crewId || !targetUserId) return res.status(400).json({ error: "MISSING_CREW_OR_TARGET" });
-    if (!['transfer-captain', 'promote-captain', 'remove-member'].includes(action)) return res.status(400).json({ error: "INVALID_MEMBER_ACTION" });
+    if (!['transfer-captain', 'remove-member'].includes(action)) return res.status(400).json({ error: "INVALID_MEMBER_ACTION" });
     try {
       const result = await dbAdmin.runTransaction(async transaction => {
         const crewRef = dbAdmin!.collection('crews').doc(crewId);
@@ -5647,18 +5751,24 @@ async function startServer() {
         const actorUserRef = dbAdmin!.collection('users').doc(uid);
         const targetRef = crewRef.collection('members').doc(targetUserId);
         const targetUserRef = dbAdmin!.collection('users').doc(targetUserId);
-        const [crewSnap, actorSnap, targetSnap, targetUserSnap] = await Promise.all([
+        const [crewSnap, actorSnap, actorUserSnap, targetSnap, targetUserSnap, activeMembersSnap] = await Promise.all([
           transaction.get(crewRef),
           transaction.get(actorRef),
+          transaction.get(actorUserRef),
           transaction.get(targetRef),
           transaction.get(targetUserRef),
+          transaction.get(crewRef.collection('members').where('status', '==', 'active')),
         ]);
         if (!crewSnap.exists || !targetSnap.exists) throw new Error("CREW_MEMBER_NOT_FOUND");
         const crew = { id: crewSnap.id, ...crewSnap.data() } as any;
         const actor = actorSnap.exists ? { userId: uid, ...actorSnap.data() } as any : null;
         const target = { userId: targetUserId, ...targetSnap.data() } as any;
+        const actorProfile = actorUserSnap.data() || {};
+        if (String(actorProfile.activeCrewId || actorProfile.crewId || '').trim() !== crewId) throw new Error('CREW_ACTOR_MEMBERSHIP_MISMATCH');
 
-        if (action === 'transfer-captain' || action === 'promote-captain') {
+        if (action === 'transfer-captain') {
+          const targetProfile = targetUserSnap.data() || {};
+          if (String(targetProfile.activeCrewId || targetProfile.crewId || '').trim() !== crewId) throw new Error('CREW_TARGET_MEMBERSHIP_MISMATCH');
           if (!canTransferCrewCaptain(actor, target, crew)) throw new Error("TRANSFER_CAPTAIN_FORBIDDEN");
           transaction.set(actorRef, { role: 'member', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
           transaction.set(actorUserRef, { crewRole: 'member', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
@@ -5670,8 +5780,8 @@ async function startServer() {
             throw new Error("REMOVE_MEMBER_FORBIDDEN");
           }
           const nextCrewUpdate: any = {
-            members: FieldValue.arrayRemove(targetUserId),
-            memberCount: Math.max(0, Number(crew.memberCount || crew.members?.length || 1) - 1),
+            members: activeMembersSnap.docs.map(memberDoc => memberDoc.id).filter(memberId => memberId !== targetUserId),
+            memberCount: activeMembersSnap.docs.filter(memberDoc => memberDoc.id !== targetUserId).length,
             updatedAt: FieldValue.serverTimestamp(),
           };
           transaction.set(targetRef, {
@@ -5692,7 +5802,7 @@ async function startServer() {
             }, { merge: true });
           }
         }
-        return { crewId, targetUserId, action: action === 'promote-captain' ? 'transfer-captain' : action };
+        return { crewId, targetUserId, action };
       });
       await dbAdmin.collection('crewAuditLogs').add({ actorId: uid, ...result, createdAt: FieldValue.serverTimestamp() });
       res.json({ success: true, ...result });
@@ -5857,18 +5967,22 @@ async function startServer() {
         if (!crewId) throw new Error("NO_ACTIVE_CREW");
         const crewRef = dbAdmin!.collection('crews').doc(crewId);
         const memberRef = crewRef.collection('members').doc(uid);
-        const [crewSnap, memberSnap] = await Promise.all([transaction.get(crewRef), transaction.get(memberRef)]);
+        const [crewSnap, memberSnap, activeMembersSnap] = await Promise.all([
+          transaction.get(crewRef),
+          transaction.get(memberRef),
+          transaction.get(crewRef.collection('members').where('status', '==', 'active')),
+        ]);
         if (!crewSnap.exists || memberSnap.data()?.status !== 'active') throw new Error("NO_ACTIVE_CREW");
 
         const crewData = crewSnap.data() || {};
-        const activeMembers = Array.isArray(crewData.members) ? crewData.members.filter((id: string) => id !== uid) : [];
+        const activeMembers = activeMembersSnap.docs.map(memberDoc => memberDoc.id).filter(memberId => memberId !== uid);
         const memberRole = memberSnap.data()?.role;
         if (getCanonicalCrewCaptainId({ id: crewId, ...crewData }) === uid) {
           throw new Error(activeMembers.length > 0 ? 'CAPTAIN_TRANSFER_REQUIRED' : 'CAPTAIN_DISBAND_REQUIRED');
         }
         const nextCrewUpdate: any = {
           members: activeMembers,
-          memberCount: Math.max(0, Number(crewData.memberCount || activeMembers.length + 1) - 1),
+          memberCount: activeMembers.length,
           updatedAt: FieldValue.serverTimestamp()
         };
         if (memberRole === 'captain') {

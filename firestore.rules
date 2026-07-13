@@ -87,6 +87,14 @@ service cloud.firestore {
              exists(/databases/$(database)/documents/crews/$(crewId)/members/$(request.auth.uid)) &&
              get(/databases/$(database)/documents/crews/$(crewId)/members/$(request.auth.uid)).data.get('status', '') == 'active';
     }
+    function isCrewCaptainOf(crewId) {
+      return isActiveCrewMemberOf(crewId) &&
+             exists(/databases/$(database)/documents/crews/$(crewId)) &&
+             get(/databases/$(database)/documents/crews/$(crewId)).data.get(
+               'captainId',
+               get(/databases/$(database)/documents/crews/$(crewId)).data.get('founderId', '')
+             ) == request.auth.uid;
+    }
     function canReadCrewArchive(data) {
       return isAdmin() ||
              isActiveCrewMemberOf(data.get('crewId', '')) ||
@@ -618,7 +626,7 @@ service cloud.firestore {
 
     // CREWS & MEMBERS
     match /crews/{id} {
-      allow read: if isApproved();
+      allow read: if isApproved() && (isAdmin() || isActiveCrewMemberOf(id));
       allow write: if false;
 
       match /members/{userId} {
@@ -661,7 +669,7 @@ service cloud.firestore {
         isAdmin() ||
         resource.data.inviteeUserId == request.auth.uid ||
         resource.data.inviterId == request.auth.uid ||
-        isActiveCrewMemberOf(resource.data.get('crewId', ''))
+        isCrewCaptainOf(resource.data.get('crewId', ''))
       );
       allow write: if false;
     }
@@ -670,7 +678,7 @@ service cloud.firestore {
       allow get, list: if isSignedIn() && (
         isAdmin() ||
         resource.data.userId == request.auth.uid ||
-        isActiveCrewMemberOf(resource.data.get('crewId', ''))
+        isCrewCaptainOf(resource.data.get('crewId', ''))
       );
       allow write: if false;
     }

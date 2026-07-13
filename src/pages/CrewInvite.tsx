@@ -30,7 +30,7 @@ export default function CrewInvitePage() {
       if (result.joined) {
         navigate('/crew');
       } else {
-        setMessage('Request sent. A Founder or Captain needs to approve it before you join.');
+        setMessage('Request sent. The Crew captain needs to approve it before you join.');
       }
     } catch (err: any) {
       setError(err?.message || 'Could not use this invite link.');

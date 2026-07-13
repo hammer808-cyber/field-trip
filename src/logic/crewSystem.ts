@@ -150,10 +150,6 @@ export function isCanonicalCrewCaptain(
   return member?.status === 'active' && !!member?.userId && !!captainId && member.userId === captainId;
 }
 
-export function isCrewFounder(member: CrewMemberLike | null | undefined): boolean {
-  return member?.status === 'active' && member.role === 'founder';
-}
-
 export function canInviteToCrew(member: CrewMemberLike | null | undefined, crew: CrewLike | null | undefined): boolean {
   if (!member || member.status !== 'active' || crew?.status !== 'active') return false;
   if (isCanonicalCrewCaptain(member, crew)) return true;
@@ -164,21 +160,14 @@ export function canApproveJoinRequest(member: CrewMemberLike | null | undefined,
   return crew ? isCanonicalCrewCaptain(member, crew) : isCrewManager(member);
 }
 
-export function canPromoteCrewMember(actor: CrewMemberLike | null | undefined, target: CrewMemberLike | null | undefined): boolean {
-  return isCrewFounder(actor) && target?.status === 'active' && target.role === 'member';
-}
-
-export function canRemoveCrewCaptainRole(actor: CrewMemberLike | null | undefined, target: CrewMemberLike | null | undefined): boolean {
-  return isCrewFounder(actor) && target?.status === 'active' && target.role === 'captain';
-}
-
-export function canRemoveCrewMember(actor: CrewMemberLike | null | undefined, target: CrewMemberLike | null | undefined): boolean {
+export function canRemoveCrewMember(
+  actor: CrewMemberLike | null | undefined,
+  target: CrewMemberLike | null | undefined,
+  crew: CrewLike | null | undefined
+): boolean {
   if (!actor || !target || actor.status !== 'active' || target.status !== 'active') return false;
   if (!actor.userId || !target.userId || actor.userId === target.userId) return false;
-  if (target.role === 'founder') return false;
-  if (actor.role === 'founder') return target.role === 'captain' || target.role === 'member';
-  if (actor.role === 'captain') return target.role === 'member';
-  return false;
+  return isCanonicalCrewCaptain(actor, crew) && target.userId !== getCanonicalCrewCaptainId(crew);
 }
 
 export function canTransferCrewCaptain(

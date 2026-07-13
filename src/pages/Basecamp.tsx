@@ -353,48 +353,28 @@ export default function Basecamp() {
         </section>
 
         <section className="space-y-3">
-          <FieldCard id="crew-access-card" variant="paper" className={cn(
-            "p-5 border-[4px] border-on-surface shadow-[8px_8px_0px_black] bg-white space-y-4",
-            !isStarterComplete && !isAdmin && "opacity-80"
-          )}>
+          <FieldCard id="crew-access-card" variant="paper" className="p-5 border-[4px] border-on-surface shadow-[8px_8px_0px_black] bg-white space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
                 <p className="font-mono text-[9px] font-black uppercase tracking-[0.25em] text-on-surface/40">Crew Access</p>
                 <h3 className="font-display text-3xl font-black uppercase italic tracking-tight leading-none">
-                  {isStarterComplete || isAdmin ? 'Crew Home' : 'Crew Access Locked'}
+                  Crew Home
                 </h3>
               </div>
-              <div className={cn(
-                "w-12 h-12 border-[3px] border-on-surface rounded-2xl flex items-center justify-center shadow-[4px_4px_0px_black]",
-                isStarterComplete || isAdmin ? "bg-brand-lime" : "bg-on-surface/5 text-on-surface/35"
-              )}>
-                {isStarterComplete || isAdmin ? <Users className="w-6 h-6" /> : <Lock className="w-6 h-6" />}
+              <div className="w-12 h-12 border-[3px] border-on-surface rounded-2xl flex items-center justify-center shadow-[4px_4px_0px_black] bg-brand-lime">
+                <Users className="w-6 h-6" />
               </div>
             </div>
 
-            {!isStarterComplete && !isAdmin ? (
-              <div className="space-y-3">
-                <p className="font-serif italic text-sm text-on-surface/65">
-                  Complete Starter Signals: {starterApprovedCount}/{starterProgress.starterRequiredCount} Approved
-                </p>
-                <div className="h-3 rounded-full border-2 border-on-surface bg-white overflow-hidden">
-                  <div className="h-full bg-brand-lime transition-all duration-500" style={{ width: `${starterPercent}%` }} />
-                </div>
-                <button onClick={() => navigate('/missions?pack=starter-signals')} className="bureau-btn bg-brand-orange text-white text-xs">
-                  Finish Starter Signals
-                </button>
+            <div className="space-y-4">
+              <p className="font-serif italic text-sm text-on-surface/65">
+                Create or join a Crew now. Starter Signals still gates seasonal Crew proofs, memories, and zine eligibility.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button onClick={() => navigate('/crew')} className="bureau-btn bg-brand-lime text-on-surface text-xs">View Crew Home</button>
+                <button onClick={() => navigate('/crew?tab=members')} className="bureau-btn bg-white text-on-surface text-xs">Invites & Members</button>
               </div>
-            ) : (
-              <div className="space-y-4">
-                <p className="font-serif italic text-sm text-on-surface/65">
-                  Create or join a crew, view your current crew, manage invites and membership, and use captain controls when applicable.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button onClick={() => navigate('/crew')} className="bureau-btn bg-brand-lime text-on-surface text-xs">View Current Crew</button>
-                  <button onClick={() => navigate('/crew')} className="bureau-btn bg-white text-on-surface text-xs">Create / Join Crew</button>
-                </div>
-              </div>
-            )}
+            </div>
           </FieldCard>
         </section>
 

@@ -145,22 +145,12 @@ export async function cancelCrewJoinRequest(requestId: string): Promise<void> {
   await readCrewResponse<{ success: boolean }>(response, `Crew join request cancel failed with HTTP ${response.status}`);
 }
 
-export async function promoteCrewMemberToCaptain(crewId: string, targetUserId: string): Promise<void> {
+export async function transferCrewCaptain(crewId: string, targetUserId: string): Promise<void> {
   const response = await authenticatedFetch(`/api/crew/members/${encodeURIComponent(targetUserId)}/transfer-captain`, {
     method: 'POST',
     body: JSON.stringify({ crewId })
   });
-  await readCrewResponse<{ success: boolean }>(response, `Crew promote captain failed with HTTP ${response.status}`);
-}
-
-export const transferCrewCaptain = promoteCrewMemberToCaptain;
-
-export async function removeCrewCaptainRole(crewId: string, targetUserId: string): Promise<void> {
-  const response = await authenticatedFetch(`/api/crew/members/${encodeURIComponent(targetUserId)}/remove-captain`, {
-    method: 'POST',
-    body: JSON.stringify({ crewId })
-  });
-  await readCrewResponse<{ success: boolean }>(response, `Crew remove captain failed with HTTP ${response.status}`);
+  await readCrewResponse<{ success: boolean }>(response, `Crew captain transfer failed with HTTP ${response.status}`);
 }
 
 export async function removeCrewMember(crewId: string, targetUserId: string): Promise<void> {

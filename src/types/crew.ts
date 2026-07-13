@@ -79,8 +79,7 @@ export interface CrewRosterState {
   permissions: {
     canInvite: boolean;
     canApproveRequests: boolean;
-    canTransferCaptain?: boolean;
-    canPromoteCaptains: boolean;
+    canTransferCaptain: boolean;
     canRemoveMembers: boolean;
   };
   members: CrewMember[];
