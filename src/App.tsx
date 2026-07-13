@@ -628,7 +628,8 @@ export default function App() {
                     <Route path="/settings" element={<Navigate to="/profile?tab=settings" replace />} />
                     <Route path="/field-id" element={<FieldIdentity />} />
                     <Route path="/classification" element={<Classification />} />
-                    <Route path="/crew" element={<StarterGate requiredFeature="crew"><Crew /></StarterGate>} />
+                    <Route path="/crew" element={<Crew />} />
+                    <Route path="/crews" element={<Navigate to="/crew" replace />} />
                     <Route path="/crew/invite/:token" element={<CrewInvite />} />
                     <Route path="/dex" element={<StarterGate requiredFeature="memories"><Collection /></StarterGate>} />
                     <Route path="/dex/collection" element={<StarterGate requiredFeature="memories"><Collection /></StarterGate>} />

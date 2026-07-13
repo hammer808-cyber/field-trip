@@ -3,13 +3,9 @@ import {
   doc, 
   getDoc, 
   getDocs, 
-  setDoc, 
-  updateDoc, 
   query, 
   where, 
-  onSnapshot,
-  arrayUnion,
-  increment
+  onSnapshot
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { authenticatedFetch } from '../lib/api';
@@ -229,55 +225,19 @@ export function subscribeToCrewLore(crewId: string, callback: (lore: CrewLore | 
 }
 
 export async function addInsideJoke(crewId: string, joke: string) {
-  try {
-    const docRef = doc(db, LORE_COLLECTION, crewId);
-    await updateDoc(docRef, {
-      insideJokes: arrayUnion(joke)
-    });
-  } catch (error) {
-    console.error("[CrewService] addInsideJoke failed:", error);
-  }
+  await addCrewLoreNote(crewId, joke);
 }
 
 /**
  * Automatically update lore based on entry outcome
  */
 export async function processLoreForEntry(crewId: string, entry: Entry, loreTags: string[] = []) {
-  try {
-    const loreRef = doc(db, LORE_COLLECTION, crewId);
-    const loreSnap = await getDoc(loreRef);
-    const lore = loreSnap.exists() ? (loreSnap.data() as CrewLore) : null;
-    
-    if (!lore) return;
-
-    const seasonId = 'S1'; // Fixed for now
-    const statsUpdate: Record<string, any> = {};
-
-    const status = (entry.status as string);
-    const isApproved = ['approved', 'auto_approved', 'approved_by_admin', 'retry-approved'].includes(status);
-    
-    if (isApproved) {
-      statsUpdate[`seasonStats.${seasonId}.totalApprovedEntries`] = increment(1);
-      statsUpdate[`seasonStats.${seasonId}.totalCompletedChallenges`] = increment(1);
-      
-      // Add suggested lore tags
-      if (loreTags.length > 0) {
-        statsUpdate['tags'] = arrayUnion(...loreTags);
-      }
-    } else if (entry.status === 'rejected') {
-      statsUpdate[`seasonStats.${seasonId}.totalRejectedEntries`] = increment(1);
-      // Potential for "Most Suspicious Entry"
-      if (!lore.highlights.mostSuspiciousEntry) {
-        statsUpdate['highlights.mostSuspiciousEntry'] = entry.id;
-      }
-    }
-
-    if (Object.keys(statsUpdate).length > 0) {
-      await updateDoc(loreRef, statsUpdate);
-    }
-  } catch (error) {
-    console.warn("[CrewService] processLoreForEntry skipped/failed:", error);
-  }
+  if (!entry?.id) return;
+  const response = await authenticatedFetch('/api/crew/lore/process-entry', {
+    method: 'POST',
+    body: JSON.stringify({ crewId, entryId: entry.id, loreTags: loreTags.slice(0, 8) }),
+  });
+  await readCrewResponse<{ success: boolean; alreadyProcessed?: boolean }>(response, `Crew entry lore processing failed with HTTP ${response.status}`);
 }
 
 export async function getLatestDispatch(crewId: string): Promise<CrewDispatch | null> {

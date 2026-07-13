@@ -254,7 +254,7 @@ export function buildZineCoverChoices(candidates: ZineCandidateLike[], title: st
   return choices;
 }
 
-export function canEditZine(params: {
+function hasZineAuthority(params: {
   zine: Pick<ZineEdition, 'kind' | 'ownerId' | 'crewId' | 'status' | 'curatorUserId'>;
   userId: string;
   activeCrewId?: string | null;
@@ -263,14 +263,17 @@ export function canEditZine(params: {
 }): boolean {
   const { zine, userId, activeCrewId, isCrewCaptain = false, isAdmin = false } = params;
   if (isAdmin) return zine.status !== 'archived';
-  if (zine.status === 'finalized' || zine.status === 'archived') return false;
   if (zine.kind === 'personal') return zine.ownerId === userId;
   if (!activeCrewId || zine.crewId !== activeCrewId) return false;
   return zine.curatorUserId === userId || isCrewCaptain;
 }
 
-export function canFinalizeZine(params: Parameters<typeof canEditZine>[0]): boolean {
-  return canEditZine(params) && params.zine.status === 'ready_for_review';
+export function canEditZine(params: Parameters<typeof hasZineAuthority>[0]): boolean {
+  return hasZineAuthority(params) && ['shell', 'generation_failed', 'draft', 'curating'].includes(params.zine.status);
+}
+
+export function canFinalizeZine(params: Parameters<typeof hasZineAuthority>[0]): boolean {
+  return hasZineAuthority(params) && params.zine.status === 'ready_for_review';
 }
 
 export function reorderZinePages(pages: ZinePage[], pageId: string, direction: -1 | 1): ZinePage[] {

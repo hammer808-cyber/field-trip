@@ -17,7 +17,7 @@ import { Entry } from '../types/game';
 import { normalizeEntryStatus } from '../logic/entryLogic';
 import { awardSubmissionPointsOnce } from './submission-utils';
 import { getProofRubricScoring, type ProofRubricScoring } from '../logic/proofRubric';
-import { buildCrewMemoryState, buildPersonalMemoryState, isCrewArchiveEligible } from '../logic/crewSystem';
+import { authenticatedFetch } from '../lib/api';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 export type CanonicalProofStatus = 'draft' | 'uploading' | 'pending_review' | 'approved' | 'needs_more_proof' | 'rejected' | 'submission_failed' | 'upload_incomplete';
@@ -510,113 +510,13 @@ async function persistProofReviewRubric(
 }
 
 async function persistCrewArchiveSnapshot(canonicalEntryId: string) {
-  const entryRef = doc(db, 'entries', canonicalEntryId);
-  const entrySnap = await getDoc(entryRef);
-  if (!entrySnap.exists()) return;
-
-  const entryData: any = { id: canonicalEntryId, ...entrySnap.data() };
-  const crewId = String(entryData.crewContext?.crewId || entryData.crewId || '').trim();
-  const userId = getCanonicalUserId(entryData);
-  if (!crewId || !userId) return;
-
-  const [userSnap, memberSnap] = await Promise.all([
-    getDoc(doc(db, 'users', userId)),
-    getDoc(doc(db, 'crews', crewId, 'members', userId)),
-  ]);
-
-  const userData: any = userSnap.exists() ? userSnap.data() : {};
-  const legacyStarterIds = Array.isArray(userData.approvedCompletedChallengeIds)
-    ? userData.approvedCompletedChallengeIds.map((id: any) => String(id).toLowerCase())
-    : [];
-  const starterComplete = userData.starterDeckComplete === true ||
-    userData.onboardingCompleted === true ||
-    ['starter-1', 'starter-2', 'starter-3'].every(id => legacyStarterIds.includes(id));
-  const memberData: any = memberSnap.exists() ? memberSnap.data() : null;
-  const submittedAt = entryData.crewContext?.submittedAt || entryData.submittedAt || entryData.createdAt || null;
-  const seasonId = entryData.crewContext?.crewSeasonId || entryData.seasonId || memberData?.seasonEligibility?.seasonId || null;
-  const crewContext = {
-    crewId,
-    crewNameSnapshot: entryData.crewContext?.crewNameSnapshot || entryData.crewNameSnapshot || null,
-    crewMembershipId: entryData.crewContext?.crewMembershipId || `${crewId}_${userId}`,
-    submittedAsCrewMember: true,
-    crewSeasonId: seasonId,
-    submittedAt,
-  };
-  const archiveEntryLike = { ...entryData, userId, crewId, seasonId, crewContext, submittedAt };
-
-  if (!isCrewArchiveEligible({
-    entry: archiveEntryLike,
-    member: memberData,
-    activeSeasonId: seasonId,
-    starterComplete,
-  })) {
-    return;
-  }
-
-  const snapshotId = `${crewId}_${canonicalEntryId}`;
-  const archiveRef = doc(db, 'crewArchiveEntries', snapshotId);
-  const imageRef = getCanonicalImageUrl(entryData) || getCanonicalStoragePath(entryData);
-  const score = Number(
-    entryData.awardedXP ??
-    entryData.pointsAwarded ??
-    entryData.awardedPoints ??
-    entryData.estimatedPoints ??
-    entryData.xpValue ??
-    0
-  );
-
-  const batch = writeBatch(db);
-  const crewMemory = buildCrewMemoryState(archiveEntryLike);
-  const personalMemory = buildPersonalMemoryState({ ...entryData, userId, seasonId });
-  batch.set(archiveRef, {
-    id: snapshotId,
-    crewId,
-    seasonId,
-    crewContext,
-    deckId: entryData.deckId || null,
-    entryId: canonicalEntryId,
-    ownerId: userId,
-    userId,
-    displayName: entryData.displayName || entryData.userName || entryData.name || null,
-    ownerDisplayName: entryData.displayName || entryData.userName || entryData.name || null,
-    userAvatar: entryData.userAvatar || null,
-    missionId: getCanonicalChallengeId(entryData),
-    tripId: entryData.tripId || getCanonicalChallengeId(entryData),
-    missionTitle: entryData.tripTitle || entryData.challengeTitle || entryData.missionTitle || 'Field Mission',
-    challengeTitle: entryData.challengeTitle || entryData.tripTitle || entryData.missionTitle || 'Field Mission',
-    caption: entryData.fieldNote || entryData.note || '',
-    fieldNote: entryData.fieldNote || entryData.note || '',
-    imageRef,
-    imageUrl: getCanonicalImageUrl(entryData) || null,
-    photoUrl: getCanonicalImageUrl(entryData) || null,
-    storagePath: getCanonicalStoragePath(entryData) || null,
-    score,
-    stickerIds: Array.isArray(entryData.stickerIds) ? entryData.stickerIds : [],
-    weeklyAwardIds: Array.isArray(entryData.weeklyAwardIds) ? entryData.weeklyAwardIds : [],
-    reactionCount: Number(entryData.reactionCount || entryData.likeCount || 0),
-    eligibilityReasons: crewMemory.eligibilityReasons,
-    archiveStatus: crewMemory.archiveStatus,
-    zineSelectionStatus: crewMemory.zineSelectionStatus,
-    zinePageId: crewMemory.zinePageId,
-    zinePageType: crewMemory.zinePageType,
-    crewMemory,
-    personalMemory,
-    zineEligible: true,
-    likeCount: entryData.likeCount || 0,
-    submittedAt,
-    approvedAt: entryData.approvedAt || entryData.reviewedAt || serverTimestamp(),
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  }, { merge: true });
-  batch.set(entryRef, {
-    crewContext,
-    crewMemory,
-    personalMemory,
-    crewArchiveSnapshotId: snapshotId,
-    crewArchiveEligible: true,
-    updatedAt: serverTimestamp(),
-  }, { merge: true });
-  await batch.commit();
+  const response = await authenticatedFetch('/api/zines/sync-entry', {
+    method: 'POST',
+    body: JSON.stringify({ entryId: canonicalEntryId }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.message || payload.error || `Zine archive sync failed with HTTP ${response.status}`);
+  return payload;
 }
 
 export interface QueueRepairReport {

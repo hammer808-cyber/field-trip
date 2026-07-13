@@ -253,7 +253,7 @@ export default function CrewPage() {
     if (!crew) return;
     await runCrewAction('save settings', async () => {
       const updated = await updateCrewSettings(crew.id, settingsDraft);
-      setCrew(updated);
+      setCrew(current => current ? { ...current, ...updated } : updated);
     });
   };
 

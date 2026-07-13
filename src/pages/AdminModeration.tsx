@@ -10,14 +10,25 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { cn, formatSafeTimeOnly, formatSafeDateOnly } from '../lib/utils';
 import { getDisplayLabel } from '../utils/labelUtils';
+import { useLocation } from 'react-router-dom';
+
+type AdminModerationView = 'reports' | 'sus' | 'fieldChecks' | 'communityFeedDiagnostics' | 'tribunalDiagnostics' | 'audit';
+
+const getRequestedView = (search: string): AdminModerationView => {
+  const requestedView = new URLSearchParams(search).get('view');
+  return requestedView === 'tribunalDiagnostics' || requestedView === 'tribunal'
+    ? 'tribunalDiagnostics'
+    : 'reports';
+};
 
 export default function AdminModerationPage() {
   const { user, isAdmin, currentWeekNumber, activeSeason } = useApp();
+  const location = useLocation();
   const [reports, setReports] = useState<Report[]>([]);
   const [susReports, setSusReports] = useState<any[]>([]);
   const [fieldChecks, setFieldChecks] = useState<FieldCheck[]>([]);
   const [adminLogs, setAdminLogs] = useState<any[]>([]);
-  const [view, setView] = useState<'reports' | 'sus' | 'fieldChecks' | 'communityFeedDiagnostics' | 'tribunalDiagnostics' | 'audit'>('reports');
+  const [view, setView] = useState<AdminModerationView>(() => getRequestedView(location.search));
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [selectedSusReport, setSelectedSusReport] = useState<any | null>(null);
   const [selectedFieldCheck, setSelectedFieldCheck] = useState<FieldCheck | null>(null);
@@ -34,6 +45,10 @@ export default function AdminModerationPage() {
   const [communityFeedTargetUserId, setCommunityFeedTargetUserId] = useState('');
   const [isScanningCommunityFeed, setIsScanningCommunityFeed] = useState(false);
   const [isRepairingCommunityFeed, setIsRepairingCommunityFeed] = useState(false);
+
+  useEffect(() => {
+    setView(getRequestedView(location.search));
+  }, [location.search]);
 
   useEffect(() => {
     if (!isAdmin) return;

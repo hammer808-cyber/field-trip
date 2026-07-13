@@ -2314,7 +2314,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (activeCrewId && isFeatureEnabled('crewArtifactsEnabled')) {
-        evaluateEntryForArtifacts(activeCrewId, user.uid, profile.name, entryObj as any).catch(e => console.warn("[AppContext] Artifact evaluation failed:", e));
+        evaluateEntryForArtifacts(activeCrewId, entryId).catch(e => console.warn("[AppContext] Artifact evaluation failed:", e));
       }
 
       if (isFeatureEnabled('appObservationsEnabled')) {

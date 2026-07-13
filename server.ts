@@ -4086,6 +4086,137 @@ async function startServer() {
     entry.imageUrl || entry.photoUrl || entry.proofImage || entry.mediaUrl || entry.storagePath || entry.imageStoragePath || ''
   ).trim();
 
+  const evaluateApprovedEntryArtifacts = async (crewId: string, entryId: string) => {
+    if (!dbAdmin) throw new Error('DB_ADMIN_NOT_READY');
+    const activeSeasonId = await getActiveSeasonIdForCrew();
+    return dbAdmin.runTransaction(async transaction => {
+      const entryRef = dbAdmin!.collection('entries').doc(entryId);
+      const entrySnap = await transaction.get(entryRef);
+      if (!entrySnap.exists) throw new Error('ENTRY_NOT_FOUND');
+      const entry = entrySnap.data() || {};
+      const ownerId = String(entry.userId || entry.uid || entry.ownerId || '').trim();
+      if (!ownerId) throw new Error('ENTRY_OWNER_MISSING');
+      const entryCrewId = String(entry.crewContext?.crewId || entry.crewId || '').trim();
+      if (entryCrewId !== crewId) throw new Error('CREW_ENTRY_MISMATCH');
+      if (normalizeStatusBackend(entry.status || entry.reviewStatus || entry.approvalStatus) !== 'approved') {
+        throw new Error('CREW_ARTIFACT_ENTRY_NOT_APPROVED');
+      }
+
+      const crewRef = dbAdmin!.collection('crews').doc(crewId);
+      const memberRef = crewRef.collection('members').doc(ownerId);
+      const userRef = dbAdmin!.collection('users').doc(ownerId);
+      const [crewSnap, memberSnap, userSnap] = await Promise.all([
+        transaction.get(crewRef),
+        transaction.get(memberRef),
+        transaction.get(userRef),
+      ]);
+      const profile = userSnap.data() || {};
+      if (!crewSnap.exists || crewSnap.data()?.status !== 'active') throw new Error('CREW_NOT_ACTIVE');
+      if (memberSnap.data()?.status !== 'active' || String(profile.activeCrewId || profile.crewId || '').trim() !== crewId) {
+        throw new Error('CREW_MEMBER_REQUIRED');
+      }
+
+      const category = String(entry.category || entry.challengeType || entry.tripType || '').toLowerCase().trim();
+      const fieldNote = String(entry.fieldNote || entry.note || '').trim();
+      const sourceTime = entry.photoTakenAt || entry.submittedAt || entry.createdAt;
+      const sourceDate = typeof sourceTime?.toDate === 'function'
+        ? sourceTime.toDate()
+        : sourceTime?.seconds
+          ? new Date(sourceTime.seconds * 1000)
+          : sourceTime
+            ? new Date(sourceTime)
+            : new Date();
+      const hourText = new Intl.DateTimeFormat('en-US', {
+        hour: '2-digit',
+        hour12: false,
+        timeZone: 'America/Los_Angeles',
+      }).format(Number.isNaN(sourceDate.getTime()) ? new Date() : sourceDate);
+      const pacificHour = Number(hourText.replace(/[^0-9]/g, '')) % 24;
+      const definitions: Array<Record<string, any> & { key: string }> = [];
+
+      if (category.includes('food') || category.includes('drink')) {
+        definitions.push({
+          key: 'first_receipt',
+          title: 'The First Receipt',
+          description: 'The inaugural instance of fiscal sustenance documentation.',
+          artifactType: 'document',
+          icon: 'Receipt',
+          rarity: 'standard',
+          flavorCaption: 'A grease-stained relic for the archives.',
+          crewUnique: true,
+        });
+      }
+      if ((pacificHour >= 23 || pacificHour <= 3) && getServerZineMediaRef(entry)) {
+        definitions.push({
+          key: 'parking_lot_incident',
+          title: 'The Parking Lot Incident',
+          description: 'Proof captured during the hours when only the committed or the lost are active.',
+          artifactType: 'memory',
+          icon: 'Moon',
+          rarity: 'classified',
+          flavorCaption: 'Static and shadows. We do not discuss the specifics.',
+        });
+      }
+      if (fieldNote.length > 100) {
+        definitions.push({
+          key: 'verbose_manifesto',
+          title: 'The Verbose Manifesto',
+          description: 'An unusually detailed field note preserved for the Crew archive.',
+          artifactType: 'document',
+          icon: 'FileText',
+          rarity: 'standard',
+          flavorCaption: 'They had a lot to say. Possibly too much.',
+        });
+      }
+      if (category === 'detour') {
+        definitions.push({
+          key: 'path_less_authorized',
+          title: 'The Path Less Authorized',
+          description: 'A collectible memory from a deliberate deviation from the primary directive.',
+          artifactType: 'relic',
+          icon: 'Compass',
+          rarity: 'legendary',
+          flavorCaption: 'The map said one thing. The agent said another.',
+        });
+      }
+
+      const artifactRefs = definitions.map(definition => dbAdmin!.collection('crewArtifacts').doc(
+        definition.crewUnique ? `${crewId}_${definition.key}` : `${crewId}_${entryId}_${definition.key}`
+      ));
+      const artifactSnaps = await Promise.all(artifactRefs.map(ref => transaction.get(ref)));
+      const awardedArtifactIds: string[] = [];
+      const alreadyAwardedArtifactIds: string[] = [];
+      definitions.forEach((definition, index) => {
+        const artifactRef = artifactRefs[index];
+        if (artifactSnaps[index].exists) {
+          alreadyAwardedArtifactIds.push(artifactRef.id);
+          return;
+        }
+        const { key: _key, crewUnique: _crewUnique, ...artifact } = definition;
+        transaction.create(artifactRef, {
+          ...artifact,
+          crewId,
+          earnedByUserId: ownerId,
+          earnedByUserName: entry.displayName || entry.userName || profile.name || profile.username || 'Field Agent',
+          sourceEntryId: entryId,
+          sourceChallengeId: String(entry.challengeId || entry.missionId || entry.tripId || '').trim(),
+          seasonId: String(entry.seasonId || entry.crewContext?.crewSeasonId || activeSeasonId),
+          createdAt: FieldValue.serverTimestamp(),
+        });
+        transaction.create(dbAdmin!.collection('crewAuditLogs').doc(`artifact_${artifactRef.id}`), {
+          actorId: ownerId,
+          crewId,
+          entryId,
+          artifactId: artifactRef.id,
+          action: 'award_crew_artifact',
+          createdAt: FieldValue.serverTimestamp(),
+        });
+        awardedArtifactIds.push(artifactRef.id);
+      });
+      return { awardedArtifactIds, alreadyAwardedArtifactIds };
+    });
+  };
+
   const syncApprovedEntryToZineArchives = async (entryId: string) => {
     if (!dbAdmin) return { personal: false, crew: false };
     const entryRef = dbAdmin.collection('entries').doc(entryId);
@@ -4187,7 +4318,15 @@ async function startServer() {
       personalZineId: personalZine ? (personalZine as any).id : null,
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
-    return { personal: true, crew: crewSynced };
+    let artifacts = null;
+    if (crewSynced && crewId) {
+      try {
+        artifacts = await evaluateApprovedEntryArtifacts(crewId, entryId);
+      } catch (artifactError: any) {
+        console.warn('[ZineArchive] Crew artifact evaluation deferred:', artifactError?.message || artifactError);
+      }
+    }
+    return { personal: true, crew: crewSynced, artifacts };
   };
 
   const getZineReference = (zineId: string) => {
@@ -4235,6 +4374,68 @@ async function startServer() {
       isActiveCrewMember: member?.status === 'active',
     };
   };
+
+  const getZineActorAccessInTransaction = async (
+    transaction: FirebaseFirestore.Transaction,
+    zine: any,
+    uid: string
+  ) => {
+    if (!dbAdmin) return { activeCrewId: null, isCrewCaptain: false, isActiveCrewMember: false };
+    const userRef = dbAdmin.collection('users').doc(uid);
+    const userSnap = await transaction.get(userRef);
+    const profile = userSnap.data() || {};
+    const activeCrewId = String(profile.activeCrewId || profile.crewId || '').trim() || null;
+    if (zine.kind !== 'crew' || !zine.crewId || activeCrewId !== zine.crewId) {
+      return { activeCrewId, isCrewCaptain: false, isActiveCrewMember: false };
+    }
+    const crewRef = dbAdmin.collection('crews').doc(zine.crewId);
+    const [crewSnap, memberSnap] = await Promise.all([
+      transaction.get(crewRef),
+      transaction.get(crewRef.collection('members').doc(uid)),
+    ]);
+    const crew = crewSnap.exists ? { id: crewSnap.id, ...crewSnap.data() } as any : null;
+    const member = memberSnap.exists ? { userId: uid, ...memberSnap.data() } as any : null;
+    return {
+      activeCrewId,
+      isCrewCaptain: !!crew && member?.status === 'active' && getCanonicalCrewCaptainId(crew) === uid,
+      isActiveCrewMember: member?.status === 'active' && crew?.status === 'active',
+    };
+  };
+
+  const getEditableZineInTransaction = async (
+    transaction: FirebaseFirestore.Transaction,
+    zineRef: FirebaseFirestore.DocumentReference,
+    uid: string,
+    isAdmin: boolean
+  ) => {
+    const zineSnap = await transaction.get(zineRef);
+    if (!zineSnap.exists) throw new Error('ZINE_NOT_FOUND');
+    const zine = { id: zineSnap.id, ...zineSnap.data(), status: normalizeZineStatus(zineSnap.data()?.status) } as any;
+    const access = await getZineActorAccessInTransaction(transaction, zine, uid);
+    if (!canEditZine({ zine, userId: uid, activeCrewId: access.activeCrewId, isCrewCaptain: access.isCrewCaptain, isAdmin })) {
+      throw new Error('ZINE_EDIT_FORBIDDEN');
+    }
+    return { zine, access };
+  };
+
+  app.post('/api/zines/sync-entry', authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: 'DB_ADMIN_NOT_READY' });
+    const entryId = String(req.body?.entryId || '').trim();
+    if (!entryId) return res.status(400).json({ error: 'ENTRY_ID_REQUIRED' });
+    try {
+      const entrySnap = await dbAdmin.collection('entries').doc(entryId).get();
+      if (!entrySnap.exists) return res.status(404).json({ error: 'ENTRY_NOT_FOUND' });
+      const entry = entrySnap.data() || {};
+      const ownerId = String(entry.userId || entry.uid || entry.ownerId || '').trim();
+      const isAdminUser = await checkIsAdmin(req.user);
+      if (!isAdminUser && ownerId !== req.user.uid) return res.status(403).json({ error: 'ENTRY_SYNC_FORBIDDEN' });
+      const result = await syncApprovedEntryToZineArchives(entryId);
+      res.json({ success: true, entryId, ...result });
+    } catch (error: any) {
+      const message = error.message || String(error);
+      res.status(message.endsWith('_FORBIDDEN') ? 403 : 409).json({ error: message, message });
+    }
+  });
 
   app.get('/api/zines/current', authRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: 'DB_ADMIN_NOT_READY' });
@@ -4313,6 +4514,7 @@ async function startServer() {
     if (!dbAdmin) return res.status(500).json({ error: 'DB_ADMIN_NOT_READY' });
     const zineId = String(req.params.zineId || '');
     const zineRef = getZineReference(zineId);
+    let generationStarted = false;
     try {
       const zineSnap = await zineRef.get();
       if (!zineSnap.exists) return res.status(404).json({ error: 'ZINE_NOT_FOUND' });
@@ -4322,22 +4524,41 @@ async function startServer() {
       if (!canEditZine({ zine, userId: req.user.uid, activeCrewId: access.activeCrewId, isCrewCaptain: access.isCrewCaptain, isAdmin: admin })) {
         return res.status(403).json({ error: 'ZINE_EDIT_FORBIDDEN' });
       }
-      await zineRef.set({ status: 'generating', updatedAt: FieldValue.serverTimestamp(), generationError: FieldValue.delete() }, { merge: true });
+      await dbAdmin.runTransaction(async transaction => {
+        await getEditableZineInTransaction(transaction, zineRef, req.user.uid, admin);
+        transaction.set(zineRef, { status: 'generating', updatedAt: FieldValue.serverTimestamp(), generationError: FieldValue.delete() }, { merge: true });
+      });
+      generationStarted = true;
       const candidates = await loadZineCandidates(zine);
       const title = zine.kind === 'crew' ? 'Crew Fieldtrip Edition' : 'My Fieldtrip Edition';
       const pages = buildZineDraftPages(candidates);
       const coverChoices = buildZineCoverChoices(candidates, title, zine.seasonId);
-      await zineRef.set({
-        status: 'draft',
-        pages,
-        coverChoices,
-        selectedCoverId: zine.selectedCoverId && coverChoices.some(choice => choice.id === zine.selectedCoverId)
-          ? zine.selectedCoverId
-          : coverChoices[0]?.id || null,
-        candidateProofIds: candidates.map(getZineCandidateId),
-        generatedAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
+      await dbAdmin.runTransaction(async transaction => {
+        const currentSnap = await transaction.get(zineRef);
+        if (!currentSnap.exists) throw new Error('ZINE_NOT_FOUND');
+        const current = { id: currentSnap.id, ...currentSnap.data(), status: normalizeZineStatus(currentSnap.data()?.status) } as any;
+        if (current.status !== 'generating') throw new Error('ZINE_GENERATION_STATE_CHANGED');
+        const currentAccess = await getZineActorAccessInTransaction(transaction, current, req.user.uid);
+        const stillAuthorized = canEditZine({
+          zine: { ...current, status: 'draft' },
+          userId: req.user.uid,
+          activeCrewId: currentAccess.activeCrewId,
+          isCrewCaptain: currentAccess.isCrewCaptain,
+          isAdmin: admin,
+        });
+        if (!stillAuthorized) throw new Error('ZINE_EDIT_FORBIDDEN');
+        transaction.set(zineRef, {
+          status: 'draft',
+          pages,
+          coverChoices,
+          selectedCoverId: current.selectedCoverId && coverChoices.some(choice => choice.id === current.selectedCoverId)
+            ? current.selectedCoverId
+            : coverChoices[0]?.id || null,
+          candidateProofIds: candidates.map(getZineCandidateId),
+          generatedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      });
       await dbAdmin.collection('zineAuditLogs').add({
         actorId: req.user.uid,
         zineId,
@@ -4348,9 +4569,18 @@ async function startServer() {
       const updated = await zineRef.get();
       res.json({ zine: { id: updated.id, ...updated.data() }, candidateCount: candidates.length });
     } catch (error: any) {
-      await zineRef.set({ status: 'generation_failed', generationError: String(error.message || error).slice(0, 240), updatedAt: FieldValue.serverTimestamp() }, { merge: true }).catch(() => undefined);
+      if (generationStarted) {
+        await dbAdmin.runTransaction(async transaction => {
+          const current = await transaction.get(zineRef);
+          if (current.exists && normalizeZineStatus(current.data()?.status) === 'generating') {
+            transaction.set(zineRef, { status: 'generation_failed', generationError: String(error.message || error).slice(0, 240), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+          }
+        }).catch(() => undefined);
+      }
       console.error('[ZINE_GENERATE] Failed:', error);
-      res.status(500).json({ error: 'ZINE_GENERATION_FAILED', message: error.message || String(error) });
+      const message = error.message || String(error);
+      const status = message.endsWith('_FORBIDDEN') ? 403 : message === 'ZINE_NOT_FOUND' ? 404 : message === 'ZINE_GENERATION_STATE_CHANGED' ? 409 : 500;
+      res.status(status).json({ error: status === 500 ? 'ZINE_GENERATION_FAILED' : message, message });
     }
   });
 
@@ -4369,38 +4599,44 @@ async function startServer() {
       if (!canEditZine({ zine, userId: req.user.uid, activeCrewId: access.activeCrewId, isCrewCaptain: access.isCrewCaptain, isAdmin: admin })) {
         return res.status(403).json({ error: 'ZINE_EDIT_FORBIDDEN' });
       }
-      const pages = Array.isArray(zine.pages) ? zine.pages as ZinePage[] : [];
-      const pageIndex = pages.findIndex(page => page.id === pageId);
-      if (pageIndex < 0) return res.status(404).json({ error: 'ZINE_PAGE_NOT_FOUND' });
       const candidates = await loadZineCandidates(zine);
       const candidatesById = new Map(candidates.map(candidate => [getZineCandidateId(candidate), candidate]));
-      const requestedProofIds = Array.isArray(req.body.proofIds) ? req.body.proofIds.map((id: any) => String(id)).filter(Boolean).slice(0, 2) : pages[pageIndex].proofIds;
-      if (requestedProofIds.some((id: string) => !candidatesById.has(id))) return res.status(400).json({ error: 'ZINE_PROOF_NOT_ELIGIBLE' });
-      const layoutId = req.body.layoutId ? String(req.body.layoutId) as ZineLayoutId : pages[pageIndex].layoutId;
-      if (!allowedLayouts.has(layoutId)) return res.status(400).json({ error: 'INVALID_ZINE_LAYOUT' });
       const userSnap = await dbAdmin.collection('users').doc(req.user.uid).get();
       const earnedStickers = new Set<string>([
         ...((userSnap.data()?.unlockedRewards?.stickers || []) as string[]),
         ...((userSnap.data()?.earnedStickers || []) as Array<any>).map(item => String(item.id || item)),
       ]);
-      const stickerIds = Array.isArray(req.body.stickerIds) ? req.body.stickerIds.map((id: any) => String(id)).filter((id: string) => earnedStickers.has(id)).slice(0, 12) : pages[pageIndex].stickerIds;
-      const nextPage: ZinePage = {
-        ...pages[pageIndex],
-        layoutId,
-        title: req.body.title !== undefined ? String(req.body.title).slice(0, 100) : pages[pageIndex].title,
-        caption: req.body.caption !== undefined ? String(req.body.caption).slice(0, 600) : pages[pageIndex].caption,
-        proofIds: requestedProofIds,
-        proofSnapshots: requestedProofIds.map((id: string) => toZineProofSnapshot(candidatesById.get(id)!)),
-        stickerIds,
-      };
-      const nextPages = [...pages];
-      nextPages[pageIndex] = nextPage;
-      await zineRef.set({ status: 'curating', pages: nextPages, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      const nextPage = await dbAdmin.runTransaction(async transaction => {
+        const current = await getEditableZineInTransaction(transaction, zineRef, req.user.uid, admin);
+        const pages = Array.isArray(current.zine.pages) ? current.zine.pages as ZinePage[] : [];
+        const pageIndex = pages.findIndex(page => page.id === pageId);
+        if (pageIndex < 0) throw new Error('ZINE_PAGE_NOT_FOUND');
+        const requestedProofIds = Array.isArray(req.body.proofIds) ? req.body.proofIds.map((id: any) => String(id)).filter(Boolean).slice(0, 2) : pages[pageIndex].proofIds;
+        if (requestedProofIds.some((id: string) => !candidatesById.has(id))) throw new Error('ZINE_PROOF_NOT_ELIGIBLE');
+        const layoutId = req.body.layoutId ? String(req.body.layoutId) as ZineLayoutId : pages[pageIndex].layoutId;
+        if (!allowedLayouts.has(layoutId)) throw new Error('INVALID_ZINE_LAYOUT');
+        const stickerIds = Array.isArray(req.body.stickerIds) ? req.body.stickerIds.map((id: any) => String(id)).filter((id: string) => earnedStickers.has(id)).slice(0, 12) : pages[pageIndex].stickerIds;
+        const page: ZinePage = {
+          ...pages[pageIndex],
+          layoutId,
+          title: req.body.title !== undefined ? String(req.body.title).slice(0, 100) : pages[pageIndex].title,
+          caption: req.body.caption !== undefined ? String(req.body.caption).slice(0, 600) : pages[pageIndex].caption,
+          proofIds: requestedProofIds,
+          proofSnapshots: requestedProofIds.map((id: string) => toZineProofSnapshot(candidatesById.get(id)!)),
+          stickerIds,
+        };
+        const nextPages = [...pages];
+        nextPages[pageIndex] = page;
+        transaction.set(zineRef, { status: 'curating', pages: nextPages, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+        return page;
+      });
       await dbAdmin.collection('zineAuditLogs').add({ actorId: req.user.uid, zineId, action: 'update_page', pageId, createdAt: FieldValue.serverTimestamp() });
       res.json({ success: true, page: nextPage });
     } catch (error: any) {
       console.error('[ZINE_PAGE_UPDATE] Failed:', error);
-      res.status(500).json({ error: 'ZINE_PAGE_UPDATE_FAILED', message: error.message || String(error) });
+      const message = error.message || String(error);
+      const status = message.endsWith('_FORBIDDEN') ? 403 : message.includes('NOT_FOUND') ? 404 : ['ZINE_PROOF_NOT_ELIGIBLE', 'INVALID_ZINE_LAYOUT'].includes(message) ? 400 : 500;
+      res.status(status).json({ error: message === 'ZINE_PAGE_UPDATE_FAILED' ? message : message, message });
     }
   });
 
@@ -4408,18 +4644,18 @@ async function startServer() {
     if (!dbAdmin) return res.status(500).json({ error: 'DB_ADMIN_NOT_READY' });
     try {
       const zineRef = getZineReference(String(req.params.zineId || ''));
-      const zineSnap = await zineRef.get();
-      if (!zineSnap.exists) return res.status(404).json({ error: 'ZINE_NOT_FOUND' });
-      const zine = { id: zineSnap.id, ...zineSnap.data(), status: normalizeZineStatus(zineSnap.data()?.status) } as any;
-      const access = await getZineActorAccess(zine, req.user.uid);
       const admin = await checkIsAdmin(req.user);
-      if (!canEditZine({ zine, userId: req.user.uid, activeCrewId: access.activeCrewId, isCrewCaptain: access.isCrewCaptain, isAdmin: admin })) return res.status(403).json({ error: 'ZINE_EDIT_FORBIDDEN' });
       const direction = Number(req.body.direction) < 0 ? -1 : 1;
-      const pages = reorderZinePages(Array.isArray(zine.pages) ? zine.pages : [], String(req.body.pageId || ''), direction);
-      await zineRef.set({ status: 'curating', pages, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      const pages = await dbAdmin.runTransaction(async transaction => {
+        const current = await getEditableZineInTransaction(transaction, zineRef, req.user.uid, admin);
+        const nextPages = reorderZinePages(Array.isArray(current.zine.pages) ? current.zine.pages : [], String(req.body.pageId || ''), direction);
+        transaction.set(zineRef, { status: 'curating', pages: nextPages, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+        return nextPages;
+      });
       res.json({ success: true, pages });
     } catch (error: any) {
-      res.status(500).json({ error: 'ZINE_PAGE_REORDER_FAILED', message: error.message || String(error) });
+      const message = error.message || String(error);
+      res.status(message.endsWith('_FORBIDDEN') ? 403 : message === 'ZINE_NOT_FOUND' ? 404 : 500).json({ error: message, message });
     }
   });
 
@@ -4427,35 +4663,36 @@ async function startServer() {
     if (!dbAdmin) return res.status(500).json({ error: 'DB_ADMIN_NOT_READY' });
     try {
       const zineRef = getZineReference(String(req.params.zineId || ''));
-      const zineSnap = await zineRef.get();
-      if (!zineSnap.exists) return res.status(404).json({ error: 'ZINE_NOT_FOUND' });
-      const zine = { id: zineSnap.id, ...zineSnap.data(), status: normalizeZineStatus(zineSnap.data()?.status) } as any;
-      const access = await getZineActorAccess(zine, req.user.uid);
       const admin = await checkIsAdmin(req.user);
-      if (!canEditZine({ zine, userId: req.user.uid, activeCrewId: access.activeCrewId, isCrewCaptain: access.isCrewCaptain, isAdmin: admin })) return res.status(403).json({ error: 'ZINE_EDIT_FORBIDDEN' });
-      const optionalCount = Number(zine.optionalPageCount || 0);
-      if (optionalCount >= MAX_OPTIONAL_ZINE_PAGES) return res.status(409).json({ error: 'OPTIONAL_PAGE_LIMIT_REACHED' });
-      const pages = Array.isArray(zine.pages) ? [...zine.pages] as ZinePage[] : [];
-      const closingIndex = pages.findIndex(page => page.role === 'closing');
-      const page: ZinePage = {
-        id: `page_optional_${optionalCount + 1}`,
-        role: 'optional',
-        order: Math.max(0, closingIndex),
-        layoutId: 'single_receipt',
-        title: `Bonus Page ${optionalCount + 1}`,
-        caption: '',
-        proofIds: [],
-        proofSnapshots: [],
-        stickerIds: [],
-        isOptional: true,
-        isFlexible: true,
-      };
-      pages.splice(closingIndex >= 0 ? closingIndex : pages.length, 0, page);
-      const ordered = pages.map((item, order) => ({ ...item, order }));
-      await zineRef.set({ status: 'curating', pages: ordered, optionalPageCount: optionalCount + 1, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      const ordered = await dbAdmin.runTransaction(async transaction => {
+        const current = await getEditableZineInTransaction(transaction, zineRef, req.user.uid, admin);
+        const optionalCount = Number(current.zine.optionalPageCount || 0);
+        if (optionalCount >= MAX_OPTIONAL_ZINE_PAGES) throw new Error('OPTIONAL_PAGE_LIMIT_REACHED');
+        const pages = Array.isArray(current.zine.pages) ? [...current.zine.pages] as ZinePage[] : [];
+        const closingIndex = pages.findIndex(page => page.role === 'closing');
+        const page: ZinePage = {
+          id: `page_optional_${optionalCount + 1}`,
+          role: 'optional',
+          order: Math.max(0, closingIndex),
+          layoutId: 'single_receipt',
+          title: `Bonus Page ${optionalCount + 1}`,
+          caption: '',
+          proofIds: [],
+          proofSnapshots: [],
+          stickerIds: [],
+          isOptional: true,
+          isFlexible: true,
+        };
+        pages.splice(closingIndex >= 0 ? closingIndex : pages.length, 0, page);
+        const nextPages = pages.map((item, order) => ({ ...item, order }));
+        transaction.set(zineRef, { status: 'curating', pages: nextPages, optionalPageCount: optionalCount + 1, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+        return nextPages;
+      });
       res.json({ success: true, pages: ordered });
     } catch (error: any) {
-      res.status(500).json({ error: 'ZINE_OPTIONAL_PAGE_FAILED', message: error.message || String(error) });
+      const message = error.message || String(error);
+      const status = message.endsWith('_FORBIDDEN') ? 403 : message === 'ZINE_NOT_FOUND' ? 404 : message === 'OPTIONAL_PAGE_LIMIT_REACHED' ? 409 : 500;
+      res.status(status).json({ error: message, message });
     }
   });
 
@@ -4463,18 +4700,18 @@ async function startServer() {
     if (!dbAdmin) return res.status(500).json({ error: 'DB_ADMIN_NOT_READY' });
     try {
       const zineRef = getZineReference(String(req.params.zineId || ''));
-      const zineSnap = await zineRef.get();
-      if (!zineSnap.exists) return res.status(404).json({ error: 'ZINE_NOT_FOUND' });
-      const zine = { id: zineSnap.id, ...zineSnap.data(), status: normalizeZineStatus(zineSnap.data()?.status) } as any;
-      const access = await getZineActorAccess(zine, req.user.uid);
       const admin = await checkIsAdmin(req.user);
-      if (!canEditZine({ zine, userId: req.user.uid, activeCrewId: access.activeCrewId, isCrewCaptain: access.isCrewCaptain, isAdmin: admin })) return res.status(403).json({ error: 'ZINE_EDIT_FORBIDDEN' });
       const coverId = String(req.body.coverId || '');
-      if (!(zine.coverChoices || []).some((choice: any) => choice.id === coverId)) return res.status(400).json({ error: 'INVALID_COVER_CHOICE' });
-      await zineRef.set({ selectedCoverId: coverId, status: 'curating', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      await dbAdmin.runTransaction(async transaction => {
+        const current = await getEditableZineInTransaction(transaction, zineRef, req.user.uid, admin);
+        if (!(current.zine.coverChoices || []).some((choice: any) => choice.id === coverId)) throw new Error('INVALID_COVER_CHOICE');
+        transaction.set(zineRef, { selectedCoverId: coverId, status: 'curating', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      });
       res.json({ success: true, selectedCoverId: coverId });
     } catch (error: any) {
-      res.status(500).json({ error: 'ZINE_COVER_UPDATE_FAILED', message: error.message || String(error) });
+      const message = error.message || String(error);
+      const status = message.endsWith('_FORBIDDEN') ? 403 : message === 'ZINE_NOT_FOUND' ? 404 : message === 'INVALID_COVER_CHOICE' ? 400 : 500;
+      res.status(status).json({ error: message, message });
     }
   });
 
@@ -4492,12 +4729,26 @@ async function startServer() {
       const candidates = await loadZineCandidates(zine);
       if (!candidates.some(candidate => getZineCandidateId(candidate) === proofId)) return res.status(400).json({ error: 'ZINE_PROOF_NOT_ELIGIBLE' });
       const nominationRef = zineRef.collection('nominations').doc(`${req.user.uid}_${proofId}`);
-      await nominationRef.set({ zineId: zine.id, crewId: zine.crewId, userId: req.user.uid, proofId, createdAt: FieldValue.serverTimestamp() }, { merge: false });
-      await zineRef.set({ nominatedProofIds: FieldValue.arrayUnion(proofId), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-      res.json({ success: true });
+      const result = await dbAdmin.runTransaction(async transaction => {
+        const [currentSnap, nominationSnap] = await Promise.all([
+          transaction.get(zineRef),
+          transaction.get(nominationRef),
+        ]);
+        if (!currentSnap.exists) throw new Error('ZINE_NOT_FOUND');
+        const current = { id: currentSnap.id, ...currentSnap.data(), status: normalizeZineStatus(currentSnap.data()?.status) } as any;
+        const currentAccess = await getZineActorAccessInTransaction(transaction, current, req.user.uid);
+        if (current.kind !== 'crew' || !currentAccess.isActiveCrewMember) throw new Error('ZINE_NOMINATION_FORBIDDEN');
+        if (current.status === 'finalized' || current.status === 'archived') throw new Error('ZINE_IMMUTABLE');
+        if (nominationSnap.exists) return { alreadyNominated: true };
+        transaction.create(nominationRef, { zineId: current.id, crewId: current.crewId, userId: req.user.uid, proofId, createdAt: FieldValue.serverTimestamp() });
+        transaction.set(zineRef, { nominatedProofIds: FieldValue.arrayUnion(proofId), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+        return { alreadyNominated: false };
+      });
+      res.json({ success: true, ...result });
     } catch (error: any) {
-      const status = String(error?.code || '').includes('already-exists') ? 409 : 500;
-      res.status(status).json({ error: status === 409 ? 'ZINE_NOMINATION_ALREADY_EXISTS' : 'ZINE_NOMINATION_FAILED', message: error.message || String(error) });
+      const message = error.message || String(error);
+      const status = message.endsWith('_FORBIDDEN') ? 403 : message === 'ZINE_NOT_FOUND' ? 404 : message === 'ZINE_IMMUTABLE' ? 409 : 500;
+      res.status(status).json({ error: message, message });
     }
   });
 
@@ -4505,17 +4756,17 @@ async function startServer() {
     if (!dbAdmin) return res.status(500).json({ error: 'DB_ADMIN_NOT_READY' });
     try {
       const zineRef = getZineReference(String(req.params.zineId || ''));
-      const zineSnap = await zineRef.get();
-      if (!zineSnap.exists) return res.status(404).json({ error: 'ZINE_NOT_FOUND' });
-      const zine = { id: zineSnap.id, ...zineSnap.data(), status: normalizeZineStatus(zineSnap.data()?.status) } as any;
-      const access = await getZineActorAccess(zine, req.user.uid);
       const admin = await checkIsAdmin(req.user);
-      if (!canEditZine({ zine, userId: req.user.uid, activeCrewId: access.activeCrewId, isCrewCaptain: access.isCrewCaptain, isAdmin: admin })) return res.status(403).json({ error: 'ZINE_EDIT_FORBIDDEN' });
-      if (!Array.isArray(zine.pages) || zine.pages.length === 0) return res.status(409).json({ error: 'ZINE_DRAFT_REQUIRED' });
-      await zineRef.set({ status: 'ready_for_review', readyForReviewAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      await dbAdmin.runTransaction(async transaction => {
+        const current = await getEditableZineInTransaction(transaction, zineRef, req.user.uid, admin);
+        if (!Array.isArray(current.zine.pages) || current.zine.pages.length === 0) throw new Error('ZINE_DRAFT_REQUIRED');
+        transaction.set(zineRef, { status: 'ready_for_review', readyForReviewAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      });
       res.json({ success: true, status: 'ready_for_review' });
     } catch (error: any) {
-      res.status(500).json({ error: 'ZINE_READY_FAILED', message: error.message || String(error) });
+      const message = error.message || String(error);
+      const status = message.endsWith('_FORBIDDEN') ? 403 : message === 'ZINE_NOT_FOUND' ? 404 : message === 'ZINE_DRAFT_REQUIRED' ? 409 : 500;
+      res.status(status).json({ error: message, message });
     }
   });
 
@@ -4524,15 +4775,18 @@ async function startServer() {
     const zineId = String(req.params.zineId || '');
     try {
       const zineRef = getZineReference(zineId);
+      const admin = await checkIsAdmin(req.user);
       const result = await dbAdmin.runTransaction(async transaction => {
         const zineSnap = await transaction.get(zineRef);
         if (!zineSnap.exists) throw new Error('ZINE_NOT_FOUND');
         const zine = { id: zineSnap.id, ...zineSnap.data(), status: normalizeZineStatus(zineSnap.data()?.status) } as any;
         if (zine.status === 'finalized' || zine.status === 'archived') return { alreadyFinalized: true, zine };
-        const access = await getZineActorAccess(zine, req.user.uid);
-        const admin = await checkIsAdmin(req.user);
+        const access = await getZineActorAccessInTransaction(transaction, zine, req.user.uid);
         if (!canFinalizeZine({ zine, userId: req.user.uid, activeCrewId: access.activeCrewId, isCrewCaptain: access.isCrewCaptain, isAdmin: admin })) throw new Error('ZINE_FINALIZE_FORBIDDEN');
         const pages = Array.isArray(zine.pages) ? zine.pages : [];
+        const viewerUserIdsSnapshot = zine.kind === 'crew' && zine.crewId
+          ? (await transaction.get(dbAdmin!.collection('crews').doc(zine.crewId).collection('members').where('status', '==', 'active'))).docs.map(memberDoc => memberDoc.id)
+          : [String(zine.ownerId || '')].filter(Boolean);
         const finalizationId = `finalize_${zineId}`;
         const finalizationRef = dbAdmin!.collection('zineFinalizations').doc(finalizationId);
         const existingFinalization = await transaction.get(finalizationRef);
@@ -4544,6 +4798,7 @@ async function startServer() {
           ownerId: zine.ownerId || null,
           crewId: zine.crewId || null,
           seasonId: zine.seasonId,
+          viewerUserIdsSnapshot,
           selectedCoverId: zine.selectedCoverId || null,
           pages,
           finalizedBy: req.user.uid,
@@ -4555,6 +4810,7 @@ async function startServer() {
           finalizedPages: pages,
           finalizedBy: req.user.uid,
           finalizedAt,
+          viewerUserIdsSnapshot,
           finalizationId,
           updatedAt: finalizedAt,
         }, { merge: true });
@@ -4750,7 +5006,8 @@ async function startServer() {
         return update;
       });
       await dbAdmin.collection('crewAuditLogs').add({ actorId: req.user.uid, crewId, action: 'update_settings', createdAt: FieldValue.serverTimestamp() });
-      res.json({ success: true, crew: { id: crewId, ...result } });
+      const updatedCrewSnap = await dbAdmin.collection('crews').doc(crewId).get();
+      res.json({ success: true, crew: updatedCrewSnap.exists ? { id: updatedCrewSnap.id, ...updatedCrewSnap.data() } : { id: crewId, ...result } });
     } catch (error: any) {
       const message = error.message || String(error);
       res.status(message.endsWith('_FORBIDDEN') ? 403 : message === 'CREW_NOT_FOUND' ? 404 : 400).json({ error: message, message });
@@ -4774,6 +5031,92 @@ async function startServer() {
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: 'CREW_LORE_UPDATE_FAILED', message: error.message || String(error) });
+    }
+  });
+
+  app.post('/api/crew/lore/process-entry', authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: 'DB_ADMIN_NOT_READY' });
+    const crewId = String(req.body.crewId || '').trim();
+    const entryId = String(req.body.entryId || '').trim();
+    const loreTags = Array.isArray(req.body.loreTags)
+      ? req.body.loreTags.map((tag: any) => String(tag).trim()).filter(Boolean).slice(0, 8)
+      : [];
+    if (!crewId || !entryId) return res.status(400).json({ error: 'CREW_LORE_ENTRY_REQUIRED' });
+    try {
+      const result = await dbAdmin.runTransaction(async transaction => {
+        const entryRef = dbAdmin!.collection('entries').doc(entryId);
+        const memberRef = dbAdmin!.collection('crews').doc(crewId).collection('members').doc(req.user.uid);
+        const loreRef = dbAdmin!.collection('crewLore').doc(crewId);
+        const auditRef = dbAdmin!.collection('crewAuditLogs').doc(`lore_entry_${crewId}_${entryId}`);
+        const [entrySnap, memberSnap, loreSnap, auditSnap] = await Promise.all([
+          transaction.get(entryRef),
+          transaction.get(memberRef),
+          transaction.get(loreRef),
+          transaction.get(auditRef),
+        ]);
+        if (auditSnap.exists) return { alreadyProcessed: true };
+        if (!entrySnap.exists) throw new Error('ENTRY_NOT_FOUND');
+        const entry = entrySnap.data() || {};
+        const ownerId = String(entry.userId || entry.uid || entry.ownerId || '').trim();
+        if (ownerId !== req.user.uid) throw new Error('CREW_LORE_ENTRY_FORBIDDEN');
+        if (memberSnap.data()?.status !== 'active') throw new Error('CREW_MEMBER_REQUIRED');
+        const entryCrewId = String(entry.crewContext?.crewId || entry.crewId || '').trim();
+        if (entryCrewId !== crewId) throw new Error('CREW_ENTRY_MISMATCH');
+        const status = normalizeStatusBackend(entry.status || entry.reviewStatus || entry.approvalStatus);
+        if (!['approved', 'rejected'].includes(status)) throw new Error('CREW_LORE_ENTRY_NOT_FINAL');
+        const seasonKey = String(entry.seasonId || entry.crewContext?.crewSeasonId || 'season').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80) || 'season';
+        const update: Record<string, any> = {
+          crewId,
+          updatedAt: FieldValue.serverTimestamp(),
+        };
+        if (status === 'approved') {
+          update[`seasonStats.${seasonKey}.totalApprovedEntries`] = FieldValue.increment(1);
+          update[`seasonStats.${seasonKey}.totalCompletedChallenges`] = FieldValue.increment(1);
+          if (loreTags.length > 0) update.tags = FieldValue.arrayUnion(...loreTags);
+        } else {
+          update[`seasonStats.${seasonKey}.totalRejectedEntries`] = FieldValue.increment(1);
+          if (!loreSnap.data()?.highlights?.mostSuspiciousEntry) update['highlights.mostSuspiciousEntry'] = entryId;
+        }
+        transaction.set(loreRef, update, { merge: true });
+        transaction.create(auditRef, {
+          actorId: req.user.uid,
+          crewId,
+          entryId,
+          action: 'process_entry_lore',
+          outcome: status,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+        return { alreadyProcessed: false };
+      });
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      const message = error.message || String(error);
+      const status = message.endsWith('_FORBIDDEN') || message === 'CREW_MEMBER_REQUIRED' ? 403 : message === 'ENTRY_NOT_FOUND' ? 404 : 409;
+      res.status(status).json({ error: message, message });
+    }
+  });
+
+  app.post('/api/crew/artifacts/evaluate', authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: 'DB_ADMIN_NOT_READY' });
+    const crewId = String(req.body?.crewId || '').trim();
+    const entryId = String(req.body?.entryId || '').trim();
+    if (!crewId || !entryId) return res.status(400).json({ error: 'CREW_ARTIFACT_ENTRY_REQUIRED' });
+    try {
+      const entrySnap = await dbAdmin.collection('entries').doc(entryId).get();
+      if (!entrySnap.exists) return res.status(404).json({ error: 'ENTRY_NOT_FOUND' });
+      const entry = entrySnap.data() || {};
+      const ownerId = String(entry.userId || entry.uid || entry.ownerId || '').trim();
+      if (ownerId !== req.user.uid) return res.status(403).json({ error: 'CREW_ARTIFACT_ENTRY_FORBIDDEN' });
+      const result = await evaluateApprovedEntryArtifacts(crewId, entryId);
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      const message = error.message || String(error);
+      const status = message.endsWith('_FORBIDDEN') || message === 'CREW_MEMBER_REQUIRED'
+        ? 403
+        : message === 'ENTRY_NOT_FOUND'
+          ? 404
+          : 409;
+      res.status(status).json({ error: message, message });
     }
   });
 
@@ -5573,26 +5916,22 @@ async function startServer() {
     if (!crewId || reason.length < 3) return res.status(400).json({ error: 'CREW_DISBAND_REASON_REQUIRED' });
     try {
       const crewRef = dbAdmin.collection('crews').doc(crewId);
-      const rosterSnap = await crewRef.collection('members').get();
-      const memberIds = rosterSnap.docs.map(docSnap => docSnap.id);
       const result = await dbAdmin.runTransaction(async transaction => {
-        const refs = [crewRef, ...memberIds.flatMap(memberId => [crewRef.collection('members').doc(memberId), dbAdmin!.collection('users').doc(memberId)])];
-        const snapshots = await Promise.all(refs.map(ref => transaction.get(ref)));
-        const crewSnap = snapshots[0];
+        const crewSnap = await transaction.get(crewRef);
         if (!crewSnap.exists) throw new Error('CREW_NOT_FOUND');
         const crew = { id: crewSnap.id, ...crewSnap.data() } as any;
         if (crew.status !== 'active') throw new Error('CREW_NOT_ACTIVE');
-        const actorMemberIndex = memberIds.indexOf(uid);
-        const actorMemberSnap = actorMemberIndex >= 0 ? snapshots[1 + actorMemberIndex * 2] : null;
-        const actorMember = actorMemberSnap?.exists ? { userId: uid, ...actorMemberSnap.data() } as any : null;
+        const activeMembersSnap = await transaction.get(crewRef.collection('members').where('status', '==', 'active'));
+        const activeMemberIds = activeMembersSnap.docs.map(memberDoc => memberDoc.id);
+        const userSnapshots = await Promise.all(activeMemberIds.map(memberId => transaction.get(dbAdmin!.collection('users').doc(memberId))));
+        const actorMemberSnap = activeMembersSnap.docs.find(memberDoc => memberDoc.id === uid) || null;
+        const actorMember = actorMemberSnap ? { userId: uid, ...actorMemberSnap.data() } as any : null;
         if (!actorMember || actorMember.status !== 'active' || getCanonicalCrewCaptainId(crew) !== uid) throw new Error('CREW_DISBAND_FORBIDDEN');
 
-        memberIds.forEach((memberId, index) => {
-          const memberSnap = snapshots[1 + index * 2];
-          const userSnap = snapshots[2 + index * 2];
-          if (memberSnap.exists && memberSnap.data()?.status === 'active') {
-            transaction.set(memberSnap.ref, { status: 'left', leftAt: FieldValue.serverTimestamp(), leftReason: 'crew_disbanded', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-          }
+        activeMembersSnap.docs.forEach((memberSnap, index) => {
+          const memberId = memberSnap.id;
+          const userSnap = userSnapshots[index];
+          transaction.set(memberSnap.ref, { status: 'left', leftAt: FieldValue.serverTimestamp(), leftReason: 'crew_disbanded', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
           const profile = userSnap.data() || {};
           if ((profile.activeCrewId || profile.crewId) === crewId) {
             transaction.set(userSnap.ref, {
@@ -5614,14 +5953,16 @@ async function startServer() {
           disbandReason: reason,
           updatedAt: FieldValue.serverTimestamp(),
         }, { merge: true });
-        return { memberCount: memberIds.length };
+        return { memberCount: activeMemberIds.length, viewerUserIdsSnapshot: activeMemberIds };
       });
 
       const seasonId = await getActiveSeasonIdForCrew();
       const zineRef = dbAdmin.collection('crewSeasonZines').doc(getCrewZineId(crewId, seasonId));
       const zineSnap = await zineRef.get();
       if (zineSnap.exists && !['finalized', 'archived'].includes(normalizeZineStatus(zineSnap.data()?.status))) {
-        await zineRef.set({ status: 'archived', archivedAt: FieldValue.serverTimestamp(), archiveReason: 'crew_disbanded', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+        await zineRef.set({ status: 'archived', viewerUserIdsSnapshot: result.viewerUserIdsSnapshot, archivedAt: FieldValue.serverTimestamp(), archiveReason: 'crew_disbanded', updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      } else if (zineSnap.exists && !Array.isArray(zineSnap.data()?.viewerUserIdsSnapshot)) {
+        await zineRef.set({ viewerUserIdsSnapshot: result.viewerUserIdsSnapshot, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       }
       await dbAdmin.collection('crewAuditLogs').add({ actorId: uid, crewId, action: 'disband_crew', reason, affectedMembers: result.memberCount, createdAt: FieldValue.serverTimestamp() });
       res.json({ success: true, crewId, affectedMembers: result.memberCount });

@@ -78,6 +78,23 @@ service cloud.firestore {
     function activeCrewId() {
       return currentUserProfile().get('activeCrewId', currentUserProfile().get('crewId', ''));
     }
+    function isActiveCrewMemberOf(crewId) {
+      return isSignedIn() &&
+             crewId is string &&
+             crewId.size() > 0 &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             activeCrewId() == crewId &&
+             exists(/databases/$(database)/documents/crews/$(crewId)/members/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/crews/$(crewId)/members/$(request.auth.uid)).data.get('status', '') == 'active';
+    }
+    function canReadCrewArchive(data) {
+      return isAdmin() ||
+             isActiveCrewMemberOf(data.get('crewId', '')) ||
+             (
+               data.get('status', '') in ['finalized', 'archived'] &&
+               data.get('viewerUserIdsSnapshot', []).hasAny([request.auth.uid])
+             );
+    }
     function hasDeckInviteRedemption(deckId) {
       return isSignedIn() &&
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
@@ -602,16 +619,40 @@ service cloud.firestore {
     // CREWS & MEMBERS
     match /crews/{id} {
       allow read: if isApproved();
-      allow write: if isAdmin();
+      allow write: if false;
 
       match /members/{userId} {
-        allow read: if isApproved() && (isAdmin() || userId == request.auth.uid || id == activeCrewId());
+        allow read: if isApproved() && (isAdmin() || userId == request.auth.uid || isActiveCrewMemberOf(id));
         allow write: if false;
       }
     }
 
     match /crewSeasonZines/{id} {
-      allow read: if isApproved();
+      allow read: if isApproved() && canReadCrewArchive(resource.data);
+      allow write: if false;
+
+      match /nominations/{nominationId} {
+        allow read: if isApproved() && (isAdmin() || isActiveCrewMemberOf(get(/databases/$(database)/documents/crewSeasonZines/$(id)).data.get('crewId', '')));
+        allow write: if false;
+      }
+    }
+
+    match /personalZines/{id} {
+      allow read: if isApproved() && (isAdmin() || resource.data.get('ownerId', '') == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /zineFinalizations/{id} {
+      allow read: if isApproved() && (
+        isAdmin() ||
+        resource.data.get('ownerId', '') == request.auth.uid ||
+        resource.data.get('viewerUserIdsSnapshot', []).hasAny([request.auth.uid])
+      );
+      allow write: if false;
+    }
+
+    match /zineAuditLogs/{id} {
+      allow read: if isAdmin();
       allow write: if false;
     }
 
@@ -620,7 +661,7 @@ service cloud.firestore {
         isAdmin() ||
         resource.data.inviteeUserId == request.auth.uid ||
         resource.data.inviterId == request.auth.uid ||
-        resource.data.crewId == activeCrewId()
+        isActiveCrewMemberOf(resource.data.get('crewId', ''))
       );
       allow write: if false;
     }
@@ -629,14 +670,39 @@ service cloud.firestore {
       allow get, list: if isSignedIn() && (
         isAdmin() ||
         resource.data.userId == request.auth.uid ||
-        resource.data.crewId == activeCrewId()
+        isActiveCrewMemberOf(resource.data.get('crewId', ''))
       );
       allow write: if false;
     }
 
+    match /crewInviteRedemptions/{id} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.get('userId', '') == request.auth.uid);
+      allow write: if false;
+    }
+
     match /crewArchiveEntries/{id} {
-      allow read: if isApproved() && (isAdmin() || resource.data.crewId == activeCrewId());
-      allow write: if isAdmin();
+      allow read: if isApproved() && (isAdmin() || isActiveCrewMemberOf(resource.data.get('crewId', '')));
+      allow write: if false;
+    }
+
+    match /personalArchiveEntries/{id} {
+      allow read: if isApproved() && (isAdmin() || resource.data.get('ownerId', '') == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /crewLore/{id} {
+      allow read: if isApproved() && (isAdmin() || isActiveCrewMemberOf(resource.data.get('crewId', id)));
+      allow write: if false;
+    }
+
+    match /crewArtifacts/{id} {
+      allow read: if isApproved() && (isAdmin() || isActiveCrewMemberOf(resource.data.get('crewId', '')));
+      allow write: if false;
+    }
+
+    match /crewDispatches/{id} {
+      allow read: if isApproved() && (isAdmin() || isActiveCrewMemberOf(resource.data.get('crewId', '')));
+      allow write: if false;
     }
 
     match /crewAuditLogs/{id} {
