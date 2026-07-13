@@ -324,63 +324,62 @@ export default function CrewPage() {
             </div>
           )}
 
-          <label className="block space-y-2">
-            <span className="micro-label">Crew Name</span>
-            <input
-              value={crewForm.name}
-              onChange={(e) => setCrewForm(prev => ({ ...prev, name: e.target.value }))}
-              className="w-full border-4 border-on-surface p-4 font-display font-black uppercase outline-none"
-              placeholder="THE PARKING LOT LEGENDS"
-              required
-              minLength={3}
-              maxLength={64}
-            />
-          </label>
-
-          <label className="block space-y-2">
-            <span className="micro-label">Motto</span>
-            <input
-              value={crewForm.motto}
-              onChange={(e) => setCrewForm(prev => ({ ...prev, motto: e.target.value }))}
-              className="w-full border-4 border-on-surface p-4 font-serif italic outline-none"
-              placeholder="We saw it, we submitted it."
-              maxLength={140}
-            />
-          </label>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <label className="block space-y-2">
-              <span className="micro-label">Mode</span>
-              <select
-                value={crewForm.mode}
-                onChange={(e) => setCrewForm(prev => ({ ...prev, mode: e.target.value as CrewMode }))}
-                className="w-full border-4 border-on-surface p-4 font-mono font-black uppercase bg-white"
-              >
-                <option value="friendly">Friendly</option>
-                <option value="competitive">Competitive</option>
-              </select>
-            </label>
-            <label className="block space-y-2">
-              <span className="micro-label">Privacy</span>
-              <select
-                value={crewForm.privacy}
-                onChange={(e) => setCrewForm(prev => ({ ...prev, privacy: e.target.value as CrewPrivacy }))}
-                className="w-full border-4 border-on-surface p-4 font-mono font-black uppercase bg-white"
-              >
-                <option value="invite_only">Invite Only</option>
-                <option value="link_request">Link Request</option>
-                <option value="discoverable">Discoverable</option>
-              </select>
-            </label>
-          </div>
-
-          <button
-            type="submit"
-            disabled={crewActionBusy || !!cooldownText}
-            className="bureau-btn w-full bg-brand-lime text-on-surface disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {crewActionBusy ? 'CREATING_CREW...' : 'INITIALIZE CREW'}
-          </button>
+          {noCrewView === 'create' ? (
+            <>
+              <label className="block space-y-2">
+                <span className="micro-label">Crew Name</span>
+                <input value={crewForm.name} onChange={(e) => setCrewForm(prev => ({ ...prev, name: e.target.value }))} className="w-full border-4 border-on-surface p-4 font-display font-black uppercase outline-none" placeholder="THE PARKING LOT LEGENDS" required minLength={3} maxLength={64} />
+              </label>
+              <label className="block space-y-2">
+                <span className="micro-label">Motto</span>
+                <input value={crewForm.motto} onChange={(e) => setCrewForm(prev => ({ ...prev, motto: e.target.value }))} className="w-full border-4 border-on-surface p-4 font-serif italic outline-none" placeholder="We saw it, we submitted it." maxLength={140} />
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <label className="block space-y-2">
+                  <span className="micro-label">Mode</span>
+                  <select value={crewForm.mode} onChange={(e) => setCrewForm(prev => ({ ...prev, mode: e.target.value as CrewMode }))} className="w-full border-4 border-on-surface p-4 font-mono font-black uppercase bg-white">
+                    <option value="friendly">Friendly</option>
+                    <option value="competitive">Competitive</option>
+                  </select>
+                </label>
+                <label className="block space-y-2">
+                  <span className="micro-label">Privacy</span>
+                  <select value={crewForm.privacy} onChange={(e) => setCrewForm(prev => ({ ...prev, privacy: e.target.value as CrewPrivacy }))} className="w-full border-4 border-on-surface p-4 font-mono font-black uppercase bg-white">
+                    <option value="invite_only">Invite Only</option>
+                    <option value="link_request">Link Request</option>
+                    <option value="discoverable">Discoverable</option>
+                  </select>
+                </label>
+              </div>
+              <button type="submit" disabled={crewActionBusy || !!cooldownText} className="bureau-btn w-full bg-brand-lime text-on-surface disabled:opacity-50 disabled:cursor-not-allowed">
+                {crewActionBusy ? 'CREATING_CREW...' : 'INITIALIZE CREW'}
+              </button>
+            </>
+          ) : (
+            <div className="space-y-4 text-left">
+              <div>
+                <h2 className="font-display text-3xl font-black uppercase italic">Discoverable Crews</h2>
+                <p className="font-serif italic text-sm opacity-60">Send one request. The captain must approve it before membership changes.</p>
+              </div>
+              {discoverableCrews.length === 0 ? (
+                <div className="border-4 border-dashed border-on-surface/20 p-8 text-center font-mono text-[10px] uppercase opacity-55">No open Crews are broadcasting right now.</div>
+              ) : discoverableCrews.map(discovered => {
+                const pending = outgoingRequests.some(request => request.crewId === discovered.id && request.status === 'pending');
+                return (
+                  <div key={discovered.id} className="border-4 border-on-surface bg-white p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-[5px_5px_0px_black]">
+                    <div>
+                      <h3 className="font-display text-2xl font-black uppercase italic">{discovered.name}</h3>
+                      <p className="font-serif italic text-sm opacity-60">{discovered.motto || 'A Crew looking for another field agent.'}</p>
+                      <p className="font-mono text-[9px] uppercase opacity-45 mt-2">{discovered.mode || 'friendly'} / {discovered.memberCount || 0} of {discovered.memberLimit || 8}</p>
+                    </div>
+                    <button type="button" disabled={pending || crewActionBusy || !!cooldownText} onClick={() => runCrewAction('request to join', () => requestToJoinCrew(discovered.id))} className="bureau-btn bg-brand-cyan text-on-surface text-[10px] disabled:opacity-40">
+                      <UserPlus className="w-4 h-4" /> {pending ? 'Request Pending' : 'Request to Join'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </form>
       </div>
     );
