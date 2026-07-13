@@ -23,9 +23,11 @@ import {
 interface BetaAccessGateProps {
   userId: string;
   onAccepted: () => void;
+  showWelcome?: boolean;
 }
 
-export function BetaAccessGate({ userId, onAccepted }: BetaAccessGateProps) {
+export function BetaAccessGate({ userId, onAccepted, showWelcome = false }: BetaAccessGateProps) {
+  const [step, setStep] = useState<'welcome' | 'legal'>(showWelcome ? 'welcome' : 'legal');
   const [consentChecked, setConsentChecked] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalContent, setModalContent] = useState<{ title: string; content: string } | null>(null);
@@ -66,8 +68,64 @@ export function BetaAccessGate({ userId, onAccepted }: BetaAccessGateProps) {
     }
   ];
 
+  if (step === 'welcome') {
+    return (
+      <div className="fixed inset-0 z-[200] bg-paper overflow-y-auto">
+        <div className="min-h-full flex items-center justify-center px-4 py-8 sm:py-12">
+          <motion.main
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative w-full max-w-md bg-white border-4 border-on-surface p-6 sm:p-9 shadow-[12px_12px_0px_black] rounded-2xl"
+            aria-labelledby="onboarding-welcome-title"
+          >
+            <div className="absolute -top-4 -right-2 bg-brand-lime border-2 border-on-surface px-3 py-1 font-mono text-[10px] font-black uppercase tracking-widest rotate-2">
+              Less than 1 minute
+            </div>
+
+            <div className="space-y-7 text-center">
+              <div className="mx-auto w-20 h-20 bg-brand-orange text-white border-4 border-on-surface shadow-[6px_6px_0px_black] rounded-full flex items-center justify-center">
+                <Compass className="w-10 h-10 stroke-[3]" aria-hidden="true" />
+              </div>
+
+              <div className="space-y-3">
+                <p className="font-mono text-[10px] font-black uppercase tracking-[0.24em] text-brand-orange">
+                  Welcome to Fieldtrip
+                </p>
+                <h1 id="onboarding-welcome-title" className="font-display text-5xl sm:text-6xl font-black italic uppercase leading-[0.9]">
+                  Find your<br />Explorer Type
+                </h1>
+              </div>
+
+              <div className="space-y-3 text-left border-y-2 border-dashed border-on-surface/20 py-5">
+                <p className="font-serif text-lg font-bold italic leading-relaxed">
+                  Go outside, complete photo missions, and bring back the receipts.
+                </p>
+                <p className="text-sm leading-relaxed text-on-surface/65">
+                  Three quick choices assign your Explorer Type and shape how Fieldtrip responds to your style.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setStep('legal')}
+                className="w-full min-h-16 px-5 py-4 bg-on-surface text-white border-2 border-on-surface shadow-[6px_6px_0px_var(--color-brand-orange)] font-display text-xl sm:text-2xl font-black uppercase italic flex items-center justify-center gap-3 active:translate-x-1 active:translate-y-1 active:shadow-none transition-all rounded-xl focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-brand-orange"
+              >
+                Find My Explorer Type
+                <ArrowRight className="w-6 h-6" aria-hidden="true" />
+              </button>
+
+              <p className="font-mono text-[9px] uppercase tracking-widest text-on-surface/40">
+                Age and legal confirmation comes next
+              </p>
+            </div>
+          </motion.main>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 z-[200] bg-paper flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-[200] bg-paper overflow-y-auto">
       {/* Visual background lines to keep consistent with the Fieldtrip aesthetic */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none select-none">
         <div className="absolute top-10 left-10 text-huge rotate-12">REPORT</div>
@@ -76,11 +134,11 @@ export function BetaAccessGate({ userId, onAccepted }: BetaAccessGateProps) {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] h-[1px] bg-on-surface -rotate-45" />
       </div>
 
-      <div className="max-w-md w-full py-6 md:py-12 relative z-10">
+      <div className="min-h-full max-w-md w-full mx-auto px-4 py-6 md:py-12 relative z-10 flex items-center">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white border-4 border-on-surface p-6 md:p-8 space-y-6 shadow-[12px_12px_0px_rgba(0,0,0,1)] rounded-2xl"
+          className="w-full bg-white border-4 border-on-surface p-6 md:p-8 space-y-6 shadow-[12px_12px_0px_rgba(0,0,0,1)] rounded-2xl"
         >
           {/* Header */}
           <div className="text-center space-y-2">

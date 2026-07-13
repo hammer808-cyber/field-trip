@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
-    "test": "tsx --test src/__tests__/starterDeckDraw.test.ts",
+    "test": "tsx --test --test-force-exit src/__tests__/starterDeckDraw.test.ts",
     "preview": "vite preview",
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist",
@@ -16,6 +16,7 @@
     "test:community-feed": "tsx --test src/__tests__/communityFeed.test.ts",
     "test:beta-blockers": "tsx --test src/__tests__/communityFeed.test.ts src/__tests__/routesUnlocks.test.ts",
     "test:admin-review-queue": "tsx --test src/__tests__/adminReviewQueue.test.ts",
+    "test:onboarding": "tsx --test src/__tests__/onboardingClassification.test.ts",
     "test:voting-security": "tsx --test src/__tests__/weeklyVotingSecurity.test.ts src/__tests__/tribunalSecurity.test.ts src/__tests__/susReports.test.ts src/__tests__/firelightBehavior.test.ts",
     "test:firestore-rules": "firebase emulators:exec --only firestore \"tsx --test src/__tests__/firelightRules.integration.test.ts\""
   },

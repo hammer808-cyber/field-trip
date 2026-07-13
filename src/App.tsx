@@ -18,6 +18,7 @@ import { LAUNCH_MISSION_ID, isLaunchMissionEligible } from './data/specialMissio
 import { firebaseError, getFirebaseInitError } from './lib/firebase';
 import { FieldGuideAssist } from './components/FieldGuideAssist';
 import { StarterGate } from './components/StarterGate';
+import { resolveOnboardingDestination } from './logic/onboardingFlow';
 
 const FirebaseConfigError = ({ error }: { error: string }) => (
   <div className="min-h-screen flex items-center justify-center bg-paper p-6 text-on-surface font-mono">
@@ -56,7 +57,6 @@ const FirebaseConfigError = ({ error }: { error: string }) => (
 
 // Lazy load pages for binary size optimization
 const Welcome = lazy(() => import('./pages/Welcome'));
-const Quiz = lazy(() => import('./pages/Quiz'));
 const FieldTypeResult = lazy(() => import('./pages/FieldTypeResult'));
 const Deck = lazy(() => import('./pages/Deck'));
 const Capture = lazy(() => import('./pages/Capture'));
@@ -333,7 +333,13 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Legal Gate
   if (user && !hasConfirmedLegal) {
-    return <BetaAccessGate userId={user.uid} onAccepted={refreshConsent} />;
+    return (
+      <BetaAccessGate
+        userId={user.uid}
+        onAccepted={refreshConsent}
+        showWelcome={!fieldClassificationComplete}
+      />
+    );
   }
 
   // Onboarding Routing Logic
@@ -350,22 +356,14 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const isVotingPage = location.pathname.startsWith('/voting');
 
   // Centralized login/returning destination selector
-  let correctDestination = "/basecamp";
-  if (!hasConfirmedLegal) {
-    correctDestination = "/"; // BetaAccessGate will be shown
-  } else if (!fieldClassificationComplete) {
-    correctDestination = "/classification";
-  } else if (!hasSeenFieldTypeResults) {
-    correctDestination = "/field-type";
-  } else if (!onboardingCompleted) {
-    correctDestination = "/onboarding";
-  } else if (activeSubmissionStatus === "needs_more_proof") {
-    correctDestination = "/missions";
-  } else if (starterApprovedCount < 3) {
-    correctDestination = "/missions";
-  } else {
-    correctDestination = "/basecamp";
-  }
+  const correctDestination = resolveOnboardingDestination({
+    hasConfirmedLegal,
+    fieldClassificationComplete,
+    hasSeenFieldTypeResults,
+    onboardingCompleted,
+    starterApprovedCount,
+    activeSubmissionStatus
+  });
 
   // Step 1: Force User to take Field Type Quiz first if they don't have a result
   if (user && hasConfirmedLegal && !fieldClassificationComplete && !isClassificationPage && !isBypassingGuards && !isAdmin) {
@@ -609,7 +607,11 @@ export default function App() {
               <AppLayout>
                 <Routes>
                   <Route path="/" element={<Welcome />} />
-                    <Route path="/onboarding" element={<Quiz />} />
+                    <Route path="/onboarding" element={<Navigate to="/classification" replace />} />
+                    <Route path="/quiz" element={<Navigate to="/classification" replace />} />
+                    <Route path="/setup" element={<Navigate to="/classification" replace />} />
+                    <Route path="/vibe-check" element={<Navigate to="/classification" replace />} />
+                    <Route path="/welcome" element={<Navigate to="/" replace />} />
                     <Route path="/field-type" element={<FieldTypeResult />} />
                     <Route path="/persona" element={<Navigate to="/field-type" replace />} />
                     <Route path="/missions" element={<Deck />} />

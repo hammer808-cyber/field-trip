@@ -395,26 +395,11 @@ export default function FieldTypeResult() {
             </button>
           </div>
 
-          {!isGuidedActive && (
-            <button onClick={() => navigate('/onboarding')} className={cn(
-              "text-sm font-black opacity-40 hover:opacity-100 transition-opacity uppercase tracking-[0.5em] p-10 italic",
-              isDiamond ? "font-mono text-white/40" : "text-on-surface"
-            )}>
-              &lt; {isBaja ? 'Re-Choose Role' : getDisplayLabel('RE_AUDIT_SIGNAL')}
-            </button>
-          )}
-
           {isGuidedActive && (
              <div className="flex flex-col items-center gap-4 md:pb-10">
                 <p className="text-[10px] font-mono font-black uppercase text-on-surface/30 tracking-widest italic">
                   This will open your first required starter mission.
                 </p>
-                <button 
-                  onClick={() => navigate('/onboarding')}
-                  className="text-[10px] font-black underline underline-offset-4 decoration-current opacity-30 hover:opacity-100 uppercase tracking-widest"
-                >
-                  Need help?
-                </button>
              </div>
           )}
       </div>

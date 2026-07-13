@@ -1,4 +1,4 @@
-import { QUIZ_QUESTIONS, PERSONAS, TIE_BREAKER_PRIORITY } from '../data/personaQuiz';
+import { QUIZ_QUESTIONS } from '../data/personaQuiz';
 import { assignFieldType, getScores } from '../logic/fieldTypeLogic';
 import { FieldTypeId, FIELD_TYPES } from '../constants';
 import { QuizQuestion, QuizAnswer } from '../types/quiz';
@@ -16,6 +16,10 @@ export function validateQuestionIntegrity() {
   const validFieldTypes = ['captainClipboard', 'mallRat', 'elondra', 'mascota', 'theGobbler', 'bigfoot'];
   let totalAnswers = 0;
 
+  if (QUIZ_QUESTIONS.length !== 3) {
+    errors.push(`Quiz must contain exactly 3 questions; found ${QUIZ_QUESTIONS.length}.`);
+  }
+
   QUIZ_QUESTIONS.forEach((q, qIndex) => {
     const qPrefix = `Question ${qIndex + 1} (${q.id || 'NO_ID'}):`;
     
@@ -24,6 +28,9 @@ export function validateQuestionIntegrity() {
     if (!q.answers || q.answers.length === 0) {
       errors.push(`${qPrefix} Has no answer options.`);
       return;
+    }
+    if (q.answers.length !== 6) {
+      errors.push(`${qPrefix} Must contain exactly 6 answers; found ${q.answers.length}.`);
     }
 
     totalAnswers += q.answers.length;
@@ -37,6 +44,10 @@ export function validateQuestionIntegrity() {
       if (!a.personaWeights || Object.keys(a.personaWeights).length === 0) {
         errors.push(`${aPrefix} Has empty or missing personaWeights.`);
       } else {
+        const weights = Object.values(a.personaWeights).filter((weight): weight is number => typeof weight === 'number').sort((left, right) => left - right);
+        if (weights.length !== 2 || weights[0] !== 1 || weights[1] !== 3) {
+          errors.push(`${aPrefix} Must award one secondary point and three primary points.`);
+        }
         Object.keys(a.personaWeights).forEach(personaId => {
           if (!validFieldTypes.includes(personaId)) {
             errors.push(`${aPrefix} Invalid field type weight detected: "${personaId}"`);
@@ -275,4 +286,3 @@ export function runFullPersonaAudit(): AuditSummary {
     verdict
   };
 }
-
