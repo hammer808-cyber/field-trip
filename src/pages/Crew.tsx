@@ -15,7 +15,9 @@ import {
   ShieldCheck,
   RotateCcw,
   Trophy,
-  MoreHorizontal
+  Vote,
+  BookOpen,
+  UserPlus
 } from 'lucide-react';
 import { cn, formatSafeDateOnly } from '../lib/utils';
 import {
@@ -25,6 +27,8 @@ import {
   createDirectCrewInvite,
   declineCrewInvite,
   declineCrewJoinRequest,
+  discoverCrews,
+  disbandCrew,
   generateCrewInviteLink,
   getCrew,
   getCrewLore,
@@ -32,26 +36,31 @@ import {
   getLatestDispatch,
   getCrewMembers,
   getIncomingCrewInvites,
+  getOutgoingCrewJoinRequests,
   leaveCrew,
   promoteCrewMemberToCaptain,
-  removeCrewCaptainRole,
   removeCrewMember,
+  requestToJoinCrew,
+  cancelCrewJoinRequest,
   revokeCrewInviteLink,
   searchCrewInviteUsers,
-  subscribeToCrewLore
+  subscribeToCrewLore,
+  updateCrewSettings,
+  addCrewLoreNote,
 } from '../services/crewService';
 import { getWeeklySummary } from '../services/summaryService';
-import { Crew, CrewLore, CrewDispatch, CrewInvite, CrewMembershipState, CrewMode, CrewPrivacy, CrewRosterState } from '../types/crew';
+import { Crew, CrewLore, CrewDispatch, CrewInvite, CrewJoinRequest, CrewMembershipState, CrewMode, CrewPrivacy, CrewRosterState } from '../types/crew';
 import { Card } from '../components/UI';
 import { CrewArtifactsGallery } from '../components/CrewArtifactsGallery';
 import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
+import { ZineWorkspace } from '../components/ZineWorkspace';
 
 export default function CrewPage() {
   const { skin } = useTheme();
   const { user, profile, crewArtifacts, activeSeason, currentWeekNumber, isCrewUnlocked, canonicalProgress } = useApp();
   const [searchParams] = useSearchParams();
   const initialTab = (searchParams.get('tab') as any) || 'home';
-  const [activeTab, setActiveTab ] = useState<'home' | 'memories' | 'lore' | 'members' | 'stats' | 'dispatch' | 'settings'>(initialTab);
+  const [activeTab, setActiveTab ] = useState<'home' | 'proofs' | 'voting' | 'memories' | 'zine' | 'lore' | 'members' | 'stats' | 'dispatch' | 'settings'>(initialTab);
   const [crew, setCrew] = useState<Crew | null>(null);
   const [membershipState, setMembershipState] = useState<CrewMembershipState | null>(null);
   const [lore, setLore] = useState<CrewLore | null>(null);
@@ -59,6 +68,9 @@ export default function CrewPage() {
   const [weeklySummary, setWeeklySummary] = useState<any>(null);
   const [rosterState, setRosterState] = useState<CrewRosterState | null>(null);
   const [incomingInvites, setIncomingInvites] = useState<CrewInvite[]>([]);
+  const [outgoingRequests, setOutgoingRequests] = useState<CrewJoinRequest[]>([]);
+  const [discoverableCrews, setDiscoverableCrews] = useState<Crew[]>([]);
+  const [noCrewView, setNoCrewView] = useState<'create' | 'join'>('create');
   const [inviteQuery, setInviteQuery] = useState('');
   const [inviteResults, setInviteResults] = useState<Array<{ userId: string; displayName: string; username?: string | null }>>([]);
   const [inviteLink, setInviteLink] = useState<{ inviteId: string; url: string; expiresAt: any } | null>(null);
@@ -71,9 +83,10 @@ export default function CrewPage() {
   });
   const [crewActionError, setCrewActionError] = useState<string | null>(null);
   const [crewActionBusy, setCrewActionBusy] = useState(false);
+  const [loreDraft, setLoreDraft] = useState('');
   const navigate = useNavigate();
 
-  const crewId = profile?.activeCrewId || profile?.crewId || membershipState?.membership?.crewId || null;
+  const crewId = membershipState?.membership?.crewId || profile?.activeCrewId || profile?.crewId || null;
 
   useEffect(() => {
     async function init() {

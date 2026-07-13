@@ -27,6 +27,7 @@ import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
 import { CommunityProofsFeed } from '../components/CommunityProofsFeed';
 import { markEarnedStickersSeen } from '../services/stickerService';
 import { canAccessFeature, getDeckProgress, getStarterProgress } from '../services/canonicalProgress';
+import { ZineWorkspace } from '../components/ZineWorkspace';
 
 type CollectionTab = 'collection' | 'zines' | 'memories' | 'stickers' | 'badges' | 'decks' | 'missions' | 'crew_memories';
 type MemoriesView = 'mine' | 'community';
@@ -309,14 +310,9 @@ export default function CollectionPage() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
-              className="bg-[#FFFCEB] border-4 border-on-surface shadow-[8px_8px_0px_black] rounded-[2rem] p-8 space-y-5"
+              className="space-y-5"
             >
-              <p className="font-mono text-[10px] uppercase tracking-widest opacity-50">Seasonal Archive</p>
-              <h2 className="font-display text-4xl font-black uppercase italic tracking-tight leading-none">Zines</h2>
-              <p className="font-serif italic text-on-surface/70">
-                Personal seasonal zines, crew zines, cover choices, and archive curation will live here.
-              </p>
-              <button onClick={() => navigate('/crew')} className="bureau-btn bg-brand-lime text-on-surface text-xs">Open Crew Zine Tools</button>
+              <ZineWorkspace />
             </motion.div>
           )}
 
