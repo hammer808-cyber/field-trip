@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { useTheme } from '../context/ThemeContext';
 import { 
   Users, 
   History, 
@@ -38,7 +37,7 @@ import {
   getIncomingCrewInvites,
   getOutgoingCrewJoinRequests,
   leaveCrew,
-  promoteCrewMemberToCaptain,
+  transferCrewCaptain,
   removeCrewMember,
   requestToJoinCrew,
   cancelCrewJoinRequest,
@@ -50,16 +49,15 @@ import {
 } from '../services/crewService';
 import { getWeeklySummary } from '../services/summaryService';
 import { Crew, CrewLore, CrewDispatch, CrewInvite, CrewJoinRequest, CrewMembershipState, CrewMode, CrewPrivacy, CrewRosterState } from '../types/crew';
-import { Card } from '../components/UI';
 import { CrewArtifactsGallery } from '../components/CrewArtifactsGallery';
 import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
 import { ZineWorkspace } from '../components/ZineWorkspace';
 
 export default function CrewPage() {
-  const { skin } = useTheme();
-  const { user, profile, crewArtifacts, activeSeason, currentWeekNumber, isCrewUnlocked, canonicalProgress } = useApp();
+  const { user, profile, crewArtifacts, activeSeason, currentWeekNumber } = useApp();
   const [searchParams] = useSearchParams();
-  const initialTab = (searchParams.get('tab') as any) || 'home';
+  const requestedTab = searchParams.get('tab');
+  const initialTab = requestedTab === 'lore' ? 'memories' : ['stats', 'dispatch'].includes(requestedTab || '') ? 'home' : (requestedTab as any) || 'home';
   const [activeTab, setActiveTab ] = useState<'home' | 'proofs' | 'voting' | 'memories' | 'zine' | 'lore' | 'members' | 'stats' | 'dispatch' | 'settings'>(initialTab);
   const [crew, setCrew] = useState<Crew | null>(null);
   const [membershipState, setMembershipState] = useState<CrewMembershipState | null>(null);
@@ -84,6 +82,15 @@ export default function CrewPage() {
   const [crewActionError, setCrewActionError] = useState<string | null>(null);
   const [crewActionBusy, setCrewActionBusy] = useState(false);
   const [loreDraft, setLoreDraft] = useState('');
+  const [settingsDraft, setSettingsDraft] = useState({
+    name: '',
+    motto: '',
+    mode: 'friendly' as CrewMode,
+    privacy: 'invite_only' as CrewPrivacy,
+    allowMemberInvites: false,
+    autoApproveShareLinks: false,
+  });
+  const [disbandReason, setDisbandReason] = useState('');
   const navigate = useNavigate();
 
   const crewId = membershipState?.membership?.crewId || profile?.activeCrewId || profile?.crewId || null;
@@ -172,6 +179,18 @@ export default function CrewPage() {
     return () => window.clearTimeout(handle);
   }, [crew?.id, crewId, inviteQuery]);
 
+  useEffect(() => {
+    if (!crew) return;
+    setSettingsDraft({
+      name: crew.name || '',
+      motto: crew.motto || '',
+      mode: crew.mode || 'friendly',
+      privacy: crew.privacy || 'invite_only',
+      allowMemberInvites: crew.allowMemberInvites === true,
+      autoApproveShareLinks: crew.autoApproveShareLinks === true,
+    });
+  }, [crew?.id, crew?.name, crew?.motto, crew?.mode, crew?.privacy, crew?.allowMemberInvites, crew?.autoApproveShareLinks]);
+
   const handleCreateCrew = async (event: React.FormEvent) => {
     event.preventDefault();
     setCrewActionError(null);
@@ -220,35 +239,40 @@ export default function CrewPage() {
     }
   };
 
+  const handleAddLore = async () => {
+    const note = loreDraft.trim();
+    if (!crew || note.length < 2) return;
+    await runCrewAction('add lore', async () => {
+      await addCrewLoreNote(crew.id, note);
+      setLoreDraft('');
+      setLore(await getCrewLore(crew.id));
+    });
+  };
+
+  const handleSaveSettings = async () => {
+    if (!crew) return;
+    await runCrewAction('save settings', async () => {
+      const updated = await updateCrewSettings(crew.id, settingsDraft);
+      setCrew(updated);
+    });
+  };
+
+  const handleDisbandCrew = async () => {
+    if (!crew || disbandReason.trim().length < 3) {
+      setCrewActionError('Enter a reason before disbanding the Crew.');
+      return;
+    }
+    await runCrewAction('disband Crew', async () => {
+      await disbandCrew(crew.id, disbandReason.trim());
+      setMembershipState({ crew: null, membership: null, zine: null });
+      setCrew(null);
+    }, `Disband ${crew.name}? Membership ends for everyone. Finalized archives remain read-only.`);
+  };
+
   const crewStanding = weeklySummary?.crewStats?.[crewId!] || null;
   const crewRank = weeklySummary ? (Object.entries(weeklySummary.crewStats)
     .sort(([, a]: any, [, b]: any) => b.totalScore - a.totalScore)
     .findIndex(([id]) => id === crewId) + 1) : 0;
-
-  if (!isCrewUnlocked) {
-    return (
-      <div className="min-h-screen bg-paper-light flex items-center justify-center p-6 pb-32">
-        <div className="max-w-md w-full bg-white border-[8px] border-on-surface shadow-[14px_14px_0px_rgba(0,0,0,1)] rounded-3xl p-6 text-center space-y-5">
-          <div className="w-16 h-16 mx-auto bg-brand-magenta text-white border-4 border-on-surface rounded-2xl flex items-center justify-center shadow-[6px_6px_0px_black]">
-            <Lock className="w-8 h-8" />
-          </div>
-          <h1 className="font-display font-black uppercase text-3xl italic leading-none">Crew Is Locked</h1>
-          <p className="font-serif italic text-on-surface/70">
-            Finish account setup and field classification to unlock Crew operations.
-          </p>
-          <div className="w-full bg-white border-2 border-on-surface h-5 rounded-full overflow-hidden">
-            <div className="h-full bg-brand-lime" style={{ width: `${canonicalProgress.starter.percent}%` }} />
-          </div>
-          <p className="font-mono text-[10px] uppercase font-black tracking-widest">
-            {canonicalProgress.starter.label} approved
-          </p>
-          <button onClick={() => navigate('/missions?pack=starter-signals')} className="bureau-btn bg-brand-lime text-on-surface text-xs">
-            Go To Starter Signals
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   if (loading) return <div className="flex items-center justify-center min-h-screen font-mono">LOADING_CREW_IDENTITY...</div>;
 
@@ -385,13 +409,16 @@ export default function CrewPage() {
     );
   }
 
+  const canonicalCaptainId = crew.captainId || crew.founderId || crew.captainIds?.[0] || null;
+  const viewerIsCaptain = canonicalCaptainId === user?.uid && rosterState?.viewerMembership?.status === 'active';
+
   const tabs = [
-    { id: 'home', label: 'Identity', icon: Users },
+    { id: 'home', label: 'Overview', icon: Users },
     { id: 'members', label: 'Members', icon: ShieldCheck },
-    { id: 'memories', label: 'Memories', icon: History },
-    { id: 'lore', label: 'Lore', icon: MessageSquare },
-    { id: 'stats', label: 'Stats', icon: BarChart3 },
-    { id: 'dispatch', label: 'Dispatch', icon: FileText },
+    { id: 'proofs', label: 'Crew Proofs', icon: FileText },
+    { id: 'voting', label: 'Crew Voting', icon: Vote },
+    { id: 'memories', label: 'Crew Memories', icon: History },
+    { id: 'zine', label: 'Crew Zine', icon: BookOpen },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -555,9 +582,9 @@ export default function CrewPage() {
               {rosterState?.permissions?.canApproveRequests && (
                 <div className="border-4 border-brand-orange/60 bg-brand-orange/5 p-5 space-y-4">
                   <h4 className="font-display font-black italic text-2xl uppercase">Pending Join Requests</h4>
-                  {!rosterState.pendingRequests?.length ? (
+                  {!rosterState.pendingRequests?.some(request => request.status === 'pending') ? (
                     <p className="font-mono text-[10px] uppercase opacity-50">No pending requests.</p>
-                  ) : rosterState.pendingRequests.map(request => (
+                  ) : rosterState.pendingRequests.filter(request => request.status === 'pending').map(request => (
                     <div key={request.id} className="bg-white border-2 border-on-surface p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div>
                         <p className="font-display font-black uppercase">{request.applicantSnapshot?.displayNameSnapshot || request.userId}</p>
@@ -569,54 +596,93 @@ export default function CrewPage() {
                       </div>
                     </div>
                   ))}
+                  {rosterState.pendingRequests?.some(request => request.status !== 'pending') && (
+                    <div className="border-t-2 border-on-surface/10 pt-3 flex flex-wrap gap-2">
+                      {rosterState.pendingRequests.filter(request => request.status !== 'pending').slice(0, 8).map(request => (
+                        <span key={request.id} className="border border-on-surface/20 bg-white px-2 py-1 font-mono text-[8px] font-black uppercase">
+                          {request.applicantSnapshot?.displayNameSnapshot || request.userId.slice(0, 8)} / {request.status}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {(['founder', 'captain', 'member'] as const).map(role => {
-                const members = (rosterState?.members || []).filter(member => member.status === 'active' && member.role === role);
-                const label = role === 'founder' ? 'Founder' : role === 'captain' ? 'Captains' : 'Members';
-                return (
-                  <div key={role} className="space-y-3">
-                    <h4 className="font-display font-black italic text-2xl uppercase">{label}</h4>
-                    {members.length === 0 ? (
-                      <p className="font-mono text-[10px] uppercase opacity-50">none</p>
-                    ) : members.map(member => {
-                      const isSelf = member.userId === user?.uid;
-                      const viewerRole = rosterState?.viewerMembership?.role;
-                      const canPromote = viewerRole === 'founder' && member.role === 'member';
-                      const canDemote = viewerRole === 'founder' && member.role === 'captain';
-                      const canRemove = !isSelf && member.role !== 'founder' && (viewerRole === 'founder' || (viewerRole === 'captain' && member.role === 'member'));
-                      return (
-                        <div key={member.userId} className="bg-white border-4 border-on-surface p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 shadow-[5px_5px_0px_black]">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-brand-lime border-2 border-on-surface flex items-center justify-center font-display font-black">
-                              {(member.displayNameSnapshot || member.displayName || member.userId).slice(0, 2).toUpperCase()}
-                            </div>
-                            <div>
-                              <p className="font-display font-black uppercase text-xl leading-none">{member.displayNameSnapshot || member.displayName || member.userId}</p>
-                              <p className="font-mono text-[10px] uppercase opacity-50">
-                                @{member.usernameSnapshot || member.userId.slice(0, 8)} / {member.role} / joined {formatSafeDateOnly(member.joinedAt)}
-                              </p>
-                            </div>
+              {rosterState?.permissions?.canInvite && rosterState.pendingInvites?.length > 0 && (
+                <div className="space-y-3 border-t-4 border-on-surface pt-6">
+                  <h4 className="font-display font-black italic text-2xl uppercase">Invitation History</h4>
+                  {rosterState.pendingInvites.slice(0, 20).map(invite => (
+                    <div key={invite.id} className="border-2 border-on-surface/20 p-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-display font-black uppercase">{invite.inviteeSnapshot?.displayNameSnapshot || (invite.type === 'share_link' ? 'Share link' : invite.inviteeUserId)}</p>
+                        <p className="font-mono text-[9px] uppercase opacity-50">{invite.type.replace('_', ' ')} / {invite.status} / expires {formatSafeDateOnly(invite.expiresAt)}</p>
+                      </div>
+                      {invite.status === 'pending' && (
+                        <button type="button" className="bureau-btn bg-white text-on-surface text-[9px]" onClick={() => runCrewAction('revoke invite', () => revokeCrewInviteLink(invite.id), 'Revoke this invitation?')}>Revoke</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <h4 className="font-display font-black italic text-2xl uppercase">Active Roster</h4>
+                {(rosterState?.members || []).filter(member => member.status === 'active').length === 0 ? (
+                  <p className="font-mono text-[10px] uppercase opacity-50">Roster is loading.</p>
+                ) : (rosterState?.members || [])
+                  .filter(member => member.status === 'active')
+                  .sort((a, b) => (a.userId === crew.captainId ? -1 : b.userId === crew.captainId ? 1 : 0))
+                  .map(member => {
+                    const isSelf = member.userId === user?.uid;
+                    const isCaptain = member.userId === crew.captainId;
+                    const viewerIsCaptain = rosterState?.viewerMembership?.userId === crew.captainId && rosterState.viewerMembership.status === 'active';
+                    const canTransfer = viewerIsCaptain && !isSelf;
+                    const canRemove = viewerIsCaptain && !isSelf && !isCaptain;
+                    return (
+                      <div key={member.userId} className="bg-white border-4 border-on-surface p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 shadow-[5px_5px_0px_black]">
+                        <div className="flex items-center gap-4">
+                          <div className={cn('w-12 h-12 border-2 border-on-surface flex items-center justify-center font-display font-black', isCaptain ? 'bg-brand-orange text-white' : 'bg-brand-lime')}>
+                            {(member.displayNameSnapshot || member.displayName || member.userId).slice(0, 2).toUpperCase()}
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            {canPromote && <button className="bureau-btn bg-brand-cyan text-on-surface text-[10px]" onClick={() => runCrewAction('promote captain', () => promoteCrewMemberToCaptain(crew.id, member.userId), 'Promote this member to Captain?')}>Promote to Captain</button>}
-                            {canDemote && <button className="bureau-btn bg-white text-on-surface text-[10px]" onClick={() => runCrewAction('remove captain role', () => removeCrewCaptainRole(crew.id, member.userId), 'Remove Captain role?')}>Remove Captain</button>}
-                            {canRemove && <button className="bureau-btn bg-red-500 text-white text-[10px]" onClick={() => runCrewAction('remove member', () => removeCrewMember(crew.id, member.userId), 'Remove this user from the Crew? Their personal archive and prior Crew archive snapshots remain unchanged.')}>Remove from Crew</button>}
+                          <div>
+                            <p className="font-display font-black uppercase text-xl leading-none">{member.displayNameSnapshot || member.displayName || member.userId}</p>
+                            <p className="font-mono text-[10px] uppercase opacity-50">
+                              @{member.usernameSnapshot || member.userId.slice(0, 8)} / {isCaptain ? 'captain' : 'member'} / joined {formatSafeDateOnly(member.joinedAt)}
+                            </p>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
+                        <div className="flex flex-wrap gap-2">
+                          {canTransfer && <button className="bureau-btn bg-brand-cyan text-on-surface text-[10px]" onClick={() => runCrewAction('transfer captain', () => transferCrewCaptain(crew.id, member.userId), `Transfer captain authority to ${member.displayNameSnapshot || member.displayName || 'this member'}? You will become a member.`)}>Transfer Captain</button>}
+                          {canRemove && <button className="bureau-btn bg-red-500 text-white text-[10px]" onClick={() => runCrewAction('remove member', () => removeCrewMember(crew.id, member.userId), 'Remove this user from the Crew? Their personal archive and prior Crew archive snapshots remain unchanged.')}>Remove from Crew</button>}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
             </section>
           </div>
         )}
 
-        {activeTab === 'memories' && (
+        {activeTab === 'proofs' && (
           <div className="animate-in fade-in slide-in-from-bottom-6 duration-500">
             <CrewMemoriesFeed />
+          </div>
+        )}
+
+        {activeTab === 'voting' && (
+          <div className="animate-in fade-in slide-in-from-bottom-6 duration-500 bg-white border-8 border-on-surface p-8 sm:p-12 shadow-[12px_12px_0px_black] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-8">
+            <div className="space-y-3">
+              <p className="font-mono text-[9px] uppercase tracking-widest text-brand-orange">Crew weekly ballot</p>
+              <h2 className="font-display text-4xl font-black uppercase italic leading-none">Vote with your Crew</h2>
+              <p className="font-serif italic text-sm opacity-65 max-w-xl">Open the protected weekly ballot for this Crew. Eligibility and vote limits are checked by the server.</p>
+            </div>
+            <button type="button" onClick={() => navigate(`/voting?scope=crew_weekly&crewId=${encodeURIComponent(crew.id)}`)} className="bureau-btn bg-brand-lime text-on-surface shrink-0"><Vote className="w-4 h-4" /> Open Crew Voting</button>
+          </div>
+        )}
+
+        {activeTab === 'zine' && (
+          <div className="animate-in fade-in slide-in-from-bottom-6 duration-500">
+            <ZineWorkspace initialKind="crew" showScopeSwitch={false} />
           </div>
         )}
 
@@ -649,23 +715,26 @@ export default function CrewPage() {
                 <div className="h-2 flex-grow bg-on-surface/10" />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {crew.members.map((m, i) => (
-                  <div key={i} className="bg-white border-4 border-on-surface p-6 flex items-center gap-6 shadow-[8px_8px_0px_black] hover:-translate-y-1 transition-all group">
+                {(rosterState?.members || []).filter(member => member.status === 'active').map(member => (
+                  <div key={member.userId} className="bg-white border-4 border-on-surface p-6 flex items-center gap-6 shadow-[8px_8px_0px_black] hover:-translate-y-1 transition-all group">
                     <div className="w-16 h-16 bg-brand-lime border-4 border-on-surface flex items-center justify-center font-display font-black text-xl italic -rotate-3 group-hover:rotate-0 transition-transform">
-                      {m.slice(0, 2).toUpperCase()}
+                      {(member.displayNameSnapshot || member.displayName || member.userId).slice(0, 2).toUpperCase()}
                     </div>
                     <div className="flex-1 space-y-1">
-                       <p className="font-display text-2xl uppercase tracking-tighter italic font-black text-on-surface">Player_{m.slice(0, 8)}</p>
-                       <p className="text-[10px] font-mono font-black opacity-40 uppercase tracking-widest text-brand-orange">ROLE: FIELD_SCOUT</p>
+                       <p className="font-display text-2xl uppercase tracking-tighter italic font-black text-on-surface">{member.displayNameSnapshot || member.displayName || `Player_${member.userId.slice(0, 8)}`}</p>
+                       <p className="text-[10px] font-mono font-black opacity-40 uppercase tracking-widest text-brand-orange">ROLE: {member.userId === crew.captainId ? 'CAPTAIN' : 'FIELD_SCOUT'}</p>
                     </div>
                   </div>
                 ))}
+                {(rosterState?.members || []).filter(member => member.status === 'active').length === 0 && (
+                  <div className="md:col-span-2 lg:col-span-3 border-4 border-dashed border-on-surface/20 p-8 text-center font-mono text-[10px] uppercase opacity-50">Roster synchronizing. Open Members to refresh.</div>
+                )}
               </div>
             </section>
           </div>
         )}
 
-        {activeTab === 'lore' && (
+        {activeTab === 'memories' && (
           <div className="space-y-20 animate-in fade-in slide-in-from-bottom-6 duration-500">
             <section className="space-y-10">
                <div className="flex items-center gap-6">
@@ -711,17 +780,19 @@ export default function CrewPage() {
                   <div className="flex-grow relative">
                     <input 
                       type="text" 
+                      value={loreDraft}
+                      onChange={event => setLoreDraft(event.target.value)}
                       placeholder="DOCUMENT A COLLECTIVE MOMENT..."
                       className="w-full bg-white border-4 border-on-surface p-6 text-xl font-display font-black italic uppercase outline-none focus:bg-brand-lime/10 transition-colors placeholder:opacity-20"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
-                          // handleAddJoke(e.currentTarget.value)
-                          e.currentTarget.value = '';
+                          e.preventDefault();
+                          handleAddLore();
                         }
                       }}
                     />
                   </div>
-                  <button className="bureau-btn bg-on-surface text-white hover:bg-brand-orange transition-colors px-10 shadow-[8px_8px_0px_var(--color-brand-lime)]">ADD_LORE</button>
+                  <button type="button" disabled={crewActionBusy || loreDraft.trim().length < 2} onClick={handleAddLore} className="bureau-btn bg-on-surface text-white hover:bg-brand-orange transition-colors px-10 shadow-[8px_8px_0px_var(--color-brand-lime)] disabled:opacity-40">ADD_LORE</button>
                </div>
             </section>
 
@@ -886,20 +957,78 @@ export default function CrewPage() {
                 </div>
               )}
 
+              {viewerIsCaptain ? (
+                <div className="border-4 border-on-surface p-5 space-y-5">
+                  <div>
+                    <h4 className="font-display font-black italic text-2xl uppercase">Captain Controls</h4>
+                    <p className="font-serif italic text-sm opacity-60">These changes affect how people find and join the Crew.</p>
+                  </div>
+                  <label className="block space-y-2">
+                    <span className="micro-label">Crew Name</span>
+                    <input value={settingsDraft.name} onChange={event => setSettingsDraft(current => ({ ...current, name: event.target.value }))} className="w-full border-4 border-on-surface p-3 font-display font-black uppercase" maxLength={48} />
+                  </label>
+                  <label className="block space-y-2">
+                    <span className="micro-label">Motto</span>
+                    <input value={settingsDraft.motto} onChange={event => setSettingsDraft(current => ({ ...current, motto: event.target.value }))} className="w-full border-4 border-on-surface p-3 font-serif italic" maxLength={160} />
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <label className="space-y-2">
+                      <span className="micro-label">Mode</span>
+                      <select value={settingsDraft.mode} onChange={event => setSettingsDraft(current => ({ ...current, mode: event.target.value as CrewMode }))} className="w-full border-4 border-on-surface p-3 bg-white font-mono text-xs font-black uppercase">
+                        <option value="friendly">Friendly</option>
+                        <option value="competitive">Competitive</option>
+                      </select>
+                    </label>
+                    <label className="space-y-2">
+                      <span className="micro-label">Privacy</span>
+                      <select value={settingsDraft.privacy} onChange={event => setSettingsDraft(current => ({ ...current, privacy: event.target.value as CrewPrivacy }))} className="w-full border-4 border-on-surface p-3 bg-white font-mono text-xs font-black uppercase">
+                        <option value="invite_only">Invite only</option>
+                        <option value="link_request">Link request</option>
+                        <option value="discoverable">Discoverable</option>
+                      </select>
+                    </label>
+                  </div>
+                  <label className="flex items-start gap-3 border-2 border-on-surface/20 p-3">
+                    <input type="checkbox" checked={settingsDraft.allowMemberInvites} onChange={event => setSettingsDraft(current => ({ ...current, allowMemberInvites: event.target.checked }))} className="mt-1" />
+                    <span><strong className="block font-mono text-[10px] uppercase">Members may invite</strong><span className="font-serif italic text-xs opacity-60">Members can search eligible users and send invitations. Captain approval rules do not change.</span></span>
+                  </label>
+                  <label className="flex items-start gap-3 border-2 border-on-surface/20 p-3">
+                    <input type="checkbox" checked={settingsDraft.autoApproveShareLinks} onChange={event => setSettingsDraft(current => ({ ...current, autoApproveShareLinks: event.target.checked }))} className="mt-1" />
+                    <span><strong className="block font-mono text-[10px] uppercase">Auto-join valid share links</strong><span className="font-serif italic text-xs opacity-60">Only applies to discoverable Crews. Capacity, expiry, cooldown, and single-Crew checks still run.</span></span>
+                  </label>
+                  <button type="button" disabled={crewActionBusy || settingsDraft.name.trim().length < 2} onClick={handleSaveSettings} className="bureau-btn bg-brand-lime text-on-surface disabled:opacity-40">Save Crew Settings</button>
+                </div>
+              ) : (
+                <div className="border-4 border-dashed border-on-surface/20 p-5 font-serif italic text-sm opacity-65">Only the active captain can change Crew settings. Your role and current settings remain visible above.</div>
+              )}
+
               <div className="border-4 border-red-500/50 bg-red-50 p-5 space-y-3">
                 <h4 className="font-display font-black italic text-2xl uppercase">Leave Crew</h4>
                 <p className="font-serif italic text-sm opacity-70">
-                  Leaving removes your active membership and starts a 7-day cooldown before you can join or create another Crew. Your already approved personal receipts are not changed.
+                  {viewerIsCaptain
+                    ? 'Transfer captain authority to another active member before leaving. If you are the only member, disband the Crew instead.'
+                    : 'Leaving removes your active membership and starts a 7-day cooldown before you can join or create another Crew. Your already approved personal receipts are not changed.'}
                 </p>
                 <button
                   type="button"
                   onClick={handleLeaveCrew}
-                  disabled={crewActionBusy}
+                  disabled={crewActionBusy || viewerIsCaptain}
                   className="bureau-btn bg-red-500 text-white disabled:opacity-50"
                 >
                   {crewActionBusy ? 'UPDATING...' : 'LEAVE CREW'}
                 </button>
               </div>
+
+              {viewerIsCaptain && (
+                <div className="border-4 border-black bg-black text-white p-5 space-y-4">
+                  <div>
+                    <h4 className="font-display font-black italic text-2xl uppercase text-brand-orange">Disband Crew</h4>
+                    <p className="font-serif italic text-sm text-white/65">Ends every active membership. Personal Zines remain independent; finalized Crew editions stay read-only.</p>
+                  </div>
+                  <input value={disbandReason} onChange={event => setDisbandReason(event.target.value)} placeholder="Reason for the audit log" className="w-full border-2 border-white bg-white text-black p-3 font-mono text-xs" maxLength={240} />
+                  <button type="button" disabled={crewActionBusy || disbandReason.trim().length < 3} onClick={handleDisbandCrew} className="bureau-btn bg-red-500 text-white disabled:opacity-40">Disband Crew</button>
+                </div>
+              )}
             </section>
           </div>
         )}
