@@ -390,6 +390,8 @@ export interface Entry {
   starterResetVersion?: string;
   missingRequirements?: string[];
   likeCount?: number;
+  stickerIds?: string[];
+  attachedStickerIds?: string[];
 }
 
 export interface ModerationAudit {

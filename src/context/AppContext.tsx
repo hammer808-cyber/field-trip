@@ -1114,8 +1114,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user) {
       setEntries([]);
+      setLastVisibleEntry(null);
+      setHasMoreEntries(false);
       return;
     }
+    setLastVisibleEntry(null);
+    setHasMoreEntries(true);
     
     // Query by canonical uid (new entries)
     const qUid = query(
@@ -1135,6 +1139,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const unsubUid = onSnapshot(qUid, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Entry));
+      setLastVisibleEntry((current: any) => current?.uidInitialized ? current : {
+        ...current,
+        uidLastVisible: snapshot.docs[snapshot.docs.length - 1],
+        uidExhausted: snapshot.docs.length < 20,
+        uidInitialized: true,
+        bufferedDocs: current?.bufferedDocs || [],
+      });
       setEntries(prev => {
         const merged = [...prev];
         docs.forEach(d => {
@@ -1154,6 +1165,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const unsubUserId = onSnapshot(qUserId, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Entry));
+      setLastVisibleEntry((current: any) => current?.userIdInitialized ? current : {
+        ...current,
+        userIdLastVisible: snapshot.docs[snapshot.docs.length - 1],
+        userIdExhausted: snapshot.docs.length < 20,
+        userIdInitialized: true,
+        bufferedDocs: current?.bufferedDocs || [],
+      });
       setEntries(prev => {
         const merged = [...prev];
         docs.forEach(d => {
@@ -1259,7 +1277,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return [...prev, ...newDocs];
         });
         setLastVisibleEntry(result.lastVisible);
-        setHasMoreEntries(result.docs.length === 10);
+        setHasMoreEntries(result.hasMore);
       }
     } catch (err) {
       console.warn("Failed to load more entries:", err);
@@ -2275,6 +2293,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         findingType: (entryData as any).findingType || null,
         aiAnalysisResult: (entryData as any).aiAnalysisResult || null,
         proofCheckResult: (entryData as any).proofCheckResult || null,
+        stickerIds: (entryData as any).stickerIds || [],
+        attachedStickerIds: (entryData as any).attachedStickerIds || [],
       },
       activeSeason
     );

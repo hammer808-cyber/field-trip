@@ -87,6 +87,8 @@ export async function submitTripEntry(
     findingType?: string;
     aiAnalysisResult?: any;
     proofCheckResult?: any;
+    stickerIds?: string[];
+    attachedStickerIds?: string[];
   },
   activeSeason?: Season | null
 ) {
@@ -355,7 +357,9 @@ export async function submitTripEntry(
       hintUsed: hintWasUsed,
       userAvatar: entryData.userAvatar,
       aiAnalysisResult: entryData.aiAnalysisResult || null,
-      proofCheckResult: entryData.proofCheckResult || null
+      proofCheckResult: entryData.proofCheckResult || null,
+      stickerIds: Array.from(new Set(entryData.stickerIds || entryData.attachedStickerIds || [])),
+      attachedStickerIds: Array.from(new Set(entryData.attachedStickerIds || entryData.stickerIds || []))
     };
 
     if (entryId) {

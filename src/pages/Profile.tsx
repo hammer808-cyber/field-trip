@@ -25,15 +25,13 @@ import { SkinSelector } from '../components/SkinSelector';
 import { BadgeCollection } from '../components/BadgeCollection';
 // Removed: import { StatusSticker } from '../components/StickerDecals';
 import { AvatarPreview } from '../components/AvatarPreview';
-import { ProofImage } from '../components/ProofImage';
-import { getNormalizedProof } from '../utils/imageUtils';
 import { DEFAULT_AVATAR, AVATAR_MANIFEST } from '../constants/avatarAssets';
 import { AvatarData } from '../types/avatar';
 import { FIELD_TYPES, DEV_APP_CONFIG } from '../constants';
 import { getDisplayLabel } from '../utils/labelUtils';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 import { getApprovedSubmissionsForUser } from '../services/submission-utils';
-import { Entry } from '../types/game';
+import { LogbookFlipbook } from '../components/LogbookFlipbook';
 
 export default function ProfilePage() {
   const { 
@@ -51,7 +49,10 @@ export default function ProfilePage() {
     approvedEntriesCount,
     submittedPendingChallengeIds,
     needsMoreProofChallengeIds,
-    fieldType
+    fieldType,
+    activeSeason,
+    loadMoreEntries,
+    hasMoreEntries,
   } = useApp();
   const { fc } = useTheme();
   const navigate = useNavigate();
@@ -62,6 +63,17 @@ export default function ProfilePage() {
   const [editName, setEditName] = useState('');
   const [editAvatar, setEditAvatar] = useState<AvatarData>({ ...DEFAULT_AVATAR });
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isLoadingMoreLogbook, setIsLoadingMoreLogbook] = useState(false);
+
+  const loadMoreLogbookEntries = React.useCallback(async () => {
+    if (isLoadingMoreLogbook || !hasMoreEntries) return;
+    setIsLoadingMoreLogbook(true);
+    try {
+      await loadMoreEntries();
+    } finally {
+      setIsLoadingMoreLogbook(false);
+    }
+  }, [hasMoreEntries, isLoadingMoreLogbook, loadMoreEntries]);
 
   // Gating Guard against accidental "Start Mission -> Profile" routing errors
   React.useEffect(() => {
@@ -430,74 +442,18 @@ export default function ProfilePage() {
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                <header className="space-y-1 mb-8">
                 <h2 className="text-3xl font-black tracking-tighter text-on-surface uppercase italic">Logbook</h2>
-                <p className="text-xs font-mono font-bold text-on-surface/40 uppercase tracking-widest">Historical Transmission Feed</p>
+                <p className="text-xs font-mono font-bold text-on-surface/40 uppercase tracking-widest">Your private field journal</p>
               </header>
-              <div className="grid grid-cols-2 gap-4">
-                 {logbookEntries.length === 0 ? (
-                   <div className="col-span-2 py-20 text-center border-2 border-dashed border-on-surface/10 rounded-3xl">
-                      <History className="w-12 h-12 text-on-surface/5 mx-auto mb-4" />
-                      <p className="font-display text-base uppercase font-black text-on-surface/20 tracking-widest italic">No transmissions found.</p>
-                   </div>
-                 ) : (
-                   logbookEntries.map((entry, idx) => (
-                     <div key={entry.id} className={cn(
-                       "bg-white border-2 border-on-surface p-2 pb-6 rounded-xl flex flex-col aspect-[4/5] shadow-sm",
-                       idx % 2 === 0 ? "rotate-[-0.5deg]" : "rotate-[0.5deg]"
-                     )}>
-                        <div className="bg-paper-dark aspect-square rounded-lg mb-2 overflow-hidden border border-on-surface/5 flex items-center justify-center relative">
-                           {(() => {
-                             const norm = getNormalizedProof(entry, null); const p = { ...entry, photoUrl: norm.photoUrl, imageUrl: norm.photoUrl, storagePath: norm.storagePath } as any;
-                             const imageSrc = p.proofImage || p.imageUrl || p.proofImageUrl || p.photoUrl || (Array.isArray(p.imageUrls) ? p.imageUrls[0] : null);
-                             return imageSrc ? (
-                               <ProofImage entry={entry} className="w-full h-full object-cover grayscale-[0.2]" />
-                             ) : (
-                               <History className="w-8 h-8 text-on-surface/10" />
-                             );
-                           })()}
-                        </div>
-                        <div className="flex-1 flex flex-col justify-between px-1">
-                           <div className="flex flex-col gap-0.5">
-                              <h6 className="text-[9px] font-black uppercase leading-tight line-clamp-2">{entry.tripTitle || 'Untitled'}</h6>
-                              {entry.findingType && (
-                                 <span className="text-[6.5px] font-mono leading-none font-black uppercase bg-brand-magenta text-white px-1 py-0.5 rounded border border-on-surface/10 w-fit">
-                                   {entry.findingType}
-                                 </span>
-                              )}
-                           </div>
-                           <div className="flex justify-between items-center pt-1 border-t border-on-surface/5">
-                              {(() => {
-                                const status = ((entry.status as any) === 'needs-more-proof' ? 'NEEDS_MORE_PROOF' : 
-                                               (entry.status as any) === 'upload_failed' ? 'UPLOAD_FAILED' : 
-                                               entry.status || 'PENDING').toUpperCase();
-                                const badgeColor = status === 'APPROVED' ? 'lime' : status === 'REJECTED' ? 'charcoal' : status === 'NEEDS_MORE_PROOF' ? 'orange' : 'paper';
-                                return (
-                                  <FieldBadge 
-                                     variant="stamp" 
-                                     color={badgeColor as any}
-                                     size="xs"
-                                     rotation={-4}
-                                     className="scale-75 origin-left font-black"
-                                  >
-                                     {status}
-                                  </FieldBadge>
-                                );
-                              })()}
-                              <div className="flex flex-col items-end">
-                                 <span className="text-[10px] font-black uppercase italic leading-none">
-                                   {entry.status === 'approved' 
-                                     ? `+${entry.awardedXP || entry.pointsAwarded || (entry as any).awardedPoints || 0}`
-                                     : `+${(entry as any).estimatedPoints || entry.awardedXP || 0}`}
-                                 </span>
-                                 <span className="text-[6px] font-mono opacity-25 uppercase tracking-tighter mt-1 leading-none">
-                                   {entry.status === 'approved' ? 'Awarded' : 'Projected'}
-                                 </span>
-                              </div>
-                           </div>
-                        </div>
-                     </div>
-                   ))
-                 )}
-              </div>
+              <LogbookFlipbook
+                entries={logbookEntries}
+                displayName={profile?.displayName || profile?.username || 'Field Agent'}
+                seasonName={activeSeason?.title || activeSeason?.id || 'Current Season'}
+                explorerTypeName={fieldTypeData?.name || profile?.fieldTypeName || 'Unclassified Explorer'}
+                proofStickerAssignments={profile?.proofStickerAssignments || {}}
+                hasMore={hasMoreEntries}
+                loadingMore={isLoadingMoreLogbook}
+                onRequestMore={loadMoreLogbookEntries}
+              />
             </div>
           )}
 

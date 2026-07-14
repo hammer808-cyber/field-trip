@@ -13,6 +13,9 @@ interface ProofImageProps {
   alt?: string;
   objectFit?: 'cover' | 'contain';
   isCommunityFeed?: boolean;
+  loadingStrategy?: 'eager' | 'lazy';
+  showMetadataStamp?: boolean;
+  showDiagnosticsOverlay?: boolean;
 }
 
 /**
@@ -29,7 +32,17 @@ function getFallbackSvgDataUrl(id: string): string {
  * Resolves both direct URLs and Firebase Storage paths.
  * Provides detailed debug info in Admin/Dev mode on failure.
  */
-export function ProofImage({ entry, proofReview, className, alt = "Proof Evidence", objectFit = 'cover', isCommunityFeed = false }: ProofImageProps) {
+export function ProofImage({
+  entry,
+  proofReview,
+  className,
+  alt = "Proof Evidence",
+  objectFit = 'cover',
+  isCommunityFeed = false,
+  loadingStrategy = 'lazy',
+  showMetadataStamp = true,
+  showDiagnosticsOverlay,
+}: ProofImageProps) {
   const { isAdmin, user, profile } = useApp();
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +53,7 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
   const norm = getNormalizedProof(entry, proofReview || entry?.proofReview || entry?.review || entry);
   const selectedImageUrl = norm.photoUrl || null;
   const selectedImageReference = norm.photoUrl || norm.storagePath || null;
-  const showDiagnostics = import.meta.env.DEV || isAdmin;
+  const showDiagnostics = showDiagnosticsOverlay ?? (import.meta.env.DEV || isAdmin);
 
   const renderDiagnostics = () => {
     if (!showDiagnostics) return null;
@@ -283,6 +296,8 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
       <img 
         src={url as string} 
         alt={alt} 
+        loading={loadingStrategy}
+        decoding="async"
         className={cn(
           "w-full h-full transition-all duration-700",
           objectFit === 'cover' ? 'object-cover' : 'object-contain',
@@ -310,16 +325,18 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
       />
       
       {/* REQUIREMENT: Debug Label */}
-      <div className="absolute top-2 left-2 z-30 pointer-events-none">
-        <div className={cn(
-          "px-1.5 py-0.5 rounded text-[7px] font-mono font-black uppercase tracking-widest shadow-sm border",
-          isReal ? "bg-brand-lime text-black border-black/20" : "bg-brand-orange text-white border-white/20"
-        )}>
-          PHOTO: {isReal ? 'REAL' : 'PLACEHOLDER - MISSING photoUrl'}
+      {showDiagnostics && (
+        <div className="absolute top-2 left-2 z-30 pointer-events-none">
+          <div className={cn(
+            "px-1.5 py-0.5 rounded text-[7px] font-mono font-black uppercase tracking-widest shadow-sm border",
+            isReal ? "bg-brand-lime text-black border-black/20" : "bg-brand-orange text-white border-white/20"
+          )}>
+            PHOTO: {isReal ? 'REAL' : 'PLACEHOLDER - MISSING photoUrl'}
+          </div>
         </div>
-      </div>
+      )}
 
-      {isAdmin && (
+      {isAdmin && showDiagnostics && (
         <div className="absolute top-0 right-0 p-1 bg-black/80 text-[6px] font-mono text-white pointer-events-none z-50 flex flex-col items-end">
           <span>id: {entry.id?.substring(0,8)}</span>
           <span className={cn(entry.photoUrl ? "text-brand-lime" : "text-error")}>pu: {entry.photoUrl ? 'YES' : 'NO'}</span>
@@ -328,7 +345,7 @@ export function ProofImage({ entry, proofReview, className, alt = "Proof Evidenc
         </div>
       )}
 
-      {stamp && (
+      {showMetadataStamp && stamp && (
         <div className={cn(
           "absolute right-3 flex flex-col items-end text-right font-mono text-[7px] sm:text-[9px] text-brand-orange tracking-wider leading-relaxed drop-shadow-[0px_1.5px_2px_rgba(0,0,0,0.95)] z-10 pointer-events-none select-none uppercase transition-all duration-350",
           showDiagnostics ? "bottom-14" : "bottom-3"

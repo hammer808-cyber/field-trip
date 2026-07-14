@@ -37,30 +37,96 @@ export async function addEntryToFirestore(entry: Omit<Entry, 'id' | 'createdAt'>
   }, { cooldownMs: 2000 }); // 2s cooldown between entries
 }
 
-/**
- * PAGINATION: Get user entries in batches.
- */
-export async function getUserEntriesPage(userId: string, pageSize = 10, lastVisible?: QueryDocumentSnapshot<DocumentData>) {
-  let q = query(
-    collection(db, COLLECTION),
-    where('userId', '==', userId),
-    where('showInUserLogbook', '==', true),
-    orderBy('createdAt', 'desc'),
-    limit(pageSize)
-  );
+export interface UserEntriesPageCursor {
+  uidLastVisible?: QueryDocumentSnapshot<DocumentData>;
+  userIdLastVisible?: QueryDocumentSnapshot<DocumentData>;
+  uidExhausted?: boolean;
+  userIdExhausted?: boolean;
+  uidInitialized?: boolean;
+  userIdInitialized?: boolean;
+  bufferedDocs?: Entry[];
+}
 
-  if (lastVisible) {
-    q = query(q, startAfter(lastVisible));
+function entryTimestamp(entry: Entry): number {
+  const value = entry.createdAt || entry.submittedAt;
+  if (typeof value?.toMillis === 'function') return value.toMillis();
+  if (typeof value?.seconds === 'number') return value.seconds * 1000;
+  if (typeof value === 'string' || typeof value === 'number') return new Date(value).getTime() || 0;
+  return 0;
+}
+
+async function getEntriesByOwnerAlias(params: {
+  alias: 'uid' | 'userId';
+  userId: string;
+  pageSize: number;
+  lastVisible?: QueryDocumentSnapshot<DocumentData>;
+  exhausted?: boolean;
+}) {
+  if (params.exhausted) {
+    return { docs: [] as Entry[], lastVisible: params.lastVisible, exhausted: true };
   }
 
+  let ownerQuery = query(
+    collection(db, COLLECTION),
+    where(params.alias, '==', params.userId),
+    orderBy('createdAt', 'desc'),
+    limit(params.pageSize),
+  );
+  if (params.lastVisible) ownerQuery = query(ownerQuery, startAfter(params.lastVisible));
+
+  const snapshot = await getDocs(ownerQuery);
+  return {
+    docs: snapshot.docs
+      .map(entryDoc => ({ id: entryDoc.id, ...entryDoc.data() } as Entry))
+      .filter(entry => !isArchivedEntry(entry) && entry.showInUserLogbook !== false),
+    lastVisible: snapshot.docs[snapshot.docs.length - 1] || params.lastVisible,
+    exhausted: snapshot.docs.length < params.pageSize,
+  };
+}
+
+/**
+ * PAGINATION: Get user entries in batches across canonical and legacy owner aliases.
+ * Missing showInUserLogbook is intentionally treated as visible for older proofs.
+ */
+export async function getUserEntriesPage(userId: string, pageSize = 10, cursor: UserEntriesPageCursor = {}) {
   try {
-    const snapshot = await getDocs(q);
-    const docs = snapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() } as Entry))
-      .filter(e => e.archived !== true);
+    const [uidPage, userIdPage] = await Promise.all([
+      getEntriesByOwnerAlias({
+        alias: 'uid',
+        userId,
+        pageSize,
+        lastVisible: cursor.uidLastVisible,
+        exhausted: cursor.uidExhausted,
+      }),
+      getEntriesByOwnerAlias({
+        alias: 'userId',
+        userId,
+        pageSize,
+        lastVisible: cursor.userIdLastVisible,
+        exhausted: cursor.userIdExhausted,
+      }),
+    ]);
+
+    const unique = new Map<string, Entry>();
+    [...(cursor.bufferedDocs || []), ...uidPage.docs, ...userIdPage.docs]
+      .forEach(entry => unique.set(entry.id, entry));
+    const ordered = Array.from(unique.values()).sort((a, b) => entryTimestamp(b) - entryTimestamp(a));
+    const docs = ordered.slice(0, pageSize);
+    const bufferedDocs = ordered.slice(pageSize);
+    const hasMore = bufferedDocs.length > 0 || !uidPage.exhausted || !userIdPage.exhausted;
+
     return {
       docs,
-      lastVisible: snapshot.docs[snapshot.docs.length - 1]
+      lastVisible: {
+        uidLastVisible: uidPage.lastVisible,
+        userIdLastVisible: userIdPage.lastVisible,
+        uidExhausted: uidPage.exhausted,
+        userIdExhausted: userIdPage.exhausted,
+        uidInitialized: true,
+        userIdInitialized: true,
+        bufferedDocs,
+      } satisfies UserEntriesPageCursor,
+      hasMore,
     };
   } catch (error) {
     return handleFirestoreError(error, OperationType.LIST, COLLECTION);

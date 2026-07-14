@@ -7,6 +7,7 @@ import { normalizeEntryStatus } from '../logic/entryLogic';
 import { dedupeCommunityFeedProofs, getCommunityFeedApprovedTime, isCommunityFeedEligible } from '../logic/communityFeed';
 import { isCrewProofEligible } from '../logic/proofDistribution';
 import { cn } from '../lib/utils';
+import { FlipbookShell } from './FlipbookShell';
 
 type FeedFilter = 'latest' | 'hyped' | 'week' | 'season' | 'crew';
 
@@ -14,14 +15,18 @@ export function CommunityProofsFeed() {
   const { activeSeason, profile } = useApp();
   const [publicProofs, setPublicProofs] = useState<any[]>([]);
   const [feedFilter, setFeedFilter] = useState<FeedFilter>('latest');
+  const [queryLimit, setQueryLimit] = useState(12);
+  const [loadingMore, setLoadingMore] = useState(true);
   const crewId = (profile as any)?.activeCrewId || (profile as any)?.crewId || null;
 
   useEffect(() => {
-    const unsub = subscribeToPublicProofs(30, (entries: any[]) => {
+    setLoadingMore(true);
+    const unsub = subscribeToPublicProofs(queryLimit, (entries: any[]) => {
       setPublicProofs(entries);
+      setLoadingMore(false);
     });
     return () => unsub();
-  }, []);
+  }, [queryLimit]);
 
   const communityFeedProofs = useMemo(() => {
     const seasonStart = activeSeason?.startDate ? new Date(activeSeason.startDate as any).getTime() : 0;
@@ -45,6 +50,18 @@ export function CommunityProofsFeed() {
       return getCommunityFeedApprovedTime(b) - getCommunityFeedApprovedTime(a);
     });
   }, [activeSeason?.startDate, crewId, feedFilter, publicProofs]);
+
+  const canLoadMore = publicProofs.length >= queryLimit && queryLimit < 120;
+  const loadMore = () => setQueryLimit(current => Math.min(120, current + 12));
+
+  const flipbookPages = useMemo(
+    () => communityFeedProofs.map((proof, index) => (
+      <div key={proof.id} className={cn('h-full py-2 sm:py-4', index % 3 === 0 ? '-rotate-[0.35deg]' : index % 3 === 1 ? 'rotate-[0.45deg]' : '')}>
+        <CommunityProofCard proof={proof} normalizeEntryStatus={normalizeEntryStatus} />
+      </div>
+    )),
+    [communityFeedProofs],
+  );
 
   return (
     <section className="space-y-10">
@@ -78,7 +95,7 @@ export function CommunityProofsFeed() {
         </div>
       </div>
 
-      {communityFeedProofs.length === 0 ? (
+      {communityFeedProofs.length === 0 && !loadingMore ? (
         <div className="max-w-xl mx-auto py-16 text-center space-y-4 bg-white border-4 border-on-surface p-8 rounded-[1.5rem] shadow-[8px_8px_0px_black] relative">
           <div className="absolute top-2 right-2 text-on-surface/5 font-mono text-[9px] font-black uppercase tracking-widest">
             COMMUNITY_EMPTY
@@ -95,11 +112,20 @@ export function CommunityProofsFeed() {
             </p>
           </div>
         </div>
+      ) : communityFeedProofs.length > 0 ? (
+        <FlipbookShell
+          ariaLabel="Community proof flipbook"
+          pages={flipbookPages}
+          fallbackItems={flipbookPages}
+          pageParam="page"
+          storageKey="fieldtrip.community-proof.view"
+          hasMore={canLoadMore}
+          loadingMore={loadingMore}
+          onRequestMore={loadMore}
+        />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 pb-12">
-          {communityFeedProofs.map((proof) => (
-            <CommunityProofCard key={proof.id} proof={proof} normalizeEntryStatus={normalizeEntryStatus} />
-          ))}
+        <div className="min-h-64 flex items-center justify-center font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/45" aria-live="polite">
+          Loading approved receipts...
         </div>
       )}
     </section>

@@ -85,7 +85,18 @@ export function getEntryFieldNote(entry: any): string {
 }
 
 export function getEntryEarnedXp(entry: any): number {
-  const raw = entry?.earnedXp ?? entry?.xp ?? entry?.points ?? entry?.score ?? 0;
+  const raw =
+    entry?.scoring?.totalXpAwarded ??
+    entry?.scoring?.awardedXp ??
+    entry?.totalXpAwarded ??
+    entry?.awardedXP ??
+    entry?.awardedPoints ??
+    entry?.pointsAwarded ??
+    entry?.earnedXp ??
+    entry?.xp ??
+    entry?.points ??
+    entry?.score ??
+    0;
   const parsed = Number(raw);
   return Number.isFinite(parsed) ? parsed : 0;
 }

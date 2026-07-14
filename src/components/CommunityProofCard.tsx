@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { FieldCard, FieldTape } from './UI';
-import { Flame, ShieldAlert, X, CheckCircle2, ImageOff } from 'lucide-react';
+import { ExternalLink, Flame, ShieldAlert, X, CheckCircle2, ImageOff, Users, Vote } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { ProofImage } from './ProofImage';
@@ -11,6 +11,7 @@ import { cn } from '../lib/utils';
 import { DEFAULT_AVATAR } from '../constants/avatarAssets';
 import { toast } from 'react-hot-toast';
 import { getCommunityFeedApprovedTime, getCommunityFeedOwnerId, hasCommunityFeedImageReference } from '../logic/communityFeed';
+import { isWeeklyProofDistributionEligible } from '../logic/proofDistribution';
 
 const SUS_REASONS = [
   "Doesn't match the mission",
@@ -43,6 +44,9 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
   const missionTitle = proof.tripTitle || proof.challengeTitle || proof.missionTitle || 'Field Receipt';
   const displayName = proof.displayName || proof.userName || proof.publicName || 'Anonymous Agent';
   const deckLabel = proof.deckName || proof.deckId || proof.seasonTitle || proof.seasonId || 'Fieldtrip';
+  const explorerType = proof.fieldTypeName || proof.explorerTypeName || proof.personaName || null;
+  const crewName = proof.crewName || proof.crewContext?.crewNameSnapshot || null;
+  const weeklyVotingEligible = isWeeklyProofDistributionEligible(proof, { requireApprovedAt: false });
   const approvedTime = getCommunityFeedApprovedTime(proof);
   const formattedDate = approvedTime ? new Date(approvedTime).toLocaleDateString() : 'Recently';
   const statusLabel = normalizeEntryStatus(proof.status);
@@ -157,6 +161,8 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
               entry={proof} 
               isCommunityFeed={true}
               className="grayscale-[0.15] group-hover:grayscale-0 transition-all duration-700 w-full h-full object-cover"
+              showMetadataStamp={false}
+              showDiagnosticsOverlay={false}
             />
           )}
           <span className="absolute bottom-2 right-2 bg-[#FFFDF6] text-on-surface font-mono text-[7px] font-black tracking-widest px-1.5 py-0.5 border border-on-surface/40 rotate-[1.5deg]">
@@ -193,6 +199,21 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
                 <span className="text-[7px] font-mono font-black uppercase text-brand-lime bg-brand-lime/10 px-1.5 py-0.5 rounded-sm">
                   {statusLabel === 'approved' ? 'Verified' : 'Hidden'}
                 </span>
+                {explorerType && (
+                  <span className="text-[7px] font-mono font-black uppercase text-brand-magenta bg-brand-magenta/10 px-1.5 py-0.5 rounded-sm">
+                    {explorerType}
+                  </span>
+                )}
+                {crewName && (
+                  <span className="inline-flex items-center gap-1 text-[7px] font-mono font-black uppercase text-on-surface/55 bg-on-surface/5 px-1.5 py-0.5 rounded-sm">
+                    <Users className="w-2.5 h-2.5" /> {crewName}
+                  </span>
+                )}
+                {weeklyVotingEligible && (
+                  <span className="inline-flex items-center gap-1 text-[7px] font-mono font-black uppercase text-on-surface bg-brand-cyan/20 px-1.5 py-0.5 rounded-sm">
+                    <Vote className="w-2.5 h-2.5" /> Ballot eligible
+                  </span>
+                )}
               </div>
             </div>
 
@@ -228,6 +249,16 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
               {susButtonLabel}
             </button>
           </div>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setDetailOpen(true);
+            }}
+            className="min-h-11 w-full flex items-center justify-center gap-2 border-2 border-on-surface bg-on-surface text-white font-mono text-[9px] font-black uppercase tracking-widest shadow-[2px_2px_0px_var(--color-brand-orange)] focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> Open receipt
+          </button>
         </div>
       </FieldCard>
 
@@ -282,7 +313,7 @@ function ReceiptDetailModal({
     <motion.div className="skin-modal-backdrop fixed inset-0 z-[100] bg-black/70 p-4 sm:p-8 flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
       <motion.div className="skin-modal bg-paper max-w-5xl w-full max-h-[92vh] overflow-y-auto border-4 border-on-surface shadow-[12px_12px_0px_var(--color-brand-orange)] p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-5" initial={{ y: 30, rotate: -1 }} animate={{ y: 0, rotate: 0 }} exit={{ y: 30, opacity: 0 }} onClick={(event) => event.stopPropagation()}>
         <div className="relative border-[3px] border-on-surface bg-white aspect-square overflow-hidden">
-          <ProofImage entry={proof} isCommunityFeed={true} className="w-full h-full object-contain bg-black/5" />
+          <ProofImage entry={proof} isCommunityFeed={true} objectFit="contain" className="w-full h-full bg-black/5" showMetadataStamp={false} showDiagnosticsOverlay={false} />
         </div>
         <div className="space-y-5 text-left">
           <button type="button" onClick={onClose} className="float-right p-2 bg-white border-2 border-on-surface shadow-[2px_2px_0px_black]">

@@ -20,6 +20,8 @@
     "test:voting-security": "tsx --test src/__tests__/weeklyVotingSecurity.test.ts src/__tests__/tribunalSecurity.test.ts src/__tests__/susReports.test.ts src/__tests__/firelightBehavior.test.ts",
     "test:firestore-rules": "firebase emulators:exec --only firestore \"tsx --test src/__tests__/firelightRules.integration.test.ts\"",
     "test:skins": "tsx --test src/__tests__/skinArchitecture.test.ts",
+    "test:physical-memory": "tsx --test src/__tests__/physicalMemorySystem.test.ts src/__tests__/proofDistribution.test.ts src/__tests__/communityFeed.test.ts",
+    "test:physical-memory-rules": "firebase emulators:exec --only firestore \"tsx --test src/__tests__/physicalMemoryRules.integration.test.ts\"",
     "test:skin-rules": "firebase emulators:exec --only firestore \"tsx --test src/__tests__/skinRules.integration.test.ts\""
   },
   "dependencies": {

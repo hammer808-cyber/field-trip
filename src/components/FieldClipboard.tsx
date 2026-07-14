@@ -27,7 +27,7 @@ import { ActionButton } from './UIUtilities';
 interface FieldClipboardProps {
   mission: TripCardType;
   onStartCapture: () => void;
-  onPhotoConfirm: (data: any) => void;
+  onRetakeCapture: () => void;
   onSubmit: () => void;
   initialState?: FieldClipboardState;
   state: FieldClipboardState;
@@ -39,13 +39,14 @@ interface FieldClipboardProps {
   catalyst?: any;
   receiptChallenge?: any;
   repairFeedback?: string | null;
+  availableStickerIds?: string[];
   children?: React.ReactNode;
 }
 
 export const FieldClipboard: React.FC<FieldClipboardProps> = ({
   mission,
   onStartCapture,
-  onPhotoConfirm,
+  onRetakeCapture,
   onSubmit,
   state,
   setState,
@@ -56,6 +57,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
   catalyst,
   receiptChallenge,
   repairFeedback,
+  availableStickerIds = [],
   children
 }) => {
   const goToState = (next: FieldClipboardState) => {
@@ -304,25 +306,16 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
           </motion.div>
         )}
 
-        {/* STEP 3: PREVIEWING (Instant Look) */}
-        {state === 'previewing_polaroid' && (
+        {/* STEP 3: CAPTURED RECEIPT DEVELOPMENT */}
+        {(state === 'previewing_polaroid' || state === 'developing_polaroid') && (
           <DevelopingPolaroid 
             imageUrl={data.photoUrl || ''}
-            isDeveloping={false}
-            onRetake={() => goToState('capture')}
-            statusText="Verifying Capture..."
-            subText="Instant signal stabilize. Ready for development."
-          />
-        )}
-
-        {/* STEP 4: DEVELOPING (Polaroid Animation) */}
-        {state === 'developing_polaroid' && (
-          <DevelopingPolaroid 
-            imageUrl={data.photoUrl || ''}
-            isDeveloping={true}
-            onRetake={() => goToState('capture')}
-            statusText="Developing Evidence..."
-            subText="Chemical stabilization and Bureau uplink in progress."
+            missionTitle={mission.title}
+            onAccept={() => goToState('reviewing')}
+            onRetake={onRetakeCapture}
+            availableStickerIds={availableStickerIds}
+            selectedStickerId={data.stickerId}
+            onStickerSelect={(stickerId) => setData(previous => ({ ...previous, stickerId }))}
           />
         )}
 
@@ -434,7 +427,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                  </div>
                  
                  <button 
-                   onClick={() => goToState('capture')}
+                   onClick={onRetakeCapture}
                    className="absolute -top-2 -right-2 bg-on-surface text-white w-7 h-7 rounded-full border border-white/20 flex items-center justify-center shadow-[3px_3px_0px_black] hover:bg-brand-orange transition-colors"
                  >
                    <RefreshCw size={12} />
@@ -451,7 +444,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               status={detectorStatus}
               displayTitle={aiAnalysisResult?.displayTitle}
               displayDetail={aiAnalysisResult?.displayDetail}
-              onRetry={() => goToState('capture')}
+              onRetry={onRetakeCapture}
             />
 
             {/* FIELD LOG (NOTE) */}

@@ -28,6 +28,7 @@ import { CommunityProofsFeed } from '../components/CommunityProofsFeed';
 import { markEarnedStickersSeen } from '../services/stickerService';
 import { canAccessFeature, getDeckProgress, getStarterProgress } from '../services/canonicalProgress';
 import { ZineWorkspace } from '../components/ZineWorkspace';
+import { StickerBook } from '../components/StickerBook';
 
 type CollectionTab = 'collection' | 'zines' | 'memories' | 'stickers' | 'badges' | 'decks' | 'missions' | 'crew_memories';
 type MemoriesView = 'mine' | 'community';
@@ -278,17 +279,7 @@ export default function CollectionPage() {
               exit={{ opacity: 0, y: -15 }}
               className="space-y-10"
             >
-              <section className="space-y-4">
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="font-display text-2xl font-black uppercase italic tracking-tight text-on-surface">Stickers</h2>
-                  <span className="font-mono text-[10px] font-black uppercase text-on-surface/40">{stickers.filter(r => unlockedStickers.has(r.id)).length} earned</span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
-                  {stickers.map(r => (
-                    <RewardItem key={r.id} reward={r} isUnlocked={unlockedStickers.has(r.id)} />
-                  ))}
-                </div>
-              </section>
+              <StickerBook />
 
               <section className="space-y-4">
                 <div className="flex items-center justify-between gap-3">
@@ -441,29 +432,7 @@ export default function CollectionPage() {
               exit={{ opacity: 0, y: -15 }}
               className="space-y-10"
             >
-              <section className="space-y-4">
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="font-display text-2xl font-black uppercase italic tracking-tight text-on-surface">Earned Stickers</h2>
-                  <span className="font-mono text-[10px] font-black uppercase text-on-surface/40">{stickers.filter(r => unlockedStickers.has(r.id)).length} earned</span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
-                  {stickers.filter(r => unlockedStickers.has(r.id)).map(r => (
-                    <RewardItem key={r.id} reward={r} isUnlocked />
-                  ))}
-                  {stickers.filter(r => unlockedStickers.has(r.id)).length === 0 && (
-                    <div className="col-span-full py-12 text-center text-on-surface/40 font-serif italic">"No stickers earned yet."</div>
-                  )}
-                </div>
-              </section>
-
-              <section className="space-y-4">
-                <h2 className="font-display text-2xl font-black uppercase italic tracking-tight text-on-surface/45">Locked Stickers</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
-                  {stickers.filter(r => !unlockedStickers.has(r.id)).map(r => (
-                    <RewardItem key={r.id} reward={r} isUnlocked={false} />
-                  ))}
-                </div>
-              </section>
+              <StickerBook />
             </motion.div>
           )}
 

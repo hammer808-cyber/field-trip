@@ -18,6 +18,7 @@ export interface FieldClipboardData {
   photoUrl?: string;
   note: string;
   findingType?: string;
+  stickerId?: string;
   isRetry?: boolean;
   isRepair?: boolean;
 }

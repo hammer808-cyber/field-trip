@@ -1,6 +1,6 @@
 import React, { useState, useRef, Suspense, lazy, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { MOCK_TRIPS } from '../constants';
 import { Camera, X, Check, Upload, Lock, Calendar, MessageSquare, Zap, Sparkles, ShieldCheck, AlertCircle, MapPin, RefreshCw, ChevronLeft, ChevronRight, Loader2, FileText, ChevronDown } from 'lucide-react';
@@ -35,6 +35,7 @@ import { LAUNCH_MISSION, LAUNCH_MISSION_ID } from '../data/specialMissions';
 
 import { resolveMissionById } from '../logic/missionResolver';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
+import { revokeTemporaryPreviewUrls } from '../logic/polaroidDevelopment';
 
 const GESTURES = [
   "Thumbs Up",
@@ -578,8 +579,6 @@ export default function CapturePage() {
     ftText?: string;
     newRewards?: { stickers: string[]; badges: string[] };
   } | null>(null);
-  const [developingCaption, setDevelopingCaption] = useState('Developing...');
-  const shouldReduceMotion = useReducedMotion();
   const [findingType, setFindingType] = useState('');
   const [selectedLevel, setSelectedLevel] = useState<'Standard' | 'Advanced' | 'Certified'>('Advanced');
   const [catalyst, setCatalyst] = useState<any>(null);
@@ -908,7 +907,7 @@ export default function CapturePage() {
       photoUrl: data.filteredImageUrl,
       trustLevel: data.trustLevel
     }));
-    setFcState('previewing_polaroid'); // Show instant clear preview in frame
+    setFcState('developing_polaroid');
     
     // Track photo progress
     if (currentTrip?.id && currentTrip.id !== 'unknown') {
@@ -918,20 +917,24 @@ export default function CapturePage() {
     }
   };
 
-  useEffect(() => {
-    if (fcState === 'previewing_polaroid') {
-      const timer = setTimeout(() => {
-        setFcState('developing_polaroid');
-      }, 1500); 
-      return () => clearTimeout(timer);
-    }
-    if (fcState === 'developing_polaroid') {
-      const timer = setTimeout(() => {
-        setFcState('reviewing');
-      }, 4500); 
-      return () => clearTimeout(timer);
-    }
-  }, [fcState]);
+  const handleRetakeCapture = React.useCallback(() => {
+    revokeTemporaryPreviewUrls([
+      captureData?.originalImageUrl,
+      captureData?.filteredImageUrl,
+      fcData.photoUrl,
+    ]);
+    setCaptureData(null);
+    setLocalPhotoCaptured(false);
+    setAiAnalysisResult(null);
+    setIsAiAnalyzing(false);
+    setFcData(previous => ({
+      ...previous,
+      photoCaptured: false,
+      photoUrl: undefined,
+      stickerId: undefined,
+    }));
+    setFcState('capture');
+  }, [captureData?.filteredImageUrl, captureData?.originalImageUrl, fcData.photoUrl]);
 
   useEffect(() => {
     // Sync note progress
@@ -968,10 +971,8 @@ export default function CapturePage() {
 
   useEffect(() => {
     if (fcState === 'detecting') {
-      const timer1 = setTimeout(() => setDevelopingCaption('Ready.'), 2200);
       const timer2 = setTimeout(() => setFcState('reviewing'), 3000);
       return () => {
-        clearTimeout(timer1);
         clearTimeout(timer2);
       };
     }
@@ -1156,6 +1157,8 @@ export default function CapturePage() {
           proofChallengeType: receiptChallenge?.type,
           proofChallengeText: receiptChallenge?.text,
           proofChallengeInstructions: receiptChallenge?.instructions,
+          stickerIds: fcData.stickerId ? [fcData.stickerId] : [],
+          attachedStickerIds: fcData.stickerId ? [fcData.stickerId] : [],
           isRetry: isRetry,
           retryPointMultiplier: isRetry ? 0.5 : undefined,
           originalEntryId: originalEntryId || null,
@@ -1317,7 +1320,7 @@ export default function CapturePage() {
             <FieldClipboard
               mission={currentTrip}
               onStartCapture={proceedToCapture}
-              onPhotoConfirm={onCapture}
+              onRetakeCapture={handleRetakeCapture}
               onSubmit={() => handleSubmit()}
               state={fcState}
               setState={setFcState}
@@ -1328,6 +1331,10 @@ export default function CapturePage() {
               catalyst={catalyst}
               receiptChallenge={receiptChallenge}
               repairFeedback={repairFeedback}
+              availableStickerIds={Array.from(new Set([
+                ...(profile?.unlockedRewards?.stickers || []),
+                ...((profile?.earnedStickers || []).map(sticker => sticker.id)),
+              ]))}
             >
               {fcState === 'capture' && (
                 <div className="w-full flex flex-col space-y-4">

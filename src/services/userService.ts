@@ -21,6 +21,7 @@ import { FieldTypeId, ProductPersonaLensId, FIELD_TYPES } from '../constants';
 import { normalizeFieldType } from '../constants/fieldTypes';
 
 import { AvatarData } from '../types/avatar';
+import type { ProofStickerAssignments, StickerPlacement } from '../types/stickers';
 import { DEFAULT_AVATAR } from '../constants/avatarAssets';
 
 export interface UserProfile {
@@ -160,6 +161,8 @@ export interface UserProfile {
     unlockedAt: any;
     sourcePage: string;
   }>;
+  stickerPlacements?: StickerPlacement[];
+  proofStickerAssignments?: ProofStickerAssignments;
   equippedSkinId?: string;
   tripProgress?: Record<string, {
     photo?: boolean;
