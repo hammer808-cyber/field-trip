@@ -189,14 +189,19 @@ export default function CapturePage() {
 
   // Find initial trip: URL param > activeTrip > trips[0]
   // Mission Resolution Logic
+  const resolvedUrlTrip = React.useMemo(() => (
+    tripIdParam
+      ? resolveMissionById(tripIdParam) || trips.find(trip => trip.id === tripIdParam) || null
+      : null
+  ), [tripIdParam, trips]);
   const resolvedTrip = React.useMemo(() => {
-    return resolveMissionById(tripIdParam) || activeTrip || trips[0];
-  }, [tripIdParam, activeTrip, trips]);
+    return resolvedUrlTrip || (!tripIdParam ? activeTrip || trips[0] : null);
+  }, [resolvedUrlTrip, tripIdParam, activeTrip, trips]);
 
   const [currentTrip, setCurrentTrip] = useState<any>(resolvedTrip);
   const [loading, setLoading] = useState(true);
 
-  const missionNotFound = tripIdParam && !resolveMissionById(tripIdParam) && !loading;
+  const missionNotFound = !!tripIdParam && !resolvedUrlTrip && !loading;
 
   useEffect(() => {
     if (resolvedTrip && (!currentTrip || currentTrip.id !== resolvedTrip.id)) {
@@ -552,7 +557,9 @@ export default function CapturePage() {
     if (submissionStatus === 'submitted') return;
 
     // Only update currentTrip if we don't have one, or if the ID in the URL explicitly changes
-    const target = resolveMissionById(tripIdParam);
+    const target = tripIdParam
+      ? resolveMissionById(tripIdParam) || trips.find(trip => trip.id === tripIdParam) || null
+      : activeTrip;
     
     // If we have a target from URL or activeTrip, and it's different from current, update it
     if (target && (!currentTrip || currentTrip.id !== target.id)) {
@@ -1126,6 +1133,11 @@ export default function CapturePage() {
           missionId: currentTrip.id,
           challengeId: currentTrip.id,
           tripId: currentTrip.id,
+          deckId: currentTrip.deckId,
+          deckName: currentTrip.deckName,
+          deckSubtitle: currentTrip.deckSubtitle,
+          cardType: currentTrip.cardType,
+          challengeTitle: currentTrip.title,
           photoUrl: filteredUrl,      // Canonical field
           imageUrl: filteredUrl,      // Canonical field
           mediaUrl: filteredUrl,      // Fallback

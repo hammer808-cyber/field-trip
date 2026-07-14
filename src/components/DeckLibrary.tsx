@@ -354,12 +354,15 @@ function ChallengePreviewModal({ challenge, uiStatus, onClose, onStart }: { chal
             <div className="flex items-center gap-3">
               <div className="w-6 h-1 bg-brand-orange" />
               <p className="micro-label text-brand-orange font-black tracking-widest uppercase italic text-[8px] sm:text-[9px]">
-                {challenge.category || challenge.type} // {challenge.id}
+                {challenge.cardType || challenge.category || challenge.type} // {challenge.deckName || challenge.deckId || 'FIELD'}
               </p>
             </div>
             <h2 className="text-2xl sm:text-4xl font-display font-black uppercase italic tracking-tighter leading-none text-on-surface">
               {challenge.title}
             </h2>
+            {challenge.deckSubtitle && (
+              <p className="font-mono text-[9px] font-bold text-on-surface/45">{challenge.deckSubtitle}</p>
+            )}
             <div className="flex flex-wrap gap-2">
               <span className="px-2 py-0.5 bg-brand-lime text-on-surface border border-on-surface text-[8px] font-black uppercase italic">
                 {challenge.baseXP || (challenge as any).basePoints || 100} XP

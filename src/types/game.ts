@@ -297,6 +297,9 @@ export interface Entry {
   username: string | null;     // user snapshot
   challengeId: string;
   deckId: string;
+  deckName?: string;
+  deckSubtitle?: string;
+  cardType?: 'Signal' | 'Proof' | 'Crew' | 'Receipt' | 'Lore';
   status: TripStatus;
   
   imageUrl: string;
@@ -337,6 +340,7 @@ export interface Entry {
   missionId?: string;
   tripId?: string;
   tripTitle?: string;
+  missionTitle?: string;
   pointsAwarded?: number;
   awardedPoints?: number;
   estimatedPoints?: number;

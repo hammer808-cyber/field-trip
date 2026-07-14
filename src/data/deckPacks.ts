@@ -1,6 +1,8 @@
-import { DeckPack } from '../types/deckPacks';
+import { DeckCatalogSectionId, DeckPack } from '../types/deckPacks';
 import { HEATWAVE_CHALLENGE_BANK } from './heatwaveChallengeBank';
 import { SOCAL_SUMMER_CHALLENGE_BANK } from './socalSummerChallengeBank';
+import { JET_SETTER_CHALLENGE_BANK } from './jetSetterChallengeBank';
+import { ERRAND_DECK_CHALLENGE_BANK } from './errandDeckChallengeBank';
 import { ChallengeCard } from '../types/challenges';
 import { HEATWAVE_SEASON_START_DATE, HEATWAVE_SEASON_END_DATE } from '../constants';
 
@@ -27,6 +29,7 @@ export const DECK_PACKS: DeckPack[] = [
     sortOrder: 1,
     difficultyRange: ['easy', 'medium'],
     tags: ['essential', 'onboarding'],
+    catalogSection: 'starter-training',
     defaultFindingTypes: [
       "Object",
       "Surface",
@@ -69,6 +72,7 @@ export const DECK_PACKS: DeckPack[] = [
     requiredUnlock: 'starter-complete',
     requiredStarterApprovals: 3,
     totalCards: 15,
+    catalogSection: 'local-fieldtrips',
 
     defaultFindingTypes: [
       "Beach Clue",
@@ -112,6 +116,7 @@ export const DECK_PACKS: DeckPack[] = [
     requiredUnlock: 'starter-complete',
     requiredStarterApprovals: 3,
     totalCards: 25,
+    catalogSection: 'featured-seasonal',
 
     defaultFindingTypes: [
       "Heat Signal",
@@ -126,23 +131,86 @@ export const DECK_PACKS: DeckPack[] = [
     ]
   },
   {
-    packId: 'errand-runs',
-    id: 'errand-runs',
-    title: 'Errand Runner',
-    deckCode: 'FT-04',
-    artworkKey: 'errand-runner',
-    coverImage: '/assets/decks/errand-runner.jpg',
+    packId: 'jet-setter',
+    id: 'jet-setter',
+    title: 'Jet Setter',
+    deckCode: 'FT-05',
+    artworkKey: 'jet-setter',
+    coverImage: '/assets/decks/jet-setter.jpg',
+    artPosition: 'center',
     isEvergreen: true,
-    packName: 'Errand Runs',
-    shortName: 'Errands',
-    description: 'Everyday missions transformed into tactical surveillance. Locate signatures at checkpoints, queues, and aisles.',
-    theme: 'diamond',
-    missionIds: [],
-    unlockRule: 'immediate',
+    packName: 'Jet Setter',
+    shortName: 'Jet Setter',
+    description: 'A breezy beach-vacation deck for pools, resorts, coastal stays, travel days, snack stops, sunset walks, and camera-roll-worthy crew lore.',
+    theme: 'baja',
+    season: 'Evergreen Travel',
+    missionIds: JET_SETTER_CHALLENGE_BANK.map(mission => mission.id as string),
+    unlockRule: 'starter-complete',
     visibility: 'public',
+    requiredCompletedDeckIds: ['starter-signals'],
+    isActive: true,
+    fallbackIcon: 'Plane',
+    sortOrder: 3,
+    difficultyRange: ['easy', 'medium'],
+    tags: ['evergreen', 'travel', 'vacation', 'beach', 'crew-friendly'],
+    catalogSection: 'travel',
+
+    // Canonical properties
+    deckId: 'jet-setter',
+    deckName: 'Jet Setter',
+    deckSubtitle: 'A Beach Vacation Fieldtrip Deck',
+    status: 'active',
+    deckType: 'evergreen-travel',
+    requiredUnlock: 'starter-complete',
+    requiredStarterApprovals: 3,
+    totalCards: 25,
+
+    defaultFindingTypes: [
+      'Vacation Signal',
+      'Beach Proof',
+      'Pool Evidence',
+      'Travel Receipt',
+      'Crew Lore',
+      'Resort Detail',
+      'Snack Manifest',
+      'Sunset Evidence'
+    ]
+  },
+  {
+    packId: 'errand-deck',
+    id: 'errand-deck',
+    title: 'The Errand Deck',
+    deckCode: 'FT-04',
+    artworkKey: 'errand-deck',
+    coverImage: '/assets/decks/errand-deck.jpg',
+    artPosition: 'center',
+    isEvergreen: true,
+    packName: 'The Errand Deck',
+    shortName: 'Errands',
+    description: 'A Fieldtrip Deck for Quick Stops, Side Quests, and Bags of Consequences',
+    theme: 'diamond',
+    season: 'Evergreen',
+    missionIds: ERRAND_DECK_CHALLENGE_BANK.map(mission => mission.id as string),
+    unlockRule: 'starter-complete',
+    visibility: 'public',
+    requiredCompletedDeckIds: ['starter-signals'],
     isActive: true,
     fallbackIcon: 'ShoppingBag',
-    sortOrder: 3,
+    sortOrder: 4,
+    difficultyRange: ['easy', 'medium'],
+    tags: ['evergreen', 'errand', 'side-quest', 'receipt', 'crew-friendly'],
+    catalogSection: 'always-on',
+
+    // Canonical properties
+    deckId: 'errand-deck',
+    deckName: 'The Errand Deck',
+    deckSubtitle: 'A Fieldtrip Deck for Quick Stops, Side Quests, and Bags of Consequences',
+    status: 'active',
+    deckType: 'evergreen',
+    requiredUnlock: 'starter-complete',
+    requiredStarterApprovals: 3,
+    totalCards: 15,
+
     defaultFindingTypes: [
       "Checkout Evidence",
       "Parking Lot Clue",
@@ -168,6 +236,7 @@ export const DECK_PACKS: DeckPack[] = [
     fallbackIcon: 'Flame',
     sortOrder: 4,
     isFutureDrop: true,
+    catalogSection: 'travel',
   },
   {
     packId: 'urban-recon',
@@ -183,6 +252,7 @@ export const DECK_PACKS: DeckPack[] = [
     fallbackIcon: 'Navigation',
     sortOrder: 5,
     isFutureDrop: true,
+    catalogSection: 'local-fieldtrips',
   },
   {
     packId: 'wildlife-witness',
@@ -198,6 +268,7 @@ export const DECK_PACKS: DeckPack[] = [
     fallbackIcon: 'Bird',
     sortOrder: 5,
     isFutureDrop: true,
+    catalogSection: 'always-on',
   }
 ];
 
@@ -211,8 +282,45 @@ export const getActiveDeckPacks = (): DeckPack[] => {
   return DECK_PACKS.filter(p => p.isActive);
 };
 
+export interface DeckCatalogSection {
+  id: DeckCatalogSectionId;
+  label: string;
+  packs: DeckPack[];
+}
+
+const DECK_CATALOG_SECTION_ORDER: Array<Pick<DeckCatalogSection, 'id' | 'label'>> = [
+  { id: 'featured-seasonal', label: 'Featured Seasonal Deck' },
+  { id: 'always-on', label: 'Always-On Decks' },
+  { id: 'travel', label: 'Travel Decks' },
+  { id: 'local-fieldtrips', label: 'Local Fieldtrips' },
+  { id: 'starter-training', label: 'Starter / Training Deck' },
+];
+
+export function getDeckCatalogSections(packs: DeckPack[] = getActiveDeckPacks()): DeckCatalogSection[] {
+  return DECK_CATALOG_SECTION_ORDER.map(section => ({
+    ...section,
+    packs: packs
+      .filter(pack => pack.catalogSection === section.id)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.packName.localeCompare(b.packName)),
+  })).filter(section => section.packs.length > 0);
+}
+
+const DECK_PACK_ALIASES: Record<string, string> = {
+  'errand-runs': 'errand-deck',
+  'errand-runner': 'errand-deck',
+  'errand-goblin-receipts': 'errand-deck',
+};
+
+export const normalizeDeckPackId = (packId: string): string => {
+  const normalized = String(packId || '').trim().toLowerCase();
+  return DECK_PACK_ALIASES[normalized] || normalized;
+};
+
 export const getDeckPackById = (packId: string): DeckPack | null => {
-  return DECK_PACKS.find(p => p.packId === packId) || null;
+  const canonicalPackId = normalizeDeckPackId(packId);
+  return DECK_PACKS.find(pack => (
+    pack.packId === canonicalPackId || pack.id === canonicalPackId || pack.deckId === canonicalPackId
+  )) || null;
 };
 
 export const getMissionsForPack = (packId: string, missionBank: Partial<ChallengeCard>[]): Partial<ChallengeCard>[] => {

@@ -1,17 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle, Eye, KeyRound, Layers, Lock, Plus, Rocket, Save, Send, Shuffle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Eye, KeyRound, Layers, Lock, Plane, Plus, Rocket, Save, Send, ShoppingBag, Shuffle } from 'lucide-react';
 import { AdminLayout, ModuleCard } from '../components/admin/AdminShared';
 import { Card } from '../components/UI';
 import { DECK_PACKS, getMissionsForPack } from '../data/deckPacks';
 import { HEATWAVE_CHALLENGE_BANK } from '../data/heatwaveChallengeBank';
 import { SOCAL_SUMMER_CHALLENGE_BANK } from '../data/socalSummerChallengeBank';
 import { STARTER_MISSION_BANK } from '../data/starterMissionBank';
+import { JET_SETTER_CHALLENGE_BANK } from '../data/jetSetterChallengeBank';
+import { ERRAND_DECK_CHALLENGE_BANK } from '../data/errandDeckChallengeBank';
 import { publishDeckCards, PublishDeckCardsReport } from '../services/repairService';
 import { mergeDeckAccessConfigs, saveDeckAccessConfig, subscribeToDeckAccessConfigs } from '../services/deckAccessService';
 import { getDeckAccess } from '../logic/deckAccess';
 import { cn } from '../lib/utils';
 
-const MISSION_BANK = [...STARTER_MISSION_BANK, ...HEATWAVE_CHALLENGE_BANK, ...SOCAL_SUMMER_CHALLENGE_BANK] as any[];
+const MISSION_BANK = [...STARTER_MISSION_BANK, ...HEATWAVE_CHALLENGE_BANK, ...SOCAL_SUMMER_CHALLENGE_BANK, ...JET_SETTER_CHALLENGE_BANK, ...ERRAND_DECK_CHALLENGE_BANK] as any[];
 
 export default function AdminDecks() {
   const [selectedDeckId, setSelectedDeckId] = useState('heatwave-receipts');
@@ -133,6 +135,42 @@ export default function AdminDecks() {
             label: publishLoadingDeckId === 'heatwave-receipts' ? 'Publishing...' : 'Publish Draft Cards',
             onClick: () => publishDeck('heatwave-receipts'),
             disabled: publishLoadingDeckId === 'heatwave-receipts'
+          }}
+        />
+
+        <ModuleCard
+          title="Jet Setter"
+          description="Evergreen beach-vacation deck. Unlocks after all 3 Starter Signals are approved."
+          icon={Plane}
+          status="green"
+          statusLabel="ACTIVE"
+          primaryAction={{
+            label: "EDIT_DECK",
+            onClick: () => setSelectedDeckId('jet-setter'),
+            icon: Eye
+          }}
+          secondaryAction={{
+            label: publishLoadingDeckId === 'jet-setter' ? 'Publishing...' : 'Publish Draft Cards',
+            onClick: () => publishDeck('jet-setter'),
+            disabled: publishLoadingDeckId === 'jet-setter'
+          }}
+        />
+
+        <ModuleCard
+          title="The Errand Deck"
+          description="Evergreen quick-stop missions. Unlocks after all 3 Starter Signals are approved."
+          icon={ShoppingBag}
+          status="green"
+          statusLabel="ACTIVE"
+          primaryAction={{
+            label: "EDIT_DECK",
+            onClick: () => setSelectedDeckId('errand-deck'),
+            icon: Eye
+          }}
+          secondaryAction={{
+            label: publishLoadingDeckId === 'errand-deck' ? 'Publishing...' : 'Publish Draft Cards',
+            onClick: () => publishDeck('errand-deck'),
+            disabled: publishLoadingDeckId === 'errand-deck'
           }}
         />
 

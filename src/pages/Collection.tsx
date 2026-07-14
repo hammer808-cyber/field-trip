@@ -20,13 +20,13 @@ import { cn } from '../lib/utils';
 import { StickerDecal } from '../components/StickerDecals';
 import { FieldBadge } from '../components/UI';
 import { useTheme } from '../context/ThemeContext';
-import { getDeckPackById, getDefaultDeckPack, getActiveDeckPacks } from '../data/deckPacks';
+import { getDeckCatalogSections, getDeckPackById, getDefaultDeckPack, getActiveDeckPacks, normalizeDeckPackId } from '../data/deckPacks';
 import { FieldPageHero } from '../components/FieldPageHero';
 import { MissionCard } from '../components/ChallengeCard';
 import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
 import { CommunityProofsFeed } from '../components/CommunityProofsFeed';
 import { markEarnedStickersSeen } from '../services/stickerService';
-import { canAccessFeature, getDeckProgress, getStarterProgress } from '../services/canonicalProgress';
+import { getDeckProgress, getStarterProgress } from '../services/canonicalProgress';
 import { ZineWorkspace } from '../components/ZineWorkspace';
 import { StickerBook } from '../components/StickerBook';
 
@@ -40,11 +40,11 @@ export default function CollectionPage() {
     trips,
     unlockDiscoverySticker,
     isHeatwaveDeckUnlocked,
-    isSocalSummerUnlocked,
     isAdmin,
     currentDate,
     drawnMissionCards,
-    canonicalProgress
+    canonicalProgress,
+    getDeckAccessForPack
   } = useApp();
   const { allSkins } = useTheme();
   const navigate = useNavigate();
@@ -71,6 +71,14 @@ export default function CollectionPage() {
 
   const getPackLockState = (packId: string) => {
     const pack = activePacks.find(p => p.packId === packId);
+
+    const access = getDeckAccessForPack(pack);
+    if (!access.playable) {
+      return {
+        locked: true,
+        reason: access.reason || "Complete prerequisite deck"
+      };
+    }
     
     if (pack?.isFutureDrop) {
       return {
@@ -80,13 +88,6 @@ export default function CollectionPage() {
     }
 
     if (packId === 'starter-signals') return { locked: false, reason: "" };
-
-    if (packId !== 'starter-signals' && packId !== 'heatwave-receipts' && !canAccessFeature(canonicalProgress, 'socal-summer', { isAdmin, socalUnlocked: isSocalSummerUnlocked })) {
-      return { 
-        locked: true, 
-        reason: "Complete Starter Pack (3/3 missions) to unlock" 
-      };
-    }
 
     if (packId === 'heatwave-receipts') {
       const activeByDate = new Date(currentDate) >= new Date('2026-06-06T00:00:00Z');
@@ -99,7 +100,7 @@ export default function CollectionPage() {
       return { locked: false, reason: "" };
     }
 
-    return { locked: !isAdmin, reason: "Locked for a future drop" };
+    return { locked: false, reason: "" };
   };
 
   useEffect(() => {
@@ -158,7 +159,9 @@ export default function CollectionPage() {
   const totalRewards = stickers.length + badges.length + allSkins.length;
   const totalUnlocked = unlockedStickers.size + unlockedBadges.size + unlockedSkins.size;
 
-  const currentPackId = typeof window !== 'undefined' ? localStorage.getItem('active_deck_pack_id') || getDefaultDeckPack().packId : getDefaultDeckPack().packId;
+  const currentPackId = normalizeDeckPackId(
+    typeof window !== 'undefined' ? localStorage.getItem('active_deck_pack_id') || getDefaultDeckPack().packId : getDefaultDeckPack().packId
+  );
   const currentPack = getDeckPackById(currentPackId);
 
   const currentPackProgress = currentPack ? getDeckProgress(canonicalProgress, currentPack.packId) : null;
@@ -456,9 +459,15 @@ export default function CollectionPage() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+              className="space-y-10"
             >
-              {activePacks.map(pack => {
+              {getDeckCatalogSections(activePacks).map(section => (
+                <section key={section.id} className="space-y-4">
+                  <h2 className="font-display text-2xl sm:text-3xl font-black uppercase italic tracking-tight text-on-surface">
+                    {section.label}
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {section.packs.map(pack => {
                 const { locked, reason } = getPackLockState(pack.packId);
                 const deckProgress = getDeckProgress(canonicalProgress, pack.packId);
                 const missionsInPack = pack.missionIds;
@@ -497,7 +506,7 @@ export default function CollectionPage() {
                          {pack.packName}
                        </h4>
                        <p className="text-xs sm:text-sm font-serif italic text-on-surface/50">
-                         {locked ? reason : pack.description}
+                         {locked ? reason : (pack.deckSubtitle || pack.description)}
                        </p>
                     </div>
 
@@ -528,7 +537,10 @@ export default function CollectionPage() {
                     )}
                   </div>
                 );
-              })}
+                    })}
+                  </div>
+                </section>
+              ))}
             </motion.div>
           )}
         </AnimatePresence>

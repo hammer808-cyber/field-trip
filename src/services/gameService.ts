@@ -32,6 +32,7 @@ import { getWeekWindows, getServerTime as getWeeklyServerTime, getCurrentSeasonW
 import { getServerTime as getSyncedTime, getServerDate } from './timeService';
 import { markCanonicalSubmissionPending } from './proofLifecycleService';
 import { countsTowardMissionRepeatGuard } from '../logic/entryLogic';
+import { getMissionSubmissionContext } from '../logic/missionSubmission';
 
 export async function submitTripEntry(
   userId: string,
@@ -39,6 +40,10 @@ export async function submitTripEntry(
   trip: TripCard,
   entryData: {
     proofImage: string;
+    deckId?: string;
+    deckName?: string;
+    deckSubtitle?: string;
+    cardType?: 'Signal' | 'Proof' | 'Crew' | 'Receipt' | 'Lore';
     photoUrl?: string;
     imageUrl?: string;
     photoStoragePath?: string;
@@ -265,6 +270,12 @@ export async function submitTripEntry(
     
     // Check if this is the guided launch mission
     const isGuidedLaunchMission = trip.id === LAUNCH_MISSION_ID; 
+    const submissionContext = getMissionSubmissionContext(trip, {
+      deckId: entryData.deckId || trip.deckId || userData?.activeDeckId || 'starter-signals',
+      deckName: entryData.deckName || trip.deckName || trip.deckId || 'Starter Signals',
+      deckSubtitle: entryData.deckSubtitle || trip.deckSubtitle || undefined,
+      cardType: entryData.cardType || trip.cardType,
+    });
     
     const finalEntryData = {
       // Identity
@@ -275,19 +286,13 @@ export async function submitTripEntry(
       userName: userName || userData?.name || 'Agent', // Legacy
       
       // Context
-      missionId: trip.id,
-      challengeId: trip.id,
-      tripId: trip.id,           // Legacy
-      challengeTitle: trip.title,
-      tripTitle: trip.title,     // Legacy
-      deckId: trip.deckId || userData?.activeDeckId || 'starter-signals',
+      ...submissionContext,
       seasonId: seasonId,
       
       // Status & Evidence
       status: 'pending_review',
       reviewStatus: 'pending_review',
       firebaseUid: userId,
-      missionTitle: trip.title,
       photoUrl: imageUrl,
       thumbnailUrl: imageUrl,
       isPublicEligible: true,
@@ -487,6 +492,9 @@ export async function submitTripEntry(
         challengeTitle: trip.title,
         tripTitle: trip.title,
         deckId: finalEntryData.deckId,
+        deckName: finalEntryData.deckName,
+        deckSubtitle: finalEntryData.deckSubtitle,
+        cardType: finalEntryData.cardType,
         seasonId,
         status: 'pending_review',
         reviewStatus: 'pending_review',

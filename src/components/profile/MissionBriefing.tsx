@@ -120,6 +120,20 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
   const imageUrl = getMissionImage(mission.id, mission.category || mission.type, mission.image);
 
   const activeDeck = mission.deckId ? getDeckPackById(mission.deckId) : null;
+  const cardType = mission.cardType || (
+    mission.category === 'Crew Challenge' || mission.type === 'Crew Challenge'
+      ? 'Crew'
+      : mission.category === 'Evidence Challenge' || mission.type === 'Evidence Challenge'
+        ? 'Proof'
+        : 'Signal'
+  );
+  const deckName = mission.deckName || activeDeck?.deckName || activeDeck?.packName || 'Fieldtrip';
+  const deckSubtitle = mission.deckSubtitle || activeDeck?.deckSubtitle || activeDeck?.description || '';
+  const trevorLine = mission.trevorLine || mission.shortPrompt || '';
+  const missionPrompt = (mission as any).mission || mission.theAsk || mission.description;
+  const allowedProofExamples = mission.allowedProof || mission.findingTypes || [];
+  const safetyNote = mission.safetyNote || mission.safetyRules?.[0] || '';
+  const fieldNotePrompt = mission.fieldNotePrompt || 'What happened, and why is this worth remembering?';
   const STARTER_DEFAULT_FINDING_TYPES = [
     "Object",
     "Surface",
@@ -316,16 +330,21 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
             <div className="space-y-0.5 animate-slide-up">
               <div className="flex items-center gap-2 mb-1">
                 <div className="field-badge bg-brand-cyan text-on-surface text-[8px] py-0.5 px-1.5 uppercase font-mono tracking-wider font-extrabold shadow-[1px_1px_0px_rgba(0,0,0,1)]">
-                  {mission.category || 'FIELD_FIND'}
+                  {cardType}
                 </div>
                 <div className="field-badge bg-on-surface text-white opacity-45 border-transparent text-[8px] py-0.5 px-1.5 uppercase font-mono tracking-wider">
-                  DECK 0{mission.weekNumber || 1}
+                  {deckName}
                 </div>
               </div>
               
               <h1 className="font-display text-xl sm:text-2xl font-black uppercase italic tracking-tighter text-white leading-none">
                 {mission.title}
               </h1>
+              {deckSubtitle && (
+                <p className="max-w-[85%] text-[9px] font-mono font-bold text-white/70 leading-tight">
+                  {deckSubtitle}
+                </p>
+              )}
             </div>
           </div>
 
@@ -358,9 +377,35 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
               exit={{ height: 0, opacity: 0 }}
               className="overflow-hidden relative z-10 border-t-2 border-on-surface/5 bg-on-surface/[0.02] px-4 pb-4 pt-2.5 text-left animate-fade-in"
             >
-              <p className="font-serif italic text-sm text-on-surface/85 leading-relaxed">
-                "{mission.description}"
-              </p>
+              <div className="space-y-3">
+                {trevorLine && (
+                  <blockquote className="border-l-4 border-brand-orange pl-3 font-serif italic text-sm font-bold text-on-surface leading-relaxed">
+                    Trevor: “{trevorLine}”
+                  </blockquote>
+                )}
+                <div>
+                  <p className="font-mono text-[8px] font-black uppercase tracking-[0.18em] text-on-surface/45">Mission</p>
+                  <p className="mt-1 font-serif italic text-sm text-on-surface/85 leading-relaxed">{missionPrompt}</p>
+                </div>
+                {allowedProofExamples.length > 0 && (
+                  <div>
+                    <p className="font-mono text-[8px] font-black uppercase tracking-[0.18em] text-on-surface/45">Proof examples</p>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {allowedProofExamples.map(example => (
+                        <span key={example} className="border border-on-surface/20 bg-white px-2 py-1 font-mono text-[8px] font-bold uppercase text-on-surface/65">
+                          {String(example).replace(/-/g, ' ')}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {safetyNote && (
+                  <div className="flex items-start gap-2 border border-brand-orange/25 bg-brand-orange/5 p-2.5 text-[10px] font-semibold leading-relaxed text-on-surface/75">
+                    <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-brand-orange" />
+                    <span>{safetyNote}</span>
+                  </div>
+                )}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -491,7 +536,7 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
                  </div>
                  <div>
                    <h3 className="font-display text-sm font-black uppercase text-on-surface leading-none mt-0.5">Add Field Note</h3>
-                   <p className="text-[9px] text-on-surface/50 font-sans font-bold uppercase tracking-wider">Describe your evidence details.</p>
+                   <p className="text-[9px] text-on-surface/60 font-sans font-bold leading-snug">{fieldNotePrompt}</p>
                  </div>
               </div>
               {note.trim().length >= 10 && (
@@ -507,7 +552,7 @@ export const MissionBriefing: React.FC<MissionBriefingProps> = ({
                 rows={2.5}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="What is happening in this receipt... (Min 10 chars)"
+                placeholder={`${fieldNotePrompt} (Min 10 chars)`}
                 className="w-full p-3 bg-white border-2 border-on-surface shadow-[3px_3px_0px_black] rounded-xl font-serif text-sm italic focus:outline-none focus:ring-4 focus:ring-brand-cyan/10 text-on-surface placeholder:opacity-35 resize-none"
               />
             </div>

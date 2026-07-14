@@ -20,7 +20,7 @@ import { MissionDecodedCard } from '../components/MissionDecodedCard';
 import { EntryCard } from '../components/EntryCard';
 import { DeckLibrary } from '../components/DeckLibrary';
 import { DeckStack } from '../components/DeckStack';
-import { getDefaultDeckPack, getDeckPackById } from '../data/deckPacks';
+import { getDeckCatalogSections, getDefaultDeckPack, getDeckPackById, normalizeDeckPackId } from '../data/deckPacks';
 import { getDeckCoverImage, BASE_DECK_PLACEHOLDER } from '../lib/deckUtils';
 import { DeckArtwork } from '../components/DeckArtwork';
 import { getWeeklyBonusForWeek } from '../data/weeklyBonuses';
@@ -174,14 +174,15 @@ export default function DeckPage() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const packFromUrl = params.get('pack');
-      if (packFromUrl) return packFromUrl;
+      if (packFromUrl) return normalizeDeckPackId(packFromUrl);
       const saved = localStorage.getItem('active_deck_pack_id');
       if (saved) {
+        const normalizedSaved = normalizeDeckPackId(saved);
         // Simple security check: if it's summer and not unlocked by date/admin, fallback
-        if (saved === 'heatwave-receipts' && !isHeatwaveDeckUnlocked && !isAdmin) {
+        if (normalizedSaved === 'heatwave-receipts' && !isHeatwaveDeckUnlocked && !isAdmin) {
           return 'starter-signals';
         }
-        return saved;
+        return normalizedSaved;
       }
     }
     return getDefaultDeckPack().packId;
@@ -212,8 +213,9 @@ export default function DeckPage() {
   }, [activePackId]);
 
   useEffect(() => {
-    if (requestedPackId && requestedPackId !== activePackId) {
-      setActivePackId(requestedPackId);
+    const normalizedRequestedPackId = requestedPackId ? normalizeDeckPackId(requestedPackId) : '';
+    if (normalizedRequestedPackId && normalizedRequestedPackId !== activePackId) {
+      setActivePackId(normalizedRequestedPackId);
     }
   }, [requestedPackId, activePackId]);
 
@@ -1259,8 +1261,13 @@ export default function DeckPage() {
                     <ChevronDown className="w-6 h-6 text-on-surface/30 group-open:rotate-180 transition-transform" />
                   </div>
               </summary>
-              <div className="p-4 pt-0 space-y-3 bg-[#FCFAF5] border-t-2 border-on-surface/5">
-                 {visibleDeckPacks.map((pack) => {
+              <div className="p-4 pt-0 space-y-5 bg-[#FCFAF5] border-t-2 border-on-surface/5">
+                 {getDeckCatalogSections(visibleDeckPacks).map(section => (
+                   <section key={section.id} className="space-y-2">
+                     <h4 className="pt-2 font-mono text-[8px] font-black uppercase tracking-[0.18em] text-on-surface/40">
+                       {section.label}
+                     </h4>
+                     {section.packs.map((pack) => {
                     const { completed, total, percent } = getPackProgress(pack);
                     const { locked, reason } = getPackLockState(pack);
                     const isSelected = pack.packId === activePackId;
@@ -1372,7 +1379,9 @@ export default function DeckPage() {
                         </div>
                       </div>
                     );
-                 })}
+                     })}
+                   </section>
+                 ))}
               </div>
            </details>
         </div>

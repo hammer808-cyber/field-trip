@@ -196,6 +196,9 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
                 <span className="text-[7px] font-mono font-black uppercase text-on-surface/45 bg-on-surface/5 px-1.5 py-0.5 rounded-sm">
                   {deckLabel}
                 </span>
+                <span className="text-[7px] font-mono font-black uppercase text-on-surface bg-brand-cyan/15 px-1.5 py-0.5 rounded-sm">
+                  {proof.cardType || 'Signal'}
+                </span>
                 <span className="text-[7px] font-mono font-black uppercase text-brand-lime bg-brand-lime/10 px-1.5 py-0.5 rounded-sm">
                   {statusLabel === 'approved' ? 'Verified' : 'Hidden'}
                 </span>

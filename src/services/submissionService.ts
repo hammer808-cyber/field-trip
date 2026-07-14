@@ -35,6 +35,7 @@ import {
   repairCanonicalProofQueue,
   QueueRepairReport
 } from './proofLifecycleService';
+import { getMissionSubmissionContext } from '../logic/missionSubmission';
 
 // COLLECTION NAMES
 const ENTRIES_COLLECTION = 'entries';
@@ -393,7 +394,16 @@ export async function createAdminReview(reviewId: string, entryId: string, revie
 export async function createSubmission(
   userId: string,
   userName: string,
-  trip: { id: string; title: string; basePoints?: number; theAsk?: string },
+  trip: {
+    id: string;
+    title: string;
+    basePoints?: number;
+    theAsk?: string;
+    deckId?: string;
+    deckName?: string;
+    deckSubtitle?: string;
+    cardType?: 'Signal' | 'Proof' | 'Crew' | 'Receipt' | 'Lore';
+  },
   entryData: {
     proofImage?: string;
     photoUrl?: string; // Canonical
@@ -404,6 +414,9 @@ export async function createSubmission(
     fieldNote?: string;
     selectedLevel?: 'Standard' | 'Advanced' | 'Certified';
     deckId?: string;
+    deckName?: string;
+    deckSubtitle?: string;
+    cardType?: 'Signal' | 'Proof' | 'Crew' | 'Receipt' | 'Lore';
     seasonId?: string;
     uploadSource?: 'camera' | 'upload';
     photoTakenAt?: string;
@@ -450,6 +463,12 @@ export async function createSubmission(
   // Default points calculation
   const selectedLevel = entryData.selectedLevel || 'Standard';
   const basePoints = trip.basePoints || 100;
+  const submissionContext = getMissionSubmissionContext(trip as any, {
+    deckId: entryData.deckId || trip.deckId || 'starter-signals',
+    deckName: entryData.deckName || trip.deckName || trip.deckId || 'Starter Signals',
+    deckSubtitle: entryData.deckSubtitle || trip.deckSubtitle,
+    cardType: entryData.cardType || trip.cardType,
+  });
   
   // Set initial document
   const canonicalEntry: Entry = {
@@ -459,8 +478,7 @@ export async function createSubmission(
     uid: userId, 
     displayName: userName,
     username: userName, // snapshot
-    challengeId: trip.id,
-    deckId: entryData.deckId || 'starter-signals',
+    ...submissionContext,
     status: 'pending_review',
     
     photoUrl: finalUrl,
@@ -520,6 +538,12 @@ export async function createSubmission(
         challengeId: trip.id,
         missionId: trip.id,
         deckId: canonicalEntry.deckId,
+        deckName: canonicalEntry.deckName,
+        deckSubtitle: canonicalEntry.deckSubtitle,
+        cardType: canonicalEntry.cardType,
+        missionTitle: trip.title,
+        challengeTitle: trip.title,
+        tripTitle: trip.title,
         status: 'pending_review',
         imageUrl: canonicalEntry.imageUrl,
         photoUrl: canonicalEntry.photoUrl,

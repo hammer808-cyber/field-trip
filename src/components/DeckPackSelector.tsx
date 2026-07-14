@@ -1,10 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { DeckPack } from '../types/deckPacks';
-import { getMissionsForPack } from '../data/deckPacks';
-import { HEATWAVE_CHALLENGE_BANK } from '../data/heatwaveChallengeBank';
-import { SOCAL_SUMMER_CHALLENGE_BANK } from '../data/socalSummerChallengeBank';
+import { getDeckCatalogSections } from '../data/deckPacks';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { Zap, ChevronDown, Check, Info, Lock, X, Waves } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -13,6 +10,7 @@ import { useApp } from '../context/AppContext';
 import { isHeatwaveDeckActive as isSummerDeckActive, isHeatwaveDeckStabilized as isSummerDeckStabilized } from '../logic/progression';
 import { StickerDecal, StickerCorner } from './StickerDecals';
 import { DeckArtwork } from './DeckArtwork';
+import { getDeckProgress } from '../services/canonicalProgress';
 
 interface DeckPackSelectorProps {
   selectedPackId: string;
@@ -31,7 +29,8 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
     isSocalSummerUnlocked,
     isOnboardingComplete,
     visibleDeckPacks,
-    getDeckAccessForPack
+    getDeckAccessForPack,
+    canonicalProgress
   } = useApp();
   
   const updateTriggerRect = () => {
@@ -83,15 +82,6 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
       return { locked, bypassed, reason };
     }
 
-    // Rule: Starter must be complete for ANY other non-summer, non-starter deck
-    if (packId !== 'starter-signals' && packId !== 'heatwave-receipts' && !isSummerDeckUnlocked) {
-      return { 
-        locked: !isAdmin, 
-        bypassed: isAdmin, 
-        reason: "Complete Starter Pack (3/3 missions) to unlock" 
-      };
-    }
-
     if (packId === 'heatwave-receipts') {
       const activeByDate = isSummerDeckActive(currentDate);
       
@@ -119,6 +109,7 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
   };
 
   const activePacks = visibleDeckPacks;
+  const catalogSections = getDeckCatalogSections(activePacks);
   const currentPack = activePacks.find(p => p.packId === selectedPackId) || activePacks[0];
 
   const renderIcon = (iconName: string, className?: string) => {
@@ -131,14 +122,20 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
 
   const menuContent = (
     <div className="space-y-3 p-1">
-      {activePacks.map((pack) => {
-        const ALL_MISSIONS = [...HEATWAVE_CHALLENGE_BANK, ...SOCAL_SUMMER_CHALLENGE_BANK];
-        const missionCount = getMissionsForPack(pack.packId, ALL_MISSIONS).length;
-        const isSelected = pack.packId === selectedPackId;
-        const { locked, bypassed, reason } = getPackLockState(pack.packId);
+      {catalogSections.map(section => (
+        <section key={section.id} className="space-y-2">
+          <h3 className="px-1 pt-2 font-mono text-[9px] font-black uppercase tracking-[0.2em] text-on-surface/45">
+            {section.label}
+          </h3>
+          <div className="space-y-2">
+            {section.packs.map((pack) => {
+              const missionCount = pack.missionIds.length;
+              const deckProgress = getDeckProgress(canonicalProgress, pack.packId);
+              const isSelected = pack.packId === selectedPackId;
+              const { locked, bypassed, reason } = getPackLockState(pack.packId);
 
-        return (
-          <button
+              return (
+                <button
             key={pack.packId}
             disabled={locked}
             onClick={() => {
@@ -202,43 +199,20 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
                 </div>
               )}
 
-              {/* Metadata pills wrapping clearly with higher contrast and 10px+ size */}
+              {/* Metadata pills */}
               <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
                 <span className="px-2.5 py-0.5 bg-on-surface/5 text-on-surface/85 border border-on-surface/20 rounded-full text-[10.5px] font-mono font-extrabold tracking-wider uppercase inline-flex items-center">
                   {missionCount} SIGNALS
                 </span>
                 
-                {/* Progress Details (Requirement: Show approved/pending on Starter and others) */}
-                {(() => {
-                  const deckMissions = getMissionsForPack(pack.packId, [...HEATWAVE_CHALLENGE_BANK, ...SOCAL_SUMMER_CHALLENGE_BANK]);
-                  const missionIds = deckMissions.map(m => (m.id || '').toLowerCase());
-                  
-                  const { entries, completedChallengeIds, submittedPendingChallengeIds } = useApp();
-                  
-                  // For Starter, we use a specific list if the packId matches
-                  const isStarterPack = pack.packId === 'starter-signals';
-                  const starterIds = ['starter-1', 'starter-2', 'starter-3'];
-                  const targetIds = isStarterPack ? starterIds : missionIds;
-                  
-                  const approvedCount = targetIds.filter(id => completedChallengeIds.has(id)).length;
-                  const pendingCount = targetIds.filter(id => submittedPendingChallengeIds.has(id)).length;
-
-                  if (approvedCount > 0 || pendingCount > 0) {
-                    return (
-                      <>
-                        <span className="px-2.5 py-0.5 bg-brand-lime/10 text-brand-lime border border-brand-lime/30 rounded-full text-[10.5px] font-mono font-extrabold tracking-wider uppercase inline-flex items-center">
-                          {approvedCount}{isStarterPack ? '/3' : ''} APPROVED
-                        </span>
-                        {pendingCount > 0 && (
-                          <span className="px-2.5 py-0.5 bg-brand-orange/10 text-brand-orange border border-brand-orange/30 rounded-full text-[10.5px] font-mono font-extrabold tracking-wider uppercase inline-flex items-center">
-                            {pendingCount} PENDING
-                          </span>
-                        )}
-                      </>
-                    );
-                  }
-                  return null;
-                })()}
+                <span className="px-2.5 py-0.5 bg-brand-lime/10 text-brand-lime border border-brand-lime/30 rounded-full text-[10.5px] font-mono font-extrabold tracking-wider uppercase inline-flex items-center">
+                  {deckProgress.approvedCount}/{deckProgress.totalCards} APPROVED
+                </span>
+                {deckProgress.pendingCount > 0 && (
+                  <span className="px-2.5 py-0.5 bg-brand-orange/10 text-brand-orange border border-brand-orange/30 rounded-full text-[10.5px] font-mono font-extrabold tracking-wider uppercase inline-flex items-center">
+                    {deckProgress.pendingCount} PENDING
+                  </span>
+                )}
 
                 {!locked && isSelected && (
                   <span className="px-2.5 py-0.5 bg-[#FAF7F0] text-brand-orange border border-brand-orange/30 rounded-full text-[10.5px] font-mono font-extrabold tracking-wider uppercase inline-flex items-center">
@@ -252,9 +226,12 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
                 )}
               </div>
             </div>
-          </button>
-        );
-      })}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      ))}
     </div>
   );
 
@@ -313,7 +290,7 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
             <div className="flex items-center gap-2">
               <Zap className="w-3 h-3 text-brand-orange" />
               <p className="text-[10px] font-mono uppercase tracking-widest font-black text-on-surface/50">
-                {getMissionsForPack(currentPack.packId, [...HEATWAVE_CHALLENGE_BANK, ...SOCAL_SUMMER_CHALLENGE_BANK]).length} SIGNALS
+                {currentPack.missionIds.length} SIGNALS
               </p>
             </div>
           </div>

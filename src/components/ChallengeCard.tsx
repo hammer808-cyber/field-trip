@@ -80,6 +80,14 @@ export function MissionCard({
 
   const currentLane = challenge.lane || 'core';
   const baseXP = challenge.baseXP || challenge.basePoints || 100;
+  const cardType = challenge.cardType || (
+    challenge.category === 'Crew Challenge' || challenge.type === 'Crew Challenge'
+      ? 'Crew'
+      : challenge.category === 'Evidence Challenge' || challenge.type === 'Evidence Challenge'
+        ? 'Proof'
+        : 'Signal'
+  );
+  const deckName = challenge.deckName || challenge.deckId || 'Fieldtrip';
 
   const evidenceRequirements = [
     { key: 'photo', label: getFrankieEvidenceLabel(challenge, 'photo', fPref), icon: Camera, required: (challenge.proofType || challenge.requiredProof || []).includes('photo') },
@@ -117,11 +125,12 @@ export function MissionCard({
             <div className="space-y-1.5 flex-1 min-w-0">
               <div className="flex items-center gap-1.5 mb-1 text-on-surface/50">
                 <Lock className="w-3.5 h-3.5 text-brand-orange shrink-0 animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em]">{fc(challenge.category || challenge.type, (challenge.category || challenge.type).split(' ')[0].toUpperCase())}</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.2em]">{cardType}</span>
               </div>
               <h3 className="font-display text-2xl leading-[1.0] uppercase tracking-tighter font-black italic text-on-surface/40 break-words text-wrap">
                 {getFrankieTitle(challenge, fPref)}
               </h3>
+              <p className="font-mono text-[8px] font-black uppercase tracking-wider text-on-surface/35">{deckName}</p>
             </div>
             <div className="bg-on-surface/10 text-on-surface/30 px-3 py-1 text-sm font-black italic border-2 border-on-surface/20 shrink-0 rotate-[1deg]">
               +{baseXP}{fc('XP', ' PTS')}
@@ -256,12 +265,15 @@ export function MissionCard({
              <div className="flex items-center gap-1.5 mb-0.5">
                 <span className="text-lg select-none">{colorTheme.emoji}</span>
                 <span className="text-[9px] font-mono font-black uppercase tracking-[0.2em] opacity-40 italic">
-                  {fc(challenge.category || challenge.type, (challenge.category || challenge.type || 'SIGNAL').toUpperCase())}
+                  {cardType}
                 </span>
              </div>
              <h3 className="font-display text-2xl sm:text-3xl leading-[0.95] uppercase tracking-tighter font-black italic text-on-surface">
                 {getFrankieTitle(challenge, fPref)}
              </h3>
+             <p className="font-mono text-[8px] font-black uppercase tracking-wider text-on-surface/40">
+               {deckName}{challenge.deckSubtitle ? ` // ${challenge.deckSubtitle}` : ''}
+             </p>
           </div>
         </div>
 

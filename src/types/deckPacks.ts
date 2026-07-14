@@ -10,6 +10,13 @@ export type DeckVisibility =
   | 'planned'
   | 'hidden';
 
+export type DeckCatalogSectionId =
+  | 'featured-seasonal'
+  | 'always-on'
+  | 'travel'
+  | 'local-fieldtrips'
+  | 'starter-training';
+
 export interface DeckPack {
   packId: string;
   packName: string;
@@ -51,6 +58,7 @@ export interface DeckPack {
   evidenceTypesIncluded?: ('photo' | 'note' | 'location')[];
   tags?: string[];
   isFutureDrop?: boolean;
+  catalogSection?: DeckCatalogSectionId;
 
   // Seasonal/Canonical fields
   id?: string;
@@ -62,6 +70,7 @@ export interface DeckPack {
   isEvergreen?: boolean;
   
   deckId?: string;
+  deckName?: string;
   deckSubtitle?: string;
   status?: string;
   deckType?: string;

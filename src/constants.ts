@@ -165,8 +165,10 @@ export const SABOTAGE_CARDS: SabotageCard[] = [
 import { HEATWAVE_CHALLENGE_BANK } from './data/heatwaveChallengeBank';
 import { SOCAL_SUMMER_CHALLENGE_BANK } from './data/socalSummerChallengeBank';
 import { STARTER_MISSION_BANK } from './data/starterMissionBank';
+import { JET_SETTER_CHALLENGE_BANK } from './data/jetSetterChallengeBank';
+import { ERRAND_DECK_CHALLENGE_BANK } from './data/errandDeckChallengeBank';
 
-export const MOCK_TRIPS: TripCard[] = ([...STARTER_MISSION_BANK, ...HEATWAVE_CHALLENGE_BANK, ...SOCAL_SUMMER_CHALLENGE_BANK] as any[]).filter(t => 
+export const MOCK_TRIPS: TripCard[] = ([...STARTER_MISSION_BANK, ...HEATWAVE_CHALLENGE_BANK, ...SOCAL_SUMMER_CHALLENGE_BANK, ...JET_SETTER_CHALLENGE_BANK, ...ERRAND_DECK_CHALLENGE_BANK] as any[]).filter(t =>
   t.status === 'published' || t.status === 'available' || t.status === 'approved' || t.status === 'active'
 );
 

@@ -34,9 +34,7 @@ import {
 } from '../services/adminService';
 import { archiveSeason, archiveDeck, auditAndRepairUserCounts, softResetUser } from '../services/adminOperationsService';
 
-import { getActiveDeckPacks, getMissionsForPack } from '../data/deckPacks';
-import { HEATWAVE_CHALLENGE_BANK } from '../data/heatwaveChallengeBank';
-import { SOCAL_SUMMER_CHALLENGE_BANK } from '../data/socalSummerChallengeBank';
+import { getActiveDeckPacks } from '../data/deckPacks';
 
 export default function AdminDevTools() {
   const navigate = useNavigate();
@@ -48,7 +46,8 @@ export default function AdminDevTools() {
     activeSeason,
     gameConfig,
     isHeatwaveDeckUnlocked,
-    isSocalSummerUnlocked
+    isSocalSummerUnlocked,
+    canonicalProgress
   } = useApp();
   const [initLoading, setInitLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
@@ -452,10 +451,11 @@ export default function AdminDevTools() {
           </h3>
           <div className="border border-white/5 bg-white/[0.02] divide-y divide-white/5">
             {getActiveDeckPacks().map(pack => {
-              const allMissions = [...HEATWAVE_CHALLENGE_BANK, ...SOCAL_SUMMER_CHALLENGE_BANK];
-              const missionCount = getMissionsForPack(pack.packId, allMissions).length;
-              const isLocked = pack.packId === 'heatwave-receipts' ? !isHeatwaveDeckUnlocked : 
-                               pack.packId === 'socal-summer' ? !isSocalSummerUnlocked : false;
+              const missionCount = pack.missionIds.length;
+              const starterGateLocked = (pack.requiredStarterApprovals || 0) > canonicalProgress.starter.starterApprovedCount;
+              const isLocked = starterGateLocked
+                || (pack.packId === 'heatwave-receipts' && !isHeatwaveDeckUnlocked)
+                || (pack.packId === 'socal-summer' && !isSocalSummerUnlocked);
               
               return (
                 <div key={pack.packId} className="p-4 flex items-center justify-between gap-4">

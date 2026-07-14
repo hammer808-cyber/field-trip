@@ -97,6 +97,13 @@ export function MissionDecodedCard({
 
   const diff = difficultyConfig[mission.difficulty as keyof typeof difficultyConfig] || difficultyConfig.easy;
   const isLaunchMission = mission.id === LAUNCH_MISSION_ID;
+  const cardType = mission.cardType || (
+    mission.category === 'Crew Challenge' || mission.type === 'Crew Challenge'
+      ? 'Crew'
+      : mission.category === 'Evidence Challenge' || mission.type === 'Evidence Challenge'
+        ? 'Proof'
+        : 'Signal'
+  );
 
   const isApproved = false; // Placeholder for logic
   const isSubmitted = false; // Placeholder for logic
@@ -168,7 +175,7 @@ export function MissionDecodedCard({
           <div className="relative z-10">
              <div className="flex flex-wrap gap-1.5 mb-2">
                <div className="bg-[#B7FF00] text-on-surface text-[8px] font-black px-1.5 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase italic rotate-[-1deg]">
-                 {mission.category || 'OP'}
+                 {cardType}
                </div>
                <div className="bg-white text-on-surface text-[8px] font-black px-1.5 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase italic rotate-[1deg]">
                  {mission.deckName || 'FIELD'}
@@ -178,6 +185,11 @@ export function MissionDecodedCard({
              <h3 id="tour-card-title" className="text-white font-display text-3xl sm:text-4xl font-black uppercase tracking-tighter italic leading-[0.8] drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
                {getFrankieTitle(mission, fPref)}
              </h3>
+             {mission.deckSubtitle && (
+               <p className="mt-2 max-w-[90%] font-mono text-[8px] font-bold text-white/65 leading-tight">
+                 {mission.deckSubtitle}
+               </p>
+             )}
           </div>
         </div>
 

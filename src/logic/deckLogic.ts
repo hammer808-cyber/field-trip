@@ -7,6 +7,7 @@ const isDevEnv = Boolean(import.meta.env?.DEV);
 export type DrawPoolReason = 
   | 'onboarding_active' 
   | 'onboarding_complete' 
+  | 'starter_locked'
   | 'season_locked' 
   | 'pack_exhausted' 
   | 'unpublished_cards_blocked'
@@ -131,6 +132,12 @@ export function getEligibleDrawPool({
     if (isSocalPack && !isSocalSummerUnlocked && !isAdmin) {
       if (isDevEnv) console.log('[deckLogic] SoCal Summer pack locked.');
       return { eligibleMissions: [], reason: 'season_locked' }; 
+    }
+
+    const requiresStarterComplete = activePack.requiredUnlock === 'starter-complete' || activePack.unlockRule === 'starter-complete';
+    if (requiresStarterComplete && !isOnboardingComplete && !isAdmin) {
+      if (isDevEnv) console.log(`[deckLogic] ${activePack.packId} requires approved Starter completion.`);
+      return { eligibleMissions: [], reason: 'starter_locked' };
     }
 
     packMissionIdsNormalized = new Set(activePack.missionIds.map(id => id.toString().toLowerCase().trim()));

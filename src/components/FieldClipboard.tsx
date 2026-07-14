@@ -23,6 +23,7 @@ import { EvidenceMeter } from './EvidenceMeter';
 import { EvidenceDetector, DetectorStatus } from './EvidenceDetector';
 import { getMissionImage } from '../utils/missionImages';
 import { ActionButton } from './UIUtilities';
+import { inferMissionCardType } from '../logic/missionSubmission';
 
 interface FieldClipboardProps {
   mission: TripCardType;
@@ -67,6 +68,8 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showBrief, setShowBrief] = useState(false);
   const imageUrl = getMissionImage(mission.id, mission.category || mission.type, mission.image);
+  const cardType = inferMissionCardType(mission);
+  const fieldNotePrompt = mission.fieldNotePrompt || 'Describe what you found and why it belongs in the field log.';
 
   // Catalyst details
   const showCatalystSticker = catalyst && catalyst.isActive;
@@ -135,7 +138,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
           <div className="flex justify-between items-start mb-2 relative z-20 w-full">
             <div className="flex flex-wrap gap-1.5 max-w-[70%]">
               <div className="bg-[#2EE7F0] text-on-surface text-[8px] font-black px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase italic leading-none whitespace-nowrap">
-                {mission.category || 'ONBOARDING'}
+                {cardType}
               </div>
               <div className="bg-[#B7FF00] text-on-surface text-[8px] font-black px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase italic leading-none rotate-[-1deg] whitespace-nowrap">
                 {mission.deckName || 'ADVENTURE'}
@@ -154,6 +157,11 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
             <h1 className="font-display text-2xl sm:text-3xl font-black uppercase italic text-white tracking-tighter leading-[0.85] drop-shadow-2xl">
               {mission.title}
             </h1>
+            {mission.deckSubtitle && (
+              <p className="mt-1 line-clamp-2 font-mono text-[7px] font-bold leading-tight text-white/65">
+                {mission.deckSubtitle}
+              </p>
+            )}
           </div>
         </div>
 
@@ -364,13 +372,13 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               
               <div className="space-y-4">
                 <p className="font-serif italic text-lg leading-snug text-on-surface/60">
-                   Describe what you found. Trevor needs detail to verify the signal.
+                   {fieldNotePrompt}
                 </p>
                 <textarea 
                   autoFocus
                   className="w-full bg-[#FAF9F6] border-4 border-on-surface p-6 rounded-xl font-serif text-xl italic shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] focus:ring-4 focus:ring-brand-cyan/20 outline-none transition-all"
                   rows={4}
-                  placeholder="Min 10 characters..."
+                  placeholder={`${fieldNotePrompt} (Min 10 characters)`}
                   value={data.note}
                   onChange={(e) => setData(prev => ({ ...prev, note: e.target.value }))}
                 />
@@ -461,10 +469,13 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                   {data.note.length} / 10 Min
                 </div>
               </div>
+              <p className="font-serif text-sm italic leading-snug text-on-surface/60">
+                {fieldNotePrompt}
+              </p>
               
               <textarea 
                 className="w-full bg-[#FAF9F6] border-2 border-on-surface/10 p-4 rounded-xl font-serif text-base italic outline-none focus:border-brand-orange transition-all h-24"
-                placeholder="Describe your findings..."
+                placeholder={fieldNotePrompt}
                 value={data.note}
                 onChange={(e) => setData(prev => ({ ...prev, note: e.target.value }))}
               />

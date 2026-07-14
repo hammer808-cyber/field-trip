@@ -1,6 +1,18 @@
 import { HEATWAVE_CHALLENGE_BANK } from '../data/heatwaveChallengeBank';
+import { SOCAL_SUMMER_CHALLENGE_BANK } from '../data/socalSummerChallengeBank';
+import { STARTER_MISSION_BANK } from '../data/starterMissionBank';
+import { ERRAND_DECK_CHALLENGE_BANK } from '../data/errandDeckChallengeBank';
+import { JET_SETTER_CHALLENGE_BANK } from '../data/jetSetterChallengeBank';
 import { LAUNCH_MISSION, LAUNCH_MISSION_ID } from '../data/specialMissions';
 import { TripCard } from '../types/challenges';
+
+const MISSION_BANK: Partial<TripCard>[] = [
+  ...STARTER_MISSION_BANK,
+  ...HEATWAVE_CHALLENGE_BANK,
+  ...SOCAL_SUMMER_CHALLENGE_BANK,
+  ...ERRAND_DECK_CHALLENGE_BANK,
+  ...JET_SETTER_CHALLENGE_BANK,
+];
 
 /**
  * Resolves a mission object by its ID from all available sources.
@@ -17,11 +29,9 @@ export function resolveMissionById(id?: string | null): TripCard | null {
     return LAUNCH_MISSION;
   }
 
-  // 2. Global Challenge Bank
-  const foundInBank = HEATWAVE_CHALLENGE_BANK.find(t => t.id && t.id.toLowerCase() === rawId);
+  // 2. Canonical local mission bank used by direct capture/briefing routes.
+  const foundInBank = MISSION_BANK.find(t => t.id && t.id.toLowerCase() === rawId);
   if (foundInBank) return foundInBank as any;
-
-  // 3. Optional: Search in other banks if they exist
   
   return null;
 }

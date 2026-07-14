@@ -130,8 +130,11 @@ export function EntryCard({ entry, className }: EntryCardProps) {
           <div className="space-y-1 to-left">
             <p className="text-[9px] font-mono opacity-40 font-black tracking-[0.2em] italic uppercase leading-none">{fc(`SOURCE // ${entry.userName?.toUpperCase() || 'ANON_AGENT'}`, `By ${entry.userName || 'Agent'}`)}</p>
             <h4 className="font-display text-3xl uppercase tracking-tighter text-on-surface font-black italic leading-[0.8] mt-1">
-              {entry.tripTitle || entry.challengeTitle || 'Retired Mission'}
+              {entry.tripTitle || entry.challengeTitle || entry.missionTitle || 'Retired Mission'}
             </h4>
+            <p className="pt-1 font-mono text-[8px] font-black uppercase tracking-wider text-on-surface/45">
+              {entry.deckName || entry.deckId || 'Fieldtrip'} · {entry.cardType || 'Signal'}
+            </p>
           </div>
         </div>
         <FieldBadge 

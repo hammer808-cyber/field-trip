@@ -790,6 +790,20 @@ function SwipeView({ entry, onAction, busy }: any) {
                 <p className="text-[10px] font-mono font-black uppercase tracking-widest text-on-surface/40">
                    Mission: <span className="text-on-surface">{entry.tripTitle || entry.missionTitle || 'Undefined'}</span>
                 </p>
+                <div className="flex flex-wrap gap-2 pt-1 font-mono text-[9px] font-black uppercase tracking-wider">
+                  <span className="border border-on-surface/20 bg-white px-2 py-1 text-on-surface/65">
+                    {entry.deckName || entry.deckId || 'Unknown deck'}
+                  </span>
+                  <span className="border border-on-surface/20 bg-white px-2 py-1 text-on-surface/65">
+                    ID: {entry.deckId || 'unknown'}
+                  </span>
+                  <span className="border border-brand-cyan/40 bg-brand-cyan/10 px-2 py-1 text-on-surface">
+                    {entry.cardType || 'Signal'}
+                  </span>
+                  <span className="border border-brand-orange/30 bg-brand-orange/10 px-2 py-1 text-brand-orange">
+                    {entry.status || entry.reviewStatus || 'pending_review'}
+                  </span>
+                </div>
              </div>
 
              <div className="bg-white border-2 border-on-surface p-6 rounded-2xl shadow-[6px_6px_0px_black]">
@@ -898,6 +912,9 @@ function QueueView({
                    </td>
 	                   <td className="py-4 px-6 truncate max-w-[200px]">
 	                     {e.tripTitle || e.missionTitle || 'Undefined'}
+                       <div className="mt-1 text-[8px] text-on-surface/40">
+                         {e.deckName || e.deckId || 'Unknown deck'} · {e.cardType || 'Signal'} · {e.status || e.reviewStatus || 'pending_review'}
+                       </div>
                        {!entryResolved && (
                          <div className="mt-1 text-[9px] text-red-600 normal-case">
                            Missing source entry: {e.attemptedEntryId || 'none'}
