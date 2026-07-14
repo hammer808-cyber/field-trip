@@ -22,9 +22,9 @@ import { cn } from "../lib/utils";
 import { Card } from "../components/UI";
 import { AvatarPreview } from "../components/AvatarPreview";
 import { DEFAULT_AVATAR } from "../constants/avatarAssets";
-import { FIELD_TYPES, Entry, DEV_APP_CONFIG } from "../constants";
+import { FIELD_TYPES, Entry } from "../constants";
 import { getDisplayLabel } from "../utils/labelUtils";
-import { getLeaderboardPage, UserProfile } from "../services/userService";
+import { getWeeklyLeaderboardPage, UserProfile } from "../services/userService";
 import { subscribeToRecentScoreEvents, subscribeToPublicProofs } from "../services/activityService";
 import { createTribunalCase } from "../services/tribunalService";
 import { getWeeklySummary } from "../services/summaryService";
@@ -52,6 +52,7 @@ import { DiamondStar, Sparkle, SunFlare } from "../components/SkinAssets";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import * as LucideIcons from "lucide-react";
 import { BADGE_DEFINITIONS, UserBadgeProgress } from "../types/badges";
+import { UNCLASSIFIED_LEVEL_TITLE, getExplorerTypeLevelTitle, getLevelProgress } from '../logic/playerLevel';
 import { MARKER_STICKERS } from "../data/markers";
 import { TabbedSection } from "../components/TabbedSection";
 import { FieldPageHero } from "../components/FieldPageHero";
@@ -936,55 +937,10 @@ export default function BigBoardPage() {
     setActiveTab(tabId);
   };
 
-  const ranksData = DEV_APP_CONFIG.levelThresholds.map((t) => {
-    const labels = ["New Explorer", "Star Scout", "Adventure Master", "Fieldtrip Legend"];
-    const descriptions = [
-      "A fresh face ready to find some stickers and explore the neighborhood.",
-      "Experienced explorer with a growing pile of weird little discoveries.",
-      "A true pro who knows every secret spot and has logged countless findings.",
-      "The ultimate collector of stories and stickers. A true legend of the field.",
-    ];
-    const rewards = [
-      "Unlocks base tools & entrance clearance",
-      "Unlocks advanced photo filters & custom stickers",
-      "Unlocks Sabotage Jammer & exclusive markers",
-      "Unlocks Golden Crown frame & ultimate prestige",
-    ];
-    const icons = [
-      LucideIcons.Shield,
-      LucideIcons.BarChart3,
-      LucideIcons.Trophy,
-      LucideIcons.Crown,
-    ];
-
-    return {
-      level: t.level,
-      label: labels[t.level - 1],
-      xpRequired: t.minXP,
-      description: descriptions[t.level - 1],
-      reward: rewards[t.level - 1],
-      unlocked: (xp || 0) >= t.minXP,
-      icon: icons[t.level - 1],
-    };
-  });
-
-  const currentRank =
-    ranksData.filter((r) => r.unlocked).slice(-1)[0] || ranksData[0];
-  const nextRank =
-    ranksData.find((r) => r.level === currentRank.level + 1) || null;
-
-  const nextRankXpNeeded = nextRank ? nextRank.xpRequired : 1000;
-  const currentRankXpLimit = currentRank.xpRequired;
-  const progressToNextRankPercent = nextRank
-    ? Math.min(
-        100,
-        Math.round(
-          ((xp - currentRankXpLimit) /
-            (nextRankXpNeeded - currentRankXpLimit)) *
-            100,
-        ),
-      )
-    : 100;
+  const lifetimeLevelProgress = getLevelProgress(xp || 0);
+  const nextRank = lifetimeLevelProgress.nextLevel;
+  const nextRankXpNeeded = nextRank.minXp;
+  const progressToNextRankPercent = lifetimeLevelProgress.progressPercent;
 
   const userBadgeList = BADGE_DEFINITIONS.map((badge) => {
     const prog = badgeProgress?.find((p) => p.badgeId === badge.id) || {
@@ -1175,7 +1131,7 @@ export default function BigBoardPage() {
     async function loadInit() {
       setLoadingBatch(true);
       try {
-        const result = await getLeaderboardPage(15);
+        const result = await getWeeklyLeaderboardPage(15);
         if (result) {
           setFullBoard(result.docs);
           setLastVisible(result.lastVisible);
@@ -1223,7 +1179,7 @@ export default function BigBoardPage() {
   const loadMore = async () => {
     if (loadingBatch || !hasMore) return;
     setLoadingBatch(true);
-    const result = await getLeaderboardPage(15, lastVisible);
+    const result = await getWeeklyLeaderboardPage(15, lastVisible);
     if (result) {
       setFullBoard((prev) => [...prev, ...result.docs]);
       setLastVisible(result.lastVisible);
@@ -1240,32 +1196,50 @@ export default function BigBoardPage() {
     : null;
 
   const playerRankings = useMemo(() => {
+    const profilesById = new Map(fullBoard.map(userProfile => [userProfile.id, userProfile]));
     const rawRanks = weeklySummary
       ? Object.entries(weeklySummary.playerStats)
-          .map(([id, stats]: [string, any]) => ({
-            id,
-            name: stats.userName,
-            xp: stats.xp !== undefined ? stats.xp : stats.points,
-            fieldTypeName: stats.fieldTypeName,
-            avatar: stats.userAvatar,
-          }))
-          .sort((a, b) => b.xp - a.xp)
-      : fullBoard.map(u => ({ ...u, xp: u.xp !== undefined ? u.xp : (u as any).points }));
+          .map(([id, stats]: [string, any]) => {
+            const userProfile = profilesById.get(id);
+            return {
+              id,
+              name: stats.userName,
+              weeklyXp: Number(stats.xp !== undefined ? stats.xp : stats.points || 0),
+              lifetimeXp: Number(userProfile?.xp ?? userProfile?.points ?? 0),
+              fieldType: userProfile?.fieldType || null,
+              fieldTypeName: stats.fieldTypeName || userProfile?.fieldTypeName,
+              fieldClassificationComplete: userProfile?.fieldClassificationComplete === true,
+              onboardingCompleted: userProfile?.onboardingCompleted === true,
+              avatar: stats.userAvatar || userProfile?.avatar,
+              progressionRewardIds: userProfile?.progressionRewardIds || [],
+            };
+          })
+          .sort((a, b) => b.weeklyXp - a.weeklyXp)
+      : fullBoard.map(userProfile => ({
+          ...userProfile,
+          weeklyXp: Number(userProfile.weeklyXp || 0),
+          lifetimeXp: Number(userProfile.xp ?? userProfile.points ?? 0),
+        }));
 
     const updated = rawRanks.map((u: any) => {
       if (user && u.id === user.uid && profile) {
         return {
           ...u,
           name: profile.name || u.name,
-          xp: profile.xp !== undefined ? profile.xp : (profile.points !== undefined ? profile.points : u.xp),
+          weeklyXp: weeklySummary ? u.weeklyXp : Number(profile.weeklyXp || 0),
+          lifetimeXp: Number(profile.xp ?? profile.points ?? u.lifetimeXp ?? 0),
+          fieldType: profile.fieldType,
           fieldTypeName: profile.fieldTypeName || u.fieldTypeName,
+          fieldClassificationComplete: profile.fieldClassificationComplete,
+          onboardingCompleted: profile.onboardingCompleted,
+          progressionRewardIds: profile.progressionRewardIds || [],
           avatar: profile.avatar || u.avatar,
         };
       }
       return u;
     });
 
-    return [...updated].sort((a: any, b: any) => b.xp - a.xp);
+    return [...updated].sort((a: any, b: any) => b.weeklyXp - a.weeklyXp);
   }, [weeklySummary, fullBoard, user, profile]);
 
   const lastUserScoreEvent = recentActivity.find(
@@ -1476,6 +1450,11 @@ export default function BigBoardPage() {
                       {playerRankings.map((player: any, idx: number) => {
                         const isMe = player.id === user?.uid;
                         const rank = idx + 1;
+                        const playerLevel = getLevelProgress(player.lifetimeXp || 0);
+                        const playerTitle = player.onboardingCompleted && player.fieldClassificationComplete
+                          ? getExplorerTypeLevelTitle(playerLevel.level, player.fieldType)
+                          : UNCLASSIFIED_LEVEL_TITLE;
+                        const hasMilestoneBorder = (player.progressionRewardIds || []).includes('level-4-big-board-border');
                         return (
                           <div 
                             key={player.id}
@@ -1483,7 +1462,8 @@ export default function BigBoardPage() {
                               "flex items-center justify-between p-3 sm:p-5 border-[3px] border-on-surface transition-all group overflow-hidden relative cursor-default",
                               isMe 
                                 ? "bg-brand-yellow shadow-[6px_6px_0px_black] -translate-x-1 -translate-y-1" 
-                                : "bg-[#FCFBF8] shadow-[2px_2px_0px_rgba(0,0,0,0.05)]"
+                                : "bg-[#FCFBF8] shadow-[2px_2px_0px_rgba(0,0,0,0.05)]",
+                              hasMilestoneBorder && "ring-2 ring-brand-orange/30 ring-offset-2"
                             )}
                           >
                             <div className="flex items-center gap-3 sm:gap-6 min-w-0">
@@ -1503,22 +1483,28 @@ export default function BigBoardPage() {
                                   {player.name}
                                   {isMe && <span className="ml-1 text-[8px] sm:text-xs font-mono text-brand-orange uppercase">(YOU)</span>}
                                 </h4>
-                                <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5">
-                                  <span className="text-[8px] sm:text-[10px] font-mono font-black uppercase text-on-surface/30 truncate">
-                                    {player.fieldTypeName || 'EXPLORER'}
+                                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
+                                  <span className="border border-on-surface bg-white px-1.5 py-0.5 text-[7px] sm:text-[9px] font-mono font-black uppercase text-on-surface">
+                                    Level {playerLevel.level}
+                                  </span>
+                                  <span className="max-w-full truncate text-[8px] sm:text-[10px] font-mono font-black uppercase text-on-surface/60">
+                                    {playerTitle}
                                   </span>
                                   {rank === 1 && <LucideIcons.Crown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-brand-orange" />}
                                 </div>
+                                <p className="mt-1 truncate text-[7px] font-mono font-bold uppercase tracking-wide text-on-surface/30 sm:text-[9px]">
+                                  {player.fieldTypeName || 'Explorer'}
+                                </p>
                               </div>
                             </div>
 
                             <div className="flex flex-col items-end gap-1 sm:gap-2 shrink-0 ml-2">
                               <div className="bg-on-surface text-white px-2 py-1 sm:px-5 sm:py-2 border-2 border-on-surface shadow-[2px_2px_0px_var(--color-brand-cyan)] sm:shadow-[4px_4px_0px_var(--color-brand-cyan)] font-display text-sm sm:text-2xl font-black italic">
-                                {player.xp} XP
+                                {player.weeklyXp} XP
                               </div>
                               <div className="flex items-center gap-1 px-1 opacity-40">
                                  <LucideIcons.TrendingUp className="w-2 h-2 sm:w-3 sm:h-3" />
-                                 <span className="text-[7px] sm:text-[9px] font-mono font-black uppercase">STABLE</span>
+                                 <span className="text-[7px] sm:text-[9px] font-mono font-black uppercase">Weekly Rank #{rank}</span>
                               </div>
                             </div>
                           </div>
@@ -1689,7 +1675,7 @@ export default function BigBoardPage() {
                      <ProgressStickerCard
                        title="Field Momentum"
                        value={`${xp || 0} / ${nextRankXpNeeded} XP`}
-                       subtext={`Goal: ${nextRank?.label || 'Max Level Reached'}`}
+                       subtext={`Goal: ${nextRank.title}`}
                        percent={progressToNextRankPercent}
                      />
                      

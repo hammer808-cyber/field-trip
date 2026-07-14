@@ -77,7 +77,7 @@ import { hasEarnedSticker } from '../services/stickerService';
 import { castVote, getVotesForUser } from '../services/voteService';
 import { StarterCompletionState } from '../utils/starterHelper';
 
-import { evaluateEntryForBadges, subscribeToUserBadgeProgress, checkRankBadges } from '../services/badgeService';
+import { evaluateEntryForBadges, subscribeToUserBadgeProgress } from '../services/badgeService';
 import { BADGE_DEFINITIONS, UserBadgeProgress } from '../types/badges';
 
 import { evaluateEntryForArtifacts, subscribeToCrewArtifacts } from '../services/artifactService';
@@ -97,7 +97,7 @@ import {
   getUserStats,
   secureUseReroll
 } from '../services/gameService';
-import { awardPoints } from '../services/scoringService';
+import { redeemComebackCard } from '../services/scoringService';
 import { 
   subscribeToAppConfig, 
   subscribeToActiveSeason 
@@ -1380,15 +1380,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [user]);
 
-  // Handle Rank Badges
-  useEffect(() => {
-    if (!user || !profile) return;
-    const currentXP = profile.xp || (profile as any).points || 0;
-    checkRankBadges(user.uid, currentXP, currentXP - 1, profile.previousRank).catch(err => {
-       console.warn("[AppContext] checkRankBadges background task failed:", err);
-    });
-  }, [profile?.xp, profile?.points]);
-
   // Sync / Detect New Badges for Rewards
   useEffect(() => {
     if (!profile || !badgeProgress.length) return;
@@ -1454,9 +1445,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     prevProgress.current = badgeProgress;
   }, [badgeProgress]);
 
-  // Detect Rank Ups (Major Reveal)
-  const prevPointsRef = useRef<number>(0);
-  
   // Detect Special Mission Approval
   useEffect(() => {
     if (!user || !profile || !approvedCompletedChallengeIds.has(LAUNCH_MISSION_ID.toLowerCase())) return;
@@ -1469,34 +1457,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }).catch(err => console.warn("[AppContext] Failed to update special missions:", err));
     }
   }, [approvedCompletedChallengeIds, profile?.completedSpecialMissionIds, user?.uid]);
-
-  useEffect(() => {
-    if (points === 0) return;
-    if (prevPointsRef.current === 0) {
-      prevPointsRef.current = points;
-      return;
-    }
-
-    if (points > prevPointsRef.current) {
-      // Trigger major reveal every 500 points as "Milestones"
-      // Normal points are handled by evidence submission MEDIUM feedback
-      const prevFiveHundred = Math.floor(prevPointsRef.current / 500);
-      const currFiveHundred = Math.floor(points / 500);
-      
-      if (currFiveHundred > prevFiveHundred) {
-        queueReward({
-          type: 'milestone',
-          intensity: RewardIntensity.MAJOR_REVEAL,
-          title: `MILESTONE: ${currFiveHundred * 500} XP`,
-          description: "Your accumulated data has reached a critical mass. The Bureau recognizes your dedication.",
-          rewardText: "CLEARANCE_LEVEL_INCREASED",
-          iconName: 'ShieldCheck'
-        });
-      }
-    }
-
-    prevPointsRef.current = points;
-  }, [points]);
 
   const [starterRewardShown, setStarterRewardShown] = useState(() => (
     typeof window !== 'undefined' && localStorage.getItem(STARTER_COMPLETION_REWARD_ACK_KEY) === 'true'
@@ -1879,10 +1839,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const useComebackCard = async () => {
     if (!user || !profile || !profile.comebackCardActive) return;
     try {
-      await awardPoints(user.uid, profile.name, 25, 'comeback_card', {
-        description: "Comeback Card Redeemed"
-      });
-      await handleUpdateProfile(user.uid, { comebackCardActive: false });
+      await redeemComebackCard();
     } catch (err) {
       console.error("Failed to use comeback card:", err);
     }

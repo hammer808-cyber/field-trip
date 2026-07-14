@@ -22,7 +22,9 @@
     "test:skins": "tsx --test src/__tests__/skinArchitecture.test.ts",
     "test:physical-memory": "tsx --test src/__tests__/physicalMemorySystem.test.ts src/__tests__/proofDistribution.test.ts src/__tests__/communityFeed.test.ts",
     "test:physical-memory-rules": "firebase emulators:exec --only firestore \"tsx --test src/__tests__/physicalMemoryRules.integration.test.ts\"",
-    "test:skin-rules": "firebase emulators:exec --only firestore \"tsx --test src/__tests__/skinRules.integration.test.ts\""
+    "test:skin-rules": "firebase emulators:exec --only firestore \"tsx --test src/__tests__/skinRules.integration.test.ts\"",
+    "test:player-levels": "tsx --test src/__tests__/playerLevel.test.ts src/__tests__/playerProgressionAward.test.ts",
+    "test:player-level-rules": "firebase emulators:exec --project field-trip-player-progression-rules --only firestore \"tsx --test --test-force-exit src/__tests__/playerProgressionRules.integration.test.ts\""
   },
   "dependencies": {
     "@google/genai": "^2.3.0",

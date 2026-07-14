@@ -29,7 +29,7 @@ import { Card, FieldBadge, FieldTape, FieldStamp, FieldCard, FieldCTA } from '..
 import { AvatarPreview } from '../components/AvatarPreview';
 import { ActionButton, DisplayPanel } from '../components/UIUtilities';
 import { DEFAULT_AVATAR } from '../constants/avatarAssets';
-import { FIELD_TYPES, DEV_APP_CONFIG } from '../constants';
+import { FIELD_TYPES } from '../constants';
 import { cn } from '../lib/utils';
 import { StickerDecal } from '../components/StickerDecals';
 import { getRewardsByType } from '../data/rewardRegistry';
@@ -37,6 +37,7 @@ import { getDeckPackById, getDefaultDeckPack } from '../data/deckPacks';
 import { getDeckCoverImage, BASE_DECK_PLACEHOLDER } from '../lib/deckUtils';
 import { IOSHomeScreenPrompt } from '../components/profile/IOSHomeScreenPrompt';
 import { getDisplayLabel } from '../utils/labelUtils';
+import { getLevelFromXp } from '../logic/playerLevel';
 
 import { getSummerCountdown } from '../utils/seasonCountdown';
 import { FieldPageHero } from '../components/FieldPageHero';
@@ -84,15 +85,9 @@ export default function Basecamp() {
     }
   }, [canonicalProgress, profile?.id, user?.uid]);
 
-  const thresholds = DEV_APP_CONFIG.levelThresholds;
   const canonicalXp = getUserXp(canonicalProgress);
   const starterProgress = getStarterProgress(canonicalProgress);
-  const currentLevelData = [...thresholds].reverse().find(t => canonicalXp >= t.minXP) || thresholds[0];
-  const nextLevelData = thresholds.find(t => t.level === currentLevelData.level + 1);
-  const xpInLevel = nextLevelData ? (canonicalXp - currentLevelData.minXP) : (canonicalXp - currentLevelData.minXP);
-  const nextLevelXP = nextLevelData ? (nextLevelData.minXP - currentLevelData.minXP) : 500;
-  const xpProgress = nextLevelData ? (xpInLevel / nextLevelXP) * 100 : 100;
-  const level = currentLevelData.level;
+  const level = getLevelFromXp(canonicalXp);
   const isStarterComplete = starterState?.status === 'COMPLETE' || isOnboardingComplete;
   const starterApprovedCount = Math.min(
     starterProgress.starterApprovedCount,

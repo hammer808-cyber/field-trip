@@ -14,6 +14,10 @@ export interface UserProfile {
   weeklyXp: number;
   seasonXp: number;
   level: number;
+  levelTitle?: string;
+  progressionRewardIds?: string[];
+  weeklyRank?: number;
+  seasonRank?: number;
   
   // Onboarding & Flags
   onboardingCompleted: boolean;

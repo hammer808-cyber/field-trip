@@ -23,6 +23,7 @@ import { normalizeFieldType } from '../constants/fieldTypes';
 import { AvatarData } from '../types/avatar';
 import type { ProofStickerAssignments, StickerPlacement } from '../types/stickers';
 import { DEFAULT_AVATAR } from '../constants/avatarAssets';
+import { getLevelFromXp, getLevelTitle } from '../logic/playerLevel';
 
 export interface UserProfile {
   id: string;
@@ -75,6 +76,9 @@ export interface UserProfile {
   xp: number;
   weeklyXp?: number;
   seasonXp?: number;
+  level?: number;
+  levelTitle?: string;
+  progressionRewardIds?: string[];
   points?: number; // legacy
   soloTripsCount: number;
   approvedEntriesCount?: number;
@@ -90,6 +94,8 @@ export interface UserProfile {
   crewRole?: string | null;
   seenBadges?: string[];
   previousRank?: number;
+  weeklyRank?: number;
+  seasonRank?: number;
   maybeList?: string[];
   completedChallengeIds?: string[];
   submittedChallengeIds?: string[];
@@ -243,11 +249,15 @@ export async function getOrCreateProfile(user: any): Promise<UserProfile> {
       const fieldClassificationComplete = !!(data.fieldClassificationComplete || data.personaQuizComplete || data.fieldTypeQuizCompleted);
       
       const xpValue = data.xp !== undefined ? data.xp : (data.points || 0);
+      const level = getLevelFromXp(xpValue);
 
       return { 
         id: userDoc.id, 
         ...data,
         xp: xpValue,
+        level,
+        levelTitle: getLevelTitle(level),
+        progressionRewardIds: Array.isArray(data.progressionRewardIds) ? data.progressionRewardIds : [],
         fieldType: normalizedType,
         fieldTypeName: fieldTypeData?.name || data.fieldTypeName || data.personaName || 'Field Agent',
         fieldClassificationComplete: fieldClassificationComplete,
@@ -280,6 +290,9 @@ export async function getOrCreateProfile(user: any): Promise<UserProfile> {
       xp: 0,
       weeklyXp: 0,
       seasonXp: 0,
+      level: 1,
+      levelTitle: getLevelTitle(1),
+      progressionRewardIds: [],
       points: 0,
       soloTripsCount: 0,
       completedCoreChallenges: 0,
@@ -344,11 +357,15 @@ export function subscribeToProfile(uid: string, callback: (profile: UserProfile)
       const shouldRepair = !!normalizedType && normalizedType !== 'unclassified' && !fieldClassificationComplete;
       
       const xpValue = data.xp !== undefined ? data.xp : (data.points || 0);
+      const level = getLevelFromXp(xpValue);
 
       callback({ 
         id: snapshot.id, 
         ...data,
         xp: xpValue,
+        level,
+        levelTitle: getLevelTitle(level),
+        progressionRewardIds: Array.isArray(data.progressionRewardIds) ? data.progressionRewardIds : [],
         rejectedChallengeIds: data.rejectedChallengeIds || [],
         needsMoreProofChallengeIds: data.needsMoreProofChallengeIds || [],
         fieldType: normalizedType,
@@ -423,6 +440,30 @@ export async function getLeaderboardPage(pageSize = 25, lastVisible?: QueryDocum
     };
   } catch (error) {
     return handleFirestoreError(error, OperationType.LIST, COLLECTION);
+  }
+}
+
+export async function getWeeklyLeaderboardPage(pageSize = 25, lastVisible?: QueryDocumentSnapshot<DocumentData>) {
+  let q = query(
+    collection(db, COLLECTION),
+    orderBy('weeklyXp', 'desc'),
+    limit(pageSize),
+  );
+  if (lastVisible) q = query(q, startAfter(lastVisible));
+
+  try {
+    const snapshot = await getDocs(q);
+    return {
+      docs: snapshot.docs.map(profileDoc => ({ id: profileDoc.id, ...profileDoc.data() } as UserProfile)),
+      lastVisible: snapshot.docs[snapshot.docs.length - 1],
+    };
+  } catch (error: any) {
+    if (error?.code === 'unavailable' || error?.message?.includes('offline')) {
+      console.warn('[UserService] Weekly leaderboard unavailable (offline).');
+      return null;
+    }
+    console.error('Error getting weekly leaderboard:', error);
+    return null;
   }
 }
 

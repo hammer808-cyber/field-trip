@@ -45,7 +45,11 @@ export type ScoreEventType =
   | 'field_check_penalty'
   | 'invalid_proof_penalty'
   | 'comeback_card'
-  | 'admin_adjustment';
+  | 'admin_adjustment'
+  | 'proof_approved'
+  | 'weekly_award'
+  | 'weekly_winner'
+  | 'weekly_consensus';
 
 export interface ScoreEvent {
   id: string;
@@ -55,6 +59,11 @@ export interface ScoreEvent {
   crewId?: string;
   type: ScoreEventType;
   points: number;
+  amount?: number;
+  xp?: number;
+  sourceType?: string;
+  sourceId?: string;
+  metadata?: Record<string, unknown>;
   entryId?: string;
   tripId?: string;
   description: string;

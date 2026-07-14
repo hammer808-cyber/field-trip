@@ -13,6 +13,7 @@ export async function awardPoints(
     description: string;
     crewId?: string;
     userAvatar?: any;
+    sourceId?: string;
   }
 ) {
   try {
@@ -51,6 +52,18 @@ export async function adjustPointsManually(
 ) {
   // Only admins can do this, the API will verify tokens
   return awardPoints(userId, userName, points, 'admin_adjustment', {
-    description: `Manual adjustment: ${reason}`
+    description: `Manual adjustment: ${reason}`,
+    sourceId: `admin_adjustment_${userId}_${Date.now()}`,
   });
+}
+
+export async function redeemComebackCard() {
+  const response = await authenticatedFetch('/api/game/redeem-comeback-card', {
+    method: 'POST',
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error || 'COMEBACK_CARD_REDEMPTION_FAILED');
+  }
+  return response.json();
 }

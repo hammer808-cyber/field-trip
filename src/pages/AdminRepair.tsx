@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   AlertTriangle,
   Archive,
+  Award,
   CheckCircle,
   Database,
   RefreshCw,
@@ -32,7 +33,9 @@ import {
   UserResetReport,
   AdminUserLookupResult,
   OrphanReviewCleanupReport,
-  CrewMemoriesBackfillReport
+  CrewMemoriesBackfillReport,
+  PlayerProgressionRepairReport,
+  repairPlayerProgression
 } from '../services/repairService';
 import { cn } from '../lib/utils';
 
@@ -59,6 +62,9 @@ export default function AdminRepair() {
   const [crewMemoriesDryRun, setCrewMemoriesDryRun] = useState(true);
   const [crewMemoriesBackfilling, setCrewMemoriesBackfilling] = useState(false);
   const [crewMemoriesReport, setCrewMemoriesReport] = useState<CrewMemoriesBackfillReport | null>(null);
+  const [progressionRepairRunning, setProgressionRepairRunning] = useState(false);
+  const [progressionRepairReport, setProgressionRepairReport] = useState<PlayerProgressionRepairReport | null>(null);
+  const [progressionRepairPhrase, setProgressionRepairPhrase] = useState('');
 
   const [diagnostics, setDiagnostics] = useState<DiagnosticsReport | null>(null);
   const [loadingDiagnostics, setLoadingDiagnostics] = useState(false);
@@ -150,6 +156,20 @@ export default function AdminRepair() {
       setCrewMemoriesReport(await backfillCrewMemories({ dryRun: crewMemoriesDryRun }));
     } finally {
       setCrewMemoriesBackfilling(false);
+    }
+  };
+
+  const handleProgressionRepair = async (dryRun: boolean) => {
+    setProgressionRepairRunning(true);
+    try {
+      const report = await repairPlayerProgression({
+        dryRun,
+        confirmation: dryRun ? undefined : progressionRepairPhrase,
+      });
+      setProgressionRepairReport(report);
+      if (!dryRun) setProgressionRepairPhrase('');
+    } finally {
+      setProgressionRepairRunning(false);
     }
   };
 
@@ -434,6 +454,46 @@ export default function AdminRepair() {
                 />
               )}
             </ModuleCard>
+            <Card className="p-6 border-2 border-on-surface bg-white shadow-[7px_7px_0px_black] space-y-5">
+              <SectionTitle icon={Award} title="Player Level Repair" description="Preview cached level, title, and cosmetic milestone repairs derived from lifetime XP. XP is never changed and no level-up event is created." />
+              <button
+                type="button"
+                onClick={() => handleProgressionRepair(true)}
+                disabled={progressionRepairRunning}
+                className="w-full min-h-11 border-2 border-on-surface bg-brand-lime px-4 py-3 font-display font-black uppercase italic shadow-[3px_3px_0px_black] disabled:opacity-50"
+              >
+                {progressionRepairRunning ? 'Scanning...' : 'Preview Player Levels'}
+              </button>
+              {progressionRepairReport?.dryRun && progressionRepairReport.success && (
+                <div className="space-y-3 border-t-2 border-dashed border-on-surface/20 pt-4">
+                  <LabeledInput label="Apply Confirmation" value={progressionRepairPhrase} onChange={setProgressionRepairPhrase} placeholder="type REPAIR PLAYER LEVELS" />
+                  <button
+                    type="button"
+                    onClick={() => handleProgressionRepair(false)}
+                    disabled={progressionRepairRunning || progressionRepairPhrase !== 'REPAIR PLAYER LEVELS'}
+                    className="w-full min-h-11 border-2 border-on-surface bg-on-surface px-4 py-3 font-display font-black uppercase italic text-white shadow-[3px_3px_0px_var(--color-brand-orange)] disabled:opacity-40"
+                  >
+                    Apply Previewed Repairs
+                  </button>
+                </div>
+              )}
+              {progressionRepairReport && (
+                <RepairActionReceipt
+                  title={progressionRepairReport.dryRun ? 'Player Level Preview' : 'Player Level Repair'}
+                  failed={!progressionRepairReport.success || progressionRepairReport.failed > 0}
+                  rows={[
+                    ['Mode', progressionRepairReport.dryRun ? 'Read Only' : 'Live Write'],
+                    ['Users Scanned', progressionRepairReport.scanned],
+                    ['Repair Candidates', progressionRepairReport.candidates],
+                    ['Users Updated', progressionRepairReport.updated],
+                    ['Skipped', progressionRepairReport.skipped],
+                    ['Failed', progressionRepairReport.failed],
+                    ['Level Events Created', progressionRepairReport.levelUpEventsCreated],
+                  ]}
+                  error={progressionRepairReport.failures?.[0]?.error || progressionRepairReport.samples?.slice(0, 3).map(sample => `${sample.userId}: L${sample.expectedLevel} ${sample.reasons.join(',')}`).join(' | ')}
+                />
+              )}
+            </Card>
             <Card className="md:col-span-2 p-8 border-2 border-rose-600 bg-rose-50 shadow-[8px_8px_0px_black] space-y-6">
               <SectionTitle icon={AlertTriangle} title="Beta Hard Reset" description="Deletes stale gameplay roots, clears proof queues, and returns every user to clean Starter state. Firebase Auth and admin roles are preserved." />
               <ToggleRow checked={betaHardResetDryRun} onClick={() => setBetaHardResetDryRun(!betaHardResetDryRun)} title="Dry Run Mode" description="Leave this on first. Dry run counts records but writes nothing." />

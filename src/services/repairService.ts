@@ -473,3 +473,36 @@ export async function backfillCrewMemories(params: {
 
   return readAdminJson<CrewMemoriesBackfillReport>(response, `Crew Memories backfill failed with HTTP ${response.status}`);
 }
+
+export interface PlayerProgressionRepairReport {
+  success: boolean;
+  dryRun: boolean;
+  scanned: number;
+  candidates: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  levelUpEventsCreated: number;
+  samples: Array<{
+    userId: string;
+    xp: number;
+    expectedLevel: number;
+    expectedLevelTitle: string;
+    reasons: string[];
+    proposedFields: string[];
+  }>;
+  failures: Array<{ userId: string; error: string }>;
+}
+
+export async function repairPlayerProgression(params: {
+  dryRun: boolean;
+  userId?: string;
+  confirmation?: string;
+}): Promise<PlayerProgressionRepairReport> {
+  const response = await authenticatedFetch('/api/admin/progression/repair', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  return readAdminJson<PlayerProgressionRepairReport>(response, `Player progression repair failed with HTTP ${response.status}`);
+}

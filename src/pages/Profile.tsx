@@ -27,12 +27,17 @@ import { BadgeCollection } from '../components/BadgeCollection';
 import { AvatarPreview } from '../components/AvatarPreview';
 import { DEFAULT_AVATAR, AVATAR_MANIFEST } from '../constants/avatarAssets';
 import { AvatarData } from '../types/avatar';
-import { FIELD_TYPES, DEV_APP_CONFIG } from '../constants';
+import { FIELD_TYPES } from '../constants';
 import { getDisplayLabel } from '../utils/labelUtils';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 import { getApprovedSubmissionsForUser } from '../services/submission-utils';
 import { LogbookFlipbook } from '../components/LogbookFlipbook';
 import { applyProfileTabToSearchParams, type ProfileTab } from '../logic/profileTabs';
+import {
+  UNCLASSIFIED_LEVEL_TITLE,
+  getExplorerTypeLevelTitle,
+  getLevelProgress,
+} from '../logic/playerLevel';
 
 export default function ProfilePage() {
   const { 
@@ -51,6 +56,8 @@ export default function ProfilePage() {
     submittedPendingChallengeIds,
     needsMoreProofChallengeIds,
     fieldType,
+    fieldClassificationComplete,
+    onboardingCompleted,
     activeSeason,
     loadMoreEntries,
     hasMoreEntries,
@@ -160,13 +167,12 @@ export default function ProfilePage() {
     }
   }, [approvedSubmissions, profile, approvedEntriesCount]);
 
-  const thresholds = DEV_APP_CONFIG.levelThresholds;
-  const currentLevelData = [...thresholds].reverse().find(t => xp >= t.minXP) || thresholds[0];
-  const nextLevelData = thresholds.find(t => t.level === currentLevelData.level + 1);
-  const level = currentLevelData.level;
-  const nextLevelXP = nextLevelData ? (nextLevelData.minXP - currentLevelData.minXP) : 500;
-  const xpInLevel = nextLevelData ? (xp - currentLevelData.minXP) : (xp - currentLevelData.minXP);
-  const xpProgress = nextLevelData ? (xpInLevel / nextLevelXP) * 100 : 100;
+  const levelProgress = getLevelProgress(xp);
+  const level = levelProgress.level;
+  const hasClassifiedRank = onboardingCompleted && fieldClassificationComplete;
+  const displayedLevelTitle = hasClassifiedRank
+    ? getExplorerTypeLevelTitle(level, fieldType)
+    : UNCLASSIFIED_LEVEL_TITLE;
 
   const fieldTypeData = fieldType ? FIELD_TYPES[fieldType] : null;
 
@@ -230,24 +236,38 @@ export default function ProfilePage() {
         </div>
 
         {/* Level & Rank Summary */}
-        <div className="grid grid-cols-2 gap-5 pt-4">
-          <FieldCard variant="paper" className="p-5 flex items-center gap-4 rotate-[-1deg] hover:rotate-0 transition-transform">
-            <div className="w-12 h-12 bg-on-surface text-brand-lime border-[3px] border-on-surface flex items-center justify-center font-display font-black italic text-2xl shadow-[4px_4px_0px_black]">
+        <div className="grid grid-cols-1 gap-5 pt-4 sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+          <FieldCard variant="paper" className="p-5 rotate-[-1deg] hover:rotate-0 transition-transform">
+            <div className="flex items-start gap-4">
+              <div className="w-14 h-14 shrink-0 bg-on-surface text-brand-lime border-[3px] border-on-surface flex items-center justify-center font-display font-black italic text-2xl shadow-[4px_4px_0px_black]">
               {level}
+              </div>
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="text-[9px] font-mono font-black opacity-40 uppercase tracking-widest leading-none">Level {level} // Bureau Rank</p>
+                <p className="font-display font-black uppercase italic text-lg leading-tight text-on-surface break-words">{displayedLevelTitle}</p>
+                {hasClassifiedRank && fieldTypeData?.name && (
+                  <p className="text-[9px] font-mono font-bold uppercase tracking-wider text-brand-orange">{fieldTypeData.name}</p>
+                )}
+              </div>
             </div>
-            <div className="space-y-0.5">
-              <p className="text-[9px] font-mono font-black opacity-30 uppercase tracking-widest leading-none">{getDisplayLabel('BUREAU_LEVEL')}</p>
-              <p className="font-display font-black uppercase italic text-sm text-on-surface">{fieldTypeData?.name || 'Trailblazer'}</p>
+            <div className="mt-5 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[9px] font-black uppercase tracking-wide">
+                <span>{levelProgress.xp.toLocaleString()} / {levelProgress.nextLevel.minXp.toLocaleString()} XP</span>
+                <span className="text-brand-orange">{levelProgress.xpToNextLevel.toLocaleString()} XP to next dubious promotion</span>
+              </div>
+              <div className="h-3 overflow-hidden border-2 border-on-surface bg-white" role="progressbar" aria-label="Lifetime XP progress" aria-valuemin={levelProgress.currentLevelMinXp} aria-valuemax={levelProgress.nextLevel.minXp} aria-valuenow={levelProgress.xp}>
+                <div className="h-full bg-brand-lime motion-reduce:transition-none" style={{ width: `${levelProgress.progressPercent}%` }} />
+              </div>
             </div>
           </FieldCard>
           
           <FieldCard variant="paper" className="p-5 flex items-center gap-4 rotate-[1.5deg] hover:rotate-0 transition-transform bg-[#FFFDF5]">
              <div className="w-12 h-12 bg-brand-orange text-white border-[3px] border-on-surface flex items-center justify-center font-display font-black italic text-xl shadow-[4px_4px_0px_black]">
-               #{profile?.previousRank || '--'}
+               #{profile?.weeklyRank || '--'}
              </div>
              <div className="space-y-0.5">
                <p className="text-[9px] font-mono font-black opacity-30 uppercase tracking-widest leading-none">{getDisplayLabel('WEEKLY_RANK')}</p>
-               <p className="font-display font-black uppercase italic text-sm text-on-surface">{xp} XP</p>
+               <p className="font-display font-black uppercase italic text-sm text-on-surface">{Number(profile?.weeklyXp || 0).toLocaleString()} Weekly XP</p>
              </div>
           </FieldCard>
         </div>

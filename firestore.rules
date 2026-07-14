@@ -215,14 +215,17 @@ service cloud.firestore {
     match /users/{uId} {
       function isSystemProtected(data, existing) {
         let protectedFields = [
-          'xp', 'weeklyXp', 'seasonXp', 'level', 'role',
+          'xp', 'totalXP', 'weeklyXp', 'weeklyXP', 'seasonXp', 'seasonXP',
+          'level', 'levelTitle', 'progressionRewardIds', 'progressionUpdatedAt',
+          'weeklyRank', 'seasonRank', 'role',
           'submittedPendingChallengeIds', 'submittedChallengeIds', 
           'approvedCompletedChallengeIds', 'approvedEntriesCount',
           'points', 'score', 'totalPoints', 'rank', 'tokens', // legacy but still protected
           'deckInviteRedemptions', 'redeemedDeckInviteIds',
           'credentialIds', 'completedCredentialIds', 'completedDeckIds', 'approvedCompletedDeckIds',
           'activeCrewId', 'crewId', 'crewRole', 'crewCooldownUntil', 'crewJoinedAt',
-          'equippedSkinId'
+          'equippedSkinId',
+          'comebackCardActive', 'comebackCardGrantedAt', 'comebackCardRedeemedAt'
         ];
         
         // Block if any protected field is being changed
@@ -241,17 +244,48 @@ service cloud.firestore {
         return (isEditingProtected || isEditingSkinOwnership || (isFieldTypeUpdate && !isInitialFieldTypeSet));
       }
 
+      function isProgressionProtected(data, existing) {
+        return data.diff(existing).affectedKeys().hasAny([
+          'xp', 'totalXP', 'weeklyXp', 'weeklyXP', 'seasonXp', 'seasonXP',
+          'level', 'levelTitle', 'progressionRewardIds', 'progressionUpdatedAt',
+          'weeklyRank', 'seasonRank',
+          'points', 'score', 'totalPoints', 'rank',
+          'comebackCardActive', 'comebackCardGrantedAt', 'comebackCardRedeemedAt'
+        ]);
+      }
+
       function hasSafeInitialSkinState(data) {
         return data.get('equippedSkinId', 'classic') == 'classic' &&
                data.get('unlockedRewards', {}).get('skins', ['classic']).hasOnly(['classic']);
       }
 
+      function hasSafeInitialProgressionState(data) {
+        return data.get('xp', 0) == 0 &&
+               data.get('totalXP', 0) == 0 &&
+               data.get('weeklyXp', 0) == 0 &&
+               data.get('weeklyXP', 0) == 0 &&
+               data.get('seasonXp', 0) == 0 &&
+               data.get('seasonXP', 0) == 0 &&
+               data.get('points', 0) == 0 &&
+               data.get('level', 1) == 1 &&
+               data.get('levelTitle', 'Person of Mild Interest') == 'Person of Mild Interest' &&
+               data.get('progressionRewardIds', []).size() == 0 &&
+               data.get('weeklyRank', null) == null &&
+               data.get('seasonRank', null) == null &&
+               data.get('comebackCardActive', false) == false &&
+               data.get('isAdmin', false) == false &&
+               data.get('role', 'player') in ['player', null];
+      }
+
       // allow get is more robust for non-existent profiles during registration
       allow get: if isSignedIn() && (uId == request.auth.uid || isAdmin());
       allow list: if isSignedIn();
-      allow create: if isSignedIn() && (isAdmin() || (uId == request.auth.uid && hasSafeInitialSkinState(incoming())));
+      allow create: if isSignedIn() && hasSafeInitialProgressionState(incoming()) && (
+        isAdmin() || (uId == request.auth.uid && hasSafeInitialSkinState(incoming()))
+      );
       allow update: if isSignedIn() && (uId == request.auth.uid || isAdmin()) && (
-        isAdmin() || !isSystemProtected(incoming(), existing())
+        !isProgressionProtected(incoming(), existing()) &&
+        (isAdmin() || !isSystemProtected(incoming(), existing()))
       );
       allow delete: if isAdmin();
       
@@ -417,7 +451,12 @@ service cloud.firestore {
     // SCORE EVENTS (Admin Only Write)
     match /scoreEvents/{eventId} {
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow write: if isAdmin();
+      allow write: if false;
+    }
+
+    match /levelUpEvents/{eventId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if false;
     }
 
     // CHALLENGES

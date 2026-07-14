@@ -102,6 +102,7 @@ import {
   toZineProofSnapshot,
 } from "./src/logic/zineSystem";
 import type { ZineEdition, ZineLayoutId, ZinePage, ZineStatus } from "./src/types/zine";
+import { awardTrustedXpInTransaction, buildProgressionRepairPlan, getLevelUpAcknowledgementError, isTrustedProofXpEligible } from "./src/server/playerProgression";
 
 // Types for proof evaluation
 type MetadataStatus = 'verified' | 'missing' | 'mismatch' | 'unverified';
@@ -541,7 +542,7 @@ async function startServer() {
     });
   };
 
-  const awardWeeklyPointsOnce = (batch: FirebaseFirestore.WriteBatch, params: {
+  const awardWeeklyPointsOnce = async (params: {
     eventId: string;
     userId: string;
     userName: string;
@@ -549,34 +550,25 @@ async function startServer() {
     entryId: string;
     tripId?: string;
     description: string;
+    sourceType?: string;
   }) => {
-    if (!dbAdmin) return;
-    const eventRef = dbAdmin.collection('scoreEvents').doc(params.eventId);
-    batch.create(eventRef, {
-      userId: params.userId,
-      userName: params.userName,
-      type: 'vote_winner_bonus',
-      points: params.points,
-      entryId: params.entryId,
-      tripId: params.tripId || null,
-      description: params.description,
-      createdAt: FieldValue.serverTimestamp()
-    });
-    const inc = FieldValue.increment(params.points);
-    batch.set(dbAdmin.collection('users').doc(params.userId), {
-      xp: inc,
-      points: inc,
-      totalXP: inc,
-      totalPoints: inc,
-      seasonXP: inc,
-      seasonPoints: inc,
-      weeklyXp: inc,
-      weeklyXP: inc,
-      weeklyPoints: inc,
-      seasonXp: inc,
-      score: inc,
-      updatedAt: FieldValue.serverTimestamp()
-    }, { merge: true });
+    if (!dbAdmin) throw new Error('DB_ADMIN_NOT_READY');
+    return dbAdmin.runTransaction(transaction => awardTrustedXpInTransaction({
+      db: dbAdmin!,
+      transaction,
+      input: {
+        userId: params.userId,
+        userName: params.userName,
+        sourceType: params.sourceType || 'weekly_award',
+        sourceId: params.eventId,
+        amount: params.points,
+        ledgerEventId: params.eventId,
+        compatibilityType: params.sourceType || 'vote_winner_bonus',
+        entryId: params.entryId,
+        challengeId: params.tripId || null,
+        metadata: { description: params.description },
+      },
+    }));
   };
 
   const toAdminTimestamp = (date: Date) => Timestamp.fromDate(date);
@@ -1166,6 +1158,7 @@ async function startServer() {
           ? { docs: [await cycleRef.collection('ballots').doc(requestedBallotId).get()].filter(snap => snap.exists) } as any
           : await cycleRef.collection('ballots').get();
         const finalized: any[] = [];
+        const awardRequests: Array<Parameters<typeof awardWeeklyPointsOnce>[0]> = [];
         let batch = dbAdmin!.batch();
         let writes = 0;
         const flush = async () => {
@@ -1182,6 +1175,17 @@ async function startServer() {
           const resultRef = cycleRef.collection('results').doc(ballotId);
           const existingResult = await resultRef.get();
           if (existingResult.exists && existingResult.data()?.isFinal === true) {
+            const existingWinner = existingResult.data()?.winner;
+            if (existingWinner?.userId) {
+              awardRequests.push({
+                eventId: `weekly_award_${cycleId}_${existingWinner.userId}_${ballot.scope}_${ballot.crewId || 'community'}`,
+                userId: existingWinner.userId,
+                userName: existingWinner.displayName || 'Agent',
+                points: 25,
+                entryId: existingWinner.entryId || existingWinner.proofId,
+                description: `Weekly award: ${ballot.scope} ${cycleId}`,
+              });
+            }
             finalized.push({ ballotId, alreadyFinalized: true });
             continue;
           }
@@ -1274,18 +1278,14 @@ async function startServer() {
 
           if (winner?.userId) {
             const awardId = `weekly_award_${cycleId}_${winner.userId}_${ballot.scope}_${ballot.crewId || 'community'}`;
-            const awardSnap = await dbAdmin!.collection('scoreEvents').doc(awardId).get();
-            if (!awardSnap.exists) {
-              awardWeeklyPointsOnce(batch, {
-                eventId: awardId,
-                userId: winner.userId,
-                userName: winner.displayName || 'Agent',
-                points: 25,
-                entryId: winner.entryId,
-                description: `Weekly award: ${ballot.scope} ${cycleId}`
-              });
-              writes += 2;
-            }
+            awardRequests.push({
+              eventId: awardId,
+              userId: winner.userId,
+              userName: winner.displayName || 'Agent',
+              points: 25,
+              entryId: winner.entryId,
+              description: `Weekly award: ${ballot.scope} ${cycleId}`,
+            });
           }
 
           finalized.push({ ballotId, validVotes: validVotes.length, rejectedVotes: rejectedVotes.length, winner: winner?.entryId || null });
@@ -1299,8 +1299,12 @@ async function startServer() {
         }, { merge: true });
         writes++;
         await flush();
+        const awards = [];
+        for (const awardRequest of awardRequests) {
+          awards.push(await awardWeeklyPointsOnce(awardRequest));
+        }
         await writeAdminAudit(req.user.uid, cycleId, 'weeklyVotingCycle', 'finalize_weekly_cycle_results', { seasonId, finalized, reason });
-        return res.json({ success: true, cycleId, finalized });
+        return res.json({ success: true, cycleId, finalized, awards: awards.map(award => ({ awarded: award.awarded, duplicate: award.duplicate, ledgerEventId: award.ledgerEventId })) });
       }
 
       const summaryId = getWeeklyBallotId(seasonId, weekNumber);
@@ -1316,6 +1320,7 @@ async function startServer() {
         .get();
       const votes = votesSnap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any));
       const voteWinners: Record<string, any> = {};
+      const awardRequests: Array<Parameters<typeof awardWeeklyPointsOnce>[0]> = [];
       let batch = dbAdmin!.batch();
       let writes = 0;
 
@@ -1343,6 +1348,7 @@ async function startServer() {
 
         voteWinners[category] = {
           entryId: winningEntryId,
+          userId: winnerUserId,
           count: topVotes,
           userName: entry.userName || entry.displayName || 'Anonymous Agent',
           tripTitle: entry.tripTitle || entry.challengeTitle || '',
@@ -1351,36 +1357,30 @@ async function startServer() {
         };
 
         const winnerEventId = `weekly_winner_${summaryId}_${category}_${winningEntryId}`;
-        const winnerEventSnap = await dbAdmin!.collection('scoreEvents').doc(winnerEventId).get();
-        if (!winnerEventSnap.exists) {
-          awardWeeklyPointsOnce(batch, {
-            eventId: winnerEventId,
-            userId: winnerUserId,
-            userName: entry.userName || entry.displayName || 'Agent',
-            points: 25,
-            entryId: winningEntryId,
-            tripId: entry.tripId || entry.challengeId || entry.missionId || null,
-            description: `Weekly winner: ${category} (Week ${weekNumber})`
-          });
-          writes += 2;
-        }
+        awardRequests.push({
+          eventId: winnerEventId,
+          userId: winnerUserId,
+          userName: entry.userName || entry.displayName || 'Agent',
+          points: 25,
+          entryId: winningEntryId,
+          tripId: entry.tripId || entry.challengeId || entry.missionId || undefined,
+          description: `Weekly winner: ${category} (Week ${weekNumber})`,
+          sourceType: 'weekly_winner',
+        });
 
         const winningVotes = categoryVotes.filter(v => v.entryId === winningEntryId);
         for (const vote of winningVotes) {
           const consensusEventId = `weekly_consensus_${summaryId}_${category}_${vote.userId}_${winningEntryId}`;
-          const consensusEventSnap = await dbAdmin!.collection('scoreEvents').doc(consensusEventId).get();
-          if (consensusEventSnap.exists) continue;
-          awardWeeklyPointsOnce(batch, {
+          awardRequests.push({
             eventId: consensusEventId,
             userId: vote.userId,
             userName: 'Agent',
             points: 20,
             entryId: winningEntryId,
-            tripId: entry.tripId || entry.challengeId || entry.missionId || null,
-            description: `Weekly consensus: ${category} (Week ${weekNumber})`
+            tripId: entry.tripId || entry.challengeId || entry.missionId || undefined,
+            description: `Weekly consensus: ${category} (Week ${weekNumber})`,
+            sourceType: 'weekly_consensus',
           });
-          writes += 2;
-          if (writes >= 450) await flush();
         }
       }
 
@@ -1397,9 +1397,13 @@ async function startServer() {
       }, { merge: true });
       writes++;
       await flush();
+      const awards = [];
+      for (const awardRequest of awardRequests) {
+        awards.push(await awardWeeklyPointsOnce(awardRequest));
+      }
 
       await writeAdminAudit(req.user.uid, summaryId, 'weeklyVoting', 'finalize_week', { seasonId, weekNumber, categories: Object.keys(voteWinners).length, reason });
-      res.json({ success: true, summaryId, voteWinners });
+      res.json({ success: true, summaryId, voteWinners, awards: awards.map(award => ({ awarded: award.awarded, duplicate: award.duplicate, ledgerEventId: award.ledgerEventId })) });
     } catch (error: any) {
       if (String(error?.message || error).includes('ALREADY_EXISTS')) {
         return res.status(409).json({ error: "FINALIZE_RETRY_NEEDED", message: "A score event was created by another finalize request. Retry to read the finalized state." });
@@ -6096,98 +6100,231 @@ async function startServer() {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
 
     try {
-      const rawPoints = req.body.points;
-      const pointsNum = Number(rawPoints) || 0;
-      const { type, details, targetUserId, targetUserName } = req.body;
-      const { uid, name, email } = req.user;
+      await requireAdminUser(req);
+      const pointsNum = Math.floor(Number(req.body?.points) || 0);
+      const type = cleanServerId(req.body?.type) || 'admin_adjustment';
+      const details = req.body?.details || {};
+      const finalUserId = cleanServerId(req.body?.targetUserId);
+      const sourceId = cleanServerId(req.body?.sourceId || details?.sourceId || details?.awardId || details?.entryId);
+      if (!finalUserId) return res.status(400).json({ error: 'TARGET_USER_REQUIRED' });
+      if (!sourceId) return res.status(400).json({ error: 'XP_SOURCE_ID_REQUIRED' });
+      if (pointsNum <= 0) return res.status(400).json({ error: 'XP_AWARD_AMOUNT_INVALID' });
 
-      // Consistent admin check
-      const isAdminUser = await checkIsAdmin(req.user);
-
-      // HARDENING: Prevent excessive point awards from client
-      const MAX_AUTO_POINTS = 500;
-      
-      if (type === 'admin_adjustment' && !isAdminUser) {
-        return res.status(403).json({ error: "UNAUTHORIZED_ADJUSTMENT" });
-      }
-
-      if (!isAdminUser && pointsNum > MAX_AUTO_POINTS) {
-         return res.status(400).json({ error: "INVALID_POINTS_RESERVATION" });
-      }
-
-      // Determine recipient
-      const finalUserId = (isAdminUser && targetUserId) ? targetUserId : uid;
-      const finalUserName = (isAdminUser && targetUserName) ? targetUserName : (name || 'Agent');
-
-      // IDEMPOTENCY CHECK: If entryId is provided, check if already awarded
-      const entryId = details?.entryId;
-      if (entryId) {
-        const existingEvent = await dbAdmin.collection('scoreEvents')
-          .where('userId', '==', finalUserId)
-          .where('entryId', '==', entryId)
-          .limit(1)
-          .get();
-        
-        if (!existingEvent.empty) {
-          console.log(`[AWARD_POINTS] Points already awarded for entry ${entryId}. Bypassing.`);
-          return res.json({ success: true, pointsAwarded: 0, targetUserId: finalUserId, reason: 'ALREADY_AWARDED' });
+      const result = await dbAdmin.runTransaction(async transaction => {
+        const awardResult = await awardTrustedXpInTransaction({
+          db: dbAdmin!,
+          transaction,
+          input: {
+            userId: finalUserId,
+            userName: req.body?.targetUserName || 'Agent',
+            sourceType: type,
+            sourceId,
+            amount: pointsNum,
+            compatibilityType: type,
+            entryId: details?.entryId || null,
+            challengeId: details?.tripId || details?.challengeId || null,
+            crewId: details?.crewId || null,
+            metadata: {
+              description: details?.description || 'Admin XP award',
+              awardedBy: req.user.uid,
+              userAvatar: details?.userAvatar || null,
+            },
+          },
+        });
+        if (details?.crewId && awardResult.awarded) {
+          transaction.set(dbAdmin!.collection('crews').doc(details.crewId), {
+            totalPoints: FieldValue.increment(pointsNum),
+            updatedAt: FieldValue.serverTimestamp(),
+          }, { merge: true });
         }
-      }
-
-      const batch = dbAdmin.batch();
-      
-      const scoreEventRef = entryId ? dbAdmin.collection('scoreEvents').doc(`score_${entryId}`) : dbAdmin.collection('scoreEvents').doc();
-      batch.set(scoreEventRef, {
-        userId: finalUserId,
-        userName: finalUserName,
-        type,
-        points: pointsNum,
-        entryId: details?.entryId || null,
-        tripId: details?.tripId || null,
-        description: details?.description || 'Automatic Award',
-        crewId: details?.crewId || null,
-        userAvatar: details?.userAvatar || null,
-        createdAt: FieldValue.serverTimestamp()
+        return awardResult;
       });
 
-      const userRef = dbAdmin.collection('users').doc(finalUserId);
-      const inc = FieldValue.increment(pointsNum);
-      
-      // Update XP fields
-      batch.set(userRef, {
-        xp: inc,
-        points: inc,
-        totalXP: inc,
-        totalPoints: inc,
-        seasonXP: inc,
-        seasonPoints: inc,
-        weeklyXp: inc,
-        weeklyXP: inc,
-        weeklyPoints: inc,
-        seasonXp: inc,
-        score: inc,
-        updatedAt: FieldValue.serverTimestamp()
-      }, { merge: true });
-
-      if (details?.crewId) {
-        const crewRef = dbAdmin.collection('crews').doc(details.crewId);
-        batch.set(crewRef, {
-          totalPoints: FieldValue.increment(pointsNum),
-          updatedAt: FieldValue.serverTimestamp()
-        }, { merge: true });
-      }
-
-      console.log(`[AWARD_POINTS] Committing point award batch for ${finalUserId} (+${pointsNum} XP)...`);
-      await batch.commit();
-      res.json({ success: true, pointsAwarded: pointsNum, targetUserId: finalUserId });
+      await writeAdminAudit(req.user.uid, finalUserId, 'user', 'award_xp', {
+        sourceType: type,
+        sourceId,
+        amount: pointsNum,
+        duplicate: result.duplicate,
+        ledgerEventId: result.ledgerEventId,
+      });
+      res.json({
+        success: true,
+        pointsAwarded: result.awarded ? result.amount : 0,
+        targetUserId: finalUserId,
+        reason: result.duplicate ? 'ALREADY_AWARDED' : 'AWARDED',
+        level: result.toLevel,
+        levelUpEventId: result.levelUpEventId,
+      });
 
     } catch (error: any) {
+      const status = error?.message === 'ADMIN_REQUIRED' ? 403 : 500;
       console.error('Point Award Error:', error);
-      res.status(500).json({ 
+      res.status(status).json({
         error: 'FAILED_TO_AWARD_POINTS',
         message: error.message || String(error),
         code: error.code || null
       });
+    }
+  });
+
+  app.post("/api/game/redeem-comeback-card", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    try {
+      const userId = req.user.uid;
+      const result = await dbAdmin.runTransaction(async transaction => {
+        const userRef = dbAdmin!.collection('users').doc(userId);
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists) throw new Error('USER_NOT_FOUND');
+        const userData = userSnap.data() || {};
+        if (userData.comebackCardActive !== true) throw new Error('COMEBACK_CARD_NOT_ACTIVE');
+        const grantedAt = userData.comebackCardGrantedAt?.toMillis?.()
+          || userData.comebackCardGrantedAt?.seconds
+          || 'legacy';
+        const awardResult = await awardTrustedXpInTransaction({
+          db: dbAdmin!,
+          transaction,
+          input: {
+            userId,
+            userName: userData.name || userData.displayName || 'Agent',
+            sourceType: 'comeback_card',
+            sourceId: `comeback_${grantedAt}`,
+            amount: 25,
+            compatibilityType: 'comeback_card',
+            metadata: { description: 'Comeback Card Redeemed' },
+          },
+        });
+        transaction.set(userRef, {
+          comebackCardActive: false,
+          comebackCardRedeemedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+        return awardResult;
+      });
+      res.json({
+        success: true,
+        pointsAwarded: result.awarded ? result.amount : 0,
+        reason: result.duplicate ? 'ALREADY_AWARDED' : 'AWARDED',
+        level: result.toLevel,
+        levelUpEventId: result.levelUpEventId,
+      });
+    } catch (error: any) {
+      const message = error?.message || String(error);
+      const status = message === 'USER_NOT_FOUND' ? 404 : message === 'COMEBACK_CARD_NOT_ACTIVE' ? 409 : 500;
+      res.status(status).json({ error: message });
+    }
+  });
+
+  app.post("/api/progression/level-up-events/:eventId/acknowledge", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    try {
+      const eventId = cleanServerId(req.params.eventId);
+      if (!eventId) return res.status(400).json({ error: 'LEVEL_UP_EVENT_ID_REQUIRED' });
+      const result = await dbAdmin.runTransaction(async transaction => {
+        const eventRef = dbAdmin!.collection('levelUpEvents').doc(eventId);
+        const eventSnap = await transaction.get(eventRef);
+        const event = eventSnap.exists ? eventSnap.data() || {} : null;
+        const accessError = getLevelUpAcknowledgementError(event, req.user.uid);
+        if (accessError) throw new Error(accessError);
+        if (event.acknowledged === true) return { alreadyAcknowledged: true };
+        transaction.set(eventRef, {
+          acknowledged: true,
+          acknowledgedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+        return { alreadyAcknowledged: false };
+      });
+      res.json({ success: true, eventId, ...result });
+    } catch (error: any) {
+      const message = error?.message || String(error);
+      const status = message === 'LEVEL_UP_EVENT_NOT_FOUND' ? 404 : message === 'LEVEL_UP_EVENT_FORBIDDEN' ? 403 : 500;
+      res.status(status).json({ error: message });
+    }
+  });
+
+  app.post("/api/admin/progression/repair", adminRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    try {
+      await requireAdminUser(req);
+      const dryRun = req.body?.dryRun !== false;
+      const targetUserId = cleanServerId(req.body?.userId);
+      if (!dryRun && cleanServerId(req.body?.confirmation) !== 'REPAIR PLAYER LEVELS') {
+        return res.status(400).json({ error: 'PROGRESSION_REPAIR_CONFIRMATION_REQUIRED' });
+      }
+
+      const usersSnap = targetUserId
+        ? { docs: [await dbAdmin.collection('users').doc(targetUserId).get()].filter(snapshot => snapshot.exists) } as any
+        : await dbAdmin.collection('users').get();
+      const report: any = {
+        success: true,
+        dryRun,
+        scanned: 0,
+        candidates: 0,
+        updated: 0,
+        skipped: 0,
+        failed: 0,
+        samples: [],
+        failures: [],
+        levelUpEventsCreated: 0,
+      };
+      let batch = dbAdmin.batch();
+      let pendingWrites = 0;
+      const flush = async () => {
+        if (pendingWrites === 0) return;
+        await batch.commit();
+        batch = dbAdmin!.batch();
+        pendingWrites = 0;
+      };
+
+      for (const userDoc of usersSnap.docs) {
+        report.scanned += 1;
+        try {
+          const plan = buildProgressionRepairPlan(userDoc.id, userDoc.data() || {});
+          if (Object.keys(plan.changes).length === 0) {
+            report.skipped += 1;
+            continue;
+          }
+          report.candidates += 1;
+          if (report.samples.length < 20) {
+            report.samples.push({
+              userId: userDoc.id,
+              xp: plan.xp,
+              expectedLevel: plan.expectedLevel,
+              expectedLevelTitle: plan.expectedLevelTitle,
+              reasons: plan.reasons,
+              proposedFields: Object.keys(plan.changes),
+            });
+          }
+          if (!dryRun) {
+            batch.set(userDoc.ref, {
+              ...plan.changes,
+              progressionUpdatedAt: FieldValue.serverTimestamp(),
+              updatedAt: FieldValue.serverTimestamp(),
+            }, { merge: true });
+            pendingWrites += 1;
+            report.updated += 1;
+            if (pendingWrites >= 400) await flush();
+          }
+        } catch (userError: any) {
+          report.failed += 1;
+          if (report.failures.length < 20) {
+            report.failures.push({ userId: userDoc.id, error: userError?.message || String(userError) });
+          }
+        }
+      }
+      await flush();
+      report.success = report.failed === 0;
+      await writeAdminAudit(req.user.uid, targetUserId || 'all_users', 'playerProgression', dryRun ? 'preview_progression_repair' : 'apply_progression_repair', {
+        scanned: report.scanned,
+        candidates: report.candidates,
+        updated: report.updated,
+        skipped: report.skipped,
+        failed: report.failed,
+        levelUpEventsCreated: 0,
+      });
+      res.json(report);
+    } catch (error: any) {
+      const message = error?.message || String(error);
+      res.status(message === 'ADMIN_REQUIRED' ? 403 : 500).json({ error: message });
     }
   });
 
@@ -7264,13 +7401,11 @@ async function startServer() {
           baseUpdate.retryPointMultiplier = null;
           baseUpdate.zineArchiveSyncStatus = 'pending';
 
-          const scoreEventRef = dbAdmin!.collection("scoreEvents").doc(`score_${resolution.entryId}`);
-          const scoreEventSnap = await transaction.get(scoreEventRef);
           const existingAwardedPoints = Number(entry.awardedXP || entry.awardedPoints || (typeof entry.pointsAwarded === "number" ? entry.pointsAwarded : 0));
-          const alreadyAwarded = scoreEventSnap.exists || entry.xpAwarded === true || entry.pointsAwarded === true || existingAwardedPoints > 0;
+          const alreadyAwardedByEntry = entry.xpAwarded === true || entry.pointsAwarded === true || existingAwardedPoints > 0;
           const awardPoints = getReviewAwardPoints(entry, scoring);
 
-          if (!alreadyAwarded && ownerId && awardPoints > 0) {
+          if (ownerId) {
             const userRef = dbAdmin!.collection("users").doc(ownerId);
             const userSnap = await transaction.get(userRef);
             const userData = userSnap.exists ? userSnap.data() || {} : {};
@@ -7283,12 +7418,6 @@ async function startServer() {
 
             const starterApprovedCount = STARTER_SIGNAL_IDS.filter(id => existingApproved.has(id)).length;
             const userUpdate: any = {
-              points: FieldValue.increment(awardPoints),
-              totalPoints: FieldValue.increment(awardPoints),
-              seasonPoints: FieldValue.increment(awardPoints),
-              weeklyPoints: FieldValue.increment(awardPoints),
-              xp: FieldValue.increment(awardPoints),
-              score: FieldValue.increment(awardPoints),
               starterDeckComplete: starterComplete,
               starterCompleted: starterComplete,
               starterApprovedCount,
@@ -7302,27 +7431,39 @@ async function startServer() {
               userUpdate.submittedChallengeIds = FieldValue.arrayRemove(challengeId);
             }
 
+            if (!alreadyAwardedByEntry && isTrustedProofXpEligible(action, nextStatus, awardPoints)) {
+              const awardResult = await awardTrustedXpInTransaction({
+                db: dbAdmin!,
+                transaction,
+                input: {
+                  userId: ownerId,
+                  userName: userData.name || userData.displayName || entry.userName || entry.displayName || 'Agent',
+                  sourceType: 'proof_approved',
+                  sourceId: resolution.entryId,
+                  amount: awardPoints,
+                  ledgerEventId: `score_${resolution.entryId}`,
+                  compatibilityType: 'proof_approved',
+                  entryId: resolution.entryId,
+                  challengeId,
+                  crewId: entry.crewId || null,
+                  metadata: {
+                    reason: 'admin_proof_review',
+                    awardedBy: reviewerId,
+                    reviewId: resolution.reviewId,
+                    databaseId: FIELDTRIP_FIRESTORE_DATABASE_ID,
+                  },
+                },
+              });
+              pointsAwarded = awardResult.amount;
+              awardReason = awardResult.duplicate ? "ALREADY_AWARDED" : "AWARDED";
+            }
+
             transaction.set(userRef, userUpdate, { merge: true });
-
-            transaction.create(scoreEventRef, {
-              userId: ownerId,
-              entryId: resolution.entryId,
-              challengeId,
-              points: awardPoints,
-              type: "proof_approved",
-              reason: "admin_proof_review",
-              awardedBy: reviewerId,
-              awardedAt: now,
-              createdAt: now
-            });
-
-            pointsAwarded = awardPoints;
-            awardReason = "AWARDED";
           }
 
           baseUpdate.xpAwarded = true;
-          baseUpdate.pointsAwarded = alreadyAwarded ? existingAwardedPoints : awardPoints;
-          baseUpdate.awardedXP = alreadyAwarded ? existingAwardedPoints : awardPoints;
+          baseUpdate.pointsAwarded = alreadyAwardedByEntry ? existingAwardedPoints : pointsAwarded;
+          baseUpdate.awardedXP = alreadyAwardedByEntry ? existingAwardedPoints : pointsAwarded;
         } else {
           baseUpdate.retryAvailable = true;
           baseUpdate.retryPointMultiplier = action === "reject" ? 0.5 : null;

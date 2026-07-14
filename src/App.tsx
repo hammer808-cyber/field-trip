@@ -10,6 +10,7 @@ import FieldKitOnboarding from './components/FieldKitOnboarding';
 import { PageLoader } from './components/PageLoader';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { RewardFeedback } from './components/RewardFeedback';
+import { PlayerLevelUpFeedback } from './components/PlayerLevelUpFeedback';
 import { SignalLossBanner } from './components/SignalLossBanner';
 import { GameWrapper } from './components/GameWrapper';
 import { BetaAccessGate } from './components/BetaAccessGate';
@@ -523,6 +524,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           <>
             <SignalLossBanner />
             <RewardFeedback />
+            <PlayerLevelUpFeedback />
             <DevTools />
             <FieldGuideAssist />
           </>

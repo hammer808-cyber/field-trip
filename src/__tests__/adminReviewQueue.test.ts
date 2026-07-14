@@ -30,12 +30,17 @@ test('admin review actions require a resolved canonical entryId before buttons c
   assert.doesNotMatch(adminProofReviewSource, /onAction\(actionId,\s*'approve'\)/);
 });
 
-test('review transition resolves proofReview aliases against a real entries document before mutation', () => {
-  assert.match(proofLifecycleSource, /resolveCanonicalEntryForReviewAction/);
-  assert.match(proofLifecycleSource, /ENTRY_NOT_RESOLVED/);
-  assert.match(proofLifecycleSource, /databaseId: firebaseConfig\.firestoreDatabaseId/);
-  assert.match(proofLifecycleSource, /resolvedFirestorePath: resolution\.entryPath/);
-  assert.match(proofLifecycleSource, /collection\(db, 'proofReviews'\), where\('entryId', '==', canonicalEntryId\)/);
+test('review transition delegates canonical entry resolution and mutation to the server', () => {
+  const transitionStart = proofLifecycleSource.indexOf('export async function transitionProofReview');
+  const transitionEnd = proofLifecycleSource.indexOf('export async function repairCanonicalProofQueue', transitionStart);
+  const transitionSource = proofLifecycleSource.slice(transitionStart, transitionEnd);
+
+  assert.match(transitionSource, /authenticatedFetch\('\/api\/admin\/proof-review\/action'/);
+  assert.match(transitionSource, /entryId: submissionId/);
+  assert.match(transitionSource, /submissionId/);
+  assert.doesNotMatch(transitionSource, /runTransaction\(/);
+  assert.match(serverSource, /resolveBackendReviewEntry/);
+  assert.match(serverSource, /resolvedFirestorePath: resolution\.entryPath/);
 });
 
 test('admin review decisions are sent through a server-authorized canonical entry action', () => {
@@ -48,8 +53,8 @@ test('admin review decisions are sent through a server-authorized canonical entr
   assert.match(adminActionRoute, /await requireAdminUser\(req\)/);
   assert.match(adminActionRoute, /resolveBackendReviewEntry/);
   assert.match(adminActionRoute, /FIELDTRIP_FIRESTORE_DATABASE_ID/);
-  assert.match(adminActionRoute, /scoreEvents"\)\.doc\(`score_\$\{resolution\.entryId\}`\)/);
-  assert.match(adminActionRoute, /transaction\.create\(scoreEventRef/);
+  assert.match(adminActionRoute, /awardTrustedXpInTransaction/);
+  assert.match(adminActionRoute, /ledgerEventId: `score_\$\{resolution\.entryId\}`/);
   assert.match(adminActionRoute, /reviewRefs\.forEach/);
   assert.match(adminActionRoute, /adminLogs/);
   assert.doesNotMatch(submissionServiceSource, /logAdminAction\(auth\.currentUser\.uid, submissionId, 'proofReview'/);

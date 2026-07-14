@@ -98,12 +98,6 @@ export const DEV_SEASON: Season = {
 export const DEV_APP_CONFIG = {
   activeSeasonId: 'dev-season-2026',
   onboardingEntriesRequired: 1,
-  levelThresholds: [
-    { level: 1, minXP: 0 },
-    { level: 2, minXP: 150 },
-    { level: 3, minXP: 500 },
-    { level: 4, minXP: 1000 }
-  ],
   featureFlags: {
     fieldSignalsEnabled: true,
     badgeFragmentsEnabled: true,
