@@ -27,6 +27,8 @@ import { DEFAULT_AVATAR } from '../constants/avatarAssets';
 export interface UserProfile {
   id: string;
   name: string;
+  displayName?: string;
+  username?: string;
   email: string;
   photoURL?: string;
   avatar?: AvatarData;

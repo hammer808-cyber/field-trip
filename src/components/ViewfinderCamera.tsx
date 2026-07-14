@@ -10,6 +10,13 @@ import { extractImageMetadata, FILTER_CSS, applyFilterToImageUrl } from '../lib/
 import { VIEWFINDER_FILTERS, ViewfinderFilterId, ImageMetadata, CaptureTrustLevel, MetadataStatus, ReviewStatus } from '../types/proof';
 import { auth } from '../lib/firebase';
 import { authenticatedFetch } from '../lib/api';
+import {
+  cameraTrackSupportsTorch,
+  getCameraFlashStrategy,
+  isCameraFlashAvailable,
+  setCameraTorch,
+  type CameraSourceMode,
+} from '../logic/cameraFlash';
 
 interface ViewfinderCameraProps {
   challenge: ChallengeCard;
@@ -201,8 +208,12 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const streamRef = useRef<MediaStream | null>(null);
   const facingModeRef = useRef<'user' | 'environment'>('environment');
+  const captureInFlightRef = useRef(false);
   const pinchStartRef = useRef<{ distance: number; zoom: number } | null>(null);
   const [zoomState, setZoomState] = useState<ZoomState>({ ...DEFAULT_ZOOM_STATE });
+  const [cameraSourceMode, setCameraSourceMode] = useState<CameraSourceMode>('camera');
+  const [torchSupported, setTorchSupported] = useState(false);
+  const [flashEnabled, setFlashEnabled] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isFlashing, setIsFlashing] = useState(false);
@@ -256,6 +267,9 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
         videoRef.current.srcObject = nextStream;
       }
       const track = nextStream.getVideoTracks()[0];
+      setCameraSourceMode(mode);
+      setTorchSupported(mode === 'camera' && cameraTrackSupportsTorch(track));
+      setFlashEnabled(false);
       const nativeZoom = mode === 'camera' ? getZoomCapabilities(track) : { ...DEFAULT_ZOOM_STATE };
       const nextZoom = nativeZoom.supported
         ? nativeZoom
@@ -274,6 +288,8 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
       setIsInitializing(true);
       setError(null);
       setZoomState({ ...DEFAULT_ZOOM_STATE });
+      setTorchSupported(false);
+      setFlashEnabled(false);
 
       try {
         if (!navigator.mediaDevices?.getUserMedia) {
@@ -352,6 +368,17 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
     setFacingMode(prev => prev === 'environment' ? 'user' : 'environment');
   };
 
+  const flashAvailable = isCameraFlashAvailable({
+    torchSupported,
+    facingMode,
+    sourceMode: cameraSourceMode,
+  });
+
+  const toggleFlash = () => {
+    if (!flashAvailable || isInitializing || isProcessing) return;
+    setFlashEnabled(current => !current);
+  };
+
   const applyZoom = async (requestedZoom: number) => {
     const currentZoomState = zoomState;
     const value = clampZoom(requestedZoom, currentZoomState);
@@ -411,32 +438,56 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
   };
 
   const handleCapture = async () => {
-    if (!videoRef.current || !canvasRef.current || isFlashing || isProcessing) return;
-
-    setIsFlashing(true);
-    setTimeout(() => setIsFlashing(false), 500);
+    if (!videoRef.current || !canvasRef.current || isFlashing || isProcessing || captureInFlightRef.current) return;
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
 
     if (context) {
+      captureInFlightRef.current = true;
       setIsProcessing(true);
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const digitalZoom = zoomState.mode === 'digital' ? Math.max(1, zoomState.value) : 1;
-      if (digitalZoom > 1) {
-        const sourceWidth = video.videoWidth / digitalZoom;
-        const sourceHeight = video.videoHeight / digitalZoom;
-        const sourceX = (video.videoWidth - sourceWidth) / 2;
-        const sourceY = (video.videoHeight - sourceHeight) / 2;
-        context.drawImage(video, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
-      } else {
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      }
-      const originalImageUrl = canvas.toDataURL('image/jpeg', 0.9);
-      
+      const track = streamRef.current?.getVideoTracks()[0];
+      const flashStrategy = getCameraFlashStrategy({
+        enabled: flashEnabled,
+        torchSupported,
+        facingMode,
+        sourceMode: cameraSourceMode,
+      });
+      let torchActivated = false;
+
       try {
+        setIsFlashing(true);
+        if (flashStrategy === 'torch') {
+          torchActivated = await setCameraTorch(track, true);
+          if (!torchActivated) {
+            setTorchSupported(false);
+            setFlashEnabled(false);
+          }
+          await new Promise(resolve => window.setTimeout(resolve, torchActivated ? 180 : 40));
+        } else if (flashStrategy === 'screen') {
+          await new Promise(resolve => window.setTimeout(resolve, 220));
+        }
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const digitalZoom = zoomState.mode === 'digital' ? Math.max(1, zoomState.value) : 1;
+        if (digitalZoom > 1) {
+          const sourceWidth = video.videoWidth / digitalZoom;
+          const sourceHeight = video.videoHeight / digitalZoom;
+          const sourceX = (video.videoWidth - sourceWidth) / 2;
+          const sourceY = (video.videoHeight - sourceHeight) / 2;
+          context.drawImage(video, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
+        } else {
+          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        }
+        const originalImageUrl = canvas.toDataURL('image/jpeg', 0.9);
+        if (torchActivated) {
+          await setCameraTorch(track, false);
+          torchActivated = false;
+        }
+        window.setTimeout(() => setIsFlashing(false), 180);
+
         let latitude: number | null = null;
         let longitude: number | null = null;
         if (navigator.geolocation) {
@@ -490,7 +541,10 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
       } catch (err: any) {
         setError(err.message || "Failed to process capture.");
       } finally {
+        if (torchActivated) await setCameraTorch(track, false);
+        setIsFlashing(false);
         setIsProcessing(false);
+        captureInFlightRef.current = false;
       }
     }
   };
@@ -775,9 +829,10 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
         </div>
 
         {/* Bottom Controls */}
-        <div className="absolute bottom-0 inset-x-0 z-50 flex items-end justify-between gap-4 bg-gradient-to-t from-black via-black/85 to-transparent px-5 pb-5 pt-10 sm:px-8 sm:pb-6">
-          {/* Upload Button - Secondary */}
-          <div className="relative">
+        <div className="absolute bottom-0 inset-x-0 z-50 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2 bg-gradient-to-t from-black via-black/85 to-transparent px-5 pb-5 pt-10 sm:px-8 sm:pb-6">
+          <div className="flex items-end gap-2 justify-self-start">
+            {/* Upload Button - Secondary */}
+            <div className="relative">
             <input 
               type="file" 
               accept="image/*" 
@@ -804,10 +859,42 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
                 <p className="font-mono text-[7px] font-black uppercase">Live_Only</p>
               </div>
             )}
+            </div>
+
+            <button
+              type="button"
+              onClick={toggleFlash}
+              disabled={!flashAvailable || isInitializing || isProcessing}
+              aria-pressed={flashEnabled}
+              aria-label={!flashAvailable ? 'Flash unavailable for this camera' : flashEnabled ? 'Turn flash off' : 'Turn flash on'}
+              title={!flashAvailable
+                ? cameraSourceMode === 'simulated'
+                  ? 'Flash is unavailable in camera simulation'
+                  : 'This camera does not expose flash controls'
+                : torchSupported
+                  ? 'Hardware flash'
+                  : 'Screen flash'}
+              className={cn(
+                "group flex flex-col items-center gap-1.5 text-white/75 transition-all hover:text-white",
+                (!flashAvailable || isInitializing || isProcessing) && "opacity-30 grayscale",
+              )}
+            >
+              <div className={cn(
+                "flex h-11 w-11 items-center justify-center rounded-full border shadow-md backdrop-blur-md transition-all",
+                flashEnabled
+                  ? "border-brand-lime bg-brand-lime text-on-surface"
+                  : "border-white/20 bg-black/45 text-white group-hover:border-white/40 group-hover:bg-black/70",
+              )}>
+                <Zap className={cn("h-5 w-5", flashEnabled && "fill-current")} />
+              </div>
+              <span className="font-mono text-[8px] font-semibold uppercase tracking-wider">
+                {flashEnabled ? 'Flash On' : 'Flash'}
+              </span>
+            </button>
           </div>
 
           {/* Premium Sticker-style Capture Button - Playful, On-Brand Field Stamp */}
-          <div className="relative">
+          <div className="relative justify-self-center">
             <button 
               onClick={handleCapture}
               disabled={isProcessing}
@@ -860,7 +947,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
           {/* Filter/Lens Toggle - Secondary */}
           <button 
             onClick={() => setShowFilters(!showFilters)}
-            className="group flex flex-col items-center gap-1.5 transition-all text-white/75 hover:text-white"
+            className="group flex flex-col items-center gap-1.5 justify-self-end transition-all text-white/75 hover:text-white"
           >
             <div className={cn(
               "w-11 h-11 rounded-full border flex items-center justify-center transition-all shadow-md backdrop-blur-md",
@@ -924,7 +1011,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-white z-50"
+              className="pointer-events-none absolute inset-0 bg-white z-[60]"
             />
           )}
         </AnimatePresence>

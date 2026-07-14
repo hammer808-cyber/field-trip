@@ -32,6 +32,7 @@ import { getDisplayLabel } from '../utils/labelUtils';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 import { getApprovedSubmissionsForUser } from '../services/submission-utils';
 import { LogbookFlipbook } from '../components/LogbookFlipbook';
+import { applyProfileTabToSearchParams, type ProfileTab } from '../logic/profileTabs';
 
 export default function ProfilePage() {
   const { 
@@ -56,9 +57,9 @@ export default function ProfilePage() {
   } = useApp();
   const { fc } = useTheme();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'vault' | 'history' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<ProfileTab>('overview');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editName, setEditName] = useState('');
   const [editAvatar, setEditAvatar] = useState<AvatarData>({ ...DEFAULT_AVATAR });
@@ -74,6 +75,11 @@ export default function ProfilePage() {
       setIsLoadingMoreLogbook(false);
     }
   }, [hasMoreEntries, isLoadingMoreLogbook, loadMoreEntries]);
+
+  const selectProfileTab = React.useCallback((tab: ProfileTab) => {
+    setActiveTab(tab);
+    setSearchParams(applyProfileTabToSearchParams(searchParams, tab), { replace: true });
+  }, [searchParams, setSearchParams]);
 
   // Gating Guard against accidental "Start Mission -> Profile" routing errors
   React.useEffect(() => {
@@ -257,7 +263,7 @@ export default function ProfilePage() {
         ].map(tab => (
           <button 
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => selectProfileTab(tab.id as ProfileTab)}
             className={cn(
               "px-6 py-4 font-display uppercase tracking-tighter text-xl transition-all font-black shrink-0 flex items-center gap-2 italic",
               "border-t-[4px] border-x-[4px] border-on-surface rounded-t-[1.5rem] -mb-[8px] cursor-pointer",
@@ -407,7 +413,7 @@ export default function ProfilePage() {
               {/* Quick Links */}
               <div className="grid grid-cols-2 gap-4 pb-8">
                  <button 
-                   onClick={() => setActiveTab('history')}
+                   onClick={() => selectProfileTab('history')}
                    className="p-6 bg-white border-[3px] border-on-surface rounded-[2rem] shadow-[6px_6px_0px_black] flex flex-col items-center gap-3 active:translate-y-1 active:shadow-none transition-all group"
                  >
                    <div className="w-12 h-12 bg-brand-magenta/10 border-2 border-brand-magenta/20 rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-transform">
@@ -416,7 +422,7 @@ export default function ProfilePage() {
                    <span className="text-[10px] font-black uppercase tracking-[0.25em] text-on-surface">Open Logbook</span>
                  </button>
                  <button 
-                   onClick={() => setActiveTab('vault')}
+                   onClick={() => selectProfileTab('vault')}
                    className="p-6 bg-white border-[3px] border-on-surface rounded-[2rem] shadow-[6px_6px_0px_black] flex flex-col items-center gap-3 active:translate-y-1 active:shadow-none transition-all group"
                  >
                    <div className="w-12 h-12 bg-brand-orange/10 border-2 border-brand-orange/20 rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-transform">

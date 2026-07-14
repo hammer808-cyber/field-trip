@@ -31,6 +31,7 @@ import {
 } from '../logic/stickerBook';
 import { isCommunityProofEligible } from '../logic/proofDistribution';
 import { isZineCandidateEligible } from '../logic/zineSystem';
+import { applyProfileTabToSearchParams } from '../logic/profileTabs';
 
 const flipbookSource = readFileSync('src/components/FlipbookShell.tsx', 'utf8');
 const captureSource = readFileSync('src/pages/Capture.tsx', 'utf8');
@@ -64,6 +65,17 @@ test('flipbook page query round-trips and requests page-sized batches near the e
   assert.match(entryServiceSource, /alias: 'userId'/);
   assert.doesNotMatch(entryServiceSource, /where\('showInUserLogbook', '==', true\)/);
   assert.match(entryServiceSource, /entry\.showInUserLogbook !== false/);
+});
+
+test('selecting Logbook replaces a stale Settings URL tab and page turns stay in Logbook', () => {
+  const selected = applyProfileTabToSearchParams(new URLSearchParams('tab=settings&page=2'), 'history');
+  assert.equal(selected.get('tab'), 'logbook');
+  assert.equal(selected.get('page'), '2');
+
+  selected.set('page', '3');
+  assert.equal(selected.get('tab'), 'logbook');
+  assert.equal(selected.get('page'), '3');
+  assert.match(profileSource, /onClick=\{\(\) => selectProfileTab\(tab\.id as ProfileTab\)\}/);
 });
 
 test('flipbook includes keyboard, swipe, persisted grid/list fallback, and reduced motion', () => {

@@ -334,6 +334,7 @@ export interface Entry {
   selectedLevel?: string;
   detourCompleted?: boolean;
   archived?: boolean;
+  showInUserLogbook?: boolean;
   countsTowardLiveStats?: boolean;
   countsTowardStarter?: boolean;
   countsTowardFeed?: boolean;
