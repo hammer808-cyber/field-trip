@@ -54,6 +54,42 @@ export interface ProofTransitionReviewMetadata {
   scoring?: ProofRubricScoring;
 }
 
+export interface QueueRepairEntryChange {
+  id: string;
+  changes: string[];
+}
+
+export interface QueueRepairAmbiguousRecord {
+  id: string;
+  source: 'entries';
+  reasons: string[];
+}
+
+export interface QueueRepairOrphanProofReview {
+  id: string;
+  entryId: string;
+}
+
+export interface QueueRepairReport {
+  dryRun: boolean;
+  scannedEntries: number;
+  scannedProofReviews: number;
+  repairedEntries: QueueRepairEntryChange[];
+  ambiguousRecords: QueueRepairAmbiguousRecord[];
+  orphanProofReviews: QueueRepairOrphanProofReview[];
+}
+
+export function createQueueRepairReport(dryRun = true): QueueRepairReport {
+  return {
+    dryRun,
+    scannedEntries: 0,
+    scannedProofReviews: 0,
+    repairedEntries: [],
+    ambiguousRecords: [],
+    orphanProofReviews: []
+  };
+}
+
 export const REVIEWABLE_STATUSES: ReviewableProofStatus[] = ['pending_review', 'approved', 'needs_more_proof', 'rejected'];
 const KNOWN_PROOF_STATUS_VALUES = new Set([
   'draft',
@@ -224,14 +260,7 @@ export async function transitionProofReview(
 }
 
 export async function repairCanonicalProofQueue(dryRun = true): Promise<QueueRepairReport> {
-  const report: QueueRepairReport = {
-    dryRun,
-    scannedEntries: 0,
-    scannedProofReviews: 0,
-    repairedEntries: [],
-    ambiguousRecords: [],
-    orphanProofReviews: []
-  };
+  const report = createQueueRepairReport(dryRun);
 
   const [entriesSnap, reviewsSnap] = await Promise.all([
     getDocs(collection(db, 'entries')),

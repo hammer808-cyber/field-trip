@@ -393,20 +393,31 @@ export default function ProfilePage() {
                          <p className="text-4xl font-display font-black italic uppercase tracking-tighter text-on-surface leading-none">Level {level}</p>
                          <p className="text-[10px] font-mono font-black uppercase tracking-widest text-on-surface/30 px-1">{getDisplayLabel('PROTOCOL_STANDING')}</p>
                       </div>
-                      <p className="text-[10px] font-mono font-black text-on-surface bg-brand-cyan/20 px-2 py-1 rounded border border-on-surface/10">{xp} / {nextLevelXP + (currentLevelData.minXP)} XP</p>
+                      <p className="text-[10px] font-mono font-black text-on-surface bg-brand-cyan/20 px-2 py-1 rounded border border-on-surface/10">
+                        {levelProgress.xp.toLocaleString()} / {levelProgress.nextLevel.minXp.toLocaleString()} XP
+                      </p>
                     </div>
 
                     <div className="space-y-2">
-                       <div className="h-6 bg-on-surface/5 border-[3px] border-on-surface rounded-full overflow-hidden p-1 shadow-inner flex">
+                       <div
+                         className="h-6 bg-on-surface/5 border-[3px] border-on-surface rounded-full overflow-hidden p-1 shadow-inner flex"
+                         role="progressbar"
+                         aria-label="Progress to next player level"
+                         aria-valuemin={0}
+                         aria-valuemax={100}
+                         aria-valuenow={Math.round(levelProgress.progressPercent)}
+                       >
                          <motion.div 
                            initial={{ width: 0 }}
-                           animate={{ width: `${xpProgress}%` }}
+                           animate={{ width: `${levelProgress.progressPercent}%` }}
                            className="h-full bg-brand-lime rounded-full shadow-[inset_0_2px_4px_rgba(255,255,255,0.4)]"
                          />
                        </div>
                        <div className="flex justify-between px-1">
                           <span className="text-[8px] font-mono font-black uppercase text-on-surface/20">Current_Echelon</span>
-                          <span className="text-[8px] font-mono font-black uppercase text-on-surface/20">Next_Tier_Sync</span>
+                          <span className="text-[8px] font-mono font-black uppercase text-on-surface/20">
+                            {levelProgress.xpToNextLevel.toLocaleString()} XP to level {levelProgress.nextLevel.level}
+                          </span>
                        </div>
                     </div>
 

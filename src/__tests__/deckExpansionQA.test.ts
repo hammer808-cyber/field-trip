@@ -8,7 +8,7 @@ import { JET_SETTER_CHALLENGE_BANK } from '../data/jetSetterChallengeBank';
 import { SOCAL_SUMMER_CHALLENGE_BANK } from '../data/socalSummerChallengeBank';
 import { getDeckAccess } from '../logic/deckAccess';
 import { getEligibleDrawPool } from '../logic/deckLogic';
-import { getMissionSubmissionContext } from '../logic/missionSubmission';
+import { getMissionSubmissionContext, normalizeDeckSubtitleForEntry } from '../logic/missionSubmission';
 import { resolveMissionById } from '../logic/missionResolver';
 import { isCommunityFeedEligible } from '../logic/communityFeed';
 import { getProofLogbookCounts } from '../logic/proofDistribution';
@@ -169,6 +169,24 @@ test('direct mission resolution and submission context preserve new deck metadat
     assert.equal(context.deckSubtitle, mission!.deckSubtitle);
     assert.equal(context.cardType, mission!.cardType);
   }
+});
+
+test('canonical Entry projection normalizes missing and null deck subtitles to undefined', () => {
+  const contextWithoutSubtitle = getMissionSubmissionContext({
+    id: 'subtitle-test',
+    title: 'Subtitle Test',
+    deckId: 'test-deck',
+    deckName: 'Test Deck',
+  });
+  const canonicalProjection = {
+    ...contextWithoutSubtitle,
+    deckSubtitle: normalizeDeckSubtitleForEntry(contextWithoutSubtitle.deckSubtitle),
+  };
+
+  assert.equal(contextWithoutSubtitle.deckSubtitle, null);
+  assert.equal(canonicalProjection.deckSubtitle, undefined);
+  assert.equal(normalizeDeckSubtitleForEntry(undefined), undefined);
+  assert.equal(normalizeDeckSubtitleForEntry('A real subtitle'), 'A real subtitle');
 });
 
 test('briefing data is complete for a drawn card from each new deck', () => {

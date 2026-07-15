@@ -6223,6 +6223,7 @@ async function startServer() {
         const eventRef = dbAdmin!.collection('levelUpEvents').doc(eventId);
         const eventSnap = await transaction.get(eventRef);
         const event = eventSnap.exists ? eventSnap.data() || {} : null;
+        if (!event) throw new Error('LEVEL_UP_EVENT_NOT_FOUND');
         const accessError = getLevelUpAcknowledgementError(event, req.user.uid);
         if (accessError) throw new Error(accessError);
         if (event.acknowledged === true) return { alreadyAcknowledged: true };
