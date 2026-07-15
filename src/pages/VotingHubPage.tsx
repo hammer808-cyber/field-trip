@@ -11,7 +11,7 @@ import {
   Users,
   Info,
   Award,
-  HelpCircle,
+  BookOpen,
   X,
   Vote,
   Sparkles,
@@ -219,13 +219,24 @@ export default function VotingHubPage() {
                           </p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => navigate(clockInfo.phase === 'awards' ? '/big-board/results' : '/voting/ballot')}
-                        disabled={!isVotingUnlocked && clockInfo.phase !== 'awards'}
-                        className="bureau-btn bg-brand-lime text-on-surface text-xs justify-center"
-                      >
-                        {clockInfo.phase === 'awards' ? 'View Results' : clockInfo.phase === 'voting' ? 'Vote Now' : 'Preview Ballot'}
-                      </button>
+                      <div className="flex flex-col gap-2 sm:flex-row md:flex-col">
+                        <button
+                          type="button"
+                          onClick={() => setShowFullRules(true)}
+                          className="bureau-btn justify-center bg-white text-xs text-on-surface"
+                        >
+                          <BookOpen className="h-4 w-4" />
+                          Voting Rules
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => navigate(clockInfo.phase === 'awards' ? '/big-board/results' : '/voting/ballot')}
+                          disabled={!isVotingUnlocked && clockInfo.phase !== 'awards'}
+                          className="bureau-btn justify-center bg-brand-lime text-xs text-on-surface"
+                        >
+                          {clockInfo.phase === 'awards' ? 'View Results' : clockInfo.phase === 'voting' ? 'Vote Now' : 'Preview Ballot'}
+                        </button>
+                      </div>
                     </div>
                  </div>
 
@@ -381,14 +392,6 @@ export default function VotingHubPage() {
             )}
          </AnimatePresence>
       </main>
-
-      {/* Floating Rules Action */}
-      <button 
-        onClick={() => setShowFullRules(true)}
-        className="fixed bottom-32 right-8 w-16 h-16 bg-brand-yellow text-on-surface border-4 border-on-surface rounded-full flex items-center justify-center shadow-[6px_6px_0px_black] hover:rotate-[360deg] transition-all duration-700 active:scale-95 group z-50 shadow-[10px_10px_0px_black]"
-      >
-        <HelpCircle className="w-8 h-8 group-hover:scale-110 transition-transform" />
-      </button>
 
       {/* Rules Modal Overlay */}
       <AnimatePresence>
