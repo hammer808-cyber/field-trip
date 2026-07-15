@@ -35,7 +35,7 @@ import {
   type ProofTransitionReviewMetadata,
   type QueueRepairReport
 } from './proofLifecycleService';
-import { getMissionSubmissionContext } from '../logic/missionSubmission';
+import { getMissionSubmissionContext, normalizeDeckSubtitleForEntry } from '../logic/missionSubmission';
 
 // COLLECTION NAMES
 const ENTRIES_COLLECTION = 'entries';
@@ -479,6 +479,7 @@ export async function createSubmission(
     displayName: userName,
     username: userName, // snapshot
     ...submissionContext,
+    deckSubtitle: normalizeDeckSubtitleForEntry(submissionContext.deckSubtitle),
     status: 'pending_review',
     
     photoUrl: finalUrl,

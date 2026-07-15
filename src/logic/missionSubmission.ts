@@ -15,6 +15,10 @@ export interface MissionSubmissionContext {
   cardType: CanonicalMissionCardType;
 }
 
+export function normalizeDeckSubtitleForEntry(value: string | null | undefined): string | undefined {
+  return value ?? undefined;
+}
+
 export function inferMissionCardType(mission: Partial<TripCard>): CanonicalMissionCardType {
   if (mission.cardType) return mission.cardType;
   if (mission.category === 'Crew Challenge' || mission.type === 'Crew Challenge') return 'Crew';
