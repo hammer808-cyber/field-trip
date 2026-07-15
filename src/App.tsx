@@ -17,7 +17,7 @@ import { BetaAccessGate } from './components/BetaAccessGate';
 import { cn } from './lib/utils';
 import { LAUNCH_MISSION_ID, isLaunchMissionEligible } from './data/specialMissions';
 import { firebaseError, getFirebaseInitError } from './lib/firebase';
-import { FieldGuideAssist } from './components/FieldGuideAssist';
+import { TrevorGuide } from './components/TrevorGuide';
 import { StarterGate } from './components/StarterGate';
 import { resolveOnboardingDestination } from './logic/onboardingFlow';
 
@@ -526,9 +526,9 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             <RewardFeedback />
             <PlayerLevelUpFeedback />
             <DevTools />
-            <FieldGuideAssist />
           </>
         )}
+        <TrevorGuide />
         <GameWrapper>
           <Suspense fallback={<PageLoader />}>
             <main className={cn(
