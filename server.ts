@@ -101,6 +101,12 @@ import {
   reorderZinePages,
   toZineProofSnapshot,
 } from "./src/logic/zineSystem";
+import {
+  getInvalidZineStickerIds,
+  getZinePageStickerPlacements,
+  MAX_ZINE_PAGE_STICKERS,
+  normalizeZineStickerPlacements,
+} from "./src/logic/zineStickerPlacements";
 import type { ZineEdition, ZineLayoutId, ZinePage, ZineStatus } from "./src/types/zine";
 import { awardTrustedXpInTransaction, buildProgressionRepairPlan, getLevelUpAcknowledgementError, isTrustedProofXpEligible } from "./src/server/playerProgression";
 
@@ -4602,11 +4608,16 @@ async function startServer() {
       }
       const candidates = await loadZineCandidates(zine);
       const candidatesById = new Map(candidates.map(candidate => [getZineCandidateId(candidate), candidate]));
-      const userSnap = await dbAdmin.collection('users').doc(req.user.uid).get();
-      const earnedStickers = new Set<string>([
-        ...((userSnap.data()?.unlockedRewards?.stickers || []) as string[]),
-        ...((userSnap.data()?.earnedStickers || []) as Array<any>).map(item => String(item.id || item)),
-      ]);
+      const unlockedStickerSnapshot = await dbAdmin
+        .collection('users')
+        .doc(req.user.uid)
+        .collection('stickers')
+        .get();
+      const unlockedStickerIds = new Set<string>(
+        unlockedStickerSnapshot.docs
+          .filter(stickerDoc => stickerDoc.data().stickerId === stickerDoc.id)
+          .map(stickerDoc => stickerDoc.id)
+      );
       const nextPage = await dbAdmin.runTransaction(async transaction => {
         const current = await getEditableZineInTransaction(transaction, zineRef, req.user.uid, admin);
         const pages = Array.isArray(current.zine.pages) ? current.zine.pages as ZinePage[] : [];
@@ -4616,15 +4627,26 @@ async function startServer() {
         if (requestedProofIds.some((id: string) => !candidatesById.has(id))) throw new Error('ZINE_PROOF_NOT_ELIGIBLE');
         const layoutId = req.body.layoutId ? String(req.body.layoutId) as ZineLayoutId : pages[pageIndex].layoutId;
         if (!allowedLayouts.has(layoutId)) throw new Error('INVALID_ZINE_LAYOUT');
-        const stickerIds = Array.isArray(req.body.stickerIds) ? req.body.stickerIds.map((id: any) => String(id)).filter((id: string) => earnedStickers.has(id)).slice(0, 12) : pages[pageIndex].stickerIds;
+        const currentStickers = getZinePageStickerPlacements(pages[pageIndex]);
+        let stickers = currentStickers;
+        if (req.body.stickers !== undefined) {
+          if (!Array.isArray(req.body.stickers) || req.body.stickers.length > MAX_ZINE_PAGE_STICKERS) {
+            throw new Error('INVALID_ZINE_STICKERS');
+          }
+          stickers = normalizeZineStickerPlacements(req.body.stickers);
+          if (stickers.length !== req.body.stickers.length) throw new Error('INVALID_ZINE_STICKERS');
+          const invalidStickerIds = getInvalidZineStickerIds(stickers, unlockedStickerIds);
+          if (invalidStickerIds.length > 0) throw new Error('ZINE_STICKER_NOT_UNLOCKED');
+        }
+        const { stickerIds: _legacyStickerIds, ...currentPage } = pages[pageIndex];
         const page: ZinePage = {
-          ...pages[pageIndex],
+          ...currentPage,
           layoutId,
           title: req.body.title !== undefined ? String(req.body.title).slice(0, 100) : pages[pageIndex].title,
           caption: req.body.caption !== undefined ? String(req.body.caption).slice(0, 600) : pages[pageIndex].caption,
           proofIds: requestedProofIds,
           proofSnapshots: requestedProofIds.map((id: string) => toZineProofSnapshot(candidatesById.get(id)!)),
-          stickerIds,
+          stickers,
         };
         const nextPages = [...pages];
         nextPages[pageIndex] = page;
@@ -4636,7 +4658,13 @@ async function startServer() {
     } catch (error: any) {
       console.error('[ZINE_PAGE_UPDATE] Failed:', error);
       const message = error.message || String(error);
-      const status = message.endsWith('_FORBIDDEN') ? 403 : message.includes('NOT_FOUND') ? 404 : ['ZINE_PROOF_NOT_ELIGIBLE', 'INVALID_ZINE_LAYOUT'].includes(message) ? 400 : 500;
+      const status = message.endsWith('_FORBIDDEN')
+        ? 403
+        : message.includes('NOT_FOUND')
+          ? 404
+          : ['ZINE_PROOF_NOT_ELIGIBLE', 'INVALID_ZINE_LAYOUT', 'INVALID_ZINE_STICKERS', 'ZINE_STICKER_NOT_UNLOCKED'].includes(message)
+            ? 400
+            : 500;
       res.status(status).json({ error: message === 'ZINE_PAGE_UPDATE_FAILED' ? message : message, message });
     }
   });
@@ -4680,7 +4708,7 @@ async function startServer() {
           caption: '',
           proofIds: [],
           proofSnapshots: [],
-          stickerIds: [],
+          stickers: [],
           isOptional: true,
           isFlexible: true,
         };
@@ -4784,7 +4812,15 @@ async function startServer() {
         if (zine.status === 'finalized' || zine.status === 'archived') return { alreadyFinalized: true, zine };
         const access = await getZineActorAccessInTransaction(transaction, zine, req.user.uid);
         if (!canFinalizeZine({ zine, userId: req.user.uid, activeCrewId: access.activeCrewId, isCrewCaptain: access.isCrewCaptain, isAdmin: admin })) throw new Error('ZINE_FINALIZE_FORBIDDEN');
-        const pages = Array.isArray(zine.pages) ? zine.pages : [];
+        const pages = Array.isArray(zine.pages)
+          ? (zine.pages as ZinePage[]).map(page => {
+              const { stickerIds: _legacyStickerIds, ...canonicalPage } = page;
+              return {
+                ...canonicalPage,
+                stickers: getZinePageStickerPlacements(page),
+              };
+            })
+          : [];
         const viewerUserIdsSnapshot = zine.kind === 'crew' && zine.crewId
           ? (await transaction.get(dbAdmin!.collection('crews').doc(zine.crewId).collection('members').where('status', '==', 'active'))).docs.map(memberDoc => memberDoc.id)
           : [String(zine.ownerId || '')].filter(Boolean);

@@ -231,7 +231,7 @@ export function buildZineDraftPages(candidates: ZineCandidateLike[]): ZinePage[]
       caption: snapshot?.fieldNote || '',
       proofIds: snapshot ? [snapshot.entryId] : [],
       proofSnapshots: snapshot ? [snapshot] : [],
-      stickerIds: [],
+      stickers: [],
       isOptional: false,
       isFlexible: definition.flexible === true,
     };

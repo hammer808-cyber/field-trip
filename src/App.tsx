@@ -636,6 +636,7 @@ export default function App() {
                     <Route path="/crew/invite/:token" element={<CrewInvite />} />
                     <Route path="/dex" element={<StarterGate requiredFeature="memories"><Collection /></StarterGate>} />
                     <Route path="/dex/collection" element={<StarterGate requiredFeature="memories"><Collection /></StarterGate>} />
+                    <Route path="/dex/stickers" element={<StarterGate requiredFeature="memories"><Collection /></StarterGate>} />
                     <Route path="/dex/zines" element={<StarterGate requiredFeature="memories"><Collection /></StarterGate>} />
                     <Route path="/dex/memories" element={<StarterGate requiredFeature="memories"><Collection /></StarterGate>} />
                     <Route path="/dex/memories/community" element={<StarterGate requiredFeature="memories"><Collection /></StarterGate>} />

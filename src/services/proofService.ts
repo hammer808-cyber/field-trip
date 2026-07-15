@@ -36,6 +36,11 @@ import { authenticatedFetch } from '../lib/api';
 import { getActiveWeeklyBonus, hasUserEarnedWeeklyBonusThisWeek, calculateWeeklyBonusReward } from './weeklyBonusService';
 import { getCatalystForWeek, evaluateProofForCatalyst, awardCatalystRewardsIfEligible } from './weeklyCatalystService';
 import { calculateAverageHash, calculateHammingDistance } from '../utils/hashUtils';
+import {
+  runStickerAwardNonBlocking,
+  STICKER_EVENT_AWARD_IDS,
+  unlockStickerForUser,
+} from './stickerService';
 
 const REQUIREMENTS_COLLECTION = 'proofRequirements';
 const REVIEWS_COLLECTION = 'proofReviews';
@@ -619,6 +624,17 @@ export async function adminOverrideReview(
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(payload.error || payload.message || 'REVIEW_ACTION_FAILED');
+  }
+  if (newStatus === 'approved' && payload?.userId) {
+    // Legacy admin review surfaces share the same non-blocking canonical sticker award.
+    runStickerAwardNonBlocking('admin_override_first_approval', () =>
+      unlockStickerForUser(
+        String(payload.userId),
+        STICKER_EVENT_AWARD_IDS.firstApproval,
+        `proof_approval:${payload.entryId || entryId}`,
+        'first_approval'
+      )
+    );
   }
   return payload;
 }

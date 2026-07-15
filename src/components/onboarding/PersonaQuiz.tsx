@@ -6,6 +6,11 @@ import { FieldTypeId, FIELD_TYPES } from '../../constants';
 import { PERSONA_AVATAR_PRESETS } from '../../constants/avatarAssets';
 import { useApp } from '../../context/AppContext';
 import { assignFieldType, getScores } from '../../logic/fieldTypeLogic';
+import {
+  getStickerArchetypeForFieldType,
+  runStickerAwardNonBlocking,
+  unlockStarterPackForArchetype,
+} from '../../services/stickerService';
 
 interface PersonaQuizProps {
   onComplete: () => void;
@@ -67,6 +72,14 @@ export const PersonaQuiz: React.FC<PersonaQuizProps> = ({ onComplete }) => {
         updatedAt: new Date().toISOString(),
         ...(avatarPreset && { avatar: avatarPreset })
       });
+
+      const stickerArchetype = getStickerArchetypeForFieldType(finalPersona);
+      if (stickerArchetype) {
+        // Sticker rewards are intentionally fire-and-forget so classification cannot be blocked.
+        runStickerAwardNonBlocking('onboarding_starter_pack', () =>
+          unlockStarterPackForArchetype(profile.id, stickerArchetype)
+        );
+      }
 
       onComplete();
     } catch (err: any) {
