@@ -104,8 +104,11 @@ test('pending and rejected proof actions are never XP-eligible', () => {
 });
 
 test('level-up acknowledgement requires the owning user and permits an acknowledged replay', () => {
-  assert.equal(getLevelUpAcknowledgementError(null, 'player-1'), 'LEVEL_UP_EVENT_NOT_FOUND');
   assert.equal(getLevelUpAcknowledgementError({ userId: 'player-1' }, 'player-2'), 'LEVEL_UP_EVENT_FORBIDDEN');
   assert.equal(getLevelUpAcknowledgementError({ userId: 'player-1', acknowledged: false }, 'player-1'), null);
   assert.equal(getLevelUpAcknowledgementError({ userId: 'player-1', acknowledged: true }, 'player-1'), null);
+});
+
+test('a missing level-up event resolves to not found before acknowledgement handling', () => {
+  assert.equal(getLevelUpAcknowledgementError(null, 'player-1'), 'LEVEL_UP_EVENT_NOT_FOUND');
 });

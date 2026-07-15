@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createQueueRepairReport } from '../services/proofLifecycleService';
 
 const submissionServiceSource = readFileSync('src/services/submissionService.ts', 'utf8');
 const proofLifecycleSource = readFileSync('src/services/proofLifecycleService.ts', 'utf8');
@@ -58,4 +59,26 @@ test('admin review decisions are sent through a server-authorized canonical entr
   assert.match(adminActionRoute, /reviewRefs\.forEach/);
   assert.match(adminActionRoute, /adminLogs/);
   assert.doesNotMatch(submissionServiceSource, /logAdminAction\(auth\.currentUser\.uid, submissionId, 'proofReview'/);
+});
+
+test('canonical queue repair reports have a stable dry-run and live-repair shape', () => {
+  assert.deepEqual(createQueueRepairReport(), {
+    dryRun: true,
+    scannedEntries: 0,
+    scannedProofReviews: 0,
+    repairedEntries: [],
+    ambiguousRecords: [],
+    orphanProofReviews: [],
+  });
+
+  const liveReport = createQueueRepairReport(false);
+  assert.equal(liveReport.dryRun, false);
+  assert.deepEqual(Object.keys(liveReport).sort(), [
+    'ambiguousRecords',
+    'dryRun',
+    'orphanProofReviews',
+    'repairedEntries',
+    'scannedEntries',
+    'scannedProofReviews',
+  ]);
 });

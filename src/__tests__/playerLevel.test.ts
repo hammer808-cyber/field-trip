@@ -54,6 +54,38 @@ test('level progress reports the next threshold and remaining XP', () => {
   assert.equal(getNextLevel(1587).level, 5);
 });
 
+test('level progress percentage stays within bounds at level thresholds', () => {
+  const newUser = getLevelProgress(0);
+  assert.equal(newUser.level, 1);
+  assert.equal(newUser.progressPercent, 0);
+  assert.equal(newUser.xpToNextLevel, 250);
+
+  const justBeforeLevelTwo = getLevelProgress(249);
+  assert.ok(justBeforeLevelTwo.progressPercent >= 0);
+  assert.ok(justBeforeLevelTwo.progressPercent < 100);
+  assert.equal(justBeforeLevelTwo.xpToNextLevel, 1);
+
+  const levelTwo = getLevelProgress(250);
+  assert.equal(levelTwo.level, 2);
+  assert.equal(levelTwo.progressPercent, 0);
+  assert.equal(levelTwo.xpIntoLevel, 0);
+});
+
+test('highest authored tier and very high XP keep progress finite and bounded', () => {
+  const highestAuthoredTier = getLevelProgress(getLevelMinimumXp(15));
+  assert.equal(highestAuthoredTier.level, 15);
+  assert.equal(highestAuthoredTier.progressPercent, 0);
+  assert.equal(highestAuthoredTier.nextLevel.level, 16);
+  assert.ok(highestAuthoredTier.xpToNextLevel > 0);
+
+  const highProgress = getLevelProgress(Number.MAX_SAFE_INTEGER);
+  assert.ok(Number.isFinite(highProgress.progressPercent));
+  assert.ok(highProgress.progressPercent >= 0);
+  assert.ok(highProgress.progressPercent <= 100);
+  assert.ok(Number.isFinite(highProgress.xpToNextLevel));
+  assert.ok(highProgress.xpToNextLevel >= 0);
+});
+
 test('post-level-15 progression follows the documented increasing-cost formula', () => {
   assert.equal(getLevelMinimumXp(16), 26300);
   assert.equal(getLevelMinimumXp(17), 30300);

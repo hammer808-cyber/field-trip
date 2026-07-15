@@ -31,9 +31,9 @@ import {
   normalizeCanonicalSubmission,
   markCanonicalSubmissionPending,
   transitionProofReview,
-  ProofTransitionReviewMetadata,
   repairCanonicalProofQueue,
-  QueueRepairReport
+  type ProofTransitionReviewMetadata,
+  type QueueRepairReport
 } from './proofLifecycleService';
 import { getMissionSubmissionContext } from '../logic/missionSubmission';
 
