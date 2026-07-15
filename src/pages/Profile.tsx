@@ -25,6 +25,7 @@ import { SkinSelector } from '../components/SkinSelector';
 import { BadgeCollection } from '../components/BadgeCollection';
 // Removed: import { StatusSticker } from '../components/StickerDecals';
 import { AvatarPreview } from '../components/AvatarPreview';
+import { FeaturedStickerShowcase } from '../components/stickers/FeaturedStickerShowcase';
 import { DEFAULT_AVATAR, AVATAR_MANIFEST } from '../constants/avatarAssets';
 import { AvatarData } from '../types/avatar';
 import { FIELD_TYPES } from '../constants';
@@ -41,6 +42,7 @@ import {
 
 export default function ProfilePage() {
   const { 
+    user,
     entries, 
     signOut, 
     badgeProgress, 
@@ -379,6 +381,11 @@ export default function ProfilePage() {
                   </div>
                 </FieldCard>
               </section>
+
+              <FeaturedStickerShowcase
+                userId={user?.uid}
+                onManage={() => navigate('/dex/stickers')}
+              />
 
               {/* Progress Summary */}
               <section className="space-y-4">

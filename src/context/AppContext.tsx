@@ -73,7 +73,12 @@ import { subscribeToActiveSignal } from '../services/fieldSignalService';
 import { FieldSignal } from '../types/signals';
 import { awardDiscoverySticker } from '../services/discoveryService';
 import { DISCOVERY_STICKERS, DiscoverySticker } from '../constants/discoveryStickers';
-import { hasEarnedSticker } from '../services/stickerService';
+import {
+  hasEarnedSticker,
+  runStickerAwardNonBlocking,
+  STICKER_EVENT_AWARD_IDS,
+  unlockStickerForUser,
+} from '../services/stickerService';
 import { castVote, getVotesForUser } from '../services/voteService';
 import { StarterCompletionState } from '../utils/starterHelper';
 
@@ -2264,6 +2269,52 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const { entryId, status, review, scoring, ftBonus, ftText, newRewards } = result;
     setLastReview(review);
+
+    // Sticker unlocks run after canonical submission succeeds and never block proof handling.
+    runStickerAwardNonBlocking('proof_first_submission', () =>
+      unlockStickerForUser(
+        user.uid,
+        STICKER_EVENT_AWARD_IDS.firstSubmission,
+        `proof_submission:${entryId}`,
+        'first_submission'
+      )
+    );
+    if (entryData.fieldNote?.trim()) {
+      runStickerAwardNonBlocking('proof_field_note', () =>
+        unlockStickerForUser(
+          user.uid,
+          STICKER_EVENT_AWARD_IDS.fieldNoteAdded,
+          `proof_submission:${entryId}`,
+          'field_note_added'
+        )
+      );
+    }
+    const hasPhotoProof = Boolean(
+      entryData.proofImage ||
+      entryData.originalImageUrl ||
+      (entryData as any).imageStoragePath ||
+      (entryData as any).storagePath
+    );
+    if (hasPhotoProof) {
+      runStickerAwardNonBlocking('proof_photo_added', () =>
+        unlockStickerForUser(
+          user.uid,
+          STICKER_EVENT_AWARD_IDS.photoProofAdded,
+          `proof_submission:${entryId}`,
+          'photo_proof_added'
+        )
+      );
+    }
+    if (status === 'approved') {
+      runStickerAwardNonBlocking('proof_first_approval', () =>
+        unlockStickerForUser(
+          user.uid,
+          STICKER_EVENT_AWARD_IDS.firstApproval,
+          `proof_approval:${entryId}`,
+          'first_approval'
+        )
+      );
+    }
 
     if (activeCrewId && status === 'approved') {
       try {

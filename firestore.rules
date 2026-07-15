@@ -296,6 +296,111 @@ service cloud.firestore {
       match /legalConsents/{consentId} {
         allow read, write: if isSignedIn() && (uId == request.auth.uid || isAdmin());
       }
+      match /stickers/{stickerId} {
+        function isKnownStickerId() {
+          return stickerId in [
+            'captain_clipboard_clipboard_character',
+            'captain_clipboard_checklist_badge',
+            'captain_clipboard_checkmark_seal',
+            'captain_clipboard_pen_sparkle',
+            'captain_clipboard_flying_papers',
+            'captain_clipboard_whistle_lanyard',
+            'captain_clipboard_field_notes',
+            'mall_rat_shopping_bags',
+            'mall_rat_receipt_curl',
+            'mall_rat_sunglasses',
+            'mall_rat_food_court_tray',
+            'mall_rat_escalator_pose',
+            'mall_rat_soda_cup',
+            'mall_rat_mall_map',
+            'mascota_mascot_jump',
+            'mascota_pom_poms',
+            'mascota_foam_finger',
+            'mascota_confetti_burst',
+            'mascota_megaphone',
+            'mascota_mascot_face',
+            'mascota_victory_flag',
+            'elondra_crown',
+            'elondra_compact_mirror',
+            'elondra_sparkle_burst',
+            'elondra_glam_pose',
+            'elondra_glam_shoe',
+            'elondra_purse',
+            'elondra_arrival_pose',
+            'lost_camper_map',
+            'lost_camper_flashlight',
+            'lost_camper_backpack',
+            'lost_camper_compass',
+            'lost_camper_bandage',
+            'lost_camper_trail_sign',
+            'lost_camper_nervous_camper',
+            'bigfoot_footprint',
+            'bigfoot_tree_hideout',
+            'bigfoot_blurry_polaroid',
+            'bigfoot_pine_trees',
+            'bigfoot_peace_sign',
+            'bigfoot_campfire_snack',
+            'bigfoot_night_silhouette'
+          ];
+        }
+
+        function isValidStickerTrigger(trigger) {
+          return trigger in [
+            'starter_pack',
+            'first_submission',
+            'first_approval',
+            'field_note_added',
+            'photo_proof_added',
+            'challenge_approved',
+            'weekly_vote_cast',
+            'weekly_winner',
+            'crew_joined',
+            'crew_created',
+            'zine_page_added',
+            'archetype_milestone',
+            'season_milestone',
+            'admin_grant'
+          ];
+        }
+
+        function isValidStickerUnlock() {
+          let data = incoming();
+          return isKnownStickerId() &&
+                 data.keys().hasAll(['stickerId', 'unlockedAt', 'source', 'trigger', 'seen', 'equipped']) &&
+                 data.keys().hasOnly(['stickerId', 'unlockedAt', 'source', 'trigger', 'seen', 'equipped']) &&
+                 data.stickerId == stickerId &&
+                 data.unlockedAt == requestTime() &&
+                 data.source is string &&
+                 data.source.size() > 0 &&
+                 data.source.size() <= 200 &&
+                 isValidStickerTrigger(data.trigger) &&
+                 data.seen == false &&
+                 data.equipped == false;
+        }
+
+        function isValidStickerPreferenceUpdate() {
+          return incoming().diff(existing()).affectedKeys().hasOnly(['seen', 'equipped']) &&
+                 incoming().seen is bool &&
+                 incoming().equipped is bool &&
+                 (
+                   incoming().seen == existing().seen ||
+                   (existing().seen == false && incoming().seen == true)
+                 );
+        }
+
+        allow read: if isSignedIn() && (uId == request.auth.uid || isAdmin());
+        allow create: if isAdmin() || (
+          isSignedIn() &&
+          uId == request.auth.uid &&
+          isValidStickerUnlock()
+        );
+        allow update: if isAdmin() || (
+          isSignedIn() &&
+          uId == request.auth.uid &&
+          isValidStickerPreferenceUpdate()
+        );
+        allow delete: if isAdmin();
+      }
       match /drawnMissionCards/{mId} {
         function isValidDrawnCard(data) {
           return data.keys().hasAll(['uid', 'missionId', 'status', 'drawnAt']) &&

@@ -36,6 +36,11 @@ import {
   type QueueRepairReport
 } from './proofLifecycleService';
 import { getMissionSubmissionContext, normalizeDeckSubtitleForEntry } from '../logic/missionSubmission';
+import {
+  runStickerAwardNonBlocking,
+  STICKER_EVENT_AWARD_IDS,
+  unlockStickerForUser,
+} from './stickerService';
 
 // COLLECTION NAMES
 const ENTRIES_COLLECTION = 'entries';
@@ -698,6 +703,17 @@ async function submitAdminProofReviewAction(
     const err: any = new Error(payload?.error || payload?.message || `REVIEW_ACTION_FAILED_${response.status}`);
     err.details = payload?.details || null;
     throw err;
+  }
+  if (action === 'approve' && payload?.userId) {
+    // Approval is already committed; sticker failure must not roll back proof status or XP.
+    runStickerAwardNonBlocking('admin_proof_first_approval', () =>
+      unlockStickerForUser(
+        String(payload.userId),
+        STICKER_EVENT_AWARD_IDS.firstApproval,
+        `proof_approval:${payload.entryId || submissionId}`,
+        'first_approval'
+      )
+    );
   }
   return payload;
 }

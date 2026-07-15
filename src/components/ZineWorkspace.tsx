@@ -3,7 +3,12 @@ import { BookOpen, Check, ChevronDown, ChevronUp, FilePlus2, Loader2, Lock, Prin
 import { useApp } from '../context/AppContext';
 import { cn } from '../lib/utils';
 import { ProofImage } from './ProofImage';
+import { ZineStickerLayer } from './zine/ZineStickerLayer';
+import { ZineStickerPicker } from './zine/ZineStickerPicker';
+import { getStickerById, type StickerDefinition } from '../data/stickers';
+import { getZinePageStickerPlacements } from '../logic/zineStickerPlacements';
 import type { ZineEdition, ZineKind, ZinePage, ZineProofSnapshot } from '../types/zine';
+import { getUserUnlockedStickers } from '../services/stickerService';
 import {
   addOptionalZinePage,
   finalizeZine,
@@ -39,7 +44,7 @@ interface ZineWorkspaceProps {
 }
 
 export function ZineWorkspace({ initialKind = 'personal', showScopeSwitch = true }: ZineWorkspaceProps) {
-  const { profile } = useApp();
+  const { user } = useApp();
   const [kind, setKind] = useState<ZineKind>(initialKind);
   const [workspace, setWorkspace] = useState<any>(null);
   const [zine, setZine] = useState<ZineEdition | null>(null);
@@ -49,11 +54,26 @@ export function ZineWorkspace({ initialKind = 'personal', showScopeSwitch = true
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
+  const [unlockedStickers, setUnlockedStickers] = useState<StickerDefinition[]>([]);
 
-  const earnedStickerIds = useMemo(() => Array.from(new Set<string>([
-    ...(((profile as any)?.unlockedRewards?.stickers || []) as string[]),
-    ...((((profile as any)?.earnedStickers || []) as any[]).map(item => String(item.id || item))),
-  ])).slice(0, 40), [profile]);
+  useEffect(() => {
+    let isCurrent = true;
+    if (!user?.uid) {
+      setUnlockedStickers([]);
+      return () => {
+        isCurrent = false;
+      };
+    }
+    void getUserUnlockedStickers(user.uid).then(records => {
+      if (!isCurrent) return;
+      setUnlockedStickers(records
+        .map(record => getStickerById(record.stickerId))
+        .filter((sticker): sticker is StickerDefinition => Boolean(sticker)));
+    });
+    return () => {
+      isCurrent = false;
+    };
+  }, [user?.uid]);
 
   const load = async (preferredKind = kind) => {
     setLoading(true);
@@ -194,7 +214,7 @@ export function ZineWorkspace({ initialKind = 'personal', showScopeSwitch = true
                 zine={zine}
                 page={page}
                 candidates={candidates}
-                earnedStickerIds={earnedStickerIds}
+                unlockedStickers={unlockedStickers}
                 canEdit={permissions.canEdit && !preview && !['ready_for_review', 'finalized', 'archived'].includes(zine.status)}
                 compact={preview}
                 busy={busy}
@@ -236,11 +256,11 @@ export function ZineWorkspace({ initialKind = 'personal', showScopeSwitch = true
   );
 }
 
-function ZinePagePanel({ zine, page, candidates, earnedStickerIds, canEdit, compact, busy, onRun }: {
+function ZinePagePanel({ zine, page, candidates, unlockedStickers, canEdit, compact, busy, onRun }: {
   zine: ZineEdition;
   page: ZinePage;
   candidates: ZineProofSnapshot[];
-  earnedStickerIds: string[];
+  unlockedStickers: StickerDefinition[];
   canEdit: boolean;
   compact: boolean;
   busy: boolean;
@@ -248,11 +268,13 @@ function ZinePagePanel({ zine, page, candidates, earnedStickerIds, canEdit, comp
 }) {
   const selected = page.proofSnapshots?.[0] || null;
   const imageEntry = proofImageEntry(selected);
+  const stickerPlacements = useMemo(() => getZinePageStickerPlacements(page), [page]);
   return (
     <article className={cn('skin-card skin-zine-page relative border-4 border-on-surface bg-[#FFFDF6] overflow-hidden', compact ? 'min-h-[480px] shadow-[8px_8px_0px_black]' : 'grid md:grid-cols-[240px_1fr]')}>
       <div className={cn('relative bg-neutral-900', compact ? 'h-72' : 'min-h-64 md:min-h-full')}>
         {imageEntry ? <ProofImage entry={imageEntry} className="absolute inset-0 w-full h-full" alt={selected?.missionTitle || page.title} /> : <div className="absolute inset-0 grid place-items-center text-center p-6 text-white/40 font-mono text-[10px] uppercase">Page waiting for a receipt</div>}
-        <span className="absolute top-3 left-3 bg-brand-lime border-2 border-on-surface px-2 py-1 font-mono text-[8px] font-black uppercase">{page.order + 1} / {page.role.replace(/_/g, ' ')}</span>
+        <ZineStickerLayer page={page} />
+        <span className="absolute z-10 top-3 left-3 bg-brand-lime border-2 border-on-surface px-2 py-1 font-mono text-[8px] font-black uppercase">{page.order + 1} / {page.role.replace(/_/g, ' ')}</span>
       </div>
       <div className="p-5 sm:p-6 space-y-4">
         <div>
@@ -260,7 +282,6 @@ function ZinePagePanel({ zine, page, candidates, earnedStickerIds, canEdit, comp
           {selected && <p className="font-mono text-[9px] uppercase opacity-45 mt-2">{selected.missionTitle} / {selected.ownerDisplayName}</p>}
         </div>
         <p className="font-serif italic text-sm text-on-surface/70 min-h-10">{page.caption || 'No caption yet.'}</p>
-        {page.stickerIds.length > 0 && <div className="flex flex-wrap gap-2">{page.stickerIds.map(id => <span key={id} className="bg-brand-orange text-white border border-on-surface px-2 py-1 font-mono text-[8px] uppercase">{id}</span>)}</div>}
         {canEdit && (
           <div className="border-t-2 border-on-surface/15 pt-4 grid sm:grid-cols-2 gap-3">
             <label className="space-y-1">
@@ -280,15 +301,12 @@ function ZinePagePanel({ zine, page, candidates, earnedStickerIds, canEdit, comp
               <span className="font-mono text-[8px] font-black uppercase">Caption</span>
               <textarea key={`${page.id}_${page.caption}`} defaultValue={page.caption} onBlur={event => event.target.value !== page.caption && onRun(() => updateZinePage(zine.id, page.id, { caption: event.target.value }))} className="w-full min-h-20 border-2 border-on-surface bg-white p-3 font-serif italic text-sm" maxLength={600} />
             </label>
-            {earnedStickerIds.length > 0 && (
-              <label className="space-y-1">
-                <span className="font-mono text-[8px] font-black uppercase">Add sticker</span>
-                <select defaultValue="" onChange={event => event.target.value && onRun(() => updateZinePage(zine.id, page.id, { stickerIds: Array.from(new Set([...page.stickerIds, event.target.value])) }))} className="w-full border-2 border-on-surface bg-white p-2 font-mono text-[10px]">
-                  <option value="">Choose earned sticker</option>
-                  {earnedStickerIds.filter(id => !page.stickerIds.includes(id)).map(id => <option key={id} value={id}>{id}</option>)}
-                </select>
-              </label>
-            )}
+            <ZineStickerPicker
+              unlockedStickers={unlockedStickers}
+              placements={stickerPlacements}
+              disabled={busy}
+              onChange={stickers => onRun(() => updateZinePage(zine.id, page.id, { stickers }))}
+            />
             {page.isFlexible && (
               <div className="flex items-end gap-2 sm:justify-end">
                 <button disabled={busy} title="Move page earlier" onClick={() => onRun(() => reorderZinePage(zine.id, page.id, -1))} className="w-10 h-10 border-2 border-on-surface bg-white grid place-items-center"><ChevronUp className="w-4 h-4" /></button>

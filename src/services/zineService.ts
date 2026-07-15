@@ -1,5 +1,25 @@
 import { authenticatedFetch } from '../lib/api';
-import type { ZineEdition, ZineLayoutId, ZineProofSnapshot, ZineWorkspaceState } from '../types/zine';
+import { auth } from '../lib/firebase';
+import type { ZineEdition, ZineLayoutId, ZineProofSnapshot, ZineStickerPlacement, ZineWorkspaceState } from '../types/zine';
+import { getZinePageStickerPlacements } from '../logic/zineStickerPlacements';
+import {
+  runStickerAwardNonBlocking,
+  STICKER_EVENT_AWARD_IDS,
+  unlockStickerForUser,
+} from './stickerService';
+
+function awardCurrentUserZineSticker(source: string): void {
+  const userId = auth.currentUser?.uid;
+  if (!userId) return;
+  runStickerAwardNonBlocking('zine_page_added', () =>
+    unlockStickerForUser(
+      userId,
+      STICKER_EVENT_AWARD_IDS.zinePageAdded,
+      source,
+      'zine_page_added'
+    )
+  );
+}
 
 async function readZineResponse<T>(response: Response, fallback: string): Promise<T> {
   const payload = await response.json().catch(() => ({}));
@@ -18,7 +38,25 @@ export async function getZine(zineId: string): Promise<{
   permissions: { canEdit: boolean; canFinalize: boolean; canNominate: boolean };
 }> {
   const response = await authenticatedFetch(`/api/zines/${encodeURIComponent(zineId)}`);
-  return readZineResponse(response, `Zine load failed with HTTP ${response.status}`);
+  const payload = await readZineResponse<{
+    zine: ZineEdition;
+    candidates: ZineProofSnapshot[];
+    permissions: { canEdit: boolean; canFinalize: boolean; canNominate: boolean };
+  }>(response, `Zine load failed with HTTP ${response.status}`);
+  return {
+    ...payload,
+    zine: {
+      ...payload.zine,
+      pages: (payload.zine.pages || []).map(page => ({
+        ...page,
+        stickers: getZinePageStickerPlacements(page)
+      })),
+      finalizedPages: payload.zine.finalizedPages?.map(page => ({
+        ...page,
+        stickers: getZinePageStickerPlacements(page)
+      }))
+    }
+  };
 }
 
 export async function generateZineDraft(zineId: string): Promise<ZineEdition> {
@@ -32,13 +70,23 @@ export async function updateZinePage(zineId: string, pageId: string, update: {
   layoutId?: ZineLayoutId;
   title?: string;
   caption?: string;
-  stickerIds?: string[];
+  stickers?: ZineStickerPlacement[];
 }): Promise<void> {
   const response = await authenticatedFetch(`/api/zines/${encodeURIComponent(zineId)}/pages/${encodeURIComponent(pageId)}`, {
     method: 'PATCH',
     body: JSON.stringify(update),
   });
   await readZineResponse(response, `Zine page update failed with HTTP ${response.status}`);
+  const contributedContent = Boolean(
+    update.proofIds?.length ||
+    update.stickers?.length ||
+    update.title?.trim() ||
+    update.caption?.trim()
+  );
+  if (contributedContent) {
+    // Only successful content contributions qualify; layout-only edits do not.
+    awardCurrentUserZineSticker(`zine_page:${zineId}:${pageId}`);
+  }
 }
 
 export async function reorderZinePage(zineId: string, pageId: string, direction: -1 | 1): Promise<void> {
@@ -52,6 +100,8 @@ export async function reorderZinePage(zineId: string, pageId: string, direction:
 export async function addOptionalZinePage(zineId: string): Promise<void> {
   const response = await authenticatedFetch(`/api/zines/${encodeURIComponent(zineId)}/pages/optional`, { method: 'POST' });
   await readZineResponse(response, `Optional page failed with HTTP ${response.status}`);
+  // Page creation is committed before the non-blocking sticker attempt begins.
+  awardCurrentUserZineSticker(`zine_page:${zineId}:optional`);
 }
 
 export async function selectZineCover(zineId: string, coverId: string): Promise<void> {
@@ -79,4 +129,3 @@ export async function finalizeZine(zineId: string): Promise<{ alreadyFinalized: 
   const response = await authenticatedFetch(`/api/zines/${encodeURIComponent(zineId)}/finalize`, { method: 'POST' });
   return readZineResponse(response, `Zine finalization failed with HTTP ${response.status}`);
 }
-

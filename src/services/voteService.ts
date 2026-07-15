@@ -13,6 +13,11 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Vote, VoteCategory, Entry, BallotCandidate } from '../types/game';
 import { getAppConfig, getActiveSeason } from './seasonService';
 import { authenticatedFetch } from '../lib/api';
+import {
+  runStickerAwardNonBlocking,
+  STICKER_EVENT_AWARD_IDS,
+  unlockStickerForUser,
+} from './stickerService';
 
 const VOTES_COLLECTION = 'votes';
 
@@ -34,6 +39,16 @@ export const castVote = async (userId: string, entryId: string, weekNumber: numb
       const err = await response.json().catch(() => ({}));
       throw new Error(err.error || 'VOTE_FAILED');
     }
+
+    // A successful server-authoritative vote unlocks participation without delaying the ballot UI.
+    runStickerAwardNonBlocking('weekly_vote_cast', () =>
+      unlockStickerForUser(
+        userId,
+        STICKER_EVENT_AWARD_IDS.weeklyVoteCast,
+        `weekly_vote:${seasonId}:${weekNumber}:${category}`,
+        'weekly_vote_cast'
+      )
+    );
   } catch (error: any) {
     console.error('Vote failed:', error.message);
     if (error.message === 'SELF_VOTE_PROHIBITED') throw error;

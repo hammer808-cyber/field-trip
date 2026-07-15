@@ -49,6 +49,14 @@ export interface ZineProofSnapshot {
   crewId: string | null;
 }
 
+export interface ZineStickerPlacement {
+  stickerId: string;
+  x: number;
+  y: number;
+  rotation: number;
+  scale: number;
+}
+
 export interface ZinePage {
   id: string;
   role: ZinePageRole;
@@ -58,7 +66,9 @@ export interface ZinePage {
   caption: string;
   proofIds: string[];
   proofSnapshots: ZineProofSnapshot[];
-  stickerIds: string[];
+  stickers: ZineStickerPlacement[];
+  /** Read-only compatibility for zines saved before placed stickers were introduced. */
+  stickerIds?: string[];
   isOptional: boolean;
   isFlexible: boolean;
 }
@@ -112,4 +122,3 @@ export interface ZineWorkspaceState {
     canNominateCrew: boolean;
   };
 }
-

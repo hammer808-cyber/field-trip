@@ -15,7 +15,7 @@ import {
   Box,
   Heart
 } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { StickerDecal } from '../components/StickerDecals';
 import { FieldBadge } from '../components/UI';
@@ -25,10 +25,10 @@ import { FieldPageHero } from '../components/FieldPageHero';
 import { MissionCard } from '../components/ChallengeCard';
 import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
 import { CommunityProofsFeed } from '../components/CommunityProofsFeed';
-import { markEarnedStickersSeen } from '../services/stickerService';
 import { getDeckProgress, getStarterProgress } from '../services/canonicalProgress';
 import { ZineWorkspace } from '../components/ZineWorkspace';
 import { StickerBook } from '../components/StickerBook';
+import { StickerMachine } from '../components/stickers/StickerMachine';
 
 type CollectionTab = 'collection' | 'zines' | 'memories' | 'stickers' | 'badges' | 'decks' | 'missions' | 'crew_memories';
 type MemoriesView = 'mine' | 'community';
@@ -36,7 +36,6 @@ type MemoriesView = 'mine' | 'community';
 export default function CollectionPage() {
   const { 
     profile, 
-    user,
     trips,
     unlockDiscoverySticker,
     isHeatwaveDeckUnlocked,
@@ -48,11 +47,11 @@ export default function CollectionPage() {
   } = useApp();
   const { allSkins } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const initialTabParam = searchParams.get('tab');
   const initialTab = (
     initialTabParam === 'skins' ||
-    initialTabParam === 'stickers' ||
     initialTabParam === 'badges' ||
     initialTabParam === 'crew_home'
       ? 'collection'
@@ -111,7 +110,7 @@ export default function CollectionPage() {
   useEffect(() => {
     const tabParam = searchParams.get('tab');
     const tab = tabParam as CollectionTab | null;
-    if (tabParam === 'skins' || tabParam === 'stickers' || tabParam === 'badges' || tabParam === 'crew_home') {
+    if (tabParam === 'skins' || tabParam === 'badges' || tabParam === 'crew_home') {
       setActiveTab('collection');
     } else if (tabParam === 'crew_memories') {
       setActiveTab('memories');
@@ -122,8 +121,7 @@ export default function CollectionPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const path = window.location.pathname;
+    const path = location.pathname;
     if (path.includes('/dex/memories/community')) {
       setActiveTab('memories');
       setMemoriesView('community');
@@ -132,18 +130,28 @@ export default function CollectionPage() {
       setMemoriesView('mine');
     } else if (path.includes('/dex/zines')) {
       setActiveTab('zines');
+    } else if (path.includes('/dex/stickers')) {
+      setActiveTab('stickers');
     } else if (path.includes('/dex/collection')) {
       setActiveTab('collection');
     }
-  }, []);
+  }, [location.pathname]);
 
   const handleTabChange = (id: CollectionTab) => {
     setActiveTab(id);
     if (id === 'stickers') {
       unlockDiscoverySticker('sticker_collection_view', 'dex');
-      if (user?.uid) {
-        markEarnedStickersSeen(user.uid, profile).catch(err => console.warn('[Collection] mark stickers seen failed:', err));
-      }
+    }
+
+    const tabPath: Partial<Record<CollectionTab, string>> = {
+      collection: '/dex/collection',
+      stickers: '/dex/stickers',
+      zines: '/dex/zines',
+      memories: '/dex/memories'
+    };
+    const nextPath = tabPath[id];
+    if (nextPath && location.pathname !== nextPath) {
+      navigate(nextPath);
     }
   };
 
@@ -264,6 +272,7 @@ export default function CollectionPage() {
         infoCardVariant="sticker"
         tabs={[
           { id: 'collection', label: 'Collection' },
+          { id: 'stickers', label: 'Sticker Machine' },
           { id: 'zines', label: 'Zines' },
           { id: 'memories', label: 'Memories' }
         ]}
@@ -435,7 +444,7 @@ export default function CollectionPage() {
               exit={{ opacity: 0, y: -15 }}
               className="space-y-10"
             >
-              <StickerBook />
+              <StickerMachine />
             </motion.div>
           )}
 

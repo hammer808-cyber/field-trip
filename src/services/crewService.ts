@@ -7,15 +7,32 @@ import {
   where, 
   onSnapshot
 } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
 import { authenticatedFetch } from '../lib/api';
 import { Crew, CrewLore, CrewDispatch, CrewInvite, CrewJoinRequest, CrewMembershipState, CrewRosterState, CrewDiscoveryState } from '../types/crew';
 import { Entry } from '../constants';
 import type { CrewMode, CrewPrivacy } from '../logic/crewSystem';
+import {
+  runStickerAwardNonBlocking,
+  STICKER_EVENT_AWARD_IDS,
+  unlockStickerForUser,
+} from './stickerService';
 
 const CREWS_COLLECTION = 'crews';
 const LORE_COLLECTION = 'crewLore';
 const DISPATCH_COLLECTION = 'crewDispatches';
+
+function awardCurrentUserCrewSticker(
+  stickerId: string,
+  trigger: 'crew_created' | 'crew_joined',
+  source: string
+): void {
+  const userId = auth.currentUser?.uid;
+  if (!userId) return;
+  runStickerAwardNonBlocking(trigger, () =>
+    unlockStickerForUser(userId, stickerId, source, trigger)
+  );
+}
 
 async function readCrewResponse<T>(response: Response, fallbackMessage: string): Promise<T> {
   const payload = await response.json().catch(() => ({}));
@@ -27,7 +44,16 @@ async function readCrewResponse<T>(response: Response, fallbackMessage: string):
 
 export async function getCurrentCrewMembership(): Promise<CrewMembershipState> {
   const response = await authenticatedFetch('/api/crew/current');
-  return readCrewResponse<CrewMembershipState>(response, `Crew membership lookup failed with HTTP ${response.status}`);
+  const membership = await readCrewResponse<CrewMembershipState>(response, `Crew membership lookup failed with HTTP ${response.status}`);
+  if (membership.membership?.crewId) {
+    // Idempotent reconciliation covers joins approved while the member was offline.
+    awardCurrentUserCrewSticker(
+      STICKER_EVENT_AWARD_IDS.crewJoined,
+      'crew_joined',
+      `crew_joined:${membership.membership.crewId}`
+    );
+  }
+  return membership;
 }
 
 export async function createCrew(input: {
@@ -41,7 +67,16 @@ export async function createCrew(input: {
     method: 'POST',
     body: JSON.stringify(input)
   });
-  return readCrewResponse<CrewMembershipState>(response, `Crew creation failed with HTTP ${response.status}`);
+  const membership = await readCrewResponse<CrewMembershipState>(response, `Crew creation failed with HTTP ${response.status}`);
+  if (membership.crew?.id) {
+    // Crew creation succeeded server-side; its reward is independent from membership writes.
+    awardCurrentUserCrewSticker(
+      STICKER_EVENT_AWARD_IDS.crewCreated,
+      'crew_created',
+      `crew_created:${membership.crew.id}`
+    );
+  }
+  return membership;
 }
 
 export async function leaveCrew(reason = 'User left Crew.'): Promise<{ success: boolean; cooldownUntil: any }> {
@@ -93,7 +128,12 @@ export async function getIncomingCrewInvites(): Promise<CrewInvite[]> {
 
 export async function acceptCrewInvite(inviteId: string): Promise<{ success: boolean; crewId: string }> {
   const response = await authenticatedFetch(`/api/crew/invites/${encodeURIComponent(inviteId)}/accept`, { method: 'POST' });
-  return readCrewResponse<{ success: boolean; crewId: string }>(response, `Crew invite accept failed with HTTP ${response.status}`);
+  const result = await readCrewResponse<{ success: boolean; crewId: string }>(response, `Crew invite accept failed with HTTP ${response.status}`);
+  if (result.success && result.crewId) {
+    // Direct invite acceptance is a completed membership event, not a join request.
+    awardCurrentUserCrewSticker(STICKER_EVENT_AWARD_IDS.crewJoined, 'crew_joined', `crew_joined:${result.crewId}`);
+  }
+  return result;
 }
 
 export async function declineCrewInvite(inviteId: string): Promise<void> {
@@ -108,7 +148,12 @@ export async function getCrewInviteByToken(token: string): Promise<any> {
 
 export async function joinCrewByInviteToken(token: string): Promise<any> {
   const response = await authenticatedFetch(`/api/crew/invite-token/${encodeURIComponent(token)}/join`, { method: 'POST' });
-  return readCrewResponse<any>(response, `Crew invite join failed with HTTP ${response.status}`);
+  const result = await readCrewResponse<any>(response, `Crew invite join failed with HTTP ${response.status}`);
+  if (result?.joined === true && result?.crewId) {
+    // Share-link requests earn nothing until the server confirms membership was joined.
+    awardCurrentUserCrewSticker(STICKER_EVENT_AWARD_IDS.crewJoined, 'crew_joined', `crew_joined:${result.crewId}`);
+  }
+  return result;
 }
 
 export async function requestToJoinCrew(crewId: string): Promise<{ success: boolean; requestId: string }> {
