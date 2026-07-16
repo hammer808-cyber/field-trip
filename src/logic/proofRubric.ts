@@ -40,9 +40,9 @@ export interface ProofRubricScoring {
   rubricVersion: 'v1';
   normalizedRubricScore: number;
   rawRubricScore: number;
-  maxUiPotentialXp: 100 | 250;
+  maxUiPotentialXp: 100 | 225;
   maxAdminAwardableXp: 100 | 225;
-  reservedPotentialXp: 0 | 25;
+  reservedPotentialXp: 0;
   awardedXp: number;
   hiddenBonusXpAwarded: 0;
   totalXpAwarded: number;
@@ -198,9 +198,9 @@ export function getProofRubricScoring(
   mission: ProofScoringMissionLike | null | undefined
 ): ProofRubricScoring {
   const scoringMode: ProofScoringMode = isStarterScoringMission(mission) ? 'starter' : 'standard';
-  const maxUiPotentialXp = scoringMode === 'starter' ? 100 : 250;
+  const maxUiPotentialXp = scoringMode === 'starter' ? 100 : 225;
   const maxAdminAwardableXp = scoringMode === 'starter' ? 100 : 225;
-  const reservedPotentialXp = scoringMode === 'starter' ? 0 : 25;
+  const reservedPotentialXp = 0;
   const awardedXp = Math.round((score.weightedScore / 100) * maxAdminAwardableXp);
   const finalAwardedXp = Math.min(Math.max(0, awardedXp), maxAdminAwardableXp);
 

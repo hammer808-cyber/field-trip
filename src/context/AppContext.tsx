@@ -24,6 +24,7 @@ import {
 import { 
   getCurrentSeasonWeek,
   getActiveWeekDrop,
+  getSeasonTiming,
   isWeekUnlocked,
   isWeekLocked,
   isReviewWindowOpen,
@@ -31,7 +32,8 @@ import {
   canSubmitToChallenge,
   canCallFieldCheck,
   canShunIt,
-  getSubmissionPointWindow
+  getSubmissionPointWindow,
+  type SeasonTiming
 } from '../logic/weeklyLogic';
 import { 
   FieldCheck, 
@@ -215,6 +217,7 @@ interface AppContextType {
   isSeasonActive: boolean;
   isAdmin: boolean;
   currentWeekNumber: number;
+  currentSeasonTiming: SeasonTiming | null;
   activeWeekDrop: Season['weeks'][0] | null;
   isWeekUnlocked: (weekNumber: number) => boolean;
   isWeekLocked: (weekNumber: number) => boolean;
@@ -337,7 +340,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [drawnMissionCards, setDrawnMissionCards] = useState<DrawnMissionCard[]>([]);
   const [memories, setMemories] = useState<MemoryEntry[]>([]);
   const [deckAccessConfigs, setDeckAccessConfigs] = useState<Record<string, any>>({});
+  const [seasonClockNow, setSeasonClockNow] = useState(() => getServerDate());
   const pendingUnlocksRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (overrides.date) {
+      setSeasonClockNow(new Date(overrides.date));
+      return;
+    }
+    const refreshClock = () => setSeasonClockNow(getServerDate());
+    refreshClock();
+    const interval = window.setInterval(refreshClock, 60_000);
+    return () => window.clearInterval(interval);
+  }, [overrides.date]);
   
   function isFeatureEnabled(flag: keyof AppConfig['featureFlags']) {
     return gameConfig?.featureFlags?.[flag] ?? (DEV_APP_CONFIG as any).featureFlags[flag];
@@ -733,7 +748,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     onboardingComplete: onboardingCompleted,
     fieldType,
     isAdmin,
-    currentDate: overrides.date ? new Date(overrides.date) : getServerDate(),
+    currentDate: seasonClockNow,
   };
 
   // Hard Gating: isHeatwaveDeckUnlocked requires ALL approved starter missions AND current date >= season start
@@ -904,14 +919,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const seasonId = gameConfig?.activeSeasonId;
     if (!seasonId) {
-      setActiveSeason(DEV_SEASON);
+      setActiveSeason(import.meta.env.DEV ? DEV_SEASON : null);
       return;
     }
     return subscribeToActiveSeason(seasonId, (season) => {
       if (season) {
         setActiveSeason(season);
       } else {
-        setActiveSeason(DEV_SEASON);
+        setActiveSeason(import.meta.env.DEV ? DEV_SEASON : null);
       }
     });
   }, [gameConfig?.activeSeasonId]);
@@ -1203,7 +1218,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Synchronize Field Pulse weekly transitions on load
   useEffect(() => {
     if (!profile || !user || !activeSeason) return;
-    const weekNo = getCurrentSeasonWeek(activeSeason);
+    const weekNo = getCurrentSeasonWeek(activeSeason, gameState.currentDate);
     if (weekNo <= 0) return;
     const weekId = `week-${weekNo}`;
     const pulse = profile.fieldPulse;
@@ -1246,7 +1261,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
          console.warn("[FieldPulse] Failed to initialize pulse:", err);
       });
     }
-  }, [profile?.fieldPulse?.currentWeekId, user?.uid, activeSeason]);
+  }, [profile?.fieldPulse?.currentWeekId, user?.uid, activeSeason, gameState.currentDate]);
 
   // Auto-register mission completed pulse action when entry status transitions to approved
   useEffect(() => {
@@ -1592,7 +1607,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   ) => {
     if (!user || !profile) return;
     
-    const weekNum = activeSeason ? getCurrentSeasonWeek(activeSeason) : 0;
+    const weekNum = activeSeason
+      ? getCurrentSeasonWeek(activeSeason, gameState.currentDate)
+      : 0;
     const weekId = activeSeason ? `week-${weekNum}` : 'week-0';
     
     // Safely parse current pulse
@@ -2248,6 +2265,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         filterIntensity: (entryData as any).filterIntensity,
         reviewStatus: (entryData as any).reviewStatus as any,
         hintUsed: entryData.hintUsed,
+        missionAttemptId: entryData.missionAttemptId,
         fastFindAttempt: (entryData as any).fastFindAttempt,
         isRetry: (entryData as any).isRetry || false,
         originalEntryId: (entryData as any).originalEntryId || null,
@@ -2489,7 +2507,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const isSeasonActive = activeSeason?.status === 'active' || isAdmin || import.meta.env.DEV;
+  const currentSeasonTiming = activeSeason ? getSeasonTiming(activeSeason, gameState.currentDate) : null;
+  const isSeasonActive = (
+    activeSeason?.status === 'active' && currentSeasonTiming?.status === 'active'
+  ) || isAdmin || import.meta.env.DEV;
   const isLocked = (checkViewfinderLocked(gameState) || (!isSeasonActive && !isAdmin)) && !overrides.forceUnlocked && !import.meta.env.DEV;
 
   const canFieldCheckNow = canRequestFieldCheck(profile?.fieldCheckHistory || []) && isFieldCheckUnlocked;
@@ -2497,8 +2518,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const rerollsAvailable = profile?.rerollsAvailable || 0;
   const incomingFieldCheck = incomingFieldChecks.length > 0 ? incomingFieldChecks[0] : null;
 
-  const currentWeekNumber = activeSeason ? getCurrentSeasonWeek(activeSeason) : 0;
-  const activeWeekDrop = activeSeason ? getActiveWeekDrop(activeSeason) : null;
+  const currentWeekNumber = currentSeasonTiming?.weekNumber || 0;
+  const activeWeekDrop = activeSeason ? getActiveWeekDrop(activeSeason, gameState.currentDate) : null;
   const [activeSabotages, setActiveSabotages] = useState<ActiveSabotage[]>([]);
 
   useEffect(() => {
@@ -2557,14 +2578,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const handleIsWeekUnlocked = (weekNumber: number) => activeSeason ? isWeekUnlocked(activeSeason, weekNumber) : false;
-  const handleIsWeekLocked = (weekNumber: number) => activeSeason ? isWeekLocked(activeSeason, weekNumber) : true;
-  const handleIsReviewWindowOpen = (weekNumber: number) => activeSeason ? isReviewWindowOpen(activeSeason, weekNumber) : false;
-  const handleIsVotingWindowOpen = (weekNumber: number) => activeSeason ? isVotingWindowOpen(activeSeason, weekNumber) : false;
-  const handleCanSubmitToChallenge = (weekNumber: number) => activeSeason ? canSubmitToChallenge(activeSeason, weekNumber) : true;
-  const handleCanCallFieldCheck = (weekNumber: number) => activeSeason ? canCallFieldCheck(activeSeason, weekNumber) : false;
+  const handleIsWeekUnlocked = (weekNumber: number) => activeSeason ? isWeekUnlocked(activeSeason, weekNumber, gameState.currentDate) : false;
+  const handleIsWeekLocked = (weekNumber: number) => activeSeason ? isWeekLocked(activeSeason, weekNumber, gameState.currentDate) : true;
+  const handleIsReviewWindowOpen = (weekNumber: number) => activeSeason ? isReviewWindowOpen(activeSeason, weekNumber, gameState.currentDate) : false;
+  const handleIsVotingWindowOpen = (weekNumber: number) => activeSeason ? isVotingWindowOpen(activeSeason, weekNumber, gameState.currentDate) : false;
+  const handleCanSubmitToChallenge = (weekNumber: number) => activeSeason ? canSubmitToChallenge(activeSeason, weekNumber, gameState.currentDate) : true;
+  const handleCanCallFieldCheck = (weekNumber: number) => activeSeason ? canCallFieldCheck(activeSeason, weekNumber, gameState.currentDate) : false;
   const handleCanShunIt = () => canShunIt(activeSeason);
-  const handleGetSubmissionPointWindow = (weekNumber: number) => activeSeason ? getSubmissionPointWindow(activeSeason, weekNumber) : 'full' as const;
+  const handleGetSubmissionPointWindow = (weekNumber: number) => activeSeason ? getSubmissionPointWindow(activeSeason, weekNumber, gameState.currentDate) : 'full' as const;
 
   return (
     <AppContext.Provider value={{
@@ -2658,6 +2679,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       isSeasonActive,
       isAdmin,
       currentWeekNumber,
+      currentSeasonTiming,
       activeWeekDrop,
       isWeekUnlocked: handleIsWeekUnlocked,
       isWeekLocked: handleIsWeekLocked,

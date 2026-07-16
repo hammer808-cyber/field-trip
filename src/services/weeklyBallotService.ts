@@ -10,7 +10,7 @@ import {
   where, 
   serverTimestamp 
 } from 'firebase/firestore';
-import { getCurrentVotingCycle, getVotingPhase } from './votingCycleService';
+import { FIELDTRIP_VOTING_TIMEZONE, getCurrentVotingCycle, getVotingPhase } from './votingCycleService';
 import { getActiveSeason, getAppConfig } from './seasonService';
 import { WeeklyBallot, CandidateProof, WeeklyBallotStatus } from '../data/votingBallotSchema';
 
@@ -121,7 +121,7 @@ export function getBallotTargetWeek(approvedAt: Date, season: any): { weekNumber
   }
 
   // 2. Check the phase for that naturalWeek's canonical Voting Cycle
-  const cycle = getCurrentVotingCycle(approvedAt, 'UTC');
+  const cycle = getCurrentVotingCycle(approvedAt, FIELDTRIP_VOTING_TIMEZONE, seasonId);
   const phase = getVotingPhase(approvedAt, cycle);
 
   let targetWeek = naturalWeek;

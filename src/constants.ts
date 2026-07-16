@@ -2,6 +2,7 @@ import { Timestamp } from 'firebase/firestore';
 import { Season, SabotageCard, Entry } from './types/game';
 export type { Season, SabotageCard, Entry };
 import { TripCard } from './types/challenges';
+import { DEFAULT_MISSION_SCORING_CONFIG } from './logic/missionScoring';
 
 /**
  * SYSTEM 1: Internal Product/User Personas
@@ -98,6 +99,7 @@ export const DEV_SEASON: Season = {
 export const DEV_APP_CONFIG = {
   activeSeasonId: 'dev-season-2026',
   onboardingEntriesRequired: 1,
+  scoring: DEFAULT_MISSION_SCORING_CONFIG,
   featureFlags: {
     fieldSignalsEnabled: true,
     badgeFragmentsEnabled: true,

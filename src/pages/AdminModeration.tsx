@@ -11,14 +11,20 @@ import { useApp } from '../context/AppContext';
 import { cn, formatSafeTimeOnly, formatSafeDateOnly } from '../lib/utils';
 import { getDisplayLabel } from '../utils/labelUtils';
 import { useLocation } from 'react-router-dom';
+import {
+  buildCurrentWeeklyBallot,
+  previewWeeklyVotingDiagnostics,
+  type WeeklyCycleDiagnostics,
+} from '../services/weeklyVotingService';
 
-type AdminModerationView = 'reports' | 'sus' | 'fieldChecks' | 'communityFeedDiagnostics' | 'tribunalDiagnostics' | 'audit';
+type AdminModerationView = 'reports' | 'sus' | 'fieldChecks' | 'communityFeedDiagnostics' | 'weeklyVotingDiagnostics' | 'tribunalDiagnostics' | 'audit';
 
 const getRequestedView = (search: string): AdminModerationView => {
   const requestedView = new URLSearchParams(search).get('view');
-  return requestedView === 'tribunalDiagnostics' || requestedView === 'tribunal'
-    ? 'tribunalDiagnostics'
-    : 'reports';
+  if (requestedView === 'tribunalDiagnostics' || requestedView === 'tribunal') return 'tribunalDiagnostics';
+  if (requestedView === 'weeklyVotingDiagnostics' || requestedView === 'weeklyVoting') return 'weeklyVotingDiagnostics';
+  if (requestedView === 'communityFeedDiagnostics') return 'communityFeedDiagnostics';
+  return 'reports';
 };
 
 export default function AdminModerationPage() {
@@ -45,6 +51,11 @@ export default function AdminModerationPage() {
   const [communityFeedTargetUserId, setCommunityFeedTargetUserId] = useState('');
   const [isScanningCommunityFeed, setIsScanningCommunityFeed] = useState(false);
   const [isRepairingCommunityFeed, setIsRepairingCommunityFeed] = useState(false);
+  const [weeklyVotingDiagnostics, setWeeklyVotingDiagnostics] = useState<WeeklyCycleDiagnostics | null>(null);
+  const [weeklyBallotBuildResult, setWeeklyBallotBuildResult] = useState<unknown>(null);
+  const [weeklyBallotBuildReason, setWeeklyBallotBuildReason] = useState('Generate current canonical weekly ballot');
+  const [isScanningWeeklyVoting, setIsScanningWeeklyVoting] = useState(false);
+  const [isBuildingWeeklyBallot, setIsBuildingWeeklyBallot] = useState(false);
 
   useEffect(() => {
     setView(getRequestedView(location.search));
@@ -215,6 +226,43 @@ export default function AdminModerationPage() {
     }
   };
 
+  const handlePreviewWeeklyVotingDiagnostics = async () => {
+    setIsScanningWeeklyVoting(true);
+    try {
+      setWeeklyVotingDiagnostics(await previewWeeklyVotingDiagnostics());
+    } catch (err: any) {
+      alert(`BUREAU_ERROR: Weekly Voting diagnostics failed. ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsScanningWeeklyVoting(false);
+    }
+  };
+
+  const handleBuildCurrentWeeklyBallot = async () => {
+    if (!weeklyVotingDiagnostics || weeklyVotingDiagnostics.weekNumber <= 0) {
+      alert('BUREAU_ERROR: Run diagnostics during an active season week before building a ballot.');
+      return;
+    }
+    if (weeklyBallotBuildReason.trim().length < 5) {
+      alert('BUREAU_ERROR: Add an admin reason of at least five characters.');
+      return;
+    }
+    setIsBuildingWeeklyBallot(true);
+    try {
+      const result = await buildCurrentWeeklyBallot({
+        seasonId: weeklyVotingDiagnostics.seasonId,
+        weekNumber: weeklyVotingDiagnostics.weekNumber,
+        cycleId: weeklyVotingDiagnostics.cycle.id,
+        reason: weeklyBallotBuildReason.trim(),
+      });
+      setWeeklyBallotBuildResult(result);
+      setWeeklyVotingDiagnostics(await previewWeeklyVotingDiagnostics());
+    } catch (err: any) {
+      alert(`BUREAU_ERROR: Weekly ballot build failed. ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsBuildingWeeklyBallot(false);
+    }
+  };
+
   if (!isAdmin) return <div className="p-20 text-center uppercase font-mono text-error">ACCESS_DENIED. Admin clearance required.</div>;
 
   return (
@@ -265,6 +313,12 @@ export default function AdminModerationPage() {
                >
                  Community Feed
                </button>
+               <button
+                onClick={() => { setView('weeklyVotingDiagnostics'); setSelectedReport(null); setSelectedSusReport(null); setSelectedFieldCheck(null); }}
+                className={cn("px-4 py-1 text-[10px] font-bold uppercase tracking-widest", view === 'weeklyVotingDiagnostics' ? "bg-on-surface text-paper" : "hover:bg-on-surface/5")}
+               >
+                 Weekly Voting
+               </button>
                <button 
                 onClick={() => { setView('audit'); setSelectedReport(null); setSelectedSusReport(null); setSelectedFieldCheck(null); }}
                 className={cn("px-4 py-1 text-[10px] font-bold uppercase tracking-widest", view === 'audit' ? "bg-on-surface text-paper" : "hover:bg-on-surface/5")}
@@ -276,7 +330,18 @@ export default function AdminModerationPage() {
         </div>
       </div>
 
-      {view === 'tribunalDiagnostics' ? (
+      {view === 'weeklyVotingDiagnostics' ? (
+        <WeeklyVotingDiagnosticsPanel
+          diagnostics={weeklyVotingDiagnostics}
+          buildResult={weeklyBallotBuildResult}
+          buildReason={weeklyBallotBuildReason}
+          isScanning={isScanningWeeklyVoting}
+          isBuilding={isBuildingWeeklyBallot}
+          onBuildReasonChange={setWeeklyBallotBuildReason}
+          onPreview={handlePreviewWeeklyVotingDiagnostics}
+          onBuild={handleBuildCurrentWeeklyBallot}
+        />
+      ) : view === 'tribunalDiagnostics' ? (
         <TribunalDiagnosticsPanel
           preview={tribunalPreview}
           repairResult={tribunalRepairResult}
@@ -534,6 +599,175 @@ function ReportDetails({ report, actionReason, onActionReasonChange, onAction }:
         />
       </Card>
     </motion.div>
+  );
+}
+
+function WeeklyVotingDiagnosticsPanel({
+  diagnostics,
+  buildResult,
+  buildReason,
+  isScanning,
+  isBuilding,
+  onBuildReasonChange,
+  onPreview,
+  onBuild,
+}: {
+  diagnostics: WeeklyCycleDiagnostics | null;
+  buildResult: unknown;
+  buildReason: string;
+  isScanning: boolean;
+  isBuilding: boolean;
+  onBuildReasonChange: (value: string) => void;
+  onPreview: () => void;
+  onBuild: () => void;
+}) {
+  const formatPacific = (value: string | null) => value
+    ? new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Los_Angeles',
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date(value))
+    : 'not configured';
+  const metrics = diagnostics ? [
+    ['Computed season week', diagnostics.season.computedCurrentWeek],
+    ['Canonical ballots', diagnostics.ballot.canonicalBallotCount],
+    ['Ballot categories', diagnostics.ballot.categoryCount],
+    ['Nominees / choices', diagnostics.ballot.nomineeCount],
+  ] : [];
+  const existingBallotIsFrozen = !!diagnostics?.ballot.canonicalBallotStatus &&
+    !['upcoming', 'submissions_open'].includes(diagnostics.cycle.status);
+  const canBuild = !!diagnostics &&
+    diagnostics.weekNumber > 0 &&
+    buildReason.trim().length >= 5 &&
+    !isBuilding &&
+    !existingBallotIsFrozen;
+
+  return (
+    <Card className="space-y-6 border-2 border-on-surface p-6 sm:p-8">
+      <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-brand-orange">
+            <Trophy className="h-5 w-5" />
+            <p className="text-[10px] font-black uppercase tracking-[0.28em]">Admin Only // Server Read</p>
+          </div>
+          <h2 className="mt-2 font-display text-3xl uppercase tracking-tighter">Weekly Voting Diagnostics</h2>
+          <p className="mt-2 max-w-2xl text-sm opacity-60">
+            Reads the configured active season, current Pacific cycle, exact Catalyst document, canonical ballot, nominee snapshots, and compatibility collections.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onPreview}
+          disabled={isScanning}
+          className="bureau-btn-sm min-h-11 bg-on-surface text-paper hover:bg-brand-orange"
+        >
+          {isScanning ? 'SCANNING...' : 'PREVIEW_SCAN'}
+        </button>
+      </div>
+
+      {!diagnostics ? (
+        <div className="border-2 border-dashed border-on-surface/15 p-10 text-center">
+          <p className="font-mono text-xs uppercase tracking-widest opacity-50">Run Preview Scan before generating or repairing a ballot.</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {metrics.map(([label, value]) => (
+              <div key={String(label)} className="border-2 border-on-surface/10 bg-on-surface/[0.02] p-4">
+                <p className="micro-label">{label}</p>
+                <p className="mt-2 font-display text-4xl italic leading-none">{String(value)}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="space-y-3 border-2 border-on-surface/10 bg-white p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest">Season and cycle</p>
+              <dl className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-x-3 gap-y-2 text-xs">
+                <dt className="opacity-50">Active season</dt><dd className="break-all font-mono">{diagnostics.seasonId}</dd>
+                <dt className="opacity-50">Timing source</dt><dd className="break-all font-mono">{diagnostics.season.timingSource}</dd>
+                <dt className="opacity-50">Season status</dt><dd className="font-mono">{diagnostics.season.status}</dd>
+                <dt className="opacity-50">Starts</dt><dd>{formatPacific(diagnostics.season.startsAt)}</dd>
+                <dt className="opacity-50">Ends</dt><dd>{formatPacific(diagnostics.season.endsAt)}</dd>
+                <dt className="opacity-50">Week config</dt><dd className="font-mono">{diagnostics.season.configuredWeekFound ? 'FOUND' : 'MISSING'}</dd>
+                <dt className="opacity-50">Voting cycle</dt><dd className="break-all font-mono">{diagnostics.cycle.id}</dd>
+                <dt className="opacity-50">Cycle status</dt><dd className="font-mono">{diagnostics.cycle.status}</dd>
+                <dt className="opacity-50">Timezone</dt><dd className="font-mono">{diagnostics.cycle.timezone}</dd>
+              </dl>
+            </div>
+
+            <div className="space-y-3 border-2 border-on-surface/10 bg-white p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest">Catalyst and ballot</p>
+              <dl className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] gap-x-3 gap-y-2 text-xs">
+                <dt className="opacity-50">Catalyst</dt><dd className="break-all font-mono">{diagnostics.catalyst.title || 'missing'}</dd>
+                <dt className="opacity-50">Catalyst source</dt><dd className="font-mono">{diagnostics.catalyst.source}</dd>
+                <dt className="opacity-50">Catalyst document</dt><dd className="break-all font-mono">weeklyCatalysts/{diagnostics.catalyst.documentId}</dd>
+                <dt className="opacity-50">Canonical ballot</dt><dd className="break-all font-mono">{diagnostics.ballot.canonicalBallotId}</dd>
+                <dt className="opacity-50">Ballot status</dt><dd className="font-mono">{diagnostics.ballot.canonicalBallotStatus || 'not generated'}</dd>
+                <dt className="opacity-50">Hidden reason</dt><dd className="break-all font-mono">{diagnostics.ballot.hiddenReason || 'none'}</dd>
+                <dt className="opacity-50">Result snapshot</dt><dd className="font-mono">{diagnostics.ballot.canonicalResultExists ? 'FOUND' : 'NOT YET'}</dd>
+              </dl>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="border-2 border-on-surface/10 bg-white p-4">
+              <p className="mb-3 text-[10px] font-black uppercase tracking-widest">Nominees per category / scope</p>
+              <pre className="whitespace-pre-wrap break-all bg-on-surface/[0.03] p-3 font-mono text-[10px]">{JSON.stringify(diagnostics.ballot.nomineeCountByCategory, null, 2)}</pre>
+            </div>
+            <div className="border-2 border-on-surface/10 bg-white p-4">
+              <p className="mb-3 text-[10px] font-black uppercase tracking-widest">Eligibility exclusions</p>
+              <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-all bg-on-surface/[0.03] p-3 font-mono text-[10px]">{JSON.stringify({
+                counts: diagnostics.ballot.exclusionReasonCounts,
+                samples: diagnostics.ballot.excludedProofSamples,
+              }, null, 2)}</pre>
+            </div>
+          </div>
+
+          {diagnostics.warnings.length > 0 && (
+            <div className="border-2 border-brand-orange bg-brand-orange/10 p-4">
+              <p className="mb-2 text-[10px] font-black uppercase tracking-widest">Warnings</p>
+              <ul className="space-y-1 font-mono text-[10px]">
+                {diagnostics.warnings.map(warning => <li key={warning}>- {warning}</li>)}
+              </ul>
+            </div>
+          )}
+
+          <div className="border-4 border-on-surface bg-[#fff7e8] p-4 shadow-[6px_6px_0px_black]">
+            <p className="text-[10px] font-black uppercase tracking-widest">Generate current canonical ballot</p>
+            <p className="mt-1 text-xs opacity-60">Server-authorized and audit-logged. Re-running uses the same cycle and ballot IDs.</p>
+            {existingBallotIsFrozen && (
+              <p className="mt-2 font-mono text-[10px] font-black uppercase tracking-widest text-brand-orange">
+                Ballot frozen. Use audited vote-void or proof-removal controls for post-lock corrections.
+              </p>
+            )}
+            <div className="mt-4 flex flex-col gap-3 md:flex-row">
+              <input
+                value={buildReason}
+                onChange={event => onBuildReasonChange(event.target.value)}
+                aria-label="Weekly ballot build reason"
+                className="min-h-11 flex-1 border-2 border-on-surface bg-white px-3 font-mono text-xs"
+              />
+              <button
+                type="button"
+                onClick={onBuild}
+                disabled={!canBuild}
+                className="bureau-btn-sm min-h-11 bg-brand-lime text-on-surface disabled:opacity-40"
+              >
+                {isBuilding ? 'BUILDING...' : diagnostics.ballot.canonicalBallotCount > 0 ? 'REFRESH_BALLOT' : 'GENERATE_BALLOT'}
+              </button>
+            </div>
+          </div>
+
+          {buildResult !== null && (
+            <div className="border-2 border-on-surface/10 p-4">
+              <p className="mb-2 text-[10px] font-black uppercase tracking-widest">Last server result</p>
+              <pre className="whitespace-pre-wrap break-all bg-on-surface/[0.03] p-3 font-mono text-[10px]">{JSON.stringify(buildResult, null, 2)}</pre>
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
   );
 }
 

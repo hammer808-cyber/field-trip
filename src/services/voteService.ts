@@ -64,11 +64,11 @@ export const getVotesForUser = async (userId: string, weekNumber: number, season
     const q = query(
       collection(db, VOTES_COLLECTION),
       where('userId', '==', userId),
+      where('seasonId', '==', seasonId),
       where('weekNumber', '==', weekNumber)
     );
     const snapshot = await getDocs(q);
-    const allVotes = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Vote));
-    return allVotes.filter(v => (v.seasonId || 'heatwave-receipts') === seasonId);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Vote));
   } catch (error) {
     handleFirestoreError(error, OperationType.GET, VOTES_COLLECTION);
     return [];

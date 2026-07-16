@@ -271,7 +271,28 @@ export default function AdminBoard() {
           </div>
         </ModuleCard>
 
-        {/* Module 8: Tribunal Settings */}
+        {/* Module 8: Weekly Voting */}
+        <ModuleCard
+          title="Weekly Voting Control"
+          description="Inspect the active season, Pacific cycle, Catalyst, ballot nominees, and eligibility exclusions."
+          icon={BarChart3}
+          status="blue"
+          statusLabel="SERVER_AUTHORIZED"
+          primaryAction={{
+            label: "Open Voting Diagnostics",
+            onClick: () => navigate('/admin/moderation?view=weeklyVotingDiagnostics')
+          }}
+          lastActivity="Preview before ballot generation"
+        >
+          <div className="flex items-center gap-2 p-3 bg-on-surface/5 border border-on-surface/10 rounded-lg">
+            <Clock className="w-3 h-3 text-brand-orange" />
+            <span className="font-mono text-[8px] font-black uppercase opacity-60">
+              Pacific cycle source of truth
+            </span>
+          </div>
+        </ModuleCard>
+
+        {/* Module 9: Tribunal Settings */}
         <ModuleCard
           title="Tribunal Settings"
           description="Open Tribunal diagnostics, private signal review, and repair controls."
@@ -292,7 +313,7 @@ export default function AdminBoard() {
           </div>
         </ModuleCard>
 
-        {/* Module 9: Skin Studio */}
+        {/* Module 10: Skin Studio */}
         <ModuleCard
           title="Skin Studio"
           description="Manage application skin tokens, variants, assets, availability, and defaults."

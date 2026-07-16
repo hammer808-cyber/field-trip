@@ -27,7 +27,6 @@ import { getGlobalConfig } from './configService';
 import { getServerDate } from './timeService';
 import { MOCK_TRIPS } from '../constants';
 import { Entry } from '../types/game';
-import { calculateSubmissionPoints } from '../logic/scoringLogic';
 import { promoteEntryToBallotCandidate } from './voteService';
 import { applyFieldTypeModifier } from '../logic/challengeLogic';
 import { awardPoints } from './scoringService';

@@ -23,16 +23,14 @@ import { awardPoints } from './scoringService';
 import { addMemory } from './memoryService';
 import { TripCard, ChallengeLevel } from '../types/challenges';
 import { uploadBase64Image } from './storageService';
-import { calculateSubmissionPoints } from '../logic/scoringLogic';
-import { getCatalystForWeek, evaluateProofForCatalyst } from './weeklyCatalystService';
-import { requestFieldCheck as createFieldCheckObj, resolveFieldCheck as resolveFieldCheckObj, applyFieldTypeModifier } from '../logic/challengeLogic';
+import { requestFieldCheck as createFieldCheckObj, resolveFieldCheck as resolveFieldCheckObj } from '../logic/challengeLogic';
 import { FieldCheckReason, FieldCheckStatus, Season } from '../types/game';
 import { LAUNCH_MISSION_ID } from '../data/specialMissions';
-import { getWeekWindows, getServerTime as getWeeklyServerTime, getCurrentSeasonWeek } from '../logic/weeklyLogic';
 import { getServerTime as getSyncedTime, getServerDate } from './timeService';
 import { markCanonicalSubmissionPending } from './proofLifecycleService';
 import { countsTowardMissionRepeatGuard } from '../logic/entryLogic';
 import { getMissionSubmissionContext } from '../logic/missionSubmission';
+import { calculateMissionScore, getMissionBaseMaxScore, toScoringSnapshot } from '../logic/missionScoring';
 
 export async function submitTripEntry(
   userId: string,
@@ -81,6 +79,7 @@ export async function submitTripEntry(
     reviewStatus?: ReviewStatus;
     userAvatar?: any;
     hintUsed?: boolean;
+    missionAttemptId?: string;
     fastFindAttempt?: any;
     isRetry?: boolean;
     originalEntryId?: string | null;
@@ -103,8 +102,9 @@ export async function submitTripEntry(
     const userData = userSnap.exists() ? userSnap.data() : null;
     const fieldType = userData?.fieldType || null;
 
-    // Use specific hintUsed flag from entryData OR from tripProgress if available
-    const hintWasUsed = entryData.hintUsed || userData?.tripProgress?.[trip.id]?.hintUsed || false;
+    // This mirror is display-only. Final scoring reads the protected
+    // missionAttempts record instead of profile.tripProgress.
+    const hintWasUsed = entryData.hintUsed === true;
 
     // 1. Anti-Repeat Check
     // Only approved completions block a non-repeatable mission. Pending or
@@ -206,63 +206,24 @@ export async function submitTripEntry(
       photoStoragePath: imagePath
     };
 
-    // Determine lateness
-    let daysLate = 0;
-    if (activeSeason && trip.weekNumber) {
-      const windows = getWeekWindows(activeSeason, trip.weekNumber);
-      if (windows) {
-        const now = getSyncedTime();
-        if (now > windows.end.getTime()) {
-          daysLate = Math.ceil((now - windows.end.getTime()) / (24 * 60 * 60 * 1000));
-        }
-      }
-    }
-
-    // 1.5 Calculate Estimated Points
-    let tripToPass = trip;
-    let entryToPassPredraw = { ...entryData, hintUsed: hintWasUsed } as any;
-
-    if (entryData.fastFindAttempt && entryData.fastFindAttempt.mode === 'fastFind') {
-      const resolvedIntensity = (() => {
-        const intensity = entryData.fastFindAttempt.selectedIntensity;
-        if (!intensity) return 'Standard';
-        const lower = intensity.toLowerCase();
-        if (lower === 'standard') return 'Standard';
-        if (lower === 'advanced') return 'Advanced';
-        if (lower === 'certified') return 'Certified';
-        return intensity;
-      })();
-
-      tripToPass = {
-        ...trip,
-        baseXP: entryData.fastFindAttempt.lockedBasePoints,
-        basePoints: entryData.fastFindAttempt.lockedBasePoints,
-        levels: undefined as any
-      };
-      entryToPassPredraw.selectedLevel = resolvedIntensity;
-    }
-
-    const activeWeekNum = activeSeason ? getCurrentSeasonWeek(activeSeason) : (trip.weekNumber || 1);
+    // Pending XP is display-only. It uses the same pure calculator as final
+    // approval, but intentionally omits bonuses because only the server-owned
+    // mission attempt can validate them.
     const seasonId = activeSeason?.id || 'dev-season-2026';
-    const catalyst = await getCatalystForWeek(seasonId, activeWeekNum);
-
-    const estimatedScoring = calculateSubmissionPoints(
-      entryToPassPredraw,
-      tripToPass,
-      {
-        isFirstSubmission: (userData?.approvedEntriesCount || 0) === 0,
-        daysLate: daysLate,
-        hintUsed: hintWasUsed,
-        weekNumber: activeWeekNum,
-        catalyst: catalyst || undefined
-      }
-    );
-
-    const evResult = catalyst ? evaluateProofForCatalyst(entryToPassPredraw, catalyst, {
-      challengeTags: tripToPass.tags || [],
-      challengeTitle: tripToPass.title || '',
-      challengeDescription: tripToPass.description || ''
-    }) : { qualified: false, reason: 'No active catalyst' };
+    const baseMaxScore = getMissionBaseMaxScore(trip);
+    const estimatedMissionScore = calculateMissionScore({
+      baseMaxScore,
+      reviewerBaseScore: baseMaxScore,
+      hintUsed: hintWasUsed,
+      retryMultiplier: entryData.isRetry === true ? Number(entryData.retryPointMultiplier ?? 0.5) : 1,
+      perkPoints: 0,
+      eligibleBonuses: [],
+    });
+    const estimatedScoring = {
+      totalPoints: estimatedMissionScore.finalScore,
+      scoreEvents: [],
+      missionScoring: toScoringSnapshot(estimatedMissionScore),
+    };
 
     // 2. Create Entry
     let entryRef;
@@ -319,14 +280,6 @@ export async function submitTripEntry(
         submittedAt: entryData.submittedAt || null,
       },
 
-      // Catalyst Meta
-      catalystId: catalyst ? catalyst.id : null,
-      catalystTitle: catalyst ? catalyst.title : null,
-      catalystType: catalyst ? catalyst.catalystType : null,
-      catalystQualified: evResult.qualified,
-      catalystMultiplier: evResult.qualified ? catalyst!.multiplier : 1.0,
-      catalystReason: evResult.reason,
-
       // Points
       estimatedPoints: estimatedScoring.totalPoints,
       awardedXP: 0,
@@ -360,6 +313,12 @@ export async function submitTripEntry(
       filterUsed: entryData.filterUsed,
       filterIntensity: entryData.filterIntensity,
       hintUsed: hintWasUsed,
+      missionAttemptId: entryData.missionAttemptId || null,
+      isRetry: entryData.isRetry === true,
+      originalEntryId: entryData.originalEntryId || null,
+      retryPointMultiplier: entryData.isRetry === true
+        ? Number(entryData.retryPointMultiplier ?? 0.5)
+        : null,
       userAvatar: entryData.userAvatar,
       aiAnalysisResult: entryData.aiAnalysisResult || null,
       proofCheckResult: entryData.proofCheckResult || null,
@@ -513,6 +472,13 @@ export async function submitTripEntry(
         missingRequirements: review.missingRequirements || [],
         needsManualReview: true,
         xpAwarded: false,
+        missionAttemptId: entryData.missionAttemptId || null,
+        hintUsed: hintWasUsed,
+        isRetry: entryData.isRetry === true,
+        originalEntryId: entryData.originalEntryId || null,
+        retryPointMultiplier: entryData.isRetry === true
+          ? Number(entryData.retryPointMultiplier ?? 0.5)
+          : null,
         createdAt: serverTimestamp(),
         submittedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),

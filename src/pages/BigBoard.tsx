@@ -896,10 +896,12 @@ export default function BigBoardPage() {
   useEffect(() => {
     let active = true;
     const fetchCatalyst = async () => {
+      if (!activeSeason?.id || currentWeekNumber <= 0) {
+        setCatalyst(null);
+        return;
+      }
       try {
-        const seasonId = activeSeason?.id || 'dev-season-2026';
-        const weekNum = currentWeekNumber || 1;
-        const cat = await getCatalystForWeek(seasonId, weekNum);
+        const cat = await getCatalystForWeek(activeSeason.id, currentWeekNumber);
         if (active) {
           setCatalyst(cat);
         }
@@ -1539,7 +1541,7 @@ export default function BigBoardPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <StickerStatCard
                     title="Week"
-                    value={currentWeekNumber || 1}
+                    value={currentWeekNumber > 0 ? currentWeekNumber : 'Pre'}
                     variant="orange"
                     icon={LucideIcons.Calendar}
                     subtext={weeklySummary?.isLocked ? 'Snapshot locked' : 'Awaiting final snapshot'}
@@ -1714,7 +1716,7 @@ export default function BigBoardPage() {
                          
                          <h4 className="text-xl font-display font-black uppercase italic leading-none text-on-surface">Weekly Pulse</h4>
                          <p className="text-xs font-sans text-on-surface/70 leading-relaxed">
-                           {phase === 'submission' ? 'Everyone is out collecting receipts. Voting opens Saturday at midnight UTC.' :
+                           {phase === 'submission' ? 'Everyone is out collecting receipts. Voting opens Saturday at midnight Pacific.' :
                             phase === 'voting' ? 'Ballot box is open! Go admire everyone else’s finds in the Feed.' :
                             'Weekly summary finalized. Honors distributed. Resetting for the next cycle.'}
                          </p>

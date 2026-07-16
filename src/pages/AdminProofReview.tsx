@@ -38,6 +38,13 @@ import {
   type ProofRubricScore
 } from '../logic/proofRubric';
 import {
+  calculateMissionScore,
+  DEFAULT_HINT_PENALTY_PERCENT,
+  toScoringSnapshot,
+  type ScoreCalculationResult,
+  type ScoringSnapshot,
+} from '../logic/missionScoring';
+import {
   approveSubmission,
   grantStarterSignalsBypass,
   rejectSubmission,
@@ -50,6 +57,8 @@ import {
   OrphanSlotReport
 } from '../services/submissionService';
 import type { QueueRepairReport } from '../services/proofLifecycleService';
+
+type AdminReviewScoring = ProofRubricScoring & { missionScoring: ScoringSnapshot };
 
 export default function AdminProofReview() {
   const [reviews, setReviews] = useState<any[]>([]);
@@ -121,7 +130,7 @@ export default function AdminProofReview() {
   const handleAction = async (
     id: string,
     action: 'approve' | 'reject' | 'request_info',
-    review?: { notes: string; rubric: ProofRubricScore; scoring: ProofRubricScoring; adminOverrideUsed: boolean; adminOverrideReason: string | null }
+    review?: { notes: string; rubric: ProofRubricScore; scoring: AdminReviewScoring; adminOverrideUsed: boolean; adminOverrideReason: string | null }
   ) => {
     if (!id) {
       alert('Missing source entry. This review record must be repaired or archived before it can be actioned.');
@@ -570,14 +579,15 @@ function createReviewPayload(
   action: 'approve' | 'reject' | 'request_info',
   notes: string,
   score: ProofRubricScore,
-  scoring: ProofRubricScoring
+  scoring: ProofRubricScoring,
+  missionScoring: ScoreCalculationResult
 ) {
   const suggestedAction = suggestedActionForRubric(score);
   const adminOverrideUsed = !!suggestedAction && suggestedAction !== action;
   return {
     notes,
     rubric: score,
-    scoring,
+    scoring: { ...scoring, missionScoring: toScoringSnapshot(missionScoring) },
     adminOverrideUsed,
     adminOverrideReason: adminOverrideUsed ? (notes.trim() || `Admin chose ${action} despite rubric recommendation.`) : null,
   };
@@ -588,12 +598,14 @@ function RubricCard({
   onChange,
   score,
   scoring,
+  missionScoring,
   recommendationLabel,
 }: {
   ratings: ProofRubricRatings;
   onChange: (key: keyof ProofRubricRatings, value: number) => void;
   score: ProofRubricScore;
   scoring: ProofRubricScoring;
+  missionScoring: ScoreCalculationResult;
   recommendationLabel: string;
 }) {
   const contextLabel = getProofRubricScoringContextLabel(scoring);
@@ -620,12 +632,12 @@ function RubricCard({
               <p className="mt-1 text-[9px] font-black text-on-surface/55">Up to 100 XP can be awarded.</p>
             ) : (
               <p className="mt-1 text-[9px] font-black text-on-surface/55">
-                Up to 225 XP is currently awardable. 25 XP remains classified for future bonus conditions.
+                Base rubric ceiling is 225 XP before validated mission bonuses.
               </p>
             )}
           </div>
           <div className="text-right">
-            <p className="text-[9px] font-black opacity-45">Mission Potential</p>
+            <p className="text-[9px] font-black opacity-45">Base Maximum</p>
             <p className="text-2xl font-display font-black italic leading-none">{scoring.maxUiPotentialXp} XP</p>
           </div>
         </div>
@@ -679,28 +691,44 @@ function RubricCard({
         </div>
         <div>
           <p className="opacity-45 font-black">Admin Awardable XP</p>
-          <p className="text-lg font-black text-brand-lime">{scoring.awardedXp} / {scoring.maxAdminAwardableXp}</p>
-        </div>
-        <div>
-          <p className="opacity-45 font-black">Reserved Potential</p>
-          <p className="text-lg font-black">{scoring.reservedPotentialXp} XP</p>
+          <p className="text-lg font-black text-brand-lime">{missionScoring.reviewerBaseScore} / {missionScoring.adjustedMaxScore}</p>
         </div>
         <div>
           <p className="opacity-45 font-black">Recommendation</p>
           <p className="text-sm font-black text-brand-lime">{recommendationLabel}</p>
         </div>
         <div>
-          <p className="opacity-45 font-black">Mission Potential</p>
+          <p className="opacity-45 font-black">Base Maximum</p>
           <p className="text-sm font-black">{scoring.maxUiPotentialXp} XP</p>
         </div>
         <div className="sm:col-span-4 border-t border-white/10 pt-3 text-[9px] leading-relaxed opacity-75">
           Weighted score = mission match/4 x 40 + clarity/4 x 25 + trust/4 x 20 + note/4 x 10 + energy/4 x 5.
-          {scoring.reservedPotentialXp > 0 && (
-            <span className="block mt-2 text-brand-lime">
-              The classified {scoring.reservedPotentialXp} XP is reserved potential, not a missing review field.
-            </span>
-          )}
         </div>
+      </div>
+
+      <div className="rounded-xl border-2 border-brand-cyan/40 bg-brand-cyan/5 p-4">
+        <h5 className="font-display text-sm font-black uppercase italic">Mission Scoring</h5>
+        <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 font-mono text-[9px] uppercase sm:grid-cols-4">
+          <div><dt className="opacity-45">Original maximum</dt><dd className="mt-1 text-sm font-black">{missionScoring.baseMaxScore} XP</dd></div>
+          <div><dt className="opacity-45">Hint used</dt><dd className="mt-1 text-sm font-black">{missionScoring.hintUsed ? 'Yes' : 'No'}</dd></div>
+          <div><dt className="opacity-45">Hint adjustment</dt><dd className="mt-1 text-sm font-black">-{missionScoring.hintPenaltyPoints} XP</dd></div>
+          <div><dt className="opacity-45">Reviewer maximum</dt><dd className="mt-1 text-sm font-black">{missionScoring.adjustedMaxScore} XP</dd></div>
+          <div><dt className="opacity-45">Reviewer award</dt><dd className="mt-1 text-sm font-black">{missionScoring.reviewerBaseScore} XP</dd></div>
+          <div><dt className="opacity-45">Eligible bonus</dt><dd className="mt-1 text-sm font-black">{missionScoring.appliedBonus?.label || 'None'}</dd></div>
+          <div><dt className="opacity-45">Multiplier</dt><dd className="mt-1 text-sm font-black">{missionScoring.appliedMultiplier}×</dd></div>
+          <div><dt className="opacity-45">Final awarded score</dt><dd className="mt-1 text-sm font-black text-brand-orange">{missionScoring.finalScore} XP</dd></div>
+        </dl>
+        {missionScoring.hintUsed && (
+          <p className="mt-3 text-xs font-semibold text-brand-orange">
+            The hint permanently reduced this attempt's reviewer maximum. The server enforces this cap again on save.
+          </p>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-on-surface/15 bg-[#FAF8F5] p-4 text-xs leading-relaxed text-on-surface/70">
+        <p><strong>Hints:</strong> A hint reduces that attempt's maximum base score. Score proof quality normally; the result cannot exceed the adjusted maximum.</p>
+        <p className="mt-2"><strong>Bonuses:</strong> Review the base proof only. The server validates and applies the eligible multiplier after approval.</p>
+        <p className="mt-2"><strong>Stacking:</strong> Hint penalties apply first. If several bonuses qualify, only the highest multiplier applies.</p>
       </div>
     </div>
   );
@@ -731,11 +759,25 @@ function SwipeView({ entry, onAction, busy }: any) {
 
   const score = React.useMemo(() => calculateProofRubricScore(ratings), [ratings]);
   const scoring = React.useMemo(() => getProofRubricScoring(score, entry), [score, entry]);
+  const missionScoring = React.useMemo(() => {
+    const attempt = entry.missionAttempt || {};
+    return calculateMissionScore({
+      baseMaxScore: scoring.maxAdminAwardableXp,
+      reviewerBaseScore: scoring.awardedXp,
+      hintUsed: attempt.hintUsed === true || entry.hintUsed === true,
+      hintPenaltyPercent: Number(
+        attempt.hintPenaltyPercent ?? (entry.hintUsed ? DEFAULT_HINT_PENALTY_PERCENT : 0),
+      ),
+      retryMultiplier: entry.isRetry === true ? Number(entry.retryPointMultiplier ?? 0.5) : 1,
+      perkPoints: 0,
+      eligibleBonuses: Array.isArray(attempt.eligibleBonuses) ? attempt.eligibleBonuses : [],
+    });
+  }, [entry, scoring]);
   const recommendationLabel = getProofRubricRecommendationLabel(score.recommendation);
   const entryResolved = entry.canonicalEntryResolved !== false && !!entry.entryId;
   const handleDecision = (action: 'approve' | 'reject' | 'request_info') => {
     if (!entryResolved) return;
-    onAction(action, createReviewPayload(action, reviewNote, score, scoring));
+    onAction(action, createReviewPayload(action, reviewNote, score, scoring, missionScoring));
   };
 
   return (
@@ -818,6 +860,7 @@ function SwipeView({ entry, onAction, busy }: any) {
                onChange={(key, value) => setRatings(prev => ({ ...prev, [key]: value }))}
                score={score}
                scoring={scoring}
+               missionScoring={missionScoring}
                recommendationLabel={recommendationLabel}
              />
 
