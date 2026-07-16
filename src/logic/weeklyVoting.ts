@@ -299,6 +299,7 @@ export function isWeeklyProofEligible(entry: WeeklyEntryLike, params: {
 }
 
 export function isWeeklyCandidateEligible(candidate: WeeklyCandidateLike, category: string): boolean {
+  if (!isWeeklyVoteCategory(category)) return false;
   const categories = normalizeWeeklyCandidateCategories(candidate.categories);
   return candidate.isEligible !== false &&
     candidate.isDisqualified !== true &&

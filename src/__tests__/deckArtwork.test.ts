@@ -33,10 +33,12 @@ test('DeckStack active pack art is mounted on the card shell, not the old inset 
 });
 
 test('deck preview surfaces use the shared full-bleed artwork layer', () => {
-  const deckPage = read('src/pages/Deck.tsx');
+  const activeDeckPanel = read('src/components/missions/ActiveDeckPanel.tsx');
+  const deckShelfPanel = read('src/components/missions/DeckShelfPanel.tsx');
   const selector = read('src/components/DeckPackSelector.tsx');
 
-  assert.match(deckPage, /<DeckArtwork\s+pack=\{activePack\}/);
+  assert.match(activeDeckPanel, /<DeckArtwork\s+pack=\{pack\}/);
+  assert.match(deckShelfPanel, /<DeckArtwork\s+pack=\{item\.pack\}/);
   assert.match(selector, /<DeckArtwork\s+pack=\{pack\}/);
   assert.match(selector, /<DeckArtwork\s+pack=\{currentPack\}/);
 });

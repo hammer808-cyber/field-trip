@@ -27,7 +27,7 @@ import { getWeeklyBonusForWeek } from '../data/weeklyBonuses';
 import { StickerBackground } from '../components/StickerBackground';
 import { StickerDecal, StickerCorner, StickerScatter } from '../components/StickerDecals';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
-import { getProofLogbookCounts } from '../logic/proofDistribution';
+import { getEntryEarnedXp, getProofImageUrl, getProofLogbookCounts, toMillis } from '../logic/proofDistribution';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { StarterCompletionState } from '../utils/starterHelper';
 import { getSeasonCountdown } from '../utils/seasonCountdown';
@@ -140,6 +140,10 @@ function DiamondDecor() {
 }
 
 import { FieldPageHero } from '../components/FieldPageHero';
+import { ActiveDeckPanel } from '../components/missions/ActiveDeckPanel';
+import { DeckShelfPanel, type DeckShelfSection } from '../components/missions/DeckShelfPanel';
+import { MissionActionPanel } from '../components/missions/MissionActionPanel';
+import { MissionLogbookPanel, type MissionLogbookItem } from '../components/missions/MissionLogbookPanel';
 
 export default function DeckPage() {
   const navigate = useNavigate();
@@ -765,6 +769,87 @@ export default function DeckPage() {
     ? getSeasonCountdown(activeSeason, currentDate)
     : null;
 
+  const activeDeckDisplayName = (() => {
+    const shortName = (activePack?.shortName || activeDeckShortName).toUpperCase();
+    const fullName = (activePack?.packName || activeDeckName).toUpperCase();
+    return fullName.startsWith(shortName) ? fullName : `${shortName}: ${fullName}`;
+  })();
+
+  const handleSelectDeck = (packId: string) => {
+    const pack = visibleDeckPacks.find(candidate => candidate.packId === packId);
+    if (!pack || pack.packId === activePackId || getPackLockState(pack).locked) return;
+    setActivePackId(pack.packId);
+    setDrawnTrip(null);
+    setIsDrawn(false);
+    setAnimationStep('idle');
+    setHasRevealedInActiveSession(false);
+  };
+
+  const deckShelfSections: DeckShelfSection[] = getDeckCatalogSections(visibleDeckPacks).map(section => ({
+    id: section.id,
+    label: section.label,
+    items: section.packs.map(pack => {
+      const progress = getPackProgress(pack);
+      const lockState = getPackLockState(pack);
+      return {
+        pack,
+        ...progress,
+        locked: lockState.locked,
+        lockReason: lockState.reason,
+        selected: pack.packId === activePackId,
+      };
+    }),
+  }));
+
+  const logbookItems: MissionLogbookItem[] = activeLogEntries.slice(0, 8).map(entry => {
+    const status = normalizeEntryStatus(entry.status);
+    const earnedXp = getEntryEarnedXp(entry);
+    const filedAt = toMillis(entry.createdAt || entry.submittedAt);
+    const missionId = entry.tripId || entry.challengeId || entry.missionId;
+    const isRetryable = status === 'needs_more_proof' || status === 'rejected';
+
+    const statusLabel = status === 'approved'
+      ? earnedXp > 0 ? `Verified (+${earnedXp} XP)` : 'Verified'
+      : status === 'needs_more_proof'
+        ? 'Needs proof'
+        : status === 'rejected'
+          ? 'Rejected'
+          : 'Pending review';
+
+    return {
+      id: entry.id,
+      title: entry.tripTitle || entry.missionTitle || entry.deckName || 'Untitled mission',
+      status,
+      statusLabel,
+      filedLabel: filedAt > 0 ? `Filed ${new Date(filedAt).toLocaleDateString()}` : 'Filed recently',
+      fieldNote: entry.fieldNote || entry.note || 'No field notes provided.',
+      imageUrl: getProofImageUrl(entry) || undefined,
+      adminNote: entry.adminNotes || (entry as any).adminNote || undefined,
+      onRetry: isRetryable && missionId
+        ? () => navigate(`/capture?id=${missionId}&isRetry=true&originalEntryId=${entry.id}`)
+        : undefined,
+    };
+  });
+
+  const displayedMission = drawnTrip || activeTrip;
+  const displayedMissionStatus = displayedMission
+    ? getChallengeStatus(canonicalProgress, displayedMission.id, activeTrip?.id || null)
+    : null;
+  const missionPanelStatus = displayedMissionStatus === 'approved'
+    ? 'Approved'
+    : displayedMissionStatus === 'pending_review'
+      ? 'Pending review'
+      : displayedMissionStatus === 'needs_more_proof'
+        ? 'Needs more proof'
+        : displayedMissionStatus === 'rejected'
+          ? 'Retry required'
+          : displayState.label;
+  const missionPanelTitle = isDrawn && displayedMission
+    ? displayedMission.title
+    : deckLockState.locked
+      ? 'Deck access'
+      : 'Draw your next mission';
+
   // Guided Starter Mission Mode for Launch
   if (mustCompleteStarterMission && !isAdmin) {
     const launchMission = trips.find(t => t.id.toLowerCase() === LAUNCH_MISSION_ID.toLowerCase()) || LAUNCH_MISSION;
@@ -859,19 +944,10 @@ export default function DeckPage() {
 
   return (
     <div className={cn(
-      "skin-page skin-deck-browser page-scroll relative px-4 sm:px-6 ft-paper-texture",
+      "skin-page skin-deck-browser page-scroll relative ft-paper-texture",
       isBaja ? "bg-baja-sand" : isDiamond ? "bg-black" : isHeat ? "bg-heat-yellow" : "bg-paper-light",
       "text-on-surface"
     )}>
-      {/* Visual Spiral Notebook Rings at the top */}
-      <div className="w-full flex justify-center py-1 opacity-55 z-20 relative select-none pointer-events-none mb-4 pt-4">
-        <div className="h-4 w-60 border-y-2 border-on-surface bg-paper-dark flex justify-between px-4 rounded-full shadow-[inset_0_2px_4.5px_rgba(0,0,0,0.15)]">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="w-2.5 h-6 bg-slate-400 border-2 border-on-surface rounded-full -mt-1 shadow" />
-          ))}
-        </div>
-      </div>
-
       <FieldPageHero
         eyebrow={getDisplayLabel('MISSION_DRAW_SYSTEM')}
         title="MISSIONS"
@@ -881,89 +957,44 @@ export default function DeckPage() {
         infoCardValue={activePack?.shortName || activeDeckShortName}
         infoCardSubtext={deckLockState.locked ? "LOCKED" : "UNLOCKED"}
         infoCardAccent="blue"
+        variant="editorial"
       />
 
-      <div className="mx-auto mb-5 flex max-w-xl items-center justify-between gap-3 border-y-2 border-on-surface/15 bg-white/70 px-3 py-2 font-mono text-[9px] font-black uppercase tracking-wider text-on-surface/65" aria-live="polite">
-        <span>{countdown?.label || 'Season timing is loading from game configuration'}</span>
-        <span className="shrink-0 text-brand-orange">
-          {countdown
-            ? countdown.status === 'active'
-              ? `Week ${currentWeekNumber}`
-              : countdown.status.replace('_', ' ')
-            : 'config pending'}
-        </span>
-      </div>
-
-      {/* 3. ACTIVE DECK STATUS CARD / MISSION SHELF */}
-      <div className="max-w-xl mx-auto mb-6 px-2 relative z-10">
-        <div className="bg-[#FCFAF5] border-[3px] border-on-surface p-4 rounded-3xl shadow-[8px_8px_0px_black] relative overflow-hidden flex items-center gap-4">
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.015)_1px,transparent_1px)] bg-[size:100%_8px] pointer-events-none" />
-          
-          {/* Small Decorative Deck Stack - Always visible as shelf marker */}
-          <div 
-            onClick={() => !activeTrip && !drawnTrip && handleDraw()}
-            className={cn(
-              "w-16 h-20 shrink-0 relative overflow-visible transform -rotate-3 hover:rotate-0 transition-transform cursor-pointer",
-              isDrawing && "animate-pulse scale-105"
-            )}
-          >
-            <div className="absolute inset-0 bg-on-surface/5 border border-on-surface/10 rounded translate-x-1 translate-y-1" />
-             <div className="absolute inset-0 bg-white border-2 border-on-surface rounded overflow-hidden shadow-sm">
-               <DeckArtwork
-                 pack={activePack}
-                 alt={`${activePack?.title || 'Active deck'} cover`}
-                 grayscale="grayscale-[20%]"
-               />
-             </div>
-            {/* Status dot */}
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-brand-lime rounded-full border-2 border-on-surface shadow-sm z-20" />
-          </div>
-
-          <div className="flex-grow min-w-0 space-y-2">
-            <div className="flex justify-between items-center text-[10px] font-mono font-black uppercase tracking-widest">
-              <span className="text-on-surface/40">Active Deck</span>
-              <span className="text-brand-lime">Active Pack</span>
-            </div>
-            <h4 className="text-lg font-display font-black uppercase italic truncate leading-none">
-              {(() => {
-                const short = (activePack?.shortName || activeDeckShortName).toUpperCase();
-                const full = (activePack?.packName || activeDeckName).toUpperCase();
-                if (full.startsWith(short)) {
-                  return full;
-                }
-                return `${short}: ${full}`;
-              })()}
-            </h4>
-            <div className="space-y-1">
-              <div className="flex justify-between items-center text-[9px] font-black font-mono text-on-surface/30">
-                <span>PROGRESS</span>
-                <span>
-                  {approvedDeckChallengesCount} / {totalDeckChallenges} APPROVED
-                  {pendingDeckChallengesCount > 0 && ` (${pendingDeckChallengesCount} PENDING)`}
-                </span>
-              </div>
-              <div className="h-2.5 bg-on-surface/5 border-2 border-on-surface rounded-full overflow-hidden p-0.5 flex">
-                <motion.div 
-                  initial={{ width: 0 }}
-                  animate={{ width: `${deckProgressPercent}%` }}
-                  className="h-full bg-brand-lime rounded-l-full"
-                />
-                <motion.div 
-                  initial={{ width: 0 }}
-                  animate={{ width: `${deckPendingPercent}%` }}
-                  className="h-full bg-brand-orange/40"
-                />
-              </div>
-            </div>
-          </div>
+      <div className="relative z-10 mx-auto max-w-6xl px-4 pb-24 pt-5 sm:px-6 sm:pt-6">
+        <div className="mb-6 flex items-center justify-between gap-3 border-y-2 border-[var(--skin-border-muted)] bg-[var(--skin-surface)] px-3 py-2 font-mono text-[9px] font-black uppercase tracking-wider text-[var(--skin-text-muted)]" aria-live="polite">
+          <span>{countdown?.label || 'Season timing is loading from game configuration'}</span>
+          <span className="shrink-0 text-[var(--skin-primary)]">
+            {countdown
+              ? countdown.status === 'active'
+                ? `Week ${currentWeekNumber}`
+                : countdown.status.replace('_', ' ')
+              : 'config pending'}
+          </span>
         </div>
 
-      </div>
+        {deckDiagnosticsPanel}
 
-      {deckDiagnosticsPanel}
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.75fr)] lg:gap-8">
+          <main className="min-w-0 space-y-6">
+            <ActiveDeckPanel
+              pack={activePack}
+              displayName={activeDeckDisplayName}
+              approvedCount={approvedDeckChallengesCount}
+              pendingCount={pendingDeckChallengesCount}
+              totalCount={totalDeckChallenges}
+              approvedPercent={deckProgressPercent}
+              pendingPercent={deckPendingPercent}
+              locked={deckLockState.locked}
+              lockReason={deckLockState.reason}
+              onCoverAction={!activeTrip && !drawnTrip && !deckLockState.locked ? () => handleDraw() : undefined}
+              coverActionLabel={`Draw a mission from ${activeDeckDisplayName}`}
+            />
 
-      {/* 4. MAIN INTERACTIVE AREA: DRAW OR REVEAL (REFACTORED) */}
-      <div className="max-w-xl mx-auto mb-12 relative z-10 px-2 lg:px-0 min-h-[500px]">
+            <MissionActionPanel
+              eyebrow={isDrawn ? 'Current assignment' : 'Mission draw'}
+              title={missionPanelTitle}
+              status={missionPanelStatus}
+            >
         <AnimatePresence mode="wait">
           {!isDrawn ? (
             <motion.div 
@@ -971,11 +1002,11 @@ export default function DeckPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0, transition: { duration: 0.1 } }}
-              className="flex flex-col items-center py-4 space-y-10"
+              className="flex flex-col items-center space-y-6 py-1"
             >
               {isStarter && starterState.status === 'COMPLETE' ? (
-                <div className="w-full bg-[#FCFAF5] border-[3px] border-on-surface p-6 rounded-[2rem] shadow-[12px_12px_0px_black] text-center space-y-6 animate-fade-in">
-                  <div className="w-20 h-20 bg-brand-lime border-2 border-on-surface rounded-full flex items-center justify-center mx-auto shadow-[4px_4px_0px_black] rotate-3">
+                <div className="w-full animate-fade-in space-y-5 py-4 text-center">
+                  <div className="mx-auto flex h-20 w-20 rotate-3 items-center justify-center rounded-[var(--skin-badge-radius)] border-2 border-[var(--skin-border)] bg-[var(--skin-secondary)] text-[var(--skin-on-secondary)] shadow-[4px_4px_0_var(--skin-border)]">
                     <CheckCircle className="w-10 h-10 text-on-surface" />
                   </div>
                   <div className="space-y-2">
@@ -989,15 +1020,15 @@ export default function DeckPage() {
                       setDrawnTrip(null);
                       setHasRevealedInActiveSession(false);
                     }}
-                    className="w-full py-5 bg-brand-lime text-on-surface border-[3px] border-on-surface shadow-[0_8px_0px_black] active:shadow-none active:translate-y-2 transition-all font-display text-2xl font-black uppercase italic tracking-wide flex items-center justify-center gap-3 cursor-pointer"
+                    className="skin-button flex min-h-14 w-full cursor-pointer items-center justify-center gap-3 border-[3px] border-[var(--skin-border)] bg-[var(--skin-secondary)] px-4 py-4 font-display text-2xl font-black uppercase italic tracking-normal text-[var(--skin-on-secondary)] shadow-[var(--skin-button-shadow)] transition-all active:translate-y-1 active:shadow-none"
                   >
                     <Sun className="w-6 h-6 fill-current animate-spin-slow" />
                     <span>Enter {getDisplayLabel('HEATWAVE_RECEIPTS')}</span>
                   </button>
                 </div>
               ) : isStarter && starterState.status === 'REJECTED_RETRY_AVAILABLE' ? (
-                <div className="w-full bg-[#FCFAF5] border-[3px] border-on-surface p-6 rounded-[2rem] shadow-[12px_12px_0px_black] text-center space-y-6 animate-fade-in">
-                  <div className="w-20 h-20 bg-brand-orange border-2 border-on-surface rounded-full flex items-center justify-center mx-auto shadow-[4px_4px_0px_black] -rotate-3">
+                <div className="w-full animate-fade-in space-y-5 py-4 text-center">
+                  <div className="mx-auto flex h-20 w-20 -rotate-3 items-center justify-center rounded-[var(--skin-badge-radius)] border-2 border-[var(--skin-border)] bg-[var(--skin-error)] text-white shadow-[4px_4px_0_var(--skin-border)]">
                     <RotateCcw className="w-10 h-10 text-white" />
                   </div>
                   <div className="space-y-2">
@@ -1013,15 +1044,15 @@ export default function DeckPage() {
                         handleDraw(true);
                       }
                     }}
-                    className="w-full py-5 bg-brand-orange text-white border-[3px] border-on-surface shadow-[0_8px_0px_black] active:shadow-none active:translate-y-2 transition-all font-display text-2xl font-black uppercase italic tracking-wide flex items-center justify-center gap-3 cursor-pointer"
+                    className="skin-button flex min-h-14 w-full cursor-pointer items-center justify-center gap-3 border-[3px] border-[var(--skin-border)] bg-[var(--skin-primary)] px-4 py-4 font-display text-2xl font-black uppercase italic tracking-normal text-[var(--skin-on-primary)] shadow-[var(--skin-button-shadow)] transition-all active:translate-y-1 active:shadow-none"
                   >
                     <RotateCcw className="w-6 h-6" />
                     <span>Retry Mission</span>
                   </button>
                 </div>
               ) : isStarter && starterState.status === 'NEEDS_MORE_PROOF' ? (
-                <div className="w-full bg-[#FCFAF5] border-[3px] border-on-surface p-6 rounded-[2rem] shadow-[12px_12px_0px_black] text-center space-y-6 animate-fade-in">
-                  <div className="w-20 h-20 bg-brand-orange border-2 border-on-surface rounded-full flex items-center justify-center mx-auto shadow-[4px_4px_0px_black] -rotate-3">
+                <div className="w-full animate-fade-in space-y-5 py-4 text-center">
+                  <div className="mx-auto flex h-20 w-20 -rotate-3 items-center justify-center rounded-[var(--skin-badge-radius)] border-2 border-[var(--skin-border)] bg-[var(--skin-warning)] text-white shadow-[4px_4px_0_var(--skin-border)]">
                     <AlertTriangle className="w-10 h-10 text-white animate-pulse" />
                   </div>
                   <div className="space-y-2">
@@ -1036,15 +1067,15 @@ export default function DeckPage() {
                         navigate('/profile');
                       }
                     }}
-                    className="w-full py-5 bg-brand-orange text-white border-[3px] border-on-surface shadow-[0_8px_0px_black] active:shadow-none active:translate-y-2 transition-all font-display text-2xl font-black uppercase italic tracking-wide flex items-center justify-center gap-3 cursor-pointer"
+                    className="skin-button flex min-h-14 w-full cursor-pointer items-center justify-center gap-3 border-[3px] border-[var(--skin-border)] bg-[var(--skin-primary)] px-4 py-4 font-display text-2xl font-black uppercase italic tracking-normal text-[var(--skin-on-primary)] shadow-[var(--skin-button-shadow)] transition-all active:translate-y-1 active:shadow-none"
                   >
                     <Camera className="w-6 h-6" />
                     <span>Add More Proof</span>
                   </button>
                 </div>
               ) : isStarter && starterState.status === 'PENDING_REVIEW' ? (
-                <div className="w-full bg-[#FCFAF5] border-[3px] border-on-surface p-6 rounded-[2rem] shadow-[12px_12px_0px_black] text-center space-y-6 animate-fade-in">
-                  <div className="w-20 h-20 bg-brand-orange/10 border-2 border-on-surface rounded-full flex items-center justify-center mx-auto shadow-[4px_4px_0px_black] rotate-2">
+                <div className="w-full animate-fade-in space-y-5 py-4 text-center">
+                  <div className="mx-auto flex h-20 w-20 rotate-2 items-center justify-center rounded-[var(--skin-badge-radius)] border-2 border-[var(--skin-border)] bg-[var(--skin-surface-muted)] text-[var(--skin-primary)] shadow-[4px_4px_0_var(--skin-border)]">
                     <Timer className="w-10 h-10 text-brand-orange animate-pulse" />
                   </div>
                   <div className="space-y-2">
@@ -1055,7 +1086,7 @@ export default function DeckPage() {
                   </div>
                   <button
                     onClick={() => navigate('/profile?tab=history')}
-                    className="w-full py-5 bg-white text-on-surface border-[3px] border-on-surface shadow-[0_8px_0px_black] active:shadow-none active:translate-y-2 transition-all font-display text-2xl font-black uppercase italic tracking-wide flex items-center justify-center gap-3 cursor-pointer"
+                    className="skin-button flex min-h-14 w-full cursor-pointer items-center justify-center gap-3 border-[3px] border-[var(--skin-border)] bg-[var(--skin-surface)] px-4 py-4 font-display text-2xl font-black uppercase italic tracking-normal text-[var(--skin-text)] shadow-[var(--skin-button-shadow)] transition-all active:translate-y-1 active:shadow-none"
                   >
                     <FileText className="w-6 h-6" />
                     <span>View Proof Status</span>
@@ -1080,12 +1111,12 @@ export default function DeckPage() {
                     />
                   </div>
 
-                  <div className="w-full space-y-6">
+                  <div className="w-full space-y-4">
                     <button
                       onClick={() => handleDraw()}
                       disabled={isDrawing || isStarterConfigurationBlocked || (isExhausted && !activeTrip) || isWaitingForReview}
                       className={cn(
-                        "w-full py-5 bg-on-surface text-white border-[3px] border-on-surface shadow-[0_8px_0px_#B7FF00] active:shadow-none active:translate-y-2 transition-all font-display text-2xl font-black uppercase italic tracking-wide flex items-center justify-center gap-3 cursor-pointer",
+                        "skin-button flex min-h-14 w-full cursor-pointer items-center justify-center gap-3 border-[3px] border-[var(--skin-border)] bg-[var(--skin-text)] px-4 py-4 font-display text-2xl font-black uppercase italic tracking-normal text-[var(--skin-surface)] shadow-[var(--skin-button-shadow)] transition-all active:translate-y-1 active:shadow-none",
                         (isDrawing || isStarterConfigurationBlocked || (isExhausted && !activeTrip) || isWaitingForReview) && "opacity-70 cursor-not-allowed grayscale"
                       )}
                     >
@@ -1139,7 +1170,7 @@ export default function DeckPage() {
                       onStart={() => navigate(`/capture?id=${(drawnTrip || activeTrip)?.id}`)}
                       isRedrawable={false}
                       showActions={false}
-                      className="shadow-[16px_16px_0px_black] rounded-[2rem]"
+                      className="skin-mission-card shadow-[var(--skin-card-shadow)]"
                     />
                   </motion.div>
 
@@ -1151,7 +1182,7 @@ export default function DeckPage() {
                   </div>
                </div>
                
-              <div className="mt-10 space-y-4">
+              <div className="mt-7 space-y-4">
                 <button
                   onClick={async () => {
                     try {
@@ -1181,13 +1212,13 @@ export default function DeckPage() {
                       console.error("[Deck] Failed to setActiveMissionCard:", err.message);
                     }
                   }}
-                  id="start-mission-button-alt" className="w-full py-6 bg-brand-orange text-white border-[4px] border-on-surface shadow-[0_12px_0] active:shadow-none active:translate-y-3 transition-all font-display text-4xl font-black uppercase italic tracking-tight flex items-center justify-center gap-4 cursor-pointer"
+                  id="start-mission-button-alt" className="skin-button flex min-h-16 w-full cursor-pointer items-center justify-center gap-3 border-[4px] border-[var(--skin-border)] bg-[var(--skin-primary)] px-4 py-4 font-display text-2xl font-black uppercase italic tracking-normal text-[var(--skin-on-primary)] shadow-[var(--skin-button-shadow)] transition-all active:translate-y-1 active:shadow-none sm:text-3xl"
                 >
-                  <Camera className="w-10 h-10" />
+                  <Camera className="h-8 w-8" />
                   <span>Start Mission</span>
                 </button>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <button
                     onClick={async () => {
                       try {
@@ -1200,14 +1231,14 @@ export default function DeckPage() {
                         console.error("[Deck] Failed to updateMissionCardStatus:", err.message);
                       }
                     }}
-                    className="py-4 bg-white text-on-surface border-[3px] border-on-surface shadow-[0_6px_0] active:shadow-none active:translate-y-1.5 transition-all font-display text-xl font-black uppercase italic italic flex items-center justify-center gap-3 cursor-pointer"
+                    className="skin-button flex min-h-12 cursor-pointer items-center justify-center gap-2 border-2 border-[var(--skin-border)] bg-[var(--skin-surface)] px-3 py-3 font-display text-base font-black uppercase italic tracking-normal text-[var(--skin-text)] shadow-[3px_3px_0_var(--skin-border)] transition-all active:translate-y-0.5 active:shadow-none"
                   >
                     <Book className="w-5 h-5 text-on-surface/40" />
                     <span>Save for Later</span>
                   </button>
                   <button
                     onClick={() => handleDraw(true)}
-                    className="py-4 bg-white text-on-surface border-[3px] border-on-surface shadow-[0_6px_0] active:shadow-none active:translate-y-1.5 transition-all font-display text-xl font-black uppercase italic italic flex items-center justify-center gap-3 cursor-pointer"
+                    className="skin-button flex min-h-12 cursor-pointer items-center justify-center gap-2 border-2 border-[var(--skin-border)] bg-[var(--skin-surface)] px-3 py-3 font-display text-base font-black uppercase italic tracking-normal text-[var(--skin-text)] shadow-[3px_3px_0_var(--skin-border)] transition-all active:translate-y-0.5 active:shadow-none"
                   >
                     <RotateCcw className="w-5 h-5 text-on-surface/40" />
                     <span>Draw Another</span>
@@ -1226,298 +1257,26 @@ export default function DeckPage() {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+            </MissionActionPanel>
+          </main>
 
-      {/* 5. COLLAPSIBLE BINDER DRAWERS */}
-      <div className="max-w-xl mx-auto space-y-12 relative z-10 px-2 lg:px-0 pt-8">
-        {/* Deck Shelf Accordion */}
-        <div className="bg-white border-[3px] border-on-surface shadow-[8px_8px_0px_black] relative mt-4">
-           {/* Folder / Binder divider tab notched overlay */}
-           <div className="absolute top-0 left-6 -translate-y-full bg-[#FCF9F2] border-t-[3px] border-x-[3px] border-on-surface px-4 py-1 font-mono text-[9px] font-black uppercase tracking-wider text-on-surface/60 rounded-t-xl select-none">
-              Dossier_Shelf
-           </div>
+          <aside className="min-w-0 space-y-6 lg:sticky lg:top-6">
+            <DeckShelfPanel
+              open={isDeckShelfExpanded}
+              onOpenChange={setIsDeckShelfExpanded}
+              activeDeckLabel={activePack?.shortName || activeDeckShortName}
+              sections={deckShelfSections}
+              onSelect={handleSelectDeck}
+            />
 
-           <details 
-             open={isDeckShelfExpanded} id="deck-shelf" 
-             onToggle={(e) => setIsDeckShelfExpanded(e.currentTarget.open)}
-             className="group"
-           >
-              <summary className="p-4 flex items-center justify-between cursor-pointer list-none select-none">
-                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-brand-cyan border-2 border-on-surface flex items-center justify-center shadow-[3px_3px_0px_black]">
-                      <Trophy className="w-4 h-4 text-on-surface" />
-                    </div>
-                    <div>
-                      <h3 className="font-display text-lg font-black uppercase italic tracking-tight leading-none text-on-surface">Deck Shelf</h3>
-                      <p className="text-[10px] font-mono font-black uppercase tracking-widest text-[#FF5A00] mt-1 leading-none">
-                        {activePack?.shortName || "STARTER"} ACTIVE {isHeatwaveUnlockedForUI ? "· HEATWAVE UNLOCKED" : ""}
-                      </p>
-                    </div>
-                 </div>
-                 <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-mono font-black text-on-surface/30 group-open:opacity-0 transition-opacity uppercase">Manage</span>
-                    <ChevronDown className="w-6 h-6 text-on-surface/30 group-open:rotate-180 transition-transform" />
-                  </div>
-              </summary>
-              <div className="p-4 pt-0 space-y-5 bg-[#FCFAF5] border-t-2 border-on-surface/5">
-                 {getDeckCatalogSections(visibleDeckPacks).map(section => (
-                   <section key={section.id} className="space-y-2">
-                     <h4 className="pt-2 font-mono text-[8px] font-black uppercase tracking-[0.18em] text-on-surface/40">
-                       {section.label}
-                     </h4>
-                     {section.packs.map((pack) => {
-                    const { completed, total, percent } = getPackProgress(pack);
-                    const { locked, reason } = getPackLockState(pack);
-                    const isSelected = pack.packId === activePackId;
-
-                    return (
-                      <div 
-                        key={pack.packId}
-                        onClick={() => {
-                          if (!locked && !isSelected) {
-                            setActivePackId(pack.packId);
-                            setDrawnTrip(null);
-                            setIsDrawn(false);
-                            setAnimationStep('idle');
-                            setHasRevealedInActiveSession(false);
-                          }
-                        }}
-                        className={cn(
-                          "p-3 rounded-2xl border-2 transition-all relative overflow-hidden bg-white select-none",
-                          isSelected 
-                            ? "border-on-surface shadow-[4px_4px_0px_black]" 
-                            : locked 
-                              ? "opacity-60 bg-stone-50 border-dashed border-stone-200 cursor-not-allowed"
-                              : "border-on-surface/20 hover:border-on-surface hover:shadow-[4px_4px_0px_black] hover:-translate-y-0.5 cursor-pointer"
-                        )}
-                      >
-                        {locked && (
-                          <div 
-                            className="absolute inset-0 pointer-events-none opacity-[0.02] z-0" 
-                            style={{ 
-                              backgroundImage: 'repeating-linear-gradient(45deg, #000 0px, #000 10px, transparent 10px, transparent 20px)' 
-                            }} 
-                          />
-                        )}
-                        <div className="flex gap-3 items-center relative z-10">
-                           {/* Thumbnail/icon */}
-                           <div className={cn(
-                             "w-10 h-10 border-2 border-on-surface flex items-center justify-center shrink-0 overflow-hidden relative shadow-[2px_2px_0px_black]",
-                             isSelected ? "bg-brand-lime" : "bg-neutral-100"
-                           )}>
-                              <img 
-                                src={getDeckCoverImage(pack)} 
-                                className="w-full h-full object-cover" 
-                                alt={`${pack?.title || pack?.packName || 'Deck'} cover`}
-                                onError={(event) => {
-                                  event.currentTarget.src = BASE_DECK_PLACEHOLDER;
-                                }}
-                                referrerPolicy="no-referrer"
-                              />
-                           </div>
-
-                           <div className="flex-grow min-w-0">
-                              <div className="flex justify-between items-baseline gap-1.5">
-                                 <h4 className={cn(
-                                   "font-display uppercase text-sm font-black tracking-tight truncate leading-tight",
-                                   isSelected ? "text-on-surface italic" : "text-on-surface/70"
-                                 )}>
-                                    {pack.packName}
-                                 </h4>
-                                 {isSelected && (
-                                   <span className="shrink-0 bg-brand-lime text-on-surface text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full border border-on-surface">
-                                     Active
-                                   </span>
-                                 )}
-                              </div>
-
-                              {locked ? (
-                                <p className="text-[9px] font-mono font-black text-[#FF5A00] uppercase tracking-wide leading-none mt-1">
-                                   LOCKED: {reason}
-                                </p>
-                              ) : (
-                                <div className="space-y-1 mt-1">
-                                   <div className="flex justify-between items-center text-[8px] font-mono font-black text-on-surface/45">
-                                      <span>PROGRESS</span>
-                                      <span>{completed}/{total} COMPLETE</span>
-                                   </div>
-                                   <div className="h-1.5 bg-on-surface/5 border border-on-surface/10 rounded-full overflow-hidden">
-                                      <div 
-                                         className="h-full bg-brand-lime"
-                                         style={{ width: `${percent}%` }}
-                                      />
-                                   </div>
-                                </div>
-                              )}
-                           </div>
-
-                           {/* Selection handler / Locked Indicator */}
-                           <div className="shrink-0 flex items-center justify-end pl-2">
-                              {locked ? (
-                                 <Lock className="w-4 h-4 text-neutral-400" />
-                              ) : isSelected ? (
-                                 <div className="w-5 h-5 rounded-full bg-brand-lime border-2 border-on-surface flex items-center justify-center shadow-sm">
-                                    <CheckCircle className="w-3.5 h-3.5 text-on-surface" />
-                                 </div>
-                              ) : (
-                                 <button
-                                    onClick={() => {
-                                       setActivePackId(pack.packId);
-                                       setDrawnTrip(null);
-                                       setIsDrawn(false);
-                                       setAnimationStep('idle');
-                                       setHasRevealedInActiveSession(false);
-                                    }}
-                                    className="py-1 px-3 bg-white border-2 border-on-surface shadow-[2px_2px_0px_black] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 transition-all text-[9.5px] font-mono font-black uppercase italic cursor-pointer"
-                                 >
-                                    Select
-                                 </button>
-                              )}
-                           </div>
-                        </div>
-                      </div>
-                    );
-                     })}
-                   </section>
-                 ))}
-              </div>
-           </details>
-        </div>
-
-        {/* Logbook Accordion */}
-        <div className="bg-white border-[3px] border-on-surface shadow-[8px_8px_0px_black] relative mt-4">
-           {/* Folder / Binder divider tab notched overlay */}
-           <div className="absolute top-0 left-6 -translate-y-full bg-[#FCF9F2] border-t-[3px] border-x-[3px] border-on-surface px-4 py-1 font-mono text-[9px] font-black uppercase tracking-wider text-on-surface/60 rounded-t-xl select-none">
-              Archive_Logs
-           </div>
-
-           <details 
-             id="field-log-details"
-             open={isFieldLogExpanded} 
-             onToggle={(e) => setIsFieldLogExpanded(e.currentTarget.open)}
-             className="group"
-           >
-              <summary className="p-4 flex items-center justify-between cursor-pointer list-none select-none">
-                 <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "w-8 h-8 border-2 border-on-surface flex items-center justify-center shadow-[3px_3px_0px_black]",
-                      activeLogEntries.length > 0 ? "bg-brand-lime" : "bg-neutral-200"
-                    )}>
-                      <FileText className="w-4 h-4 text-on-surface" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                         <h3 className="font-display text-lg font-black uppercase italic tracking-tight leading-none text-on-surface">Logbook</h3>
-                         {hasUrgentItems && (
-                            <span className="shrink-0 bg-[#FF5A00] text-white text-[9px] font-mono font-black uppercase px-2.5 py-0.5 rounded border-2 border-on-surface shadow-[2px_2px_0px_black] animate-bounce">
-                               {urgentCount} needs attention
-                            </span>
-                         )}
-                      </div>
-                      <p className="text-[10px] font-mono font-black uppercase tracking-widest text-[#FF5A00] mt-1 leading-none">
-                         {logbookCounts.totalSubmitted === 0
-                           ? "NO FIELD LOGS"
-                           : `${logbookCounts.totalSubmitted} SUBMITTED · ${logbookCounts.approvedVerified} VERIFIED · ${logbookCounts.pendingReview} PENDING · ${logbookCounts.rejectedOrNeedsMoreProof} ACTION`}
-                      </p>
-                    </div>
-                 </div>
-                 <div className="flex items-center gap-2">
-                    {hasUrgentItems && <span className="w-2.5 h-2.5 rounded-full bg-[#FF5A00] animate-pulse" />}
-                    <ChevronDown className="w-6 h-6 text-on-surface/30 group-open:rotate-180 transition-transform" />
-                 </div>
-              </summary>
-              <div className="p-4 pt-0 bg-[#FCFAF5] border-t-2 border-on-surface/5">
-                 <div className="space-y-3 max-h-[360px] overflow-y-auto custom-scrollbar pt-2">
-                    {activeLogEntries.length > 0 ? (
-                       activeLogEntries.slice(0, 8).map((entry) => {
-                          const normalizedStatus = normalizeEntryStatus(entry.status);
-                          const isUrgent = normalizedStatus === 'needs_more_proof' || normalizedStatus === 'rejected';
-                          const isApprovedState = normalizedStatus === 'approved';
-
-                          let badgeText = "Pending Review";
-                          let badgeColor = "bg-neutral-100 text-on-surface/50 border-on-surface/20";
-
-                          if (normalizedStatus === 'needs_more_proof') {
-                             badgeText = "Needs Proof";
-                             badgeColor = "bg-amber-100 text-amber-700 border-amber-300";
-                          } else if (normalizedStatus === 'rejected') {
-                             badgeText = "Rejected";
-                             badgeColor = "bg-rose-100 text-rose-700 border-rose-300";
-                          } else if (isApprovedState) {
-                             badgeText = `Verified (+${entry.pointsAwarded} XP)`;
-                             badgeColor = "bg-emerald-100 text-emerald-700 border-emerald-300";
-                          }
-
-                          return (
-                             <div 
-                               key={entry.id}
-                               className={cn(
-                                 "p-3 rounded-2xl border-2 transition-all bg-white relative overflow-hidden",
-                                 isUrgent ? "border-[#FF5A00] shadow-[3px_3px_0px_black]" : "border-on-surface/10"
-                               )}
-                             >
-                                <div className="flex gap-3 items-start">
-                                   {/* Image thumbnail */}
-                                   <div className="w-10 h-10 border border-on-surface/25 bg-neutral-100 shrink-0 overflow-hidden relative shadow-[1px_1px_0px_black] mt-0.5 animate-fadeIn">
-                                      {entry.proofImage ? (
-                                         <img src={entry.proofImage} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />
-                                      ) : (
-                                         <FileText className="w-5 h-5 text-on-surface/30" />
-                                      )}
-                                   </div>
-
-                                   <div className="flex-grow min-w-0">
-                                      <div className="flex justify-between items-baseline gap-1.5 flex-wrap sm:flex-nowrap">
-                                         <h4 className="font-display uppercase text-xs font-black tracking-tight truncate leading-tight text-on-surface italic">
-                                            {entry.tripTitle}
-                                         </h4>
-                                         <span className={cn(
-                                           "shrink-0 text-[8px] font-mono font-black uppercase px-2 py-0.5 rounded-full border",
-                                           badgeColor
-                                         )}>
-                                            {badgeText}
-                                         </span>
-                                      </div>
-
-                                      <p className="text-[9px] font-mono font-black uppercase tracking-wide text-on-surface/30 leading-none mt-1">
-                                         FILED: {entry.createdAt ? new Date(entry.createdAt.seconds ? entry.createdAt.seconds * 1000 : entry.createdAt).toLocaleDateString() : "RECENTLY"}
-                                      </p>
-
-                                      <p className="text-[10px] text-on-surface/70 mt-2 font-serif italic leading-snug">
-                                         "{entry.fieldNote || 'No field notes provided.'}"
-                                      </p>
-
-                                      {(entry.adminNotes || (entry as any).adminNote) && (
-                                         <div className="mt-2 text-[10px] font-mono text-rose-500 bg-rose-50/50 p-2 border border-rose-100">
-                                            <span className="font-black">FEEDBACK_REASON:</span> "{entry.adminNotes || (entry as any).adminNote}"
-                                         </div>
-                                      )}
-
-                                      {isUrgent && (
-                                         <div className="mt-3 flex justify-end">
-                                            <Link 
-                                               to={`/capture?id=${entry.tripId}&isRetry=true&originalEntryId=${entry.id}`}
-                                               className="px-3 py-1 bg-[#FF5A00] text-white border border-on-surface hover:bg-white hover:text-[#FF5A00] transition-all font-display text-[10px] font-black uppercase italic tracking-wider shadow-[2px_2px_0px_black]"
-                                            >
-                                               Retry Mission
-                                            </Link>
-                                         </div>
-                                      )}
-                                   </div>
-                                </div>
-                             </div>
-                          );
-                       })
-                    ) : (
-                       <div className="py-8 text-center text-on-surface/30 space-y-2">
-                          <p className="text-xs font-mono font-black uppercase tracking-widest text-[#FF5A00]">
-                             No field logs yet. Draw a mission to start.
-                          </p>
-                       </div>
-                    )}
-                 </div>
-              </div>
-           </details>
+            <MissionLogbookPanel
+              open={isFieldLogExpanded}
+              onOpenChange={setIsFieldLogExpanded}
+              counts={logbookCounts}
+              items={logbookItems}
+              onOpenFullLogbook={() => navigate('/profile?tab=logbook')}
+            />
+          </aside>
         </div>
       </div>
 

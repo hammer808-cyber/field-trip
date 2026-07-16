@@ -29,6 +29,7 @@ import { ActionButton } from './UIUtilities';
 import { inferMissionCardType } from '../logic/missionSubmission';
 import type { MissionAttemptRecord } from '../services/missionAttemptService';
 import { transitionMissionHintFlow } from '../logic/missionHintFlow';
+import { getMissionBaseMaxScore } from '../logic/missionScoring';
 
 interface FieldClipboardProps {
   mission: TripCardType;
@@ -89,6 +90,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
   const [hintError, setHintError] = useState<string | null>(null);
   const appliedBonus = missionAttempt?.appliedBonus?.eligible ? missionAttempt.appliedBonus : null;
   const trevorLine = mission.trevorLine?.trim();
+  const missionMaximum = getMissionBaseMaxScore(mission);
 
   React.useEffect(() => {
     dispatchHintFlow(missionAttempt?.hintUsed ? 'restore' : 'reset');
