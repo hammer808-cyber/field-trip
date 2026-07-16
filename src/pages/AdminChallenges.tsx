@@ -368,13 +368,33 @@ export default function AdminChallengesPage() {
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">BUREAU_HINT_TEXT</label>
+                          <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">PLAYER_HINT</label>
                           <input 
                             type="text" 
-                            value={editingChallenge.hintText || ''} 
-                            onChange={(e) => setEditingChallenge({ ...editingChallenge, hintText: e.target.value })}
+                            value={editingChallenge.hint?.shortText || editingChallenge.hintText || ''}
+                            onChange={(e) => setEditingChallenge({
+                              ...editingChallenge,
+                              hintText: e.target.value,
+                              hint: { ...editingChallenge.hint, shortText: e.target.value },
+                            })}
                             className="w-full bg-on-surface/5 border-b-2 border-on-surface p-2 text-xs font-mono outline-none"
-                            placeholder="Look under the..."
+                            placeholder="Explain the mission in plain language."
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] uppercase font-bold opacity-40 mb-1">PLAYER_HINT_EXAMPLE</label>
+                          <input
+                            type="text"
+                            value={editingChallenge.hint?.example || ''}
+                            onChange={(e) => setEditingChallenge({
+                              ...editingChallenge,
+                              hint: {
+                                shortText: editingChallenge.hint?.shortText || editingChallenge.hintText || '',
+                                example: e.target.value,
+                              },
+                            })}
+                            className="w-full bg-on-surface/5 border-b-2 border-on-surface p-2 text-xs font-mono outline-none"
+                            placeholder="Optional safe example."
                           />
                         </div>
                       </div>

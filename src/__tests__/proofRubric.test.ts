@@ -35,9 +35,9 @@ assert(perfectStarterScoring.totalXpAwarded === 100, 'perfect starter rubric sho
 
 const perfectStandardScoring = getProofRubricScoring(perfectScore, { deckId: 'heatwave-receipts', challengeId: 'heatwave-1' });
 assert(perfectStandardScoring.scoringMode === 'standard', 'non-starter mission should use standard scoring mode');
-assert(perfectStandardScoring.maxUiPotentialXp === 250, 'standard UI potential should be 250 XP');
+assert(perfectStandardScoring.maxUiPotentialXp === 225, 'standard UI should show the real 225 XP base ceiling');
 assert(perfectStandardScoring.maxAdminAwardableXp === 225, 'standard admin awardable XP should cap at 225');
-assert(perfectStandardScoring.reservedPotentialXp === 25, 'standard missions should reserve 25 hidden XP');
+assert(perfectStandardScoring.reservedPotentialXp === 0, 'standard missions should not advertise hidden XP');
 assert(perfectStandardScoring.totalXpAwarded === 225, 'perfect standard rubric should award 225 XP');
 
 const mixedScore = calculateProofRubricScore({
@@ -51,7 +51,7 @@ assert(mixedScore.weightedScore === 71.25, `expected weighted score 71.25, got $
 assert(mixedScore.recommendation === 'approve_with_judgment', 'mixed rubric should recommend admin judgment');
 const mixedStandardScoring = getProofRubricScoring(mixedScore, { deckId: 'socal-summer', challengeId: 'socal-7' });
 assert(mixedStandardScoring.totalXpAwarded === 160, `mixed standard rubric should award 160 XP, got ${mixedStandardScoring.totalXpAwarded}`);
-assert(mixedStandardScoring.maxUiPotentialXp === 250, 'mixed standard scoring should still show 250 XP potential');
+assert(mixedStandardScoring.maxUiPotentialXp === 225, 'mixed standard scoring should show the real base ceiling');
 assert(isStarterScoringMission({ challengeId: 'starter-3' }), 'starter-* challenge IDs should count as starter scoring');
 assert(!isStarterScoringMission({ deckId: 'heatwave-receipts', challengeId: 'heatwave-3' }), 'seasonal challenge IDs should not count as starter scoring');
 assert(getProofRubricRecommendationLabel('likely_insufficient') === 'Likely needs more proof or rejection', 'label should be human readable');

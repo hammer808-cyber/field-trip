@@ -19,10 +19,13 @@ import { PalmTree, BeachTag as HeatBeachTag, GlossOverlay as DiamondGloss } from
 import type { ViewfinderCameraHandle } from '../components/ViewfinderCamera';
 import { evaluateProof } from '../services/proofService';
 import { uploadBase64Image } from '../services/storageService';
-import { getGlobalConfig } from '../services/configService';
-import { calculateSubmissionPoints } from '../logic/scoringLogic';
-import { getCatalystForWeek } from '../services/weeklyCatalystService';
 import { analyzeSubmissionImage } from '../services/geminiService';
+import {
+  linkMissionAttemptToEntry,
+  revealMissionHint,
+  startOrResumeMissionAttempt,
+  type MissionAttemptRecord,
+} from '../services/missionAttemptService';
 
 // Heavy component lazy load
 const ViewfinderCamera = lazy(() => import('../components/ViewfinderCamera'));
@@ -35,52 +38,8 @@ import { LAUNCH_MISSION, LAUNCH_MISSION_ID } from '../data/specialMissions';
 
 import { resolveMissionById } from '../logic/missionResolver';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
+import { calculateMissionScore } from '../logic/missionScoring';
 import { revokeTemporaryPreviewUrls } from '../logic/polaroidDevelopment';
-
-const GESTURES = [
-  "Thumbs Up",
-  "Peace Sign",
-  "Three fingers raised",
-  "Holding a pen/pencil",
-  "Pointing at the subject",
-  "Wave hand",
-  "Fist pump",
-  "Open palm"
-];
-
-function generateReceiptChallenge() {
-  const isGesture = Math.random() < 0.5;
-  if (isGesture) {
-    const gesture = GESTURES[Math.floor(Math.random() * GESTURES.length)];
-    const instructionsOpts = [
-      `Trevor's Tiny Chaos Request: sneak a "${gesture}" into the photo so we know this adventure happened in the wild. Bonus glory awaits.`,
-      `Trevor's Side Quest: find something orange, suspicious, or emotionally unavailable. Then make sure your "${gesture}" is clearly in the shot. Historic behavior, honestly.`
-    ];
-    const chosenInstructions = instructionsOpts[Math.floor(Math.random() * instructionsOpts.length)];
-    return {
-      type: 'gesture',
-      code: `GESTURE_${gesture.toUpperCase().replace(/\s+/g, '_')}`,
-      text: gesture,
-      instructions: chosenInstructions
-    };
-  } else {
-    const num = Math.floor(100 + Math.random() * 900);
-    const prefixes = ["TACO", "ORANGE", "CHIP", "OK", "EV", "TX", "WILD"];
-    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
-    const code = `${prefix}-${num}`;
-    const instructionsOpts = [
-      `Trevor's Tiny Chaos Request: write "${code}" on a scrap, napkin, receipt, or whatever tiny artifact is available. If it makes it into the photo, I'm legally required to be impressed.`,
-      `Trevor's Side Quest: find something orange, suspicious, or emotionally unavailable. Hide "${code}" somewhere in the photo or mention it in your notes. Extra glory awaits.`
-    ];
-    const chosenInstructions = instructionsOpts[Math.floor(Math.random() * instructionsOpts.length)];
-    return {
-      type: 'code',
-      code: code,
-      text: code,
-      instructions: chosenInstructions
-    };
-  }
-}
 
 export default function CapturePage() {
   const [params] = useSearchParams();
@@ -94,13 +53,6 @@ export default function CapturePage() {
   const navigate = useNavigate();
   const submitLockRef = useRef(false);
 
-  const [receiptChallenge, setReceiptChallenge] = useState<{
-    type: string;
-    code: string;
-    text: string;
-    instructions: string;
-  } | null>(null);
-  
   const { 
     addEntry, 
     entries,
@@ -127,9 +79,7 @@ export default function CapturePage() {
     locationPermissionReady,
     requestCamera,
     requestLocation,
-    mustCompleteStarterMission,
-    activeSeason,
-    currentWeekNumber
+    mustCompleteStarterMission
   } = useApp();
 
   const cameraRef = useRef<ViewfinderCameraHandle>(null);
@@ -200,6 +150,32 @@ export default function CapturePage() {
 
   const [currentTrip, setCurrentTrip] = useState<any>(resolvedTrip);
   const [loading, setLoading] = useState(true);
+  const [missionAttempt, setMissionAttempt] = useState<MissionAttemptRecord | null>(null);
+  const [missionAttemptLoading, setMissionAttemptLoading] = useState(false);
+  const [missionAttemptError, setMissionAttemptError] = useState<string | null>(null);
+
+  const initializeMissionAttempt = React.useCallback(async () => {
+    if (!user || !currentTrip?.id) return null;
+    setMissionAttemptLoading(true);
+    setMissionAttemptError(null);
+    try {
+      const attempt = await startOrResumeMissionAttempt(currentTrip.id);
+      setMissionAttempt(attempt);
+      return attempt;
+    } catch (error: any) {
+      const message = error?.message || 'Mission scoring setup failed.';
+      setMissionAttemptError(message);
+      console.error('[Capture] Mission attempt setup failed:', error);
+      return null;
+    } finally {
+      setMissionAttemptLoading(false);
+    }
+  }, [currentTrip?.id, user?.uid]);
+
+  useEffect(() => {
+    setMissionAttempt(null);
+    if (user && currentTrip?.id) void initializeMissionAttempt();
+  }, [currentTrip?.id, user?.uid, initializeMissionAttempt]);
 
   const missionNotFound = !!tripIdParam && !resolvedUrlTrip && !loading;
 
@@ -301,26 +277,6 @@ export default function CapturePage() {
   const [submissionStatus, setSubmissionStatus] = useState<'ready' | 'saving' | 'syncing' | 'submitted' | 'retry' | 'error'>(restoredState ? 'submitted' : 'ready');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (currentTrip?.id) {
-      const storageKey = `ft_challenge_${currentTrip.id}`;
-      const cached = localStorage.getItem(storageKey);
-      if (cached) {
-        try {
-          setReceiptChallenge(JSON.parse(cached));
-        } catch (e) {
-          const fresh = generateReceiptChallenge();
-          localStorage.setItem(storageKey, JSON.stringify(fresh));
-          setReceiptChallenge(fresh);
-        }
-      } else {
-        const fresh = generateReceiptChallenge();
-        localStorage.setItem(storageKey, JSON.stringify(fresh));
-        setReceiptChallenge(fresh);
-      }
-    }
-  }, [currentTrip?.id]);
-
   // Hard Guard: Block access if mission is already submitted/approved and NOT in needs_more_proof
   useEffect(() => {
     if (!tripIdParam || !user) return;
@@ -392,19 +348,21 @@ export default function CapturePage() {
     });
 
     if (existingEntry) {
+      const existingStatus = normalizeEntryStatus(existingEntry.status);
       console.log('[Capture] Found existing entry for missionId:', tripIdParam, 'restoring success state.');
       setCompleteRecord({
         tripId: tripIdParam,
         title: existingEntry.tripTitle || existingEntry.challengeTitle || 'Mission Record',
-        awardedXP: existingEntry.pointsAwarded || existingEntry.estimatedPoints || 150,
-        baseXP: 150,
+        awardedXP: existingStatus === 'approved' ? Number(existingEntry.pointsAwarded || existingEntry.awardedXP || 0) : 0,
+        baseXP: existingStatus === 'approved' ? Number(existingEntry.pointsAwarded || existingEntry.awardedXP || 0) : 0,
+        reviewStatus: existingStatus,
         note: existingEntry.fieldNote || existingEntry.note || 'Uplink stored.',
         photo: existingEntry.proofImage || existingEntry.imageUrl,
         proofType: ['photo'],
         completedAt: existingEntry.createdAt,
         syncStatus: 'synced',
         scoringData: {
-          scoring: { totalPoints: existingEntry.pointsAwarded || existingEntry.estimatedPoints || 150 },
+          scoring: { totalPoints: existingStatus === 'approved' ? Number(existingEntry.pointsAwarded || existingEntry.awardedXP || 0) : 0 },
           ftBonus: 0,
           ftText: 'Uplink Verified',
           tokenAwarded: false,
@@ -437,6 +395,7 @@ export default function CapturePage() {
         proofType: ['photo'],
         completedAt: restoredState.completedAt,
         syncStatus: restoredState.syncStatus,
+        reviewStatus: restoredState.reviewStatus || 'pending_review',
         scoringData: {
           scoring: { totalPoints: restoredState.awardedXP },
           ftBonus: 0,
@@ -485,6 +444,7 @@ export default function CapturePage() {
           missionId: completeRecord.tripId,
           missionTitle: completeRecord.title,
           awardedXP: completeRecord.awardedXP,
+          reviewStatus: completeRecord.reviewStatus || 'pending_review',
           tokenAwarded: !!completeRecord.scoringData?.tokenAwarded,
           completedAt: completeRecord.completedAt || new Date().toISOString(),
           syncStatus: completeRecord.syncStatus,
@@ -530,6 +490,7 @@ export default function CapturePage() {
                 proofType: ['photo'],
                 completedAt: parsed.completedAt,
                 syncStatus: parsed.syncStatus,
+                reviewStatus: parsed.reviewStatus || 'pending_review',
                 scoringData: {
                   scoring: { totalPoints: parsed.awardedXP },
                   ftBonus: 0,
@@ -588,7 +549,6 @@ export default function CapturePage() {
   } | null>(null);
   const [findingType, setFindingType] = useState('');
   const [selectedLevel, setSelectedLevel] = useState<'Standard' | 'Advanced' | 'Certified'>('Advanced');
-  const [catalyst, setCatalyst] = useState<any>(null);
   const [bonusProofFulfilled, setBonusProofFulfilled] = useState(false);
 
   const [aiAnalysisResult, setAiAnalysisResult] = useState<any>(null);
@@ -671,25 +631,6 @@ export default function CapturePage() {
   }, [captureData, currentTrip?.id]);
 
   useEffect(() => {
-    let active = true;
-    const fetchCatalyst = async () => {
-      if (!currentTrip) return;
-      try {
-        const seasonId = activeSeason?.id || 'dev-season-2026';
-        const weekNum = currentTrip.weekNumber || currentWeekNumber || 1;
-        const cat = await getCatalystForWeek(seasonId, weekNum);
-        if (active) {
-          setCatalyst(cat);
-        }
-      } catch (err) {
-        console.warn("[Capture] fetchCatalyst error:", err);
-      }
-    };
-    fetchCatalyst();
-    return () => { active = false; };
-  }, [activeSeason?.id, currentTrip?.id, currentWeekNumber]);
-
-  useEffect(() => {
     setBonusProofFulfilled(false);
   }, [currentTrip?.id]);
 
@@ -757,7 +698,7 @@ export default function CapturePage() {
     setFastFindTimeRemaining(Math.ceil(limit / 1000));
   };
 
-  const [hintUsed, setHintUsed] = useState(false);
+  const hintUsed = missionAttempt?.hintUsed === true;
   const [isUploading, setIsUploading] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
   
@@ -784,14 +725,6 @@ export default function CapturePage() {
   const isHeat = skin.id === 'heatwave';
 
   const missionProgress = (profile?.tripProgress?.[currentTrip?.id] || {}) as any;
-  const hintWasUsedInitial = !!missionProgress.hintUsed;
-  
-  useEffect(() => {
-    if (hintWasUsedInitial && !hintUsed) {
-      setHintUsed(true);
-    }
-  }, [hintWasUsedInitial]);
-
   const fPref = { frankieMode };
 
   const isPhotoFulfilled = localPhotoCaptured || !!missionProgress.photo;
@@ -885,6 +818,8 @@ export default function CapturePage() {
   };
 
   const proceedToCapture = async () => {
+    const activeAttempt = missionAttempt || await initializeMissionAttempt();
+    if (!activeAttempt) return;
     // 1. Camera is contextually requested when starting capture if not already ready
     if (!cameraPermissionReady) {
       await requestCamera();
@@ -1018,6 +953,13 @@ export default function CapturePage() {
       return;
     }
 
+    const scoringAttempt = missionAttempt || await initializeMissionAttempt();
+    if (!scoringAttempt) {
+      setSubmissionStatus('error');
+      setErrorMessage('Mission scoring setup is not ready. Try again before submitting.');
+      return;
+    }
+
     if (isFastFind) {
       if (!fastFindStarted || !fastFindStartedAt || !fastFindExpiresAt) {
         alert("Submission Blocked: Fast Find was not properly started.");
@@ -1032,31 +974,17 @@ export default function CapturePage() {
 
     submitLockRef.current = true;
     
-    // 0. Calculate Rewards
+    // Pending points are a display estimate only. Final XP is calculated after
+    // human approval from the protected mission-attempt snapshot.
     const isFirstTime = !completedChallengeIds.has(currentTrip.id);
-    const draftForScoring = {
-      id: 'draft',
-      proofImage: captureData?.filteredImageUrl || '',
-      imageUrl: captureData?.filteredImageUrl || '',
-      photoUrl: captureData?.filteredImageUrl || '',
-      note: fcData.note || '',
-      fieldNote: fcData.note || ''
-    } as any;
-
-    const scoringResult = calculateSubmissionPoints(
-      draftForScoring,
-      currentTrip,
-      {
-        isFirstSubmission: (profile?.approvedEntriesCount || 0) === 0,
-        daysLate: 0,
-        hintUsed: hintUsed,
-        weekNumber: currentTrip.weekNumber || currentWeekNumber || 1,
-        catalyst: catalyst || undefined
-      }
-    );
-
-    let awardedXP = scoringResult.totalPoints;
-    if (isRetry) awardedXP = Math.round(awardedXP * 0.5);
+    const awardedXP = calculateMissionScore({
+      baseMaxScore: scoringAttempt.maxScoreBeforeHint,
+      reviewerBaseScore: scoringAttempt.maxScoreBeforeHint,
+      hintUsed: scoringAttempt.hintUsed,
+      hintPenaltyPercent: scoringAttempt.hintPenaltyPercent,
+      retryMultiplier: isRetry ? 0.5 : 1,
+      eligibleBonuses: [],
+    }).finalScore;
     
     const awardedTokenCount = isFirstTime ? 1 : 0;
 
@@ -1084,6 +1012,7 @@ export default function CapturePage() {
       image: currentTrip.image,
       completedAt: new Date().toISOString(),
       syncStatus: 'pending' as 'pending' | 'synced' | 'sync_failed',
+      reviewStatus: 'pending_review',
       scoringData: {
         scoring: { totalPoints: awardedXP },
         ftBonus: 0,
@@ -1164,11 +1093,8 @@ export default function CapturePage() {
           filterUsed: captureData.filterId || 'original',
           filterIntensity: 1.0,
           reviewStatus: captureData.reviewStatus as any,
-          hintUsed: hintUsed,
-          proofChallengeCode: receiptChallenge?.code,
-          proofChallengeType: receiptChallenge?.type,
-          proofChallengeText: receiptChallenge?.text,
-          proofChallengeInstructions: receiptChallenge?.instructions,
+          hintUsed: scoringAttempt.hintUsed,
+          missionAttemptId: scoringAttempt.attemptId,
           stickerIds: fcData.stickerId ? [fcData.stickerId] : [],
           attachedStickerIds: fcData.stickerId ? [fcData.stickerId] : [],
           isRetry: isRetry,
@@ -1189,6 +1115,16 @@ export default function CapturePage() {
           aiAnalysisResult: aiAnalysisResult,
           proofCheckResult: aiAnalysisResult
         } as any);
+
+        if (scoringAttempt.attemptId) {
+          try {
+            await linkMissionAttemptToEntry(scoringAttempt.attemptId, result.entryId);
+          } catch (linkError) {
+            // The canonical entry already carries missionAttemptId. Keep the
+            // submission intact and let admin scoring resolve that server-owned attempt.
+            console.error('[Capture] Mission attempt projection link failed:', linkError);
+          }
+        }
 
         console.log(`[ProofSubmit] AI scan started`);
         // AI Scan happens inside addEntry via evaluateProof, but we already have its results from step 320-ish in addEntry context if pre-calculated
@@ -1212,6 +1148,7 @@ export default function CapturePage() {
           ...localResult,
           photo: filteredUrl,
           awardedXP: finalXP || awardedXP,
+          reviewStatus: result.status || 'pending_review',
           syncStatus: 'synced',
           scoringData: {
             scoring: result.scoring,
@@ -1340,8 +1277,15 @@ export default function CapturePage() {
               setData={setFcData}
               aiAnalysisResult={aiAnalysisResult}
               isAiAnalyzing={isAiAnalyzing}
-              catalyst={catalyst}
-              receiptChallenge={receiptChallenge}
+              missionAttempt={missionAttempt}
+              isAttemptLoading={missionAttemptLoading}
+              attemptError={missionAttemptError}
+              onRetryAttempt={async () => { await initializeMissionAttempt(); }}
+              onRevealHint={async () => {
+                if (!missionAttempt) throw new Error('MISSION_ATTEMPT_NOT_READY');
+                const updatedAttempt = await revealMissionHint(missionAttempt.attemptId);
+                setMissionAttempt(updatedAttempt);
+              }}
               repairFeedback={repairFeedback}
               availableStickerIds={Array.from(new Set([
                 ...(profile?.unlockedRewards?.stickers || []),
@@ -1392,6 +1336,7 @@ export default function CapturePage() {
           >
             <MissionResultCard 
               trip={currentTrip!}
+              reviewStatus={completeRecord?.reviewStatus || 'pending_review'}
               scoringData={scoringData || completeRecord?.scoringData || {}}
               evidence={{
                 photo: (completeRecord?.photo || captureData?.filteredImageUrl || ''),

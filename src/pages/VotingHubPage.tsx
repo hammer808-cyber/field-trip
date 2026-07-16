@@ -63,7 +63,7 @@ export default function VotingHubPage() {
 
   const [clockInfo, setClockInfo] = useState(() => {
     const now = getServerDate();
-    const cycle = getCurrentVotingCycle(now);
+    const cycle = getCurrentVotingCycle(now, undefined, activeSeason?.id);
     const phase = getVotingPhase(now, cycle);
     const daysLeft = getDaysLeftInSubmissionWindow(now, cycle);
     const hoursLeft = getVotingHoursLeft(now, cycle);
@@ -75,14 +75,14 @@ export default function VotingHubPage() {
   useEffect(() => {
     const interval = setInterval(() => {
       const now = getServerDate();
-      const cycle = getCurrentVotingCycle(now);
+      const cycle = getCurrentVotingCycle(now, undefined, activeSeason?.id);
       const phase = getVotingPhase(now, cycle);
       const daysLeft = getDaysLeftInSubmissionWindow(now, cycle);
       const hoursLeft = getVotingHoursLeft(now, cycle);
       setClockInfo({ phase, daysLeft, hoursLeft });
     }, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [activeSeason?.id]);
 
   useEffect(() => {
     if (activeTab === 'tribunal') {
@@ -212,7 +212,7 @@ export default function VotingHubPage() {
                           </h4>
                           <p className="text-xs sm:text-sm font-serif italic text-on-surface/65 leading-relaxed">
                             {clockInfo.phase === 'voting'
-                              ? 'Choose one approved receipt per category. Your vote is locked by the server.'
+                              ? 'Choose up to three approved receipts. Your ballot is protected and saved by the server.'
                               : clockInfo.phase === 'submission'
                                 ? 'Approved submissions are being added to the weekly ballot.'
                                 : 'Final winners appear after admin review.'}

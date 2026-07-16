@@ -28,6 +28,7 @@ import {
   getCanonicalBallotId,
   getWeeklyApprovedAtMillis,
   getWeeklyBallotId,
+  getWeeklyBallotEmptyReason,
   getWeeklyEntryCrewId,
   getWeeklyEntryMediaRef,
   getWeeklyVoteId,
@@ -38,7 +39,10 @@ import {
   isWeeklyEntryEligible,
   isWeeklyProofEligible,
   isWeeklyVoteCategory,
+  normalizeWeeklyCandidateCategories,
 } from "./src/logic/weeklyVoting";
+import { getSeasonTiming } from "./src/logic/weeklyLogic";
+import { getDefaultWeeklyCatalystForWeek } from "./src/logic/weeklyCatalyst";
 import {
   FIRELIGHT_TRIBUNAL_COMPATIBILITY_NOTE,
   TRIBUNAL_REPAIR_CONFIRMATION,
@@ -109,6 +113,32 @@ import {
 } from "./src/logic/zineStickerPlacements";
 import type { ZineEdition, ZineLayoutId, ZinePage, ZineStatus } from "./src/types/zine";
 import { awardTrustedXpInTransaction, buildProgressionRepairPlan, getLevelUpAcknowledgementError, isTrustedProofXpEligible } from "./src/server/playerProgression";
+import { getBuiltInMissionCatalog, resolveMissionById } from "./src/logic/missionResolver";
+import {
+  calculateMissionScore,
+  chooseHighestEligibleBonus,
+  DEFAULT_HINT_PENALTY_PERCENT,
+  getHintAdjustedMaximum,
+  getMissionBaseMaxScore,
+  getMissionHint,
+  normalizeMissionScoringConfig,
+  toScoringSnapshot,
+  type BonusEligibility,
+  type MissionScoringConfig,
+} from "./src/logic/missionScoring";
+import {
+  MISSION_BONUS_SEED_VERSION,
+  buildAfternoonPowerHourEligibility,
+  buildRandomMissionBonusEligibility,
+  getBonusRotationWindow,
+  getLocalTimeSnapshot,
+  isMissionAvailableForRandomBonus,
+  isValidIanaTimezone,
+  selectRandomBonusMissionIds,
+  validateAfternoonPowerHourEligibility,
+} from "./src/logic/missionBonuses";
+import { calculateProofRubricScore, getProofRubricScoring } from "./src/logic/proofRubric";
+import { buildMissionHintRevealPlan } from "./src/server/missionAttemptScoring";
 
 // Types for proof evaluation
 type MetadataStatus = 'verified' | 'missing' | 'mismatch' | 'unverified';
@@ -804,6 +834,345 @@ async function startServer() {
     }
   });
 
+  const getMissionScoringConfig = async (): Promise<MissionScoringConfig> => {
+    if (!dbAdmin) return normalizeMissionScoringConfig(null);
+    const configSnap = await dbAdmin.collection('appConfig').doc('game').get();
+    return normalizeMissionScoringConfig(configSnap.exists ? configSnap.data()?.scoring : null);
+  };
+
+  const getMissionAttemptId = (userId: string, missionId: string): string => {
+    const digest = crypto.createHash('sha256').update(`${userId}|${missionId}`).digest('hex').slice(0, 40);
+    return `mission_${digest}`;
+  };
+
+  const timestampToIso = (value: any): string | null => {
+    if (!value) return null;
+    if (typeof value.toDate === 'function') return value.toDate().toISOString();
+    if (value instanceof Date) return value.toISOString();
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+  };
+
+  const serializeMissionAttempt = (attemptId: string, data: any) => {
+    const maxScoreBeforeHint = Number(data.maxScoreBeforeHint || 0);
+    const hintPenaltyPercent = Number(data.hintPenaltyPercent || 0);
+    const hasPotentialMaxScoreAfterHint = data.potentialMaxScoreAfterHint !== undefined &&
+      data.potentialMaxScoreAfterHint !== null &&
+      Number.isFinite(Number(data.potentialMaxScoreAfterHint));
+    const potentialMaxScoreAfterHint = hasPotentialMaxScoreAfterHint
+      ? Number(data.potentialMaxScoreAfterHint)
+      : getHintAdjustedMaximum(maxScoreBeforeHint, true, hintPenaltyPercent).adjustedMaxScore;
+
+    return {
+      attemptId,
+      userId: data.userId,
+      missionId: data.missionId,
+      deckId: data.deckId || null,
+      entryId: data.entryId || null,
+      status: data.status || 'active',
+      startedAt: timestampToIso(data.startedAt),
+      timezone: data.timezone,
+      localEligibilityDate: data.localEligibilityDate,
+      hint: data.hint,
+      hintUsed: data.hintUsed === true,
+      hintUsedAt: timestampToIso(data.hintUsedAt),
+      hintPenaltyPercent,
+      hintPenaltyPoints: Number(data.hintPenaltyPoints || 0),
+      maxScoreBeforeHint,
+      maxScoreAfterHint: Number(data.maxScoreAfterHint ?? maxScoreBeforeHint),
+      potentialMaxScoreAfterHint,
+      eligibleBonuses: Array.isArray(data.eligibleBonuses) ? data.eligibleBonuses : [],
+      appliedBonus: data.appliedBonus || null,
+      rotationId: data.rotationId || '',
+    };
+  };
+
+  const resolveServerMission = async (missionId: string): Promise<any | null> => {
+    const builtIn = resolveMissionById(missionId);
+    if (builtIn) return builtIn;
+    if (!dbAdmin) return null;
+    const challengeSnap = await dbAdmin.collection('challenges').doc(missionId).get();
+    return challengeSnap.exists ? { id: challengeSnap.id, ...challengeSnap.data() } : null;
+  };
+
+  const getAvailableBonusMissionCatalog = async (now: Date): Promise<any[]> => {
+    if (!dbAdmin) return getBuiltInMissionCatalog().filter(isMissionAvailableForRandomBonus);
+    const [challengeSnap, deckSnap] = await Promise.all([
+      dbAdmin.collection('challenges').limit(1000).get(),
+      dbAdmin.collection('decks').limit(500).get(),
+    ]);
+    const deckMap = new Map(deckSnap.docs.map(docSnap => [docSnap.id, docSnap.data() || {}]));
+    const merged = new Map<string, any>();
+    getBuiltInMissionCatalog().forEach(mission => {
+      const missionId = getBackendString(mission.id || mission.missionId || mission.challengeId);
+      if (missionId) merged.set(missionId, mission);
+    });
+    challengeSnap.docs.forEach(docSnap => merged.set(docSnap.id, { id: docSnap.id, ...docSnap.data() }));
+
+    return Array.from(merged.values()).filter(mission => {
+      if (!isMissionAvailableForRandomBonus(mission)) return false;
+      const deckId = getBackendString(mission.deckId);
+      const deck = deckId ? deckMap.get(deckId) : null;
+      if (!deck) return true;
+      if (String(deck.visibility || 'public') !== 'public') return false;
+      const deckStatus = String(deck.status || '').toLowerCase().trim();
+      if (deck.active === false || deck.isActive === false || deck.archived === true ||
+        deck.hidden === true || deck.isHidden === true ||
+        ['draft', 'archived', 'disabled', 'expired', 'planned'].includes(deckStatus)) return false;
+      const startsAt = deck.accessStartsAt?.toDate?.();
+      const endsAt = deck.accessEndsAt?.toDate?.();
+      return (!startsAt || now >= startsAt) && (!endsAt || now <= endsAt);
+    });
+  };
+
+  const ensureMissionBonusRotation = async (now: Date, config: MissionScoringConfig) => {
+    if (!dbAdmin) throw new Error('DB_ADMIN_NOT_READY');
+    const window = getBonusRotationWindow(now);
+    const rotationRef = dbAdmin.collection('bonusRotations').doc(window.rotationId);
+    const currentSnap = await rotationRef.get();
+    if (currentSnap.exists) return { id: currentSnap.id, ...currentSnap.data() } as any;
+
+    const missionCatalog = await getAvailableBonusMissionCatalog(now);
+    const selectedMissionIds = selectRandomBonusMissionIds(missionCatalog, window.rotationId, 3);
+    return dbAdmin.runTransaction(async transaction => {
+      const rotationSnap = await transaction.get(rotationRef);
+      if (rotationSnap.exists) return { id: rotationSnap.id, ...rotationSnap.data() } as any;
+      const rotationData = {
+        rotationId: window.rotationId,
+        status: 'active',
+        startsAt: Timestamp.fromDate(window.startsAt),
+        expiresAt: Timestamp.fromDate(window.expiresAt),
+        timezone: window.timezone,
+        selectedMissionIds,
+        selectedAt: Timestamp.fromDate(now),
+        bonus: {
+          id: 'lucky_receipt',
+          type: 'random_mission',
+          multiplier: config.randomMissionBonus.multiplier,
+          label: config.randomMissionBonus.label,
+        },
+        assignmentSource: 'weekly_rotation',
+        seedVersion: MISSION_BONUS_SEED_VERSION,
+        createdAt: Timestamp.fromDate(now),
+        createdBy: 'system',
+      };
+      transaction.create(rotationRef, rotationData);
+      return { id: rotationRef.id, ...rotationData };
+    });
+  };
+
+  const getMissionAttemptSummary = (attemptId: string, attempt: any) => ({
+    attemptId,
+    missionId: attempt.missionId,
+    startedAt: attempt.startedAt,
+    timezone: attempt.timezone,
+    hintUsed: attempt.hintUsed === true,
+    hintUsedAt: attempt.hintUsedAt || null,
+    hintPenaltyPercent: Number(attempt.hintPenaltyPercent || 0),
+    hintPenaltyPoints: Number(attempt.hintPenaltyPoints || 0),
+    maxScoreBeforeHint: Number(attempt.maxScoreBeforeHint || 0),
+    maxScoreAfterHint: Number(attempt.maxScoreAfterHint ?? attempt.maxScoreBeforeHint ?? 0),
+    potentialMaxScoreAfterHint: Number(
+      attempt.potentialMaxScoreAfterHint ??
+      getHintAdjustedMaximum(
+        Number(attempt.maxScoreBeforeHint || 0),
+        true,
+        Number(attempt.hintPenaltyPercent || 0),
+      ).adjustedMaxScore
+    ),
+    eligibleBonuses: Array.isArray(attempt.eligibleBonuses) ? attempt.eligibleBonuses : [],
+    appliedBonus: attempt.appliedBonus || null,
+  });
+
+  app.post('/api/missions/attempts/start', authRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    try {
+      const userId = req.user.uid;
+      const missionId = getBackendString(req.body?.missionId);
+      const requestedTimezone = getBackendString(req.body?.timezone);
+      if (!missionId) return res.status(400).json({ error: 'MISSION_ID_REQUIRED' });
+      if (!isValidIanaTimezone(requestedTimezone)) return res.status(400).json({ error: 'VALID_IANA_TIMEZONE_REQUIRED' });
+
+      const attemptId = getMissionAttemptId(userId, missionId);
+      const attemptRef = dbAdmin!.collection('missionAttempts').doc(attemptId);
+      const existingSnap = await attemptRef.get();
+      if (existingSnap.exists) return res.json(serializeMissionAttempt(attemptId, existingSnap.data() || {}));
+
+      const [mission, config, userSnap] = await Promise.all([
+        resolveServerMission(missionId),
+        getMissionScoringConfig(),
+        dbAdmin!.collection('users').doc(userId).get(),
+      ]);
+      if (!mission) return res.status(404).json({ error: 'MISSION_NOT_FOUND' });
+
+      const deckId = getBackendString(mission.deckId);
+      if (deckId) {
+        const deckSnap = await dbAdmin!.collection('decks').doc(deckId).get();
+        if (deckSnap.exists) {
+          const profile = userSnap.exists ? { id: userId, ...userSnap.data() } : { id: userId };
+          const isAdminUser = await checkIsAdmin(req.user);
+          const access = getDeckAccess({ id: deckId, packId: deckId, ...deckSnap.data() } as any, {
+            userId,
+            profile: profile as any,
+            isAdmin: isAdminUser,
+            now: new Date(),
+          });
+          if (!access.playable) return res.status(403).json({ error: 'MISSION_DECK_ACCESS_RESTRICTED' });
+        }
+      }
+
+      const now = new Date();
+      const rotation = await ensureMissionBonusRotation(now, config);
+      const afternoonBonus = buildAfternoonPowerHourEligibility(now, requestedTimezone, config);
+      const randomBonus = buildRandomMissionBonusEligibility({
+        missionId,
+        rotationId: rotation.rotationId,
+        selectedMissionIds: rotation.selectedMissionIds,
+        config,
+      });
+      const eligibleBonuses: BonusEligibility[] = [afternoonBonus, randomBonus];
+      const appliedBonus = chooseHighestEligibleBonus(eligibleBonuses);
+      const local = getLocalTimeSnapshot(now, requestedTimezone);
+      const baseMaxScore = getMissionBaseMaxScore(mission);
+      const potentialMaxScoreAfterHint = getHintAdjustedMaximum(
+        baseMaxScore,
+        true,
+        config.hintPenaltyPercent,
+      ).adjustedMaxScore;
+      const hint = getMissionHint(mission);
+      const attemptData = {
+        attemptId,
+        userId,
+        missionId,
+        deckId: deckId || null,
+        status: 'active',
+        startedAt: Timestamp.fromDate(now),
+        timezone: requestedTimezone,
+        localEligibilityDate: local.localDate,
+        hint,
+        hintUsed: false,
+        hintUsedAt: null,
+        hintPenaltyPercent: config.hintPenaltyPercent,
+        hintPenaltyPoints: 0,
+        maxScoreBeforeHint: baseMaxScore,
+        maxScoreAfterHint: baseMaxScore,
+        potentialMaxScoreAfterHint,
+        eligibleBonuses,
+        appliedBonus,
+        rotationId: rotation.rotationId,
+        rotationStartsAt: rotation.startsAt,
+        rotationExpiresAt: rotation.expiresAt,
+        scoringConfigVersion: 'appConfig/game.scoring.v1',
+        createdAt: Timestamp.fromDate(now),
+        updatedAt: Timestamp.fromDate(now),
+      };
+
+      const saved = await dbAdmin!.runTransaction(async transaction => {
+        const raceSnap = await transaction.get(attemptRef);
+        if (raceSnap.exists) return raceSnap.data() || {};
+        transaction.create(attemptRef, attemptData);
+        return attemptData;
+      });
+      res.json(serializeMissionAttempt(attemptId, saved));
+    } catch (error: any) {
+      console.error('[MISSION_ATTEMPT_START] Failed:', error);
+      res.status(500).json({ error: error?.message || 'MISSION_ATTEMPT_START_FAILED' });
+    }
+  });
+
+  app.post('/api/missions/attempts/hint', authRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    try {
+      const attemptId = getBackendString(req.body?.attemptId);
+      if (!attemptId) return res.status(400).json({ error: 'MISSION_ATTEMPT_ID_REQUIRED' });
+      const attemptRef = dbAdmin!.collection('missionAttempts').doc(attemptId);
+      const now = new Date();
+      const attempt = await dbAdmin!.runTransaction(async transaction => {
+        const attemptSnap = await transaction.get(attemptRef);
+        if (!attemptSnap.exists) throw Object.assign(new Error('MISSION_ATTEMPT_NOT_FOUND'), { status: 404 });
+        const current = attemptSnap.data() || {};
+        if (current.userId !== req.user.uid) throw Object.assign(new Error('MISSION_ATTEMPT_FORBIDDEN'), { status: 403 });
+        if (!['active', 'needs_more_proof', 'rejected'].includes(String(current.status || 'active'))) {
+          throw Object.assign(new Error('MISSION_ATTEMPT_NOT_HINTABLE'), { status: 409 });
+        }
+        const plan = buildMissionHintRevealPlan(current, Timestamp.fromDate(now));
+        if (!plan.changed) return plan.attempt;
+        transaction.update(attemptRef, plan.update);
+        return plan.attempt;
+      });
+      res.json(serializeMissionAttempt(attemptId, attempt));
+    } catch (error: any) {
+      console.error('[MISSION_HINT_REVEAL] Failed:', error);
+      res.status(Number(error?.status) || 500).json({ error: error?.message || 'MISSION_HINT_REVEAL_FAILED' });
+    }
+  });
+
+  app.post('/api/missions/attempts/link-entry', authRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    try {
+      const attemptId = getBackendString(req.body?.attemptId);
+      const entryId = getBackendString(req.body?.entryId);
+      if (!attemptId || !entryId) return res.status(400).json({ error: 'ATTEMPT_AND_ENTRY_REQUIRED' });
+      const attemptRef = dbAdmin!.collection('missionAttempts').doc(attemptId);
+      const entryRef = dbAdmin!.collection('entries').doc(entryId);
+      const now = new Date();
+      const attempt = await dbAdmin!.runTransaction(async transaction => {
+        const [attemptSnap, entrySnap] = await Promise.all([
+          transaction.get(attemptRef),
+          transaction.get(entryRef),
+        ]);
+        if (!attemptSnap.exists) throw Object.assign(new Error('MISSION_ATTEMPT_NOT_FOUND'), { status: 404 });
+        if (!entrySnap.exists) throw Object.assign(new Error('ENTRY_NOT_FOUND'), { status: 404 });
+        const current = attemptSnap.data() || {};
+        const entry = entrySnap.data() || {};
+        if (current.userId !== req.user.uid || getBackendUserId(entry) !== req.user.uid) {
+          throw Object.assign(new Error('MISSION_ATTEMPT_FORBIDDEN'), { status: 403 });
+        }
+        if (getBackendChallengeId(entry) !== current.missionId) {
+          throw Object.assign(new Error('MISSION_ATTEMPT_ENTRY_MISMATCH'), { status: 409 });
+        }
+        const isLinkedRetry = entry.isRetry === true &&
+          getBackendString(entry.originalEntryId) === getBackendString(current.entryId);
+        if (current.entryId && current.entryId !== entryId && !isLinkedRetry) {
+          throw Object.assign(new Error('MISSION_ATTEMPT_ALREADY_LINKED'), { status: 409 });
+        }
+        const linked = {
+          ...current,
+          entryId,
+          status: 'pending_review',
+          submittedAt: Timestamp.fromDate(now),
+          updatedAt: Timestamp.fromDate(now),
+        };
+        const summary = getMissionAttemptSummary(attemptId, linked);
+        transaction.set(attemptRef, linked, { merge: true });
+        transaction.set(entryRef, {
+          missionAttemptId: attemptId,
+          missionAttempt: summary,
+          hintUsed: summary.hintUsed,
+          updatedAt: Timestamp.fromDate(now),
+        }, { merge: true });
+        return linked;
+      });
+
+      const reviewSnap = await dbAdmin!.collection('proofReviews').where('entryId', '==', entryId).limit(20).get();
+      if (!reviewSnap.empty) {
+        const batch = dbAdmin!.batch();
+        const summary = getMissionAttemptSummary(attemptId, attempt);
+        reviewSnap.docs.forEach(reviewDoc => batch.set(reviewDoc.ref, {
+          missionAttemptId: attemptId,
+          missionAttempt: summary,
+          hintUsed: summary.hintUsed,
+          updatedAt: Timestamp.fromDate(now),
+        }, { merge: true }));
+        await batch.commit();
+      }
+      res.json(serializeMissionAttempt(attemptId, attempt));
+    } catch (error: any) {
+      console.error('[MISSION_ATTEMPT_LINK] Failed:', error);
+      res.status(Number(error?.status) || 500).json({ error: error?.message || 'MISSION_ATTEMPT_LINK_FAILED' });
+    }
+  });
+
   app.post("/api/voting/weekly/vote", authRateLimiter, authenticate, async (req: any, res) => {
     if (!assertAdminReady(res)) return;
     const approval = await ensureApprovedRequester(req, res);
@@ -976,18 +1345,31 @@ async function startServer() {
       const scope: BallotScope = ['crew_weekly', 'community_weekly', 'tribunal'].includes(requestedScope) ? requestedScope : 'community_weekly';
       const targetCrewId = cleanServerId(req.body.crewId);
       const reason = cleanServerId(req.body.reason);
-      if (!requestedCycleId && (!Number.isInteger(weekNumber) || weekNumber <= 0)) {
+      if (!Number.isInteger(weekNumber) || weekNumber <= 0) {
         return res.status(400).json({ error: "INVALID_WEEK_NUMBER" });
       }
       if (reason.length < 5) {
         return res.status(400).json({ error: "ADMIN_REASON_REQUIRED" });
       }
 
-      const cycle = requestedCycleId
-        ? getServerCycle(seasonId, new Date())
-        : getServerCycle(seasonId);
-      const cycleId = requestedCycleId || cycle.id;
+      const now = new Date();
+      const cycle = getServerCycle(seasonId, now);
+      if (requestedCycleId && requestedCycleId !== cycle.id) {
+        return res.status(409).json({
+          error: "STALE_VOTING_CYCLE",
+          expectedCycleId: cycle.id,
+        });
+      }
+      const cycleId = cycle.id;
       const ballotId = getWeeklyBallotId(seasonId, weekNumber);
+      const canonicalBallotStatus = cycle.status === 'voting_open'
+        ? 'open'
+        : ['results_pending', 'results_published', 'archived'].includes(cycle.status)
+          ? 'closed'
+          : cycle.status === 'ballots_locked'
+            ? 'locked'
+            : 'draft';
+      const legacyPhase = getVotingPhase(now, cycle);
       const entriesSnap = await dbAdmin!.collection('entries').where('status', 'in', Array.from(APPROVED_PROOF_STATUSES)).get();
       const allEntries = entriesSnap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any));
       const ballotScopes: Array<{ scope: BallotScope; crewId: string | null }> = [];
@@ -1010,6 +1392,10 @@ async function startServer() {
       for (const target of ballotScopes) {
         const canonicalBallotId = getCanonicalBallotId(cycleId, target.scope, target.crewId);
         const ballotRef = dbAdmin!.collection('votingCycles').doc(cycleId).collection('ballots').doc(canonicalBallotId);
+        const existingBallotSnap = await ballotRef.get();
+        if (existingBallotSnap.exists && now.getTime() >= cycle.ballotLocksAt.getTime()) {
+          throw Object.assign(new Error('BALLOT_ALREADY_FROZEN'), { status: 409 });
+        }
         const eligibleEntries: any[] = [];
         const excludedEntries: Array<{ entryId: string; reasons: string[] }> = [];
         for (const entry of allEntries) {
@@ -1033,14 +1419,14 @@ async function startServer() {
           seasonId,
           scope: target.scope,
           crewId: target.crewId,
-          status: req.body.status || (req.body.phase === 'voting' ? 'open' : 'locked'),
+          status: canonicalBallotStatus,
           eligibleProofIds,
           maxVotesPerVoter: await getDefaultMaxVotes(),
           allowSelfVote: false,
           opensAt: toAdminTimestamp(cycle.votingStart),
           closesAt: toAdminTimestamp(cycle.votingEnd),
           createdAt: FieldValue.serverTimestamp(),
-          lockedAt: FieldValue.serverTimestamp(),
+          lockedAt: canonicalBallotStatus === 'draft' ? null : toAdminTimestamp(cycle.ballotLocksAt),
           updatedAt: FieldValue.serverTimestamp(),
           excludedLateProofs: excludedEntries.slice(0, 50),
           diagnostics: {
@@ -1078,12 +1464,12 @@ async function startServer() {
         votingOpensAt: toAdminTimestamp(cycle.votingStart),
         votingClosesAt: toAdminTimestamp(cycle.votingEnd),
         awardsReleaseAt: toAdminTimestamp(cycle.resultsPublishAt),
-        phase: req.body.phase || 'submission',
+        phase: legacyPhase,
         candidateEntryIds: eligibleEntries.map(entry => entry.id),
         categoryCandidateMap,
         totalCandidates: eligibleEntries.length,
         isGenerated: true,
-        isLocked: req.body.phase === 'voting',
+        isLocked: legacyPhase !== 'submission',
         generatedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp()
       }, { merge: true });
@@ -1139,7 +1525,9 @@ async function startServer() {
       res.json({ success: true, cycleId, legacyBallotId: ballotId, generatedBallots, candidates: eligibleEntries.length });
     } catch (error: any) {
       console.error("[WEEKLY_BALLOT_BUILD] Failed:", error);
-      res.status(500).json({ error: "FAILED_TO_BUILD_WEEKLY_BALLOT", message: error.message || String(error) });
+      res.status(Number(error?.status) || 500).json({
+        error: error?.message || "FAILED_TO_BUILD_WEEKLY_BALLOT",
+      });
     }
   });
 
@@ -1487,20 +1875,39 @@ async function startServer() {
     if (!(await checkIsAdmin(req.user))) return res.status(403).json({ error: "ADMIN_ONLY" });
 
     try {
-      const seasonId = cleanServerId(req.query.seasonId) || 'heatwave-receipts';
-      const weekNumber = Number(req.query.weekNumber || 1);
-      if (!Number.isInteger(weekNumber) || weekNumber <= 0) return res.status(400).json({ error: "INVALID_WEEK_NUMBER" });
-
-      const ballotId = getWeeklyBallotId(seasonId, weekNumber);
       const now = new Date();
+      const gameConfigSnap = await dbAdmin!.collection('appConfig').doc('game').get();
+      const gameConfig = gameConfigSnap.exists ? gameConfigSnap.data() || {} : {};
+      const configuredActiveSeasonId = cleanServerId(gameConfig.activeSeasonId);
+      const seasonId = cleanServerId(req.query.seasonId) || configuredActiveSeasonId || 'heatwave-receipts';
+      const seasonSnap = await dbAdmin!.collection('seasons').doc(seasonId).get();
+      const seasonData = seasonSnap.exists ? { id: seasonSnap.id, ...seasonSnap.data() } as any : null;
+      const seasonTiming = seasonData ? getSeasonTiming(seasonData, now) : null;
+      const hasRequestedWeek = req.query.weekNumber !== undefined && String(req.query.weekNumber).trim() !== '';
+      const requestedWeekNumber = hasRequestedWeek ? Number(req.query.weekNumber) : null;
+      if (requestedWeekNumber !== null && (!Number.isInteger(requestedWeekNumber) || requestedWeekNumber < 0)) {
+        return res.status(400).json({ error: "INVALID_WEEK_NUMBER" });
+      }
+      const weekNumber = requestedWeekNumber ?? seasonTiming?.weekNumber ?? 0;
+      const ballotId = getWeeklyBallotId(seasonId, weekNumber);
       const cycle = getServerCycle(seasonId, now);
       const expectedPhase = getVotingPhase(now, cycle);
-      const [cycleSnap, canonicalBallotsSnap, ballotSnap, votesSnap, summarySnap, legacyWeeklyVotesSnap, legacyVoteEventsSnap] = await Promise.all([
-        dbAdmin!.collection('votingCycles').doc(cycle.id).get(),
-        dbAdmin!.collection('votingCycles').doc(cycle.id).collection('ballots').get(),
+      const canonicalBallotId = getCanonicalBallotId(cycle.id, 'community_weekly');
+      const cycleRef = dbAdmin!.collection('votingCycles').doc(cycle.id);
+      const canonicalBallotRef = cycleRef.collection('ballots').doc(canonicalBallotId);
+      const catalystDocumentId = `${seasonId}_${weekNumber}`;
+      const [cycleSnap, canonicalBallotsSnap, canonicalBallotSnap, canonicalEntriesSnap, canonicalResultSnap, ballotSnap, legacyCandidatesSnap, votesSnap, summarySnap, catalystSnap, approvedEntriesSnap, legacyWeeklyVotesSnap, legacyVoteEventsSnap] = await Promise.all([
+        cycleRef.get(),
+        cycleRef.collection('ballots').get(),
+        canonicalBallotRef.get(),
+        canonicalBallotRef.collection('entries').get(),
+        cycleRef.collection('results').doc(canonicalBallotId).get(),
         dbAdmin!.collection('weeklyBallots').doc(ballotId).get(),
+        dbAdmin!.collection('weeklyBallots').doc(ballotId).collection('candidates').get(),
         dbAdmin!.collection('votes').where('seasonId', '==', seasonId).where('weekNumber', '==', weekNumber).get(),
         dbAdmin!.collection('weeklySummaries').doc(ballotId).get(),
+        dbAdmin!.collection('weeklyCatalysts').doc(catalystDocumentId).get(),
+        dbAdmin!.collection('entries').where('status', 'in', Array.from(APPROVED_PROOF_STATUSES)).get(),
         dbAdmin!.collection('weeklyVotes').limit(1).get().catch(() => ({ size: 0, docs: [] } as any)),
         dbAdmin!.collection('voteEvents').limit(1).get().catch(() => ({ size: 0, docs: [] } as any))
       ]);
@@ -1565,10 +1972,72 @@ async function startServer() {
         });
       }
 
+      const canonicalBallot = canonicalBallotSnap.exists ? canonicalBallotSnap.data() || {} : null;
+      const legacyCandidates = legacyCandidatesSnap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any));
+      const legacyNomineeCountByCategory = Object.fromEntries(WEEKLY_VOTE_CATEGORIES.map(category => [
+        category,
+        legacyCandidates.filter(candidate => normalizeWeeklyCandidateCategories(candidate.categories).includes(category)).length,
+      ]));
+      const nomineeCount = canonicalBallotSnap.exists ? canonicalEntriesSnap.size : legacyCandidates.length;
+      const nomineeCountByCategory = canonicalBallotSnap.exists
+        ? { community_weekly: canonicalEntriesSnap.size }
+        : legacyNomineeCountByCategory;
+      const categoryCount = Object.values(nomineeCountByCategory).filter(count => Number(count) > 0).length;
+      const emptyReason = getWeeklyBallotEmptyReason({
+        cycleStatus: cycle.status,
+        ballotExists: canonicalBallotSnap.exists || ballotSnap.exists,
+        nomineeCount,
+      });
+
+      const exclusionReasonCounts: Record<string, number> = {};
+      const excludedProofSamples: Array<{ entryId: string; reasons: string[] }> = [];
+      for (const entryDoc of approvedEntriesSnap.docs) {
+        const entry = { id: entryDoc.id, ...entryDoc.data() } as any;
+        const reasons = getWeeklyProofExclusionReasons(entry, {
+          seasonId,
+          scope: 'community_weekly',
+          submissionStartsAt: cycle.submissionStart,
+          submissionEndsAt: cycle.submissionEnd,
+          ballotLocksAt: cycle.ballotLocksAt,
+        });
+        if (reasons.length === 0) continue;
+        reasons.forEach(reason => {
+          exclusionReasonCounts[reason] = (exclusionReasonCounts[reason] || 0) + 1;
+        });
+        if (excludedProofSamples.length < 20) excludedProofSamples.push({ entryId: entry.id, reasons });
+      }
+
+      const configuredWeek = seasonData?.weeks?.find((week: any) => Number(week.number) === weekNumber) || null;
+      const fallbackCatalyst = weekNumber > 0 ? getDefaultWeeklyCatalystForWeek(seasonId, weekNumber) : null;
+      const catalystData = catalystSnap.exists ? catalystSnap.data() || {} : fallbackCatalyst;
+      const warnings: string[] = [];
+      if (!gameConfigSnap.exists) warnings.push('appConfig/game is missing; active season fallback is in use');
+      if (!configuredActiveSeasonId) warnings.push('appConfig/game.activeSeasonId is missing');
+      if (!seasonSnap.exists) warnings.push(`seasons/${seasonId} is missing`);
+      if (seasonTiming?.status === 'invalid') warnings.push('active season dates are invalid');
+      if (weekNumber === 0) warnings.push('season is upcoming; no active season week exists yet');
+      if (!configuredWeek && weekNumber > 0) warnings.push(`season week ${weekNumber} has no configured week record`);
+      if (!catalystSnap.exists && weekNumber > 0) warnings.push(`weeklyCatalysts/${catalystDocumentId} is missing; deterministic fallback is visible`);
+      if (!canonicalBallotSnap.exists) warnings.push(`canonical ballot ${canonicalBallotId} has not been generated`);
+      if (canonicalBallotSnap.exists && canonicalEntriesSnap.empty) warnings.push('canonical ballot exists but contains no nominee snapshots');
+      if (!canonicalBallotSnap.exists && ballotSnap.exists) warnings.push('only the legacy weekly ballot exists for this week');
+      if (emptyReason !== 'ready') warnings.push(`ballot choices hidden: ${emptyReason}`);
+
       res.json({
         success: true,
         seasonId,
         weekNumber,
+        season: {
+          configuredActiveSeasonId: configuredActiveSeasonId || null,
+          startsAt: seasonTiming?.seasonStartsAt?.toISOString() || null,
+          endsAt: seasonTiming?.seasonEndsAt?.toISOString() || null,
+          status: seasonTiming?.status || 'missing',
+          computedCurrentWeek: seasonTiming?.weekNumber || 0,
+          computedWeekId: seasonTiming?.weekId || null,
+          configuredWeekFound: !!configuredWeek,
+          configuredWeekStartsAt: configuredWeek?.startDate?.toDate?.()?.toISOString?.() || null,
+          timingSource: seasonSnap.exists ? `seasons/${seasonId}` : 'missing_season_document'
+        },
         cycle: {
           id: cycle.id,
           timezone: cycle.timezone,
@@ -1579,6 +2048,32 @@ async function startServer() {
           votingStartsAt: cycle.votingStart.toISOString(),
           votingEndsAt: cycle.votingEnd.toISOString(),
           resultsPublishAt: cycle.resultsPublishAt.toISOString()
+        },
+        catalyst: {
+          documentId: catalystDocumentId,
+          title: catalystData?.title || null,
+          configured: catalystSnap.exists,
+          source: catalystSnap.exists ? 'firestore' : fallbackCatalyst ? 'fallback' : 'missing',
+          fallbackTemplateWeekNumber: catalystSnap.exists ? null : fallbackCatalyst?.fallbackTemplateWeekNumber || null,
+        },
+        ballot: {
+          canonicalBallotId,
+          canonicalBallotCount: canonicalBallots.length,
+          canonicalBallotStatus: canonicalBallot?.status || null,
+          canonicalResultExists: canonicalResultSnap.exists,
+          legacyBallotId: ballotId,
+          legacyBallotExists: ballotSnap.exists,
+          categoryCount,
+          nomineeCount,
+          nomineeCountByCategory,
+          hiddenReason: emptyReason === 'ready' ? null : emptyReason,
+          exclusionReasonCounts,
+          excludedProofSamples,
+          clientQueryRequirements: [
+            `votingCycles/${cycle.id}/ballots/${canonicalBallotId}`,
+            `votingCycles/${cycle.id}/ballots/${canonicalBallotId}/entries`,
+            `weeklyBallots/${ballotId} (read-only compatibility)`,
+          ],
         },
         canonicalModel: {
           cycleModel: 'votingCycles/{cycleId}',
@@ -1601,7 +2096,8 @@ async function startServer() {
         canonicalIssues,
         staleCycles,
         missingResultSnapshots,
-        finalizedSnapshot: summary?.isLocked === true && !!summary?.voteWinners
+        finalizedSnapshot: canonicalResultSnap.exists || (summary?.isLocked === true && !!summary?.voteWinners),
+        warnings,
       });
     } catch (error: any) {
       console.error("[WEEKLY_VOTING_DIAGNOSTICS] Failed:", error);
@@ -7347,22 +7843,47 @@ async function startServer() {
     };
   }
 
-  function getReviewAwardPoints(entry: any, scoring: any): number {
-    const scoringPoints = Number(scoring?.totalXpAwarded ?? scoring?.pointsAwarded);
-    if (Number.isFinite(scoringPoints) && scoringPoints >= 0) return Math.round(scoringPoints);
-    const entryPoints = Number(entry?.xpValue ?? entry?.awardedXP ?? entry?.pointsAwarded ?? entry?.points ?? entry?.basePoints);
-    return Number.isFinite(entryPoints) && entryPoints >= 0 ? Math.round(entryPoints) : 100;
-  }
-
   function buildServerReviewRubric(metadata: any, reviewerId: string) {
     if (!metadata?.rubric) return null;
+    const score = calculateProofRubricScore({
+      missionMatch: Number(metadata.rubric.missionMatch),
+      proofClarity: Number(metadata.rubric.proofClarity),
+      authenticity: Number(metadata.rubric.authenticity),
+      fieldNoteQuality: Number(metadata.rubric.fieldNoteQuality),
+      fieldtripEnergy: Number(metadata.rubric.fieldtripEnergy),
+    });
     return {
-      ...metadata.rubric,
+      ...score,
       adminOverrideUsed: metadata.rubric.adminOverrideUsed === true,
       adminOverrideReason: metadata.rubric.adminOverrideReason || null,
       reviewerId,
       reviewedAt: FieldValue.serverTimestamp()
     };
+  }
+
+  function getValidatedMissionBonuses(attempt: any, rotation: any): BonusEligibility[] {
+    if (!attempt || !Array.isArray(attempt.eligibleBonuses)) return [];
+    const startedAt = attempt.startedAt?.toDate?.();
+    if (!(startedAt instanceof Date) || Number.isNaN(startedAt.getTime())) return [];
+    return attempt.eligibleBonuses.filter((bonus: BonusEligibility) => {
+      if (!bonus?.eligible) return false;
+      if (bonus.type === 'time_window') {
+        return validateAfternoonPowerHourEligibility(bonus, startedAt, String(attempt.timezone || ''));
+      }
+      if (bonus.type === 'random_mission') {
+        const rotationStart = rotation?.startsAt?.toDate?.();
+        const rotationEnd = rotation?.expiresAt?.toDate?.();
+        return !!rotation &&
+          rotation.rotationId === attempt.rotationId &&
+          Array.isArray(rotation.selectedMissionIds) &&
+          rotation.selectedMissionIds.includes(attempt.missionId) &&
+          (!rotationStart || startedAt >= rotationStart) &&
+          (!rotationEnd || startedAt < rotationEnd) &&
+          bonus.rotationId === attempt.rotationId &&
+          Number(bonus.multiplier) === Number(rotation.bonus?.multiplier);
+      }
+      return false;
+    });
   }
 
   app.post("/api/admin/proof-review/action", adminRateLimiter, authRateLimiter, authenticate, async (req: any, res) => {
@@ -7386,7 +7907,9 @@ async function startServer() {
       const resolution = await resolveBackendReviewEntry(incomingEntryId || reviewId, reviewId);
       const reviewerId = req.user.uid;
       const rubric = buildServerReviewRubric(metadata, reviewerId);
-      const scoring = metadata?.scoring || null;
+      if (!rubric) {
+        return res.status(400).json({ error: "PROOF_RUBRIC_REQUIRED" });
+      }
       const nextStatus = action === "approve" ? "approved" : action === "request_info" ? "needs_more_proof" : "rejected";
 
       console.info("[AdminProofReview] Server action resolved", {
@@ -7412,6 +7935,50 @@ async function startServer() {
         const ownerId = getBackendUserId(entry);
         const challengeId = getBackendChallengeId(entry);
         const currentStatus = normalizeStatusBackend(entry.status || entry.reviewStatus || entry.submissionStatus || entry.proofStatus);
+        const attemptId = getBackendString(entry.missionAttemptId || entry.missionAttempt?.attemptId);
+        const attemptRef = attemptId ? dbAdmin!.collection('missionAttempts').doc(attemptId) : null;
+        const attemptSnap = attemptRef ? await transaction.get(attemptRef) : null;
+        const rawAttempt = attemptSnap?.exists ? attemptSnap.data() || {} : null;
+        const validAttempt = rawAttempt &&
+          rawAttempt.userId === ownerId &&
+          rawAttempt.missionId === challengeId
+          ? rawAttempt
+          : null;
+        const rotationRef = validAttempt?.rotationId
+          ? dbAdmin!.collection('bonusRotations').doc(String(validAttempt.rotationId))
+          : null;
+        const rotationSnap = rotationRef ? await transaction.get(rotationRef) : null;
+        const rotation = rotationSnap?.exists ? rotationSnap.data() || {} : null;
+        const rubricScoring = getProofRubricScoring(rubric, entry);
+        const hintUsed = validAttempt ? validAttempt.hintUsed === true : entry.hintUsed === true;
+        const hintPenaltyPercent = validAttempt
+          ? Number(validAttempt.hintPenaltyPercent || 0)
+          : hintUsed ? DEFAULT_HINT_PENALTY_PERCENT : 0;
+        const eligibleBonuses = validAttempt ? getValidatedMissionBonuses(validAttempt, rotation) : [];
+        const calculatedMissionScore = calculateMissionScore({
+          baseMaxScore: rubricScoring.maxAdminAwardableXp,
+          reviewerBaseScore: rubricScoring.awardedXp,
+          hintUsed,
+          hintPenaltyPercent,
+          retryMultiplier: entry.isRetry === true ? Number(entry.retryPointMultiplier ?? 0.5) : 1,
+          perkPoints: 0,
+          eligibleBonuses,
+        });
+        const calculatedAt = Timestamp.now();
+        const scoringSnapshot = entry.xpAwarded === true && entry.scoringSnapshot
+          ? entry.scoringSnapshot
+          : toScoringSnapshot(calculatedMissionScore, calculatedAt);
+        const canonicalScoring = {
+          ...rubricScoring,
+          awardedXp: scoringSnapshot.reviewerBaseScore,
+          bonusXpAwarded: scoringSnapshot.bonusPoints,
+          hiddenBonusXpAwarded: 0,
+          totalXpAwarded: scoringSnapshot.finalScore,
+          hintAdjustedMaxXp: scoringSnapshot.adjustedMaxScore,
+          appliedBonusId: scoringSnapshot.appliedBonusId,
+          appliedMultiplier: scoringSnapshot.appliedMultiplier,
+          scoringVersion: scoringSnapshot.version,
+        };
         const now = FieldValue.serverTimestamp();
         const baseUpdate: any = {
           status: nextStatus,
@@ -7425,8 +7992,12 @@ async function startServer() {
           reviewedBy: reviewerId,
           updatedAt: now
         };
-        if (rubric) baseUpdate.rubric = rubric;
-        if (scoring) baseUpdate.scoring = scoring;
+        baseUpdate.rubric = rubric;
+        if (action === 'approve') {
+          baseUpdate.scoring = canonicalScoring;
+          baseUpdate.scoringSnapshot = scoringSnapshot;
+          baseUpdate.hintUsed = scoringSnapshot.hintUsed;
+        }
 
         let pointsAwarded = 0;
         let awardReason = action === "approve" ? "ALREADY_AWARDED_OR_NOT_ELIGIBLE" : "NO_POINTS_FOR_REVIEW_ACTION";
@@ -7440,7 +8011,7 @@ async function startServer() {
 
           const existingAwardedPoints = Number(entry.awardedXP || entry.awardedPoints || (typeof entry.pointsAwarded === "number" ? entry.pointsAwarded : 0));
           const alreadyAwardedByEntry = entry.xpAwarded === true || entry.pointsAwarded === true || existingAwardedPoints > 0;
-          const awardPoints = getReviewAwardPoints(entry, scoring);
+          const awardPoints = Number(scoringSnapshot.finalScore || 0);
 
           if (ownerId) {
             const userRef = dbAdmin!.collection("users").doc(ownerId);
@@ -7488,6 +8059,7 @@ async function startServer() {
                     awardedBy: reviewerId,
                     reviewId: resolution.reviewId,
                     databaseId: FIELDTRIP_FIRESTORE_DATABASE_ID,
+                    scoringSnapshot,
                   },
                 },
               });
@@ -7514,6 +8086,17 @@ async function startServer() {
           }
         }
 
+        if (attemptRef && validAttempt) {
+          transaction.set(attemptRef, {
+            status: nextStatus,
+            entryId: resolution.entryId,
+            reviewedAt: now,
+            reviewedBy: reviewerId,
+            scoringSnapshot: action === 'approve' ? scoringSnapshot : null,
+            updatedAt: now,
+          }, { merge: true });
+        }
+
         transaction.update(resolution.entryRef, baseUpdate);
         resolution.reviewRefs.forEach(reviewRef => {
           transaction.set(reviewRef, {
@@ -7525,8 +8108,11 @@ async function startServer() {
             adminNotes: notes,
             reviewedAt: now,
             reviewedBy: reviewerId,
-            rubric: rubric || FieldValue.delete(),
-            scoring: scoring || FieldValue.delete(),
+            rubric,
+            scoring: action === 'approve' ? canonicalScoring : null,
+            scoringSnapshot: action === 'approve' ? scoringSnapshot : null,
+            missionAttemptId: attemptId || null,
+            hintUsed: scoringSnapshot.hintUsed,
             updatedAt: now
           }, { merge: true });
         });
@@ -7543,6 +8129,9 @@ async function startServer() {
           currentStatus,
           pointsAwarded,
           awardReason,
+          scoringSnapshot,
+          missionAttemptId: attemptId || null,
+          missionAttemptValidated: !!validAttempt,
           aliases: resolution.aliases,
           databaseId: FIELDTRIP_FIRESTORE_DATABASE_ID,
           createdAt: now
@@ -7555,6 +8144,8 @@ async function startServer() {
           reviewId: resolution.reviewId,
           userId: ownerId || null,
           points: pointsAwarded,
+          scoring: canonicalScoring,
+          scoringSnapshot,
           reason: awardReason,
           databaseId: FIELDTRIP_FIRESTORE_DATABASE_ID
         };

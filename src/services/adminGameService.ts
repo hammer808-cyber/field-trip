@@ -3,12 +3,14 @@ import { db, auth } from '../lib/firebase';
 import { logAdminAction } from './moderationService';
 import { AppConfig, Season } from '../types/game';
 import { TripStatus } from '../types/challenges';
+import { DEFAULT_MISSION_SCORING_CONFIG } from '../logic/missionScoring';
 
 export async function initializeGameConfig() {
   const configRef = doc(db, 'appConfig', 'game');
   const defaultConfig: AppConfig = {
     activeSeasonId: 'heatwave-receipts',
     onboardingEntriesRequired: 3,
+    scoring: DEFAULT_MISSION_SCORING_CONFIG,
     featureFlags: {
       fieldSignalsEnabled: true,
       badgeFragmentsEnabled: true,

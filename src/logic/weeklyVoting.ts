@@ -1,3 +1,9 @@
+import {
+  FIELDTRIP_VOTING_TIMEZONE,
+  getCurrentVotingCycle,
+  type VotingCycleStatus,
+} from '../services/votingCycleService';
+
 export const WEEKLY_VOTE_CATEGORIES = [
   'best_field_note',
   'best_photo_proof',
@@ -22,6 +28,106 @@ export const APPROVED_PROOF_STATUSES = [
 
 export function getWeeklyBallotId(seasonId: string, weekNumber: number): string {
   return `${seasonId}_${weekNumber}`;
+}
+
+export interface WeeklyBallotLookup {
+  seasonId: string;
+  seasonWeekNumber: number;
+  cycleId: string;
+  canonicalBallotId: string;
+  canonicalCyclePath: string;
+  canonicalBallotPath: string;
+  canonicalEntriesPath: string;
+  legacyBallotId: string;
+  legacyBallotPath: string;
+}
+
+export function getWeeklyBallotLookup(
+  seasonId: string,
+  seasonWeekNumber: number,
+  now: Date | number
+): WeeklyBallotLookup {
+  const cycle = getCurrentVotingCycle(now, FIELDTRIP_VOTING_TIMEZONE, seasonId);
+  const canonicalBallotId = getCanonicalBallotId(cycle.id, 'community_weekly');
+  const legacyBallotId = getWeeklyBallotId(seasonId, seasonWeekNumber);
+  return {
+    seasonId,
+    seasonWeekNumber,
+    cycleId: cycle.id,
+    canonicalBallotId,
+    canonicalCyclePath: `votingCycles/${cycle.id}`,
+    canonicalBallotPath: `votingCycles/${cycle.id}/ballots/${canonicalBallotId}`,
+    canonicalEntriesPath: `votingCycles/${cycle.id}/ballots/${canonicalBallotId}/entries`,
+    legacyBallotId,
+    legacyBallotPath: `weeklyBallots/${legacyBallotId}`,
+  };
+}
+
+export type WeeklyBallotEmptyReason =
+  | 'ready'
+  | 'ballot_not_generated'
+  | 'no_approved_nominees'
+  | 'voting_opens_soon'
+  | 'voting_closed'
+  | 'read_permission_denied'
+  | 'missing_index'
+  | 'schema_mismatch';
+
+export function getWeeklyBallotEmptyReason(input: {
+  cycleStatus: VotingCycleStatus;
+  ballotExists: boolean;
+  nomineeCount: number;
+  errorCode?: string | null;
+}): WeeklyBallotEmptyReason {
+  const errorCode = String(input.errorCode || '').toLowerCase();
+  if (errorCode.includes('permission-denied')) return 'read_permission_denied';
+  if (errorCode.includes('failed-precondition') || errorCode.includes('index')) return 'missing_index';
+  if (errorCode) return 'schema_mismatch';
+  if (!input.ballotExists) return 'ballot_not_generated';
+  if (input.nomineeCount === 0) return 'no_approved_nominees';
+  if (['upcoming', 'submissions_open', 'ballots_locked'].includes(input.cycleStatus)) return 'voting_opens_soon';
+  if (['results_pending', 'results_published', 'archived'].includes(input.cycleStatus)) return 'voting_closed';
+  return 'ready';
+}
+
+export function getWeeklyBallotEmptyCopy(reason?: WeeklyBallotEmptyReason): { title: string; body: string } {
+  switch (reason) {
+    case 'ballot_not_generated':
+      return {
+        title: 'This week\'s ballot has not been generated',
+        body: 'An admin needs to build and lock the current weekly ballot before nominees can appear.',
+      };
+    case 'voting_opens_soon':
+      return {
+        title: 'Voting opens soon',
+        body: 'Approved receipts are frozen into the ballot at the end of the submission window.',
+      };
+    case 'voting_closed':
+      return {
+        title: 'Voting is closed',
+        body: 'The ballot is sealed while the server calculates and publishes results.',
+      };
+    case 'read_permission_denied':
+      return {
+        title: 'Ballot access is blocked',
+        body: 'Your account could not read this ballot. An admin can verify voting eligibility and Firestore rules.',
+      };
+    case 'missing_index':
+      return {
+        title: 'Ballot index is not ready',
+        body: 'The required Firestore index must finish building before these nominees can load.',
+      };
+    case 'schema_mismatch':
+      return {
+        title: 'Ballot data needs repair',
+        body: 'The stored ballot does not match the canonical weekly ballot schema. Admin diagnostics has the exact failure.',
+      };
+    default:
+      return {
+        title: 'No approved nominees yet',
+        body: 'This ballot needs approved submissions from other agents before you can vote.',
+      };
+  }
 }
 
 export function getCanonicalBallotId(cycleId: string, scope: BallotScope, crewId?: string | null): string {
@@ -177,7 +283,7 @@ export function getWeeklyProofExclusionReasons(entry: WeeklyEntryLike, params: {
     if (!crewId) reasons.push('missing_crew');
     if (params.crewId && crewId && crewId !== params.crewId) reasons.push('crew_mismatch');
   }
-  if (params.scope === 'community_weekly' && entry.showInCommunityFeed !== true) reasons.push('not_community_visible');
+  if (params.scope === 'community_weekly' && entry.showInCommunityFeed === false) reasons.push('not_community_visible');
   return reasons;
 }
 
@@ -193,11 +299,19 @@ export function isWeeklyProofEligible(entry: WeeklyEntryLike, params: {
 }
 
 export function isWeeklyCandidateEligible(candidate: WeeklyCandidateLike, category: string): boolean {
-  const categories = Array.isArray(candidate.categories) ? candidate.categories : [];
+  const categories = normalizeWeeklyCandidateCategories(candidate.categories);
   return candidate.isEligible !== false &&
     candidate.isDisqualified !== true &&
     candidate.archived !== true &&
     categories.includes(category);
+}
+
+export function normalizeWeeklyCandidateCategories(value: unknown): WeeklyVoteCategory[] {
+  if (!Array.isArray(value) || value.length === 0) return [...WEEKLY_VOTE_CATEGORIES];
+  const canonical = value.filter(isWeeklyVoteCategory);
+  // Older ballots used presentation labels instead of stable category IDs.
+  // Those records represented general eligibility, so preserve that meaning.
+  return canonical.length > 0 ? Array.from(new Set(canonical)) : [...WEEKLY_VOTE_CATEGORIES];
 }
 
 export interface WeeklyVotingRestrictionInput {

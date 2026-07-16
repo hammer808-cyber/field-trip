@@ -30,7 +30,7 @@ import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 import { getProofLogbookCounts } from '../logic/proofDistribution';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { StarterCompletionState } from '../utils/starterHelper';
-import { getSummerCountdown } from '../utils/seasonCountdown';
+import { getSeasonCountdown } from '../utils/seasonCountdown';
 import { MARKER_STICKERS } from '../data/markers';
 import { AvatarPreview } from '../components/AvatarPreview';
 import { subscribeToRecentScoreEvents } from '../services/activityService';
@@ -754,7 +754,6 @@ export default function DeckPage() {
   }).slice(0, 3) : [];
 
   const missionProgress = recommendedTrip ? (profile?.tripProgress?.[recommendedTrip.id] || {}) as any : {};
-  const hintUsed = !!missionProgress.hintUsed;
 
   // Scroll to top on load
   useEffect(() => {
@@ -762,7 +761,9 @@ export default function DeckPage() {
   }, []);
 
   // Use dynamic countdown
-  const countdown = getSummerCountdown(currentDate);
+  const countdown = activeSeason
+    ? getSeasonCountdown(activeSeason, currentDate)
+    : null;
 
   // Guided Starter Mission Mode for Launch
   if (mustCompleteStarterMission && !isAdmin) {
@@ -856,20 +857,6 @@ export default function DeckPage() {
     );
   }
 
-  const getPreciseCountdownText = () => {
-    const today = new Date(currentDate);
-    const target = new Date('2026-06-06T00:00:00Z');
-    const diffMs = target.getTime() - today.getTime();
-    if (diffMs <= 0) {
-      return "Heatwave Receipts is live. Complete Starter Pack to enter.";
-    }
-    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
-    return `Heatwave Season starts in ${days}d ${hours}h ${mins}m`;
-  };
-
   return (
     <div className={cn(
       "skin-page skin-deck-browser page-scroll relative px-4 sm:px-6 ft-paper-texture",
@@ -895,6 +882,17 @@ export default function DeckPage() {
         infoCardSubtext={deckLockState.locked ? "LOCKED" : "UNLOCKED"}
         infoCardAccent="blue"
       />
+
+      <div className="mx-auto mb-5 flex max-w-xl items-center justify-between gap-3 border-y-2 border-on-surface/15 bg-white/70 px-3 py-2 font-mono text-[9px] font-black uppercase tracking-wider text-on-surface/65" aria-live="polite">
+        <span>{countdown?.label || 'Season timing is loading from game configuration'}</span>
+        <span className="shrink-0 text-brand-orange">
+          {countdown
+            ? countdown.status === 'active'
+              ? `Week ${currentWeekNumber}`
+              : countdown.status.replace('_', ' ')
+            : 'config pending'}
+        </span>
+      </div>
 
       {/* 3. ACTIVE DECK STATUS CARD / MISSION SHELF */}
       <div className="max-w-xl mx-auto mb-6 px-2 relative z-10">
@@ -1538,12 +1536,6 @@ export default function DeckPage() {
           }
         }}
         onRedraw={drawnTrip ? () => handleDraw(true) : undefined}
-        onHint={drawnTrip ? undefined : () => {
-          if (activeTrip) {
-            updateTripProgress(activeTrip.id, { hintUsed: true });
-          }
-        }}
-        isHintUsed={drawnTrip ? false : hintUsed}
         isRedrawable={!!drawnTrip}
         statusLabel={activeTrip && !drawnTrip ? "ACTIVE_MISSION_SIGNAL" : "NEW_MISSION_DRAWN"}
       />

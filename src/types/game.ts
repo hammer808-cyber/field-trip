@@ -77,6 +77,21 @@ export interface AppConfig {
   starterRequiredCount?: number;
   starterResetVersion?: string;
   starterResetAt?: any;
+  scoring?: {
+    hintPenaltyPercent?: number;
+    afternoonPowerHour?: {
+      enabled?: boolean;
+      startHour?: number;
+      endHourExclusive?: number;
+      multiplier?: number;
+    };
+    randomMissionBonus?: {
+      enabled?: boolean;
+      multiplier?: number;
+      label?: string;
+    };
+    bonusStacking?: 'highest_only';
+  };
   featureFlags: {
     fieldSignalsEnabled: boolean;
     badgeFragmentsEnabled: boolean;
@@ -381,6 +396,22 @@ export interface Entry {
     zinePageId: string | null;
   };
   hintUsed?: boolean;
+  missionAttemptId?: string;
+  missionAttempt?: {
+    attemptId: string;
+    missionId: string;
+    startedAt: any;
+    timezone: string;
+    hintUsed: boolean;
+    hintUsedAt?: any;
+    hintPenaltyPercent: number;
+    hintPenaltyPoints: number;
+    maxScoreBeforeHint: number;
+    maxScoreAfterHint: number;
+    eligibleBonuses: import('../logic/missionScoring').BonusEligibility[];
+    appliedBonus: import('../logic/missionScoring').BonusEligibility | null;
+  };
+  scoringSnapshot?: import('../logic/missionScoring').ScoringSnapshot;
   crewId?: string;
   userAvatar?: any;
   uploadSource?: string;

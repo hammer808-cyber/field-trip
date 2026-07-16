@@ -14,6 +14,10 @@ const MISSION_BANK: Partial<TripCard>[] = [
   ...JET_SETTER_CHALLENGE_BANK,
 ];
 
+export function getBuiltInMissionCatalog(): Partial<TripCard>[] {
+  return MISSION_BANK.map(mission => ({ ...mission }));
+}
+
 /**
  * Resolves a mission object by its ID from all available sources.
  * Sources: Special Missions (Launch), Challenge Bank, Fallback mocks.

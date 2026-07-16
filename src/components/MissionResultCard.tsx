@@ -10,6 +10,7 @@ import { getDisplayLabel } from '../utils/labelUtils';
 
 interface MissionResultCardProps {
   trip: TripCard;
+  reviewStatus?: string;
   scoringData: {
     scoring?: any;
     ftBonus?: number;
@@ -25,11 +26,19 @@ interface MissionResultCardProps {
   newRewards?: { stickers: string[]; badges: string[] };
 }
 
-export function MissionResultCard({ trip, scoringData, evidence, showMathWizard, newRewards }: MissionResultCardProps) {
+export function MissionResultCard({
+  trip,
+  reviewStatus = 'pending_review',
+  scoringData,
+  evidence,
+  showMathWizard,
+  newRewards,
+}: MissionResultCardProps) {
   const { frankieMode, fc } = useTheme();
   const fPref = { frankieMode };
   const { scoring, ftBonus = 0, ftText = '', tokenAwarded, totalTokens } = scoringData;
-  const totalXP = (scoring?.totalPoints || 0) + ftBonus;
+  const isApproved = reviewStatus === 'approved';
+  const totalXP = isApproved ? (scoring?.totalPoints || 0) + ftBonus : 0;
 
   const containerVariants = {
     hidden: { opacity: 0, y: 30 },
@@ -64,7 +73,9 @@ export function MissionResultCard({ trip, scoringData, evidence, showMathWizard,
           <motion.div variants={itemVariants} className="flex items-center gap-2">
             <div className="w-2 h-2 bg-brand-lime shadow-[0_0_8px_var(--color-brand-lime)] rounded-full" />
             <p className="font-mono text-[9px] font-black uppercase tracking-[0.25em] text-brand-lime">
-              {fc(getDisplayLabel('MISSION_SECURED'), 'MISSION SECURED')}
+              {isApproved
+                ? fc(getDisplayLabel('MISSION_SECURED'), 'MISSION APPROVED')
+                : 'PROOF SUBMITTED'}
             </p>
           </motion.div>
 
@@ -74,10 +85,16 @@ export function MissionResultCard({ trip, scoringData, evidence, showMathWizard,
             </motion.h2>
             
             <motion.div variants={itemVariants} className="text-right shrink-0 flex flex-col items-end">
-              <span className="text-[10px] font-mono font-black uppercase tracking-widest text-[#FFFDF8]/40 mb-1">{getDisplayLabel('XP_YIELD')}</span>
+              <span className="text-[10px] font-mono font-black uppercase tracking-widest text-[#FFFDF8]/40 mb-1">
+                {isApproved ? getDisplayLabel('XP_YIELD') : 'REVIEW STATUS'}
+              </span>
               <div className="flex flex-col items-end relative">
-                <span className="font-display text-5xl sm:text-6xl font-black text-brand-orange tracking-tighter leading-none italic">+{totalXP}</span>
-                {tokenAwarded && (
+                {isApproved ? (
+                  <span className="font-display text-5xl sm:text-6xl font-black text-brand-orange tracking-tighter leading-none italic">+{totalXP}</span>
+                ) : (
+                  <span className="max-w-28 text-right font-display text-xl font-black uppercase italic leading-none text-brand-orange">Pending Review</span>
+                )}
+                {isApproved && tokenAwarded && (
                   <div className="absolute -bottom-4 right-0 bg-brand-lime text-on-surface px-2 py-0.5 border-2 border-on-surface shadow-[3px_3px_0px_black] rotate-[-4deg] z-20">
                     <p className="text-[9px] font-black uppercase tracking-tighter italic leading-none">{fc('+1 TOKEN', getDisplayLabel('NEW_TOKEN'))}</p>
                   </div>
@@ -100,18 +117,20 @@ export function MissionResultCard({ trip, scoringData, evidence, showMathWizard,
             {/* Filter Overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-80" />
             
-            {/* Timestamp Strip */}
+            {/* Submission status strip */}
             <div className="absolute bottom-5 left-0 w-full bg-on-surface/85 backdrop-blur-md text-brand-lime px-4 py-2 font-mono text-[9px] uppercase tracking-widest italic font-black border-y border-white/5">
-              {fc(`TIMESTAMP // ${new Date().toLocaleTimeString()} // VERIFIED`, `Verified at ${new Date().toLocaleTimeString()}`)}
+              {isApproved
+                ? fc(`TIMESTAMP // ${new Date().toLocaleTimeString()} // VERIFIED`, `Approved proof`)
+                : 'Receipt saved // awaiting human review'}
             </div>
 
             {/* Gloss Highlight */}
             <div className="absolute top-0 right-0 w-32 h-full bg-white/5 skew-x-[-20deg] translate-x-24 group-hover:translate-x-[-120%] transition-transform duration-1000" />
           </div>
 
-          {/* APPROVED Stamp */}
-          <div className="absolute -top-6 -right-2 sm:-top-8 sm:-right-4 bg-brand-lime text-on-surface px-5 py-2 sm:px-8 sm:py-3 text-lg sm:text-2xl font-display font-black border-4 border-on-surface shadow-[6px_6px_0px_black] rotate-[10deg] z-30 italic leading-none">
-            {fc(getDisplayLabel('AUTHORIZED'), getDisplayLabel('APPROVED'))}
+          {/* Review status stamp */}
+          <div className={`absolute -top-6 -right-2 sm:-top-8 sm:-right-4 px-5 py-2 sm:px-8 sm:py-3 text-lg sm:text-2xl font-display font-black border-4 border-on-surface shadow-[6px_6px_0px_black] rotate-[10deg] z-30 italic leading-none ${isApproved ? 'bg-brand-lime text-on-surface' : 'bg-brand-orange text-white'}`}>
+            {isApproved ? fc(getDisplayLabel('AUTHORIZED'), getDisplayLabel('APPROVED')) : 'IN REVIEW'}
           </div>
         </motion.div>
 
@@ -210,7 +229,7 @@ export function MissionResultCard({ trip, scoringData, evidence, showMathWizard,
         )}
 
         {/* 5. Math Wizard Breakdown */}
-        {showMathWizard && scoring && (
+        {isApproved && showMathWizard && scoring && (
           <motion.div 
             variants={itemVariants}
             className="bg-on-surface text-white p-6 rounded-[1.5rem] border-b-8 border-brand-orange relative font-mono overflow-hidden"

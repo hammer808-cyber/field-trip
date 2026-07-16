@@ -1,4 +1,9 @@
-import { getCurrentVotingCycle, getVotingPhase, type VotingPhase } from '../services/votingCycleService';
+import {
+  FIELDTRIP_VOTING_TIMEZONE,
+  getCurrentVotingCycle,
+  getVotingPhase,
+  type VotingPhase,
+} from '../services/votingCycleService';
 
 export type WeeklyCyclePhase = VotingPhase;
 
@@ -44,9 +49,9 @@ export function buildWeeklyCycleConfig(
   categories: string[],
   votingSlotsPerUser = categories.length
 ): WeeklyCycleConfig {
-  const cycle = getCurrentVotingCycle(now, 'UTC');
+  const cycle = getCurrentVotingCycle(now, FIELDTRIP_VOTING_TIMEZONE, seasonId);
   return {
-    weekId: getIsoWeekId(cycle.weekStart),
+    weekId: cycle.id,
     seasonId,
     phase: getVotingPhase(now, cycle),
     startsAt: cycle.weekStart,

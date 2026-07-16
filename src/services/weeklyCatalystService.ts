@@ -1,151 +1,20 @@
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  setDoc, 
-  query, 
-  where, 
-  limit, 
-  orderBy, 
-  updateDoc, 
-  arrayUnion, 
-  serverTimestamp 
-} from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { Entry } from '../types/game';
+import {
+  DEFAULT_WEEKLY_CATALYSTS,
+  getDefaultWeeklyCatalystForWeek,
+  type WeeklyCatalyst,
+} from '../logic/weeklyCatalyst';
 
-export interface WeeklyCatalyst {
-  id: string; // formatted as "seasonId_weekNumber"
-  seasonId: string;
-  weekNumber: number;
-  title: string;
-  shortLabel: string;
-  description: string;
-  startsAt: any;
-  endsAt: any;
-  status: 'scheduled' | 'active' | 'expired';
-  multiplier: number;
-  maxBonusPoints?: number;
-  catalystType: string;
-  eligibilityRules: {
-    requiresPhoto?: boolean;
-    requiresFieldNoteLength?: number;
-    requiresTimeWindow?: boolean;
-    startTime?: string; // e.g. "12:00"
-    endTime?: string; // e.g. "15:00"
-    requiresTag?: string; // e.g. "nature" or "urban"
-  };
-  stickerRewardId?: string; // optional sticker award
-  badgeRewardId?: string; // optional badge award
-  isActive: boolean;
-  createdAt: any;
-  updatedAt: any;
-}
-
-// Canonical static/fallback catalysts corresponding to week numbers
-export const DEFAULT_WEEKLY_CATALYSTS: Record<number, Omit<WeeklyCatalyst, 'startsAt' | 'endsAt' | 'createdAt' | 'updatedAt'>> = {
-  1: {
-    id: 'default_1',
-    seasonId: 'dev-season-2026',
-    weekNumber: 1,
-    title: 'Afternoon Power Hour',
-    shortLabel: 'Power Hour',
-    description: 'Take your shot between 12 PM and 3 PM with a photo and a decent story. Boom. 1.5x Catalyst.',
-    status: 'active',
-    multiplier: 1.5,
-    catalystType: 'solar-wind',
-    eligibilityRules: {
-      requiresPhoto: true,
-      requiresFieldNoteLength: 15,
-      requiresTimeWindow: true,
-      startTime: '12:00',
-      endTime: '15:00'
-    },
-    stickerRewardId: 'solar-wind',
-    isActive: true
-  },
-  2: {
-    id: 'default_2',
-    seasonId: 'dev-season-2026',
-    weekNumber: 2,
-    title: 'Flora Finder Overdrive',
-    shortLabel: 'Flora Finder',
-    description: 'Find a plant, weed, leaf, or tiny green legend. Add a photo and a quick note. Nature rewards the nosy.',
-    status: 'active',
-    multiplier: 1.5,
-    catalystType: 'flora-finder',
-    eligibilityRules: {
-      requiresPhoto: true,
-      requiresFieldNoteLength: 15,
-      requiresTag: 'nature'
-    },
-    stickerRewardId: 'flora-finder',
-    isActive: true
-  },
-  3: {
-    id: 'default_3',
-    seasonId: 'dev-season-2026',
-    weekNumber: 3,
-    title: 'Morning Legend Hour',
-    shortLabel: 'Early Bird',
-    description: 'Catch your find between 6 AM and 10 AM. Photo plus a little story earns 2x Catalyst. The sidewalk is awake.',
-    status: 'active',
-    multiplier: 2.0,
-    catalystType: 'early-bird',
-    eligibilityRules: {
-      requiresPhoto: true,
-      requiresFieldNoteLength: 20,
-      requiresTimeWindow: true,
-      startTime: '06:00',
-      endTime: '10:00'
-    },
-    stickerRewardId: 'early-bird',
-    isActive: true
-  },
-  4: {
-    id: 'default_4',
-    seasonId: 'dev-season-2026',
-    weekNumber: 4,
-    title: 'Tell Me Everything Mode',
-    shortLabel: 'Story Mode',
-    description: 'Bring a photo and a juicy note with actual details. If Trevor can picture it, you earn 1.8x Catalyst.',
-    status: 'active',
-    multiplier: 1.8,
-    catalystType: 'deep-field',
-    eligibilityRules: {
-      requiresPhoto: true,
-      requiresFieldNoteLength: 45
-    },
-    stickerRewardId: 'deep-field',
-    isActive: true
-  },
-  5: {
-    id: 'default_5',
-    seasonId: 'dev-season-2026',
-    weekNumber: 5,
-    title: 'Golden Hour-ish',
-    shortLabel: 'Golden Hour',
-    description: 'Catch today’s challenge between 6 PM and 9 PM. Bring a photo, a note, and a tiny bit of chaos for 1.5x Catalyst.',
-    status: 'active',
-    multiplier: 1.5,
-    catalystType: 'dusk-watch',
-    eligibilityRules: {
-      requiresPhoto: true,
-      requiresFieldNoteLength: 15,
-      requiresTimeWindow: true,
-      startTime: '18:00',
-      endTime: '21:00'
-    },
-    stickerRewardId: 'dusk-patrol',
-    isActive: true
-  }
-};
+export { DEFAULT_WEEKLY_CATALYSTS, getDefaultWeeklyCatalystForWeek } from '../logic/weeklyCatalyst';
+export type { WeeklyCatalyst } from '../logic/weeklyCatalyst';
 
 /**
  * Returns the catalyst for a specific week inside a given season.
- * If the catalyst isn't already created/seeded in Firestore, we auto-create/seed
- * the corresponding DEFAULT weekly catalyst to ensure game stability.
+ * Firestore is authoritative when configured. Missing configuration uses a
+ * deterministic in-memory fallback for the requested week and never writes
+ * from the client.
  */
 export async function getCatalystForWeek(seasonId: string, weekNumber: number): Promise<WeeklyCatalyst | null> {
   const docId = `${seasonId}_${weekNumber}`;
@@ -154,46 +23,12 @@ export async function getCatalystForWeek(seasonId: string, weekNumber: number): 
     const snap = await getDoc(docRef);
     
     if (snap.exists()) {
-      return { id: snap.id, ...snap.data() } as WeeklyCatalyst;
+      return { id: snap.id, ...snap.data(), source: 'firestore' } as WeeklyCatalyst;
     }
-
-    // Auto-seed from default configuration if it exists for this week number
-    const baseDefault = DEFAULT_WEEKLY_CATALYSTS[weekNumber];
-    if (baseDefault) {
-      const seededCatalyst: WeeklyCatalyst = {
-        ...baseDefault,
-        id: docId,
-        seasonId,
-        weekNumber,
-        startsAt: serverTimestamp(),
-        endsAt: serverTimestamp(), // Dummy endsAt, or set to null
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-      
-      // Attempt to save to Firestore so it is persistently available
-      await setDoc(docRef, seededCatalyst);
-      return seededCatalyst;
-    }
-
-    // fallback when week has no default catalyst
-    return null;
+    return getDefaultWeeklyCatalystForWeek(seasonId, weekNumber);
   } catch (error) {
-    console.warn('[WeeklyCatalyst] getCatalystForWeek error; falling back to memory config:', error);
-    const baseDefault = DEFAULT_WEEKLY_CATALYSTS[weekNumber] || DEFAULT_WEEKLY_CATALYSTS[1];
-    if (baseDefault) {
-      return {
-        ...baseDefault,
-        id: docId,
-        seasonId,
-        weekNumber,
-        startsAt: new Date(),
-        endsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        createdAt: new Date(),
-        updatedAt: new Date()
-      } as WeeklyCatalyst;
-    }
-    return null;
+    console.warn(`[WeeklyCatalyst] ${docId} unavailable; using the week ${weekNumber} fallback:`, error);
+    return getDefaultWeeklyCatalystForWeek(seasonId, weekNumber);
   }
 }
 
@@ -201,28 +36,8 @@ export async function getCatalystForWeek(seasonId: string, weekNumber: number): 
  * Returns the currently active weekly catalyst.
  * Queries Firestore first or grabs the fallback based on timestamp / current week.
  */
-export async function getCurrentWeeklyCatalyst(seasonId: string, now?: Date): Promise<WeeklyCatalyst | null> {
-  const checkDate = now || new Date();
-  try {
-    // Attempt to query the active state
-    const q = query(
-      collection(db, 'weeklyCatalysts'),
-      where('seasonId', '==', seasonId),
-      where('isActive', '==', true),
-      limit(1)
-    );
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-      const docData = snap.docs[0];
-      return { id: docData.id, ...docData.data() } as WeeklyCatalyst;
-    }
-    
-    // No active, default to week 1 fallbacks or derive week from season if activeSeason is known
-    return getCatalystForWeek(seasonId, 1);
-  } catch (error) {
-    console.warn('[WeeklyCatalyst] getCurrentWeeklyCatalyst error, falling back to week 1:', error);
-    return getCatalystForWeek(seasonId, 1);
-  }
+export async function getCurrentWeeklyCatalyst(seasonId: string, weekNumber: number): Promise<WeeklyCatalyst | null> {
+  return getCatalystForWeek(seasonId, weekNumber);
 }
 
 /**

@@ -157,12 +157,15 @@ test('server builds canonical cycle ballots and result snapshots without deletin
 
 test('weekly ballot UI reads the canonical ballot schema before legacy candidates', () => {
   const votingHub = fs.readFileSync('src/components/VotingHub.tsx', 'utf8');
-  assert.match(votingHub, /getWeeklyBallotId\(seasonId, currentWeekNumber\)/);
-  assert.match(votingHub, /collection\(db, 'weeklyBallots', ballotId, 'candidates'\)/);
-  assert.match(votingHub, /collection\(db, 'ballotCandidates'\)/);
+  const votingService = fs.readFileSync('src/services/weeklyVotingService.ts', 'utf8');
+  assert.match(votingHub, /loadWeeklyBallot\(\{/);
+  assert.match(votingHub, /castCanonicalWeeklyVote\(\{/);
+  assert.match(votingService, /lookup\.canonicalBallotPath/);
+  assert.match(votingService, /lookup\.canonicalEntriesPath/);
+  assert.match(votingService, /Historical compatibility is read-only here/);
   assert.ok(
-    votingHub.indexOf("collection(db, 'weeklyBallots', ballotId, 'candidates')") <
-      votingHub.indexOf("collection(db, 'ballotCandidates')")
+    votingService.indexOf('lookup.canonicalBallotPath') <
+      votingService.indexOf("collection(db, 'weeklyBallots'")
   );
   assert.match(votingHub, /isWeeklyCandidateEligible\(\{ \.\.\.entry, categories, isEligible: true \}, selectedCategory\)/);
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useReducer, useState } from 'react';
 import { DevelopingPolaroid } from './DevelopingPolaroid';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -15,7 +15,10 @@ import {
   ShieldCheck,
   Info,
   RefreshCw,
-  Sparkles
+  Sparkles,
+  HelpCircle,
+  Lightbulb,
+  X
 } from 'lucide-react';
 import { FieldClipboardState, FieldClipboardData } from '../types/fieldClipboard';
 import { TripCard as TripCardType } from '../types/challenges';
@@ -24,6 +27,8 @@ import { EvidenceDetector, DetectorStatus } from './EvidenceDetector';
 import { getMissionImage } from '../utils/missionImages';
 import { ActionButton } from './UIUtilities';
 import { inferMissionCardType } from '../logic/missionSubmission';
+import type { MissionAttemptRecord } from '../services/missionAttemptService';
+import { transitionMissionHintFlow } from '../logic/missionHintFlow';
 
 interface FieldClipboardProps {
   mission: TripCardType;
@@ -37,8 +42,11 @@ interface FieldClipboardProps {
   setData: React.Dispatch<React.SetStateAction<FieldClipboardData>>;
   aiAnalysisResult?: any;
   isAiAnalyzing?: boolean;
-  catalyst?: any;
-  receiptChallenge?: any;
+  missionAttempt?: MissionAttemptRecord | null;
+  isAttemptLoading?: boolean;
+  attemptError?: string | null;
+  onRevealHint?: () => Promise<void>;
+  onRetryAttempt?: () => Promise<void>;
   repairFeedback?: string | null;
   availableStickerIds?: string[];
   children?: React.ReactNode;
@@ -55,8 +63,11 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
   setData,
   aiAnalysisResult,
   isAiAnalyzing,
-  catalyst,
-  receiptChallenge,
+  missionAttempt,
+  isAttemptLoading = false,
+  attemptError,
+  onRevealHint,
+  onRetryAttempt,
   repairFeedback,
   availableStickerIds = [],
   children
@@ -71,8 +82,31 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
   const cardType = inferMissionCardType(mission);
   const fieldNotePrompt = mission.fieldNotePrompt || 'Describe what you found and why it belongs in the field log.';
 
-  // Catalyst details
-  const showCatalystSticker = catalyst && catalyst.isActive;
+  const [hintFlow, dispatchHintFlow] = useReducer(
+    transitionMissionHintFlow,
+    missionAttempt?.hintUsed ? 'revealed' : 'idle',
+  );
+  const [hintError, setHintError] = useState<string | null>(null);
+  const appliedBonus = missionAttempt?.appliedBonus?.eligible ? missionAttempt.appliedBonus : null;
+  const trevorLine = mission.trevorLine?.trim();
+
+  React.useEffect(() => {
+    dispatchHintFlow(missionAttempt?.hintUsed ? 'restore' : 'reset');
+    setHintError(null);
+  }, [mission.id, missionAttempt?.attemptId, missionAttempt?.hintUsed]);
+
+  const confirmHint = async () => {
+    if (!onRevealHint || hintFlow !== 'confirming') return;
+    dispatchHintFlow('confirm');
+    setHintError(null);
+    try {
+      await onRevealHint();
+      dispatchHintFlow('success');
+    } catch (error: any) {
+      setHintError(error?.message || 'Hint could not be recorded. Try again.');
+      dispatchHintFlow('failure');
+    }
+  };
 
   // Derived detector status
   const detectorStatus: DetectorStatus = isAiAnalyzing 
@@ -147,7 +181,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
 
             <div className="flex flex-col items-end gap-1.5 shrink-0">
               <div className="bg-[#FF5A00] text-white px-2 py-1 text-[10px] font-black uppercase italic border-2 border-on-surface shadow-[2px_2px_0px_black]">
-                +{mission.baseXP} XP
+                +{missionMaximum} XP MAX
               </div>
             </div>
           </div>
@@ -217,7 +251,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                  </div>
                  <div className="min-w-0">
                    <span className="block font-display font-black uppercase italic text-xl tracking-tighter text-on-surface leading-none">Receipt Checklist</span>
-                   <span className="block font-mono text-[9px] font-black uppercase tracking-widest text-on-surface/35 mt-1">Photo + note + submit</span>
+                   <span className="block font-mono text-[9px] font-black uppercase tracking-widest text-on-surface/35 mt-1">Three things to finish this mission.</span>
                  </div>
                </div>
 
@@ -240,50 +274,69 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                    <div className="w-7 h-7 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-[10px] font-black shadow-[2px_2px_0px_black]">3</div>
                    <div className="min-w-0">
                      <p className="font-display uppercase italic text-base font-black leading-none text-on-surface">Say why</p>
-                     <p className="text-xs text-on-surface/55 font-sans mt-1">Add a short field note.</p>
+                     <p className="text-xs text-on-surface/55 font-sans mt-1">Add a short field note explaining the moment.</p>
                    </div>
                  </div>
                </div>
                
-               {(receiptChallenge || showCatalystSticker) && (
-                 <div className="grid grid-cols-1 gap-3">
-               {receiptChallenge && (
-                 <div className="bg-brand-orange/5 border-2 border-dashed border-brand-orange p-4 rounded-2xl space-y-2 relative overflow-hidden">
-                   <div className="absolute top-0 right-0 p-2 opacity-10">
-                      <Zap className="w-12 h-12 text-brand-orange" />
-                   </div>
-                   <div className="flex items-center justify-between">
-                     <div className="flex items-center gap-2">
-                       <Zap className="w-4 h-4 text-brand-orange animate-pulse" />
-                       <span className="font-mono text-[9px] font-black uppercase text-brand-orange tracking-widest">Optional Boost</span>
+               <div className="space-y-3 border-t border-dashed border-on-surface/10 pt-4">
+                 <button
+                   type="button"
+                   onClick={() => !missionAttempt?.hintUsed && dispatchHintFlow('open')}
+                   disabled={!missionAttempt || isAttemptLoading || missionAttempt.hintUsed || hintFlow === 'revealing'}
+                   className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-on-surface bg-white px-4 py-3 font-mono text-[10px] font-black uppercase tracking-widest transition-colors hover:bg-on-surface/5 disabled:cursor-not-allowed disabled:opacity-60"
+                 >
+                   {hintFlow === 'revealing' ? <Loader2 className="h-4 w-4 animate-spin" /> : <HelpCircle className="h-4 w-4" />}
+                   {missionAttempt?.hintUsed ? 'Hint Used' : isAttemptLoading ? 'Preparing Hint' : 'Need a Hint?'}
+                 </button>
+
+                 {missionAttempt?.hintUsed && (
+                   <div className="rounded-xl border-2 border-brand-orange/30 bg-brand-orange/5 p-4">
+                     <div className="flex items-center gap-2 font-mono text-[9px] font-black uppercase tracking-widest text-brand-orange">
+                       <Lightbulb className="h-4 w-4" /> Hint Used
                      </div>
-                     <div className="bg-white border-2 border-on-surface px-2 py-1 text-[10px] font-black italic shadow-[3px_3px_0px_black] rotate-[-2deg]">
-                        1.25x BOOST
-                     </div>
+                     <p className="mt-2 text-sm font-semibold leading-relaxed text-on-surface/80">
+                       {missionAttempt.hint.shortText}
+                     </p>
+                     {missionAttempt.hint.example && (
+                       <p className="mt-2 text-xs italic leading-relaxed text-on-surface/60">
+                         Example: {missionAttempt.hint.example}
+                       </p>
+                     )}
+                     <p className="mt-3 font-mono text-[9px] font-black uppercase text-brand-orange">
+                       Maximum score reduced to {missionAttempt.maxScoreAfterHint} XP
+                     </p>
                    </div>
-                   <p className="text-xs font-bold text-on-surface/75 leading-snug pr-8 pt-1">{receiptChallenge.instructions}</p>
+                 )}
+
+                 {attemptError && (
+                   <div className="rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs text-rose-700">
+                     <p>{attemptError}</p>
+                     {onRetryAttempt && (
+                       <button type="button" onClick={() => void onRetryAttempt()} className="mt-2 min-h-11 font-mono text-[9px] font-black uppercase underline">
+                         Retry mission setup
+                       </button>
+                     )}
+                   </div>
+                 )}
+               </div>
+
+               {trevorLine && (
+                 <div className="rounded-2xl border border-on-surface/10 bg-on-surface/[0.025] p-4">
+                   <p className="font-mono text-[9px] font-black uppercase tracking-widest text-on-surface/45">Trevor's Take</p>
+                   <p className="mt-1 text-xs font-semibold leading-relaxed text-on-surface/75">{trevorLine}</p>
+                   <p className="mt-2 font-mono text-[8px] font-black uppercase text-on-surface/40">Optional advice. No extra points.</p>
                  </div>
                )}
 
-               {showCatalystSticker && (
-                 <div className="bg-brand-lime/10 border-2 border-dashed border-brand-lime p-4 rounded-2xl space-y-2 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-2 opacity-10">
-                      <Sparkles className="w-12 h-12 text-brand-lime" />
-                   </div>
-                   <div className="flex items-center justify-between">
-                     <div className="flex items-center gap-2">
-                       <Sparkles className="w-4 h-4 text-brand-lime" />
-                       <span className="font-mono text-[9px] font-black uppercase text-brand-lime tracking-widest">Weekly Bonus</span>
-                     </div>
-                     <div className="bg-on-surface text-brand-lime px-2 py-1 text-[10px] font-black italic shadow-[3px_3px_0px_white] rotate-[2deg]">
-                        1.5x CATALYST
-                     </div>
-                   </div>
-                   <p className="text-xs font-bold text-on-surface/75 leading-snug pr-8 pt-1">
-                     {catalyst.title}: {catalyst.description}
+               {appliedBonus && (
+                 <div className="relative overflow-hidden rounded-2xl border-2 border-dashed border-brand-lime bg-brand-lime/10 p-4">
+                   <Sparkles className="absolute right-3 top-3 h-10 w-10 text-brand-lime opacity-15" />
+                   <p className="font-mono text-[9px] font-black uppercase tracking-widest text-on-surface">
+                     {appliedBonus.type === 'time_window' ? 'Time Bonus' : 'Random Bonus'} · {appliedBonus.multiplier}× XP
                    </p>
-                 </div>
-               )}
+                   <p className="mt-1 font-display text-lg font-black uppercase italic">{appliedBonus.label}</p>
+                   <p className="mt-2 pr-8 text-xs font-semibold leading-relaxed text-on-surface/70">{appliedBonus.description}</p>
                  </div>
                )}
             </div>
@@ -291,6 +344,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
 
             <button
               onClick={onStartCapture}
+              disabled={!missionAttempt || isAttemptLoading}
               className="w-full py-4 bg-brand-orange text-white border-4 border-on-surface rounded-2xl font-display text-3xl font-black uppercase italic tracking-widest shadow-[8px_8px_0px_black] active:translate-y-2 active:shadow-none transition-all hover:bg-on-surface hover:text-brand-lime flex items-center justify-center gap-3 group"
             >
               <Zap className="w-8 h-8 fill-current group-hover:scale-125 transition-transform" />
@@ -589,6 +643,57 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
           </motion.div>
         )}
 
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {hintFlow === 'confirming' && missionAttempt && !missionAttempt.hintUsed && (
+          <div className="fixed inset-0 z-[6000] flex items-end justify-center p-4 sm:items-center">
+            <motion.button
+              type="button"
+              aria-label="Close hint confirmation"
+              className="absolute inset-0 bg-black/60"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => dispatchHintFlow('cancel')}
+            />
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="hint-confirmation-title"
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              className="relative z-10 w-full max-w-sm rounded-2xl border-4 border-on-surface bg-white p-5 shadow-[10px_10px_0px_black]"
+            >
+              <button
+                type="button"
+                aria-label="Keep thinking"
+                onClick={() => dispatchHintFlow('cancel')}
+                className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full border border-on-surface/20"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <h2 id="hint-confirmation-title" className="pr-12 font-display text-2xl font-black uppercase italic">Need a Little Help?</h2>
+              <p className="mt-3 text-sm leading-relaxed text-on-surface/70">
+                Trevor can explain the mission, but using a hint lowers the highest score available for this attempt.
+              </p>
+              <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-on-surface/5 p-4 font-mono text-[10px] font-black uppercase">
+                <div><dt className="opacity-45">Current maximum</dt><dd className="mt-1 text-lg">{missionAttempt.maxScoreBeforeHint} XP</dd></div>
+                <div><dt className="opacity-45">After hint</dt><dd className="mt-1 text-lg text-brand-orange">{missionAttempt.potentialMaxScoreAfterHint} XP</dd></div>
+              </dl>
+              {hintError && <p className="mt-3 text-xs font-semibold text-rose-600">{hintError}</p>}
+              <div className="mt-5 grid gap-3">
+                <button type="button" onClick={() => void confirmHint()} className="min-h-12 rounded-xl border-2 border-on-surface bg-brand-orange px-4 font-display font-black uppercase italic text-white shadow-[4px_4px_0px_black]">
+                  Show Me the Hint
+                </button>
+                <button type="button" onClick={() => dispatchHintFlow('cancel')} className="min-h-12 rounded-xl border-2 border-on-surface bg-white px-4 font-display font-black uppercase italic">
+                  Keep Thinking
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
 
       <style dangerouslySetInnerHTML={{ __html: `

@@ -145,6 +145,10 @@ export interface TripCard {
   proofNeeded?: string;
   fieldNotePrompt?: string;
   hintText?: string;
+  hint?: {
+    shortText: string;
+    example?: string;
+  };
   hintCap?: number;
   crewModeBehavior?: string;
   weekNumber?: number;

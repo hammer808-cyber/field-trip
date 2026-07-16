@@ -2,16 +2,22 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Card } from './UI';
 import { FieldtripLoader } from './FieldtripLoader';
+import { ProofImage } from './ProofImage';
 import { VoteCategory, Entry } from '../types/game';
 import { getVoteStandings } from '../services/voteService';
-import { collection, query, where, getDocs, limit, getDoc, doc } from 'firebase/firestore';
+import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Award, Check, FileCheck2, Lock, MapPin, Sparkles, Stamp, Ticket, Trophy } from 'lucide-react';
+import { Award, Check, Clock, FileCheck2, Lock, MapPin, Sparkles, Stamp, Ticket, Trophy } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { getServerDate } from '../services/timeService';
 import { getCurrentVotingCycle, getVotingPhase } from '../services/votingCycleService';
-import { getWeeklyBallotId, isWeeklyCandidateEligible } from '../logic/weeklyVoting';
+import { getWeeklyBallotEmptyCopy, isWeeklyCandidateEligible, type WeeklyBallotEmptyReason } from '../logic/weeklyVoting';
+import {
+  castCanonicalWeeklyVote,
+  loadWeeklyBallot,
+  type WeeklyBallotReadModel,
+} from '../services/weeklyVotingService';
 
 const CATEGORIES: { id: VoteCategory; label: string; description: string; awardLabel: string; awardCopy: string }[] = [
   { id: 'best_field_note', label: 'Best Field Note', description: 'Profound or evocative field commentary.', awardLabel: 'Best Supporting Evidence', awardCopy: 'For a field note, photo, or tiny detail doing the most.' },
@@ -57,7 +63,6 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
     user, currentWeekNumber, isWeekLocked, castVote, userVotes, activeSeason
   } = useApp();
 
-  const reduceMotion = useReducedMotion();
   const [selectedCategory, setSelectedCategory] = useState<VoteCategory>(CATEGORIES[0].id);
   const [eligibleEntries, setEligibleEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -68,6 +73,8 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
   const [isFilingVotes, setIsFilingVotes] = useState(false);
   const [filedCelebration, setFiledCelebration] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ballotReadModel, setBallotReadModel] = useState<WeeklyBallotReadModel | null>(null);
+  const [canonicalDraftProofIds, setCanonicalDraftProofIds] = useState<string[]>([]);
 
   const mapCandidateToEntry = (candidate: any): Entry => {
     const tripId = candidate.tripId || candidate.missionId || candidate.challengeId || '';
@@ -138,34 +145,16 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
         }
 
         const seasonId = activeSeason?.id || 'heatwave-receipts';
-        const ballotId = getWeeklyBallotId(seasonId, currentWeekNumber);
-        const ballotSnap = await getDoc(doc(db, 'weeklyBallots', ballotId));
-        let fetchedCandidates: Entry[] = [];
+        const ballotModel = await loadWeeklyBallot({
+          seasonId,
+          weekNumber: currentWeekNumber,
+          now: getServerDate(),
+          userId: user?.uid,
+        });
+        const fetchedCandidates = ballotModel.nominees.map(mapCandidateToEntry);
 
-        if (ballotSnap.exists()) {
-          const candidatesSnap = await getDocs(query(
-            collection(db, 'weeklyBallots', ballotId, 'candidates'),
-            limit(120)
-          ));
-          fetchedCandidates = candidatesSnap.docs
-            .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any))
-            .filter(candidate => candidate.entryId && candidate.userId && candidate.isEligible !== false && candidate.isDisqualified !== true)
-            .map(mapCandidateToEntry);
-        }
-
-        if (fetchedCandidates.length === 0) {
-          const q = query(
-            collection(db, 'ballotCandidates'),
-            where('weekNumber', '==', currentWeekNumber),
-            where('seasonId', '==', seasonId)
-          );
-          const snap = await getDocs(q);
-          fetchedCandidates = snap.docs
-            .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any))
-            .filter(candidate => candidate.entryId && candidate.userId)
-            .map(mapCandidateToEntry);
-        }
-
+        setBallotReadModel(ballotModel);
+        setCanonicalDraftProofIds(ballotModel.existingSelectedProofIds);
         setEligibleEntries(fetchedCandidates);
 
         if (isLocked) {
@@ -194,6 +183,7 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
       } catch (err) {
         console.error('Failed to fetch voting data:', err);
         setError('The ballot table jammed. Try refreshing in a minute.');
+        setBallotReadModel(null);
       } finally {
         setLoading(false);
       }
@@ -208,7 +198,6 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
   const filedVoteCount = CATEGORIES.filter(category => getVoteForCategory(category.id)).length;
   const draftVoteCount = CATEGORIES.filter(category => !getVoteForCategory(category.id) && draftVotes[category.id]).length;
   const filedOrDraftCount = filedVoteCount + draftVoteCount;
-  const remainingCount = Math.max(0, CATEGORIES.length - filedOrDraftCount);
   const allCategoriesReady = filedOrDraftCount === CATEGORIES.length;
   const hasDraftVotes = Object.keys(draftVotes).length > 0;
 
@@ -217,8 +206,56 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
     return isWeeklyCandidateEligible({ ...entry, categories, isEligible: true }, selectedCategory);
   }), [eligibleEntries, selectedCategory]);
 
+  const isCanonicalBallot = ballotReadModel?.source === 'canonical';
+  const canonicalMaxVotes = ballotReadModel?.maxVotesPerVoter || 3;
+  const canonicalVotableEntries = eligibleEntries.filter(entry => entry.userId !== user?.uid);
+  const canonicalExistingProofIds = ballotReadModel?.existingSelectedProofIds || [];
+  const canonicalHasChanges = [...canonicalDraftProofIds].sort().join('|') !== [...canonicalExistingProofIds].sort().join('|');
+  const displayedVoteCount = isCanonicalBallot ? canonicalDraftProofIds.length : filedOrDraftCount;
+  const displayedVoteLimit = isCanonicalBallot ? canonicalMaxVotes : CATEGORIES.length;
+  const displayedRemainingCount = Math.max(0, displayedVoteLimit - displayedVoteCount);
+
+  const toggleCanonicalProof = (entryId: string) => {
+    if (!isVotingOpen || !isCanonicalBallot) return;
+    setCanonicalDraftProofIds(previous => {
+      if (previous.includes(entryId)) return previous.filter(id => id !== entryId);
+      if (previous.length >= canonicalMaxVotes) return previous;
+      return [...previous, entryId];
+    });
+    setFiledCelebration(false);
+  };
+
+  const fileCanonicalBallot = async () => {
+    if (!user || !ballotReadModel || !isCanonicalBallot || !isVotingOpen || canonicalDraftProofIds.length === 0 || !canonicalHasChanges) return;
+    setIsFilingVotes(true);
+    setError(null);
+    try {
+      await castCanonicalWeeklyVote({
+        cycleId: ballotReadModel.lookup.cycleId,
+        ballotId: ballotReadModel.lookup.canonicalBallotId,
+        selectedProofIds: canonicalDraftProofIds,
+      });
+      setBallotReadModel(current => current ? {
+        ...current,
+        existingSelectedProofIds: [...canonicalDraftProofIds],
+      } : current);
+      setFiledCelebration(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'WEEKLY_VOTE_FAILED';
+      console.error('Canonical ballot filing failed:', err);
+      setError(message === 'SELF_VOTE_PROHIBITED'
+        ? 'You cannot vote for your own receipt.'
+        : message === 'VOTING_WINDOW_CLOSED' || message === 'BALLOT_NOT_OPEN'
+          ? 'The voting window is closed.'
+          : message === 'PROOF_NOT_IN_BALLOT'
+            ? 'One selection is no longer eligible. Refresh the ballot and try again.'
+            : 'Your ballot did not file. Please try again.');
+    } finally {
+      setIsFilingVotes(false);
+    }
+  };
+
   const votableCandidates = categoryEntries.filter(entry => entry.userId !== user?.uid);
-  const selectedEntryId = draftVotes[selectedCategory] || getVoteForCategory(selectedCategory)?.entryId || '';
   const selectDraftVote = (categoryId: VoteCategory, entryId: string) => {
     if (!isVotingOpen || getVoteForCategory(categoryId)) return;
     setDraftVotes(prev => ({ ...prev, [categoryId]: entryId }));
@@ -250,7 +287,20 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
     }
   };
 
-  if (currentWeekNumber <= 0) return null;
+  if (currentWeekNumber <= 0) {
+    const preseasonState = (
+      <div className="border-4 border-on-surface bg-[#fff7e8] p-8 text-center shadow-[8px_8px_0px_black]">
+        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border-4 border-on-surface bg-white shadow-[5px_5px_0px_black]">
+          <Clock className="h-10 w-10 text-brand-orange" />
+        </div>
+        <h3 className="mt-5 font-display text-4xl font-black italic uppercase tracking-tighter">Weekly voting is upcoming</h3>
+        <p className="mx-auto mt-2 max-w-md font-serif italic text-on-surface/65">
+          The active season has not started, or its configured dates are unavailable. No Week 1 ballot is assumed.
+        </p>
+      </div>
+    );
+    return noCard ? preseasonState : <Card className="bg-white p-4">{preseasonState}</Card>;
+  }
 
   const content = (
     <>
@@ -271,18 +321,34 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
               <p className="mt-3 font-serif text-lg sm:text-2xl italic text-on-surface/70">Hand out glory. Mildly judge your peers.</p>
             </div>
             <p className="font-mono text-[10px] sm:text-xs font-black uppercase tracking-widest text-brand-orange">
-              {phase === 'voting' ? 'Voting closes Saturday at 11:59 PM UTC' : phase === 'awards' ? 'Ballot box sealed. Results are being processed.' : 'The receipts are in. Ballot building is underway.'}
+              {phase === 'voting' ? 'Voting closes Saturday at 11:59 PM Pacific' : phase === 'awards' ? 'Ballot box sealed. Results are being processed.' : 'The receipts are in. Ballot building is underway.'}
             </p>
           </div>
 
           <div className="relative bg-white border-4 border-on-surface p-4 shadow-[8px_8px_0px_black] rotate-[-1deg] min-w-[250px]">
             <p className="font-mono text-[9px] font-black uppercase tracking-widest text-on-surface/40">Ballot Progress</p>
-            <p className="font-display text-4xl font-black italic uppercase leading-none mt-1">{filedOrDraftCount} / {CATEGORIES.length}</p>
+            <p className="font-display text-4xl font-black italic uppercase leading-none mt-1">{displayedVoteCount} / {displayedVoteLimit}</p>
             <p className="font-serif italic text-sm text-on-surface/60 mt-1">
-              {remainingCount === 0 ? 'Your ballot is ready.' : `${remainingCount} more legends to recognize.`}
+              {displayedRemainingCount === 0 ? 'Your ballot is ready.' : `${displayedRemainingCount} more legend${displayedRemainingCount === 1 ? '' : 's'} to recognize.`}
             </p>
-            <div className="mt-4 grid grid-cols-6 gap-1.5" aria-label={`${filedOrDraftCount} of ${CATEGORIES.length} awards filed`}>
-              {CATEGORIES.map(category => {
+            <div
+              className={cn("mt-4 grid gap-1.5", isCanonicalBallot ? "grid-cols-3" : "grid-cols-6")}
+              aria-label={`${displayedVoteCount} of ${displayedVoteLimit} ballot selections`}
+            >
+              {isCanonicalBallot
+                ? Array.from({ length: displayedVoteLimit }, (_, index) => (
+                  <div
+                    key={`canonical-slot-${index}`}
+                    className={cn(
+                      "h-10 border-2 border-on-surface shadow-[2px_2px_0px_black] flex items-center justify-center",
+                      index < displayedVoteCount ? "bg-brand-lime" : "bg-paper"
+                    )}
+                    aria-hidden="true"
+                  >
+                    {index < displayedVoteCount ? <Check className="h-4 w-4" /> : <Ticket className="h-4 w-4 opacity-30" />}
+                  </div>
+                ))
+                : CATEGORIES.map(category => {
                 const filed = !!getVoteForCategory(category.id);
                 const drafted = !!draftVotes[category.id];
                 return (
@@ -312,6 +378,23 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
           </div>
         )}
 
+        {isCanonicalBallot ? (
+          <CanonicalWeeklyBallot
+            model={ballotReadModel}
+            entries={canonicalVotableEntries}
+            selectedProofIds={canonicalDraftProofIds}
+            isLoading={loading}
+            isVotingOpen={isVotingOpen}
+            isLocked={isLocked}
+            isFilingVotes={isFilingVotes}
+            hasChanges={canonicalHasChanges}
+            filedCelebration={filedCelebration}
+            reactions={localReactions}
+            onReact={(entryId, reaction) => setLocalReactions(previous => ({ ...previous, [entryId]: reaction }))}
+            onToggle={toggleCanonicalProof}
+            onFile={fileCanonicalBallot}
+          />
+        ) : (
         <section className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
           <aside className="space-y-3">
             <p className="font-mono text-[10px] font-black uppercase tracking-[0.25em] text-on-surface/40">Award Booths</p>
@@ -367,10 +450,12 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
               />
             ) : isLocked ? (
               <ResultsState winners={winners} selectedCategory={selectedCategory} entries={eligibleEntries} />
+            ) : ballotReadModel?.reason && ballotReadModel.reason !== 'ready' ? (
+              <EmptyState reason={ballotReadModel.reason} />
             ) : !isVotingOpen ? (
               <ClosedState phase={phase} filedVoteCount={filedVoteCount} />
             ) : votableCandidates.length === 0 ? (
-              <EmptyState />
+              <EmptyState reason={eligibleEntries.length > 0 ? 'no_approved_nominees' : ballotReadModel?.reason} />
             ) : (
               <div className="grid grid-cols-1 xl:grid-cols-[1fr_310px] gap-6 items-start">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -410,6 +495,7 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
             )}
           </section>
         </section>
+        )}
 
         <footer className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {SUPERLATIVES.map((copy, idx) => (
@@ -430,6 +516,151 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
     </Card>
   );
 };
+
+function CanonicalWeeklyBallot({
+  model,
+  entries,
+  selectedProofIds,
+  isLoading,
+  isVotingOpen,
+  isLocked,
+  isFilingVotes,
+  hasChanges,
+  filedCelebration,
+  reactions,
+  onReact,
+  onToggle,
+  onFile,
+}: {
+  model: WeeklyBallotReadModel;
+  entries: Entry[];
+  selectedProofIds: string[];
+  isLoading: boolean;
+  isVotingOpen: boolean;
+  isLocked: boolean;
+  isFilingVotes: boolean;
+  hasChanges: boolean;
+  filedCelebration: boolean;
+  reactions: Record<string, string>;
+  onReact: (entryId: string, reaction: string) => void;
+  onToggle: (entryId: string) => void;
+  onFile: () => void;
+}) {
+  const filedProofIds = new Set(model.existingSelectedProofIds);
+  const selectionIsFull = selectedProofIds.length >= model.maxVotesPerVoter;
+  const hasExistingBallot = model.existingSelectedProofIds.length > 0;
+
+  if (isLoading) {
+    return (
+      <FieldtripLoader
+        variant="voting"
+        label="Opening Weekly Ballot"
+        estimatedStep="BALLOT BOX"
+        compact
+        showProgress
+      />
+    );
+  }
+
+  if (model.reason !== 'ready') {
+    return <EmptyState reason={model.reason} />;
+  }
+
+  if (isLocked || !isVotingOpen) {
+    return <ClosedState phase={isLocked ? 'awards' : 'submission'} filedVoteCount={model.existingSelectedProofIds.length} />;
+  }
+
+  if (entries.length === 0) {
+    return <EmptyState reason="no_approved_nominees" />;
+  }
+
+  return (
+    <section className="space-y-6">
+      <div className="relative overflow-hidden border-4 border-on-surface bg-paper p-5 shadow-[8px_8px_0px_black]">
+        <div className="absolute right-6 top-4 h-8 w-24 rotate-3 border border-brand-magenta/30 bg-brand-magenta/30" />
+        <div className="relative z-10 max-w-3xl">
+          <p className="font-mono text-[9px] font-black uppercase tracking-[0.25em] text-brand-orange">Community Weekly Ballot</p>
+          <h3 className="mt-2 font-display text-4xl font-black italic uppercase leading-none tracking-tighter sm:text-6xl">Choose up to {model.maxVotesPerVoter}</h3>
+          <p className="mt-2 font-serif italic text-on-surface/65">
+            Pick different approved receipts. You can update this ballot until Saturday at 11:59 PM Pacific. Self-votes are removed before display and rejected by the server.
+          </p>
+          <p className="mt-3 font-mono text-[9px] font-black uppercase tracking-widest text-on-surface/40">
+            Cycle {model.lookup.cycleId} // {model.nominees.length} frozen nominee{model.nominees.length === 1 ? '' : 's'}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_310px] xl:items-start">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {entries.map((candidate, index) => {
+            const entryId = String((candidate as any).entryId || candidate.id);
+            const selected = selectedProofIds.includes(entryId);
+            return (
+              <VoteReceiptCard
+                key={entryId}
+                entry={candidate}
+                category="best_photo_proof"
+                index={index}
+                selected={selected}
+                filed={selected && filedProofIds.has(entryId) && !hasChanges}
+                disabled={selectionIsFull && !selected}
+                reaction={reactions[entryId]}
+                onReact={reaction => onReact(entryId, reaction)}
+                onSelect={() => onToggle(entryId)}
+              />
+            );
+          })}
+        </div>
+
+        <aside className="sticky top-4 space-y-4">
+          <div className="border-4 border-on-surface bg-[#fff7e8] p-4 shadow-[8px_8px_0px_black]">
+            <p className="font-mono text-[9px] font-black uppercase tracking-[0.25em] text-brand-orange">Ballot Review</p>
+            <h4 className="mt-2 font-display text-4xl font-black italic uppercase leading-none">Your picks</h4>
+            <div className="mt-4 space-y-2">
+              {Array.from({ length: model.maxVotesPerVoter }, (_, index) => {
+                const entryId = selectedProofIds[index];
+                const entry = entries.find(candidate => String((candidate as any).entryId || candidate.id) === entryId);
+                return (
+                  <div key={`ballot-slot-${index}`} className="flex min-h-14 items-center gap-3 border-2 border-on-surface bg-white p-2 shadow-[2px_2px_0px_black]">
+                    <div className={cn("flex h-9 w-9 items-center justify-center border-2 border-on-surface", entry ? "bg-brand-lime" : "bg-paper")}>
+                      {entry ? <Check className="h-5 w-5" /> : <Ticket className="h-5 w-5 opacity-40" />}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-mono text-[8px] font-black uppercase tracking-widest text-on-surface/40">Pick {index + 1}</p>
+                      <p className="truncate font-display text-sm font-black italic uppercase">{entry ? getEntryDisplayName(entry) : 'Open slot'}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={onFile}
+              disabled={selectedProofIds.length === 0 || !hasChanges || isFilingVotes}
+              className={cn(
+                "mt-5 min-h-12 w-full border-4 border-on-surface px-4 py-3 font-display text-xl font-black italic uppercase shadow-[5px_5px_0px_black]",
+                selectedProofIds.length > 0 && hasChanges ? "bg-brand-lime text-on-surface" : "bg-white text-on-surface/35"
+              )}
+            >
+              {isFilingVotes ? 'Filing...' : hasExistingBallot ? 'Update My Ballot' : 'Submit My Ballot'}
+            </button>
+          </div>
+
+          {filedCelebration && (
+            <motion.div
+              initial={{ y: -8, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              className="border-4 border-on-surface bg-on-surface p-4 text-white shadow-[6px_6px_0px_var(--color-brand-lime)]"
+            >
+              <p className="font-display text-3xl font-black italic uppercase leading-none">Ballot filed.</p>
+              <p className="mt-2 font-serif italic text-white/70">Your picks are on record. You may update them until voting closes.</p>
+            </motion.div>
+          )}
+        </aside>
+      </div>
+    </section>
+  );
+}
 
 function VoteReceiptCard({
   entry,
@@ -453,7 +684,13 @@ function VoteReceiptCard({
   onSelect: () => void;
 }) {
   const reduceMotion = useReducedMotion();
-  const image = getEntryImage(entry);
+  const hasImage = !!(
+    getEntryImage(entry) ||
+    (entry as any).storagePath ||
+    (entry as any).photoStoragePath ||
+    (entry as any).imageStoragePath ||
+    (entry as any).proofStoragePath
+  );
   const missionTitle = getEntryMissionTitle(entry);
   const displayName = getEntryDisplayName(entry);
   const note = String((entry as any).fieldNote || '').trim();
@@ -465,8 +702,15 @@ function VoteReceiptCard({
     )}>
       <div className="absolute left-5 top-3 h-7 w-20 rotate-[-4deg] bg-brand-cyan/30 border border-brand-cyan/40 z-20" />
       <div className="relative aspect-[4/5] bg-on-surface overflow-hidden border-b-4 border-on-surface">
-        {image ? (
-          <img src={image} alt={`Proof submitted by ${displayName} for ${missionTitle}`} className="h-full w-full object-cover" />
+        {hasImage ? (
+          <ProofImage
+            entry={entry}
+            alt={`Proof submitted by ${displayName} for ${missionTitle}`}
+            className="h-full w-full"
+            objectFit="cover"
+            showMetadataStamp={false}
+            showDiagnosticsOverlay={false}
+          />
         ) : (
           <div className="h-full w-full flex items-center justify-center bg-on-surface text-white/50 font-mono text-xs uppercase">Missing image</div>
         )}
@@ -633,12 +877,13 @@ function ClosedState({ phase, filedVoteCount }: { phase: string; filedVoteCount:
   );
 }
 
-function EmptyState() {
+function EmptyState({ reason }: { reason?: WeeklyBallotEmptyReason }) {
+  const copy = getWeeklyBallotEmptyCopy(reason);
   return (
     <div className="border-4 border-dashed border-on-surface/20 bg-on-surface/[0.03] p-10 text-center">
       <Award className="mx-auto h-12 w-12 text-on-surface/25" />
-      <p className="mt-4 font-display text-2xl font-black italic uppercase text-on-surface/45">No eligible receipts here yet</p>
-      <p className="mt-2 font-serif italic text-on-surface/55">This category needs approved submissions from other agents before you can vote.</p>
+      <p className="mt-4 font-display text-2xl font-black italic uppercase text-on-surface/45">{copy.title}</p>
+      <p className="mt-2 font-serif italic text-on-surface/55">{copy.body}</p>
     </div>
   );
 }
