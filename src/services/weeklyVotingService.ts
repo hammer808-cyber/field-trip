@@ -159,7 +159,7 @@ export async function loadWeeklyBallot(params: {
   const currentCycle = getCurrentVotingCycle(now, FIELDTRIP_VOTING_TIMEZONE, seasonId);
 
   try {
-    const canonicalBallotRef = doc(db, ...lookup.canonicalBallotPath.split('/'));
+    const canonicalBallotRef = doc(db, lookup.canonicalBallotPath);
     const canonicalBallotSnap = await getDoc(canonicalBallotRef);
     if (canonicalBallotSnap.exists()) {
       const ballotData = canonicalBallotSnap.data();
@@ -170,7 +170,7 @@ export async function loadWeeklyBallot(params: {
           ? ballotData.eligibleProofIds.map(String)
           : []
       );
-      const nomineesSnap = await getDocs(collection(db, ...lookup.canonicalEntriesPath.split('/')));
+      const nomineesSnap = await getDocs(collection(db, lookup.canonicalEntriesPath));
       const nominees = nomineesSnap.docs
         .map(candidate => normalizeCandidate(candidate.id, candidate.data()))
         .filter(candidate =>
@@ -182,7 +182,7 @@ export async function loadWeeklyBallot(params: {
         );
       let existingSelectedProofIds: string[] = [];
       if (userId) {
-        const voteSnap = await getDoc(doc(db, ...lookup.canonicalBallotPath.split('/'), 'votes', userId));
+        const voteSnap = await getDoc(doc(db, `${lookup.canonicalBallotPath}/votes/${userId}`));
         if (voteSnap.exists()) {
           existingSelectedProofIds = Array.isArray(voteSnap.data().selectedProofIds)
             ? voteSnap.data().selectedProofIds.map(String)

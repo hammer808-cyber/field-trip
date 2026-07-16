@@ -21,6 +21,7 @@ const serverSource = readFileSync('server.ts', 'utf8');
 const adminModerationSource = readFileSync('src/pages/AdminModeration.tsx', 'utf8');
 const rulesSource = readFileSync('firestore.rules', 'utf8');
 const deckSource = readFileSync('src/pages/Deck.tsx', 'utf8');
+const missionLogbookSource = readFileSync('src/components/missions/MissionLogbookPanel.tsx', 'utf8');
 
 test('community feed accepts only approved public renderable entries', () => {
   const base = {
@@ -188,10 +189,10 @@ test('Community feed My Crew filter uses canonical crew eligibility helper', () 
 
 test('Logbook header reports state counts instead of active logs label', () => {
   assert.match(deckSource, /getProofLogbookCounts/);
-  assert.match(deckSource, /SUBMITTED/);
-  assert.match(deckSource, /VERIFIED/);
-  assert.match(deckSource, /PENDING/);
-  assert.doesNotMatch(deckSource, /ACTIVE LOGS/);
+  assert.match(missionLogbookSource, /submitted/i);
+  assert.match(missionLogbookSource, /verified/i);
+  assert.match(missionLogbookSource, /pending/i);
+  assert.doesNotMatch(missionLogbookSource, /ACTIVE LOGS/i);
 });
 
 test('Community proof card reuses private Sus endpoint and does not render pending labels', () => {

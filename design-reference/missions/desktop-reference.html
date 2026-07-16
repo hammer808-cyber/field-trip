@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BASECAMP | Premium Seasonal Hub</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Archivo+Narrow:wght@400;700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary": "#000000",
+                    "surface-variant": "#e2e2e2",
+                    "on-secondary-container": "#63635f",
+                    "inverse-on-surface": "#f0f1f1",
+                    "error-container": "#ffdad6",
+                    "surface-bright": "#f9f9f9",
+                    "on-secondary-fixed-variant": "#474744",
+                    "error": "#ba1a1a",
+                    "on-error-container": "#93000a",
+                    "inverse-primary": "#c6c6c6",
+                    "tertiary-fixed-dim": "#b8d300",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-fixed-variant": "#414c00",
+                    "outline": "#7e7576",
+                    "on-background": "#1a1c1c",
+                    "surface-container-highest": "#e2e2e2",
+                    "on-primary": "#ffffff",
+                    "surface-container-high": "#e8e8e8",
+                    "primary-fixed": "#e2e2e2",
+                    "surface-tint": "#5e5e5e",
+                    "on-secondary-fixed": "#1b1c19",
+                    "on-primary-fixed": "#1b1b1b",
+                    "inverse-surface": "#2f3131",
+                    "secondary-fixed-dim": "#c8c6c2",
+                    "secondary-fixed": "#e4e2dd",
+                    "on-secondary": "#ffffff",
+                    "on-error": "#ffffff",
+                    "secondary": "#5e5e5b",
+                    "tertiary-container": "#191e00",
+                    "secondary-container": "#e1dfdb",
+                    "primary-fixed-dim": "#c6c6c6",
+                    "tertiary-fixed": "#d2f000",
+                    "on-tertiary-container": "#7a8c00",
+                    "primary-container": "#1b1b1b",
+                    "on-surface": "#1a1c1c",
+                    "surface-dim": "#dadada",
+                    "surface-container-low": "#f3f3f4",
+                    "outline-variant": "#cfc4c5",
+                    "on-surface-variant": "#4c4546",
+                    "surface-container": "#eeeeee",
+                    "on-primary-fixed-variant": "#474747",
+                    "on-tertiary": "#ffffff",
+                    "on-tertiary-fixed": "#191e00",
+                    "surface": "#f9f9f9",
+                    "primary": "#000000",
+                    "on-primary-container": "#848484",
+                    "background": "#f9f9f9",
+                    "acid-lime": "#DFFF00"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "grid_unit": "4px",
+                    "stack_offset": "6px",
+                    "margin_mobile": "16px",
+                    "margin_desktop": "40px",
+                    "gutter": "12px"
+            },
+            "fontFamily": {
+                    "label-caps": ["Archivo Narrow"],
+                    "body-md": ["Space Mono"],
+                    "headline-lg": ["Anton"],
+                    "label-sm": ["Archivo Narrow"],
+                    "headline-xl": ["Anton"],
+                    "headline-md": ["Anton"],
+                    "body-lg": ["Space Mono"]
+            },
+            "fontSize": {
+                    "label-caps": ["12px", {"lineHeight": "1", "letterSpacing": "0.1em", "fontWeight": "700"}],
+                    "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "headline-lg": ["40px", {"lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "400"}],
+                    "label-sm": ["10px", {"lineHeight": "1", "fontWeight": "500"}],
+                    "headline-xl": ["64px", {"lineHeight": "1", "letterSpacing": "0.02em", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "1.1", "letterSpacing": "0.01em", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "1.5", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .graph-paper {
+            background-image: 
+                linear-gradient(to right, #e2e2e2 1px, transparent 1px),
+                linear-gradient(to bottom, #e2e2e2 1px, transparent 1px);
+            background-size: 16px 16px;
+        }
+        .block-shadow {
+            box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+        }
+        .block-shadow-hover:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px 0px rgba(0,0,0,1);
+        }
+        .block-shadow-active:active {
+            transform: translate(2px, 2px);
+            box-shadow: 0px 0px 0px 0px rgba(0,0,0,1);
+        }
+        .tape-accent {
+            background: rgba(223, 255, 0, 0.8);
+            transform: rotate(-2deg);
+        }
+        .progress-segment {
+            width: 12px;
+            height: 100%;
+            border-right: 2px solid #000;
+        }
+        .crooked-label {
+            transform: rotate(1.5deg);
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f9f9f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #000;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen selection:bg-acid-lime">
+<!-- TopAppBar -->
+<header class="bg-background w-full top-0 z-50 border-b-4 border-primary flex flex-col px-margin_desktop py-grid_unit shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] sticky">
+<div class="flex justify-between items-center w-full h-16">
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined text-primary hover:bg-tertiary hover:text-on-tertiary transition-colors p-2 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">menu</button>
+<h1 class="font-headline-xl text-headline-xl uppercase text-primary tracking-tighter">BASECAMP</h1>
+</div>
+<nav class="hidden md:flex gap-8 items-center">
+<a class="font-label-caps text-label-caps text-primary border-b-2 border-primary" href="#">BASECAMP</a>
+<a class="font-label-caps text-label-caps text-secondary hover:text-primary transition-colors" href="#">MISSIONS</a>
+<a class="font-label-caps text-label-caps text-secondary hover:text-primary transition-colors" href="#">VIEWFINDER</a>
+<a class="font-label-caps text-label-caps text-secondary hover:text-primary transition-colors" href="#">VOTING</a>
+<a class="font-label-caps text-label-caps text-secondary hover:text-primary transition-colors" href="#">BIG BOARD</a>
+</nav>
+<div class="flex items-center gap-4">
+<span class="font-label-caps text-label-caps bg-acid-lime px-2 py-1 border-2 border-primary block-shadow">S-04 ACTIVE</span>
+<button class="material-symbols-outlined text-primary hover:bg-tertiary hover:text-on-tertiary transition-colors p-2 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">account_circle</button>
+</div>
+</div>
+</header>
+<main class="max-w-[1440px] mx-auto p-margin_desktop grid grid-cols-12 gap-8 graph-paper min-h-screen">
+<!-- Left Side: Hero Section (Col 1-7) -->
+<div class="col-span-12 lg:col-span-7 flex flex-col gap-8">
+<section class="relative bg-surface border-4 border-primary p-8 block-shadow overflow-hidden group">
+<div class="absolute -top-2 -right-8 tape-accent px-12 py-2 font-label-caps text-label-caps text-primary uppercase border-2 border-primary z-10">
+                    Active Mission
+                </div>
+<div class="flex flex-col gap-6 relative z-0">
+<div class="flex justify-between items-start">
+<div>
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-widest mb-1 block">Objective: Operation Vanguard</span>
+<h2 class="font-headline-xl text-headline-xl text-primary leading-tight uppercase">TODAY'S MOVE</h2>
+</div>
+<div class="flex gap-2">
+<div class="w-12 h-12 border-2 border-primary bg-white flex items-center justify-center block-shadow">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">military_tech</span>
+</div>
+<div class="w-12 h-12 border-2 border-primary bg-white flex items-center justify-center block-shadow">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+</div>
+</div>
+<div class="w-full h-80 border-4 border-primary relative block-shadow">
+<img class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" data-alt="A gritty, high-contrast cinematic shot of a futuristic urban exploration camp at dusk. Neon yellow and deep black color palette inspired by tactical gear. The lighting is dramatic, highlighting metallic surfaces and high-tech equipment scattered on an old wooden table. Modern neo-brutalist aesthetic with sharp angles and clean, powerful composition." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAIXFFYpXiae7KmEt-hbfmeGEvYVKjfq4v9Bdcq1rGcbBbOLlRwrKrOeZCE9L9oCbyhVAbR_NkeqzXs8mMCS4jyu2Xq3NJF5yTUmgXvLOaF5AbJx28nRrd8TGGnwyYIfGi3lj-of-Qqoj0QNfS4aqMLDWceDY2KFQWARi2cfRSOb0JTdtUdURvWuvx-1_dTlICACZy3XksI1yxsRS7Z5f65jxY-Y5L1L_UaQXDmr8UF5GkTp4hMT9FWlg"/>
+<div class="absolute bottom-4 left-4 bg-primary text-white p-4 crooked-label border-2 border-acid-lime">
+<p class="font-body-md text-body-md">SQUAD GOAL: INFILTRATE SECTOR 7</p>
+</div>
+</div>
+<div class="flex flex-col gap-4">
+<div class="flex justify-between items-end">
+<h3 class="font-headline-md text-headline-md uppercase">WEEKLY XP</h3>
+<span class="font-body-md text-body-md">14,200 / 20,000</span>
+</div>
+<div class="h-8 border-4 border-primary bg-white flex block-shadow overflow-hidden">
+<div class="bg-acid-lime h-full flex" style="width: 71%;">
+<div class="progress-segment"></div>
+<div class="progress-segment"></div>
+<div class="progress-segment"></div>
+<div class="progress-segment"></div>
+<div class="progress-segment"></div>
+<div class="progress-segment"></div>
+<div class="progress-segment"></div>
+<div class="progress-segment"></div>
+<div class="progress-segment"></div>
+<div class="progress-segment"></div>
+<div class="progress-segment"></div>
+</div>
+</div>
+</div>
+<button class="w-full bg-acid-lime border-4 border-primary p-6 font-headline-md text-headline-md uppercase block-shadow block-shadow-hover block-shadow-active transition-all">
+                        Launch Mission Profile
+                    </button>
+</div>
+</section>
+</div>
+<!-- Right Side: Status & Feed (Col 8-12) -->
+<div class="col-span-12 lg:col-span-5 flex flex-col gap-8">
+<!-- Your Status -->
+<section class="bg-white border-4 border-primary p-6 block-shadow relative">
+<div class="absolute -top-3 left-4 bg-primary text-white px-3 py-1 font-label-caps text-label-caps">YOUR STATUS</div>
+<div class="flex items-center gap-6 mb-6 mt-2">
+<div class="relative">
+<div class="w-24 h-24 border-4 border-primary block-shadow overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional studio headshot of a person with a focused, determined expression, styled like a tactical identification badge. High contrast lighting with a subtle graph-paper background pattern. The aesthetic is clean, modern, and aligned with a premium gaming brand, using deep blacks and stark whites." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCLdgFgA5cb0VF-FCILT95EU-CymrUU03ybCDyb5mywr6JEtW4vKWR9gGu9fmnRjuWMCLzqRaCdnA9ATtvVYhWm6SnOD11EGlJAp4I_AOeG-BmLoTc2lqz1r6wxwM3K7Tr7DM6t185t8vqQtdkfL65R0cVZ5RaPI8ydbVpjPyqrjx8_5q2QuhJ7fq6Z7KTYvKpxdfQjZq36PjvTYLsPupbTRX44Of2JAdX8lQ60waqy2b0IB5XkgCFxMg"/>
+</div>
+<div class="absolute -bottom-2 -right-2 bg-acid-lime border-2 border-primary px-2 font-headline-md text-headline-md">12</div>
+</div>
+<div>
+<h4 class="font-headline-md text-headline-md uppercase">V. SOLOMON</h4>
+<p class="font-body-md text-body-md text-secondary">Elite Pathfinder III</p>
+<div class="flex gap-1 mt-2">
+<span class="w-3 h-3 bg-primary"></span>
+<span class="w-3 h-3 bg-primary"></span>
+<span class="w-3 h-3 bg-primary"></span>
+<span class="w-3 h-3 border-2 border-primary"></span>
+<span class="w-3 h-3 border-2 border-primary"></span>
+</div>
+</div>
+</div>
+<div class="border-t-2 border-primary pt-4 flex justify-between items-center">
+<span class="font-label-caps text-label-caps uppercase">Credential Progress</span>
+<span class="font-body-md text-body-md font-bold">88%</span>
+</div>
+</section>
+<!-- Crew League -->
+<section class="bg-surface border-4 border-primary block-shadow flex flex-col h-full overflow-hidden">
+<div class="p-4 bg-tertiary text-white flex justify-between items-center">
+<h4 class="font-label-caps text-label-caps uppercase tracking-widest">CREW LEAGUE STANDINGS</h4>
+<span class="material-symbols-outlined">leaderboard</span>
+</div>
+<div class="flex-grow p-4 space-y-3 overflow-y-auto max-h-[300px]">
+<div class="flex justify-between items-center p-3 border-2 border-primary bg-white block-shadow transition-transform hover:-translate-y-1">
+<div class="flex items-center gap-3">
+<span class="font-headline-md text-headline-md opacity-30">01</span>
+<span class="font-body-lg text-body-lg font-bold">APEX_PRED</span>
+</div>
+<span class="font-body-md text-body-md font-bold text-acid-lime bg-primary px-2">42.5K</span>
+</div>
+<div class="flex justify-between items-center p-3 border-2 border-primary bg-white block-shadow transition-transform hover:-translate-y-1">
+<div class="flex items-center gap-3">
+<span class="font-headline-md text-headline-md opacity-30">02</span>
+<span class="font-body-lg text-body-lg font-bold">GHOST_UNIT</span>
+</div>
+<span class="font-body-md text-body-md font-bold">40.1K</span>
+</div>
+<div class="flex justify-between items-center p-3 border-4 border-acid-lime bg-primary text-white block-shadow transition-transform hover:-translate-y-1">
+<div class="flex items-center gap-3">
+<span class="font-headline-md text-headline-md text-acid-lime">12</span>
+<span class="font-body-lg text-body-lg font-bold">YOUR_CREW</span>
+</div>
+<span class="font-body-md text-body-md font-bold">14.2K</span>
+</div>
+<div class="flex justify-between items-center p-3 border-2 border-primary bg-white block-shadow transition-transform hover:-translate-y-1 opacity-60">
+<div class="flex items-center gap-3">
+<span class="font-headline-md text-headline-md opacity-30">13</span>
+<span class="font-body-lg text-body-lg font-bold">NOMAD_SQUAD</span>
+</div>
+<span class="font-body-md text-body-md font-bold">12.9K</span>
+</div>
+</div>
+<button class="p-4 border-t-4 border-primary font-label-caps text-label-caps hover:bg-tertiary hover:text-white transition-colors uppercase">View Full Rankings</button>
+</section>
+<!-- Around Camp Feed -->
+<section class="bg-white border-4 border-primary p-6 block-shadow">
+<h4 class="font-headline-md text-headline-md uppercase mb-4 border-b-2 border-primary pb-2">AROUND CAMP</h4>
+<div class="space-y-4">
+<div class="flex gap-4">
+<div class="w-2 h-2 rounded-full bg-acid-lime mt-2 shrink-0"></div>
+<p class="font-body-md text-body-md leading-tight">
+<span class="font-bold">@MarcusV</span> just completed "The Long Walk" mission in Record Time.
+                        </p>
+</div>
+<div class="flex gap-4">
+<div class="w-2 h-2 rounded-full bg-primary mt-2 shrink-0"></div>
+<p class="font-body-md text-body-md leading-tight">
+<span class="font-bold">SYSTEM:</span> New voting mission "Project Skyline" is now live.
+                        </p>
+</div>
+<div class="flex gap-4">
+<div class="w-2 h-2 rounded-full bg-acid-lime mt-2 shrink-0"></div>
+<p class="font-body-md text-body-md leading-tight">
+<span class="font-bold">@Lunar_1</span> earned the "Night Crawler" Badge.
+                        </p>
+</div>
+</div>
+</section>
+</div>
+<!-- Footer Grid: Destination Cards -->
+<div class="col-span-12 mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+<a class="group relative h-64 border-4 border-primary block-shadow block-shadow-hover active:translate-x-[2px] active:translate-y-[2px] active:shadow-none overflow-hidden" href="#">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="A stylized aerial view of a futuristic mountain basecamp, featuring geometric tents and bright navigational beacons. The atmosphere is adventurous and energetic, with high-contrast sunlight and deep shadows. Neo-brutalist textures and a tactical field guide aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDoNcCoyCdq2--Ts3tet9XKW6eUZ8L522y68xwL6kwrMwckPcFP_yJ8vKi0wFKdmb2Hr9L2j2qoAqcre0i7x9dnCIlxhIgLgbTQMB2UQM7bIC5YW7tNwwA59lt0glsOtt56NU3AMWdoEfkR05ruSfHDc5etDk0kFdjwjtDEMTwToPbsg5PkaWOMDItPjd-ePdtcjfGUK_RWJoC0RbqsDl0imLDaEvUKSH56zDpbkuZMEwacoM9LAZpGpw"/>
+<div class="absolute inset-0 bg-primary/20 group-hover:bg-primary/0 transition-colors"></div>
+<div class="absolute bottom-6 left-6 flex flex-col items-start gap-2">
+<span class="bg-acid-lime text-primary px-3 py-1 font-label-caps text-label-caps border-2 border-primary block-shadow">GO NOW</span>
+<h3 class="bg-white text-primary p-3 font-headline-lg text-headline-lg border-2 border-primary block-shadow uppercase">MISSIONS</h3>
+</div>
+</a>
+<a class="group relative h-64 border-4 border-primary block-shadow block-shadow-hover active:translate-x-[2px] active:translate-y-[2px] active:shadow-none overflow-hidden" href="#">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="A close-up of a digital field logbook filled with stamps, technical drawings, and handwritten mission notes. The style is vintage tactile paper meets high-tech gaming interface. Dramatic lighting and rich paper textures, using the brand's signature black and white palette with neon lime accents." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCIRpQ5XLs2sIAsvwlEcvqzlK1ZjU0nym-tDy0qzqN2QnhsN2ww6td2zBn00WV_GU5EtXBK9KPg3TE2TU6C31xF2vjWSzYotswAlWb1FIr5AXEAqPYCBQsaJ0St8Va5ragt4pMcPAiZmE9ADKDFBAAUz2Erzo0j29yFyD8QeHH3CQbKjLe7ylVp4Az1pN8-zaEkOPpJow4gZHGpk-Sv9vTBaNN27SDxs1MO8kIDWoiXFQcyGmcg0il3Jg"/>
+<div class="absolute inset-0 bg-primary/20 group-hover:bg-primary/0 transition-colors"></div>
+<div class="absolute bottom-6 left-6 flex flex-col items-start gap-2">
+<span class="bg-acid-lime text-primary px-3 py-1 font-label-caps text-label-caps border-2 border-primary block-shadow">RECORDS</span>
+<h3 class="bg-white text-primary p-3 font-headline-lg text-headline-lg border-2 border-primary block-shadow uppercase">LOGBOOK</h3>
+</div>
+</a>
+<a class="group relative h-64 border-4 border-primary block-shadow block-shadow-hover active:translate-x-[2px] active:translate-y-[2px] active:shadow-none overflow-hidden" href="#">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="An abstract visualization of a high-tech voting terminal with glowing data segments and digital crowd silhouettes. The mood is powerful and democratic, using high-contrast black and white photography with vibrant neon highlights. A cinematic, editorial feel for a premium gaming experience." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD83cOQF0XujhVGPqjsNHaAcUaH-Y1iBIW6cXV2gpj6bPHtwDBCjjQZz_58vhXnl03HNcJgh7bV2A6ib0LWntfMVk4fL5sK8j-2WrnelX147bzen8IaxPphqTT7Q6ot9nSDKsm_-cNFuWY-0BVhVPBt0uS3Qrgcw9XGaNYctUpUJ7LQVj6A2HFg16XDJePQ5K0NQMFGGw-nRkP8yKlLLENa9vwbmLLwkNndB0DqD3F478L0hwrsEvxJug"/>
+<div class="absolute inset-0 bg-primary/20 group-hover:bg-primary/0 transition-colors"></div>
+<div class="absolute bottom-6 left-6 flex flex-col items-start gap-2">
+<span class="bg-acid-lime text-primary px-3 py-1 font-label-caps text-label-caps border-2 border-primary block-shadow">CHOOSE</span>
+<h3 class="bg-white text-primary p-3 font-headline-lg text-headline-lg border-2 border-primary block-shadow uppercase">VOTING</h3>
+</div>
+</a>
+</div>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-stretch h-16 bg-surface dark:bg-tertiary border-t-4 border-primary">
+<button class="flex flex-col items-center justify-center bg-tertiary text-on-tertiary p-2 h-full flex-1">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-caps text-label-caps">BASECAMP</span>
+</button>
+<button class="flex flex-col items-center justify-center text-primary p-2 flex-1">
+<span class="material-symbols-outlined">explore</span>
+<span class="font-label-caps text-label-caps">MISSIONS</span>
+</button>
+<button class="flex flex-col items-center justify-center text-primary p-2 flex-1">
+<span class="material-symbols-outlined">center_focus_strong</span>
+<span class="font-label-caps text-label-caps">FINDER</span>
+</button>
+<button class="flex flex-col items-center justify-center text-primary p-2 flex-1">
+<span class="material-symbols-outlined">how_to_vote</span>
+<span class="font-label-caps text-label-caps">VOTING</span>
+</button>
+<button class="flex flex-col items-center justify-center text-primary p-2 flex-1">
+<span class="material-symbols-outlined">leaderboard</span>
+<span class="font-label-caps text-label-caps">BOARD</span>
+</button>
+</nav>
+<footer class="bg-primary text-white p-margin_desktop mt-12">
+<div class="max-w-[1440px] mx-auto flex justify-between items-end">
+<div>
+<h2 class="font-headline-xl text-headline-xl tracking-tighter opacity-10">BASECAMP</h2>
+<p class="font-label-caps text-label-caps text-acid-lime">ESTABLISHED S-01 // DEPLOYED S-04</p>
+</div>
+<div class="flex gap-8">
+<div class="flex flex-col gap-2">
+<span class="font-label-sm text-label-sm text-on-primary-container">SYSTEM STATUS</span>
+<div class="flex gap-1">
+<div class="w-1 h-4 bg-acid-lime"></div>
+<div class="w-1 h-4 bg-acid-lime"></div>
+<div class="w-1 h-4 bg-acid-lime"></div>
+<div class="w-1 h-4 bg-acid-lime"></div>
+</div>
+</div>
+<div class="text-right">
+<p class="font-body-md text-body-md opacity-60">NORTH_SECTOR_7</p>
+<p class="font-body-md text-body-md opacity-60">V.2.4.0_CORE</p>
+</div>
+</div>
+</div>
+</footer>
+<script>
+        // Simple micro-interactions
+        document.querySelectorAll('button, a').forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                // Potential for sound effects or cursor changes
+            });
+        });
+
+        // Dynamic XP bar segment filler
+        const segments = document.querySelectorAll('.progress-segment');
+        segments.forEach((seg, i) => {
+            seg.style.opacity = '0';
+            setTimeout(() => {
+                seg.style.opacity = '1';
+                seg.style.transition = 'opacity 0.2s ease-out';
+            }, i * 50);
+        });
+    </script>
+</body></html>

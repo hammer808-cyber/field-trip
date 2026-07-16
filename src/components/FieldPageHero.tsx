@@ -25,6 +25,7 @@ export type FieldPageHeroProps = {
   tabs?: FieldPageHeroTab[];
   activeTab?: string;
   onTabChange?: (tabId: string) => void;
+  variant?: "default" | "editorial";
   className?: string;
 };
 
@@ -44,6 +45,7 @@ export function FieldPageHero({
   tabs = [],
   activeTab,
   onTabChange,
+  variant = "default",
   className
 }: FieldPageHeroProps) {
   const navigate = useNavigate();
@@ -63,6 +65,85 @@ export function FieldPageHero({
     blue: 'bg-brand-cyan text-on-surface',
     purple: 'bg-brand-purple text-white'
   };
+
+  if (variant === 'editorial') {
+    return (
+      <header className={cn(
+        'relative overflow-hidden border-b-4 border-[var(--skin-border)] bg-[var(--skin-surface)] px-4 pt-7 sm:px-6 sm:pt-9',
+        className,
+      )}>
+        <div className="absolute inset-0 pointer-events-none opacity-[var(--skin-texture-opacity)] [background-image:var(--skin-background-texture)]" />
+        {backgroundIcon && (
+          <div className="absolute -right-8 top-1/2 -translate-y-1/2 rotate-6 text-[var(--skin-text)] opacity-[0.045] pointer-events-none select-none">
+            {React.cloneElement(backgroundIcon as any, {
+              className: cn((backgroundIcon as any).props?.className, 'h-48 w-48 sm:h-56 sm:w-56'),
+            })}
+          </div>
+        )}
+
+        <div className="relative mx-auto max-w-6xl">
+          <div className="flex min-h-[132px] flex-col justify-end gap-5 pb-6 sm:min-h-[154px] sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
+              {backLabel && (
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  className="skin-button mb-5 flex min-h-11 items-center gap-2 border-2 border-[var(--skin-border)] bg-[var(--skin-text)] px-4 py-2 font-mono text-[9px] font-black uppercase tracking-widest text-[var(--skin-surface)] shadow-[3px_3px_0_var(--skin-primary)] focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[var(--skin-focus)]"
+                >
+                  <ChevronLeft size={17} aria-hidden="true" />
+                  {backLabel}
+                </button>
+              )}
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 bg-[var(--skin-secondary)] shadow-[2px_2px_0_var(--skin-border)]" />
+                <p className="font-mono text-[9px] font-black uppercase tracking-[0.24em] text-[var(--skin-text-muted)]">{eyebrow}</p>
+              </div>
+              <h1 className="mt-2 break-words font-display text-[clamp(3.75rem,13vw,6.5rem)] font-black uppercase italic leading-[0.78] tracking-normal text-[var(--skin-text)]">
+                {title}
+              </h1>
+              {subtitle && (
+                <p className="mt-3 max-w-xl border-l-4 border-[var(--skin-accent)] pl-3 text-sm italic leading-snug text-[var(--skin-text-muted)] sm:text-base">
+                  {subtitle}
+                </p>
+              )}
+            </div>
+
+            {infoCardLabel && (
+              <div className="flex shrink-0 items-center gap-3 self-start border-2 border-[var(--skin-border)] bg-[var(--skin-surface-muted)] px-3 py-2 shadow-[4px_4px_0_var(--skin-border)] sm:self-end">
+                <span className={cn('h-3 w-3 border-2 border-[var(--skin-border)]', accentColors[infoCardAccent])} aria-hidden="true" />
+                <div>
+                  <p className="font-mono text-[7px] font-black uppercase tracking-[0.2em] text-[var(--skin-text-muted)]">{infoCardLabel}</p>
+                  <div className="mt-0.5 font-display text-lg font-black uppercase italic leading-none tracking-normal text-[var(--skin-text)]">{infoCardValue}</div>
+                  {infoCardSubtext && <p className="mt-1 font-mono text-[7px] font-bold uppercase tracking-wider text-[var(--skin-text-muted)]">{infoCardSubtext}</p>}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {tabs.length > 0 && (
+            <div className="flex gap-1 overflow-x-auto no-scrollbar" role="tablist">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === tab.id}
+                  onClick={() => !tab.locked && onTabChange?.(tab.id)}
+                  disabled={tab.locked}
+                  className={cn(
+                    'min-h-11 shrink-0 border-2 border-b-0 border-[var(--skin-border)] px-4 py-2 font-display text-sm font-black uppercase italic tracking-normal',
+                    activeTab === tab.id ? 'bg-[var(--skin-secondary)] text-[var(--skin-on-secondary)]' : 'bg-[var(--skin-surface-muted)] text-[var(--skin-text-muted)]',
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className={cn(

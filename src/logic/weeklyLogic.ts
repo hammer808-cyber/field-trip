@@ -43,6 +43,7 @@ function toDate(value: DateLike): Date | null {
   if (typeof value === 'object' && typeof value.seconds === 'number') {
     return new Date(value.seconds * 1000);
   }
+  if (typeof value !== 'string' && typeof value !== 'number') return null;
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? date : null;
 }
@@ -118,7 +119,13 @@ export function getSeasonTiming(
   let weekEndsAt = new Date(Math.min(seasonEndMs, seasonStartMs + WEEK_MS - 1));
 
   if (sortedWeeks.length > 0) {
-    const activeIndex = sortedWeeks.findLastIndex(item => item.startsAt.getTime() <= nowMs);
+    let activeIndex = -1;
+    for (let index = sortedWeeks.length - 1; index >= 0; index -= 1) {
+      if (sortedWeeks[index].startsAt.getTime() <= nowMs) {
+        activeIndex = index;
+        break;
+      }
+    }
     if (activeIndex >= 0) {
       const activeBoundary = sortedWeeks[activeIndex];
       const nextBoundary = sortedWeeks[activeIndex + 1];
