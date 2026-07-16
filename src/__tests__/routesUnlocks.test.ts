@@ -8,6 +8,7 @@ const canonicalProgressSource = readFileSync('src/services/canonicalProgress.ts'
 const deckDiagnosticsSource = readFileSync('src/components/DeckDiagnosticsPanel.tsx', 'utf8');
 const bottomNavSource = readFileSync('src/components/BottomNav.tsx', 'utf8');
 const basecampSource = readFileSync('src/pages/Basecamp.tsx', 'utf8');
+const basecampCrewSource = readFileSync('src/components/basecamp/BasecampCrewSummary.tsx', 'utf8');
 const deckSource = readFileSync('src/pages/Deck.tsx', 'utf8');
 const appContextSource = readFileSync('src/context/AppContext.tsx', 'utf8');
 const rewardFeedbackSource = readFileSync('src/components/RewardFeedback.tsx', 'utf8');
@@ -58,7 +59,7 @@ test('Basecamp owns settings, admin, and pre-Starter Crew entry points', () => {
   assert.match(basecampSource, /navigate\('\/settings'\)/);
   assert.match(basecampSource, /Admin Console/);
   assert.doesNotMatch(basecampSource, /Crew Access Locked/);
-  assert.match(basecampSource, /Starter Signals still gates seasonal Crew proofs, memories, and zine eligibility/);
+  assert.match(basecampCrewSource, /Starter Signals still gates seasonal Crew proofs, memories, and zine eligibility/);
   assert.match(basecampSource, /navigate\('\/crew'\)/);
 });
 
