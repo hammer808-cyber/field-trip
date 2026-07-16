@@ -451,7 +451,7 @@ export default function DeckPage() {
   // Diagnostic Logs for Regression Repair
   useEffect(() => {
     if (activePackId === 'heatwave-receipts' || activePackId === 'starter-signals') {
-      console.log(`[Deck Diagnostics] ${activePackId}:`, {
+      console.log('[Deck Diagnostics] %s:', activePackId, {
         deckId: activePackId,
         approvedCount: approvedDeckChallengesCount,
         pendingCount: pendingDeckChallengesCount,
