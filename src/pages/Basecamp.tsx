@@ -1,5 +1,5 @@
 import React from 'react';
-import { Compass, Settings, Shield } from 'lucide-react';
+import { Compass, Grid3X3, Settings, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { BasecampAttentionPanel } from '../components/basecamp/BasecampAttentionPanel';
 import { BasecampBoard } from '../components/basecamp/BasecampBoard';
@@ -110,6 +110,14 @@ export default function Basecamp() {
       />
 
       <div className="mx-auto flex w-full max-w-7xl flex-wrap justify-end gap-3 px-4 pt-5 sm:px-6 lg:px-8">
+        <button
+          type="button"
+          onClick={() => navigate('/loteria')}
+          className="skin-button inline-flex min-h-11 items-center gap-2 border-2 border-[var(--skin-border)] bg-[var(--skin-accent)] px-4 py-2 font-mono text-[9px] font-black uppercase tracking-widest text-[var(--skin-on-accent)] shadow-[3px_3px_0_var(--skin-border)] focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)]"
+        >
+          <Grid3X3 size={16} aria-hidden="true" />
+          Loteria Board
+        </button>
         <button
           type="button"
           onClick={() => navigate('/settings')}
