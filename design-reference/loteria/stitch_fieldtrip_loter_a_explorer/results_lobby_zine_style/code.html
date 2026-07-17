@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Fieldtrip Lotería - Lobby</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Space+Grotesk:wght@400;700&amp;family=Inter:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "inverse-surface": "#303223",
+                    "secondary-fixed": "#ffd7f5",
+                    "secondary-fixed-dim": "#ffabf3",
+                    "tertiary": "#a23f00",
+                    "surface-container-lowest": "#ffffff",
+                    "outline-variant": "#c6c9ab",
+                    "on-tertiary": "#ffffff",
+                    "primary-fixed": "#d2f000",
+                    "on-secondary-container": "#500050",
+                    "on-tertiary-fixed-variant": "#7c2e00",
+                    "surface-dim": "#dbdbc6",
+                    "primary-container": "#dfff00",
+                    "outline": "#767960",
+                    "on-primary-fixed": "#191e00",
+                    "tertiary-fixed-dim": "#ffb595",
+                    "on-secondary-fixed": "#380038",
+                    "surface": "#fafbe5",
+                    "tertiary-fixed": "#ffdbcd",
+                    "on-secondary-fixed-variant": "#810081",
+                    "on-primary-fixed-variant": "#414c00",
+                    "inverse-primary": "#b8d300",
+                    "on-error-container": "#93000a",
+                    "secondary-container": "#fe00fe",
+                    "on-tertiary-fixed": "#351000",
+                    "surface-container-low": "#f5f5df",
+                    "error-container": "#ffdad6",
+                    "primary-fixed-dim": "#b8d300",
+                    "surface-container": "#efefd9",
+                    "on-surface-variant": "#454932",
+                    "error": "#ba1a1a",
+                    "tertiary-container": "#ffece5",
+                    "inverse-on-surface": "#f2f2dc",
+                    "secondary": "#a900a9",
+                    "on-tertiary-container": "#ba4900",
+                    "surface-variant": "#e3e4ce",
+                    "primary": "#576500",
+                    "on-background": "#1b1d10",
+                    "surface-bright": "#fafbe5",
+                    "on-surface": "#1b1d10",
+                    "on-error": "#ffffff",
+                    "surface-container-highest": "#e3e4ce",
+                    "on-primary": "#ffffff",
+                    "surface-tint": "#576500",
+                    "background": "#fafbe5",
+                    "surface-container-high": "#e9ead4",
+                    "on-secondary": "#ffffff",
+                    "on-primary-container": "#647400"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "grid-gutter": "12px",
+                    "card-padding": "16px",
+                    "screen-margin": "20px",
+                    "base": "8px"
+            },
+            "fontFamily": {
+                    "mono-data": ["Space Grotesk"],
+                    "label-sm": ["Space Grotesk"],
+                    "display-lg": ["Anton"],
+                    "headline-lg-mobile": ["Anton"],
+                    "card-title": ["Space Grotesk"],
+                    "body-md": ["Inter"],
+                    "headline-lg": ["Anton"]
+            },
+            "fontSize": {
+                    "mono-data": ["10px", {"lineHeight": "12px", "fontWeight": "400"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.1em", "fontWeight": "700"}],
+                    "display-lg": ["72px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "400"}],
+                    "headline-lg-mobile": ["36px", {"lineHeight": "32px", "fontWeight": "400"}],
+                    "card-title": ["18px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "500"}],
+                    "headline-lg": ["48px", {"lineHeight": "44px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .brutalist-border { border: 3px solid black; }
+        .brutalist-shadow-sm { box-shadow: 4px 4px 0px 0px rgba(0,0,0,1); }
+        .brutalist-shadow-md { box-shadow: 8px 8px 0px 0px rgba(0,0,0,1); }
+        .spray-highlight { position: relative; }
+        .spray-highlight::after {
+            content: '';
+            position: absolute;
+            width: 140%;
+            height: 120%;
+            background: radial-gradient(circle, rgba(255,100,0,0.6) 0%, rgba(255,100,0,0) 70%);
+            top: -10%;
+            left: -20%;
+            z-index: -1;
+            filter: blur(8px);
+        }
+        .cardboard-bg {
+            background-color: #c5a383;
+            background-image:
+                repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(0,0,0,0.05) 40px, rgba(0,0,0,0.05) 41px),
+                linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 2px;
+        }
+        .butcher-paper {
+            background-color: #fdf5e6;
+            background-image: url('https://www.transparenttextures.com/patterns/natural-paper.png');
+            transform: rotate(-1deg);
+        }
+        .stamped {
+            border: 4px double #810081;
+            color: #810081;
+            transform: rotate(-15deg);
+            font-family: 'Anton', sans-serif;
+            text-transform: uppercase;
+            padding: 4px 12px;
+            display: inline-block;
+            mix-blend-mode: multiply;
+        }
+        .marker-ready {
+            border: 4px solid #4ade80;
+            border-radius: 50% 45% 55% 48%;
+            position: relative;
+        }
+        @keyframes subtle-float {
+            0%, 100% { transform: translateY(0) rotate(-1deg); }
+            50% { transform: translateY(-5px) rotate(0deg); }
+        }
+        .float-paper { animation: subtle-float 4s ease-in-out infinite; }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen pb-24 overflow-x-hidden">
+<!-- Top Navigation Anchor -->
+<header class="flex justify-between items-center px-screen-margin w-full h-16 bg-surface border-b-3 border-black fixed top-0 z-50">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">menu</span>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-primary border-3 border-black uppercase tracking-tighter px-2">LOTERÍA</h1>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-on-surface">help_outline</span>
+</div>
+</header>
+<main class="mt-16 px-4 md:px-8 max-w-2xl mx-auto space-y-8 pt-8">
+<!-- Results Header Section -->
+<section class="relative text-center py-12">
+<div class="absolute inset-0 z-0 overflow-hidden">
+<div class="absolute top-10 left-10 w-32 h-32 bg-secondary-container opacity-20 blur-2xl rounded-full"></div>
+<div class="absolute bottom-10 right-10 w-48 h-48 bg-primary-container opacity-20 blur-3xl rounded-full"></div>
+</div>
+<div class="relative z-10">
+<div class="inline-block transform -rotate-3 mb-2">
+<h2 class="font-display-lg text-display-lg text-black leading-none spray-highlight">+500 PTS</h2>
+</div>
+<div class="flex justify-center items-center gap-4 mt-2">
+<div class="bg-black text-primary-fixed font-headline-lg-mobile text-headline-lg-mobile px-6 py-2 brutalist-border brutalist-shadow-sm uppercase">LEVEL UP</div>
+</div>
+</div>
+</section>
+<!-- Player Submission / Photo Section -->
+<section class="relative flex justify-center">
+<div class="w-72 h-96 bg-white brutalist-border p-3 brutalist-shadow-md transform rotate-2 relative">
+<div class="w-full h-full relative overflow-hidden bg-surface-variant">
+<img class="w-full h-full object-cover grayscale brightness-90" data-alt="A gritty high-contrast black and white street photograph of an urban alleyway with graffiti and old brick walls, styled like a vintage photocopy with visible grain and scanlines. A purple stamped graphic saying STAMPED is tilted at a 15-degree angle in the corner. Brutalist design aesthetic with heavy shadows and high-energy street art feel." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCOqYclTuQgYl41fMortfqowJ2V9bT2l4DmQI1myd6nm_s6yk-3pWUpjt40iaFUHz1A-ei_7e2EK1hLtmbuCduLl8n98H_BqblXCAAnSU5TJUNGNmb3Dtbif8HNf23db5-pdLUtBDmFWSNwa4CElhB0F0R3PGwp4KNpnIg6dFAnAgpTVhmlEMOclsmC3UkdJu49QnAIYmxgpMJ5adwpnSABx5qcb5y0bHL4KyAG8w1W0omr40CwEjOyjg"/>
+<!-- Stamped Overlay -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
+<div class="stamped text-3xl font-bold border-4 px-6 py-2 bg-white/10 backdrop-blur-[2px]">STAMPED</div>
+</div>
+<!-- Category Label -->
+<div class="absolute top-0 left-0 w-full h-8 bg-tertiary-container border-b-3 border-black flex items-center px-3">
+<span class="font-mono-data text-mono-data text-black">LT-092 // URBAN ARCHIVE</span>
+</div>
+</div>
+<!-- Card ID -->
+<div class="absolute bottom-2 right-4 font-mono-data text-on-surface-variant">PHOTO #4412-B</div>
+</div>
+</section>
+<!-- Multiplayer Lobby Section -->
+<section class="cardboard-bg brutalist-border p-6 mt-12 mb-20 space-y-6">
+<!-- Butcher Paper Wrapper -->
+<div class="butcher-paper brutalist-border p-6 brutalist-shadow-md float-paper">
+<div class="flex justify-between items-start mb-6">
+<div>
+<h3 class="font-headline-lg-mobile text-headline-lg-mobile text-black leading-tight uppercase">MULTIPLAYER LOBBY</h3>
+<p class="font-mono-data text-on-surface-variant mt-1">WAITING FOR EXPLORERS...</p>
+</div>
+<div class="bg-black text-white p-3 brutalist-border">
+<span class="font-mono-data text-xs block opacity-60">ROOM CODE</span>
+<span class="font-display-lg text-2xl tracking-widest">4X-LTRI</span>
+</div>
+</div>
+<!-- Players Grid -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+<!-- Player 1 (You) -->
+<div class="flex flex-col items-center">
+<div class="w-20 h-20 bg-white brutalist-border p-1 marker-ready mb-2 overflow-hidden rotate-[-2deg]">
+<img class="w-full h-full object-cover" data-alt="A stylized zine-style cutout illustration of a street photographer character wearing a bucket hat and carrying a vintage film camera. The artwork has a rough, hand-drawn aesthetic with bold black outlines and a grainy texture, set against a clean white background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSnBbwcFaueY1y7oUoc2Sw9yrRZk2KvRPvM0fRM8UQqD7dEBxqy87Apu42-Un2VzAygZgl-NqsZpzJvP2aI02CHGkP0pmW7kn2Q78zurwRz7WUyvMHZ3nzXji9rjeEFRP69OEIC7RYxPQHtZWfkPDJVOwyanq5GpqPakhmxDAocsb5gBHjNwikqm3vL6OMOfiR9-lKMlFIk-GD_UQXenlGFVanmBq6sMFGhXl0TqXEtF2k2bmr7QuZmw"/>
+</div>
+<span class="font-label-sm text-black">YOU (READY)</span>
+</div>
+<!-- Player 2 -->
+<div class="flex flex-col items-center">
+<div class="w-20 h-20 bg-white brutalist-border p-1 marker-ready mb-2 overflow-hidden rotate-[3deg]">
+<img class="w-full h-full object-cover" data-alt="A punk-rock style cutout character illustration of an urban explorer in a denim vest with patches. Bold black marker style drawing with photocopy textures. The character is looking through binoculars. Brutalist clean white background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCZDD63NqOEK374UfnP3tcNQP2wucChQeyS9DVBoUbcn2LF_JTd6lIBevCHahDcmUth1HPURdnDnMt8bMSTWnYIaeKdvlhzjdJo7bpRkGZaqD1TtWu31WKkCMm1rBLv9vSWmsSRoW4frhSOHFuX6Fi7mqZnjHqZ9Ln-0Zqf-On1bqRHT8QaYFouweucj5W7Ph-u_T89QRfsJCJK8SyKrkI9mgAl4p9XZZkmX-jJSYH52ObgHppaybWB1Q"/>
+</div>
+<span class="font-label-sm text-black">SKATER_P</span>
+</div>
+<!-- Player 3 (Not Ready) -->
+<div class="flex flex-col items-center opacity-60">
+<div class="w-20 h-20 bg-white brutalist-border p-1 mb-2 overflow-hidden rotate-[-1deg]">
+<img class="w-full h-full object-cover" data-alt="An edgy street art style character cutout of a graffiti artist with a face mask and hoodie, holding a spray can. Rough charcoal edges and high contrast ink style, on a flat white background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBWiEq30h1OxcSF9vR1IPIcKKR0y9Ct10qqMGjBUWQoPyOcMN1_9Ckv3LBDikZi97QVDDNVAoauSozggN8jgVKMyKZZ1cTde-QdS6ke_IE97C3vftrbOjZ19QXg7VXWn3Vfxh-ACi9AMq2CbAWm7KlJx7wXNmzfgHceXNM89xXwagSEQCCtWpfvgL8obt3_4aVsLeCcjV5lSgPWC-FDmwdhSigooHSHRn5qlMhbyAq6nnHKRJkzE_dBEA"/>
+</div>
+<span class="font-label-sm text-black">L-GHOST</span>
+</div>
+<!-- Empty Slot -->
+<div class="flex flex-col items-center border-2 border-dashed border-black/20 rounded-lg justify-center h-32">
+<span class="material-symbols-outlined text-4xl text-black/20">add</span>
+<span class="font-mono-data text-black/20">INVITE</span>
+</div>
+</div>
+</div>
+<!-- Start Button -->
+<div class="flex justify-center pt-4">
+<button class="group relative px-10 py-6 bg-primary-fixed border-3 border-black brutalist-shadow-md active:translate-x-1 active:translate-y-1 active:shadow-none transition-all flex items-center gap-4">
+<span class="font-display-lg text-4xl text-black uppercase">START GAME</span>
+<span class="material-symbols-outlined text-4xl text-black" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+<!-- Hidden Offset for Hover effect via CSS but handled by brutalist-shadow-md -->
+</button>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation Shell -->
+<nav class="fixed bottom-0 w-full z-50 bg-white border-t-4 border-black h-20 px-2 pb-2 flex justify-around items-center">
+<!-- HOME -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container p-2 transition-all" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-sm text-label-sm">HOME</span>
+</a>
+<!-- BOARDS -->
+<a class="flex flex-col items-center justify-center text-tertiary font-bold scale-110 p-2" href="#">
+<span class="material-symbols-outlined">grid_view</span>
+<span class="font-label-sm text-label-sm">BOARDS</span>
+</a>
+<!-- CAMERA (Center Action) -->
+<div class="bg-gradient-to-tr from-primary to-secondary rounded-full -mt-8 border-3 border-black p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:scale-105 transition-transform cursor-pointer">
+<span class="material-symbols-outlined text-white text-3xl" style="font-variation-settings: 'FILL' 1;">photo_camera</span>
+</div>
+<!-- MEMORIES -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container p-2 transition-all" href="#">
+<span class="material-symbols-outlined">auto_awesome_motion</span>
+<span class="font-label-sm text-label-sm">MEMORIES</span>
+</a>
+<!-- PROFILE -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container p-2 transition-all" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-sm text-label-sm">PROFILE</span>
+</a>
+</nav>
+<!-- Interactive Layer for Micro-interactions -->
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const startBtn = document.querySelector('button');
+            startBtn.addEventListener('click', () => {
+                startBtn.classList.add('bg-secondary-container');
+                setTimeout(() => {
+                    startBtn.classList.remove('bg-secondary-container');
+                }, 200);
+            });
+
+            // Random rotation for some elements to feel "messy"
+            const players = document.querySelectorAll('.butcher-paper .w-20');
+            players.forEach(p => {
+                const rot = (Math.random() * 4 - 2).toFixed(1);
+                p.style.transform = `rotate(${rot}deg)`;
+            });
+        });
+    </script>
+</body></html>

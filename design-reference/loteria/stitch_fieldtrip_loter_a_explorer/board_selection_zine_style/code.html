@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>LOTERÍA - Board Selection (ZINE EDITION)</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Space+Grotesk:wght@400;700&amp;family=Inter:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-fixed": "#351000",
+                    "secondary-container": "#fe00fe",
+                    "on-error-container": "#93000a",
+                    "inverse-primary": "#b8d300",
+                    "on-secondary-fixed-variant": "#810081",
+                    "on-primary-fixed-variant": "#414c00",
+                    "tertiary-container": "#ffece5",
+                    "surface-container": "#efefd9",
+                    "on-surface-variant": "#454932",
+                    "error": "#ba1a1a",
+                    "primary-fixed-dim": "#b8d300",
+                    "error-container": "#ffdad6",
+                    "surface-container-low": "#f5f5df",
+                    "on-background": "#1b1d10",
+                    "surface-variant": "#e3e4ce",
+                    "primary": "#576500",
+                    "on-tertiary-container": "#ba4900",
+                    "secondary": "#a900a9",
+                    "inverse-on-surface": "#f2f2dc",
+                    "on-primary-container": "#647400",
+                    "surface-container-high": "#e9ead4",
+                    "on-secondary": "#ffffff",
+                    "background": "#fafbe5",
+                    "surface-tint": "#576500",
+                    "on-primary": "#ffffff",
+                    "surface-container-highest": "#e3e4ce",
+                    "surface-bright": "#fafbe5",
+                    "on-surface": "#1b1d10",
+                    "on-error": "#ffffff",
+                    "outline-variant": "#c6c9ab",
+                    "surface-container-lowest": "#ffffff",
+                    "tertiary": "#a23f00",
+                    "secondary-fixed-dim": "#ffabf3",
+                    "secondary-fixed": "#ffd7f5",
+                    "inverse-surface": "#303223",
+                    "on-tertiary-fixed-variant": "#7c2e00",
+                    "on-secondary-container": "#500050",
+                    "primary-fixed": "#d2f000",
+                    "on-tertiary": "#ffffff",
+                    "tertiary-fixed-dim": "#ffb595",
+                    "outline": "#767960",
+                    "on-primary-fixed": "#191e00",
+                    "primary-container": "#dfff00",
+                    "surface-dim": "#dbdbc6",
+                    "tertiary-fixed": "#ffdbcd",
+                    "surface": "#fafbe5",
+                    "on-secondary-fixed": "#380038",
+                    "safety-orange": "#FF6B00"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "screen-margin": "20px",
+                    "base": "8px",
+                    "grid-gutter": "12px",
+                    "card-padding": "16px"
+            },
+            "fontFamily": {
+                    "headline-lg-mobile": ["Anton"],
+                    "mono-data": ["Space Grotesk"],
+                    "label-sm": ["Space Grotesk"],
+                    "display-lg": ["Anton"],
+                    "body-md": ["Inter"],
+                    "card-title": ["Space Grotesk"],
+                    "headline-lg": ["Anton"]
+            },
+            "fontSize": {
+                    "headline-lg-mobile": ["36px", {"lineHeight": "32px", "fontWeight": "400"}],
+                    "mono-data": ["10px", {"lineHeight": "12px", "fontWeight": "400"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.1em", "fontWeight": "700"}],
+                    "display-lg": ["72px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "400"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "500"}],
+                    "card-title": ["18px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "headline-lg": ["48px", {"lineHeight": "44px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #e5e5e5;
+            background-image:
+                radial-gradient(#999 1px, transparent 1px),
+                linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px);
+            background-size: 20px 20px, 40px 40px;
+        }
+        .cardboard-texture {
+            background-color: #c5a47e;
+            background-image: url("https://www.transparenttextures.com/patterns/cardboard.png");
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.1);
+        }
+        .marker-border {
+            border: 3px solid #1b1d10;
+            border-radius: 2px 5px 3px 6px / 5px 3px 6px 2px;
+        }
+        .marker-underline {
+            position: relative;
+        }
+        .marker-underline::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            background: #FF6B00;
+            z-index: -1;
+            transform: rotate(-1deg);
+            opacity: 0.8;
+        }
+        .tape-top {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%) rotate(-2deg);
+            width: 60px;
+            height: 24px;
+            background: rgba(255,255,255,0.4);
+            backdrop-filter: blur(1px);
+            border: 1px solid rgba(0,0,0,0.05);
+            z-index: 10;
+        }
+        .sticker-badge {
+            background: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.2);
+            position: relative;
+            transform: rotate(2deg);
+        }
+        .sticker-badge::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url("https://www.transparenttextures.com/patterns/p6.png");
+            opacity: 0.3;
+            pointer-events: none;
+        }
+        .brutalist-card {
+            box-shadow: 6px 6px 0px 0px rgba(0,0,0,1);
+            transition: all 0.1s ease;
+        }
+        .brutalist-card:active {
+            transform: translate(3px, 3px);
+            box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+        }
+        .sticker-rotate-1 { transform: rotate(-1.5deg); }
+        .sticker-rotate-2 { transform: rotate(1.2deg); }
+        .marker-scribble {
+            font-family: 'Permanent Marker', cursive;
+        }
+    </style>
+<style>
+        body {
+          min-height: max(884px, 100dvh);
+        }
+    </style>
+</head>
+<body class="min-h-screen font-body-md text-on-surface">
+<!-- TopAppBar -->
+<header class="bg-white border-b-4 border-black fixed top-0 left-0 right-0 z-50 h-16 flex justify-between items-center px-screen-margin">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-black text-2xl">menu</span>
+</div>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-black uppercase tracking-tighter marker-underline">LOTERÍA</h1>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-black text-2xl">help_outline</span>
+</div>
+</header>
+<main class="pt-24 pb-32 px-screen-margin max-w-xl mx-auto">
+<!-- Section Title -->
+<div class="mb-10 sticker-rotate-1 flex flex-col items-start">
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-black uppercase bg-safety-orange px-4 py-1 marker-border">PICK YOUR BOARD</h2>
+<p class="font-mono-data text-xs mt-2 uppercase tracking-widest text-black/60">Issue #04 // Underground Edition</p>
+</div>
+<!-- Board List -->
+<div class="space-y-12">
+<!-- Starter Lotería -->
+<section class="brutalist-card cardboard-texture marker-border overflow-hidden sticker-rotate-2 group cursor-pointer relative">
+<div class="h-10 bg-black flex items-center justify-between px-4 border-b-3 border-black">
+<span class="font-mono-data text-mono-data text-white">CAT-001</span>
+<span class="font-label-sm text-label-sm text-safety-orange uppercase font-bold">RAW / BASIC</span>
+</div>
+<div class="flex flex-col">
+<div class="p-4">
+<div class="relative w-full aspect-[4/3] marker-border overflow-hidden bg-white shadow-inner">
+<div class="tape-top"></div>
+<div class="w-full h-full bg-cover bg-center grayscale contrast-125" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBpOq_WbIUp7-Z5O2YZPPmPDQe3YtYgqXw_J8ROfS65--vsenyHLMNA0XbQ6DXi3WscipqiLiBBbZULVvFcFsLAsVxeTX49sjRsP9Tm4OXI8FuiOI0mguPYN57RmGW4r4GTjUvLUGbjsEtYweL8YcfTFSE0SsLJJntWQc91M29VJrUf_xwGy0FT-k55pJfGzYWPgKf0crQRRGoCMa8-SxAxvUulW3wTPhPZE9iazvWFGE-lQCirceDx6A')"></div>
+<div class="absolute inset-0 bg-safety-orange/10 mix-blend-multiply"></div>
+</div>
+</div>
+<div class="px-card-padding pb-card-padding">
+<h3 class="font-card-title text-2xl text-black mb-1 uppercase tracking-tighter">Starter Lotería</h3>
+<p class="text-sm text-black/80 mb-4 font-body-md border-l-4 border-black pl-3 py-1">The classic experience. Perfect for a quick afternoon session.</p>
+<div class="flex flex-wrap gap-4 items-end">
+<div class="flex flex-col sticker-badge">
+<span class="text-[10px] font-bold uppercase text-black/60">Grid</span>
+<span class="font-mono-data text-base font-bold">3x3</span>
+</div>
+<div class="flex flex-col sticker-badge -rotate-1">
+<span class="text-[10px] font-bold uppercase text-black/60">Difficulty</span>
+<div class="flex gap-0.5 text-black">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+</div>
+</div>
+<div class="flex flex-col ml-auto sticker-badge rotate-3">
+<span class="text-[10px] font-bold uppercase text-black/60 text-right">Rewards</span>
+<div class="flex gap-1">
+<span class="material-symbols-outlined text-xl text-black">emoji_emotions</span>
+<span class="material-symbols-outlined text-xl text-black">local_activity</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Summer After Dark -->
+<section class="brutalist-card bg-[#222] marker-border overflow-hidden sticker-rotate-1 group cursor-pointer relative">
+<div class="h-10 bg-safety-orange flex items-center justify-between px-4 border-b-3 border-black">
+<span class="font-mono-data text-mono-data text-black font-bold">X-666</span>
+<span class="font-label-sm text-label-sm text-black uppercase font-bold">NOCTURNAL</span>
+</div>
+<div class="flex flex-col">
+<div class="p-4">
+<div class="relative w-full aspect-[4/3] marker-border overflow-hidden bg-black">
+<div class="tape-top !bg-yellow-100/30"></div>
+<div class="w-full h-full bg-cover bg-center saturate-200 contrast-150" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAcDdvDk1mAFb1-CoFx6uNf68iJkm526ZrFLNYVihu1exvrQ208JJCj-55e-178LyoNwL-Oobvq-TZl7eXO0arY4ImeJreqyaFLWyjXvo10j59v8_AG2oZ9t_fUjqfcA9Hadk2mMYbbb3tQB4c9Dj1qCq_ouWTwvCP0gryzf9jtCE1N02Ce1nvtYUX7uEmkhkpvg4bsraKi1wgbjCdkPmtk1_vbRXrPG17P-gI4lnCzmyp0VNzKv19Zjg')"></div>
+<div class="absolute inset-0 bg-gradient-to-b from-transparent to-black/60"></div>
+</div>
+</div>
+<div class="px-card-padding pb-card-padding text-white">
+<h3 class="font-card-title text-2xl text-safety-orange mb-1 uppercase italic tracking-tighter">Summer After Dark</h3>
+<p class="text-sm text-gray-400 mb-4 font-body-md border-l-4 border-safety-orange pl-3 py-1">High stakes and neon nights. Things get weird when the sun goes down.</p>
+<div class="flex flex-wrap gap-4 items-end">
+<div class="flex flex-col sticker-badge !bg-black text-white border border-white/20">
+<span class="text-[10px] font-bold uppercase text-gray-500">Grid</span>
+<span class="font-mono-data text-base font-bold">5x5</span>
+</div>
+<div class="flex flex-col sticker-badge !bg-black text-white border border-white/20 rotate-1">
+<span class="text-[10px] font-bold uppercase text-gray-500">Difficulty</span>
+<div class="flex gap-0.5 text-safety-orange">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1">star</span>
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1">star</span>
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1">star</span>
+</div>
+</div>
+<div class="flex flex-col ml-auto sticker-badge !bg-black text-white border border-white/20 -rotate-2">
+<span class="text-[10px] font-bold uppercase text-gray-500 text-right">Rewards</span>
+<div class="flex gap-1">
+<span class="material-symbols-outlined text-xl text-safety-orange">auto_awesome</span>
+<span class="material-symbols-outlined text-xl text-safety-orange">nightlight</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Errand Chaos -->
+<section class="brutalist-card cardboard-texture marker-border overflow-hidden group cursor-pointer relative">
+<div class="h-10 bg-black flex items-center justify-between px-4 border-b-3 border-black">
+<span class="font-mono-data text-mono-data text-white">TRASH-042</span>
+<span class="font-label-sm text-label-sm text-safety-orange uppercase font-bold">DAILY GRIND</span>
+</div>
+<div class="flex flex-col">
+<div class="p-4">
+<div class="relative w-full aspect-[4/3] marker-border overflow-hidden bg-white shadow-lg">
+<div class="tape-top !rotate-3"></div>
+<div class="w-full h-full bg-cover bg-center grayscale brightness-90 contrast-150" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDt7gl5AkKg73sVauNQPrw-CrDzIRlPBosomjQWOj2G0I1GtgKPUvXuD8aGGucb5uUFPVGXn8t7W5guFJP2TVCgcgVpW1Ix7_owAddLZ-10PA_GB6jHg3gR4pJWMsBjjOuqLWT7t3-pu5HjvJCz-jPLx-Bh7K9OeLatRbfSFZo9ty3IG7sHDPCwCAL6ElT2EbcQB-Fi68rFiJEcAaUPzF8kfIcwEuXOnjHx6jEUEJ1kE_nQ0rX5UiF9VQ')"></div>
+<div class="absolute bottom-2 right-2 bg-black text-white px-2 py-0.5 text-[10px] font-bold uppercase">X-RAY LOOK</div>
+</div>
+</div>
+<div class="px-card-padding pb-card-padding">
+<h3 class="font-card-title text-2xl text-black mb-1 uppercase tracking-tighter">Errand Chaos</h3>
+<p class="text-sm text-black/80 mb-4 font-body-md border-l-4 border-black pl-3 py-1">Turn your weekly grocery run into a competitive sport. Don't forget the eggs.</p>
+<div class="flex flex-wrap gap-4 items-end">
+<div class="flex flex-col sticker-badge rotate-1">
+<span class="text-[10px] font-bold uppercase text-black/60">Grid</span>
+<span class="font-mono-data text-base font-bold">4x4</span>
+</div>
+<div class="flex flex-col sticker-badge -rotate-2">
+<span class="text-[10px] font-bold uppercase text-black/60">Difficulty</span>
+<div class="flex gap-0.5 text-black">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1">star</span>
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+</div>
+</div>
+<div class="flex flex-col ml-auto sticker-badge rotate-1">
+<span class="text-[10px] font-bold uppercase text-black/60 text-right">Rewards</span>
+<div class="flex gap-1">
+<span class="material-symbols-outlined text-xl text-black">shopping_bag</span>
+<span class="material-symbols-outlined text-xl text-black">receipt_long</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Mall Rat Special -->
+<section class="brutalist-card bg-white marker-border overflow-hidden sticker-rotate-2 group cursor-pointer relative">
+<div class="h-10 bg-secondary flex items-center justify-between px-4 border-b-3 border-black">
+<span class="font-mono-data text-mono-data text-white">RE-199</span>
+<span class="font-label-sm text-label-sm text-white uppercase font-bold">RE-ENTRY</span>
+</div>
+<div class="flex flex-col">
+<div class="p-4">
+<div class="relative w-full aspect-[4/3] marker-border overflow-hidden bg-white">
+<div class="tape-top !bg-pink-100/50"></div>
+<div class="w-full h-full bg-cover bg-center contrast-125 brightness-110 saturate-50" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAVmgEuTl1nF8tCPeznf-3c4qHfUGGe05sJCKjangfjztMiRh7AJ6Y1tdMZdWTWCxTZCAAI1xRhY8Z-Q_3fRD-tXsWy0RAl2aZR_oJKq1J8HajJYPFGKstKgaZYokA1U4srU_w58sQtiz0vA9N_f_ZD5yapkGwIiwkZlrsdR5Xk-eFPfBmop5MQfRHSUH2PkXuqd_wLaXBUIhza23SpKEiZ3kfLw-ld2B4i4EC9Qx4sM0rWeOOIsPTV5Q')"></div>
+<div class="absolute inset-0 border-[10px] border-white pointer-events-none"></div>
+</div>
+</div>
+<div class="px-card-padding pb-card-padding">
+<h3 class="font-card-title text-2xl text-black mb-1 uppercase tracking-tighter">Mall Rat Special</h3>
+<p class="text-sm text-black/70 mb-4 font-body-md border-l-4 border-secondary pl-3 py-1">Capture the aesthetic of the local food court. High school nostalgia included.</p>
+<div class="flex flex-wrap gap-4 items-end">
+<div class="flex flex-col sticker-badge !bg-secondary text-white -rotate-1">
+<span class="text-[10px] font-bold uppercase text-white/70">Grid</span>
+<span class="font-mono-data text-base font-bold">3x3</span>
+</div>
+<div class="flex flex-col sticker-badge !bg-secondary text-white rotate-2">
+<span class="text-[10px] font-bold uppercase text-white/70">Difficulty</span>
+<div class="flex gap-0.5 text-white">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+</div>
+</div>
+<div class="flex flex-col ml-auto sticker-badge !bg-secondary text-white -rotate-2">
+<span class="text-[10px] font-bold uppercase text-white/70 text-right">Rewards</span>
+<div class="flex gap-1">
+<span class="material-symbols-outlined text-xl text-white">fastfood</span>
+<span class="material-symbols-outlined text-xl text-white">confirmation_number</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Start Button -->
+<div class="mt-16 mb-20 flex justify-center">
+<button class="bg-safety-orange text-black marker-border px-12 py-5 shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all font-headline-lg-mobile text-headline-lg-mobile uppercase italic tracking-widest">
+                START HUNT
+        </button>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="bg-white border-t-4 border-black fixed bottom-0 w-full z-50 h-20 px-2 pb-2 flex justify-around items-center">
+<!-- Home -->
+<a class="flex flex-col items-center justify-center text-black/50 hover:bg-gray-100 p-2 rounded transition-all" href="#">
+<span class="material-symbols-outlined text-2xl">home</span>
+<span class="font-label-sm text-[10px]">HOME</span>
+</a>
+<!-- Boards -->
+<a class="flex flex-col items-center justify-center text-safety-orange font-bold scale-110 p-2 rounded transition-all" href="#">
+<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1">grid_view</span>
+<span class="font-label-sm text-[10px]">BOARDS</span>
+</a>
+<!-- Camera (FAB) -->
+<div class="bg-black rounded-none -mt-8 marker-border p-4 shadow-[6px_6px_0px_0px_#FF6B00] cursor-pointer active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-3xl text-white" style="font-variation-settings: 'FILL' 1">photo_camera</span>
+</div>
+<!-- Memories -->
+<a class="flex flex-col items-center justify-center text-black/50 hover:bg-gray-100 p-2 rounded transition-all" href="#">
+<span class="material-symbols-outlined text-2xl">auto_awesome_motion</span>
+<span class="font-label-sm text-[10px]">MEMORIES</span>
+</a>
+<!-- Profile -->
+<a class="flex flex-col items-center justify-center text-black/50 hover:bg-gray-100 p-2 rounded transition-all" href="#">
+<span class="material-symbols-outlined text-2xl">person</span>
+<span class="font-label-sm text-[10px]">PROFILE</span>
+</a>
+</nav>
+<script>
+    // Selection interaction
+    const cards = document.querySelectorAll('.brutalist-card');
+    cards.forEach(card => {
+        card.addEventListener('click', () => {
+            cards.forEach(c => {
+                c.classList.remove('ring-4', 'ring-safety-orange', 'scale-[1.02]');
+                c.style.transform = '';
+            });
+            card.classList.add('ring-4', 'ring-safety-orange', 'scale-[1.02]');
+
+            // Trigger feedback on start button
+            const btn = document.querySelector('button');
+            btn.classList.add('animate-pulse');
+            setTimeout(() => btn.classList.remove('animate-pulse'), 1000);
+        });
+    });
+</script>
+</body></html>
