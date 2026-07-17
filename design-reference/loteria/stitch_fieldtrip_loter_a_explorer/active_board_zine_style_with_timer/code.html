@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>LOTERÍA - Street Art Zine</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Inter:wght@400;500;700&amp;family=Space+Grotesk:wght@400;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Anton:wght@100..900&amp;family=Inter:wght@100..900&amp;family=Space+Grotesk:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-fixed": "#d2f000",
+                        "on-primary-fixed-variant": "#414c00",
+                        "primary-container": "#dfff00",
+                        "surface-container-high": "#e9ead4",
+                        "error": "#ba1a1a",
+                        "on-error": "#ffffff",
+                        "secondary": "#a900a9",
+                        "on-tertiary-container": "#ba4900",
+                        "error-container": "#ffdad6",
+                        "on-primary-fixed": "#191e00",
+                        "on-surface-variant": "#454932",
+                        "surface-dim": "#dbdbc6",
+                        "surface-container-low": "#f5f5df",
+                        "on-secondary-container": "#500050",
+                        "on-background": "#1b1d10",
+                        "tertiary-fixed": "#ffdbcd",
+                        "outline": "#767960",
+                        "on-tertiary-fixed-variant": "#7c2e00",
+                        "tertiary-container": "#ffece5",
+                        "secondary-fixed": "#ffd7f5",
+                        "on-primary-container": "#647400",
+                        "on-surface": "#1b1d10",
+                        "surface-bright": "#fafbe5",
+                        "secondary-fixed-dim": "#ffabf3",
+                        "surface-variant": "#e3e4ce",
+                        "inverse-surface": "#303223",
+                        "secondary-container": "#fe00fe",
+                        "on-tertiary": "#ffffff",
+                        "outline-variant": "#c6c9ab",
+                        "surface-tint": "#576500",
+                        "surface": "#fafbe5",
+                        "on-primary": "#ffffff",
+                        "tertiary": "#a23f00",
+                        "inverse-primary": "#b8d300",
+                        "background": "#fafbe5",
+                        "surface-container": "#efefd9",
+                        "primary-fixed-dim": "#b8d300",
+                        "surface-container-lowest": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "on-secondary-fixed": "#380038",
+                        "inverse-on-surface": "#f2f2dc",
+                        "tertiary-fixed-dim": "#ffb595",
+                        "surface-container-highest": "#e3e4ce",
+                        "on-secondary-fixed-variant": "#810081",
+                        "primary": "#576500",
+                        "on-error-container": "#93000a",
+                        "on-tertiary-fixed": "#351000"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "screen-margin": "20px",
+                        "card-padding": "16px",
+                        "grid-gutter": "12px",
+                        "base": "8px"
+                    },
+                    "fontFamily": {
+                        "label-sm": ["Space Grotesk"],
+                        "body-md": ["Inter"],
+                        "mono-data": ["Space Grotesk"],
+                        "headline-lg": ["Anton"],
+                        "card-title": ["Space Grotesk"],
+                        "display-lg": ["Anton"],
+                        "headline-lg-mobile": ["Anton"]
+                    },
+                    "fontSize": {
+                        "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.1em", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "500"}],
+                        "mono-data": ["10px", {"lineHeight": "12px", "fontWeight": "400"}],
+                        "headline-lg": ["48px", {"lineHeight": "44px", "fontWeight": "400"}],
+                        "card-title": ["18px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "display-lg": ["72px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "400"}],
+                        "headline-lg-mobile": ["36px", {"lineHeight": "32px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .brutalist-shadow-sm { box-shadow: 4px 4px 0px 0px rgba(0,0,0,1); }
+        .brutalist-shadow-md { box-shadow: 8px 8px 0px 0px rgba(0,0,0,1); }
+
+        .cardboard-texture {
+            background-color: #d2b48c;
+            background-image:
+                radial-gradient(circle at 50% 50%, rgba(0,0,0,0.05) 1px, transparent 1px),
+                linear-gradient(rgba(0,0,0,0.02) 1px, transparent 1px);
+            background-size: 20px 20px, 100% 2px;
+        }
+
+        .spray-dot {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background: radial-gradient(circle, #ff5e00 0%, transparent 70%);
+            opacity: 0.6;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .tape-effect {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(1px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transform: rotate(-2deg);
+        }
+
+        .marker-grid {
+            background-image:
+                linear-gradient(to right, black 2px, transparent 2px),
+                linear-gradient(to bottom, black 2px, transparent 2px);
+            background-size: 33.33% 33.33%;
+        }
+
+        .shutter-btn {
+            background: conic-gradient(from 180deg at 50% 50%, #444 0deg, #888 90deg, #fff 180deg, #888 270deg, #444 360deg);
+        }
+
+        .holographic-overlay {
+            background: linear-gradient(135deg, rgba(255,0,255,0.2) 0%, rgba(0,255,255,0.2) 50%, rgba(255,255,0,0.2) 100%);
+            mix-blend-mode: hard-light;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background font-body-md text-on-background selection:bg-primary-container selection:text-on-primary-container min-h-screen pb-24">
+<!-- TopAppBar -->
+<header class="bg-surface border-b-3 border-black fixed top-0 w-full z-50 flex justify-between items-center px-screen-margin h-16">
+<button class="active:translate-x-1 active:translate-y-1 transition-transform">
+<span class="material-symbols-outlined text-primary text-3xl">menu</span>
+</button>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-primary border-3 border-black px-2 uppercase tracking-tighter bg-white brutalist-shadow-sm">LOTERÍA</h1>
+<button class="active:translate-x-1 active:translate-y-1 transition-transform">
+<span class="material-symbols-outlined text-primary text-3xl">help_outline</span>
+</button>
+</header>
+<main class="mt-20 px-screen-margin max-w-lg mx-auto">
+<!-- Progress Tracker -->
+<div class="flex justify-between items-center mb-6 bg-white border-3 border-black p-3 brutalist-shadow-sm relative overflow-hidden">
+<div class="absolute -top-4 -left-4 spray-dot"></div>
+<div class="flex flex-col gap-1 relative z-10">
+<span class="font-label-sm text-label-sm text-tertiary">CURRENT GOAL</span>
+<div class="flex gap-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">grid_view</span>
+<span class="font-mono-data text-sm font-bold">FOUR CORNERS: 2/4</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined">trending_down</span>
+<span class="font-mono-data text-sm font-bold opacity-40">DIAGONAL: 0/3</span>
+</div>
+</div>
+</div>
+<div class="border-l-3 border-black pl-4 flex flex-col items-end mt-1">
+<span class="font-label-sm text-label-sm text-primary">BOARD #772</span>
+<span class="font-mono-data text-xs uppercase">Zine-Style v1.2</span>
+</div>
+<div class="absolute -right-10 -top-1 bg-[#ff5e00] border-2 border-black px-12 py-1 rotate-12 z-20 brutalist-shadow-sm flex flex-col items-center">
+<span class="font-label-sm text-[8px] text-black leading-none tracking-tighter">TIME REMAINING</span>
+<span class="font-mono-data text-lg font-bold text-black leading-none">00:14:55</span>
+<div class="tape-effect w-8 h-3 -top-3 left-1/2 -translate-x-1/2 opacity-60"></div>
+</div></div>
+<!-- The Lotería Grid -->
+<div class="relative cardboard-texture border-3 border-black p-3 brutalist-shadow-md mb-8 overflow-hidden">
+<!-- Spray Paint Accents -->
+<div class="spray-dot -top-10 -right-10 opacity-40"></div>
+<div class="spray-dot bottom-0 left-10 opacity-30" style="width: 200px; height: 200px;"></div>
+<div class="grid grid-cols-3 gap-grid-gutter relative z-10">
+<!-- Card 1: Stamped (Top Left) -->
+<div class="aspect-square bg-white border-3 border-black p-1 relative flex flex-col items-center justify-center overflow-hidden rotate-1">
+<div class="absolute top-0 left-0 w-full h-2 bg-secondary"></div>
+<span class="absolute top-2 right-1 font-mono-data text-[8px]">LT-012</span>
+<div class="w-full h-full bg-cover bg-center grayscale contrast-125" data-alt="A gritty high-contrast black and white photograph of a pair of worn punk rock combat boots sitting on a textured concrete sidewalk. The image has a heavy film grain and distressed edges, fitting a raw zine aesthetic with deep blacks and bright highlights." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAqSmc8Mn4R1GH0vn0nPTb7RLH18yusHhlKR5LRshGet2NbFD-Wbpeg3Aca3Hs1_ADO0_ySXfWW7mcLaxCHAt76Qfg9Nn1-ZLwYHXVYnYOk82p9yr0qVa2XHa08bobJStFzpfBrcAU-DtGyLw5fVYr2Hlj46lOFf62HOdQtsq_yWjg2olV9wAQHp4jALfgoBl-vzffkjEGoI0JCfhwRBmCoS_MrsJct5VRFTagAIkj2H4EOoBMlV3bkGw')"></div>
+<div class="absolute inset-0 holographic-overlay opacity-40"></div>
+<span class="absolute bottom-1 bg-black text-white text-[10px] px-1 font-card-title">BOOTS</span>
+<span class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 material-symbols-outlined text-primary text-5xl opacity-80" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<!-- Card 2: Pending (Top Center) -->
+<div class="aspect-square bg-white/80 border-3 border-black p-1 relative flex flex-col items-center justify-center overflow-hidden">
+<div class="absolute top-0 left-0 w-full h-2 bg-tertiary"></div>
+<span class="absolute top-2 right-1 font-mono-data text-[8px]">LT-084</span>
+<div class="w-full h-full bg-cover bg-center opacity-40 grayscale" data-alt="A detailed pencil sketch of a classic analog film camera, rendered with messy, expressive lines and charcoal textures. The sketch is on a scrap of beige paper that appears taped down to a rough cardboard surface with translucent adhesive tape strips." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAnPguzUtWyjy0_MfpBLudhmJLNKBDL-kzxsjREIws7E3Yx9WkXV6fllwhf2GKcsfyBHQX-HKJkoGHYP41O_1B83MHkLKWs-Wt7deDZv2Cb-ACk6scnp48JfrrE_JF_dbCK547Ivr8XZ0iM-0Gw27UXs-YsHyN0LK8DLz-EB3jlQ7XVXtMIYtOfhQG4Bg8-1OGHZHxIla3aaYpVSEAR8IF27WPWeG-8sqDKhZ2JUDUXujEtOEs22vh9fw')"></div>
+<div class="tape-effect w-12 h-4 -top-1 -left-2"></div>
+<div class="tape-effect w-10 h-3 bottom-0 right-1 rotate-12"></div>
+<span class="absolute bottom-1 font-card-title text-[10px] bg-white border-2 border-black px-1">LENS</span>
+</div>
+<!-- Card 3: Stamped (Top Right) -->
+<div class="aspect-square bg-white border-3 border-black p-1 relative flex flex-col items-center justify-center overflow-hidden -rotate-2">
+<div class="absolute top-0 left-0 w-full h-2 bg-secondary"></div>
+<span class="absolute top-2 right-1 font-mono-data text-[8px]">LT-102</span>
+<div class="w-full h-full bg-cover bg-center grayscale contrast-150" data-alt="A high-contrast grainy photo of a urban spray paint can standing on a brick wall ledge. The composition is tight and dramatic, with deep shadows and blown-out highlights, capturing a raw street art vibe." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAj38GvLH0fsZ_BtPGigDrKZdMSAP2F37k5pNtPPLzxZQ6FNTPnTtsSG0VmQTWblJVrcQm4Bk5HxzkaxjI4NUisJl7G_tlWEGpxZ5c7ydsMGWr_Hu-NJwwIuKl_4VdiEvq5XnLKsAqk9EXPpCGMGHPsmHXDeRoCr9Qr7P6R3s595aDUMRskKMxHQElNG3fzddOlmCNYC5U7euwVtqsOG_TYf1PFiPHtyakI9lI0KNcDc1NewOukUz2L5g')"></div>
+<div class="absolute inset-0 holographic-overlay opacity-40"></div>
+<span class="absolute bottom-1 bg-black text-white text-[10px] px-1 font-card-title">CAN</span>
+<span class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 material-symbols-outlined text-primary text-5xl opacity-80" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<!-- Card 4: Available (Middle Left) -->
+<div class="aspect-square bg-[#e8e8e8] border-3 border-black p-2 relative flex flex-col items-center justify-center group cursor-pointer active:scale-95 transition-transform">
+<div class="absolute top-0 left-0 w-full h-2 bg-surface-container-highest"></div>
+<span class="material-symbols-outlined text-4xl group-hover:scale-110 transition-transform">brush</span>
+<span class="font-card-title text-[10px] mt-1 text-center">STREET ART</span>
+<div class="absolute top-1 right-1 font-mono-data text-[8px]">LT-055</div>
+</div>
+<!-- Card 5: ACTIVE (Middle Center) -->
+<div class="aspect-square bg-primary-container border-4 border-black p-1 relative flex flex-col items-center justify-center brutalist-shadow-sm scale-105 z-20">
+<div class="absolute inset-0 border-2 border-dashed border-white m-1"></div>
+<div class="w-full h-full bg-cover bg-center" data-alt="A colorful, low-fidelity digital photo of a glowing neon 'OPEN' sign reflected in a rain-slicked city pavement. The colors are vibrant magenta and cyan against deep indigo shadows, framed in a way that suggests a casual street photography aesthetic." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA_B4kQSBLjJLEjHBr_H_i-nOg8M6ByrvjvvL9gryULtfUttM0kYv79iPS3W7QtGSYf27RL75NqFTOJg1CLkNAvya2uCby7bP9ku0EPu1usLDoAoztyr7_95B9fQoTptD9TzmeKDyy2j6yTyDc7EnxTYf-AfQbkUZn22EuVEhCZRAGsb-FGKGHgX8eokro9D40JdupHHB-tr95cX2h_rNgACqgz2CmS64Yl61xvTHMR-YzJfmyNWe2Sdw')"></div>
+<div class="absolute -top-3 -left-3 bg-secondary text-white text-[10px] px-2 py-0.5 border-2 border-black rotate-[-5deg] font-bold">ACTIVE</div>
+<span class="absolute bottom-1 bg-black text-white text-[10px] px-1 font-card-title">GLOW</span>
+</div>
+<!-- Card 6: Available (Middle Right) -->
+<div class="aspect-square bg-[#e8e8e8] border-3 border-black p-2 relative flex flex-col items-center justify-center group cursor-pointer active:scale-95 transition-transform rotate-1">
+<div class="absolute top-0 left-0 w-full h-2 bg-surface-container-highest"></div>
+<span class="material-symbols-outlined text-4xl">stadium</span>
+<span class="font-card-title text-[10px] mt-1 text-center">VENUE</span>
+</div>
+<!-- Card 7: Available (Bottom Left) -->
+<div class="aspect-square bg-[#e8e8e8] border-3 border-black p-2 relative flex flex-col items-center justify-center group cursor-pointer rotate-[-1deg]">
+<div class="absolute top-0 left-0 w-full h-2 bg-surface-container-highest"></div>
+<span class="material-symbols-outlined text-4xl">headphones</span>
+<span class="font-card-title text-[10px] mt-1 text-center">SOUNDS</span>
+</div>
+<!-- Card 8: Available (Bottom Center) -->
+<div class="aspect-square bg-[#e8e8e8] border-3 border-black p-2 relative flex flex-col items-center justify-center group cursor-pointer">
+<div class="absolute top-0 left-0 w-full h-2 bg-surface-container-highest"></div>
+<span class="material-symbols-outlined text-4xl">fastfood</span>
+<span class="font-card-title text-[10px] mt-1 text-center">GRUB</span>
+</div>
+<!-- Card 9: Available (Bottom Right) -->
+<div class="aspect-square bg-[#e8e8e8] border-3 border-black p-2 relative flex flex-col items-center justify-center group cursor-pointer rotate-2">
+<div class="absolute top-0 left-0 w-full h-2 bg-surface-container-highest"></div>
+<span class="material-symbols-outlined text-4xl">directions_bike</span>
+<span class="font-card-title text-[10px] mt-1 text-center">WHEELS</span>
+</div>
+</div>
+<!-- Marker Grid Lines Overlay -->
+<div class="absolute inset-0 pointer-events-none opacity-20 marker-grid m-2"></div>
+</div>
+<!-- Action Button -->
+<button class="w-full bg-primary-fixed border-3 border-black p-4 mb-8 brutalist-shadow-md active:translate-x-1 active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-3">
+<span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;">send</span>
+<span class="font-headline-lg text-2xl uppercase tracking-widest text-on-primary-fixed">SUBMIT CURRENT CARD</span>
+</button>
+<!-- Social Proof Snippet -->
+<div class="flex gap-4 items-center mb-8 overflow-x-auto no-scrollbar py-2">
+<div class="flex-shrink-0 w-24 h-24 bg-white border-2 border-black rotate-[-2deg] p-1 brutalist-shadow-sm">
+<div class="w-full h-full bg-cover bg-center grayscale" data-alt="A small polaroid-style photo of a graffiti-covered brick wall under a highway overpass. The lighting is harsh and dramatic, emphasizing the textures of the crumbling bricks and the layers of colorful spray paint." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD8Wly8xptfFOcInqQROWlF7XYDJh0KblicF7zdo9wxs0kKDxRi_s06db4Mm-1_V2OqltVDVoV5IntXWMA-Oim2pL0Yo_4ZiXBlUxxvDKtO24vkYRKsRPU0mVXm4gOlDt3BWdu1TSavJSS5vbbl9lD0NOROWgepwGmbs10qXFF-AvEtLC1rH0FIGztwKpucGvIUaR4rymUZzqK2qCa5ktwQ0RzOUJzku3u80ap8Q8f_g2EuqTerawSW_A')"></div>
+</div>
+<div class="flex-shrink-0 w-24 h-24 bg-white border-2 border-black rotate-[3deg] p-1 brutalist-shadow-sm">
+<div class="w-full h-full bg-cover bg-center grayscale" data-alt="A close-up high-contrast photo of a person wearing a denim jacket covered in DIY band patches and safety pins. The style is vintage punk zine, with visible texture and film grain." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBTaaTw2lnKwmki_IVqd5jNnbwd4Q0s3J75POrLOYtVxCuYFplQtTeOvBgvqd1C0zjpYKI4cGEl2kHcr2envx3VhNJEaD-5q40_tdStKyvJP0f-_k0xOiOBRbZotwjUrQCwA8eYCIroMiXpXC9LYz5srbZg1F93dcWXwW5JNmBPuDGywWnWofb9TDmCeOGl-SseSr51Zx1x93utkYLhH5p7jSP9cavH_4S02bLdhy2gjGt83dVFFFeJRw')"></div>
+</div>
+<div class="flex-shrink-0 w-24 h-24 bg-white border-2 border-black rotate-[-1deg] p-1 brutalist-shadow-sm">
+<div class="w-full h-full bg-cover bg-center grayscale" data-alt="A gritty urban street scene showing a row of vintage newspaper vending machines covered in stickers and street art. The photo has been edited to look like a xeroxed zine clipping with high contrast and noise." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBmr_HUfm-k0NpOhTFQNcCSH4KkXiyMlZxgrrh_eMEV4q5qUL_Xq2i_LOozr9IuESSJEzLRrC9oKUBwHPcfO8gNDF-gVgiYSGmbYcJfFAWTH-Sb0Nd96HlZd0_QmuidTugMF9oqZynpnRFeJVla75UF3JhR9gm8vzNPoCEDOWmljMBouZoTBqlukI-xgriH9jrS1p6SsDJoMkZq_zUY6t45ltRy9MIhQV5UQGcr70_s5BiIUquBKJdXHQ')"></div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 bg-white border-t-4 border-black h-20 px-2 pb-2 flex justify-around items-center">
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container px-4 py-2 transition-colors" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-sm text-[10px]">HOME</span>
+</a>
+<a class="flex flex-col items-center justify-center text-tertiary font-bold scale-110 px-4 py-2" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">grid_view</span>
+<span class="font-label-sm text-[10px]">BOARDS</span>
+</a>
+<!-- Center Action Camera Button -->
+<div class="relative -mt-12">
+<button class="shutter-btn w-20 h-20 rounded-full border-4 border-black p-1 brutalist-shadow-md hover:scale-105 active:scale-95 transition-all flex items-center justify-center overflow-hidden">
+<div class="w-full h-full rounded-full border-2 border-black/20 flex flex-col items-center justify-center bg-black/80">
+<span class="material-symbols-outlined text-white text-3xl">photo_camera</span>
+<span class="font-label-sm text-[8px] text-white">ZINE</span>
+</div>
+</button>
+</div>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container px-4 py-2 transition-colors" href="#">
+<span class="material-symbols-outlined">auto_awesome_motion</span>
+<span class="font-label-sm text-[10px]">MEMORIES</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container px-4 py-2 transition-colors" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-sm text-[10px]">PROFILE</span>
+</a>
+</nav>
+<script>
+        // Micro-interaction for clicking available cards
+        document.querySelectorAll('.cursor-pointer').forEach(card => {
+            card.addEventListener('click', function() {
+                this.classList.toggle('bg-primary-container');
+                this.classList.toggle('scale-95');
+
+                // Subtle haptic feel simulation
+                if (window.navigator && window.navigator.vibrate) {
+                    window.navigator.vibrate(10);
+                }
+            });
+        });
+
+        // Simple floating sticker effect
+        const createSticker = () => {
+            const sticker = document.createElement('div');
+            sticker.className = 'fixed pointer-events-none z-[100] border-2 border-black bg-white px-2 py-1 font-mono-data text-[10px] uppercase rotate-12 opacity-0 transition-opacity duration-300';
+            sticker.innerText = 'STAMPED!';
+            sticker.style.left = (Math.random() * 80 + 10) + '%';
+            sticker.style.top = (Math.random() * 80 + 10) + '%';
+            document.body.appendChild(sticker);
+
+            setTimeout(() => {
+                sticker.style.opacity = '1';
+                setTimeout(() => {
+                    sticker.style.opacity = '0';
+                    setTimeout(() => sticker.remove(), 300);
+                }, 1000);
+            }, 10);
+        };
+
+        // Occasional flair
+        setInterval(() => {
+            if (Math.random() > 0.8) createSticker();
+        }, 5000);
+    </script>
+</body></html>

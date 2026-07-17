@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Mission Briefing - Lotería</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Space+Grotesk:wght@300;400;700&amp;family=Inter:wght@400;500;700&amp;family=Special+Elite&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "inverse-surface": "#303223",
+                "secondary-fixed": "#ffd7f5",
+                "secondary-fixed-dim": "#ffabf3",
+                "tertiary": "#a23f00",
+                "surface-container-lowest": "#ffffff",
+                "outline-variant": "#c6c9ab",
+                "on-tertiary": "#ffffff",
+                "primary-fixed": "#d2f000",
+                "on-secondary-container": "#500050",
+                "on-tertiary-fixed-variant": "#7c2e00",
+                "surface-dim": "#dbdbc6",
+                "primary-container": "#dfff00",
+                "outline": "#767960",
+                "on-primary-fixed": "#191e00",
+                "tertiary-fixed-dim": "#ffb595",
+                "on-secondary-fixed": "#380038",
+                "surface": "#fafbe5",
+                "tertiary-fixed": "#ffdbcd",
+                "on-secondary-fixed-variant": "#810081",
+                "on-primary-fixed-variant": "#414c00",
+                "inverse-primary": "#b8d300",
+                "on-error-container": "#93000a",
+                "secondary-container": "#fe00fe",
+                "on-tertiary-fixed": "#351000",
+                "surface-container-low": "#f5f5df",
+                "error-container": "#ffdad6",
+                "primary-fixed-dim": "#b8d300",
+                "surface-container": "#efefd9",
+                "on-surface-variant": "#454932",
+                "error": "#ba1a1a",
+                "tertiary-container": "#ffece5",
+                "inverse-on-surface": "#f2f2dc",
+                "secondary": "#a900a9",
+                "on-tertiary-container": "#ba4900",
+                "surface-variant": "#e3e4ce",
+                "primary": "#576500",
+                "on-background": "#1b1d10",
+                "surface-bright": "#fafbe5",
+                "on-surface": "#1b1d10",
+                "on-error": "#ffffff",
+                "surface-container-highest": "#e3e4ce",
+                "on-primary": "#ffffff",
+                "surface-tint": "#576500",
+                "background": "#fafbe5",
+                "surface-container-high": "#e9ead4",
+                "on-secondary": "#ffffff",
+                "on-primary-container": "#647400"
+            },
+            "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+            },
+            "spacing": {
+                "grid-gutter": "12px",
+                "card-padding": "16px",
+                "screen-margin": "20px",
+                "base": "8px"
+            },
+            "fontFamily": {
+                "mono-data": ["Space Grotesk"],
+                "label-sm": ["Space Grotesk"],
+                "display-lg": ["Anton"],
+                "headline-lg-mobile": ["Anton"],
+                "card-title": ["Space Grotesk"],
+                "body-md": ["Inter"],
+                "headline-lg": ["Anton"],
+                "typewriter": ["Special Elite", "monospace"]
+            },
+            "fontSize": {
+                "mono-data": ["10px", {"lineHeight": "12px", "fontWeight": "400"}],
+                "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.1em", "fontWeight": "700"}],
+                "display-lg": ["72px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "400"}],
+                "headline-lg-mobile": ["36px", {"lineHeight": "32px", "fontWeight": "400"}],
+                "card-title": ["18px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "500"}],
+                "headline-lg": ["48px", {"lineHeight": "44px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .cardboard-bg {
+            background-color: #c5b399;
+            background-image:
+                radial-gradient(circle at 2px 2px, rgba(0,0,0,0.05) 1px, transparent 0);
+            background-size: 10px 10px;
+            position: relative;
+        }
+        .cardboard-bg::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image: url('https://www.transparenttextures.com/patterns/cardboard.png');
+            opacity: 0.4;
+            pointer-events: none;
+        }
+        .brutalist-border {
+            border: 3px solid black;
+        }
+        .brutalist-shadow {
+            box-shadow: 8px 8px 0px 0px rgba(0,0,0,1);
+        }
+        .brutalist-shadow-small {
+            box-shadow: 4px 4px 0px 0px rgba(0,0,0,1);
+        }
+        .orange-tape {
+            background-color: #ff6d00;
+            border: 2px solid black;
+            transform: rotate(-2deg);
+        }
+        .paper-scrap {
+            background-color: #f8f8f8;
+            background-image: repeating-linear-gradient(#f8f8f8, #f8f8f8 24px, #e1e1e1 25px);
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        }
+        .marker-scribble {
+            font-family: 'Anton', sans-serif;
+            -webkit-text-stroke: 1px black;
+            color: transparent;
+        }
+        .grainy-filter {
+            filter: contrast(120%) grayscale(100%) brightness(90%);
+        }
+        .holographic {
+            background: linear-gradient(135deg, #ff00ff22 0%, #00ffff22 50%, #ffff0022 100%);
+            mix-blend-mode: hard-light;
+        }
+    </style>
+</head>
+<body class="cardboard-bg min-h-screen text-on-surface font-body-md overflow-x-hidden">
+<!-- Top Navigation (Shell Implementation) -->
+<header class="flex justify-between items-center px-screen-margin w-full h-16 bg-surface dark:bg-surface-dim border-b-3 border-black fixed top-0 z-50">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">menu</span>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-primary border-3 border-black px-2 uppercase tracking-tighter bg-white">LOTERÍA</h1>
+</div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary">help_outline</span>
+</div>
+</header>
+<main class="pt-24 pb-32 px-screen-margin max-w-lg mx-auto">
+<!-- Mission Briefing Container -->
+<section class="relative animate-in fade-in slide-in-from-bottom-4 duration-500">
+<!-- Main Mission Card -->
+<div class="bg-white brutalist-border brutalist-shadow p-6 rotate-1 relative z-10 overflow-hidden">
+<!-- Alphanumeric Code -->
+<div class="absolute top-2 right-2 font-mono-data text-mono-data opacity-60">LT-042 // MISSION</div>
+<!-- Category Band -->
+<div class="h-3 w-full bg-secondary -mx-6 -mt-6 mb-6"></div>
+<!-- Mission Title -->
+<h2 class="font-display-lg text-headline-lg uppercase leading-none mb-4 text-black italic tracking-tighter">
+                    ACCIDENTAL <br/> ALBUM COVER
+                </h2>
+<!-- Points Label (Orange Tape) -->
+<div class="orange-tape inline-block px-4 py-1 mb-6 brutalist-shadow-small">
+<span class="font-headline-lg-mobile text-white text-2xl uppercase tracking-widest">500 PTS</span>
+</div>
+<!-- Hand-drawn Illustration Area -->
+<div class="relative w-full aspect-square brutalist-border mb-6 bg-surface-container overflow-hidden group">
+<div class="absolute inset-0 z-10 pointer-events-none opacity-20 border-[20px] border-black/5 mix-blend-multiply"></div>
+<img class="w-full h-full object-cover grainy-filter group-hover:scale-105 transition-transform duration-700" data-alt="A gritty black and white grainy photo of an urban alleyway with high-contrast shadows and a lone silhouette, styled like a 90s underground punk album cover. The composition is off-center with a heavy film grain effect and a hand-drawn spray paint circle in safety orange over the silhouette. Physical paper texture and torn edges are visible around the frame." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCawjM7j53McRKE_WTX6y8tubazJHgw_POKTBql4L6-YxqWx4N2K4sYsHUje1dVdNSdoferRISnDrEWdGd59YNgaWEtivpGgCS0_nTYWFyobY5A9Waco9GxuVW7nlmdViBEual-V3n69p4pPRewqmTHNctgkKCwrZgAnQB6sNveBcI_3yIqpBSQim_bJB9P_svZd0hysh-9PFmt6qJQM71B53f2VBcT5_W-Fnf0wuewJqbWnTKHadbUKg"/>
+<div class="absolute inset-0 bg-black/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-white text-6xl" style="font-variation-settings: 'FILL' 1;">zoom_in</span>
+</div>
+<!-- Scribble elements -->
+<div class="absolute bottom-4 left-4 z-20">
+<div class="bg-white border-2 border-black p-1 -rotate-3">
+<span class="font-mono-data text-[8px] uppercase font-bold">EXPLICIT CONTENT</span>
+</div>
+</div>
+</div>
+<!-- Description (Paper Scrap) -->
+<div class="paper-scrap p-4 -mx-2 brutalist-border mb-6 relative">
+<div class="absolute -top-3 left-1/2 -translate-x-1/2 w-16 h-8 bg-zinc-300/50 brutalist-border opacity-60 rotate-2"></div> <!-- Tape piece -->
+<p class="font-typewriter text-sm leading-relaxed text-zinc-800">
+                        FIND A SCENE IN THE WILD THAT LOOKS LIKE IT COULD BE THE COVER OF A LEGENDARY DEBUT ALBUM. THINK NEGATIVE SPACE, GRITTY TEXTURES, AND UNINTENTIONAL POETRY.
+                    </p>
+</div>
+<!-- Proof Requirements -->
+<div class="space-y-3 mb-8">
+<h3 class="font-label-sm text-label-sm uppercase underline decoration-2 decoration-primary">Proof Requirements:</h3>
+<ul class="space-y-2">
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary scale-125">photo_camera</span>
+<span class="font-body-md text-sm">Full wide-shot of the location.</span>
+</li>
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary scale-125">gps_fixed</span>
+<span class="font-body-md text-sm">Geo-tag must be active and verified.</span>
+</li>
+</ul>
+</div>
+<!-- Main Action -->
+<button class="w-full bg-[#ccff00] text-black font-display-lg text-3xl py-4 brutalist-border brutalist-shadow hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all uppercase flex items-center justify-center gap-3 active:scale-95">
+                    START MISSION
+                    <span class="material-symbols-outlined text-4xl">arrow_forward</span>
+</button>
+</div>
+<!-- Replace Option (Floating below) -->
+<div class="mt-8 flex justify-center">
+<button class="flex items-center gap-2 bg-white/80 brutalist-border px-4 py-2 hover:bg-surface transition-colors">
+<span class="material-symbols-outlined text-xl">refresh</span>
+<span class="font-label-sm text-label-sm uppercase">REPLACE CARD</span>
+</button>
+</div>
+<!-- Cosmetic Floating Elements (Stickers) -->
+<div class="absolute -top-6 -left-4 w-16 h-16 bg-white brutalist-border rounded-full flex items-center justify-center -rotate-12 z-20 brutalist-shadow-small">
+<span class="material-symbols-outlined text-3xl text-secondary" style="font-variation-settings: 'FILL' 1;">priority_high</span>
+</div>
+<div class="absolute -bottom-4 -right-2 bg-black text-white p-2 brutalist-border rotate-6 z-20 text-[10px] font-mono-data uppercase tracking-tighter">
+                verified <br/> fieldtrip
+            </div>
+<div class="absolute top-1/2 -right-8 w-12 h-12 bg-[#ff6d00] brutalist-border flex items-center justify-center rotate-45 opacity-40 z-0">
+<span class="material-symbols-outlined text-white -rotate-45">camera_enhance</span>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation Shell -->
+<nav class="fixed bottom-0 w-full bg-white dark:bg-surface-container-lowest border-t-4 border-black z-50 h-20 px-2 pb-2 flex justify-around items-center">
+<!-- Home -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container p-2 transition-colors" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-sm text-label-sm">HOME</span>
+</a>
+<!-- Boards (Active) -->
+<a class="flex flex-col items-center justify-center text-tertiary font-bold scale-110 p-2" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">grid_view</span>
+<span class="font-label-sm text-label-sm">BOARDS</span>
+</a>
+<!-- Camera (Special Interaction) -->
+<div class="bg-gradient-to-tr from-primary to-secondary rounded-full -mt-8 border-3 border-black p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all cursor-pointer">
+<span class="material-symbols-outlined text-white text-3xl">photo_camera</span>
+</div>
+<!-- Memories -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container p-2" href="#">
+<span class="material-symbols-outlined">auto_awesome_motion</span>
+<span class="font-label-sm text-label-sm">MEMORIES</span>
+</a>
+<!-- Profile -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container p-2" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-sm text-label-sm">PROFILE</span>
+</a>
+</nav>
+<script>
+        // Simple micro-interaction for the start button
+        document.querySelector('button').addEventListener('click', function() {
+            this.classList.add('scale-95');
+            setTimeout(() => this.classList.remove('scale-95'), 100);
+        });
+
+        // Background visual flavor - random "marker dots" on cardboard
+        function createMarkerDots() {
+            const container = document.body;
+            for (let i = 0; i < 15; i++) {
+                const dot = document.createElement('div');
+                const size = Math.random() * 4 + 2;
+                dot.style.position = 'fixed';
+                dot.style.top = Math.random() * 100 + 'vh';
+                dot.style.left = Math.random() * 100 + 'vw';
+                dot.style.width = size + 'px';
+                dot.style.height = size + 'px';
+                dot.style.backgroundColor = Math.random() > 0.8 ? '#ff6d00' : 'rgba(0,0,0,0.1)';
+                dot.style.borderRadius = '50%';
+                dot.style.zIndex = '-1';
+                container.appendChild(dot);
+            }
+        }
+        createMarkerDots();
+    </script>
+</body></html>

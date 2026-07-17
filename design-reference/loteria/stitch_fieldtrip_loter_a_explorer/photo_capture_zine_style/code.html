@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Fieldtrip Lotería - Photo Capture</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Inter:wght@400;500;700&amp;family=Space+Grotesk:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-surface": "#303223",
+                        "secondary-fixed": "#ffd7f5",
+                        "secondary-fixed-dim": "#ffabf3",
+                        "tertiary": "#a23f00",
+                        "surface-container-lowest": "#ffffff",
+                        "outline-variant": "#c6c9ab",
+                        "on-tertiary": "#ffffff",
+                        "primary-fixed": "#d2f000",
+                        "on-secondary-container": "#500050",
+                        "on-tertiary-fixed-variant": "#7c2e00",
+                        "surface-dim": "#dbdbc6",
+                        "primary-container": "#dfff00",
+                        "outline": "#767960",
+                        "on-primary-fixed": "#191e00",
+                        "tertiary-fixed-dim": "#ffb595",
+                        "on-secondary-fixed": "#380038",
+                        "surface": "#fafbe5",
+                        "tertiary-fixed": "#ffdbcd",
+                        "on-secondary-fixed-variant": "#810081",
+                        "on-primary-fixed-variant": "#414c00",
+                        "inverse-primary": "#b8d300",
+                        "on-error-container": "#93000a",
+                        "secondary-container": "#fe00fe",
+                        "on-tertiary-fixed": "#351000",
+                        "surface-container-low": "#f5f5df",
+                        "error-container": "#ffdad6",
+                        "primary-fixed-dim": "#b8d300",
+                        "surface-container": "#efefd9",
+                        "on-surface-variant": "#454932",
+                        "error": "#ba1a1a",
+                        "tertiary-container": "#ffece5",
+                        "inverse-on-surface": "#f2f2dc",
+                        "secondary": "#a900a9",
+                        "on-tertiary-container": "#ba4900",
+                        "surface-variant": "#e3e4ce",
+                        "primary": "#576500",
+                        "on-background": "#1b1d10",
+                        "surface-bright": "#fafbe5",
+                        "on-surface": "#1b1d10",
+                        "on-error": "#ffffff",
+                        "surface-container-highest": "#e3e4ce",
+                        "on-primary": "#ffffff",
+                        "surface-tint": "#576500",
+                        "background": "#fafbe5",
+                        "surface-container-high": "#e9ead4",
+                        "on-secondary": "#ffffff",
+                        "on-primary-container": "#647400",
+                        "safety-orange": "#FF4500"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "grid-gutter": "12px",
+                        "card-padding": "16px",
+                        "screen-margin": "20px",
+                        "base": "8px"
+                    },
+                    "fontFamily": {
+                        "mono-data": ["Space Grotesk"],
+                        "label-sm": ["Space Grotesk"],
+                        "display-lg": ["Anton"],
+                        "headline-lg-mobile": ["Anton"],
+                        "card-title": ["Space Grotesk"],
+                        "body-md": ["Inter"],
+                        "headline-lg": ["Anton"]
+                    },
+                    "fontSize": {
+                        "mono-data": ["10px", {"lineHeight": "12px", "fontWeight": "400"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.1em", "fontWeight": "700"}],
+                        "display-lg": ["72px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "400"}],
+                        "headline-lg-mobile": ["36px", {"lineHeight": "32px", "fontWeight": "400"}],
+                        "card-title": ["18px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "500"}],
+                        "headline-lg": ["48px", {"lineHeight": "44px", "fontWeight": "400"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #d2b48c; /* Cardboard Base */
+            background-image:
+                radial-gradient(circle at 2px 2px, rgba(0,0,0,0.05) 1px, transparent 0);
+            background-size: 24px 24px;
+        }
+        .marker-border {
+            border: 6px solid black;
+            mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)'/%3E%3C/svg%3E");
+            clip-path: polygon(1% 2%, 98% 0%, 100% 98%, 2% 100%);
+        }
+        .spray-paint {
+            background: radial-gradient(circle, #FF4500 0%, transparent 70%);
+            opacity: 0.6;
+            filter: blur(8px);
+        }
+        .graph-paper {
+            background-image: linear-gradient(#c6c9ab 1px, transparent 1px), linear-gradient(90deg, #c6c9ab 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-color: #ffffff;
+        }
+        .sticker-rotate { transform: rotate(-2deg); }
+        .brutalist-shadow { box-shadow: 8px 8px 0px 0px rgba(0,0,0,1); }
+        .brutalist-shadow-sm { box-shadow: 4px 4px 0px 0px rgba(0,0,0,1); }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-on-surface font-body-md overflow-x-hidden">
+<!-- Top Navigation Anchor (As per JSON) -->
+<nav class="bg-surface border-b-3 border-black fixed top-0 w-full h-16 flex justify-between items-center px-screen-margin z-50">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-2xl">menu</span>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-primary border-3 border-black uppercase tracking-tighter px-2 leading-none">LOTERÍA</h1>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex flex-col items-end leading-none font-mono-data">
+<span class="text-xs">ISO 800</span>
+<span class="text-xs">1/250s</span>
+</div>
+<span class="material-symbols-outlined text-primary text-2xl">help_outline</span>
+</div>
+</nav>
+<main class="pt-24 pb-32 px-screen-margin max-w-md mx-auto relative">
+<!-- Background Sprays -->
+<div class="spray-paint absolute -top-10 -left-10 w-40 h-40 pointer-events-none"></div>
+<div class="spray-paint absolute top-1/2 -right-10 w-64 h-64 pointer-events-none"></div>
+<!-- Camera Viewfinder -->
+<section class="relative mb-8">
+<div class="marker-border bg-black aspect-square w-full overflow-hidden relative brutalist-shadow">
+<!-- Camera Feed Placeholder -->
+<div class="w-full h-full bg-surface-dim flex items-center justify-center relative overflow-hidden">
+<img class="w-full h-full object-cover grayscale brightness-75" data-alt="A gritty, high-contrast black and white street photography shot through a grainy lens. The image shows a worn-out city alleyway with brick walls and hanging wires. A lone shadow of a figure is cast onto the pavement. The style is raw, cinematic, and underground zine-like, fitting the clean brutalist aesthetic with high contrast and film grain." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAshkqlBAq1krtvosHqCY_kw74n3IEnbd5dq0XFTeCHnnd6QdzS2Q_Cw4wMiD4UWj7hc0xHhlTZfjeiFugOLm10_qsHG-ZDVPVMqVaog5TbNO1TIs3M1T1qJLJVXMFNQMq00d9GsTcm08TDz1yarcSMTVHG88It43FcetwV0wgOiuVRip_7AMKG3j_ab-pp2eSU9mBLw5GOujYlmoMYT4CpXIcKjkja8Gt5Ew4ZDKpn49HyV9Y2fbEE6Q"/>
+<!-- Viewfinder Overlays -->
+<div class="absolute inset-4 border border-white opacity-40 border-dashed"></div>
+<div class="absolute top-4 left-4 text-white font-mono-data text-[10px] tracking-widest">[ REC ]</div>
+<div class="absolute bottom-4 right-4 flex gap-1">
+<div class="w-2 h-2 bg-red-600 rounded-full animate-pulse"></div>
+</div>
+</div>
+</div>
+<!-- Hand-drawn Arrow -->
+<div class="absolute -bottom-6 -right-2 transform rotate-12">
+<span class="material-symbols-outlined text-4xl text-black">south_east</span>
+</div>
+</section>
+<!-- Field Notes Scrap -->
+<section class="graph-paper p-card-padding border-3 border-black brutalist-shadow-sm sticker-rotate mb-10">
+<h3 class="font-card-title text-card-title mb-2 uppercase flex items-center gap-2">
+<span class="material-symbols-outlined">edit_note</span>
+                FIELD NOTES
+            </h3>
+<textarea class="w-full bg-transparent border-none focus:ring-0 font-mono-data text-on-surface-variant p-0 resize-none h-24 placeholder:opacity-50" placeholder="LT-092: GRAFFITI ON 5TH..."></textarea>
+<div class="mt-2 border-t-2 border-black/10 pt-2 flex justify-between">
+<span class="font-mono-data text-[10px]">LOC: 40.7128° N, 74.0060° W</span>
+<span class="font-mono-data text-[10px]">STAMP: 23:59:01</span>
+</div>
+</section>
+<!-- Validation Checklist -->
+<section class="bg-surface p-card-padding border-3 border-black mb-8 relative">
+<div class="absolute -top-4 -left-2 bg-secondary-container text-on-secondary-container px-2 font-label-sm border-2 border-black uppercase">Proof Req.</div>
+<div class="space-y-3 mt-2">
+<label class="flex items-center gap-3 cursor-pointer group">
+<input checked="" class="w-6 h-6 border-3 border-black rounded-none text-safety-orange focus:ring-0" type="checkbox"/>
+<span class="font-card-title text-sm uppercase group-hover:underline">Clear Subject Alignment</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="w-6 h-6 border-3 border-black rounded-none text-safety-orange focus:ring-0" type="checkbox"/>
+<span class="font-card-title text-sm uppercase group-hover:underline">Metadata Verified</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="w-6 h-6 border-3 border-black rounded-none text-safety-orange focus:ring-0" type="checkbox"/>
+<span class="font-card-title text-sm uppercase group-hover:underline">No Digital Alteration</span>
+</label>
+</div>
+</section>
+<!-- Submit Button -->
+<button class="w-full bg-safety-orange text-white py-4 font-headline-lg text-2xl border-3 border-black brutalist-shadow active:translate-x-1 active:translate-y-1 active:shadow-none transition-all uppercase mb-12">
+            SUBMIT PROOF
+        </button>
+<footer class="text-center">
+<p class="font-mono-data text-[10px] uppercase tracking-[0.2em] opacity-60">
+                // TRANSMISSION ENCRYPTED //
+            </p>
+</footer>
+</main>
+<!-- Bottom Navigation (As per JSON) -->
+<nav class="fixed bottom-0 w-full z-50 bg-white border-t-4 border-black h-20 flex justify-around items-center px-2 pb-2">
+<!-- HOME -->
+<div class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container p-2 transition-colors">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-sm text-label-sm">HOME</span>
+</div>
+<!-- BOARDS -->
+<div class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container p-2 transition-colors">
+<span class="material-symbols-outlined">grid_view</span>
+<span class="font-label-sm text-label-sm">BOARDS</span>
+</div>
+<!-- CAMERA (ACTIVE) -->
+<div class="flex flex-col items-center justify-center text-tertiary font-bold scale-110 bg-gradient-to-tr from-primary to-secondary rounded-full -mt-8 border-3 border-black p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all">
+<span class="material-symbols-outlined text-white" style="font-variation-settings: 'FILL' 1;">photo_camera</span>
+</div>
+<!-- MEMORIES -->
+<div class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container p-2 transition-colors">
+<span class="material-symbols-outlined">auto_awesome_motion</span>
+<span class="font-label-sm text-label-sm">MEMORIES</span>
+</div>
+<!-- PROFILE -->
+<div class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container p-2 transition-colors">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-sm text-label-sm">PROFILE</span>
+</div>
+</nav>
+<!-- Interactive Micro-interactions -->
+<script>
+        document.querySelectorAll('input[type="checkbox"]').forEach(box => {
+            box.addEventListener('change', (e) => {
+                if(e.target.checked) {
+                    // Trigger haptic feedback simulation or slight visual flash
+                    e.target.parentElement.classList.add('bg-primary-container/20');
+                    setTimeout(() => {
+                        e.target.parentElement.classList.remove('bg-primary-container/20');
+                    }, 200);
+                }
+            });
+        });
+
+        // Add a "Sticker slap" sound effect or visual jolt on submit
+        const submitBtn = document.querySelector('button');
+        submitBtn.addEventListener('click', () => {
+            const flash = document.createElement('div');
+            flash.className = 'fixed inset-0 bg-white z-[100] pointer-events-none opacity-0 transition-opacity duration-75';
+            document.body.appendChild(flash);
+            flash.style.opacity = '1';
+            setTimeout(() => {
+                flash.style.opacity = '0';
+                setTimeout(() => flash.remove(), 75);
+            }, 75);
+        });
+    </script>
+</body></html>

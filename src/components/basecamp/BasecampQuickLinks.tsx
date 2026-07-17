@@ -1,4 +1,4 @@
-import { ArrowUpRight, BookOpen, Layers3, Vote } from 'lucide-react';
+import { ArrowUpRight, BookOpen, Grid3X3, Layers3, Vote } from 'lucide-react';
 import type { BasecampQuickLink } from '../../logic/basecampViewModel';
 
 interface BasecampQuickLinksProps {
@@ -9,6 +9,7 @@ interface BasecampQuickLinksProps {
 const linkIcons = {
   missions: Layers3,
   logbook: BookOpen,
+  loteria: Grid3X3,
   voting: Vote,
 };
 
@@ -24,13 +25,14 @@ export function BasecampQuickLinks({ links, onOpen }: BasecampQuickLinksProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {links.map((link, index) => {
           const Icon = linkIcons[link.id];
           const accents = [
             'bg-[var(--skin-secondary)] text-[var(--skin-on-secondary)]',
             'bg-[var(--skin-surface)] text-[var(--skin-text)]',
             'bg-[var(--skin-accent)] text-[var(--skin-on-accent)]',
+            'bg-[var(--skin-text)] text-[var(--skin-surface)]',
           ];
           return (
             <button

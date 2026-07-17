@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Fieldtrip Lotería - Draw Card</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Space+Grotesk:wght@400;700&amp;family=Inter:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-fixed": "#d2f000",
+                    "on-primary-fixed-variant": "#414c00",
+                    "primary-container": "#dfff00",
+                    "surface-container-high": "#e9ead4",
+                    "error": "#ba1a1a",
+                    "on-error": "#ffffff",
+                    "secondary": "#a900a9",
+                    "on-tertiary-container": "#ba4900",
+                    "error-container": "#ffdad6",
+                    "on-primary-fixed": "#191e00",
+                    "on-surface-variant": "#454932",
+                    "surface-dim": "#dbdbc6",
+                    "surface-container-low": "#f5f5df",
+                    "on-secondary-container": "#500050",
+                    "on-background": "#1b1d10",
+                    "tertiary-fixed": "#ffdbcd",
+                    "outline": "#767960",
+                    "on-tertiary-fixed-variant": "#7c2e00",
+                    "tertiary-container": "#ffece5",
+                    "secondary-fixed": "#ffd7f5",
+                    "on-primary-container": "#647400",
+                    "on-surface": "#1b1d10",
+                    "surface-bright": "#fafbe5",
+                    "secondary-fixed-dim": "#ffabf3",
+                    "surface-variant": "#e3e4ce",
+                    "inverse-surface": "#303223",
+                    "secondary-container": "#fe00fe",
+                    "on-tertiary": "#ffffff",
+                    "outline-variant": "#c6c9ab",
+                    "surface-tint": "#576500",
+                    "surface": "#fafbe5",
+                    "on-primary": "#ffffff",
+                    "tertiary": "#a23f00",
+                    "inverse-primary": "#b8d300",
+                    "background": "#fafbe5",
+                    "surface-container": "#efefd9",
+                    "primary-fixed-dim": "#b8d300",
+                    "surface-container-lowest": "#ffffff",
+                    "on-secondary": "#ffffff",
+                    "on-secondary-fixed": "#380038",
+                    "inverse-on-surface": "#f2f2dc",
+                    "tertiary-fixed-dim": "#ffb595",
+                    "surface-container-highest": "#e3e4ce",
+                    "on-secondary-fixed-variant": "#810081",
+                    "primary": "#576500",
+                    "on-error-container": "#93000a",
+                    "on-tertiary-fixed": "#351000"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "screen-margin": "20px",
+                    "card-padding": "16px",
+                    "grid-gutter": "12px",
+                    "base": "8px"
+            },
+            "fontFamily": {
+                    "label-sm": ["Space Grotesk"],
+                    "body-md": ["Inter"],
+                    "mono-data": ["Space Grotesk"],
+                    "headline-lg": ["Anton"],
+                    "card-title": ["Space Grotesk"],
+                    "display-lg": ["Anton"],
+                    "headline-lg-mobile": ["Anton"]
+            },
+            "fontSize": {
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.1em", "fontWeight": "700"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "500"}],
+                    "mono-data": ["10px", {"lineHeight": "12px", "fontWeight": "400"}],
+                    "headline-lg": ["48px", {"lineHeight": "44px", "fontWeight": "400"}],
+                    "card-title": ["18px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "display-lg": ["72px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "400"}],
+                    "headline-lg-mobile": ["36px", {"lineHeight": "32px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { background-color: #fafbe5; margin: 0; padding: 0; overflow-x: hidden; }
+
+        .cardboard-texture {
+            background-color: #d2b48c;
+            background-image:
+                radial-gradient(circle at 2px 2px, rgba(0,0,0,0.05) 1px, transparent 0),
+                repeating-linear-gradient(45deg, rgba(0,0,0,0.02) 0px, rgba(0,0,0,0.02) 2px, transparent 2px, transparent 4px);
+            background-size: 8px 8px, 100% 100%;
+        }
+
+        .brutalist-border { border: 3px solid #000; }
+        .brutalist-shadow { shadow-offset: 8px 8px 0px 0px rgba(0,0,0,1); box-shadow: 8px 8px 0px 0px rgba(0,0,0,1); }
+        .brutalist-shadow-sm { box-shadow: 4px 4px 0px 0px rgba(0,0,0,1); }
+
+        .spray-paint-bg {
+            background: radial-gradient(circle at center, #ff5f1f 0%, rgba(255,95,31,0.8) 40%, transparent 75%);
+        }
+
+        .marker-font { font-family: 'Anton', sans-serif; text-transform: uppercase; }
+
+        .card-stack-item {
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+        }
+
+        .sticker-slap {
+            transform: rotate(-3deg);
+            filter: drop-shadow(2px 2px 0px black);
+        }
+
+        .holographic-glow {
+            background: linear-gradient(135deg, rgba(255,0,255,0.2) 0%, rgba(0,255,255,0.2) 50%, rgba(255,255,0,0.2) 100%);
+            mix-blend-mode: hard-light;
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .active-marker {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+        }
+
+        @keyframes pullCard {
+            0% { transform: translateY(0) rotate(0); }
+            50% { transform: translateY(-120%) rotate(-5deg); }
+            100% { transform: translateY(0) rotate(2deg); z-index: 50; }
+        }
+        .pull-animate { animation: pullCard 0.6s ease-in-out forwards; }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+<!-- Top App Bar (Shared Component Logic) -->
+<header class="bg-surface dark:bg-surface-dim border-b-3 border-black fixed top-0 w-full z-[100] h-16 flex justify-between items-center px-screen-margin">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="menu">menu</span>
+</div>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-primary border-3 border-black px-2 uppercase tracking-tighter">LOTERÍA</h1>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="help_outline">help_outline</span>
+</div>
+</header>
+<!-- Main Content Area: Tabletop View -->
+<main class="flex-1 mt-16 pb-24 overflow-hidden relative cardboard-texture">
+<!-- Decorative Ephemera -->
+<div class="absolute top-10 -left-8 w-32 h-32 opacity-80 pointer-events-none sticker-slap bg-white border-3 border-black p-2 flex flex-col items-center justify-center rotate-12">
+<span class="material-symbols-outlined text-4xl" data-icon="rocket_launch">rocket_launch</span>
+<span class="font-label-sm text-[10px] mt-1">SZN 1</span>
+</div>
+<div class="absolute top-1/4 -right-10 w-40 h-12 bg-tertiary-container border-3 border-black rotate-[-15deg] px-4 flex items-center brutalist-shadow-sm pointer-events-none">
+<span class="font-mono-data uppercase font-bold text-on-tertiary-container">EVIDENCE #402</span>
+</div>
+<div class="absolute bottom-32 -left-4 w-48 h-48 pointer-events-none rotate-[-8deg] opacity-60">
+<div class="w-full h-full bg-black/10 rounded-full blur-xl spray-paint-bg"></div>
+</div>
+<!-- The Tabletop/Canvas -->
+<div class="relative w-full max-w-md mx-auto px-screen-margin pt-12 flex flex-col items-center">
+<!-- Card Stack Container -->
+<div class="relative w-full aspect-[3/4] max-w-[320px] mb-12" id="deck">
+<!-- Bottom Decorative Cards (Stacked Appearance) -->
+<div class="absolute inset-0 bg-surface border-3 border-black rotate-1 translate-x-2 translate-y-2 brutalist-shadow-sm"></div>
+<div class="absolute inset-0 bg-surface border-3 border-black rotate-[-2deg] -translate-x-1 translate-y-1"></div>
+<!-- Main Active Card (The Draw) -->
+<div class="absolute inset-0 bg-white border-3 border-black p-4 brutalist-shadow flex flex-col z-10 transition-all duration-300 transform hover:-translate-y-2" id="active-card">
+<!-- Top Category Bar -->
+<div class="h-6 w-full bg-secondary mb-4 border-b-3 border-black -mx-4 -mt-4"></div>
+<div class="flex justify-between items-start mb-2">
+<span class="font-label-sm text-label-sm text-black uppercase">Mission Draw</span>
+<span class="font-mono-data text-mono-data">LT-999</span>
+</div>
+<!-- Sketch Area -->
+<div class="flex-1 border-3 border-black bg-surface-container relative overflow-hidden group">
+<div class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+<span class="material-symbols-outlined text-7xl mb-4" data-icon="draw">draw</span>
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile leading-none mb-2">ACCIDENTAL ALBUM COVER</h2>
+<p class="font-body-md text-sm text-on-surface-variant">Find a scene that looks like a 90s indie rock cover. Must include a concrete wall.</p>
+</div>
+<!-- Marker Sketch Texture Layer -->
+<div class="absolute inset-0 opacity-10 pointer-events-none" style="background-image: repeating-linear-gradient(45deg, #000 0, #000 1px, transparent 1px, transparent 10px);"></div>
+</div>
+<!-- Card Footer Stickers -->
+<div class="mt-4 flex justify-between items-center">
+<div class="bg-primary-fixed border-3 border-black px-2 py-1 rotate-[-3deg] brutalist-shadow-sm">
+<span class="font-label-sm text-black">URBAN EXPLORER</span>
+</div>
+<div class="w-10 h-10 border-3 border-black rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="photo_camera" style="font-variation-settings: 'FILL' 1;">photo_camera</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Action Area -->
+<div class="w-full flex flex-col gap-6 items-center px-4">
+<!-- Draw New Button (Aggressive Brutalist) -->
+<button class="w-full bg-primary-container border-3 border-black py-4 px-8 brutalist-shadow flex items-center justify-center gap-3 active:translate-x-1 active:translate-y-1 active:shadow-none transition-all group" id="draw-btn">
+<span class="material-symbols-outlined text-3xl group-hover:rotate-45 transition-transform" data-icon="refresh">refresh</span>
+<span class="font-headline-lg-mobile text-2xl uppercase tracking-tight">DRAW NEW CARD</span>
+</button>
+<!-- Confirm Button (Spray Paint Style) -->
+<div class="relative w-full">
+<div class="absolute inset-0 spray-paint-bg -m-8 opacity-40 blur-lg pointer-events-none"></div>
+<button class="relative w-full bg-white border-3 border-black py-4 px-8 brutalist-shadow hover:bg-secondary-fixed transition-colors active:translate-x-1 active:translate-y-1 active:shadow-none" id="confirm-btn">
+<span class="marker-font text-2xl tracking-widest text-black">CONFIRM SELECTION</span>
+</button>
+</div>
+<div class="flex gap-4 mt-4">
+<div class="flex items-center gap-2 font-mono-data text-on-surface-variant">
+<span class="w-3 h-3 rounded-full bg-error border border-black"></span>
+<span>MISSION ACTIVE</span>
+</div>
+<div class="flex items-center gap-2 font-mono-data text-on-surface-variant">
+<span class="w-3 h-3 rounded-full bg-primary border border-black"></span>
+<span>RARITY: RARE</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Nav Bar (Shared Component Logic) -->
+<nav class="fixed bottom-0 w-full z-50 bg-white dark:bg-surface-container-lowest border-t-4 border-black h-20 px-2 pb-2 flex justify-around items-center">
+<!-- Home -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container p-2 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-label-sm text-label-sm uppercase mt-1">HOME</span>
+</a>
+<!-- Boards -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container p-2 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="grid_view">grid_view</span>
+<span class="font-label-sm text-label-sm uppercase mt-1">BOARDS</span>
+</a>
+<!-- Camera (Active Interaction Shell) -->
+<a class="flex flex-col items-center justify-center bg-gradient-to-tr from-primary to-secondary rounded-full -mt-8 border-3 border-black p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:scale-105 transition-transform" href="#">
+<span class="material-symbols-outlined text-white text-3xl" data-icon="photo_camera" style="font-variation-settings: 'FILL' 1;">photo_camera</span>
+</a>
+<!-- Memories (Active in this logic flow) -->
+<a class="flex flex-col items-center justify-center text-tertiary font-bold scale-110 p-2 rounded-lg" href="#">
+<span class="material-symbols-outlined" data-icon="auto_awesome_motion">auto_awesome_motion</span>
+<span class="font-label-sm text-label-sm uppercase mt-1">MEMORIES</span>
+</a>
+<!-- Profile -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container p-2 rounded-lg transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-label-sm text-label-sm uppercase mt-1">PROFILE</span>
+</a>
+</nav>
+<script>
+        const drawBtn = document.getElementById('draw-btn');
+        const card = document.getElementById('active-card');
+        const missions = [
+            { title: "GHOST SIGNS", desc: "Find a hand-painted advertisement on a brick wall that's fading away.", icon: "history_edu" },
+            { title: "NEON NOIR", desc: "Capture a glowing sign reflected in a puddle after a fresh rain.", icon: "wb_sunny" },
+            { title: "TAG ME IN", desc: "Find a piece of graffiti that uses at least four distinct colors.", icon: "brush" },
+            { title: "CONCRETE JUNGLE", desc: "Photograph a plant growing out of a sidewalk crack in a brutalist setting.", icon: "nature" }
+        ];
+
+        let currentIndex = 0;
+
+        drawBtn.addEventListener('click', () => {
+            // Animate pulling
+            card.classList.add('pull-animate');
+
+            setTimeout(() => {
+                // Change content midway
+                currentIndex = (currentIndex + 1) % missions.length;
+                const mission = missions[currentIndex];
+
+                card.querySelector('h2').textContent = mission.title;
+                card.querySelector('p').textContent = mission.desc;
+                card.querySelector('.sketch-icon')?.remove();
+
+                const iconSpan = card.querySelector('.material-symbols-outlined');
+                iconSpan.textContent = mission.icon;
+
+                // Randomize stickers and rotation for that "zine" feel
+                card.style.transform = `rotate(${(Math.random() * 4 - 2).toFixed(1)}deg)`;
+            }, 300);
+
+            setTimeout(() => {
+                card.classList.remove('pull-animate');
+            }, 600);
+        });
+
+        // Add subtle hover tracking for depth
+        document.addEventListener('mousemove', (e) => {
+            const xAxis = (window.innerWidth / 2 - e.pageX) / 50;
+            const yAxis = (window.innerHeight / 2 - e.pageY) / 50;
+            document.getElementById('deck').style.transform = `rotateY(${xAxis}deg) rotateX(${yAxis}deg)`;
+        });
+    </script>
+</body></html>

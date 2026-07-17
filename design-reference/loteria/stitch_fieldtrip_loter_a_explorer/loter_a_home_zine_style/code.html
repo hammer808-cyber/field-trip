@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Fieldtrip Lotería - Home (Zine Edition)</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=Space+Grotesk:wght@400;700&amp;family=Inter:wght@400;500;700&amp;family=Special+Elite&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary": "#ff5c00", // Safety Orange
+                    "on-primary": "#ffffff",
+                    "background": "#c5b358", // Cardboard Gold/Brown
+                    "surface": "#d4c594", // Lighter Cardboard
+                    "surface-container": "#b0a060",
+                    "on-surface": "#1a1a1a",
+                    "secondary": "#222222",
+                    "outline": "#000000"
+            },
+            "borderRadius": {
+                    "DEFAULT": "2px",
+                    "lg": "4px",
+                    "xl": "8px",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "screen-margin": "20px",
+                    "base": "8px",
+                    "grid-gutter": "12px",
+                    "card-padding": "16px"
+            },
+            "fontFamily": {
+                    "headline-lg-mobile": ["Anton"],
+                    "mono-data": ["'Special Elite'", "monospace"],
+                    "label-sm": ["'Space Grotesk'"],
+                    "display-lg": ["Anton"],
+                    "body-md": ["Inter"],
+                    "card-title": ["'Space Grotesk'"],
+                    "headline-lg": ["Anton"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        /* Cardboard Texture Overlay */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url('https://www.transparenttextures.com/patterns/cardboard-flat.png');
+            opacity: 0.4;
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        /* Marker Borders */
+        .marker-border {
+            border: 3px solid #000;
+            border-radius: 4px 2px 5px 3px;
+            box-shadow: 2px 2px 0px #000;
+        }
+
+        .marker-border-heavy {
+            border: 5px solid #000;
+            border-radius: 2px 6px 3px 8px;
+        }
+
+        /* Sticker Slap Effect */
+        .sticker-slap {
+            background: white;
+            color: black;
+            border: 2px solid white;
+            box-shadow: 3px 3px 0px rgba(0,0,0,0.2);
+            transform: rotate(-3deg);
+            padding: 2px 8px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .sticker-slap-orange {
+            background: #ff5c00;
+            color: white;
+            border: 2px solid white;
+            transform: rotate(2deg);
+        }
+
+        /* Scratched/Tape look */
+        .tape-effect {
+            position: relative;
+        }
+        .tape-effect::after {
+            content: "";
+            position: absolute;
+            top: -10px; left: 50%;
+            width: 40px; height: 15px;
+            background: rgba(255,255,255,0.3);
+            transform: translateX(-50%) rotate(-2deg);
+            box-shadow: 0 0 2px rgba(0,0,0,0.1);
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .rotation-zine-1 { transform: rotate(1deg); }
+        .rotation-zine-2 { transform: rotate(-1.5deg); }
+        .rotation-zine-3 { transform: rotate(0.5deg); }
+
+        .paper-grain {
+            background-color: #c5b358;
+            background-image: url("https://www.transparenttextures.com/patterns/recycled-paper-texture.png");
+        }
+
+        .block-type {
+            background: black;
+            color: white;
+            padding: 0 4px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body class="paper-grain text-on-surface font-body-md overflow-x-hidden min-h-screen pb-32">
+<!-- Top AppBar -->
+<header class="bg-surface/90 backdrop-blur-sm sticky top-0 z-50 flex justify-between items-center px-screen-margin w-full h-16 border-b-4 border-black">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-black font-bold">menu</span>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile text-black uppercase tracking-tighter scale-y-110">
+<span class="block-type">LOTE</span>RÍA
+        </h1>
+</div>
+<span class="material-symbols-outlined text-black font-bold">help_outline</span>
+</header>
+<main class="px-screen-margin pt-6 space-y-8 max-w-lg mx-auto">
+<!-- Player Status Card -->
+<section class="marker-border bg-white/10 p-4 relative overflow-hidden rotation-zine-1">
+<div class="flex items-center gap-4">
+<div class="w-16 h-16 marker-border bg-black shrink-0 overflow-hidden">
+<img class="w-full h-full object-cover grayscale contrast-125" data-alt="Portrait" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBfvryqmUtaCrYwcCY2mTMxsGhKhJ9ZIUTy22_Mdpg-3EwgTb3jyv4wJ1PG-xkQiQtPSU2u9U2NLr6oJGcB3udrsbgAFtodUZahb34SZ6yTaO6nPfVlSYn4wLlQHyg8324pzrvUjQx0IlvwmeFGd0e_vwizkzrz5a-OJnkr7KGtSpHU3N6g-hMNB6KIDqdo-UWUaHDmxNIDPNqcPmG9ZOU7o-euqEkJPD2DnSkqW_m3wk-WRaLAyjEn0A"/>
+</div>
+<div class="flex flex-col">
+<span class="font-mono-data text-[12px] text-primary uppercase font-bold tracking-widest">ID: LT-AUTH-012</span>
+<h2 class="font-headline-lg-mobile text-[20px] uppercase leading-none">Urban Legend</h2>
+<div class="flex items-center gap-2 mt-2">
+<div class="h-5 flex-1 border-2 border-black bg-black/20 overflow-hidden">
+<div class="h-full bg-primary w-[65%] border-r-2 border-black"></div>
+</div>
+<span class="font-mono-data text-[12px] font-bold">LVL 12</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Primary Action -->
+<section>
+<button class="w-full bg-primary marker-border-heavy py-6 active:translate-y-1 transition-all group relative overflow-hidden">
+<span class="font-headline-lg-mobile text-headline-lg-mobile text-white uppercase block scale-x-90">CONTINUE STARTER LOTERIA</span>
+<div class="absolute top-0 left-0 w-full h-1 bg-white/30"></div>
+</button>
+</section>
+<!-- Secondary Actions -->
+<section class="flex flex-col gap-4">
+<button class="w-full bg-white/80 marker-border py-4 font-headline-lg-mobile text-[24px] text-black uppercase hover:bg-white active:scale-95 transition-transform">
+            CHOOSE NEW BOARD
+        </button>
+<button class="w-full bg-white/80 marker-border py-4 font-headline-lg-mobile text-[24px] text-black uppercase hover:bg-white active:scale-95 transition-transform">
+            PLAY WITH FRIENDS
+        </button>
+</section>
+<!-- Your Memories Carousel -->
+<section class="space-y-4">
+<div class="flex justify-between items-center">
+<h3 class="font-headline-lg-mobile text-[28px] uppercase text-black bg-white/20 px-2">YOUR MEMORIES</h3>
+<span class="font-mono-data text-[12px] text-primary font-bold underline cursor-pointer">SEE ALL</span>
+</div>
+<div class="flex gap-6 overflow-x-auto no-scrollbar pb-6 pt-2 snap-x">
+<!-- Memory Item 1 -->
+<div class="min-w-[200px] bg-white p-3 marker-border rotation-zine-2 snap-center relative tape-effect">
+<div class="h-40 bg-black mb-3 overflow-hidden">
+<img class="w-full h-full object-cover grayscale brightness-75" data-alt="Collage" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD78qBhSAoRtER2qHvqOE4yug-7CeWM42Zb34m35y-ix39KLqYe5OFe5JMiKVIDEok4KDImxaRYs0rgPuUU_tRW5tWCAwQxg3jolDfy4RLr_NuoNHeI7fJrvw8lQ_MSQMThVnIfsDTZdvEDg1njkxd97bML85Dhq5zK1b39pS7GStixQgK4Q7d35MS7p2DGXzmkaDXtTpWswl4P-gGJs8c8haCJpv3uf85zRMc39r94xqfUV8VYchLuew"/>
+</div>
+<p class="font-mono-data text-[14px] text-center uppercase font-bold">Downtown Hustle</p>
+<div class="absolute -top-4 -right-2 sticker-slap-orange font-mono-data text-[10px]">DONE</div>
+</div>
+<!-- Memory Item 2 -->
+<div class="min-w-[200px] bg-white p-3 marker-border rotation-zine-1 snap-center relative tape-effect">
+<div class="h-40 bg-black mb-3 overflow-hidden">
+<img class="w-full h-full object-cover grayscale" data-alt="Beach" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBl8fdXmQ8FWQ23XSX-gVWEVoxNBhCwpHy98Jb5vF_zULX2a2z09S_b6Ke02L8zED0G0LR4Q8MDp8j_tj4nu4rYlcKYV_flr3Qeet-Rdkb1dFkgb5Dd_2k53KsmkA1-zEjKhXVMLWsuCuTl5eGqB1Grccc9jeV9V1yRSPTAJQp2CbOfbL1lvDLsj5Z6UDb0GN3Xq_mYRPYzcrgZy_iEtpxjKRyNlO11NqHX9wkfCw-5tMf9lRZs2htmeQ"/>
+</div>
+<p class="font-mono-data text-[14px] text-center uppercase font-bold">Beach Day Void</p>
+</div>
+<!-- Memory Item 3 -->
+<div class="min-w-[200px] bg-white p-3 marker-border rotation-zine-3 snap-center relative tape-effect">
+<div class="h-40 bg-black mb-3 overflow-hidden">
+<img class="w-full h-full object-cover grayscale contrast-150" data-alt="Receipts" src="https://lh3.googleusercontent.com/aida-public/AB6AXuACTVrkJCNYF_gWHboPt3v12Z29MHY02quvHbUjGwQAbLxtQ41RbhVGH0xcr1UOQQ7U7VBb0LfUP_ncldeAzIy73KB7levsjWqmgtSvKCwTBc7LNL5iwSpuevANKE6Q4U6o2ho0M84F0nunKJTRYE9yDABR9jh-2vQ2U8IKC6UsQmV1czWpB9KHlAIh2k_3kQzuLJcC0qtzUdJybuXsfFbC25W2TFm6f7C2JsGUmeN5yFeC78cnEez0lA"/>
+</div>
+<p class="font-mono-data text-[14px] text-center uppercase font-bold">Errand Chaos</p>
+</div>
+</div>
+</section>
+<!-- Seasonal Packs -->
+<section class="space-y-4">
+<h3 class="font-headline-lg-mobile text-[28px] uppercase text-black bg-white/20 px-2 inline-block">SEASONAL PACKS</h3>
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-white/10 marker-border p-3 relative overflow-hidden group rotation-zine-2">
+<div class="absolute top-2 right-2 sticker-slap font-mono-data text-[10px] z-10">NEW</div>
+<div class="h-24 bg-black marker-border mb-3 overflow-hidden">
+<img class="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500" data-alt="Grocery Cart" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCWPozQO2ZOSUfOWrzBw6XG_KzNHH-6evmym39MbL4_oYPXa3lUlDHRxRP7FURvgEdfq08qL5QBjhzUSHBpgomsZVLhqknYVxAz5KLtMbUoBfk85YRwnd1rz962FmvJDC6aDgpRA8XmWYAla86b5a7SvtgOdDxZuD0EHzzZXYzjOP0Y1JgU6sBGpRFl-wYQLQDUqJwRT0Q468ySb_IhcQjPnc3-K1DHU-wyJvbYQifACEbDp916IGVF1A"/>
+</div>
+<h4 class="font-card-title text-[14px] uppercase leading-tight font-bold">Errand Chaos</h4>
+<p class="font-mono-data text-[10px] mt-1 text-primary font-bold">12 CARDS</p>
+</div>
+<div class="bg-white/10 marker-border p-3 relative overflow-hidden group rotation-zine-1">
+<div class="h-24 bg-black marker-border mb-3 overflow-hidden">
+<img class="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500" data-alt="Beach essentials" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzM-SLnYLYWIogasvtu_RAqfvP4tOUcuYnCgRK-Iy3LmTavFq36ow1U5vM9xyIznHZ-9doBECafBk1EQAC-MPTfqKI24eJZac_7o9B4KYmeDMYJ7PZzbarVdLTaI4MAt6m9M-PJvmFqCAVNSRxtZC5oo1PO9FWpQLVo9NUNNg6h4bBv95LtPTDKYQ1t7BjaYlcrjadxbzAumSpt1aohfyXRHa-CEor-e_eBiD7pElc1vmEPP5Mv3L12g"/>
+</div>
+<h4 class="font-card-title text-[14px] uppercase leading-tight font-bold">Beach Receipts</h4>
+<p class="font-mono-data text-[10px] mt-1 text-primary font-bold">9 CARDS</p>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Navigation -->
+<nav class="fixed bottom-0 w-full z-[100] bg-surface marker-border-heavy h-20 px-2 pb-2 flex justify-around items-center border-x-0 border-b-0">
+<!-- HOME -->
+<a class="flex flex-col items-center justify-center text-primary font-bold scale-110" href="#">
+<span class="material-symbols-outlined text-[28px]" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-mono-data text-[10px]">HOME</span>
+</a>
+<!-- BOARDS -->
+<a class="flex flex-col items-center justify-center text-black font-bold p-2" href="#">
+<span class="material-symbols-outlined text-[28px]">grid_view</span>
+<span class="font-mono-data text-[10px]">BOARDS</span>
+</a>
+<!-- CAMERA -->
+<a class="bg-primary rounded-full -mt-10 border-4 border-black p-4 shadow-[4px_4px_0px_rgba(0,0,0,1)] flex items-center justify-center active:translate-y-1 active:shadow-none transition-all" href="#">
+<span class="material-symbols-outlined text-white text-[32px] font-bold">photo_camera</span>
+</a>
+<!-- MEMORIES -->
+<a class="flex flex-col items-center justify-center text-black font-bold p-2" href="#">
+<span class="material-symbols-outlined text-[28px]">auto_awesome_motion</span>
+<span class="font-mono-data text-[10px]">ZINE</span>
+</a>
+<!-- PROFILE -->
+<a class="flex flex-col items-center justify-center text-black font-bold p-2" href="#">
+<span class="material-symbols-outlined text-[28px]">person</span>
+<span class="font-mono-data text-[10px]">YOU</span>
+</a>
+</nav>
+<script>
+    const carousel = document.querySelector('.no-scrollbar');
+    let isDown = false;
+    let startX;
+    let scrollLeft;
+
+    carousel.addEventListener('mousedown', (e) => {
+        isDown = true;
+        startX = e.pageX - carousel.offsetLeft;
+        scrollLeft = carousel.scrollLeft;
+    });
+    carousel.addEventListener('mouseleave', () => isDown = false);
+    carousel.addEventListener('mouseup', () => isDown = false);
+    carousel.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - carousel.offsetLeft;
+        const walk = (x - startX) * 2;
+        carousel.scrollLeft = scrollLeft - walk;
+    });
+</script>
+</body></html>

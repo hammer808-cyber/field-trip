@@ -91,6 +91,7 @@ const Collection = lazy(() => import('./pages/Collection'));
 const Basecamp = lazy(() => import('./pages/Basecamp'));
 const MissionBriefing = lazy(() => import('./pages/MissionBriefing'));
 const MissionSubmitted = lazy(() => import('./pages/MissionSubmitted'));
+const LoteriaExploreBoard = lazy(() => import('./pages/LoteriaExploreBoard'));
 
 const GlobalErrorBoundary = ({ children }: { children: React.ReactNode }) => {
   return (
@@ -456,6 +457,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     '/memories',
     '/voting',
     '/big-board',
+    '/loteria',
     '/crews',
     '/crew',
     '/profile',
@@ -645,6 +647,7 @@ export default function App() {
                     <Route path="/big-board/live" element={<StarterGate requiredFeature="leaderboard"><BigBoard /></StarterGate>} />
                     <Route path="/big-board/results" element={<StarterGate requiredFeature="leaderboard"><BigBoard /></StarterGate>} />
                     <Route path="/big-board/field-conditions" element={<StarterGate requiredFeature="leaderboard"><BigBoard /></StarterGate>} />
+                    <Route path="/loteria" element={<StarterGate requiredFeature="leaderboard"><LoteriaExploreBoard /></StarterGate>} />
                     <Route path="/mission-briefing" element={<MissionBriefing />} />
                     <Route path="/mission-submitted" element={<MissionSubmitted />} />
                     <Route path="/voting">

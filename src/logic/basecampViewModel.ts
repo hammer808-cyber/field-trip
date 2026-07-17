@@ -102,7 +102,7 @@ export interface BasecampActivityItem {
 }
 
 export interface BasecampQuickLink {
-  id: 'missions' | 'logbook' | 'voting';
+  id: 'missions' | 'logbook' | 'loteria' | 'voting';
   label: string;
   description: string;
   href: string;
@@ -511,6 +511,12 @@ export function buildBasecampViewModel(input: BuildBasecampViewModelInput): Base
           ? `${approvedCount} approved · ${pendingCount} in review`
           : 'Your submitted field proofs will appear here.',
         href: '/profile?tab=logbook',
+      },
+      {
+        id: 'loteria',
+        label: 'Loteria',
+        description: 'Open the explorer board and pick a 3x3 field sheet.',
+        href: '/loteria',
       },
       {
         id: 'voting',
