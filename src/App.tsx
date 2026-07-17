@@ -647,7 +647,7 @@ export default function App() {
                     <Route path="/big-board/live" element={<StarterGate requiredFeature="leaderboard"><BigBoard /></StarterGate>} />
                     <Route path="/big-board/results" element={<StarterGate requiredFeature="leaderboard"><BigBoard /></StarterGate>} />
                     <Route path="/big-board/field-conditions" element={<StarterGate requiredFeature="leaderboard"><BigBoard /></StarterGate>} />
-                    <Route path="/loteria" element={<StarterGate requiredFeature="leaderboard"><LoteriaExploreBoard /></StarterGate>} />
+                    <Route path="/loteria" element={<LoteriaExploreBoard />} />
                     <Route path="/mission-briefing" element={<MissionBriefing />} />
                     <Route path="/mission-submitted" element={<MissionSubmitted />} />
                     <Route path="/voting">
