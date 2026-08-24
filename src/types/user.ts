@@ -1,6 +1,7 @@
 import { Timestamp } from 'firebase/firestore';
 
 export type UserRole = 'player' | 'admin' | 'moderator';
+export type FeedVisibility = 'crew_only' | 'followers_only' | 'public_discovery' | 'private';
 
 export interface UserProfile {
   uid: string;
@@ -36,4 +37,5 @@ export interface UserProfile {
   
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  feedVisibility?: FeedVisibility;
 }

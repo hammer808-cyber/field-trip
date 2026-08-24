@@ -13,6 +13,7 @@ import {
 import { FIELDTRIP_VOTING_TIMEZONE, getCurrentVotingCycle, getVotingPhase } from './votingCycleService';
 import { getActiveSeason, getAppConfig } from './seasonService';
 import { WeeklyBallot, CandidateProof, WeeklyBallotStatus } from '../data/votingBallotSchema';
+import { getProofImageReference, getProofImageUrl, hasRenderableProofImage } from '../logic/proofDistribution';
 
 /**
  * Calculates which week number a given approvedAt date belongs to,
@@ -31,8 +32,8 @@ export async function isEntryEligibleForBallot(entry: any, targetSeasonId: strin
   }
 
   // 2. photoUrl exists
-  const photoUrl = entry.proofImage || entry.imageUrl || entry.photoUrl || entry.proofUrl || '';
-  if (!photoUrl) {
+  const photoUrl = getProofImageReference(entry);
+  if (!hasRenderableProofImage(entry)) {
     console.log(`[BALLOT_ASSEMBLY] Entry ${entryId} rejected: photoUrl is missing`);
     return false;
   }
@@ -161,7 +162,9 @@ export async function getCurrentWeeklyBallot(seasonId: string, weekNumber: numbe
         userName: cData.displayName || 'Agent',
         tripId: cData.missionId,
         tripTitle: cData.missionTitle,
-        proofImage: cData.photoUrl,
+        proofImage: getProofImageReference(cData),
+        photoUrl: getProofImageUrl(cData),
+        storagePath: cData.storagePath || cData.photoStoragePath || '',
         fieldNote: cData.fieldNote || cData.caption || '',
         weekNumber: cData.eligibleWeekNumber,
         seasonId: cData.seasonId,
@@ -215,8 +218,9 @@ async function addApprovedEntryToWeeklyBallotSub(
       userId: entry.userId || entry.uid || '',
       displayName: entry.userName || entry.displayName || 'Agent',
       avatarUrl: entry.avatarUrl || '',
-      photoUrl: entry.proofImage || entry.imageUrl || entry.photoUrl || '',
-      thumbnailUrl: entry.thumbnailUrl || entry.proofImage || entry.imageUrl || '',
+      photoUrl: getProofImageUrl(entry),
+      storagePath: entry.storagePath || entry.photoStoragePath || entry.imageStoragePath || '',
+      thumbnailUrl: entry.thumbnailUrl || getProofImageUrl(entry),
       missionId: tripId,
       missionTitle: entry.tripTitle || entry.challengeTitle || 'Field Trip Mission',
       deckId: entry.deckId || 'starter',

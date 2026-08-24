@@ -110,7 +110,8 @@ export function ProofImage({
 
       // 1. Resolve canonical source URL from normalized proof
       const resolvedUrl = norm.photoUrl;
-      const storagePathVal = norm.storagePath || entry.photoStoragePath || entry.storagePath || entry.imageStoragePath || entry.proofImageRef || entry.proofStoragePath;
+      const normalizedUrlIsDirect = !!norm.photoUrl && /^(https?:|data:image\/)/.test(norm.photoUrl);
+      const storagePathVal = norm.storagePath || (!normalizedUrlIsDirect ? norm.photoUrl : '') || entry.photoStoragePath || entry.storagePath || entry.imageStoragePath || entry.proofImageRef || entry.proofStoragePath;
 
       try {
         // Priority 1: Direct URL

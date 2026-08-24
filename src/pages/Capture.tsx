@@ -1081,6 +1081,7 @@ export default function CapturePage() {
           selectedCategory: selectedLevel,
           selectedLevel: selectedLevel,
           crewId: profile.crewId || undefined,
+          feedVisibility: profile.preferences?.privateApprovedPhotos ? 'private' : (profile.preferences?.feedVisibility || 'crew_only'),
           userId: user.uid,
           uploadSource: captureData.metadata.source || 'camera',
           photoTakenAt: captureData.metadata.photoTakenAt || null,

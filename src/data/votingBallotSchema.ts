@@ -5,6 +5,8 @@ export interface CandidateProof {
   tripId: string;
   tripTitle: string;
   proofImage: string;
+  photoUrl?: string;
+  storagePath?: string;
   fieldNote: string;
   weekNumber: number;
   seasonId: string;

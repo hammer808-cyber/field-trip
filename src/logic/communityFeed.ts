@@ -3,6 +3,7 @@ import {
   getEntryApprovedTime,
   getEntryChallengeId,
   getEntryOwnerId,
+  getEntrySeasonId,
   getProofDistributionExclusionReasons,
   getProofImageReference,
   getProofImageUrl,
@@ -15,6 +16,39 @@ const APPROVED_FEED_STATUSES = new Set(['approved']);
 
 export const COMMUNITY_FEED_APPROVED_STATUSES = ['approved', 'approved_by_admin', 'auto_approved', 'completed', 'retry-approved'];
 export const COMMUNITY_FEED_QUERY_STATUSES = [...COMMUNITY_FEED_APPROVED_STATUSES, 'verified'];
+
+export type FeedVisibility = 'crew_only' | 'followers_only' | 'public_discovery' | 'private';
+
+export interface CommunityFeedScope {
+  viewerUserId: string;
+  activeCrewId?: string | null;
+  activeSeasonId?: string | null;
+  blockedUserIds?: readonly string[];
+}
+
+export function getProfileFeedVisibility(profile: any): FeedVisibility {
+  if (profile?.preferences?.privateApprovedPhotos === true) return 'private';
+  const value = profile?.preferences?.feedVisibility || profile?.feedVisibility;
+  return ['crew_only', 'followers_only', 'public_discovery', 'private'].includes(value) ? value : 'crew_only';
+}
+
+export function getSocialFeedExclusionReasons(entry: any, scope: CommunityFeedScope): string[] {
+  const reasons = getCommunityFeedExclusionReasons(entry);
+  const ownerId = getEntryOwnerId(entry);
+  if (ownerId && scope.blockedUserIds?.includes(ownerId)) reasons.push('blocked_user');
+  if (scope.activeSeasonId && !getEntrySeasonId(entry)) reasons.push('missing_season');
+  else if (scope.activeSeasonId && getEntrySeasonId(entry) !== scope.activeSeasonId) reasons.push('different_season');
+  if (ownerId && ownerId !== scope.viewerUserId) {
+    const entryCrewId = String(entry?.crewId || entry?.activeCrewId || '').trim();
+    if (!scope.activeCrewId) reasons.push('viewer_has_no_crew');
+    else if (entryCrewId !== scope.activeCrewId) reasons.push(entryCrewId ? 'outside_social_scope' : 'missing_crew_scope');
+  }
+  return Array.from(new Set(reasons));
+}
+
+export function isVisibleInSocialFeed(entry: any, scope: CommunityFeedScope): boolean {
+  return getSocialFeedExclusionReasons(entry, scope).length === 0;
+}
 
 export function getCommunityFeedImageUrl(entry: any): string {
   return getProofImageUrl(entry);

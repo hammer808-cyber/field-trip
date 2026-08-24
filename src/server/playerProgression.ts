@@ -9,6 +9,7 @@ import {
   getProgressionRewardsForLevels,
   normalizeLifetimeXp,
 } from '../logic/playerLevel';
+import { buildPeriodProjectionChanges, buildScoreProjectionChanges, projectScoreLedger, type CanonicalScoreEventLike } from '../logic/scoringLedger';
 
 export interface TrustedXpAwardInput {
   userId: string;
@@ -134,6 +135,20 @@ export function buildProgressionRepairPlan(userId: string, userData: Record<stri
     expectedProgressionRewardIds,
     changes,
     reasons,
+  };
+}
+
+export function buildLedgerBackedProgressionRepairPlan(userId: string, userData: Record<string, any>, scoreEvents: readonly CanonicalScoreEventLike[], periods: { seasonXp?: number; weeklyXp?: number } = {}): ProgressionRepairPlan {
+  const projection = projectScoreLedger(userId, scoreEvents);
+  const projectedProfile = { ...userData, ...buildScoreProjectionChanges(userData, projection), xp: projection.lifetimeXp };
+  const plan = buildProgressionRepairPlan(userId, projectedProfile);
+  const scoreChanges = buildScoreProjectionChanges(userData, projection);
+  const periodChanges = buildPeriodProjectionChanges(userData, periods.seasonXp, periods.weeklyXp);
+  return {
+    ...plan,
+    xp: projection.lifetimeXp,
+    changes: { ...scoreChanges, ...periodChanges, ...plan.changes },
+    reasons: [...(Object.keys(scoreChanges).length ? ['profile_totals_drifted_from_score_event_ledger'] : []), ...(Object.keys(periodChanges).length ? ['period_totals_drifted_from_score_event_ledger'] : []), ...plan.reasons],
   };
 }
 

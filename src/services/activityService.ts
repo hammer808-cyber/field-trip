@@ -76,3 +76,36 @@ export function subscribeToPublicProofs(limitCount: number, callback: (entries: 
     callback([]);
   });
 }
+
+export function subscribeToSocialProofs(
+  viewerUserId: string,
+  activeCrewId: string | null,
+  limitCount: number,
+  callback: (entries: any[], errors: string[]) => void
+) {
+  const results = new Map<'own' | 'crew', any[]>();
+  const errors = new Set<string>();
+  const subscriptions: Array<() => void> = [];
+  const publish = () => callback(
+    dedupeCommunityFeedProofs(Array.from(results.values()).flat().filter(isCommunityFeedEligible))
+      .sort((a, b) => getCommunityFeedApprovedTime(b) - getCommunityFeedApprovedTime(a))
+      .slice(0, limitCount),
+    Array.from(errors)
+  );
+  const listen = (key: 'own' | 'crew', constraint: ReturnType<typeof where>) => {
+    const q = query(collection(db, 'entries'), where('status', 'in', COMMUNITY_FEED_QUERY_STATUSES), constraint, limit(Math.max(limitCount, 24)));
+    subscriptions.push(onSnapshot(q, snap => {
+      results.set(key, snap.docs.map(item => ({ ...item.data(), id: item.id, sourceDocumentId: item.id })));
+      errors.delete(key);
+      publish();
+    }, error => {
+      console.warn(`[ActivityService] ${key} feed subscription failed:`, error.message);
+      errors.add(`${key}:${error.code || error.message}`);
+      results.set(key, []);
+      publish();
+    }));
+  };
+  listen('own', where('userId', '==', viewerUserId));
+  if (activeCrewId) listen('crew', where('crewId', '==', activeCrewId));
+  return () => subscriptions.forEach(unsubscribe => unsubscribe());
+}

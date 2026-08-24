@@ -2249,6 +2249,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         selectedLevel: (entryData.selectedLevel || 'Standard') as any,
         detourCompleted: entryData.detourCompleted || false,
         crewId: entryData.crewId || activeCrewId,
+        feedVisibility: (entryData as any).feedVisibility || (profile.preferences?.privateApprovedPhotos ? 'private' : profile.preferences?.feedVisibility || 'crew_only'),
         crewContext,
         userAvatar: profile.avatar || undefined, 
         
