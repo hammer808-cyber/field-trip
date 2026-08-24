@@ -52,6 +52,7 @@ export async function submitTripEntry(
     selectedLevel: ChallengeLevel;
     detourCompleted: boolean;
     crewId?: string;
+    feedVisibility?: 'crew_only' | 'followers_only' | 'public_discovery' | 'private';
     crewContext?: {
       crewId: string | null;
       crewNameSnapshot: string | null;
@@ -271,6 +272,7 @@ export async function submitTripEntry(
       selectedLevel: entryData.selectedLevel || 'Standard', // Legacy
       findingType: entryData.findingType || null,
       crewId: entryData.crewContext?.crewId || entryData.crewId || null,
+      feedVisibility: entryData.feedVisibility || 'crew_only',
       crewContext: entryData.crewContext || {
         crewId: entryData.crewId || null,
         crewNameSnapshot: null,

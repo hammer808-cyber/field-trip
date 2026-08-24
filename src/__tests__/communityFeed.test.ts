@@ -9,7 +9,8 @@ import {
   getCommunityFeedDedupeKey,
   getCommunityFeedImageReference,
   hasCommunityFeedImageReference,
-  isCommunityFeedEligible
+  isCommunityFeedEligible,
+  isVisibleInSocialFeed
 } from '../logic/communityFeed';
 
 const bigBoardSource = readFileSync('src/pages/BigBoard.tsx', 'utf8');
@@ -98,6 +99,12 @@ test('community feed accepts legacy approved proof image fields and storage refe
   assert.equal(hasCommunityFeedImageReference({ ...base, storagePath: 'blob:local' }), false);
 });
 
+test('canonical voting mediaRef is normalized as a renderable proof image', () => {
+  const proof = { status: 'approved', userId: 'user-1', mediaRef: 'proofUploads/user-1/weekly.jpg', approvedAt: '2026-06-20' };
+  assert.equal(getCommunityFeedImageReference(proof), 'proofUploads/user-1/weekly.jpg');
+  assert.equal(hasCommunityFeedImageReference(proof), true);
+});
+
 test('community feed dedupes canonical and legacy copies before rendering', () => {
   const canonical = {
     id: 'doc-a',
@@ -151,11 +158,12 @@ test('community feed diagnostics explain exclusions', () => {
   assert.ok(reasons.includes('missing_owner'));
 });
 
-test('Dex Community Proofs feed does not merge local pending entries into public feed', () => {
+test('Dex Community Proofs feed uses the social subscription and does not merge local pending entries', () => {
   assert.doesNotMatch(communityProofsFeedSource, /const userPending =/);
   assert.doesNotMatch(communityProofsFeedSource, /\[\.\.\.userPending,\s*\.\.\.filteredPublic\]/);
-  assert.match(communityProofsFeedSource, /publicProofs\.filter\(isCommunityFeedEligible\)/);
-  assert.match(communityProofsFeedSource, /No receipts on the board yet/);
+  assert.match(communityProofsFeedSource, /subscribeToSocialProofs/);
+  assert.match(communityProofsFeedSource, /isVisibleInSocialFeed/);
+  assert.match(communityProofsFeedSource, /Join a Crew/);
   assert.match(bigBoardSource, /navigate\('\/dex\/memories\/community'/);
   assert.doesNotMatch(bigBoardSource, /\{ id: "proofs", label: "Proofs" \}/);
 });
@@ -179,8 +187,19 @@ test('Hype writes go through server endpoint and direct Firestore like writes ar
   assert.match(rulesSource, /match \/likes\/\{likeId\}[\s\S]*allow read: if isSignedIn\(\);[\s\S]*allow write: if false;/);
 });
 
-test('Firestore rules allow approved users to list entries for Community Feed subscriptions', () => {
-  assert.match(rulesSource, /match \/entries\/\{entryId\}[\s\S]*allow list: if isAdmin\(\) \|\| isApproved\(\);/);
+test('Firestore rules scope approved entry reads to owners and active Crew members', () => {
+  assert.match(rulesSource, /function canReadSocialEntry/);
+  assert.match(rulesSource, /crewId == activeCrewId\(\)/);
+  assert.match(rulesSource, /allow get, list: if isAdmin\(\) \|\| canReadSocialEntry\(resource\.data\);/);
+  assert.doesNotMatch(rulesSource, /allow list: if isAdmin\(\) \|\| isApproved\(\);/);
+});
+
+test('social feed shows own and same-Crew proofs but excludes unrelated and blocked owners', () => {
+  const proof = { status: 'approved', userId: 'owner', crewId: 'crew-1', photoUrl: 'https://example.com/a.jpg', approvedAt: '2026-06-20' };
+  assert.equal(isVisibleInSocialFeed(proof, { viewerUserId: 'owner' }), true);
+  assert.equal(isVisibleInSocialFeed(proof, { viewerUserId: 'viewer', activeCrewId: 'crew-1' }), true);
+  assert.equal(isVisibleInSocialFeed(proof, { viewerUserId: 'viewer', activeCrewId: 'crew-2' }), false);
+  assert.equal(isVisibleInSocialFeed(proof, { viewerUserId: 'viewer', activeCrewId: 'crew-1', blockedUserIds: ['owner'] }), false);
 });
 
 test('Community feed My Crew filter uses canonical crew eligibility helper', () => {

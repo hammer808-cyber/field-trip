@@ -39,6 +39,7 @@ import {
   getExplorerTypeLevelTitle,
   getLevelProgress,
 } from '../logic/playerLevel';
+import { updateFeedPrivacy } from '../services/userService';
 
 export default function ProfilePage() {
   const { 
@@ -594,27 +595,36 @@ export default function ProfilePage() {
                         </p>
                         
                         <div className="space-y-3">
-                           {/* Preference 1: Opt out of public sharing (privateApprovedPhotos) */}
-                           <button
-                              onClick={async () => {
+                           <fieldset className="space-y-2">
+                              <legend className="font-display text-lg font-black uppercase">Who can see my receipts?</legend>
+                              <p className="text-[10px] opacity-55">The feed defaults to your Crew. Public discovery is reserved for a deliberate future discovery surface.</p>
+                              {[
+                                 ['crew_only', 'Crew only'],
+                                 ['followers_only', 'People I add'],
+                                 ['public_discovery', 'Public discovery'],
+                                 ['private', 'Private'],
+                              ].map(([value, label]) => {
+                                 const selected = (profile?.preferences?.feedVisibility || (profile?.preferences?.privateApprovedPhotos ? 'private' : 'crew_only')) === value;
+                                 const available = value === 'crew_only' || value === 'private';
+                                 return <button key={value} type="button" disabled={!available} onClick={async () => {
+                                    await updateFeedPrivacy(value as 'crew_only' | 'followers_only' | 'public_discovery' | 'private');
+                                 }} className={cn("w-full p-3 flex items-center justify-between font-mono text-[10px] uppercase font-black tracking-wider rounded-xl border-2 text-left disabled:opacity-40", selected ? "bg-brand-lime text-on-surface border-on-surface shadow-[2px_2px_0px_black]" : "bg-white text-on-surface/50 border-on-surface")}>
+                                    <span>{label}</span><span>{selected ? 'Selected' : available ? '' : 'Coming later'}</span>
+                                 </button>;
+                              })}
+                           </fieldset>
+                           {[
+                              ['allowHype', 'Allow Hype'],
+                              ['allowSusReports', 'Allow private Sus reports'],
+                           ].map(([key, label]) => {
+                              const enabled = profile?.preferences?.[key as 'allowHype' | 'allowSusReports'] !== false;
+                              return <button key={key} type="button" onClick={async () => {
                                  const currentPrefs = profile?.preferences || {};
-                                 await updateProfile(profile?.id || '', {
-                                    preferences: {
-                                       ...currentPrefs,
-                                       privateApprovedPhotos: !currentPrefs.privateApprovedPhotos
-                                    }
-                                 });
-                              }}
-                              className={cn(
-                                 "w-full p-4 flex items-center justify-between font-mono text-[10px] uppercase font-black tracking-wider transition-all rounded-xl border-2 text-left",
-                                 profile?.preferences?.privateApprovedPhotos
-                                    ? "bg-brand-orange text-white border-on-surface shadow-[2px_2px_0px_black]"
-                                    : "bg-white text-on-surface/50 hover:bg-paper-dark border-on-surface shadow-[1px_1px_0px_black]"
-                              )}
-                           >
-                              <span>🚫 Opt Out of Weekly Ballots</span>
-                              <span>{profile?.preferences?.privateApprovedPhotos ? "ACTIVATED" : "INACTIVE"}</span>
-                           </button>
+                                 await updateProfile(profile?.id || '', { preferences: { ...currentPrefs, [key]: !enabled } });
+                              }} className="w-full p-3 flex items-center justify-between font-mono text-[10px] uppercase font-black tracking-wider rounded-xl border-2 bg-white text-on-surface border-on-surface">
+                                 <span>{label}</span><span>{enabled ? 'Allowed' : 'Off'}</span>
+                              </button>;
+                           })}
 
                            {/* Preference 2: Show exact coordinates (showExactCoordinates) */}
                            <button

@@ -12,6 +12,7 @@ import {
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { ScoreEvent, WeeklySummary, Season } from '../types/game';
 import { calculateCrewWeeklyScore } from '../logic/scoringLogic';
+import { getCanonicalScoreEventAmount, isActiveCanonicalScoreEvent } from '../logic/scoringLedger';
 
 export async function recalculateWeeklySummary(seasonId: string, weekNumber: number) {
   try {
@@ -82,7 +83,8 @@ export async function recalculateWeeklySummary(seasonId: string, weekNumber: num
       }
     });
 
-    events.forEach(ev => {
+    events.filter(ev => isActiveCanonicalScoreEvent(ev, ev.userId)).forEach(ev => {
+      const eventPoints = getCanonicalScoreEventAmount(ev) || 0;
       // Player stats
       if (!playerStats[ev.userId]) {
         const userDoc = usersSnap.docs.find(d => d.id === ev.userId);
@@ -96,8 +98,8 @@ export async function recalculateWeeklySummary(seasonId: string, weekNumber: num
           fieldTypeName: userData?.fieldTypeName || userData?.fieldType || 'FIELD AGENT'
         };
       }
-      playerStats[ev.userId].xp += ev.points;
-      playerStats[ev.userId].points += ev.points;
+      playerStats[ev.userId].xp += eventPoints;
+      playerStats[ev.userId].points += eventPoints;
       if (ev.type === 'trip_approved') {
         playerStats[ev.userId].entriesCount += 1;
       }
@@ -108,7 +110,7 @@ export async function recalculateWeeklySummary(seasonId: string, weekNumber: num
         if (ev.type === 'trip_approved') c.membersWithEntries.add(ev.userId);
         if (ev.type === 'vote_winner_bonus') c.voteWinnerCount += 1;
         if (ev.type === 'chaos_modifier_bonus') c.chaosBonusCount += 1;
-        if (ev.type === 'crew_bonus') c.crewChallengePoints += ev.points;
+        if (ev.type === 'crew_bonus') c.crewChallengePoints += eventPoints;
       }
     });
 

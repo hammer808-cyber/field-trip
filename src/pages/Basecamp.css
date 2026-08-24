@@ -1,0 +1,39 @@
+.skin-basecamp .basecamp-bulletin {
+  position: relative;
+  padding: 18px;
+  border: 10px solid #6f4224;
+  box-shadow: inset 0 0 0 2px #2a160c, 8px 10px 0 rgba(22, 28, 25, .35);
+  background-color: #a96f43;
+  background-image: radial-gradient(rgba(45, 25, 13, .25) 1px, transparent 1px), linear-gradient(105deg, transparent 40%, rgba(255,255,255,.08) 42%, transparent 45%);
+  background-size: 7px 7px, 100% 100%;
+}
+.skin-basecamp .basecamp-today { transform: rotate(-.25deg); }
+.skin-basecamp .basecamp-paper { background-color: var(--skin-surface); background-image: linear-gradient(rgba(32,104,111,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(32,104,111,.07) 1px, transparent 1px); background-size: 22px 22px; }
+.skin-basecamp .basecamp-tape { position:absolute; z-index:20; top:-13px; width:74px; height:27px; background:rgba(226,218,174,.82); border:1px solid rgba(80,70,40,.25); box-shadow:0 2px 4px rgba(0,0,0,.18); }
+.skin-basecamp .basecamp-tape--left { left:11%; transform:rotate(-5deg); }
+.skin-basecamp .basecamp-tape--right { right:9%; transform:rotate(4deg); }
+.skin-basecamp .basecamp-notice { position:relative; transform:rotate(.45deg); background-image:repeating-linear-gradient(0deg, transparent 0 25px, rgba(36,105,113,.09) 26px); box-shadow:3px 5px 12px rgba(27,17,9,.4); }
+.skin-basecamp .basecamp-pushpin { position:absolute; z-index:2; top:8px; left:50%; width:15px; height:15px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #ff938b, #9f2924 55%, #41100e); box-shadow:1px 3px 3px #3338; }
+.skin-basecamp .basecamp-progress, .skin-basecamp .basecamp-crew { border:1px solid rgba(255,255,255,.55); border-radius:20px; box-shadow:0 18px 35px rgba(20,16,35,.28), inset 0 1px 0 #fff9; }
+.skin-basecamp .basecamp-progress { background:radial-gradient(circle at 88% 8%, #fff 0 2%, #8ff8ff 3%, transparent 18%), linear-gradient(135deg,#080b13 5%,#342052 47%,#d91586 78%,#ff7a18 120%); }
+.skin-basecamp .basecamp-shine { position:absolute; inset:0; background:linear-gradient(115deg,transparent 20%,rgba(255,255,255,.17) 35%,transparent 48%); pointer-events:none; }
+.skin-basecamp .basecamp-chrome-badge { position:relative; display:flex; width:46px; height:46px; flex:none; align-items:center; justify-content:center; border:1px solid #fff; border-radius:50%; color:#111; background:linear-gradient(145deg,#fff,#7eeaf2 28%,#555 52%,#fff 75%,#bcff39); box-shadow:0 0 18px #8ff8ff88, inset 0 0 0 3px #1118; }
+.skin-basecamp .basecamp-progress-dial { width:145px; aspect-ratio:1; border-radius:50%; padding:13px; background:conic-gradient(#dfff45 var(--progress),rgba(255,255,255,.13) 0); box-shadow:0 0 28px #dfff4544,inset 0 0 12px #fff7; }
+.skin-basecamp .basecamp-progress-dial div { height:100%; border-radius:50%; display:flex; flex-direction:column; align-items:center; justify-content:center; background:radial-gradient(circle at 35% 25%,#49405c,#0b0c13 70%); border:1px solid #fff8; }
+.skin-basecamp .basecamp-progress-dial strong { font-family:var(--font-display,inherit); font-size:2.25rem; font-style:italic; line-height:1; }
+.skin-basecamp .basecamp-progress-dial span { margin-top:5px; font:700 7px monospace; letter-spacing:.12em; text-transform:uppercase; color:#dfff45; }
+.skin-basecamp .basecamp-progress-track { border:1px solid #fff8; border-radius:999px; background:#0006; box-shadow:inset 0 2px 5px #000; }
+.skin-basecamp .basecamp-progress-track div { border-radius:inherit; background:linear-gradient(90deg,#21e3e9,#dfff45); box-shadow:0 0 12px #dfff45; }
+.skin-basecamp .basecamp-progress-stat { padding:14px; border:1px solid #fff4; border-radius:12px; background:linear-gradient(145deg,#fff1,#0003); box-shadow:inset 0 1px 0 #fff5; }
+.skin-basecamp .basecamp-commercial-cta { border-top:1px solid #fff8; color:#111; background:linear-gradient(100deg,#dfff45,#fff 48%,#70f4fc); }
+.skin-basecamp .basecamp-crew { background:radial-gradient(circle at 12% 10%,#755bff,transparent 35%),linear-gradient(145deg,#10151d,#081f24 52%,#086d73 120%); }
+.skin-basecamp .basecamp-crew-glow { position:absolute; width:220px; height:220px; right:-80px; bottom:-90px; border-radius:50%; background:#20e2e8; filter:blur(45px); opacity:.28; }
+.skin-basecamp .basecamp-crew-campaign { position:relative; min-height:116px; display:flex; align-items:flex-end; justify-content:space-between; gap:12px; padding:12px 14px; overflow:hidden; border-radius:14px; border:1px solid #fff5; background:linear-gradient(110deg,#d91586cc,#5539b5cc 55%,#16cbd0aa); box-shadow:inset 0 1px 0 #fff8; }
+.skin-basecamp .basecamp-crew-portraits { display:flex; align-items:flex-end; }
+.skin-basecamp .basecamp-crew-portraits span { display:flex; align-items:center; justify-content:center; width:65px; height:82px; margin-right:-18px; border:2px solid #fff; border-radius:50% 50% 12px 12px; color:#111; background:linear-gradient(145deg,#fff,#8cf1ed 45%,#dfff45); box-shadow:0 7px 15px #160b3999; transform:rotate(-5deg); }
+.skin-basecamp .basecamp-crew-portraits span:nth-child(2) { height:92px; transform:translateY(-5px) rotate(3deg); background:linear-gradient(145deg,#fff,#ff82ca 50%,#ff8b32); }
+.skin-basecamp .basecamp-crew-portraits span:nth-child(3) { transform:rotate(7deg); background:linear-gradient(145deg,#fff,#b9a5ff 50%,#52f1ff); }
+.skin-basecamp .basecamp-crew-kicker { position:relative; max-width:130px; font-family:var(--font-display,inherit); font-size:1.25rem; font-weight:900; font-style:italic; line-height:.9; text-align:right; }
+.skin-basecamp .basecamp-crew-cta { border:1px solid #fff; border-radius:999px; color:#111; background:linear-gradient(100deg,#fff,#74eff0); box-shadow:0 6px 18px #00d9e955; }
+@media (max-width: 639px) { .skin-basecamp .basecamp-bulletin { padding:10px; border-width:7px; } .skin-basecamp .basecamp-tape--right { display:none; } .skin-basecamp .basecamp-progress-dial { width:132px; margin:auto; } }
+@media (prefers-reduced-motion:no-preference) { .skin-basecamp .basecamp-progress:hover .basecamp-shine { transform:translateX(35%); transition:transform .8s ease; } .skin-basecamp .basecamp-crew-portraits span { transition:transform .25s ease; } .skin-basecamp .basecamp-crew:hover .basecamp-crew-portraits span:nth-child(2) { transform:translateY(-10px) rotate(1deg); } }

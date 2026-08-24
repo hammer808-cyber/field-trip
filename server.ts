@@ -62,7 +62,8 @@ import {
   isSusReviewStatus,
   isTribunalVerdict,
 } from "./src/logic/firelightTribunal";
-import { getCommunityFeedExclusionReasons, getCommunityFeedOwnerId, isCommunityFeedEligible } from "./src/logic/communityFeed";
+import { getCommunityFeedExclusionReasons, getCommunityFeedOwnerId, getSocialFeedExclusionReasons, isCommunityFeedEligible } from "./src/logic/communityFeed";
+import { getProofImageReference } from "./src/logic/proofDistribution";
 import { getDeckAccess, sanitizeDeckForUnauthorized } from "./src/logic/deckAccess";
 import {
   CREW_MEMBER_LIMIT_DEFAULT,
@@ -112,7 +113,8 @@ import {
   normalizeZineStickerPlacements,
 } from "./src/logic/zineStickerPlacements";
 import type { ZineEdition, ZineLayoutId, ZinePage, ZineStatus } from "./src/types/zine";
-import { awardTrustedXpInTransaction, buildProgressionRepairPlan, getLevelUpAcknowledgementError, isTrustedProofXpEligible } from "./src/server/playerProgression";
+import { awardTrustedXpInTransaction, buildLedgerBackedProgressionRepairPlan, getLevelUpAcknowledgementError, isTrustedProofXpEligible } from "./src/server/playerProgression";
+import { buildScoreRepairMutationTrace, projectScoreLedgerRange } from "./src/logic/scoringLedger";
 import { getBuiltInMissionCatalog, resolveMissionById } from "./src/logic/missionResolver";
 import {
   calculateMissionScore,
@@ -1979,6 +1981,16 @@ async function startServer() {
         legacyCandidates.filter(candidate => normalizeWeeklyCandidateCategories(candidate.categories).includes(category)).length,
       ]));
       const nomineeCount = canonicalBallotSnap.exists ? canonicalEntriesSnap.size : legacyCandidates.length;
+      const nomineeDocs = canonicalBallotSnap.exists
+        ? canonicalEntriesSnap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any))
+        : legacyCandidates;
+      const nomineesMissingImage = nomineeDocs.filter(nominee => !getBackendImageUrl(nominee) && !getBackendStoragePath(nominee));
+      const nomineesUsingLegacyImageField = nomineeDocs.filter(nominee =>
+        !nominee.photoUrl && !nominee.storagePath && !!(nominee.proofImage || nominee.imageUrl || nominee.mediaRef || nominee.photoStoragePath)
+      );
+      const linkedNomineeEntries = await Promise.all(nomineeDocs.slice(0, 100).map(nominee =>
+        dbAdmin!.collection('entries').doc(getBackendString(nominee.entryId || nominee.proofId || nominee.id)).get()
+      ));
       const nomineeCountByCategory = canonicalBallotSnap.exists
         ? { community_weekly: canonicalEntriesSnap.size }
         : legacyNomineeCountByCategory;
@@ -2066,6 +2078,10 @@ async function startServer() {
           categoryCount,
           nomineeCount,
           nomineeCountByCategory,
+          nomineesMissingImage: nomineesMissingImage.map(nominee => nominee.id),
+          nomineesUsingLegacyImageField: nomineesUsingLegacyImageField.map(nominee => nominee.id),
+          linkedEntryCount: linkedNomineeEntries.filter(snapshot => snapshot.exists).length,
+          imageRenderField: 'photoUrl -> imageUrl -> mediaUrl/mediaRef -> proofImage -> storagePath',
           hiddenReason: emptyReason === 'ready' ? null : emptyReason,
           exclusionReasonCounts,
           excludedProofSamples,
@@ -2105,6 +2121,52 @@ async function startServer() {
     }
   });
 
+  app.post("/api/user/feed-privacy", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    const visibility = getBackendString(req.body?.feedVisibility);
+    if (!['crew_only', 'followers_only', 'public_discovery', 'private'].includes(visibility)) {
+      return res.status(400).json({ error: 'INVALID_FEED_VISIBILITY' });
+    }
+    const uid = req.user.uid;
+    const entriesSnap = await dbAdmin!.collection('entries').where('userId', '==', uid).limit(500).get();
+    const batch = dbAdmin!.batch();
+    batch.update(dbAdmin!.collection('users').doc(uid), {
+      feedVisibility: visibility,
+      'preferences.feedVisibility': visibility,
+      'preferences.privateApprovedPhotos': visibility === 'private',
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    entriesSnap.docs.forEach(entryDoc => batch.update(entryDoc.ref, { feedVisibility: visibility, updatedAt: FieldValue.serverTimestamp() }));
+    await batch.commit();
+    res.json({ success: true, feedVisibility: visibility, updatedEntries: entriesSnap.size });
+  });
+
+  async function canViewerAccessSocialEntry(viewerId: string, entry: any, interaction?: 'hype' | 'sus'): Promise<boolean> {
+    const ownerId = getCommunityFeedOwnerId(entry);
+    if (!ownerId || !isCommunityFeedEligible(entry)) return false;
+    if (ownerId === viewerId) return true;
+    const [viewerSnap, ownerSnap, viewerBlockSnap, ownerBlockSnap] = await Promise.all([
+      dbAdmin!.collection('users').doc(viewerId).get(),
+      dbAdmin!.collection('users').doc(ownerId).get(),
+      dbAdmin!.collection('users').doc(viewerId).collection('blocks').doc(ownerId).get(),
+      dbAdmin!.collection('users').doc(ownerId).collection('blocks').doc(viewerId).get(),
+    ]);
+    if (!viewerSnap.exists || !ownerSnap.exists || viewerBlockSnap.exists || ownerBlockSnap.exists) return false;
+    const viewer = viewerSnap.data() || {};
+    const owner = ownerSnap.data() || {};
+    if (interaction === 'hype' && owner.preferences?.allowHype === false) return false;
+    if (interaction === 'sus' && owner.preferences?.allowSusReports === false) return false;
+    const visibility = owner.preferences?.privateApprovedPhotos === true
+      ? 'private'
+      : owner.preferences?.feedVisibility || owner.feedVisibility || 'crew_only';
+    if (visibility === 'private') return false;
+    const viewerCrewId = getBackendString(viewer.activeCrewId || viewer.crewId);
+    const entryCrewId = getBackendString(entry.crewId || entry.activeCrewId || entry.crewContext?.crewId);
+    if (!viewerCrewId || viewerCrewId !== entryCrewId) return false;
+    const membership = await dbAdmin!.collection('crews').doc(viewerCrewId).collection('members').doc(viewerId).get();
+    return membership.exists && membership.data()?.status === 'active';
+  }
+
   app.post("/api/reports/sus", authRateLimiter, authenticate, async (req: any, res) => {
     if (!assertAdminReady(res)) return;
     const approval = await ensureApprovedRequester(req, res);
@@ -2133,6 +2195,7 @@ async function startServer() {
         if (!entrySnap.exists) throw new Error("ENTRY_NOT_FOUND");
         const entry = entrySnap.data() || {};
         if (!isApprovedEntryStatus(entry.status)) throw new Error("ENTRY_NOT_APPROVED");
+        if (!(await canViewerAccessSocialEntry(uid, entry, 'sus'))) throw new Error("ENTRY_OUTSIDE_SOCIAL_SCOPE");
         if (entry.archived === true || entry.isArchived === true || entry.isDisqualified === true || entry.visibility === 'private') {
           throw new Error("ENTRY_NOT_ELIGIBLE_FOR_SUS_REPORT");
         }
@@ -2216,7 +2279,7 @@ async function startServer() {
       res.json({
         success: true,
         entryId,
-        canReport: isCommunityFeedEligible(entry) && !!targetUserId && canSubmitSusReport(uid, targetUserId),
+        canReport: await canViewerAccessSocialEntry(uid, entry, 'sus') && !!targetUserId && canSubmitSusReport(uid, targetUserId),
         alreadyReported: reportSnap.exists && isActiveSusReportStatus(reportSnap.data()?.status),
         isOwnProof: !!targetUserId && targetUserId === uid
       });
@@ -2247,6 +2310,7 @@ async function startServer() {
         if (!entrySnap.exists) throw new Error("ENTRY_NOT_FOUND");
         const entry = entrySnap.data() || {};
         if (!isCommunityFeedEligible(entry)) throw new Error("ENTRY_NOT_ELIGIBLE_FOR_HYPE");
+        if (!(await canViewerAccessSocialEntry(uid, entry, 'hype'))) throw new Error("ENTRY_OUTSIDE_SOCIAL_SCOPE");
 
         const existingLiked = likeSnap.exists;
         const currentCount = Math.max(0, Number(entry.likeCount || entry.hypeCount || 0));
@@ -2311,6 +2375,10 @@ async function startServer() {
       ]);
       const targetProfile = targetProfileSnap?.data?.() || {};
       const resolvedCrewId = targetCrewId || getBackendString(targetProfile.activeCrewId || targetProfile.crewId);
+      const [crewMembersSnap, viewerBlocksSnap] = await Promise.all([
+        resolvedCrewId ? dbAdmin!.collection('crews').doc(resolvedCrewId).collection('members').where('status', '==', 'active').get() : Promise.resolve(null),
+        targetUserId ? dbAdmin!.collection('users').doc(targetUserId).collection('blocks').get() : Promise.resolve(null),
+      ]);
 
       const report: any = {
         targetUserId: targetUserId || null,
@@ -2326,6 +2394,13 @@ async function startServer() {
           noCrewButGeneralEligible: 0
         },
         eligibleFeedEntries: 0,
+        activeViewerUserId: targetUserId || null,
+        ownApprovedProofs: 0,
+        visibleCrewUserCount: crewMembersSnap?.size || 0,
+        approvedProofsFromVisibleUsers: 0,
+        blockedUsersExcluded: viewerBlocksSnap?.size || 0,
+        legacyImageFieldEntries: 0,
+        missingVisibilitySetting: targetUserId && !targetProfile.preferences?.feedVisibility && !targetProfile.feedVisibility ? 1 : 0,
         excludedApprovedEntries: 0,
         missingImagePaths: 0,
         orphanedUsers: 0,
@@ -2361,6 +2436,9 @@ async function startServer() {
         const status = normalizeStatusBackend(entry.status || entry.reviewStatus || entry.approvalStatus || entry.submissionStatus || entry.proofStatus);
         const isApprovedLike = status === 'approved';
         const entryCrewId = getBackendString(entry.crewId || entry.activeCrewId || (Array.isArray(entry.crewIds) ? entry.crewIds[0] : ''));
+        if (isApprovedLike && ownerId === targetUserId) report.ownApprovedProofs++;
+        if (isApprovedLike && resolvedCrewId && entryCrewId === resolvedCrewId) report.approvedProofsFromVisibleUsers++;
+        if (!entry.photoUrl && !!(entry.imageUrl || entry.proofImage || entry.mediaUrl || entry.storagePath || entry.photoStoragePath)) report.legacyImageFieldEntries++;
 
         report.logbook.totalSubmitted++;
         if (status === 'pending_review') report.logbook.pendingReview++;
@@ -6787,6 +6865,10 @@ async function startServer() {
       const usersSnap = targetUserId
         ? { docs: [await dbAdmin.collection('users').doc(targetUserId).get()].filter(snapshot => snapshot.exists) } as any
         : await dbAdmin.collection('users').get();
+      const gameConfigSnap = await dbAdmin.collection('appConfig').doc('game').get();
+      const activeSeasonId = cleanServerId(gameConfigSnap.data()?.activeSeasonId);
+      const activeSeasonSnap = activeSeasonId ? await dbAdmin.collection('seasons').doc(activeSeasonId).get() : null;
+      const activeSeasonTiming = activeSeasonSnap?.exists ? getSeasonTiming({ id: activeSeasonSnap.id, ...activeSeasonSnap.data() } as any, new Date()) : null;
       const report: any = {
         success: true,
         dryRun,
@@ -6811,7 +6893,15 @@ async function startServer() {
       for (const userDoc of usersSnap.docs) {
         report.scanned += 1;
         try {
-          const plan = buildProgressionRepairPlan(userDoc.id, userDoc.data() || {});
+          const scoreEventsSnap = await dbAdmin.collection('scoreEvents').where('userId', '==', userDoc.id).get();
+          const scoreEvents = scoreEventsSnap.docs.map(eventDoc => ({ id: eventDoc.id, ...eventDoc.data() }));
+          const seasonXp = activeSeasonTiming?.seasonStartsAt && activeSeasonTiming?.seasonEndsAt
+            ? projectScoreLedgerRange(userDoc.id, scoreEvents, activeSeasonTiming.seasonStartsAt.getTime(), activeSeasonTiming.seasonEndsAt.getTime() + 1).lifetimeXp
+            : undefined;
+          const weeklyXp = activeSeasonTiming?.weekStartsAt && activeSeasonTiming?.weekEndsAt
+            ? projectScoreLedgerRange(userDoc.id, scoreEvents, activeSeasonTiming.weekStartsAt.getTime(), activeSeasonTiming.weekEndsAt.getTime() + 1).lifetimeXp
+            : undefined;
+          const plan = buildLedgerBackedProgressionRepairPlan(userDoc.id, userDoc.data() || {}, scoreEvents, { seasonXp, weeklyXp });
           if (Object.keys(plan.changes).length === 0) {
             report.skipped += 1;
             continue;
@@ -6846,14 +6936,12 @@ async function startServer() {
       }
       await flush();
       report.success = report.failed === 0;
-      await writeAdminAudit(req.user.uid, targetUserId || 'all_users', 'playerProgression', dryRun ? 'preview_progression_repair' : 'apply_progression_repair', {
-        scanned: report.scanned,
-        candidates: report.candidates,
-        updated: report.updated,
-        skipped: report.skipped,
-        failed: report.failed,
-        levelUpEventsCreated: 0,
-      });
+      if (!dryRun) {
+        await writeAdminAudit(req.user.uid, targetUserId || 'all_users', 'playerProgression', 'apply_progression_repair', {
+          scanned: report.scanned, candidates: report.candidates, updated: report.updated,
+          skipped: report.skipped, failed: report.failed, levelUpEventsCreated: 0,
+        });
+      }
       res.json(report);
     } catch (error: any) {
       const message = error?.message || String(error);
@@ -8395,6 +8483,102 @@ async function startServer() {
     }
   });
 
+  app.post('/api/admin/data-integrity/audit', adminRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin || !authAdmin) return res.status(500).json({ error: 'ADMIN_NOT_READY' });
+    try {
+      await requireAdminUser(req);
+      const handles = Array.isArray(req.body?.handles) && req.body.handles.length
+        ? req.body.handles.map((value: any) => getBackendString(value).toLowerCase()).filter(Boolean)
+        : ['daphzee', 'mexmax', 'hammertime'];
+      const viewerUserId = cleanServerId(req.body?.viewerUserId) || req.user.uid;
+      const [viewerSnap, gameConfigSnap, authPage] = await Promise.all([
+        dbAdmin.collection('users').doc(viewerUserId).get(),
+        dbAdmin.collection('appConfig').doc('game').get(),
+        authAdmin.listUsers(1000),
+      ]);
+      const viewer = viewerSnap.data() || {};
+      const activeSeasonId = getBackendString(gameConfigSnap.data()?.activeSeasonId);
+      const viewerCrewId = getBackendString(viewer.activeCrewId || viewer.crewId);
+      const viewerBlocksSnap = await dbAdmin.collection('users').doc(viewerUserId).collection('blocks').get();
+      const blockedUserIds = viewerBlocksSnap.docs.map(docSnap => docSnap.id);
+      const reports: any[] = [];
+
+      for (const handle of handles) {
+        const profileMatches = await dbAdmin.collection('users').where('username', '==', handle).get();
+        const profileDoc = profileMatches.docs[0] || null;
+        const authMatch = profileDoc
+          ? await authAdmin.getUser(profileDoc.id).catch(() => null)
+          : authPage.users.find((record: any) =>
+              getBackendString(record.displayName).toLowerCase() === handle ||
+              getBackendString(record.email).split('@')[0].toLowerCase() === handle
+            ) || null;
+        const uid = profileDoc?.id || authMatch?.uid || null;
+        if (!uid) {
+          reports.push({ handle, identity: { uid: null, authExists: false, profileExists: false, deletionState: 'absent' }, entries: [], repairDryRun: null });
+          continue;
+        }
+        const profileSnap = profileDoc || await dbAdmin.collection('users').doc(uid).get();
+        const profile = profileSnap.exists ? profileSnap.data() || {} : null;
+        const crewId = getBackendString(profile?.activeCrewId || profile?.crewId);
+        const membershipSnap = crewId ? await dbAdmin.collection('crews').doc(crewId).collection('members').doc(uid).get() : null;
+        const [entriesByUserId, entriesByUid, scoreEventsSnap, reviewsSnap] = await Promise.all([
+          dbAdmin.collection('entries').where('userId', '==', uid).get(),
+          dbAdmin.collection('entries').where('uid', '==', uid).get(),
+          dbAdmin.collection('scoreEvents').where('userId', '==', uid).get(),
+          dbAdmin.collection('proofReviews').where('userId', '==', uid).get(),
+        ]);
+        const entriesById = new Map<string, any>();
+        [...entriesByUserId.docs, ...entriesByUid.docs].forEach(entryDoc => entriesById.set(entryDoc.id, { id: entryDoc.id, ...entryDoc.data() }));
+        const scoreEvents: any[] = scoreEventsSnap.docs.map(eventDoc => ({ id: eventDoc.id, ...eventDoc.data() }));
+        const reviews: any[] = reviewsSnap.docs.map(reviewDoc => ({ id: reviewDoc.id, ...reviewDoc.data() }));
+        const entryReports: any[] = [];
+        for (const entry of entriesById.values()) {
+          const storagePath = getBackendStoragePath(entry);
+          const storageExists = storagePath ? await storageAdmin.bucket().file(storagePath).exists().then((result: boolean[]) => result[0]).catch(() => null) : null;
+          const socialReasons = getSocialFeedExclusionReasons(entry, { viewerUserId, activeCrewId: viewerCrewId, activeSeasonId, blockedUserIds });
+          const migrationNeeded = [
+            !getBackendImageUrl(entry) && storagePath ? 'photoUrl' : null,
+            !storagePath ? 'storagePath' : null,
+            !entry.crewId && entry.crewContext?.crewId ? 'crewId_from_crewContext' : null,
+            !entry.seasonId ? 'seasonId' : null,
+            !entry.feedVisibility ? 'feedVisibility' : null,
+          ].filter(Boolean);
+          let classification = '8_other';
+          if (entry.deleted || entry.isDeleted || entry.hidden || entry.isHidden || entry.archived || entry.isArchived || entry.disqualified || entry.isDisqualified) classification = '7_marked_deleted_hidden_archived_or_disqualified';
+          else if (!getProofImageReference(entry)) classification = '4_media_reference_cannot_resolve';
+          else if (storagePath && storageExists === false) classification = '5_storage_object_missing';
+          else if (migrationNeeded.length) classification = '3_legacy_migration_fields_missing';
+          else if (socialReasons.some(reason => ['outside_social_scope', 'viewer_has_no_crew', 'missing_crew_scope', 'blocked_user'].includes(reason))) classification = '2_excluded_by_crew_scope';
+          else if (socialReasons.length === 0) classification = '1_community_visible';
+          entryReports.push({
+            entryId: entry.id, userId: getBackendUserId(entry), missionId: getBackendChallengeId(entry), status: entry.status || null,
+            flags: { hidden: !!(entry.hidden || entry.isHidden), archived: !!(entry.archived || entry.isArchived), deleted: !!(entry.deleted || entry.isDeleted), disqualified: !!(entry.disqualified || entry.isDisqualified) },
+            media: { photoUrl: entry.photoUrl || null, imageUrl: entry.imageUrl || null, mediaUrl: entry.mediaUrl || null, mediaRef: entry.mediaRef || null, storagePath: entry.storagePath || null, photoStoragePath: entry.photoStoragePath || null, imageStoragePath: entry.imageStoragePath || null, storageExists },
+            scope: { crewContextCrewId: entry.crewContext?.crewId || null, crewId: entry.crewId || null, seasonId: entry.seasonId || null, feedVisibility: entry.feedVisibility || null, socialReasons },
+            timestamps: { submittedAt: entry.submittedAt || null, approvedAt: entry.approvedAt || null },
+            awardedScore: { xpAwarded: entry.xpAwarded ?? null, pointsAwarded: entry.pointsAwarded ?? null, awardedXP: entry.awardedXP ?? null, awardedPoints: entry.awardedPoints ?? null, scoring: entry.scoring || null, scoringSnapshot: entry.scoringSnapshot || null },
+            linkedScoreEvents: scoreEvents.filter(event => event.entryId === entry.id || event.sourceId === entry.id).map(event => event.id),
+            linkedProofReviews: reviews.filter(review => review.entryId === entry.id || review.submissionId === entry.id || review.id === entry.id).map(review => review.id),
+            migrationNeeded, classification,
+          });
+        }
+        reports.push({
+          handle,
+          identity: { uid, authExists: !!authMatch, profileExists: !!profile, profileDocument: profileSnap.ref?.path || null, deletionState: profile ? 'active_profile' : 'auth_only' },
+          profile: profile ? { activeCrewId: profile.activeCrewId || null, crewId: profile.crewId || null, feedVisibility: profile.preferences?.feedVisibility || profile.feedVisibility || null, privateApprovedPhotos: profile.preferences?.privateApprovedPhotos ?? null, xp: profile.xp ?? null, points: profile.points ?? null, weeklyXp: profile.weeklyXp ?? profile.weeklyXP ?? null, seasonXp: profile.seasonXp ?? profile.seasonXP ?? null } : null,
+          crewMembership: membershipSnap ? { path: membershipSnap.ref.path, exists: membershipSnap.exists, status: membershipSnap.data()?.status || null } : null,
+          currentSeasonId: activeSeasonId || null,
+          scoreLedger: buildScoreRepairMutationTrace(uid, profile, scoreEvents),
+          entries: entryReports,
+          repairDryRun: profile ? await repairUserState(uid, true, req.user.uid) : null,
+        });
+      }
+      res.json({ success: true, readOnly: true, writesPerformed: 0, viewerUserId, viewerCrewId: viewerCrewId || null, activeSeasonId: activeSeasonId || null, reports });
+    } catch (error: any) {
+      res.status(500).json({ error: 'DATA_INTEGRITY_AUDIT_FAILED', message: error?.message || String(error) });
+    }
+  });
+
   async function repairUserState(uid: string, dryRun: boolean, adminUid: string) {
     if (!dbAdmin) throw new Error("DB_ADMIN_NOT_READY");
     const userRef = dbAdmin.collection('users').doc(uid);
@@ -8420,9 +8604,10 @@ async function startServer() {
 
     const reviewsRef = dbAdmin.collection('proofReviews');
     const drawnCardsRef = userRef.collection('drawnMissionCards');
-    const [reviewsSnap, drawnCardsSnap] = await Promise.all([
+    const [reviewsSnap, drawnCardsSnap, scoreEventsSnap] = await Promise.all([
       reviewsRef.where('userId', '==', uid).get(),
-      drawnCardsRef.get()
+      drawnCardsRef.get(),
+      dbAdmin.collection('scoreEvents').where('userId', '==', uid).get()
     ]);
     const reviewMap = new Map<string, any>();
     reviewsSnap.docs.forEach(d => {
@@ -8432,26 +8617,12 @@ async function startServer() {
       if (review.submissionId) reviewMap.set(String(review.submissionId), review);
     });
     const drawnMissionCards = drawnCardsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const reviewRecords = Array.from(new Map(Array.from(reviewMap.values()).map(review => [review.id, review])).values());
-
-    const reviewsAsEntries = reviewRecords.map((review) => ({
-      id: review.entryId || review.submissionId || review.id,
-      uid: review.uid || review.userId,
-      userId: review.userId || review.uid,
-      missionId: review.missionId || review.challengeId || review.tripId,
-      challengeId: review.challengeId || review.missionId || review.tripId,
-      tripId: review.tripId || review.missionId || review.challengeId,
-      deckId: review.deckId || 'starter-signals',
-      status: review.status || review.reviewStatus,
-      archived: review.archived,
-      excludedFromProgress: review.excludedFromProgress,
-      countsTowardLiveStats: review.countsTowardLiveStats,
-      countsTowardStarter: review.countsTowardStarter
-    }));
+    const scoreEvents = scoreEventsSnap.docs.map(eventDoc => ({ id: eventDoc.id, ...eventDoc.data() }));
+    const scoreAudit = buildScoreRepairMutationTrace(uid, userData, scoreEvents);
 
     const beforeStarterState = buildCanonicalStarterDeckState({
       userId: uid,
-      entries: [...reviewsAsEntries, ...entries],
+      entries,
       profile: userData,
       drawnMissionCards,
       activeTripId: userData.activeMissionId || userData.activeTrip?.id || null
@@ -8551,7 +8722,7 @@ async function startServer() {
     }));
     const afterStarterState = buildCanonicalStarterDeckState({
       userId: uid,
-      entries: [...reviewsAsEntries, ...normalizedEntriesForAfter],
+      entries: normalizedEntriesForAfter,
       profile: {
         ...userData,
         completedChallengeIds: finalApproved,
@@ -8600,6 +8771,26 @@ async function startServer() {
       activeDeckPackId: isStarterPackComplete ? 'heatwave-receipts' : 'starter-signals',
       updatedAt: FieldValue.serverTimestamp()
     };
+    const mutationTrace = [
+      ...entriesToUpdate.map(item => ({
+        collection: 'entries', documentId: item.id, operation: 'update',
+        before: { status: item.beforeStatus }, after: { status: item.afterStatus },
+        reason: 'normalize_legacy_entry_status', canonicalSource: `entries/${item.id}`
+      })),
+      ...logsToUpdate.map(item => ({
+        collection: 'proofReviews', documentId: item.id, operation: item.updateOnly ? 'update' : 'create_projection',
+        before: item.updateOnly ? { status: reviewMap.get(item.id)?.status || null } : null,
+        after: item.updateOnly ? { status: item.data.status } : { entryId: item.data.entryId, status: item.data.status },
+        reason: item.updateOnly ? 'align_review_projection_status' : 'missing_review_projection',
+        canonicalSource: `entries/${item.id}`
+      })),
+      {
+        collection: 'users', documentId: uid, operation: 'update_projection',
+        before: Object.fromEntries(Object.keys(userProfileUpdates).filter(key => key !== 'updatedAt').map(key => [key, userData[key] ?? null])),
+        after: Object.fromEntries(Object.entries(userProfileUpdates).filter(([key]) => key !== 'updatedAt')),
+        reason: 'rebuild_mission_and_starter_projection', canonicalSource: `entries[userId=${uid}]`
+      }
+    ];
 
     if (!dryRun) {
       const batch = dbAdmin.batch();
@@ -8643,27 +8834,6 @@ async function startServer() {
         warnings,
         errors: []
       });
-    } else {
-      await dbAdmin.collection('adminRepairLogs').add({
-        actionType: 'individual_user_repair_dry_run',
-        adminUid: adminUid,
-        targetUid: uid,
-        timestamp: FieldValue.serverTimestamp(),
-        dryRun: true,
-        countsChanged: {
-          recordsScanned,
-          statusesNormalized,
-          missingReviewsRebuilt,
-          entriesStatusUpdatedCount: entriesToUpdate.length,
-          proofReviewsUpdatedCount: logsToUpdate.length,
-          isStarterPackComplete,
-          canUseHeatwaveDeck,
-          beforeStarterState,
-          afterStarterState
-        },
-        warnings,
-        errors: []
-      });
     }
 
     return {
@@ -8676,6 +8846,9 @@ async function startServer() {
       beforeStarterState,
       afterStarterState,
       proposedProfileUpdates: userProfileUpdates,
+      mutationTrace,
+      scoreAudit,
+      dryRunWriteCount: 0,
       errors: [] as string[],
       warnings
     };
@@ -8722,23 +8895,6 @@ async function startServer() {
         adminUid,
         timestamp: FieldValue.serverTimestamp(),
         dryRun: false,
-        countsChanged: {
-          totalUsersScanned: totalUsers,
-          totalEntriesScanned,
-          totalProofReviewsCreated,
-          totalStatusesNormalized,
-          totalUsersRepaired,
-          totalSkippedRecords
-        },
-        warnings,
-        errors
-      });
-    } else {
-      await dbAdmin.collection('adminRepairLogs').add({
-        actionType: 'bulk_system_sync_dry_run',
-        adminUid,
-        timestamp: FieldValue.serverTimestamp(),
-        dryRun: true,
         countsChanged: {
           totalUsersScanned: totalUsers,
           totalEntriesScanned,
@@ -9210,22 +9366,6 @@ async function startServer() {
         adminUid,
         timestamp: FieldValue.serverTimestamp(),
         dryRun: false,
-        countsChanged: {
-          totalUsersScanned: totalUsers,
-          strandedDetected: totalStrandedDetected,
-          usersRepaired: totalUsersUpdated,
-          entriesUpdated: totalEntriesUpdated
-        },
-        warnings,
-        errors,
-        updatedUserIds
-      });
-    } else {
-      await dbAdmin.collection('adminRepairLogs').add({
-        actionType: 'repair_stranded_starter_dry_run',
-        adminUid,
-        timestamp: FieldValue.serverTimestamp(),
-        dryRun: true,
         countsChanged: {
           totalUsersScanned: totalUsers,
           strandedDetected: totalStrandedDetected,

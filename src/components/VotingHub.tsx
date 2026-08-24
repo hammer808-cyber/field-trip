@@ -18,6 +18,7 @@ import {
   loadWeeklyBallot,
   type WeeklyBallotReadModel,
 } from '../services/weeklyVotingService';
+import { getProofImageReference } from '../logic/proofDistribution';
 
 const CATEGORIES: { id: VoteCategory; label: string; description: string; awardLabel: string; awardCopy: string }[] = [
   { id: 'best_field_note', label: 'Best Field Note', description: 'Profound or evocative field commentary.', awardLabel: 'Best Supporting Evidence', awardCopy: 'For a field note, photo, or tiny detail doing the most.' },
@@ -42,7 +43,7 @@ function getCategoryMeta(categoryId: VoteCategory) {
 }
 
 function getEntryImage(entry: Entry) {
-  return (entry as any).proofImage || (entry as any).imageUrl || (entry as any).photoUrl || '';
+  return getProofImageReference(entry);
 }
 
 function getEntryDisplayName(entry: Entry) {
@@ -78,7 +79,7 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
 
   const mapCandidateToEntry = (candidate: any): Entry => {
     const tripId = candidate.tripId || candidate.missionId || candidate.challengeId || '';
-    const proofImage = candidate.proofImage || candidate.photoUrl || candidate.imageUrl || candidate.thumbnailUrl || '';
+    const proofImage = getProofImageReference(candidate) || candidate.thumbnailUrl || '';
     return {
       id: candidate.entryId,
       entryId: candidate.entryId,
@@ -901,14 +902,14 @@ function ResultsState({
   const winnerEntry = winner ? entries.find(entry => entry.id === winner.entryId || (entry as any).entryId === winner.entryId) : null;
   if (!winner) return <ClosedState phase="awards" filedVoteCount={0} />;
 
-  const image = winner.proofImage || (winnerEntry ? getEntryImage(winnerEntry) : '');
+  const winnerImageEntry = winnerEntry || (winner ? { id: winner.entryId, photoUrl: winner.proofImage } : null);
   return (
     <div className="border-4 border-on-surface bg-brand-cyan/10 p-5 shadow-[8px_8px_0px_black]">
       <p className="font-mono text-[9px] font-black uppercase tracking-[0.25em] text-brand-orange">Stamp Reveal</p>
       <h3 className="mt-2 font-display text-4xl sm:text-6xl font-black italic uppercase tracking-tighter leading-none">{getCategoryMeta(selectedCategory).awardLabel}</h3>
       <div className="mt-5 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_240px] gap-5 items-stretch">
         <div className="border-4 border-on-surface bg-white p-3 shadow-[5px_5px_0px_black]">
-          {image ? <img src={image} alt="" className="h-full max-h-[420px] w-full object-cover" /> : <div className="h-64 bg-on-surface/10" />}
+          {winnerImageEntry ? <ProofImage entry={winnerImageEntry} alt="Winning proof" className="h-full max-h-[420px] w-full" showMetadataStamp={false} showDiagnosticsOverlay={false} /> : <div className="h-64 bg-on-surface/10" />}
         </div>
         <div className="border-4 border-on-surface bg-white p-5 shadow-[5px_5px_0px_black] flex flex-col justify-center">
           <Sparkles className="h-8 w-8 text-brand-orange" />

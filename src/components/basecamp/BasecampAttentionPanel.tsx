@@ -11,8 +11,9 @@ export function BasecampAttentionPanel({ model, onAction }: BasecampAttentionPan
   return (
     <section
       aria-labelledby="basecamp-attention-heading"
-      className="skin-state-panel border-[var(--skin-border-width)] border-[var(--skin-border)] bg-[var(--skin-surface)] p-5 shadow-[var(--skin-card-shadow)] sm:p-6"
+      className="basecamp-notice skin-state-panel border-[var(--skin-border-width)] border-[var(--skin-border)] bg-[var(--skin-surface)] p-5 shadow-[var(--skin-card-shadow)] sm:p-6"
     >
+      <span className="basecamp-pushpin" aria-hidden="true" />
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="font-mono text-[8px] font-black uppercase tracking-[0.22em] text-[var(--skin-text-muted)]">Proof desk</p>

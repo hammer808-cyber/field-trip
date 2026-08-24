@@ -318,7 +318,7 @@ export default function AdminRepair() {
         {activeTab === 'individual' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <Card className="p-8 border-2 border-on-surface shadow-[8px_8px_0px_black] space-y-6">
-              <SectionTitle icon={Shield} title="Agent Re-Sync Protocol" description="Reconstruct mission completion lists, XP totals, and deck unlock state from verified proof history." />
+              <SectionTitle icon={Shield} title="Agent Re-Sync Protocol" description="Reconstruct mission completion and deck projections from canonical entries. XP is audited separately against scoreEvents." />
               <LabeledInput label="Target Agent UID" value={repairUid} onChange={setRepairUid} placeholder="paste UID or use lookup tab" />
               <ToggleRow checked={individualDryRun} onClick={() => setIndividualDryRun(!individualDryRun)} title="Dry Run Mode" description="Simulation only. Turn off to write changes." />
               <button onClick={handleRepairIndividual} disabled={repairingIndividual || !repairUid.trim()} className="w-full py-4 bg-brand-orange text-white font-display font-black uppercase italic tracking-widest text-lg shadow-[4px_4px_0px_black] disabled:opacity-50 rounded-xl">
@@ -328,6 +328,7 @@ export default function AdminRepair() {
             <Card className="p-8 border-2 border-on-surface shadow-[8px_8px_0px_black] bg-[#FAF8F5]">
               <h3 className="text-xl font-display font-black uppercase italic tracking-tight mb-6">Repair Receipt</h3>
               {individualReport ? (
+                <>
                 <RepairActionReceipt
                   title={individualReport.errors.length ? 'Repair Failed' : 'Repair Complete'}
                   failed={individualReport.errors.length > 0}
@@ -350,10 +351,18 @@ export default function AdminRepair() {
                     ['Before Active Drawn', individualReport.beforeStarterState?.activeDrawnIds?.join(', ') || 'none'],
                     ['After Active Drawn', individualReport.afterStarterState?.activeDrawnIds?.join(', ') || 'none'],
                     ['Starter Complete', individualReport.afterStarterState?.starterComplete ? 'Yes' : 'No'],
-                    ['Heatwave Access', individualReport.canUseHeatwaveDeck ? 'Granted' : 'Restricted']
+                    ['Heatwave Access', individualReport.canUseHeatwaveDeck ? 'Granted' : 'Restricted'],
+                    ['Canonical Ledger XP', individualReport.scoreAudit?.projection?.lifetimeXp ?? 'n/a'],
+                    ['Canonical Score Events', individualReport.scoreAudit?.projection?.eventCount ?? 'n/a'],
+                    ['Proposed Mutations', individualReport.mutationTrace?.length ?? 0],
+                    ['Dry-run Writes', individualReport.dryRunWriteCount ?? 'n/a']
                   ]}
                   error={individualReport.errors[0]}
                 />
+                {individualReport.mutationTrace?.length ? (
+                  <pre className="mt-5 max-h-96 overflow-auto whitespace-pre-wrap border-2 border-on-surface bg-white p-3 text-[9px] leading-relaxed">{JSON.stringify(individualReport.mutationTrace, null, 2)}</pre>
+                ) : null}
+                </>
               ) : <EmptyReceipt text="Run a repair to see results." />}
             </Card>
           </div>

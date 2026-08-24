@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { CameraOff } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { CommunityProofCard } from './CommunityProofCard';
-import { subscribeToPublicProofs } from '../services/activityService';
+import { subscribeToSocialProofs } from '../services/activityService';
 import { normalizeEntryStatus } from '../logic/entryLogic';
-import { dedupeCommunityFeedProofs, getCommunityFeedApprovedTime, isCommunityFeedEligible } from '../logic/communityFeed';
+import { dedupeCommunityFeedProofs, getCommunityFeedApprovedTime, isVisibleInSocialFeed } from '../logic/communityFeed';
 import { isCrewProofEligible } from '../logic/proofDistribution';
 import { cn } from '../lib/utils';
 import { FlipbookShell } from './FlipbookShell';
@@ -12,26 +12,31 @@ import { FlipbookShell } from './FlipbookShell';
 type FeedFilter = 'latest' | 'hyped' | 'week' | 'season' | 'crew';
 
 export function CommunityProofsFeed() {
-  const { activeSeason, profile } = useApp();
+  const { activeSeason, blockedIds, profile, user } = useApp();
   const [publicProofs, setPublicProofs] = useState<any[]>([]);
   const [feedFilter, setFeedFilter] = useState<FeedFilter>('latest');
   const [queryLimit, setQueryLimit] = useState(12);
   const [loadingMore, setLoadingMore] = useState(true);
+  const [queryErrors, setQueryErrors] = useState<string[]>([]);
   const crewId = (profile as any)?.activeCrewId || (profile as any)?.crewId || null;
 
   useEffect(() => {
     setLoadingMore(true);
-    const unsub = subscribeToPublicProofs(queryLimit, (entries: any[]) => {
+    if (!user?.uid) return;
+    const unsub = subscribeToSocialProofs(user.uid, crewId, queryLimit, (entries, errors) => {
       setPublicProofs(entries);
+      setQueryErrors(errors);
       setLoadingMore(false);
     });
     return () => unsub();
-  }, [queryLimit]);
+  }, [crewId, queryLimit, user?.uid]);
 
   const communityFeedProofs = useMemo(() => {
     const seasonStart = activeSeason?.startDate ? new Date(activeSeason.startDate as any).getTime() : 0;
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    let items = dedupeCommunityFeedProofs(publicProofs.filter(isCommunityFeedEligible));
+    let items = dedupeCommunityFeedProofs(publicProofs.filter(entry => isVisibleInSocialFeed(entry, {
+      viewerUserId: user?.uid || '', activeCrewId: crewId, activeSeasonId: activeSeason?.id, blockedUserIds: blockedIds,
+    })));
 
     if (feedFilter === 'week') {
       items = items.filter(entry => getCommunityFeedApprovedTime(entry) >= weekAgo);
@@ -49,7 +54,7 @@ export function CommunityProofsFeed() {
       }
       return getCommunityFeedApprovedTime(b) - getCommunityFeedApprovedTime(a);
     });
-  }, [activeSeason?.startDate, crewId, feedFilter, publicProofs]);
+  }, [activeSeason?.id, activeSeason?.startDate, blockedIds, crewId, feedFilter, publicProofs, user?.uid]);
 
   const canLoadMore = publicProofs.length >= queryLimit && queryLimit < 120;
   const loadMore = () => setQueryLimit(current => Math.min(120, current + 12));
@@ -108,7 +113,7 @@ export function CommunityProofsFeed() {
               Silent Spectrum
             </p>
             <p className="text-xs font-sans text-on-surface/70 leading-relaxed">
-              No receipts on the board yet. Somebody go outside and make this place interesting.
+              {crewId ? 'No eligible Crew receipts yet. Approved photos will appear when your Crew posts them.' : 'Your approved receipts appear here. Join a Crew to see receipts from people you play with.'}
             </p>
           </div>
         </div>
@@ -127,6 +132,9 @@ export function CommunityProofsFeed() {
         <div className="min-h-64 flex items-center justify-center font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/45" aria-live="polite">
           Loading approved receipts...
         </div>
+      )}
+      {queryErrors.length > 0 && (import.meta.env.DEV || profile?.role === 'admin') && (
+        <p className="font-mono text-[9px] text-error" role="status">Feed query diagnostics: {queryErrors.join(', ')}</p>
       )}
     </section>
   );

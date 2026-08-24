@@ -106,6 +106,8 @@ export function getProofImageUrl(entry: any): string {
     entry?.photoUrl ||
     entry?.imageUrl ||
     entry?.mediaUrl ||
+    entry?.mediaRef ||
+    entry?.imageRef ||
     entry?.proofImage ||
     entry?.proofImageUrl ||
     entry?.proofUrl ||
@@ -171,6 +173,7 @@ export function normalizeProofVisibility(entry: any): ProofDistributionVisibilit
     entry?.isPrivate === true ||
     entry?.private === true ||
     entry?.visibilityPrivate === true ||
+    entry?.feedVisibility === 'private' ||
     visibilityString === 'private';
   const crewPrivateLegacy =
     visibilityMap.showInCrewFeed === false ||

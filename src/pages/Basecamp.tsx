@@ -17,6 +17,7 @@ import {
   buildBasecampViewModel,
   type BasecampPrimaryAction,
 } from '../logic/basecampViewModel';
+import './Basecamp.css';
 
 export default function Basecamp() {
   const {

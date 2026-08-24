@@ -31,6 +31,8 @@ export function getNormalizedProof(entry: any, proofReview: any): NormalizedProo
     e.photoUrl ||
     e.imageUrl ||
     e.mediaUrl ||
+    e.mediaRef ||
+    e.imageRef ||
     r.photoUrl ||
     r.imageUrl ||
     r.mediaUrl ||
@@ -100,6 +102,8 @@ export function getProofImageUrl(item: any): string | null {
 
   // Level 5: Legacy/Alternative Fields
   if (item.mediaUrl) return item.mediaUrl;
+  if (item.mediaRef) return item.mediaRef;
+  if (item.imageRef) return item.imageRef;
   if (item.proofImage) return item.proofImage;
   if (item.proofImageUrl) return item.proofImageUrl;
   if (Array.isArray(item.imageUrls) && item.imageUrls.length > 0) return item.imageUrls[0];

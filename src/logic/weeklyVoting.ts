@@ -215,10 +215,11 @@ export function getWeeklyEntryCrewId(entry: WeeklyEntryLike): string {
 
 export function getWeeklyEntryMediaRef(entry: WeeklyEntryLike): string {
   return String(
-    entry.proofImage ||
-    entry.imageUrl ||
     entry.photoUrl ||
+    entry.imageUrl ||
     entry.mediaUrl ||
+    (entry as any).mediaRef ||
+    entry.proofImage ||
     entry.storagePath ||
     entry.photoStoragePath ||
     entry.imageStoragePath ||

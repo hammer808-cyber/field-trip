@@ -25,14 +25,14 @@ import { DEFAULT_AVATAR } from "../constants/avatarAssets";
 import { FIELD_TYPES, Entry } from "../constants";
 import { getDisplayLabel } from "../utils/labelUtils";
 import { getWeeklyLeaderboardPage, UserProfile } from "../services/userService";
-import { subscribeToRecentScoreEvents, subscribeToPublicProofs } from "../services/activityService";
+import { subscribeToRecentScoreEvents, subscribeToSocialProofs } from "../services/activityService";
 import { createTribunalCase } from "../services/tribunalService";
 import { getWeeklySummary } from "../services/summaryService";
 import { ScoreEvent, WeeklySummary } from "../types/game";
 import { getServerDate } from "../services/timeService";
 import { getCurrentVotingCycle, getVotingPhase } from "../services/votingCycleService";
 import { normalizeEntryStatus } from "../logic/entryLogic";
-import { dedupeCommunityFeedProofs, getCommunityFeedApprovedTime, isCommunityFeedEligible } from "../logic/communityFeed";
+import { dedupeCommunityFeedProofs, getCommunityFeedApprovedTime, isVisibleInSocialFeed } from "../logic/communityFeed";
 import { isCrewProofEligible } from "../logic/proofDistribution";
 import { ContentMenu } from "../components/ContentMenu";
 import { SabotageHub } from "../components/SabotageHub";
@@ -1059,7 +1059,7 @@ export default function BigBoardPage() {
   const [crew, setCrew] = useState<CrewType | null>(null);
   const [lore, setLore] = useState<CrewLore | null>(null);
   const [dispatch, setDispatch] = useState<CrewDispatch | null>(null);
-  const crewId = profile?.crewId;
+  const crewId = profile?.activeCrewId || profile?.crewId || null;
   const [hasEarnedBonus, setHasEarnedBonus] = useState(false);
 
   useEffect(() => {
@@ -1153,11 +1153,12 @@ export default function BigBoardPage() {
   }, []);
 
   useEffect(() => {
-    const unsub = subscribeToPublicProofs(30, (entries: any[]) => {
+    if (!user?.uid) return;
+    const unsub = subscribeToSocialProofs(user.uid, crewId, 30, (entries: any[]) => {
       setPublicProofs(entries as Entry[]);
     });
     return () => unsub();
-  }, []);
+  }, [crewId, user?.uid]);
 
   useEffect(() => {
     if (!crewId || !isCrewUnlocked) return;
@@ -1276,7 +1277,9 @@ export default function BigBoardPage() {
     playerRankings.findIndex((u: any) => u.id === user?.uid) + 1;
 
   const communityFeedProofs = useMemo(() => {
-    let list = dedupeCommunityFeedProofs(publicProofs.filter(isCommunityFeedEligible));
+    let list = dedupeCommunityFeedProofs(publicProofs.filter(entry => isVisibleInSocialFeed(entry, {
+      viewerUserId: user?.uid || '', activeCrewId: crewId, activeSeasonId: activeSeason?.id, blockedUserIds: blockedIds,
+    })));
 
     const now = getServerDate();
     const weekAgo = now.getTime() - (7 * 24 * 60 * 60 * 1000);
@@ -1299,7 +1302,7 @@ export default function BigBoardPage() {
       }
       return getCommunityFeedApprovedTime(b) - getCommunityFeedApprovedTime(a);
     });
-  }, [publicProofs, feedFilter, activeSeason?.startDate, crewId]);
+  }, [publicProofs, feedFilter, activeSeason?.id, activeSeason?.startDate, blockedIds, crewId, user?.uid]);
 
   // Development-only logs for verification in BigBoard
   useEffect(() => {
@@ -1619,7 +1622,7 @@ export default function BigBoardPage() {
                       Silent Spectrum
                     </p>
                     <p className="text-xs font-sans text-on-surface/70 leading-relaxed">
-                      No receipts on the board yet. Somebody go outside and make this place interesting.
+                      {crewId ? 'No eligible Crew receipts yet.' : 'Your approved receipts appear here. Join a Crew to see receipts from people you play with.'}
                     </p>
                   </div>
                 </div>

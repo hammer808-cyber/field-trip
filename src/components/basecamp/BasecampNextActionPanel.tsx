@@ -13,8 +13,10 @@ export function BasecampNextActionPanel({ model, pack, onAction }: BasecampNextA
   return (
     <section
       aria-labelledby="basecamp-next-action-heading"
-      className="skin-card relative overflow-hidden border-[var(--skin-border-width)] border-[var(--skin-border)] bg-[var(--skin-surface)] shadow-[var(--skin-card-shadow)]"
+      className="basecamp-today skin-card relative overflow-visible border-[var(--skin-border-width)] border-[var(--skin-border)] bg-[var(--skin-surface)] shadow-[var(--skin-card-shadow)]"
     >
+      <span className="basecamp-tape basecamp-tape--left" aria-hidden="true" />
+      <span className="basecamp-tape basecamp-tape--right" aria-hidden="true" />
       <div className="pointer-events-none absolute inset-0 opacity-[var(--skin-texture-opacity)] [background-image:var(--skin-surface-texture)]" />
       <div className="relative flex min-h-10 items-center justify-between gap-3 border-b-2 border-[var(--skin-border)] bg-[var(--skin-text)] px-4 py-2 text-[var(--skin-surface)]">
         <span className="flex items-center gap-2 font-mono text-[8px] font-black uppercase tracking-[0.22em]">
@@ -26,7 +28,7 @@ export function BasecampNextActionPanel({ model, pack, onAction }: BasecampNextA
         </span>
       </div>
 
-      <div className="relative grid lg:grid-cols-[minmax(0,1.45fr)_minmax(220px,0.55fr)]">
+      <div className="basecamp-paper relative grid overflow-hidden lg:grid-cols-[minmax(0,1.45fr)_minmax(220px,0.55fr)]">
         <div className="flex min-h-[310px] flex-col justify-between gap-8 p-5 sm:p-7 lg:p-8">
           <div className="space-y-4">
             <p className="font-mono text-[9px] font-black uppercase tracking-[0.24em] text-[var(--skin-primary)]">

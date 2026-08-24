@@ -120,6 +120,9 @@ export interface UserProfile {
     highContrast?: boolean;
     motionEnabled?: boolean;
     privateApprovedPhotos?: boolean;
+    feedVisibility?: 'crew_only' | 'followers_only' | 'public_discovery' | 'private';
+    allowSusReports?: boolean;
+    allowHype?: boolean;
     mathWizard?: boolean;
     showOnBigBoard?: boolean;
     showExactPoints?: boolean;
@@ -188,6 +191,19 @@ export interface UserProfile {
   role?: 'admin' | 'moderator' | null;
   // DEPRECATED: Use fieldType instead. Maintained for migration.
   persona?: FieldTypeId | null; 
+}
+
+export async function updateFeedPrivacy(feedVisibility: 'crew_only' | 'followers_only' | 'public_discovery' | 'private') {
+  const { authenticatedFetch } = await import('../lib/api');
+  const response = await authenticatedFetch('/api/user/feed-privacy', {
+    method: 'POST',
+    body: JSON.stringify({ feedVisibility }),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || 'FAILED_TO_UPDATE_FEED_PRIVACY');
+  }
+  return response.json();
 }
 
 const COLLECTION = 'users';
@@ -310,6 +326,12 @@ export async function getOrCreateProfile(user: any): Promise<UserProfile> {
       },
       discoveryEvents: {},
       stickerUnlockHistory: [],
+      preferences: {
+        feedVisibility: 'crew_only',
+        privateApprovedPhotos: false,
+        allowSusReports: true,
+        allowHype: true,
+      },
       trevorSettings: {
         enabled: true,
         collapsed: false,

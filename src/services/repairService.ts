@@ -35,6 +35,9 @@ export interface RepairReport {
   beforeStarterState?: StarterDeckRepairState;
   afterStarterState?: StarterDeckRepairState;
   proposedProfileUpdates?: Record<string, any>;
+  mutationTrace?: Array<{ collection: string; documentId: string; operation: string; before: any; after: any; reason: string; canonicalSource: string }>;
+  scoreAudit?: { projection?: { lifetimeXp: number; eventCount: number }; mutations?: any[]; deletionState?: string };
+  dryRunWriteCount?: number;
 }
 
 export interface StarterDeckRepairState {
@@ -177,7 +180,10 @@ export async function repairUserMissionState(uid: string, dryRun: boolean = fals
       warnings: raw.warnings || [],
       beforeStarterState: raw.beforeStarterState,
       afterStarterState: raw.afterStarterState,
-      proposedProfileUpdates: raw.proposedProfileUpdates
+      proposedProfileUpdates: raw.proposedProfileUpdates,
+      mutationTrace: raw.mutationTrace || [],
+      scoreAudit: raw.scoreAudit || null,
+      dryRunWriteCount: raw.dryRunWriteCount ?? (raw.dryRun ? 0 : undefined)
     };
   } catch (err: any) {
     console.error(`[repairUserMissionState] failed:`, err);
