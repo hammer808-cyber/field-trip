@@ -10,10 +10,11 @@ import { useTheme } from '../../context/ThemeContext';
 interface SignInProps {
   onSuccess: () => void;
   onBack: () => void;
+  onCreateAccount?: () => void;
 }
 
-export default function SignIn({ onSuccess, onBack }: SignInProps) {
-  const { frankieMode, fc } = useTheme();
+export default function SignIn({ onSuccess, onBack, onCreateAccount }: SignInProps) {
+  const { fc } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -33,7 +34,7 @@ export default function SignIn({ onSuccess, onBack }: SignInProps) {
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         setError('Invalid email or password.');
       } else {
-        setError('System error during login. Try again.');
+        setError("We couldn't log you in. Try again.");
       }
     } finally {
       setLoading(false);
@@ -63,8 +64,8 @@ export default function SignIn({ onSuccess, onBack }: SignInProps) {
         <div className="mx-auto w-12 h-12 md:w-16 md:h-16 bg-brand-cyan flex items-center justify-center rounded-none border-4 border-on-surface shadow-[4px_4px_0px_black]">
           <LogIn className="w-6 h-6 md:w-8 md:h-8 text-on-surface" />
         </div>
-        <h1 className="font-display text-4xl md:text-5xl uppercase tracking-tighter leading-none pt-4">{fc('Welcome Back!', 'Sign In')}</h1>
-        <p className="text-[10px] uppercase font-black tracking-[0.3em] opacity-60">{fc('ACCOUNT_RECOVERY // SECURE', 'ACCOUNT RECOVERY')}</p>
+        <h1 className="font-display text-4xl md:text-5xl uppercase tracking-tighter leading-none pt-4">Welcome back</h1>
+        <p className="text-sm font-sans font-bold text-on-surface/60">Log in to keep playing.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -129,12 +130,22 @@ export default function SignIn({ onSuccess, onBack }: SignInProps) {
             {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : fc('LOG IN', 'SIGN IN')}
           </button>
           
+          {onCreateAccount && (
+            <button
+              type="button"
+              onClick={onCreateAccount}
+              className="w-full p-4 text-sm font-bold text-on-surface/70 hover:text-brand-orange transition-all"
+            >
+              New here? Get started →
+            </button>
+          )}
+
           <button 
             type="button"
             onClick={onBack}
             className="w-full p-4 text-[10px] uppercase font-black tracking-[0.3em] opacity-40 hover:opacity-100 hover:text-brand-orange transition-all"
           >
-            &lt; {fc('BACK', 'Back')}
+            &lt; Back
           </button>
         </div>
       </form>

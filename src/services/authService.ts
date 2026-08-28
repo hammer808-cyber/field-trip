@@ -39,16 +39,16 @@ export async function validateAccessCode(code: string): Promise<{ valid: boolean
 
     if (!response.ok) {
       if (response.status === 404 && !isJson) {
-        return { valid: false, error: 'BUREAU_API_ENDPOINT_NOT_FOUND. SYSTEM_OUT_OF_SYNC.' };
+        return { valid: false, error: 'CONNECTIVITY_ERROR' };
       }
       return { 
         valid: false, 
-        error: result?.error || `AUTH_PROTOCOL_ERROR (${response.status})` 
+        error: result?.error || 'CONNECTIVITY_ERROR'
       };
     }
 
     if (!result) {
-      return { valid: false, error: 'EMPTY_RESPONSE_FROM_BUREAU' };
+      return { valid: false, error: 'CONNECTIVITY_ERROR' };
     }
 
     return { 
@@ -60,12 +60,12 @@ export async function validateAccessCode(code: string): Promise<{ valid: boolean
     
     // Check if it's a parse error (likely HTML returned instead of JSON)
     if (error instanceof SyntaxError) {
-      return { valid: false, error: 'MALFORMED_RESPONSE. THE_BUREAU_SENT_NON_JSON_DATA.' };
+      return { valid: false, error: 'CONNECTIVITY_ERROR' };
     }
 
     return { 
       valid: false, 
-      error: 'CONNECTIVITY_ERROR. THE_BUREAU_IS_UNREACHABLE. CHECK_YOUR_CONNECTION.' 
+      error: 'CONNECTIVITY_ERROR'
     };
   }
 }
