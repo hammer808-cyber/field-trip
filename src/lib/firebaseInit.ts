@@ -1,12 +1,14 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { connectAuthEmulator, getAuth } from 'firebase/auth';
 import { 
+  connectFirestoreEmulator,
   initializeFirestore,
   memoryLocalCache,
 } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { connectStorageEmulator, getStorage } from 'firebase/storage';
 import { initializeAppCheck, ReCaptchaV3Provider, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 import firebaseConfig from '../../firebase-applet-config.json';
+import { getClientEmulatorTargets } from './firebaseEmulators';
 
 let app: FirebaseApp;
 let appCheckInitialized = false;
@@ -48,9 +50,19 @@ export function initializeFirebase() {
   }
 
   const currentHostname = isBrowser ? window.location.hostname : 'localhost';
+  const clientEmulatorTargets = getClientEmulatorTargets({
+    DEV: typeof import.meta !== 'undefined' ? import.meta.env?.DEV : false,
+    PROD: IS_PROD,
+    MODE: typeof import.meta !== 'undefined' ? import.meta.env?.MODE : undefined,
+    VITE_USE_FIREBASE_EMULATORS: getEnv('VITE_USE_FIREBASE_EMULATORS'),
+    VITE_FIREBASE_AUTH_EMULATOR_HOST: getEnv('VITE_FIREBASE_AUTH_EMULATOR_HOST'),
+    VITE_FIRESTORE_EMULATOR_HOST: getEnv('VITE_FIRESTORE_EMULATOR_HOST'),
+    VITE_FIREBASE_STORAGE_EMULATOR_HOST: getEnv('VITE_FIREBASE_STORAGE_EMULATOR_HOST'),
+  });
   
-  // App Check is initialized if a reCAPTCHA key exists, or if debug mode is explicitly set.
-  const SHOULD_INITIALIZE_APP_CHECK = !!RECAPTCHA_SITE_KEY || !!RECAPTCHA_ENTERPRISE_SITE_KEY || DEBUG_FLAG;
+  // App Check talks to live Google attestation. Skip it entirely on the
+  // local emulator path so development never hits production App Check.
+  const SHOULD_INITIALIZE_APP_CHECK = !clientEmulatorTargets && (!!RECAPTCHA_SITE_KEY || !!RECAPTCHA_ENTERPRISE_SITE_KEY || DEBUG_FLAG);
   
   // Debug mode must be opt-in. It prints a browser-specific debug token and
   // bypasses normal App Check attestation after registration in Firebase.
@@ -127,6 +139,8 @@ export function initializeFirebase() {
   // 3. Initialize Services (Firestore, Auth, Storage)
   const auth = getAuth(app);
   const storage = getStorage(app);
+  const emulatorTargets = clientEmulatorTargets;
+  const useClientEmulators = Boolean(emulatorTargets);
   
   const firestoreSettings: any = {
     experimentalForceLongPolling: true,
@@ -134,14 +148,24 @@ export function initializeFirebase() {
     localCache: memoryLocalCache(),
   };
   const configuredDatabaseId = String((firebaseConfig as any).firestoreDatabaseId || '').trim();
-  const databaseId = configuredDatabaseId && configuredDatabaseId !== '(default)'
+  const databaseId = !useClientEmulators && configuredDatabaseId && configuredDatabaseId !== '(default)'
     ? configuredDatabaseId
     : undefined;
   const db = databaseId
     ? initializeFirestore(app, firestoreSettings, databaseId)
     : initializeFirestore(app, firestoreSettings);
 
-  const instances = { app, auth, db, storage };
+  if (emulatorTargets && !globalObj.FIREBASE_EMULATORS_CONNECTED) {
+    connectAuthEmulator(auth, `http://${emulatorTargets.auth.host}:${emulatorTargets.auth.port}`, { disableWarnings: true });
+    connectFirestoreEmulator(db, emulatorTargets.firestore.host, emulatorTargets.firestore.port);
+    connectStorageEmulator(storage, emulatorTargets.storage.host, emulatorTargets.storage.port);
+    globalObj.FIREBASE_EMULATORS_CONNECTED = true;
+    if (!IS_PROD) {
+      console.warn('[FIREBASE_EMULATORS] Client is using loopback Auth/Firestore/Storage emulators. Disabled in production builds.');
+    }
+  }
+
+  const instances = { app, auth, db, storage, usingEmulators: useClientEmulators };
   globalObj.FIREBASE_INSTANCES = instances;
   globalObj.FIREBASE_INITIALIZED = true;
   

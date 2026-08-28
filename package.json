@@ -28,7 +28,12 @@
     "test:player-levels": "tsx --test src/__tests__/playerLevel.test.ts src/__tests__/playerProgressionAward.test.ts",
     "test:player-level-rules": "firebase emulators:exec --project field-trip-player-progression-rules --only firestore \"tsx --test --test-force-exit src/__tests__/playerProgressionRules.integration.test.ts\"",
     "test:mission-scoring": "tsx --test src/__tests__/missionScoring.test.ts src/__tests__/missionBonuses.test.ts src/__tests__/missionHintFlow.test.ts src/__tests__/missionScoringSecurity.test.ts src/__tests__/playerProgressionAward.test.ts src/__tests__/postSubmitStarterGuidance.test.ts",
-    "test:mission-scoring-rules": "firebase emulators:exec --project field-trip-mission-scoring-rules --only firestore \"tsx --test --test-force-exit src/__tests__/missionScoringRules.integration.test.ts\""
+    "test:mission-scoring-rules": "firebase emulators:exec --project field-trip-mission-scoring-rules --only firestore \"tsx --test --test-force-exit src/__tests__/missionScoringRules.integration.test.ts\"",
+    "emulators": "firebase emulators:start --only auth,firestore,storage --project field-trip-495823",
+    "seed:emulator": "tsx scripts/seed-local-emulator.ts",
+    "review:emulator": "tsx scripts/emulator-review.ts",
+    "dev:emulator": "VITE_USE_FIREBASE_EMULATORS=true FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIREBASE_STORAGE_EMULATOR_HOST=127.0.0.1:9199 tsx server.ts",
+    "test:emulator-guard": "tsx --test --test-force-exit src/__tests__/firebaseEmulatorGuard.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.3.0",
