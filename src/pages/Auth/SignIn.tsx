@@ -90,7 +90,7 @@ export default function SignIn({ onSuccess, onBack, onCreateAccount }: SignInPro
               onClick={handleForgotPassword}
               className="text-[10px] uppercase font-black tracking-widest text-brand-orange hover:underline focus:outline-none"
             >
-              {fc('Recover_Password', 'Forgot Password')}
+              Forgot password
             </button>
           </div>
           <input 
