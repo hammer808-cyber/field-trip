@@ -1,0 +1,17 @@
+{
+  "name": "Fieldtrip",
+  "install": "npm ci",
+  "terminals": [
+    {
+      "name": "dev-server",
+      "command": "npm run dev",
+      "description": "Fieldtrip dev server (Express + Vite middleware via `tsx server.ts`), serving the React SPA and /api routes on http://localhost:3000."
+    }
+  ],
+  "ports": [
+    {
+      "name": "web",
+      "port": 3000
+    }
+  ]
+}
