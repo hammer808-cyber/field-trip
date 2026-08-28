@@ -24,6 +24,10 @@ import { STARTER_MISSION_BANK } from '../src/data/starterMissionBank';
 import { DECK_PACKS } from '../src/data/deckPacks';
 import { DEFAULT_MISSION_SCORING_CONFIG } from '../src/logic/missionScoring';
 
+function compact<T extends Record<string, unknown>>(value: T): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined));
+}
+
 const LOCAL_EMULATOR_ADMIN_PASSWORD = process.env.LOCAL_EMULATOR_ADMIN_PASSWORD || 'LocalAdmin1!';
 
 async function assertEmulatorHubReachable() {
@@ -138,7 +142,7 @@ async function main() {
 
   for (const mission of STARTER_MISSION_BANK) {
     if (!mission.id) continue;
-    await db.doc(`challenges/${mission.id}`).set({
+    await db.doc(`challenges/${mission.id}`).set(compact({
       ...mission,
       missionId: mission.id,
       challengeId: mission.id,
@@ -152,17 +156,17 @@ async function main() {
       presentInMissionBank: true,
       isStarter: true,
       updatedAt: now,
-    }, { merge: true });
+    }), { merge: true });
   }
 
   for (const pack of DECK_PACKS) {
     const id = pack.packId || pack.id;
     if (!id) continue;
-    await db.doc(`decks/${id}`).set({
+    await db.doc(`decks/${id}`).set(compact({
       id,
       packId: id,
-      packName: pack.packName || pack.title,
-      title: pack.title,
+      packName: pack.packName || pack.title || id,
+      title: pack.title || pack.packName || id,
       description: pack.description || '',
       visibility: 'public',
       isActive: pack.isActive !== false,
@@ -170,7 +174,7 @@ async function main() {
       unlockRule: pack.unlockRule || 'immediate',
       missionIds: pack.missionIds || [],
       updatedAt: now,
-    }, { merge: true });
+    }), { merge: true });
   }
 
   const adminUid = await upsertAdminUser(auth);
