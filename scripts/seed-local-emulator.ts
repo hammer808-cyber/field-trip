@@ -137,6 +137,18 @@ async function main() {
     status: 'active',
     startDate: Timestamp.fromDate(new Date('2026-06-06')),
     endDate: Timestamp.fromDate(new Date('2026-09-06')),
+    weeks: Array.from({ length: 14 }).map((_, i) => {
+      const week = i + 1;
+      return {
+        number: week,
+        startDate: Timestamp.fromDate(new Date(new Date('2026-06-06').getTime() + i * 7 * 24 * 60 * 60 * 1000)),
+        fieldChallengeId: `ss26_w${week}_field`,
+        evidenceChallengeId: `ss26_w${week}_evidence`,
+        crewChallengeId: `ss26_w${week}_crew`,
+        chaosCardIds: [`chaos-${week}`],
+        sabotageCardIds: [`sabotage-${Math.floor(i / 3) + 1}`],
+      };
+    }),
     createdAt: now,
   }, { merge: true });
 
