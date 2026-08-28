@@ -399,7 +399,7 @@ export default function CollectionPage() {
                                  onClick={() => navigate(`/mission-briefing?id=${mission.id}`)}
                                  className="px-4 py-1.5 bg-on-surface text-brand-lime border-[2.5px] border-on-surface text-[9px] font-black uppercase tracking-widest shadow-[4px_4px_0px_black] active:shadow-none active:translate-y-1 transition-all flex items-center gap-1.5"
                                >
-                                 Start Mission <ArrowRight className="w-3.5 h-3.5" />
+                                 Do This Mission <ArrowRight className="w-3.5 h-3.5" />
                                </button>
                              ) : card.status === 'active' ? (
                                <button 

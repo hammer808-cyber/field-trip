@@ -347,11 +347,16 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
             <button
               onClick={onStartCapture}
               disabled={!missionAttempt || isAttemptLoading}
-              className="w-full py-4 bg-brand-orange text-white border-4 border-on-surface rounded-2xl font-display text-3xl font-black uppercase italic tracking-widest shadow-[8px_8px_0px_black] active:translate-y-2 active:shadow-none transition-all hover:bg-on-surface hover:text-brand-lime flex items-center justify-center gap-3 group"
+              className="w-full py-4 bg-brand-orange text-white border-4 border-on-surface rounded-2xl font-display text-3xl font-black uppercase italic tracking-widest shadow-[8px_8px_0px_black] active:translate-y-2 active:shadow-none transition-all hover:bg-on-surface hover:text-brand-lime flex items-center justify-center gap-3 group disabled:opacity-50 disabled:cursor-wait"
             >
               <Zap className="w-8 h-8 fill-current group-hover:scale-125 transition-transform" />
-              <span>START MISSION</span>
+              <span>{!missionAttempt || isAttemptLoading ? 'Getting ready…' : 'Open Camera'}</span>
             </button>
+            {(!missionAttempt || isAttemptLoading) && (
+              <p className="text-center text-xs font-sans font-bold text-on-surface/55">
+                Setting up this mission before the camera opens.
+              </p>
+            )}
           </motion.div>
         )}
 
@@ -464,6 +469,14 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
             >
               SAVE NOTE
             </button>
+            {data.note.length < 10 && (
+              <p className="text-center text-sm font-sans font-bold text-on-surface/70">
+                Add a short note before continuing.
+                <span className="block mt-1 font-mono text-[10px] uppercase tracking-widest text-on-surface/45">
+                  {data.note.length} / 10 characters
+                </span>
+              </p>
+            )}
           </motion.div>
         )}
 
@@ -548,13 +561,19 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
 
             {/* ERROR FEEDBACK IF ANY */}
             {!data.photoUrl && (
-              <div className="flex items-center gap-2 text-red-500 font-mono text-[9px] font-black uppercase px-2 justify-center">
-                 <AlertCircle size={10} /> Photo required to proceed
+              <div className="flex items-center gap-2 text-red-600 text-sm font-bold px-2 justify-center">
+                 <AlertCircle size={14} /> Add a photo before submitting.
               </div>
             )}
             {data.photoUrl && data.note.length < 10 && (
-              <div className="flex items-center gap-2 text-brand-orange font-mono text-[9px] font-black uppercase px-2 justify-center">
-                 <Info size={10} /> field note is too short
+              <div className="rounded-xl border-2 border-brand-orange bg-brand-orange/10 px-4 py-3 text-center space-y-1">
+                 <p className="text-sm font-bold text-on-surface flex items-center justify-center gap-2">
+                   <Info size={14} className="text-brand-orange" />
+                   Add a short note before submitting.
+                 </p>
+                 <p className="font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/50">
+                   {data.note.length} / 10 characters
+                 </p>
               </div>
             )}
 
@@ -563,17 +582,22 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               disabled={!canSubmit}
               onClick={handleFinalSubmit}
               className={cn(
-                "w-full py-6 border-4 border-on-surface rounded-2xl font-display text-4xl font-black uppercase italic tracking-widest shadow-[10px_10px_0px_black] active:translate-y-2 active:shadow-none transition-all",
+                "w-full py-6 border-4 border-on-surface rounded-2xl font-display text-3xl sm:text-4xl font-black uppercase italic tracking-widest shadow-[10px_10px_0px_black] active:translate-y-2 active:shadow-none transition-all",
                 canSubmit 
                   ? "bg-brand-orange text-white hover:bg-on-surface hover:text-brand-lime" 
-                  : "bg-on-surface/5 text-on-surface/20 border-on-surface/10 cursor-not-allowed shadow-none"
+                  : "bg-on-surface/5 text-on-surface/35 border-on-surface/15 cursor-not-allowed shadow-none"
               )}
             >
-              SUBMIT PROOF
+              Submit Proof
             </button>
+            {!canSubmit && data.photoUrl && data.note.length < 10 && (
+              <p className="text-center text-xs font-sans font-bold text-on-surface/55 -mt-2">
+                Write a little more, then submit.
+              </p>
+            )}
             
             <p className="text-[10px] font-serif italic text-on-surface/40 pt-2 pb-12">
-              "Trevor requires standard field proof for logbook entry. Confirm documentation is authentic."
+              "TRANSMISSION READY — keep it honest."
             </p>
           </motion.div>
         )}

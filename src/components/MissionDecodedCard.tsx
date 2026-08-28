@@ -28,6 +28,7 @@ import {
 } from '../logic/frankieModeLogic';
 import { cn } from '../lib/utils';
 import { LAUNCH_MISSION_ID } from '../data/specialMissions';
+import { getDisplayLabel } from '../utils/labelUtils';
 
 interface MissionDecodedCardProps {
   mission: TripType;
@@ -325,7 +326,7 @@ export function MissionDecodedCard({
                   className="w-full field-cta field-cta--primary py-3 text-xl flex items-center justify-center gap-3 group"
                 >
                   <span className="relative z-10">
-                    {Object.keys(progress).length >= 1 ? fc('RESUME_MISSION', 'RESUME') : fc('START_MISSION', 'START')}
+                    {Object.keys(progress).length >= 1 ? getDisplayLabel('RESUME_MISSION') : getDisplayLabel('DO_THIS_MISSION')}
                   </span>
                   <ArrowRight className="w-6 h-6 group-hover:translate-x-3 transition-transform duration-300" />
                 </button>

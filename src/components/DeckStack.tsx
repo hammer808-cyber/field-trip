@@ -9,6 +9,7 @@ import { useTheme } from '../context/ThemeContext';
 import { getFrankieTitle, getFrankieDescription } from '../logic/frankieModeLogic';
 
 import { DeckArtwork } from './DeckArtwork';
+import { getDisplayLabel } from '../utils/labelUtils';
 
 interface DeckStackProps {
   onDraw: () => void;
@@ -38,7 +39,7 @@ export function DeckStack({
   const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
 
-  const { frankieMode, fc } = useTheme();
+  const { frankieMode } = useTheme();
   const fPref = { frankieMode };
   const isPlain = frankieMode;
   const isActuallyDisabled = disabled || locked || loading;
@@ -208,7 +209,7 @@ export function DeckStack({
                   "font-display text-2xl uppercase italic font-black transition-all duration-300 tracking-tighter",
                   isHovered && !isActuallyDisabled ? "text-brand-orange scale-110" : "text-on-surface opacity-40"
               )}>
-                  {statusLabel || (poolEmpty ? fc('DECK_EXHAUSTED', 'OUT OF MISSIONS') : (isActuallyDisabled ? fc('UPLINK_RESTRICTED', 'LOCKED') : fc('TAP_TO_DRAW_MISSION', 'TAP TO DRAW')))}
+                  {statusLabel || (poolEmpty ? getDisplayLabel('DECK_EXHAUSTED') : (isActuallyDisabled ? 'Locked' : getDisplayLabel('DRAW_A_MISSION')))}
               </p>
               <div className="flex justify-center gap-1">
                  {[...Array(3)].map((_, i) => (
