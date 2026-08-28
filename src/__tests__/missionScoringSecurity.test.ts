@@ -45,8 +45,10 @@ test('pending submission UI does not present an estimate as approved XP', () => 
   assert.match(resultCard, /const isApproved = reviewStatus === 'approved'/);
   assert.match(resultCard, /isApproved \? \(scoring\?\.totalPoints \|\| 0\) \+ ftBonus : 0/);
   assert.match(resultCard, /isApproved && showMathWizard && scoring/);
-  assert.match(resultCard, /PROOF SUBMITTED/);
+  assert.match(resultCard, /PROOF_SENT|Proof sent/);
   assert.match(resultCard, /Pending Review/);
+  assert.match(resultCard, /Draw Next Mission/);
+  assert.match(resultCard, /dexUnlocked/);
 });
 
 test('weekly random assignments are persisted once and are not client-rerolled', () => {

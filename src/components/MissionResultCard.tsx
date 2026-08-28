@@ -7,6 +7,9 @@ import { getRewardMetadata } from '../data/rewardRegistry';
 import { getFrankieTitle } from '../logic/frankieModeLogic';
 import { Link } from 'react-router-dom';
 import { getDisplayLabel } from '../utils/labelUtils';
+import { useApp } from '../context/AppContext';
+import { canAccessFeature, canonicalizeId, getStarterProgress } from '../services/canonicalProgress';
+import { STARTER_SIGNAL_IDS } from '../logic/starterDeckState';
 
 interface MissionResultCardProps {
   trip: TripCard;
@@ -26,6 +29,12 @@ interface MissionResultCardProps {
   newRewards?: { stickers: string[]; badges: string[] };
 }
 
+function isStarterTrip(trip: TripCard) {
+  const id = canonicalizeId(trip.id);
+  const deckId = String(trip.deckId || '').toLowerCase();
+  return (!!id && STARTER_SIGNAL_IDS.includes(id as typeof STARTER_SIGNAL_IDS[number])) || deckId === 'starter-signals' || deckId === 'starter';
+}
+
 export function MissionResultCard({
   trip,
   reviewStatus = 'pending_review',
@@ -35,10 +44,28 @@ export function MissionResultCard({
   newRewards,
 }: MissionResultCardProps) {
   const { frankieMode, fc } = useTheme();
+  const { canonicalProgress, isAdmin } = useApp();
   const fPref = { frankieMode };
   const { scoring, ftBonus = 0, ftText = '', tokenAwarded, totalTokens } = scoringData;
   const isApproved = reviewStatus === 'approved';
+  const isNeedsMoreProof = reviewStatus === 'needs_more_proof';
   const totalXP = isApproved ? (scoring?.totalPoints || 0) + ftBonus : 0;
+  const starter = getStarterProgress(canonicalProgress);
+  const dexUnlocked = canAccessFeature(canonicalProgress, 'memories', { isAdmin });
+  const currentMissionId = canonicalizeId(trip.id);
+  const submittedIds = new Set((starter.submittedMissionIds || []).map((id) => String(id).toLowerCase()));
+  if (currentMissionId && STARTER_SIGNAL_IDS.includes(currentMissionId as typeof STARTER_SIGNAL_IDS[number])) {
+    submittedIds.add(currentMissionId);
+  }
+  const starterSentCount = Math.min(submittedIds.size, starter.starterRequiredCount);
+  const waitingOnStarterReviews = !starter.starterComplete && starterSentCount >= starter.starterRequiredCount;
+  const proofStatusLine = isApproved
+    ? 'Your proof was approved.'
+    : isNeedsMoreProof
+      ? 'Your proof needs a bit more. Try again from Missions.'
+      : 'Your proof is waiting for review.';
+  const primaryHref = waitingOnStarterReviews ? '/profile?tab=logbook' : '/missions';
+  const primaryLabel = waitingOnStarterReviews ? 'View proof status' : 'Draw Next Mission →';
 
   const containerVariants = {
     hidden: { opacity: 0, y: 30 },
@@ -75,7 +102,7 @@ export function MissionResultCard({
             <p className="font-mono text-[9px] font-black uppercase tracking-[0.25em] text-brand-lime">
               {isApproved
                 ? fc(getDisplayLabel('MISSION_SECURED'), 'MISSION APPROVED')
-                : 'PROOF SUBMITTED'}
+                : getDisplayLabel('PROOF_SENT')}
             </p>
           </motion.div>
 
@@ -92,7 +119,9 @@ export function MissionResultCard({
                 {isApproved ? (
                   <span className="font-display text-5xl sm:text-6xl font-black text-brand-orange tracking-tighter leading-none italic">+{totalXP}</span>
                 ) : (
-                  <span className="max-w-28 text-right font-display text-xl font-black uppercase italic leading-none text-brand-orange">Pending Review</span>
+                  <span className="max-w-32 text-right font-display text-lg font-black uppercase italic leading-none text-brand-orange">
+                    {isNeedsMoreProof ? 'Needs more' : 'Pending Review'}
+                  </span>
                 )}
                 {isApproved && tokenAwarded && (
                   <div className="absolute -bottom-4 right-0 bg-brand-lime text-on-surface px-2 py-0.5 border-2 border-on-surface shadow-[3px_3px_0px_black] rotate-[-4deg] z-20">
@@ -262,28 +291,57 @@ export function MissionResultCard({
 
         {/* 6. Footer Actions */}
         <motion.div variants={itemVariants} className="pt-4 flex flex-col gap-4">
-           <button 
-             onClick={() => window.location.href = '/missions'}
-             className="w-full py-6 bg-brand-lime text-on-surface border-4 border-on-surface rounded-2xl font-display text-2xl font-black uppercase italic tracking-widest shadow-[8px_8px_0px_black] active:translate-y-1 active:shadow-none transition-all hover:bg-on-surface hover:text-white"
-           >
-             RETURN TO MISSIONS
-           </button>
+           <div className="rounded-2xl border-4 border-on-surface bg-[#FFFDF8] p-5 text-center space-y-2 shadow-[6px_6px_0px_black]">
+             <p className="font-display text-3xl font-black uppercase italic tracking-tight">
+               {getDisplayLabel('PROOF_SENT')}
+             </p>
+             <p className="font-mono text-[9px] font-black uppercase tracking-[0.25em] text-on-surface/35">
+               TRANSMISSION COMPLETE
+             </p>
+             {!starter.starterComplete && (
+               <p className="text-sm font-sans font-bold text-on-surface">
+                 Starter Mission {starterSentCount} of {starter.starterRequiredCount} complete
+               </p>
+             )}
+             {starter.starterComplete && isStarterTrip(trip) && (
+               <p className="text-sm font-sans font-bold text-on-surface">
+                 Starter complete. Keep drawing missions.
+               </p>
+             )}
+             <p className="text-sm font-sans font-bold text-on-surface/70">
+               {proofStatusLine}
+             </p>
+           </div>
 
            <Link 
-             to="/collection"
-             className="field-cta field-cta--paper py-4 text-sm flex items-center justify-center gap-3"
+             to={primaryHref}
+             className="w-full py-6 bg-brand-lime text-on-surface border-4 border-on-surface rounded-2xl font-display text-2xl font-black uppercase italic tracking-widest shadow-[8px_8px_0px_black] active:translate-y-1 active:shadow-none transition-all hover:bg-on-surface hover:text-white text-center"
            >
-             <Trophy className="w-5 h-5" />
-             OPEN COLLECTION BOOK
+             {primaryLabel}
            </Link>
+
+           {dexUnlocked && (
+             <Link 
+               to="/dex"
+               className="field-cta field-cta--paper py-4 text-sm flex items-center justify-center gap-3"
+             >
+               <Trophy className="w-5 h-5" />
+               Open Dex
+             </Link>
+           )}
            
-           <button 
-             disabled
-             className="w-full py-4 border-4 border-on-surface/10 text-on-surface/30 font-black uppercase text-[10px] flex items-center justify-center gap-3 cursor-not-allowed group transition-all italic tracking-[0.25em] rounded-2xl"
-           >
-             <Download className="w-4 h-4 opacity-30 group-hover:animate-bounce" />
-             PRINT_PHYSICAL_CARD
-           </button>
+           <div className="space-y-1">
+             <button 
+               disabled
+               className="w-full py-4 border-4 border-on-surface/10 text-on-surface/30 font-black uppercase text-[10px] flex items-center justify-center gap-3 cursor-not-allowed group transition-all italic tracking-[0.25em] rounded-2xl"
+             >
+               <Download className="w-4 h-4 opacity-30" />
+               Print card
+             </button>
+             <p className="text-center text-[11px] font-sans font-bold text-on-surface/45">
+               Printing isn't available yet.
+             </p>
+           </div>
            
            <div className="flex flex-col items-center gap-2 pt-4">
               <p className="text-[8px] text-center opacity-20 font-mono tracking-widest uppercase italic">{fc(`BUREAU_TX_REF: ${Math.random().toString(36).substring(7).toUpperCase()}`, `TX REF: ${Math.random().toString(36).substring(7).toUpperCase()}`)}</p>

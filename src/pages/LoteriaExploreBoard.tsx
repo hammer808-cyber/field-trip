@@ -97,9 +97,9 @@ export default function LoteriaExploreBoard() {
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
           <button
             type="button"
-            onClick={() => view === 'home' ? navigate('/big-board') : setView('home')}
+            onClick={() => view === 'home' ? navigate('/basecamp') : setView('home')}
             className="grid min-h-11 min-w-11 place-items-center border-[3px] border-on-surface bg-white shadow-[4px_4px_0_black] active:translate-x-1 active:translate-y-1 active:shadow-none"
-            aria-label={view === 'home' ? 'Back to Big Board' : 'Back to Loteria home'}
+            aria-label={view === 'home' ? 'Back to Basecamp' : 'Back to Loteria home'}
           >
             {view === 'home' ? <ChevronLeft className="h-5 w-5 stroke-[3]" /> : <Home className="h-5 w-5 stroke-[3]" />}
           </button>
@@ -232,7 +232,12 @@ export default function LoteriaExploreBoard() {
               </p>
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
                 <LoteriaButton label="Back To Sheet" variant="primary" icon={<Grid3X3 />} onClick={() => setView('active')} />
-                <LoteriaButton label="Open Big Board" variant="secondary" icon={<Trophy />} onClick={() => navigate('/big-board')} />
+                <LoteriaButton
+                  label={isOnboardingComplete ? 'Open Big Board' : 'Back to Basecamp'}
+                  variant="secondary"
+                  icon={isOnboardingComplete ? <Trophy /> : <Home />}
+                  onClick={() => navigate(isOnboardingComplete ? '/big-board' : '/basecamp')}
+                />
               </div>
             </div>
           </section>

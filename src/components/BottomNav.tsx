@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Trophy, Home, Target, LayoutGrid, Lock, Vote } from 'lucide-react';
+import { Trophy, Home, Target, LayoutGrid, Lock, Vote, type LucideIcon } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
@@ -42,11 +42,20 @@ export function BottomNav() {
   const isBaja = skin.id === 'baja-bratz';
   const isDiamond = skin.id === 'slippery-diamond';
   const isHeat = skin.id === 'heatwave';
-  
-  const navItems = [
+  const dexUnlocked = canAccessFeature(canonicalProgress, 'memories', { isAdmin });
+  const highlightMissions = !dexUnlocked;
+
+  const navItems: Array<{
+    icon: LucideIcon;
+    label: string;
+    path: string;
+    special?: boolean;
+    locked?: boolean;
+    highlight?: boolean;
+  }> = [
     { icon: Home, label: 'BASECAMP', path: '/basecamp' },
-    { icon: Target, label: 'MISSIONS', path: '/missions' },
-    { icon: LayoutGrid, label: 'DEX', path: '/dex', special: true },
+    { icon: Target, label: 'MISSIONS', path: '/missions', highlight: highlightMissions },
+    { icon: LayoutGrid, label: 'DEX', path: '/dex', special: dexUnlocked, locked: !dexUnlocked },
     { icon: Vote, label: 'VOTING', path: '/voting' },
     { icon: Trophy, label: 'BIG BOARD', path: '/big-board' }
   ];
@@ -122,7 +131,8 @@ export function BottomNav() {
           );
         }
 
-        const isLockedTab = itemPathname === '/big-board' && !canAccessFeature(canonicalProgress, 'voting', { isAdmin });
+        const isLockedTab = !!item.locked || (itemPathname === '/big-board' && !canAccessFeature(canonicalProgress, 'voting', { isAdmin }));
+        const isHighlightedDestination = !!item.highlight && !isActive && !isLockedTab;
 
         return (
           <Link
@@ -131,10 +141,16 @@ export function BottomNav() {
             data-onboarding={dataOnboarding}
             data-nav-item={itemPathname}
             data-active={isActive ? 'true' : 'false'}
+            data-nav-locked={isLockedTab ? 'true' : 'false'}
+            aria-label={isLockedTab ? `${item.label}, locked` : item.highlight ? `${item.label}, go here next` : item.label}
             className={cn(
               "flex flex-col items-center justify-center flex-1 h-full py-1 relative select-none",
               isActive 
                 ? (isBaja ? "text-baja-pink scale-105" : isDiamond ? "text-white scale-105" : isHeat ? "text-white scale-105" : "text-on-surface") 
+                : isLockedTab
+                  ? (isBaja ? "text-baja-pink/25" : isDiamond ? "text-white/15" : isHeat ? "text-white/25" : "text-on-surface/30")
+                : isHighlightedDestination
+                  ? (isBaja ? "text-baja-pink" : isDiamond ? "text-white/80" : isHeat ? "text-white" : "text-on-surface")
                 : (isBaja ? "text-baja-pink/40 hover:text-baja-pink" : isDiamond ? "text-white/25 hover:text-white" : isHeat ? "text-white/40 hover:text-white" : "text-on-surface/50 hover:text-on-surface")
             )}
           >
@@ -159,12 +175,15 @@ export function BottomNav() {
                 <div className="relative">
                   <item.icon className={cn(
                     "w-5 h-5 sm:w-6 sm:h-6 mb-1 transition-transform", 
-                    isActive ? "stroke-[2.5px]" : "stroke-[2px] opacity-40 hover:scale-110"
+                    isActive ? "stroke-[2.5px]" : isHighlightedDestination ? "stroke-[2.5px]" : "stroke-[2px] opacity-40 hover:scale-110"
                   )} />
                   {isLockedTab && (
-                    <div className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 shadow-md z-40">
+                    <div className="absolute -top-1 -right-1 bg-on-surface/80 text-white rounded-full p-0.5 shadow-md z-40" aria-hidden="true">
                       <Lock className="w-2.5 h-2.5" />
                     </div>
+                  )}
+                  {isHighlightedDestination && (
+                    <div className="absolute -top-0.5 -left-0.5 w-2 h-2 rounded-full bg-brand-lime border border-on-surface" aria-hidden="true" />
                   )}
                 </div>
                 <span className={cn(
@@ -174,7 +193,8 @@ export function BottomNav() {
                     isDiamond ? "bg-white text-black px-2 py-0.5" :
                     isHeat ? "bg-white text-heat-pink px-2 py-0.5 rounded-full" :
                     ""
-                  )
+                  ),
+                  isHighlightedDestination && !isBaja && !isDiamond && !isHeat && "text-on-surface"
                 )}>
                   {item.label}
                 </span>
