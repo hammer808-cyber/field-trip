@@ -202,14 +202,14 @@ export default function CapturePage() {
         <div className="max-w-md w-full border-4 border-on-surface p-8 space-y-6 bg-white shadow-[12px_12px_0px_var(--color-brand-orange)]">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-6 h-6 text-brand-orange" />
-            <h1 className="text-xl font-black uppercase tracking-tighter">Handshake_Timeout</h1>
+            <h1 className="text-xl font-black uppercase tracking-tighter">This is taking too long</h1>
           </div>
-          <p className="text-xs leading-relaxed opacity-60">
-            System initialization is taking longer than expected. This could be due to signal loss or account synchronization delays.
+          <p className="text-sm leading-relaxed font-sans font-bold text-on-surface/70">
+            Fieldtrip couldn't finish loading this mission. Check your connection and try again.
           </p>
           <div className="grid grid-cols-2 gap-4">
             <ActionButton label="Back to Missions" onClick={() => navigate('/missions')} />
-            <ActionButton label="Retry System" onClick={() => window.location.reload()} variant="primary" />
+            <ActionButton label="Try again" onClick={() => window.location.reload()} variant="primary" />
           </div>
         </div>
       </div>
@@ -222,15 +222,12 @@ export default function CapturePage() {
          <div className="max-w-md w-full border-4 border-on-surface p-8 space-y-6 bg-white shadow-[12px_12px_0px_#ff3131]">
            <div className="flex items-center gap-3">
              <AlertCircle className="w-6 h-6 text-error" />
-             <h1 className="text-xl font-black uppercase tracking-tighter">Mission_Not_Found</h1>
+             <h1 className="text-xl font-black uppercase tracking-tighter">Mission not found</h1>
            </div>
-           <div className="p-4 bg-error/5 border border-error/20 font-mono text-[10px] break-all">
-             ID_REF: {tripIdParam}
-           </div>
-           <p className="text-xs leading-relaxed opacity-60">
-             The requested mission profile could not be retrieved from the central bank.
+           <p className="text-sm leading-relaxed font-sans font-bold text-on-surface/70">
+             This mission isn't available. Head back to Missions and draw another.
            </p>
-           <ActionButton label="Return to Mission Deck" onClick={() => navigate('/missions')} variant="primary" className="w-full" />
+           <ActionButton label="Back to Missions" onClick={() => navigate('/missions')} variant="primary" className="w-full" />
          </div>
        </div>
     );

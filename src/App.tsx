@@ -26,23 +26,15 @@ const FirebaseConfigError = ({ error }: { error: string }) => (
     <div className="max-w-xl w-full border-4 border-on-surface p-8 space-y-6 bg-white shadow-[12px_12px_0px_#ff3131]">
       <div className="flex items-center gap-3 text-on-surface">
         <div className="w-4 h-4 bg-error animate-pulse" />
-        <h1 className="text-3xl font-black uppercase tracking-tighter">Firebase_Init_Failure</h1>
+        <h1 className="text-3xl font-black uppercase tracking-tighter">Fieldtrip couldn't start</h1>
       </div>
       
       <div className="space-y-4">
         <div className="bg-error/5 p-6 border-l-8 border-error">
-          <p className="text-[10px] text-error font-black uppercase mb-2 tracking-widest">Diagnostic_Message:</p>
-          <p className="text-sm font-bold leading-relaxed">{error}</p>
-        </div>
-
-        <div className="space-y-3 opacity-60">
-          <p className="text-[10px] uppercase font-bold tracking-wider">Required_Actions:</p>
-          <ul className="text-xs space-y-2 list-disc list-inside">
-            <li>Check AI Studio Settings &gt; Secrets</li>
-            <li>Ensure VITE_FIREBASE_PROJECT_ID is set correctly</li>
-            <li>Verify all VITE_FIREBASE_* variables are active</li>
-            <li>Wait for environment to propagate after secrets update</li>
-          </ul>
+          <p className="text-sm font-sans font-bold leading-relaxed">
+            Something went wrong while connecting. Try again in a moment.
+          </p>
+          <p className="mt-3 text-[10px] font-mono text-on-surface/50 break-all">{error}</p>
         </div>
       </div>
 
@@ -50,7 +42,7 @@ const FirebaseConfigError = ({ error }: { error: string }) => (
         onClick={() => window.location.reload()} 
         className="w-full py-5 bg-on-surface hover:bg-error text-white font-black transition-all uppercase tracking-widest text-sm translate-y-0 active:translate-y-1 shadow-[4px_4px_0px_black]"
       >
-        Re-Run Diagnostics
+        Try again
       </button>
     </div>
   </div>
@@ -163,22 +155,15 @@ const SystemError = ({ error, onRetry, onSignOut }: { error: string, onRetry: ()
     <div className="max-w-xl w-full border-4 border-on-surface p-8 space-y-6 bg-white shadow-[12px_12px_0px_var(--color-brand-orange)]">
       <div className="flex items-center gap-3 text-on-surface">
         <div className="w-4 h-4 bg-brand-orange animate-pulse" />
-        <h1 className="text-3xl font-black uppercase tracking-tighter">Bureau_System_Handshake_Failed</h1>
+        <h1 className="text-3xl font-black uppercase tracking-tighter">We couldn't load Fieldtrip</h1>
       </div>
       
       <div className="space-y-4">
         <div className="bg-brand-orange/5 p-6 border-l-8 border-brand-orange">
-          <p className="text-[10px] text-brand-orange font-black uppercase mb-2 tracking-widest">System_Error:</p>
-          <div className="bg-white border-2 border-on-surface/10 p-3 font-mono text-[10px] overflow-auto max-h-40 text-on-surface/80 break-all leading-tight">
-            {error}
-          </div>
-        </div>
-
-        <div className="p-4 bg-brand-orange/5 border border-on-surface/10">
-          <p className="text-[10px] uppercase font-bold tracking-wider mb-2">Protocol_Notes:</p>
-          <p className="text-[11px] leading-relaxed opacity-60">
-            Permission denied when accessing bureau assets. This usually occurs during account initialization or if your beta clearance status is pending. 
+          <p className="text-sm font-sans font-bold leading-relaxed">
+            Something went wrong while setting up your session. Try again.
           </p>
+          <p className="mt-3 text-[10px] font-mono text-on-surface/50 overflow-auto max-h-40 break-all">{error}</p>
         </div>
       </div>
 
@@ -193,7 +178,7 @@ const SystemError = ({ error, onRetry, onSignOut }: { error: string, onRetry: ()
           onClick={onRetry} 
           className="py-4 bg-on-surface text-white font-black transition-all uppercase tracking-widest text-xs shadow-[6px_6px_0px_var(--color-brand-lime)] hover:bg-brand-orange"
         >
-          Retry Handshake
+          Try again
         </button>
       </div>
     </div>

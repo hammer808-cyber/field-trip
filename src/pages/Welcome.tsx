@@ -208,23 +208,28 @@ export default function WelcomePage() {
                 <WelcomePhotoCollage />
               </div>
 
-              <div className="order-3 mt-2 flex w-full max-w-xl flex-col gap-3 sm:flex-row lg:mt-8">
-                <button 
-                  onClick={handleStart}
-                  className="skin-button flex-1 border-[3.5px] border-on-surface bg-on-surface px-5 py-4 font-display text-xl font-black italic uppercase leading-tight tracking-normal text-white shadow-[8px_8px_0px_var(--color-brand-lime)] transition-all hover:bg-brand-orange active:translate-x-1 active:translate-y-1 active:shadow-none sm:text-2xl"
-                >
-                  <span className="flex items-center justify-center gap-3">
-                    Start First Mission
-                    <ChevronRight className="h-6 w-6" />
-                  </span>
-                </button>
+              <div className="order-3 mt-2 flex w-full max-w-xl flex-col gap-2 lg:mt-8">
+                <div className="flex w-full flex-col gap-3 sm:flex-row">
+                  <button 
+                    onClick={handleStart}
+                    className="skin-button flex-1 border-[3.5px] border-on-surface bg-on-surface px-5 py-4 font-display text-xl font-black italic uppercase leading-tight tracking-normal text-white shadow-[8px_8px_0px_var(--color-brand-lime)] transition-all hover:bg-brand-orange active:translate-x-1 active:translate-y-1 active:shadow-none sm:text-2xl"
+                  >
+                    <span className="flex items-center justify-center gap-3">
+                      Start Fieldtrip
+                      <ChevronRight className="h-6 w-6" />
+                    </span>
+                  </button>
 
-                <button 
-                  onClick={handleSignInClick}
-                  className="skin-button flex-1 border-[3.5px] border-on-surface bg-white px-5 py-4 font-display text-xl font-black italic uppercase leading-tight tracking-normal text-on-surface shadow-[8px_8px_0px_var(--color-brand-cyan)] transition-all hover:bg-brand-lime active:translate-x-1 active:translate-y-1 active:shadow-none sm:text-2xl"
-                >
-                  Log In
-                </button>
+                  <button 
+                    onClick={handleSignInClick}
+                    className="skin-button flex-1 border-[3.5px] border-on-surface bg-white px-5 py-4 font-display text-xl font-black italic uppercase leading-tight tracking-normal text-on-surface shadow-[8px_8px_0px_var(--color-brand-cyan)] transition-all hover:bg-brand-lime active:translate-x-1 active:translate-y-1 active:shadow-none sm:text-2xl"
+                  >
+                    Log In
+                  </button>
+                </div>
+                <p className="text-center font-mono text-[10px] font-bold uppercase tracking-widest text-on-surface/45 lg:text-left">
+                  Invite code needed for beta.
+                </p>
               </div>
 
               <button 
@@ -273,7 +278,7 @@ export default function WelcomePage() {
                     <div className="space-y-4 font-mono text-[11px] text-left">
                       {[
                         { step: "01", title: "OPEN APP", text: "Tune in daily for fresh, simple photo challenges curated for summer vibes." },
-                        { step: "02", title: "GET PHOTO " + getDisplayLabel('MISSIONS').toUpperCase(), text: "Browse your desk and draw a mission card detailing the photo requirement." },
+                        { step: "02", title: "GET PHOTO " + getDisplayLabel('MISSIONS').toUpperCase(), text: "Browse your deck and draw a mission card detailing the photo requirement." },
                         { step: "03", title: "TAKE PHOTO", text: "Point your lens, capture the summer evidence, and add a quick caption receipt." },
                         { step: "04", title: "SUBMIT TO CREW", text: "Your photos instant-post onto your friends' Crew Memories Feed." },
                         { step: "05", title: "EARN POINTS", text: "Rack up points and complete summer boards to help decide the ultimate winner of the season!" }
@@ -328,6 +333,7 @@ export default function WelcomePage() {
             <SignIn 
               onSuccess={() => {}}
               onBack={() => setAuthMode('welcome')}
+              onCreateAccount={() => setAuthMode('access_code')}
             />
           </motion.div>
         )}

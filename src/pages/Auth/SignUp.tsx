@@ -15,7 +15,7 @@ interface SignUpProps {
 }
 
 export default function SignUp({ accessCode, onSuccess, onBack }: SignUpProps) {
-  const { frankieMode, fc } = useTheme();
+  const { fc } = useTheme();
   const [formData, setFormData] = useState({
     email: '',
     username: '',
@@ -147,17 +147,17 @@ export default function SignUp({ accessCode, onSuccess, onBack }: SignUpProps) {
       } else if (err.code === 'auth/invalid-email') {
         setError('Invalid email address format.');
       } else if (err.code === 'auth/operation-not-allowed') {
-        setError('Email/Password provider not enabled in Firebase project config.');
+        setError('Account signup is temporarily unavailable. Try again later.');
       } else if (messageUpper === 'USERNAME_TAKEN' || err.message === 'USERNAME_TAKEN') {
         setError('Username already taken.');
       } else if (messageUpper === 'INVALID_ACCESS_CODE') {
-        setError('Invalid access code or spelling error.');
+        setError("That invite code didn't work. Check it and try again.");
       } else if (messageUpper === 'ACCESS_CODE_INACTIVE') {
-        setError('This access code is inactive.');
+        setError('This invite code is no longer active.');
       } else if (messageUpper === 'ACCESS_CODE_EXHAUSTED') {
-        setError('This access code has reached maximum uses.');
+        setError('This invite code has already been used up.');
       } else if (err.code === 'permission-denied' || messageUpper.includes('PERMISSION-DENIED') || messageUpper.includes('PERMISSION_DENIED')) {
-        setError('Firebase Security Rules denied username query or profile creation. Please ask an admin.');
+        setError('We could not finish creating your account. Try again, or ask your invite host for help.');
       } else {
         // Try to parse err.message as JSON if it represents a JSON-structured response
         let isParsed = false;
@@ -165,9 +165,9 @@ export default function SignUp({ accessCode, onSuccess, onBack }: SignUpProps) {
           try {
             const info = JSON.parse(err.message);
             if (info.error?.includes('permission')) {
-              setError(`SECURITY_DENIAL: ACCESS_STATUS_PENDING // ${info.operationType?.toUpperCase() || 'WRITE'}_FAIL`);
+              setError('Your account is still being set up. Wait a moment and try again.');
             } else {
-              setError(info.error || 'System error during registration. Try again.');
+              setError('We could not create your account. Try again.');
             }
             isParsed = true;
           } catch {
@@ -176,7 +176,7 @@ export default function SignUp({ accessCode, onSuccess, onBack }: SignUpProps) {
         }
         
         if (!isParsed) {
-          setError(err.message || 'System error during registration. Try again.');
+          setError('We could not create your account. Try again.');
         }
       }
     } finally {

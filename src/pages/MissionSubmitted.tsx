@@ -5,14 +5,30 @@ import { useApp } from '../context/AppContext';
 import { CheckCircle, Home, LayoutGrid, Camera, Sparkles } from 'lucide-react';
 import { Confetti } from '../components/Confetti';
 import { FieldTape } from '../components/UI';
+import { canAccessFeature, canonicalizeId, getStarterProgress } from '../services/canonicalProgress';
+import { STARTER_SIGNAL_IDS } from '../logic/starterDeckState';
+import { buildPostSubmitStarterGuidance } from '../logic/postSubmitStarterGuidance';
+import { getDisplayLabel } from '../utils/labelUtils';
 
 export default function MissionSubmittedPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const missionId = searchParams.get('id');
-  const { trips } = useApp();
+  const { trips, canonicalProgress, isAdmin } = useApp();
 
   const mission = trips.find(t => t.id === missionId);
+  const starter = getStarterProgress(canonicalProgress);
+  const dexUnlocked = canAccessFeature(canonicalProgress, 'memories', { isAdmin });
+  const currentMissionId = canonicalizeId(missionId);
+  const isStarterMission = !!currentMissionId && STARTER_SIGNAL_IDS.includes(currentMissionId as typeof STARTER_SIGNAL_IDS[number]);
+  const showStarterGuidance = isStarterMission || !starter.starterComplete;
+  const starterGuidance = buildPostSubmitStarterGuidance({
+    starter,
+    currentMissionId,
+    reviewStatus: 'pending_review',
+  });
+  const primaryHref = showStarterGuidance ? starterGuidance.primaryHref : '/missions';
+  const primaryLabel = showStarterGuidance ? starterGuidance.primaryLabel : 'Draw Next Mission →';
 
   return (
     <div className="skin-page skin-proof-status skin-success-state min-h-screen bg-[#FCF8F2] flex flex-col items-center justify-center p-6 relative overflow-hidden">
@@ -51,8 +67,11 @@ export default function MissionSubmittedPage() {
             
             <div className="space-y-2">
               <h1 className="font-display text-4xl font-black uppercase italic tracking-tighter leading-none text-on-surface">
-                Memory Captured!
+                {getDisplayLabel('PROOF_SENT')}
               </h1>
+              <p className="font-mono text-[9px] font-black uppercase tracking-[0.25em] text-on-surface/40">
+                TRANSMISSION COMPLETE
+              </p>
               <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-orange text-white text-[9px] font-mono font-black uppercase tracking-widest border-2 border-on-surface rotate-[-1deg]">
                 <Sparkles className="w-3 h-3 text-white" />
                 <span>PHOTO SUBMITTED</span>
@@ -60,9 +79,22 @@ export default function MissionSubmittedPage() {
             </div>
 
             <div className="bg-[#FFFCEB] border-2 border-dashed border-on-surface/15 p-4 rounded-xl space-y-1.5 text-center relative">
-              <p className="text-[9px] font-mono font-black uppercase tracking-wider text-brand-orange-dark">AWAITING REVIEW</p>
-              <p className="text-xs font-serif italic text-on-surface leading-normal">
-                "Your photo is being verified. Once approved, it will be added to your crew feed and earn points toward the season!"
+              {showStarterGuidance && starterGuidance.progressLine && (
+                <p className="text-sm font-sans font-bold text-on-surface">
+                  {starterGuidance.progressLine}
+                </p>
+              )}
+              <p className="text-[9px] font-mono font-black uppercase tracking-wider text-brand-orange-dark">
+                {starterGuidance.status === 'NEEDS_MORE_PROOF'
+                  ? 'NEEDS MORE PROOF'
+                  : starterGuidance.status === 'REJECTED_RETRY_AVAILABLE'
+                    ? 'RETRY AVAILABLE'
+                    : starterGuidance.status === 'COMPLETE'
+                      ? 'STARTER COMPLETE'
+                      : 'AWAITING REVIEW'}
+              </p>
+              <p className="text-xs font-sans font-bold text-on-surface leading-normal">
+                {showStarterGuidance ? starterGuidance.statusLine : 'Your proof is waiting for review.'}
               </p>
             </div>
           </div>
@@ -88,12 +120,22 @@ export default function MissionSubmittedPage() {
         {/* Dynamic Nav CTAs */}
         <div className="space-y-4">
           <button
-            onClick={() => navigate('/memories')}
+            onClick={() => navigate(primaryHref)}
             className="w-full py-4 bg-brand-lime text-on-surface border-[4px] border-on-surface shadow-[6px_6px_0px_black] hover:bg-brand-lime/95 hover:-translate-y-1 hover:shadow-[8px_8px_0px_black] active:translate-y-0.5 active:shadow-none transition-all font-display text-xl font-black uppercase italic tracking-wide flex items-center justify-center gap-3"
           >
-            <LayoutGrid className="w-5 h-5 stroke-[2.5]" />
-            <span>View My Memories</span>
+            <Camera className="w-5 h-5 stroke-[2.5]" />
+            <span>{primaryLabel}</span>
           </button>
+
+          {dexUnlocked && (
+            <button
+              onClick={() => navigate('/dex')}
+              className="w-full py-4 bg-white text-on-surface border-[4px] border-on-surface shadow-[6px_6px_0px_black] hover:bg-on-surface/[0.02] hover:-translate-y-1 hover:shadow-[8px_8px_0px_black] active:translate-y-0.5 active:shadow-none transition-all font-display text-xl font-black uppercase italic tracking-wide flex items-center justify-center gap-3"
+            >
+              <LayoutGrid className="w-5 h-5 stroke-[2.5]" />
+              <span>Open Dex</span>
+            </button>
+          )}
 
           <button
             onClick={() => navigate('/basecamp')}

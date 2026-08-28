@@ -481,14 +481,14 @@ export default function DeckPage() {
            isStarterConfigurationBlocked ? "STARTER UNAVAILABLE" :
            isPendingReviewLimit ? "LIMIT REACHED" : 
            (isWaitingForReview ? "PENDING REVIEW" : 
-           (isExhausted ? getDisplayLabel("DECK_EXHAUSTED") : getDisplayLabel("START_MISSION"))),
-    sublabel: starterHasNeedsMoreProof ? "PHOTO_REJECTED" :
-              starterHasRejected ? "RETRY_REQUIRED" :
-              isStarterConfigurationBlocked ? "CHECK_BACK_SOON" :
-              isPendingReviewLimit ? "PENDING_LIMIT_REACHED" : 
-              (isWaitingForReview ? "CALIBRATION_PENDING" : 
-              (isExhausted ? (isDeckCompleted ? "DECK_COMPLETE" : getDisplayLabel("MISSION_LIMIT_REACHED")) : 
-              (isStarter ? "STARTER_SIGNALS_READY" : getDisplayLabel("UPLINK_READY_FOR_HAND_OFF")))),
+           (isExhausted ? getDisplayLabel("DECK_EXHAUSTED") : getDisplayLabel("DRAW_A_MISSION"))),
+    sublabel: starterHasNeedsMoreProof ? "Needs a clearer photo" :
+              starterHasRejected ? "Try this mission again" :
+              isStarterConfigurationBlocked ? "Check back soon" :
+              isPendingReviewLimit ? "Too many proofs in review" : 
+              (isWaitingForReview ? "Proof is in review" : 
+              (isExhausted ? (isDeckCompleted ? "Deck complete" : getDisplayLabel("MISSION_LIMIT_REACHED")) : 
+              (isStarter ? "Starter signals ready" : "Ready to draw"))),
     status: starterHasNeedsMoreProof || starterHasRejected || isStarterConfigurationBlocked || isPendingReviewLimit || isWaitingForReview ? "PENDING" : (isExhausted ? "EXHAUSTED" : "READY")
   };
 
@@ -885,7 +885,7 @@ export default function DeckPage() {
                       activeMission={null}
                       activePack={getDeckPackById('starter-signals')}
                       poolEmpty={false}
-                      statusLabel={isDrawing ? "DECODING..." : "Tap the card"}
+                      statusLabel={isDrawing ? "Drawing..." : getDisplayLabel('DRAW_A_MISSION')}
                     />
                   </div>
                   <button
@@ -898,7 +898,7 @@ export default function DeckPage() {
                     ) : (
                        <Zap className="w-6 h-6 fill-white" />
                     )}
-                    <span>Tap the Card</span>
+                    <span>{getDisplayLabel('DRAW_A_MISSION')}</span>
                   </button>
                </motion.div>
              ) : (
@@ -919,10 +919,10 @@ export default function DeckPage() {
                       className="w-full py-6 bg-brand-orange text-white border-[4px] border-on-surface shadow-[0_12px_0px_black] active:shadow-none active:translate-y-3 transition-all font-display text-4xl font-black uppercase italic tracking-tight flex items-center justify-center gap-4"
                     >
                       <Camera className="w-10 h-10" />
-                      <span>Start Mission</span>
+                      <span>{getDisplayLabel('DO_THIS_MISSION')}</span>
                     </button>
                     <p className="text-[10px] font-mono font-black text-center text-on-surface/30 uppercase tracking-widest">
-                      Next Step: Proceed to field site
+                      Next: open your camera and take proof
                     </p>
                   </div>
                </motion.div>
@@ -1133,12 +1133,26 @@ export default function DeckPage() {
                       )}
                     </button>
 
+                  {(isDrawing || isStarterConfigurationBlocked || (isExhausted && !activeTrip) || isWaitingForReview) ? (
+                    <p className="text-center text-sm font-sans font-bold text-on-surface/70 pt-1">
+                      {isWaitingForReview
+                        ? 'Your proof is waiting for review. You can draw again after it is checked.'
+                        : isPendingReviewLimit
+                          ? 'Too many proofs are waiting for review.'
+                          : isStarterConfigurationBlocked
+                            ? 'Starter missions are unavailable right now. Check back soon.'
+                            : isExhausted
+                              ? (isDeckCompleted ? 'This deck is complete.' : 'No missions left to draw in this deck.')
+                              : displayState.sublabel}
+                    </p>
+                  ) : (
                   <div className="flex flex-col items-center gap-1.5 opacity-30">
                     <p className="text-[9px] font-mono font-black uppercase tracking-[0.4em] text-on-surface text-center">
                       {displayState.sublabel}
                     </p>
                     <div className="w-16 h-0.5 bg-on-surface/20 rounded-full" />
                   </div>
+                  )}
                   </div>
                 </>
               )}
@@ -1215,10 +1229,10 @@ export default function DeckPage() {
                   id="start-mission-button-alt" className="skin-button flex min-h-16 w-full cursor-pointer items-center justify-center gap-3 border-[4px] border-[var(--skin-border)] bg-[var(--skin-primary)] px-4 py-4 font-display text-2xl font-black uppercase italic tracking-normal text-[var(--skin-on-primary)] shadow-[var(--skin-button-shadow)] transition-all active:translate-y-1 active:shadow-none sm:text-3xl"
                 >
                   <Camera className="h-8 w-8" />
-                  <span>Start Mission</span>
+                  <span>{getDisplayLabel('DO_THIS_MISSION')}</span>
                 </button>
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="flex flex-col items-center gap-2 pt-1">
                   <button
                     onClick={async () => {
                       try {
@@ -1231,26 +1245,15 @@ export default function DeckPage() {
                         console.error("[Deck] Failed to updateMissionCardStatus:", err.message);
                       }
                     }}
-                    className="skin-button flex min-h-12 cursor-pointer items-center justify-center gap-2 border-2 border-[var(--skin-border)] bg-[var(--skin-surface)] px-3 py-3 font-display text-base font-black uppercase italic tracking-normal text-[var(--skin-text)] shadow-[3px_3px_0_var(--skin-border)] transition-all active:translate-y-0.5 active:shadow-none"
+                    className="min-h-11 px-3 py-2 font-mono text-[11px] font-black uppercase tracking-widest text-on-surface/50 hover:text-on-surface transition-colors"
                   >
-                    <Book className="w-5 h-5 text-on-surface/40" />
-                    <span>Save for Later</span>
+                    Save for later
                   </button>
                   <button
                     onClick={() => handleDraw(true)}
-                    className="skin-button flex min-h-12 cursor-pointer items-center justify-center gap-2 border-2 border-[var(--skin-border)] bg-[var(--skin-surface)] px-3 py-3 font-display text-base font-black uppercase italic tracking-normal text-[var(--skin-text)] shadow-[3px_3px_0_var(--skin-border)] transition-all active:translate-y-0.5 active:shadow-none"
+                    className="min-h-11 px-3 py-2 font-mono text-[11px] font-black uppercase tracking-widest text-on-surface/50 hover:text-on-surface transition-colors"
                   >
-                    <RotateCcw className="w-5 h-5 text-on-surface/40" />
-                    <span>Draw Another</span>
-                  </button>
-                </div>
-
-                <div className="text-center pt-2">
-                  <button
-                    onClick={() => navigate('/missions')}
-                    className="text-[10px] font-mono font-black uppercase tracking-[0.3em] text-on-surface/40 hover:text-on-surface transition-colors"
-                  >
-                    View Mission Dex
+                    Draw a different one
                   </button>
                 </div>
               </div>
