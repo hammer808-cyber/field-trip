@@ -47,6 +47,7 @@ test('pending submission UI does not present an estimate as approved XP', () => 
   assert.match(resultCard, /isApproved && showMathWizard && scoring/);
   assert.match(resultCard, /PROOF_SENT|Proof sent/);
   assert.match(resultCard, /Pending Review/);
+  assert.match(resultCard, /buildPostSubmitStarterGuidance/);
   assert.match(resultCard, /Draw Next Mission/);
   assert.match(resultCard, /dexUnlocked/);
 });

@@ -10,6 +10,7 @@ import { getDisplayLabel } from '../utils/labelUtils';
 import { useApp } from '../context/AppContext';
 import { canAccessFeature, canonicalizeId, getStarterProgress } from '../services/canonicalProgress';
 import { STARTER_SIGNAL_IDS } from '../logic/starterDeckState';
+import { buildPostSubmitStarterGuidance } from '../logic/postSubmitStarterGuidance';
 
 interface MissionResultCardProps {
   trip: TripCard;
@@ -53,19 +54,21 @@ export function MissionResultCard({
   const starter = getStarterProgress(canonicalProgress);
   const dexUnlocked = canAccessFeature(canonicalProgress, 'memories', { isAdmin });
   const currentMissionId = canonicalizeId(trip.id);
-  const submittedIds = new Set((starter.submittedMissionIds || []).map((id) => String(id).toLowerCase()));
-  if (currentMissionId && STARTER_SIGNAL_IDS.includes(currentMissionId as typeof STARTER_SIGNAL_IDS[number])) {
-    submittedIds.add(currentMissionId);
-  }
-  const starterSentCount = Math.min(submittedIds.size, starter.starterRequiredCount);
-  const waitingOnStarterReviews = !starter.starterComplete && starterSentCount >= starter.starterRequiredCount;
-  const proofStatusLine = isApproved
-    ? 'Your proof was approved.'
-    : isNeedsMoreProof
-      ? 'Your proof needs a bit more. Try again from Missions.'
-      : 'Your proof is waiting for review.';
-  const primaryHref = waitingOnStarterReviews ? '/profile?tab=logbook' : '/missions';
-  const primaryLabel = waitingOnStarterReviews ? 'View proof status' : 'Draw Next Mission →';
+  const showStarterGuidance = isStarterTrip(trip) || !starter.starterComplete;
+  const starterGuidance = buildPostSubmitStarterGuidance({
+    starter,
+    currentMissionId,
+    reviewStatus,
+  });
+  const proofStatusLine = showStarterGuidance
+    ? starterGuidance.statusLine
+    : isApproved
+      ? 'Your proof was approved.'
+      : isNeedsMoreProof
+        ? 'Your proof needs a bit more. Try again from Missions.'
+        : 'Your proof is waiting for review.';
+  const primaryHref = showStarterGuidance ? starterGuidance.primaryHref : '/missions';
+  const primaryLabel = showStarterGuidance ? starterGuidance.primaryLabel : 'Draw Next Mission →';
 
   const containerVariants = {
     hidden: { opacity: 0, y: 30 },
@@ -298,14 +301,9 @@ export function MissionResultCard({
              <p className="font-mono text-[9px] font-black uppercase tracking-[0.25em] text-on-surface/35">
                TRANSMISSION COMPLETE
              </p>
-             {!starter.starterComplete && (
+             {showStarterGuidance && starterGuidance.progressLine && (
                <p className="text-sm font-sans font-bold text-on-surface">
-                 Starter Mission {starterSentCount} of {starter.starterRequiredCount} complete
-               </p>
-             )}
-             {starter.starterComplete && isStarterTrip(trip) && (
-               <p className="text-sm font-sans font-bold text-on-surface">
-                 Starter complete. Keep drawing missions.
+                 {starterGuidance.progressLine}
                </p>
              )}
              <p className="text-sm font-sans font-bold text-on-surface/70">
