@@ -7,6 +7,8 @@ import type { UserProfile } from '../services/userService';
 import { buildCanonicalProgress } from '../services/canonicalProgress';
 import {
   GUIDANCE_PRIORITY,
+  isUnseenStarterUnlock,
+  resolveMissionsGuidancePrimaryAction,
   resolvePlayerGuidance,
   resolvePlayerMissionLifecycle,
   type ResolvePlayerGuidanceInput,
@@ -481,4 +483,331 @@ test('superseded rejected proof does not stay primary after retry pending', () =
   assert.equal(snapshot.state, 'WAITING_FOR_STARTER_REVIEW');
   assert.equal(snapshot.primaryActionLabel, 'View Proof Status');
   assert.notEqual(snapshot.state, 'RETRY_REJECTED_PROOF');
+});
+
+function withDeckEligibility(
+  base: ResolvePlayerGuidanceInput,
+  eligibility: Record<string, number>,
+): ResolvePlayerGuidanceInput {
+  const deckProgressById = { ...base.canonicalProgress.deckProgressById };
+  for (const [deckId, eligibleCount] of Object.entries(eligibility)) {
+    const existing = deckProgressById[deckId];
+    if (!existing) continue;
+    deckProgressById[deckId] = {
+      ...existing,
+      eligibleCount,
+      remainingCount: eligibleCount,
+    };
+  }
+  return {
+    ...base,
+    canonicalProgress: {
+      ...base.canonicalProgress,
+      deckProgressById,
+    },
+  };
+}
+
+test('fix1: rejected → retry pending supersedes rejection', () => {
+  const snapshot = resolvePlayerGuidance(input({
+    entries: [
+      ...starterApprovals().filter(e => e.missionId !== 'starter-1'),
+      entry({
+        id: 'reject-1',
+        entryId: 'reject-1',
+        challengeId: 'heatwave-18',
+        missionId: 'heatwave-18',
+        status: 'retried' as any,
+        createdAt: Timestamp.fromDate(new Date('2026-08-29T16:00:00.000Z')),
+        updatedAt: Timestamp.fromDate(new Date('2026-08-29T16:30:00.000Z')),
+      }),
+      entry({
+        id: 'pending-retry',
+        entryId: 'pending-retry',
+        challengeId: 'heatwave-18',
+        missionId: 'heatwave-18',
+        status: 'pending_review',
+        createdAt: Timestamp.fromDate(new Date('2026-08-29T17:00:00.000Z')),
+        updatedAt: Timestamp.fromDate(new Date('2026-08-29T17:00:00.000Z')),
+      }),
+      entry({
+        id: 'starter-1-ok',
+        entryId: 'starter-1-ok',
+        challengeId: 'starter-1',
+        missionId: 'starter-1',
+        deckId: 'starter-signals',
+        status: 'approved',
+      }),
+    ],
+    isHeatwaveDeckUnlocked: true,
+  }));
+  assert.notEqual(snapshot.state, 'RETRY_REJECTED_PROOF');
+  assert.ok(snapshot.state === 'DRAW_MISSION' || snapshot.state === 'VOTE_AVAILABLE' || snapshot.state === 'NO_URGENT_ACTION' || snapshot.state === 'STARTER_COMPLETE');
+});
+
+test('fix1: rejected → retry rejected again keeps newest rejection actionable', () => {
+  const snapshot = resolvePlayerGuidance(input({
+    entries: [
+      ...starterApprovals(),
+      entry({
+        id: 'old-reject',
+        entryId: 'old-reject',
+        challengeId: 'heatwave-18',
+        missionId: 'heatwave-18',
+        missionTitle: 'Emotional Support Beverage',
+        status: 'retried' as any,
+        createdAt: Timestamp.fromDate(new Date('2026-08-29T15:00:00.000Z')),
+        updatedAt: Timestamp.fromDate(new Date('2026-08-29T16:00:00.000Z')),
+      }),
+      entry({
+        id: 'new-reject',
+        entryId: 'new-reject',
+        challengeId: 'heatwave-18',
+        missionId: 'heatwave-18',
+        missionTitle: 'Emotional Support Beverage',
+        status: 'rejected',
+        createdAt: Timestamp.fromDate(new Date('2026-08-29T17:00:00.000Z')),
+        updatedAt: Timestamp.fromDate(new Date('2026-08-29T18:00:00.000Z')),
+      }),
+    ],
+    isHeatwaveDeckUnlocked: true,
+  }));
+  assert.equal(snapshot.state, 'RETRY_REJECTED_PROOF');
+  assert.equal(snapshot.primaryActionLabel, 'Retry Mission');
+  assert.match(snapshot.primaryActionDestination, /originalEntryId=new-reject/);
+});
+
+test('fix1: needs-more → repair pending supersedes needs-more', () => {
+  const snapshot = resolvePlayerGuidance(input({
+    entries: [
+      ...starterApprovals(),
+      entry({
+        id: 'needs-old',
+        entryId: 'needs-old',
+        challengeId: 'heatwave-18',
+        missionId: 'heatwave-18',
+        status: 'retried' as any,
+        createdAt: Timestamp.fromDate(new Date('2026-08-29T15:00:00.000Z')),
+        updatedAt: Timestamp.fromDate(new Date('2026-08-29T16:00:00.000Z')),
+      }),
+      entry({
+        id: 'repair-pending',
+        entryId: 'repair-pending',
+        challengeId: 'heatwave-18',
+        missionId: 'heatwave-18',
+        status: 'pending_review',
+        createdAt: Timestamp.fromDate(new Date('2026-08-29T17:00:00.000Z')),
+      }),
+    ],
+    isHeatwaveDeckUnlocked: true,
+  }));
+  assert.notEqual(snapshot.state, 'REPAIR_PROOF');
+});
+
+test('fix1: needs-more → repair needs-more again keeps newest repair actionable', () => {
+  const snapshot = resolvePlayerGuidance(input({
+    entries: [
+      ...starterApprovals(),
+      entry({
+        id: 'needs-old',
+        entryId: 'needs-old',
+        challengeId: 'heatwave-18',
+        missionId: 'heatwave-18',
+        missionTitle: 'Emotional Support Beverage',
+        status: 'retried' as any,
+        createdAt: Timestamp.fromDate(new Date('2026-08-29T15:00:00.000Z')),
+        updatedAt: Timestamp.fromDate(new Date('2026-08-29T16:00:00.000Z')),
+      }),
+      entry({
+        id: 'needs-new',
+        entryId: 'needs-new',
+        challengeId: 'heatwave-18',
+        missionId: 'heatwave-18',
+        missionTitle: 'Emotional Support Beverage',
+        status: 'needs_more_proof',
+        createdAt: Timestamp.fromDate(new Date('2026-08-29T17:00:00.000Z')),
+        updatedAt: Timestamp.fromDate(new Date('2026-08-29T18:00:00.000Z')),
+      }),
+    ],
+    isHeatwaveDeckUnlocked: true,
+  }));
+  assert.equal(snapshot.state, 'REPAIR_PROOF');
+  assert.match(snapshot.primaryActionDestination, /entryId=needs-new/);
+});
+
+test('fix1: older retried marker + newer rejected keeps Retry primary', () => {
+  const snapshot = resolvePlayerGuidance(input({
+    entries: [
+      ...starterApprovals(),
+      entry({
+        id: 'marker',
+        entryId: 'marker',
+        challengeId: 'heatwave-08',
+        missionId: 'heatwave-08',
+        status: 'retried' as any,
+        updatedAt: Timestamp.fromDate(new Date('2026-08-29T19:00:00.000Z')),
+      }),
+      entry({
+        id: 'latest-reject',
+        entryId: 'latest-reject',
+        challengeId: 'heatwave-08',
+        missionId: 'heatwave-08',
+        missionTitle: 'Main Character Checkpoint',
+        status: 'rejected',
+        createdAt: Timestamp.fromDate(new Date('2026-08-29T18:00:00.000Z')),
+        updatedAt: Timestamp.fromDate(new Date('2026-08-29T18:30:00.000Z')),
+      }),
+    ],
+    isHeatwaveDeckUnlocked: true,
+  }));
+  // Newest meaningful attempt is rejected even if the retried marker has a later updatedAt.
+  assert.equal(snapshot.state, 'RETRY_REJECTED_PROOF');
+});
+
+test('fix2: unseen starter unlock → STARTER_COMPLETE; acknowledged → not STARTER_COMPLETE', () => {
+  assert.equal(isUnseenStarterUnlock({
+    starterComplete: true,
+    starterApprovedCount: 3,
+    starterRequiredCount: 3,
+    lastSeenApprovedCount: 0,
+  }), true);
+  assert.equal(isUnseenStarterUnlock({
+    starterComplete: true,
+    starterApprovedCount: 3,
+    starterRequiredCount: 3,
+    lastSeenApprovedCount: 3,
+  }), false);
+
+  const unseen = resolvePlayerGuidance(input({
+    entries: starterApprovals(),
+    isHeatwaveDeckUnlocked: true,
+    hasUnseenStarterUnlock: true,
+  }));
+  assert.equal(unseen.state, 'STARTER_COMPLETE');
+  assert.equal(unseen.autoOpenTrevor, true);
+
+  const seen = resolvePlayerGuidance(input({
+    entries: starterApprovals(),
+    isHeatwaveDeckUnlocked: true,
+    hasUnseenStarterUnlock: false,
+    voteAvailable: true,
+  }));
+  assert.notEqual(seen.state, 'STARTER_COMPLETE');
+  assert.equal(seen.autoOpenTrevor, false);
+});
+
+test('fix2: after acknowledgement, active mission resumes and vote can win when idle', () => {
+  const resume = resolvePlayerGuidance(input({
+    entries: starterApprovals(),
+    activeTrip: trip({ status: 'approved' }),
+    drawnMissionCards: [drawnCard()],
+    trips: [trip({ status: 'approved' })],
+    isHeatwaveDeckUnlocked: true,
+    hasUnseenStarterUnlock: false,
+    voteAvailable: true,
+  }));
+  assert.equal(resume.state, 'RESUME_ACTIVE_MISSION');
+
+  const vote = resolvePlayerGuidance(withDeckEligibility(input({
+    entries: starterApprovals(),
+    isHeatwaveDeckUnlocked: true,
+    hasUnseenStarterUnlock: false,
+    voteAvailable: true,
+  }), { 'heatwave-receipts': 0, 'starter-signals': 0 }));
+  assert.equal(vote.state, 'VOTE_AVAILABLE');
+});
+
+test('fix3: STARTER_COMPLETE primary action draws the post-Starter pack, not starter-signals', () => {
+  const snapshot = resolvePlayerGuidance(input({
+    entries: starterApprovals(),
+    isHeatwaveDeckUnlocked: true,
+    hasUnseenStarterUnlock: true,
+  }));
+  const action = resolveMissionsGuidancePrimaryAction(snapshot);
+  assert.equal(action.kind, 'draw-pack');
+  if (action.kind === 'draw-pack') {
+    assert.equal(action.packId, 'heatwave-receipts');
+    assert.match(action.destination, /pack=heatwave-receipts/);
+    assert.notEqual(action.packId, 'starter-signals');
+  }
+});
+
+test('fix4: Heatwave unlocked + eligibleCount > 0 → Draw Mission', () => {
+  const snapshot = resolvePlayerGuidance(withDeckEligibility(input({
+    entries: starterApprovals(),
+    isHeatwaveDeckUnlocked: true,
+    hasUnseenStarterUnlock: false,
+  }), { 'heatwave-receipts': 5 }));
+  assert.equal(snapshot.state, 'DRAW_MISSION');
+});
+
+test('fix4: Heatwave unlocked + all eligibleCount === 0 → NOT Draw Mission', () => {
+  const base = input({
+    entries: starterApprovals(),
+    isHeatwaveDeckUnlocked: true,
+    hasUnseenStarterUnlock: false,
+  });
+  const zeroed = Object.fromEntries(
+    Object.keys(base.canonicalProgress.deckProgressById).map(id => [id, 0]),
+  );
+  const snapshot = resolvePlayerGuidance(withDeckEligibility(base, zeroed));
+  assert.notEqual(snapshot.state, 'DRAW_MISSION');
+  assert.equal(snapshot.state, 'NO_URGENT_ACTION');
+});
+
+test('fix4: one deck exhausted + another eligible → Draw Mission', () => {
+  const base = input({
+    entries: starterApprovals(),
+    isHeatwaveDeckUnlocked: true,
+    hasUnseenStarterUnlock: false,
+  });
+  const zeroed = Object.fromEntries(
+    Object.keys(base.canonicalProgress.deckProgressById).map(id => [id, 0]),
+  );
+  const synthetic = withDeckEligibility(base, zeroed);
+  synthetic.canonicalProgress.deckProgressById['extra-deck'] = {
+    deckId: 'extra-deck',
+    deckName: 'Extra',
+    totalCards: 3,
+    approvedCount: 0,
+    pendingCount: 0,
+    needsMoreProofCount: 0,
+    rejectedCount: 0,
+    remainingCount: 3,
+    eligibleCount: 3,
+    exhausted: false,
+    label: '0/3',
+    percent: 0,
+  };
+  const snapshot = resolvePlayerGuidance(synthetic);
+  assert.equal(snapshot.state, 'DRAW_MISSION');
+  assert.match(snapshot.primaryActionDestination, /pack=extra-deck/);
+});
+
+test('fix4: all decks exhausted + vote available → Vote primary', () => {
+  const base = input({
+    entries: starterApprovals(),
+    isHeatwaveDeckUnlocked: true,
+    hasUnseenStarterUnlock: false,
+    voteAvailable: true,
+  });
+  const zeroed = Object.fromEntries(
+    Object.keys(base.canonicalProgress.deckProgressById).map(id => [id, 0]),
+  );
+  const snapshot = resolvePlayerGuidance(withDeckEligibility(base, zeroed));
+  assert.equal(snapshot.state, 'VOTE_AVAILABLE');
+});
+
+test('fix4: all decks exhausted + nothing urgent → No Urgent Action', () => {
+  const base = input({
+    entries: starterApprovals(),
+    isHeatwaveDeckUnlocked: true,
+    hasUnseenStarterUnlock: false,
+    voteAvailable: false,
+  });
+  const zeroed = Object.fromEntries(
+    Object.keys(base.canonicalProgress.deckProgressById).map(id => [id, 0]),
+  );
+  const snapshot = resolvePlayerGuidance(withDeckEligibility(base, zeroed));
+  assert.equal(snapshot.state, 'NO_URGENT_ACTION');
 });

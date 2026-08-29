@@ -146,6 +146,8 @@ import { MissionActionPanel } from '../components/missions/MissionActionPanel';
 import { MissionLogbookPanel, type MissionLogbookItem } from '../components/missions/MissionLogbookPanel';
 import { MissionsGuidanceStrip } from '../components/missions/MissionsGuidanceStrip';
 import { usePlayerGuidance } from '../hooks/usePlayerGuidance';
+import { resolveMissionsGuidancePrimaryAction } from '../logic/playerGuidance';
+import { acknowledgeStarterUnlockSeen } from '../services/starterUnlockAck';
 
 export default function DeckPage() {
   const navigate = useNavigate();
@@ -528,8 +530,21 @@ export default function DeckPage() {
     }
   }, [activeTrip, trips.length, hasRevealedInActiveSession, guidance.state, drawnTrip]);
 
-  const handleDraw = async (isRedraw: boolean = false) => {
-    if (isDrawing || isStarterConfigurationBlocked || (isExhausted && !activeTrip) || animationStep === 'drawing' || animationStep === 'flipping') return;
+  const handleDraw = async (isRedraw: boolean = false, packIdOverride?: string) => {
+    const drawPackId = packIdOverride || activePackId;
+    // When switching packs for STARTER_COMPLETE, do not apply starter-pack exhausted lock.
+    const drawingFromOverridePack = !!packIdOverride && packIdOverride !== activePackId;
+    if (
+      isDrawing
+      || (!drawingFromOverridePack && isStarterConfigurationBlocked)
+      || (!drawingFromOverridePack && isExhausted && !activeTrip)
+      || animationStep === 'drawing'
+      || animationStep === 'flipping'
+    ) return;
+
+    if (packIdOverride && packIdOverride !== activePackId) {
+      setActivePackId(packIdOverride);
+    }
 
     setIsDrawing(true);
     setShowAnimation(true);
@@ -545,7 +560,7 @@ export default function DeckPage() {
     try {
       // Logic for drawing a NEW card
       // In the new flow, drawTrip already saves to drawnMissionCards as 'drawn'
-      const trip = await drawTrip(undefined, FEATURE_FLAGS.ENABLE_DECK_PACK_DRAW_LOGIC ? activePackId : undefined);
+      const trip = await drawTrip(undefined, FEATURE_FLAGS.ENABLE_DECK_PACK_DRAW_LOGIC ? drawPackId : undefined);
       
       // Sequence timing for slide-out/decode
       await new Promise(resolve => setTimeout(resolve, 350));
@@ -985,24 +1000,29 @@ export default function DeckPage() {
             <MissionsGuidanceStrip
               guidance={guidance}
               onPrimary={() => {
-                const dest = guidance.primaryActionDestination;
-                if (
-                  (guidance.state === 'DRAW_STARTER_MISSION'
-                    || guidance.state === 'DRAW_NEXT_STARTER'
-                    || guidance.state === 'DRAW_MISSION'
-                    || guidance.state === 'STARTER_COMPLETE')
-                  && dest.startsWith('/missions')
-                  && !isDrawn
-                  && !isWaitingForReview
-                ) {
+                const action = resolveMissionsGuidancePrimaryAction(guidance);
+                if (guidance.state === 'STARTER_COMPLETE' && user?.uid && starterState.starterComplete) {
+                  void acknowledgeStarterUnlockSeen(
+                    user.uid,
+                    starterState.starterApprovedCount || onboardingCompletedCount || 3,
+                  ).catch((error) => {
+                    console.warn('[Deck] Failed to acknowledge Starter unlock:', error);
+                  });
+                }
+                if (action.kind === 'draw-pack' && !isDrawn) {
+                  navigate(action.destination, { replace: true });
+                  void handleDraw(false, action.packId);
+                  return;
+                }
+                if (action.kind === 'draw-current' && !isDrawn && !isWaitingForReview) {
                   void handleDraw();
                   return;
                 }
-                if (guidance.primaryActionIntent === 'retry-proof' && guidance.relevantMissionId) {
-                  void retryMissionSubmission(guidance.relevantMissionId).then(() => navigate(dest));
+                if (action.kind === 'retry-proof' && action.missionId) {
+                  void retryMissionSubmission(action.missionId).then(() => navigate(action.destination));
                   return;
                 }
-                navigate(dest);
+                navigate(action.destination);
               }}
               onSecondary={guidance.secondaryAction
                 ? () => navigate(guidance.secondaryAction!.destination)

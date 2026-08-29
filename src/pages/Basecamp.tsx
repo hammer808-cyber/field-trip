@@ -17,6 +17,7 @@ import {
   buildBasecampViewModel,
   type BasecampPrimaryAction,
 } from '../logic/basecampViewModel';
+import { acknowledgeStarterUnlockSeen } from '../services/starterUnlockAck';
 import './Basecamp.css';
 
 export default function Basecamp() {
@@ -90,11 +91,33 @@ export default function Basecamp() {
   }, [canonicalProgress, profile?.id, user?.uid, viewModel]);
 
   const runAction = React.useCallback(async (action: BasecampPrimaryAction) => {
+    if (
+      viewModel.guidance.state === 'STARTER_COMPLETE'
+      && (profile?.id || user?.uid)
+      && canonicalProgress.starter.starterComplete
+    ) {
+      try {
+        await acknowledgeStarterUnlockSeen(
+          profile?.id || user!.uid,
+          canonicalProgress.starter.starterApprovedCount,
+        );
+      } catch (error) {
+        console.warn('[Basecamp] Failed to acknowledge Starter unlock:', error);
+      }
+    }
     if (action.intent === 'retry-proof' && action.missionId) {
       await retryMissionSubmission(action.missionId);
     }
     navigate(action.href);
-  }, [navigate, retryMissionSubmission]);
+  }, [
+    navigate,
+    retryMissionSubmission,
+    viewModel.guidance.state,
+    profile?.id,
+    user?.uid,
+    canonicalProgress.starter.starterComplete,
+    canonicalProgress.starter.starterApprovedCount,
+  ]);
 
   return (
     <div className="skin-page skin-basecamp page-scroll min-h-screen bg-[var(--skin-background)] pb-32 text-[var(--skin-text)] [background-image:var(--skin-background-texture)]">

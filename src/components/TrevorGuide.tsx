@@ -17,6 +17,7 @@ import {
   recordTrevorRecommendation,
   suppressTrevorForSession,
 } from '../services/trevorHistoryService';
+import { acknowledgeStarterUnlockSeen } from '../services/starterUnlockAck';
 import type { ResolvedTrevorAction } from '../config/trevorActions';
 import { reduceTrevorPanelState, TrevorGuideView } from './TrevorGuideView';
 
@@ -114,7 +115,28 @@ export function TrevorGuide() {
     if (autoOpenedState.current === guidance.state) return;
     autoOpenedState.current = guidance.state;
     dispatchPanelEvent('open');
-  }, [guidance.autoOpenTrevor, guidance.state]);
+    // Persist one-shot Starter unlock acknowledgement so remount does not
+    // re-select STARTER_COMPLETE / re-auto-open Trevor.
+    if (
+      guidance.state === 'STARTER_COMPLETE'
+      && app.user?.uid
+      && app.starterState.starterComplete
+    ) {
+      void acknowledgeStarterUnlockSeen(
+        app.user.uid,
+        app.starterState.starterApprovedCount || app.starterApprovedCount || 3,
+      ).catch((error) => {
+        console.warn('[TrevorGuide] Failed to acknowledge Starter unlock:', error);
+      });
+    }
+  }, [
+    guidance.autoOpenTrevor,
+    guidance.state,
+    app.user?.uid,
+    app.starterState.starterComplete,
+    app.starterState.starterApprovedCount,
+    app.starterApprovedCount,
+  ]);
 
   useEffect(() => {
     if (!recommendation) return;
@@ -159,6 +181,18 @@ export function TrevorGuide() {
 
   const handleAction = (action: ResolvedTrevorAction) => {
     emitTrevorActionEvent(recommendation, action);
+    if (
+      guidance.state === 'STARTER_COMPLETE'
+      && app.user?.uid
+      && app.starterState.starterComplete
+    ) {
+      void acknowledgeStarterUnlockSeen(
+        app.user.uid,
+        app.starterState.starterApprovedCount || app.starterApprovedCount || 3,
+      ).catch((error) => {
+        console.warn('[TrevorGuide] Failed to acknowledge Starter unlock on action:', error);
+      });
+    }
     if (action.route) navigate(action.route);
     dispatchPanelEvent('collapse');
   };

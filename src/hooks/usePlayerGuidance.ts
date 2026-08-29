@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import {
+  isUnseenStarterUnlock,
   resolvePlayerGuidance,
   type PlayerGuidanceSnapshot,
 } from '../logic/playerGuidance';
+import { getStarterProgress } from '../services/canonicalProgress';
 
 export function usePlayerGuidance(): PlayerGuidanceSnapshot {
   const {
@@ -24,22 +26,29 @@ export function usePlayerGuidance(): PlayerGuidanceSnapshot {
     userVotes,
   } = useApp();
 
-  return useMemo(() => resolvePlayerGuidance({
-    canonicalProgress,
-    entries,
-    activeTrip,
-    activeSubmissionStatus,
-    drawnMissionCards,
-    trips,
-    legalComplete: hasConfirmedLegal,
-    fieldClassificationComplete,
-    hasSeenFieldTypeResults,
-    hasCompletedFieldKitOnboarding,
-    isHeatwaveDeckUnlocked,
-    voteAvailable: isVotingWindowOpen(currentWeekNumber) && (userVotes?.length ?? 0) === 0,
-    hasUnseenStarterUnlock: canonicalProgress.starter.starterComplete
-      && (profile?.trevorSettings?.lastSeenApprovedCount ?? 0) < canonicalProgress.starter.starterRequiredCount,
-  }), [
+  return useMemo(() => {
+    const starter = getStarterProgress(canonicalProgress);
+    return resolvePlayerGuidance({
+      canonicalProgress,
+      entries,
+      activeTrip,
+      activeSubmissionStatus,
+      drawnMissionCards,
+      trips,
+      legalComplete: hasConfirmedLegal,
+      fieldClassificationComplete,
+      hasSeenFieldTypeResults,
+      hasCompletedFieldKitOnboarding,
+      isHeatwaveDeckUnlocked,
+      voteAvailable: isVotingWindowOpen(currentWeekNumber) && (userVotes?.length ?? 0) === 0,
+      hasUnseenStarterUnlock: isUnseenStarterUnlock({
+        starterComplete: starter.starterComplete,
+        starterApprovedCount: starter.starterApprovedCount,
+        starterRequiredCount: starter.starterRequiredCount,
+        lastSeenApprovedCount: profile?.trevorSettings?.lastSeenApprovedCount,
+      }),
+    });
+  }, [
     activeSubmissionStatus,
     activeTrip,
     canonicalProgress,

@@ -238,46 +238,15 @@ function entryMissionKey(entry: Entry): string {
 }
 
 /**
- * A rejected / needs-more proof is only actionable when that mission does not
- * already have a newer pending or approved attempt. Retries must not leave the
- * superseded rejection as the canonical "what now".
+ * `retryMissionSubmission` marks the prior attempt `retried`. That raw status is
+ * not a live pending attempt — normalizeEntryStatus maps unknown statuses to
+ * pending_review, so we must exclude the marker before comparing lineage.
  */
-function latestActionableProof(
-  entries: readonly Entry[],
-  status: 'needs_more_proof' | 'rejected',
-): { entryId: string; missionId: string; title: string } | null {
-  const supersededMissionIds = new Set(
-    entries
-      .filter((entry) => {
-        if (isArchivedEntry(entry)) return false;
-        const normalized = normalizeEntryStatus(entry.status);
-        return normalized === 'pending_review' || normalized === 'approved';
-      })
-      .map(entryMissionKey)
-      .filter(Boolean),
-  );
-
-  const matches = entries
-    .filter((entry) => {
-      if (isArchivedEntry(entry)) return false;
-      if (normalizeEntryStatus(entry.status) !== status) return false;
-      const missionId = entryMissionKey(entry);
-      return !!missionId && !supersededMissionIds.has(missionId);
-    })
-    .sort((left, right) => proofTimestamp(right) - proofTimestamp(left));
-  const latest = matches[0];
-  if (!latest) return null;
-  const missionId = String(latest.missionId || latest.challengeId || latest.tripId || '').trim();
-  const entryId = latest.entryId || latest.id;
-  if (!missionId || !entryId) return null;
-  return {
-    entryId,
-    missionId,
-    title: latest.missionTitle || latest.tripTitle || latest.challengeTitle || 'Field proof',
-  };
+export function isRetriedAttemptMarker(entry: Pick<Entry, 'status'> | { status?: string | null }): boolean {
+  return String(entry.status || '').toLowerCase().trim() === 'retried';
 }
 
-function proofTimestamp(entry: Entry): number {
+export function proofAttemptTimestamp(entry: Entry): number {
   const raw = entry.reviewedAt || entry.updatedAt || entry.submittedAt || entry.createdAt;
   if (!raw) return 0;
   if (typeof (raw as { toMillis?: () => number }).toMillis === 'function') {
@@ -290,13 +259,119 @@ function proofTimestamp(entry: Entry): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+/**
+ * Newest meaningful proof attempt per mission wins.
+ * A newer rejected / needs-more remains actionable even when an older attempt
+ * was marked `retried` (which would otherwise look like pending_review).
+ * A newer real pending/approved attempt supersedes older repair/reject states.
+ */
+function latestActionableProof(
+  entries: readonly Entry[],
+  status: 'needs_more_proof' | 'rejected',
+): { entryId: string; missionId: string; title: string } | null {
+  const newestByMission = new Map<string, Entry>();
+  for (const entry of entries) {
+    if (isArchivedEntry(entry) || isRetriedAttemptMarker(entry)) continue;
+    const missionKey = entryMissionKey(entry);
+    if (!missionKey) continue;
+    const previous = newestByMission.get(missionKey);
+    if (!previous || proofAttemptTimestamp(entry) >= proofAttemptTimestamp(previous)) {
+      newestByMission.set(missionKey, entry);
+    }
+  }
+
+  const matches = [...newestByMission.values()]
+    .filter(entry => normalizeEntryStatus(entry.status) === status)
+    .sort((left, right) => proofAttemptTimestamp(right) - proofAttemptTimestamp(left));
+  const latest = matches[0];
+  if (!latest) return null;
+  const missionId = String(latest.missionId || latest.challengeId || latest.tripId || '').trim();
+  const entryId = latest.entryId || latest.id;
+  if (!missionId || !entryId) return null;
+  return {
+    entryId,
+    missionId,
+    title: latest.missionTitle || latest.tripTitle || latest.challengeTitle || 'Field proof',
+  };
+}
+
+function isPlayablePostStarterDeck(deckId: string): boolean {
+  const id = deckId.toLowerCase().trim();
+  return !!id && id !== 'starter-signals' && id !== 'starter';
+}
+
+/** Unlock/access is not drawability. Prefer canonical eligibleCount. */
 function missionsStillAvailable(input: ResolvePlayerGuidanceInput): boolean {
   const starter = getStarterProgress(input.canonicalProgress);
   if (!starter.starterComplete) {
     return starter.submittedUniqueCount < starter.starterRequiredCount;
   }
-  if (input.isHeatwaveDeckUnlocked) return true;
-  return Object.values(input.canonicalProgress.deckProgressById).some(deck => deck.eligibleCount > 0);
+  return Object.values(input.canonicalProgress.deckProgressById).some(
+    deck => isPlayablePostStarterDeck(deck.deckId) && deck.eligibleCount > 0,
+  );
+}
+
+function preferredDrawableDeckId(input: ResolvePlayerGuidanceInput): string {
+  const byId = input.canonicalProgress.deckProgressById;
+  const heatwave = byId['heatwave-receipts'];
+  if (heatwave && heatwave.eligibleCount > 0) return 'heatwave-receipts';
+  const eligible = Object.values(byId).find(
+    deck => isPlayablePostStarterDeck(deck.deckId) && deck.eligibleCount > 0,
+  );
+  return eligible?.deckId || 'heatwave-receipts';
+}
+
+/** Starter unlock celebration is one-shot via profile.trevorSettings.lastSeenApprovedCount. */
+export function isUnseenStarterUnlock(input: {
+  starterComplete: boolean;
+  starterApprovedCount: number;
+  starterRequiredCount: number;
+  lastSeenApprovedCount?: number | null;
+}): boolean {
+  if (!input.starterComplete) return false;
+  return (input.lastSeenApprovedCount ?? 0) < input.starterRequiredCount;
+}
+
+export type MissionsGuidancePrimaryAction =
+  | { kind: 'draw-pack'; packId: string; destination: string }
+  | { kind: 'draw-current'; destination: string }
+  | { kind: 'retry-proof'; missionId: string; destination: string }
+  | { kind: 'navigate'; destination: string };
+
+/**
+ * Deck owns draw behavior, but must honor guidance destinations. STARTER_COMPLETE
+ * must not draw from an exhausted starter-signals pack.
+ */
+export function resolveMissionsGuidancePrimaryAction(
+  guidance: PlayerGuidanceSnapshot,
+): MissionsGuidancePrimaryAction {
+  const destination = guidance.primaryActionDestination;
+  if (guidance.state === 'STARTER_COMPLETE') {
+    const packId = guidance.deckId && isPlayablePostStarterDeck(guidance.deckId)
+      ? guidance.deckId
+      : 'heatwave-receipts';
+    return {
+      kind: 'draw-pack',
+      packId,
+      destination: `/missions?pack=${encodeURIComponent(packId)}`,
+    };
+  }
+  if (
+    (guidance.state === 'DRAW_STARTER_MISSION'
+      || guidance.state === 'DRAW_NEXT_STARTER'
+      || guidance.state === 'DRAW_MISSION')
+    && destination.startsWith('/missions')
+  ) {
+    return { kind: 'draw-current', destination };
+  }
+  if (guidance.primaryActionIntent === 'retry-proof' && guidance.relevantMissionId) {
+    return {
+      kind: 'retry-proof',
+      missionId: guidance.relevantMissionId,
+      destination,
+    };
+  }
+  return { kind: 'navigate', destination };
 }
 
 function clampNavigationTarget(
@@ -589,21 +664,21 @@ export function resolvePlayerGuidance(input: ResolvePlayerGuidanceInput): Player
   } else if ((mission?.status === 'pending_review' || hasPendingProof(input.entries)) && canDrawMore) {
     presented = present('DRAW_MISSION', {
       mission,
-      deckId: input.isHeatwaveDeckUnlocked ? 'heatwave-receipts' : mission?.deckId || 'heatwave-receipts',
+      deckId: preferredDrawableDeckId(input),
       secondary: { label: 'View Proof Status', destination: '/profile?tab=logbook', intent: 'navigate' },
       flavorMessage: 'PENDING DOES NOT STOP YOU FROM DRAWING ANOTHER MISSION.',
     });
   } else if (starterJustComplete(input)) {
     presented = present('STARTER_COMPLETE', {
       mission,
-      deckId: 'heatwave-receipts',
+      deckId: preferredDrawableDeckId(input),
     });
   } else if (input.voteAvailable && canAccessFeature(input.canonicalProgress, 'voting')) {
     presented = present('VOTE_AVAILABLE', { mission });
   } else if (canDrawMore) {
     presented = present('DRAW_MISSION', {
       mission,
-      deckId: input.isHeatwaveDeckUnlocked ? 'heatwave-receipts' : 'heatwave-receipts',
+      deckId: preferredDrawableDeckId(input),
     });
   } else {
     presented = present('NO_URGENT_ACTION', { mission });
@@ -619,7 +694,11 @@ export function resolvePlayerGuidance(input: ResolvePlayerGuidanceInput): Player
 }
 
 function hasPendingProof(entries: readonly Entry[]): boolean {
-  return entries.some(entry => !isArchivedEntry(entry) && normalizeEntryStatus(entry.status) === 'pending_review');
+  return entries.some(entry => (
+    !isArchivedEntry(entry)
+    && !isRetriedAttemptMarker(entry)
+    && normalizeEntryStatus(entry.status) === 'pending_review'
+  ));
 }
 
 function starterJustComplete(input: ResolvePlayerGuidanceInput): boolean {

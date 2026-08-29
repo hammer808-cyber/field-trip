@@ -13,6 +13,7 @@ import {
 import { getLevelProgress } from './playerLevel';
 import { isArchivedEntry, normalizeEntryStatus } from './entryLogic';
 import {
+  isUnseenStarterUnlock,
   resolvePlayerGuidance,
   resolvePlayerMissionLifecycle,
   type PlayerGuidanceSnapshot,
@@ -208,24 +209,23 @@ function getActiveEntries(entries: readonly Entry[]): Entry[] {
 
 function buildAttention(entries: readonly Entry[]): BasecampProofAttentionModel {
   const activeEntries = getActiveEntries(entries);
-  const supersededMissionIds = new Set(
-    activeEntries
-      .filter((entry) => {
-        const status = normalizeEntryStatus(entry.status);
-        return status === 'pending_review' || status === 'approved';
-      })
-      .map((entry) => entryMissionId(entry))
-      .filter(Boolean),
-  );
-  const actionable = activeEntries
-    .filter((entry) => {
-      const status = normalizeEntryStatus(entry.status);
-      if (!['needs_more_proof', 'rejected'].includes(status)) return false;
-      const missionId = entryMissionId(entry);
-      return !!missionId && !supersededMissionIds.has(missionId);
-    })
+  const newestByMission = new Map<string, Entry>();
+  for (const entry of activeEntries) {
+    const rawStatus = String(entry.status || '').toLowerCase().trim();
+    if (rawStatus === 'retried') continue;
+    const missionId = entryMissionId(entry);
+    if (!missionId) continue;
+    const previous = newestByMission.get(missionId);
+    if (!previous || getEntryTimestamp(entry) >= getEntryTimestamp(previous)) {
+      newestByMission.set(missionId, entry);
+    }
+  }
+  const actionable = [...newestByMission.values()]
+    .filter(entry => ['needs_more_proof', 'rejected'].includes(normalizeEntryStatus(entry.status)))
     .sort((left, right) => getEntryTimestamp(right) - getEntryTimestamp(left));
-  const pendingCount = activeEntries.filter(entry => normalizeEntryStatus(entry.status) === 'pending_review').length;
+  const pendingCount = [...newestByMission.values()]
+    .filter(entry => normalizeEntryStatus(entry.status) === 'pending_review')
+    .length;
   const latest = actionable[0];
   if (!latest) return { actionableCount: 0, pendingCount, item: null };
 
@@ -404,8 +404,12 @@ export function buildBasecampViewModel(input: BuildBasecampViewModelInput): Base
     hasCompletedFieldKitOnboarding: true,
     isHeatwaveDeckUnlocked: input.isHeatwaveDeckUnlocked,
     voteAvailable: input.isVotingOpen && input.userVotes.length === 0,
-    hasUnseenStarterUnlock: starter.starterComplete
-      && (input.profile?.trevorSettings?.lastSeenApprovedCount ?? 0) < starter.starterRequiredCount,
+    hasUnseenStarterUnlock: isUnseenStarterUnlock({
+      starterComplete: starter.starterComplete,
+      starterApprovedCount: starter.starterApprovedCount,
+      starterRequiredCount: starter.starterRequiredCount,
+      lastSeenApprovedCount: input.profile?.trevorSettings?.lastSeenApprovedCount,
+    }),
   });
   const attention = buildAttention(input.entries);
   const mission = resolveMission(input);
