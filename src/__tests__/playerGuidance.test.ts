@@ -348,7 +348,8 @@ test('13. definition status approved + drawn mission + no entry is resume, not c
       drawnMissionCards: [drawnCard()],
     }),
     activeTrip: published,
-    activeSubmissionStatus: null,
+    // Simulates the old AppContext leak: activeTrip.status copied into submission status.
+    activeSubmissionStatus: 'approved',
     drawnMissionCards: [drawnCard()],
     trips: [published],
   });
@@ -359,6 +360,7 @@ test('13. definition status approved + drawn mission + no entry is resume, not c
   const snapshot = resolvePlayerGuidance(input({
     entries: starterApprovals(),
     activeTrip: published,
+    activeSubmissionStatus: 'approved',
     drawnMissionCards: [drawnCard()],
     trips: [published],
     isHeatwaveDeckUnlocked: true,
@@ -367,6 +369,7 @@ test('13. definition status approved + drawn mission + no entry is resume, not c
   assert.match(snapshot.primaryActionLabel, /Resume|Continue|Beverage/i);
   assert.doesNotMatch(snapshot.title, /cleared/i);
   assert.doesNotMatch(snapshot.primaryActionLabel, /cleared/i);
+  assert.doesNotMatch(snapshot.mission?.statusLabel || '', /approved|cleared/i);
 });
 
 test('14. interruption/resume uses persisted drawn mission state', () => {

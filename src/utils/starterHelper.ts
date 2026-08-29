@@ -240,7 +240,8 @@ export async function getStarterCompletionState(userId: string): Promise<Starter
     if (userDocSnap.exists()) {
       const uData = userDocSnap.data();
       activeMissionId = uData?.activeMissionId || uData?.activeTrip?.id || null;
-      activeSubmissionStatus = uData?.activeSubmissionStatus || uData?.activeTrip?.status || null;
+      // Do not use activeTrip.status — that is often definition publication, not player proof state.
+      activeSubmissionStatus = uData?.activeSubmissionStatus || null;
     }
 
     if (configDocSnap.exists()) {

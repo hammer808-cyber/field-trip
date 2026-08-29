@@ -195,17 +195,21 @@ export function resolvePlayerMissionLifecycle(input: {
   );
 
   let status: PlayerMissionLifecycle['status'];
+  const submissionStatus = input.activeSubmissionStatus;
+  // Explicit player proof submission states — never treat definition publication
+  // "approved" copied into activeSubmissionStatus as player completion.
+  const actionableSubmission = submissionStatus === 'pending_review'
+    || submissionStatus === 'needs_more_proof'
+    || submissionStatus === 'rejected'
+    ? submissionStatus
+    : null;
+
   if (isPlayerProofStatus(canonicalStatus)) {
+    // Entries / canonical progress are the only proof-completion source.
     status = canonicalStatus;
-  } else if (isPlayerProofStatus(input.activeSubmissionStatus)) {
-    status = input.activeSubmissionStatus;
-  } else if (isPlayerActiveDrawStatus(drawnCard?.status)) {
-    status = drawnCard?.status === 'active'
-      ? 'active'
-      : drawnCard?.status === 'drawn' || drawnCard?.status === 'saved_for_later'
-        ? 'drawn'
-        : 'active';
-  } else if (canonicalStatus === 'drawn' || input.activeTrip) {
+  } else if (actionableSubmission) {
+    status = actionableSubmission;
+  } else if (isPlayerActiveDrawStatus(drawnCard?.status) || canonicalStatus === 'drawn' || input.activeTrip) {
     const drawStatus = drawnCard?.status;
     status = drawStatus === 'drawn' || drawStatus === 'saved_for_later'
       ? 'drawn'
