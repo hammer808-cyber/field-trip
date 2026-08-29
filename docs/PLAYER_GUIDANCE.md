@@ -92,3 +92,21 @@ Do **not** auto-open Trevor merely because guidance exists. Auto-open only for:
 - meaningful first-time Starter unlock
 
 Normal next actions stay on the page.
+
+## Starter unlock acknowledgement
+
+`STARTER_COMPLETE` is one-shot. Persistence field:
+
+`users/{uid}.trevorSettings.lastSeenApprovedCount`
+
+Written by `acknowledgeStarterUnlockSeen()` in `src/services/starterUnlockAck.ts` when Trevor auto-opens for Starter unlock or when Basecamp/Missions/Trevor primary action handles `STARTER_COMPLETE`.
+
+Unseen when: `starterComplete && lastSeenApprovedCount < starterRequiredCount`.
+
+## Proof attempt ordering
+
+`latestActionableProof` picks the newest meaningful attempt per mission (timestamp). Raw `retried` markers from `retryMissionSubmission` are excluded so they cannot suppress a later rejection.
+
+## Drawability
+
+`missionsStillAvailable` uses canonical `eligibleCount` on post-Starter decks. Feature unlock alone does not imply a drawable mission.
