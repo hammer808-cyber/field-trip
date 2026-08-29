@@ -135,6 +135,7 @@ function input(overrides: Partial<BuildBasecampViewModelInput> = {}): BuildBasec
     currentDate: overrides.currentDate || NOW,
     isHeatwaveDeckUnlocked: overrides.isHeatwaveDeckUnlocked ?? false,
     isVotingOpen: overrides.isVotingOpen ?? false,
+    crewGraph: overrides.crewGraph,
   };
 }
 
