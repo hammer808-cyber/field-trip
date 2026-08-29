@@ -164,13 +164,18 @@ export function buildCanonicalProgress(input: BuildCanonicalProgressInput): Cano
     }
   });
 
+  // One lifecycle status per mission. Higher ranks win so a retry pending_review
+  // is not erased by an older rejected / needs-more entry for the same mission.
   approvedCompletedChallengeIds.forEach(id => {
     submittedPendingChallengeIds.delete(id);
     needsMoreProofChallengeIds.delete(id);
     rejectedChallengeIds.delete(id);
   });
-  needsMoreProofChallengeIds.forEach(id => submittedPendingChallengeIds.delete(id));
-  rejectedChallengeIds.forEach(id => submittedPendingChallengeIds.delete(id));
+  submittedPendingChallengeIds.forEach(id => {
+    needsMoreProofChallengeIds.delete(id);
+    rejectedChallengeIds.delete(id);
+  });
+  needsMoreProofChallengeIds.forEach(id => rejectedChallengeIds.delete(id));
 
   STARTER_IDS.forEach(id => {
     approvedCompletedChallengeIds.delete(id);

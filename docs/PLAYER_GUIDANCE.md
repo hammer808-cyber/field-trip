@@ -64,8 +64,8 @@ Collision examples:
 | Canonical inputs | Guidance state | Primary action | Target | Urgency |
 | --- | --- | --- | --- | --- |
 | Legal / type / field kit incomplete | `COMPLETE_ONBOARDING` | Continue Setup | current onboarding route | critical |
-| Needs-more-proof entry | `REPAIR_PROOF` | Add More Proof | Missions / Capture | critical |
-| Rejected entry | `RETRY_REJECTED_PROOF` | Retry Mission | Missions / Capture | critical |
+| Needs-more-proof entry (no newer pending/approved for that mission) | `REPAIR_PROOF` | Add More Proof | Missions / Capture | critical |
+| Rejected entry (no newer pending/approved for that mission) | `RETRY_REJECTED_PROOF` | Retry Mission | Missions / Capture | critical |
 | Drawn or active mission, no approved/pending player entry | `RESUME_ACTIVE_MISSION` | Resume [Mission] | Missions | high |
 | Starter 0 submitted | `DRAW_STARTER_MISSION` | Draw a Mission | Missions | high |
 | Starter 1–2 submitted, more available | `DRAW_NEXT_STARTER` | Draw Next Mission | Missions | high |

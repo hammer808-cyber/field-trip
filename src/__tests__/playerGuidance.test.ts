@@ -430,3 +430,52 @@ test('priority collision: pending starter with another available outranks vote',
   assert.equal(snapshot.state, 'DRAW_NEXT_STARTER');
   assert.notEqual(snapshot.navigationTarget, 'voting');
 });
+
+test('superseded rejected proof does not stay primary after retry pending', () => {
+  const snapshot = resolvePlayerGuidance(input({
+    profile: profile({ onboardingCompleted: false }),
+    entries: [
+      entry({
+        id: 'old-reject',
+        entryId: 'old-reject',
+        challengeId: 'starter-1',
+        missionId: 'starter-1',
+        missionTitle: 'The Initial Signal',
+        deckId: 'starter-signals',
+        status: 'rejected',
+        createdAt: Timestamp.fromDate(new Date('2026-08-29T16:00:00.000Z')),
+        updatedAt: Timestamp.fromDate(new Date('2026-08-29T16:00:00.000Z')),
+      }),
+      entry({
+        id: 'retry-pending',
+        entryId: 'retry-pending',
+        challengeId: 'starter-1',
+        missionId: 'starter-1',
+        missionTitle: 'The Initial Signal',
+        deckId: 'starter-signals',
+        status: 'pending_review',
+        createdAt: Timestamp.fromDate(new Date('2026-08-29T17:00:00.000Z')),
+        updatedAt: Timestamp.fromDate(new Date('2026-08-29T17:00:00.000Z')),
+      }),
+      entry({
+        id: 'starter-2-entry',
+        entryId: 'starter-2-entry',
+        challengeId: 'starter-2',
+        missionId: 'starter-2',
+        deckId: 'starter-signals',
+        status: 'pending_review',
+      }),
+      entry({
+        id: 'starter-3-entry',
+        entryId: 'starter-3-entry',
+        challengeId: 'starter-3',
+        missionId: 'starter-3',
+        deckId: 'starter-signals',
+        status: 'pending_review',
+      }),
+    ],
+  }));
+  assert.equal(snapshot.state, 'WAITING_FOR_STARTER_REVIEW');
+  assert.equal(snapshot.primaryActionLabel, 'View Proof Status');
+  assert.notEqual(snapshot.state, 'RETRY_REJECTED_PROOF');
+});

@@ -208,8 +208,22 @@ function getActiveEntries(entries: readonly Entry[]): Entry[] {
 
 function buildAttention(entries: readonly Entry[]): BasecampProofAttentionModel {
   const activeEntries = getActiveEntries(entries);
+  const supersededMissionIds = new Set(
+    activeEntries
+      .filter((entry) => {
+        const status = normalizeEntryStatus(entry.status);
+        return status === 'pending_review' || status === 'approved';
+      })
+      .map((entry) => entryMissionId(entry))
+      .filter(Boolean),
+  );
   const actionable = activeEntries
-    .filter(entry => ['needs_more_proof', 'rejected'].includes(normalizeEntryStatus(entry.status)))
+    .filter((entry) => {
+      const status = normalizeEntryStatus(entry.status);
+      if (!['needs_more_proof', 'rejected'].includes(status)) return false;
+      const missionId = entryMissionId(entry);
+      return !!missionId && !supersededMissionIds.has(missionId);
+    })
     .sort((left, right) => getEntryTimestamp(right) - getEntryTimestamp(left));
   const pendingCount = activeEntries.filter(entry => normalizeEntryStatus(entry.status) === 'pending_review').length;
   const latest = actionable[0];

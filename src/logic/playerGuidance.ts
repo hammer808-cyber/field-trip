@@ -229,12 +229,37 @@ export function resolvePlayerMissionLifecycle(input: {
   };
 }
 
+function entryMissionKey(entry: Entry): string {
+  return String(entry.missionId || entry.challengeId || entry.tripId || '').trim().toLowerCase();
+}
+
+/**
+ * A rejected / needs-more proof is only actionable when that mission does not
+ * already have a newer pending or approved attempt. Retries must not leave the
+ * superseded rejection as the canonical "what now".
+ */
 function latestActionableProof(
   entries: readonly Entry[],
   status: 'needs_more_proof' | 'rejected',
 ): { entryId: string; missionId: string; title: string } | null {
+  const supersededMissionIds = new Set(
+    entries
+      .filter((entry) => {
+        if (isArchivedEntry(entry)) return false;
+        const normalized = normalizeEntryStatus(entry.status);
+        return normalized === 'pending_review' || normalized === 'approved';
+      })
+      .map(entryMissionKey)
+      .filter(Boolean),
+  );
+
   const matches = entries
-    .filter(entry => !isArchivedEntry(entry) && normalizeEntryStatus(entry.status) === status)
+    .filter((entry) => {
+      if (isArchivedEntry(entry)) return false;
+      if (normalizeEntryStatus(entry.status) !== status) return false;
+      const missionId = entryMissionKey(entry);
+      return !!missionId && !supersededMissionIds.has(missionId);
+    })
     .sort((left, right) => proofTimestamp(right) - proofTimestamp(left));
   const latest = matches[0];
   if (!latest) return null;
