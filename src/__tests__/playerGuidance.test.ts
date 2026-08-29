@@ -826,3 +826,26 @@ test('fix4: all decks exhausted + nothing urgent → No Urgent Action', () => {
   const snapshot = resolvePlayerGuidance(withDeckEligibility(base, zeroed));
   assert.equal(snapshot.state, 'NO_URGENT_ACTION');
 });
+
+test('fix4 interaction: profile completed IDs cover paginated entry gaps', async () => {
+  // Client entry pages are small; exhaust approvals may live only on the profile cache.
+  const { DECK_PACKS } = await import('../data/deckPacks');
+  const completedChallengeIds = DECK_PACKS.flatMap((pack) => {
+    const id = pack.packId || pack.id;
+    if (!id) return [];
+    return (pack.missionIds || []).filter(Boolean);
+  });
+
+  const snapshot = resolvePlayerGuidance(input({
+    profile: profile({
+      completedChallengeIds,
+      approvedCompletedChallengeIds: completedChallengeIds,
+    } as any),
+    entries: starterApprovals(), // sparse page — not the full approval history
+    isHeatwaveDeckUnlocked: true,
+    hasUnseenStarterUnlock: false,
+    voteAvailable: false,
+  }));
+  assert.notEqual(snapshot.state, 'DRAW_MISSION');
+  assert.equal(snapshot.state, 'NO_URGENT_ACTION');
+});

@@ -112,3 +112,5 @@ Missions primary actions follow the guidance destination pack. After Starter unl
 ## Drawability
 
 `missionsStillAvailable` uses canonical `eligibleCount` on post-Starter decks. Feature unlock alone does not imply a drawable mission.
+
+Canonical progress always merges profile `completedChallengeIds` / `approvedCompletedChallengeIds` even when some live entries are loaded, so paginated entry pages cannot undercount approvals and falsely keep decks drawable.

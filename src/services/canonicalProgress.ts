@@ -135,12 +135,13 @@ export function buildCanonicalProgress(input: BuildCanonicalProgressInput): Cano
   const rejectedChallengeIds = new Set<string>();
   const archivedChallengeIds = new Set<string>();
 
-  if (activeEntries.length === 0) {
-    addIds(approvedCompletedChallengeIds, (profile as any)?.approvedCompletedChallengeIds);
-    addIds(approvedCompletedChallengeIds, profile?.completedChallengeIds);
-    addIds(needsMoreProofChallengeIds, profile?.needsMoreProofChallengeIds);
-    addIds(rejectedChallengeIds, profile?.rejectedChallengeIds);
-  }
+  // Always seed from profile completion caches. Live entry pages are paginated, so
+  // omitting profile IDs whenever any entry is loaded undercounts approvals and can
+  // falsely keep decks drawable (dead Draw Mission CTAs after exhaustion).
+  addIds(approvedCompletedChallengeIds, (profile as any)?.approvedCompletedChallengeIds);
+  addIds(approvedCompletedChallengeIds, profile?.completedChallengeIds);
+  addIds(needsMoreProofChallengeIds, profile?.needsMoreProofChallengeIds);
+  addIds(rejectedChallengeIds, profile?.rejectedChallengeIds);
 
   allEntries.forEach(entry => {
     const missionId = getEntryMissionId(entry);
