@@ -418,15 +418,13 @@ export async function submitTripEntry(
     // the linked proofReviews document used by diagnostics and admin tools.
     const reviewDocId = `review_${entryId}`;
     const reviewRef = doc(db, 'proofReviews', reviewDocId);
-    const reviewSnap = await getDoc(reviewRef);
-    const writableReviewRef = reviewSnap.exists()
-      ? doc(db, 'proofReviews', `review_${entryId}_${timestamp}`)
-      : reviewRef;
 
     try {
-      await setDoc(writableReviewRef, {
-        id: writableReviewRef.id,
-        reviewId: writableReviewRef.id,
+      // Do not getDoc() first: missing-doc reads evaluate resource.data and can
+      // throw Null value errors under the current proofReviews read rule.
+      await setDoc(reviewRef, {
+        id: reviewDocId,
+        reviewId: reviewDocId,
         entryId,
         submissionId: entryId,
         userId,

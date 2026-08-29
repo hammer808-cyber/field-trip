@@ -182,10 +182,12 @@ service cloud.firestore {
     // a legacy path wrote them at the root or under a user-scoped subcollection.
     // Writes still go through the concrete collection rules below.
     match /{path=**}/entries/{entryId} {
-      allow get, list: if isAdmin();
+      allow get: if (resource == null && isSignedIn()) || isAdmin();
+      allow list: if isAdmin();
     }
     match /{path=**}/proofReviews/{id} {
-      allow get, list: if isAdmin();
+      allow get: if (resource == null && isSignedIn()) || isAdmin();
+      allow list: if isAdmin();
     }
 
     // =========================================================================
@@ -553,7 +555,8 @@ service cloud.firestore {
                ]);
       }
 
-      allow get, list: if isAdmin() || canReadSocialEntry(resource.data);
+      allow get: if resource == null || isAdmin() || canReadSocialEntry(resource.data);
+      allow list: if isAdmin() || canReadSocialEntry(resource.data);
       
       // Proof submission must be allowed for signed-in users before review.
       // Approval gates review/admin/public systems; it should not block creating
@@ -997,14 +1000,27 @@ service cloud.firestore {
     }
 
     match /proofReviews/{id} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow get: if isSignedIn() && (
+        resource == null ||
+        resource.data.get('userId', resource.data.get('uid', '')) == request.auth.uid ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.get('userId', resource.data.get('uid', '')) == request.auth.uid ||
+        isAdmin()
+      );
       allow create: if isApproved() && incoming().userId == request.auth.uid &&
                     !incoming().keys().hasAny(['scoringSnapshot', 'finalScore', 'bonusPoints', 'appliedMultiplier']);
       allow update, delete: if isAdmin();
     }
 
     match /proofChecks/{id} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow get: if isSignedIn() && (
+        resource == null ||
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow create, update: if isApproved() && incoming().userId == request.auth.uid;
       allow delete: if isAdmin();
     }
