@@ -19,6 +19,7 @@ import {
   resolveServerFirebaseProjectId,
   resolveServerFirestoreDatabaseId,
 } from "./src/server/firebaseAdmin";
+import { shouldUseServerFirebaseEmulators } from "./src/server/firebaseEmulatorGuard";
 import { getCurrentVotingCycle, getVotingPhase, getCycleDocumentData } from "./src/services/votingCycleService";
 import {
   WEEKLY_VOTE_CATEGORIES,
@@ -206,6 +207,7 @@ function safeAdminStartupLog(status: 'starting' | 'ready' | 'error', details: Re
     resolvedFirebaseProjectId: details.resolvedFirebaseProjectId || 'unknown',
     resolvedFirestoreDatabaseId: details.resolvedFirestoreDatabaseId || FIELDTRIP_FIRESTORE_DATABASE_ID,
     firestoreInitialized: details.firestoreInitialized === true,
+    usingLocalEmulators: shouldUseServerFirebaseEmulators(),
     cloudRunService: deployInfo.cloudRunService,
     cloudRunRevision: deployInfo.cloudRunRevision,
   });

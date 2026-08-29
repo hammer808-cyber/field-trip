@@ -2,6 +2,7 @@ import { applicationDefault, getApps, initializeApp, type App } from 'firebase-a
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
+import { shouldUseServerFirebaseEmulators } from './firebaseEmulatorGuard';
 
 export const FIELDTRIP_PROJECT_ID = 'field-trip-495823';
 export const FIELDTRIP_FIRESTORE_DATABASE_ID = 'ai-studio-6bdf91b5-28e9-46f3-ae49-89cf99e2d88a';
@@ -50,9 +51,19 @@ export function resolveServerFirestoreDatabaseId(config?: ServerFirebaseConfig |
     || FIELDTRIP_FIRESTORE_DATABASE_ID;
 }
 
-function getOrCreateNamedApp(name: string, options: { projectId: string; storageBucket?: string }): App {
+function getOrCreateNamedApp(
+  name: string,
+  options: { projectId: string; storageBucket?: string; useEmulators: boolean }
+): App {
   const existing = getApps().find(app => app.name === name);
   if (existing) return existing;
+
+  if (options.useEmulators) {
+    return initializeApp({
+      projectId: options.projectId,
+      storageBucket: options.storageBucket,
+    }, name);
+  }
 
   return initializeApp({
     credential: applicationDefault(),
@@ -62,13 +73,20 @@ function getOrCreateNamedApp(name: string, options: { projectId: string; storage
 }
 
 export function initializeServerFirebase(config?: ServerFirebaseConfig | null): ServerFirebaseHandles {
+  const useEmulators = shouldUseServerFirebaseEmulators();
   const projectId = resolveServerFirebaseProjectId(config);
-  const databaseId = resolveServerFirestoreDatabaseId(config);
+  const databaseId = useEmulators ? '(default)' : resolveServerFirestoreDatabaseId(config);
   const storageBucket = config?.storageBucket || `${projectId}.firebasestorage.app`;
 
-  const adminApp = getOrCreateNamedApp('fieldtrip-admin', { projectId, storageBucket });
-  const authApp = getOrCreateNamedApp('fieldtrip-auth', { projectId });
-  const db = getFirestore(adminApp, databaseId);
+  if (useEmulators) {
+    console.warn('[FIREBASE_EMULATORS] Server Admin SDK is using loopback Auth/Firestore emulators. This path is disabled in production and Cloud Run.');
+  }
+
+  const adminApp = getOrCreateNamedApp('fieldtrip-admin', { projectId, storageBucket, useEmulators });
+  const authApp = getOrCreateNamedApp('fieldtrip-auth', { projectId, useEmulators });
+  const db = databaseId && databaseId !== '(default)'
+    ? getFirestore(adminApp, databaseId)
+    : getFirestore(adminApp);
   const auth = getAuth(authApp);
   const storage = getStorage(adminApp);
 

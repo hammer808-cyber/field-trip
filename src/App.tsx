@@ -6,6 +6,7 @@ import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { DevProvider } from './context/DevContext';
 import { BottomNav } from './components/BottomNav';
 import { DevTools } from './components/DevTools';
+import { LocalEmulatorBanner } from './components/LocalEmulatorBanner';
 import FieldKitOnboarding from './components/FieldKitOnboarding';
 import { PageLoader } from './components/PageLoader';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -515,6 +516,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             <DevTools />
           </>
         )}
+        <LocalEmulatorBanner />
         <TrevorGuide />
         <GameWrapper>
           <Suspense fallback={<PageLoader />}>
