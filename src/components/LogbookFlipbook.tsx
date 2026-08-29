@@ -109,6 +109,9 @@ function LogbookCover({ displayName, seasonName, explorerTypeName, counts }: any
           <div className="border border-white/25 p-3"><span className="block opacity-55">Approved</span><strong>{counts.approvedVerified}</strong></div>
         </div>
         <p className="font-serif italic text-xl text-white/75">Get outside. Cause a scene. Get receipts.</p>
+        {counts.totalSubmitted === 0 && (
+          <p className="font-sans text-sm font-bold text-brand-lime">No proofs yet. Draw a mission to start your logbook.</p>
+        )}
       </div>
     </div>
   );

@@ -448,21 +448,21 @@ function VotingLockedPanel({ approvedCount }: { approvedCount: number }) {
         <Lock className="h-10 w-10" />
       </div>
       <h3 className="mt-5 font-display text-4xl font-black italic uppercase leading-none">
-        Voting unlocks after Starter Signals
+        Voting is locked
       </h3>
-      <p className="mx-auto mt-3 max-w-lg font-serif italic text-on-surface/65">
-        Finish your field onboarding, then come back and judge the receipts. The Voting page is open; the ballot booth stays sealed until all 3 Starter Signals are approved.
+      <p className="mx-auto mt-3 max-w-lg font-sans text-sm font-bold text-on-surface/75">
+        Finish 3 starter missions to open voting.
       </p>
       <div className="mx-auto mt-6 max-w-sm border-2 border-on-surface bg-white p-3 shadow-[3px_3px_0px_black]">
         <p className="font-mono text-[10px] font-black uppercase tracking-widest text-brand-orange">
-          Starter approvals: {Math.min(3, Math.max(0, approvedCount))} / 3
+          {Math.min(3, Math.max(0, approvedCount))} of 3 approved
         </p>
       </div>
       <Link
         to="/missions"
         className="mt-6 inline-flex items-center justify-center gap-2 border-4 border-on-surface bg-brand-lime px-6 py-3 font-display text-lg font-black italic uppercase shadow-[5px_5px_0px_black] active:translate-y-1 active:shadow-none"
       >
-        Finish Starter Missions
+        Go do a mission
         <ArrowRight className="h-5 w-5" />
       </Link>
     </div>

@@ -16,10 +16,13 @@ export function BasecampProgressPanel({ model, onOpenProfile }: BasecampProgress
       <div className="basecamp-shine" aria-hidden="true" />
       <div className="relative flex items-start justify-between gap-4 p-5 sm:p-6">
         <div>
-          <p className="font-mono text-[8px] font-black uppercase tracking-[0.22em] text-[var(--skin-secondary)]">Field standing</p>
+          <p className="font-mono text-[8px] font-black uppercase tracking-[0.22em] text-[var(--skin-secondary)]">How you&apos;re doing</p>
           <h2 id="basecamp-progress-heading" className="mt-1 font-display text-3xl font-black uppercase italic tracking-normal">
             Your Progress
           </h2>
+          <p className="basecamp-progress-headline mt-2 text-white/90">
+            Level {model.level} · {model.levelTitle}
+          </p>
         </div>
         <div className="basecamp-chrome-badge">
           <Sparkles size={20} aria-hidden="true" />
@@ -63,7 +66,9 @@ export function BasecampProgressPanel({ model, onOpenProfile }: BasecampProgress
             <p className="mt-2 font-display text-2xl font-black uppercase italic tracking-normal">
               {model.starterApprovedCount}/{model.starterRequiredCount}
             </p>
-            <p className="text-[10px] text-[var(--skin-surface)]/65">approved</p>
+            <p className="text-[10px] text-[var(--skin-surface)]/65">
+              {model.starterApprovedCount >= model.starterRequiredCount ? 'unlocked' : 'working toward unlock'}
+            </p>
             <div className="mt-2 h-2 overflow-hidden border border-[var(--skin-surface)] bg-[var(--skin-surface)]/15" role="progressbar" aria-label="Starter Signals progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(model.starterPercent)}>
               <div className="h-full bg-[var(--skin-secondary)]" style={{ width: `${model.starterPercent}%` }} />
             </div>

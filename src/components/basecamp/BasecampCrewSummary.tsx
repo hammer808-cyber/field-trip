@@ -10,7 +10,7 @@ export function BasecampCrewSummary({ model, onOpenCrew }: BasecampCrewSummaryPr
   return (
     <section
       aria-labelledby="basecamp-crew-heading"
-      className="basecamp-crew relative overflow-hidden p-5 text-white sm:p-6"
+      className={`basecamp-crew relative overflow-hidden p-5 text-white sm:p-6 ${model.hasCrew ? '' : 'basecamp-crew--quiet'}`}
     >
       <div className="basecamp-crew-glow" aria-hidden="true" />
       <div className="flex items-start justify-between gap-4">
@@ -33,10 +33,10 @@ export function BasecampCrewSummary({ model, onOpenCrew }: BasecampCrewSummaryPr
       </div>
 
       <div className="relative mt-5 border-t border-white/25 pt-4">
-        <p className="text-sm leading-relaxed text-[var(--skin-text-muted)]">
+        <p className="text-sm leading-relaxed text-white/80">
           {model.hasCrew
-            ? 'Your active Crew home contains members, invitations, shared memories, and Crew settings.'
-            : 'Create or join a Crew now. Starter Signals still gates seasonal Crew proofs, memories, and zine eligibility.'}
+            ? 'Open Crew for members, invites, and shared memories.'
+            : 'Optional. Create or join a Crew, or keep playing solo. Starter Signals still gates seasonal Crew proofs, memories, and zine eligibility.'}
         </p>
         {model.roleLabel && (
           <p className="mt-3 font-mono text-[8px] font-black uppercase tracking-widest text-[#dfff45]">

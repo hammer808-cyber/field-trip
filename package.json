@@ -35,7 +35,7 @@
     "review:emulator": "tsx scripts/emulator-review.ts",
     "dev:emulator": "VITE_USE_FIREBASE_EMULATORS=true FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIREBASE_STORAGE_EMULATOR_HOST=127.0.0.1:9199 tsx server.ts",
     "test:emulator-guard": "tsx --test --test-force-exit src/__tests__/firebaseEmulatorGuard.test.ts",
-    "test:guidance": "tsx --test --test-force-exit src/__tests__/playerGuidance.test.ts src/__tests__/basecampViewModel.test.ts"
+    "test:guidance": "tsx --test --test-force-exit src/__tests__/playerGuidance.test.ts src/__tests__/basecampViewModel.test.ts src/__tests__/basecampPresentation.test.tsx src/__tests__/phase4VisualHierarchy.test.tsx"
   },
   "dependencies": {
     "@google/genai": "^2.3.0",

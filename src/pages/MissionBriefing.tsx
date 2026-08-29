@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { MissionCard } from '../components/ChallengeCard';
 import { ChevronLeft, Camera, Bookmark, Clock, Compass, CheckCircle2 } from 'lucide-react';
 import { getDisplayLabel } from '../utils/labelUtils';
+import { SAVE_FOR_LATER_RECOVERY_HINT } from '../components/bottomNavPresentation';
 
 export default function MissionBriefingPage() {
   const navigate = useNavigate();
@@ -53,7 +54,7 @@ export default function MissionBriefingPage() {
           </div>
           <div className="space-y-2">
             <h1 className="font-display text-3xl font-black uppercase italic">Saved for later ✓</h1>
-            <p className="text-sm font-sans font-bold text-on-surface/70">You can find it in Missions.</p>
+            <p className="text-sm font-sans font-bold text-on-surface/70">{SAVE_FOR_LATER_RECOVERY_HINT}</p>
           </div>
           <button
             type="button"

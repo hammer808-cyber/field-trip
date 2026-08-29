@@ -467,7 +467,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                   : "bg-on-surface/5 text-on-surface/20 border-on-surface/10 cursor-not-allowed shadow-none"
               )}
             >
-              SAVE NOTE
+              SAVE NOTE {data.note.length < 10 ? `(${data.note.length}/10)` : ''}
             </button>
             {data.note.length < 10 && (
               <p className="text-center text-sm font-sans font-bold text-on-surface/70">
@@ -582,13 +582,19 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               disabled={!canSubmit}
               onClick={handleFinalSubmit}
               className={cn(
-                "w-full py-6 border-4 border-on-surface rounded-2xl font-display text-3xl sm:text-4xl font-black uppercase italic tracking-widest shadow-[10px_10px_0px_black] active:translate-y-2 active:shadow-none transition-all",
+                "w-full py-6 border-4 border-on-surface rounded-2xl font-display text-2xl sm:text-3xl font-black uppercase italic tracking-widest shadow-[10px_10px_0px_black] active:translate-y-2 active:shadow-none transition-all",
                 canSubmit 
                   ? "bg-brand-orange text-white hover:bg-on-surface hover:text-brand-lime" 
                   : "bg-on-surface/5 text-on-surface/35 border-on-surface/15 cursor-not-allowed shadow-none"
               )}
             >
-              Submit Proof
+              {canSubmit
+                ? 'Submit Proof'
+                : !data.photoUrl
+                  ? 'Add a photo first'
+                  : data.note.length < 10
+                    ? `Submit Proof (${data.note.length}/10)`
+                    : 'Submit Proof'}
             </button>
             {!canSubmit && data.photoUrl && data.note.length < 10 && (
               <p className="text-center text-xs font-sans font-bold text-on-surface/55 -mt-2">
@@ -614,8 +620,8 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                <Loader2 className="w-10 h-10 text-on-surface animate-spin-slow" />
             </div>
             <div className="text-center space-y-3">
-               <h2 className="text-4xl font-display font-black uppercase italic tracking-widest text-brand-cyan">Transmitting...</h2>
-               <p className="font-mono text-xs opacity-50 uppercase tracking-[0.3em]">Satellite Link Established</p>
+               <h2 className="text-4xl font-display font-black uppercase italic tracking-widest text-brand-cyan">Sending...</h2>
+               <p className="font-mono text-xs opacity-50 uppercase tracking-[0.3em]">Your proof is on the way</p>
             </div>
             <div className="w-full max-w-xs space-y-2">
                <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">

@@ -56,7 +56,7 @@ test('primary nav has exactly five canonical destinations and no Crew tab', () =
 });
 
 test('Basecamp owns settings, admin, and pre-Starter Crew entry points', () => {
-  assert.match(basecampSource, /navigate\('\/settings'\)/);
+  assert.match(basecampSource, /href: '\/settings'/);
   assert.match(basecampSource, /Admin Console/);
   assert.doesNotMatch(basecampSource, /Crew Access Locked/);
   assert.match(basecampCrewSource, /Starter Signals still gates seasonal Crew proofs, memories, and zine eligibility/);
