@@ -98,20 +98,39 @@ Rules coverage is in `src/__tests__/crewGraphRules.integration.test.ts`.
 
 Run against local emulators after `npm run seed:emulator`. Sign up as the local player (`LOCAL-DEV-PLAYER`), then use fixture usernames `socialb`, `socialc`, `sociald`, `sociale`.
 
+Live S1–S8 below were executed 2026-08-29 against Auth/Firestore emulators plus the Fieldtrip server on `:3000`, using emulator-only identities (`local-player@emulator.test` as player A, plus seeded `socialb`–`sociale`).
+
 | ID | Scenario | Result |
 | --- | --- | --- |
-| S1 | Brand new player: Crew = 0, no stranger feed, own content, Find Players, limited spotlight | PASS in code/rules/unit tests; live UI follows empty graph |
-| S2 | Search + request: safe identity, Request Sent, incoming on peer, no Crew content yet | PASS in graph logic + rules (pending ≠ accepted) |
-| S3 | Accept: both in Crew, no duplicate pair doc | PASS in graph write + rules |
-| S4 | Decline: no Crew, no Crew-only access | PASS |
-| S5 | Remove: both views clear, Crew-only reads fail | PASS in rules test `removed Crew relationship removes Crew-only access` |
-| S6 | Unrelated privacy: direct path/UID cannot read private Crew-only content | PASS in rules tests |
-| S7 | Block: relationship blocked, no Crew-only access, no new requests | PASS in graph write + rules |
-| S8 | Feed: own + accepted Crew + explicit public; not unrelated private | PASS in `composeCrewSocialFeed` + feed tests |
+| S1 | Brand new player: Crew = 0, no stranger feed, own content, Find Players, limited spotlight | PASS — Crew=0, blank/short search returns no dump-all list, own profile readable, spotlight=4 labeled Community Spotlight |
+| S2 | Search + request: safe identity, Request Sent, incoming on peer, no Crew content yet | PASS — `socialb` found with sanitized identity; duplicate request idempotent; pending ≠ accepted; Crew-only read denied |
+| S3 | Accept: both in Crew, no duplicate pair doc | PASS — both acceptedCount=1; Crew-only receipt readable |
+| S4 | Decline: no Crew, no Crew-only access | PASS — declined `sociald`; Crew-only read denied |
+| S5 | Remove: both views clear, Crew-only reads fail | PASS — both acceptedCount=0; prior Crew-only read denied |
+| S6 | Unrelated privacy: direct path/UID cannot read private Crew-only content | PASS — user get, private entries, and usernames list denied; public card sanitized |
+| S7 | Block: relationship blocked, no Crew-only access, no new requests | PASS — block of `sociale`; new requests 403 BLOCKED both ways |
+| S8 | Feed: own + accepted Crew + explicit public; not unrelated private | PASS — own + accepted Crew + `public_discovery` readable; unrelated `crew_only` denied |
+
+Browser login as `local-player@emulator.test` succeeded. `/crew` and `/basecamp` remain behind the existing first-mission `/field-type` gate. That gate was not bypassed.
 
 ## Regression
 
-See the PR test log for exact suite output. Intended suites: crew graph unit tests, community feed, guidance/Basecamp, Starter, Trevor, beta blockers, mission scoring, emulator guard, Firestore rules including the new Crew graph rules, lint (`tsc --noEmit`), and build.
+Recorded 2026-08-29 on this branch.
+
+| Suite | Result |
+| --- | --- |
+| `npm run test:crew-graph` | PASS 11 tests |
+| `npm run test:community-feed` | PASS 18 tests |
+| `npm run test:crew-social` | PASS 44 tests |
+| `npm run test:guidance` | PASS 44 tests |
+| `npm run test:starter` | PASS (`STARTER_DECK_STATE_TESTS_COMPLETE`) |
+| `npm run test:trevor` | PASS 25 tests |
+| `npm run test:beta-blockers` | PASS 29 tests |
+| `npm run test:mission-scoring` | PASS 37 tests |
+| `npm run test:emulator-guard` | PASS 9 tests |
+| `npm run test:firestore-rules` | PASS 21 tests (includes Crew graph rules) |
+| `npm run lint` (`tsc --noEmit`) | PASS |
+| `npm run build` | PASS |
 
 ## Deferred
 
