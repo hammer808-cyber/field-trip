@@ -21,6 +21,10 @@ test('the primary panel presents one canonical action and local deck artwork', (
         description: 'Find and photograph a useful patch of shade.',
         statusLabel: 'Mission active',
         action: { label: 'Continue Mission', href: '/capture?id=heat-1', intent: 'navigate' },
+        secondaryAction: null,
+        flavorMessage: 'FIELD SIGNAL ACTIVE',
+        urgency: 'high',
+        guidanceState: 'RESUME_ACTIVE_MISSION',
         deckId: 'heatwave-receipts',
         mission: {
           id: 'heat-1',

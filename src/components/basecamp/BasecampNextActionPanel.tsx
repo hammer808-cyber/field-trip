@@ -7,13 +7,17 @@ interface BasecampNextActionPanelProps {
   model: BasecampNextActionModel;
   pack: DeckPack | null;
   onAction: () => void;
+  onSecondaryAction?: () => void;
 }
 
-export function BasecampNextActionPanel({ model, pack, onAction }: BasecampNextActionPanelProps) {
+export function BasecampNextActionPanel({ model, pack, onAction, onSecondaryAction }: BasecampNextActionPanelProps) {
+  const isUrgent = model.urgency === 'critical' || model.urgency === 'high';
   return (
     <section
       aria-labelledby="basecamp-next-action-heading"
-      className="basecamp-today skin-card relative overflow-visible border-[var(--skin-border-width)] border-[var(--skin-border)] bg-[var(--skin-surface)] shadow-[var(--skin-card-shadow)]"
+      data-guidance-state={model.guidanceState}
+      data-guidance-urgency={model.urgency}
+      className={`basecamp-today skin-card relative overflow-visible border-[var(--skin-border-width)] border-[var(--skin-border)] bg-[var(--skin-surface)] shadow-[var(--skin-card-shadow)] ${isUrgent ? 'basecamp-today--urgent' : ''}`}
     >
       <span className="basecamp-tape basecamp-tape--left" aria-hidden="true" />
       <span className="basecamp-tape basecamp-tape--right" aria-hidden="true" />
@@ -45,14 +49,25 @@ export function BasecampNextActionPanel({ model, pack, onAction }: BasecampNextA
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={onAction}
-            className="skin-button flex min-h-14 w-full items-center justify-center gap-3 border-[3px] border-[var(--skin-border)] bg-[var(--skin-primary)] px-4 py-4 font-display text-xl font-black uppercase italic tracking-normal text-[var(--skin-on-primary)] shadow-[var(--skin-button-shadow)] transition-transform focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)] active:translate-y-1 active:shadow-none sm:w-fit sm:min-w-[260px] sm:text-2xl"
-          >
-            {model.action.label}
-            <ArrowRight size={24} strokeWidth={3} aria-hidden="true" />
-          </button>
+          <div className="flex flex-col items-stretch gap-3 sm:items-start">
+            <button
+              type="button"
+              onClick={onAction}
+              className="skin-button flex min-h-14 w-full items-center justify-center gap-3 border-[3px] border-[var(--skin-border)] bg-[var(--skin-primary)] px-4 py-4 font-display text-xl font-black uppercase italic tracking-normal text-[var(--skin-on-primary)] shadow-[var(--skin-button-shadow)] transition-transform focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)] active:translate-y-1 active:shadow-none sm:w-fit sm:min-w-[260px] sm:text-2xl"
+            >
+              {model.action.label}
+              <ArrowRight size={24} strokeWidth={3} aria-hidden="true" />
+            </button>
+            {model.secondaryAction && onSecondaryAction && (
+              <button
+                type="button"
+                onClick={onSecondaryAction}
+                className="min-h-10 w-full px-2 text-center font-mono text-[10px] font-black uppercase tracking-widest text-[var(--skin-text-muted)] hover:text-[var(--skin-text)] sm:w-fit"
+              >
+                {model.secondaryAction.label}
+              </button>
+            )}
+          </div>
         </div>
 
         <BasecampMissionSummary mission={model.mission} pack={pack} />

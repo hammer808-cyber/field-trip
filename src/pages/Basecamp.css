@@ -8,6 +8,13 @@
   background-size: 7px 7px, 100% 100%;
 }
 .skin-basecamp .basecamp-today { transform: rotate(-.25deg); }
+.skin-basecamp .basecamp-today--urgent {
+  outline: 4px solid var(--skin-primary, #111);
+  box-shadow: 10px 10px 0 var(--skin-border, #111);
+}
+.skin-basecamp .basecamp-secondary-quiet {
+  opacity: .55;
+}
 .skin-basecamp .basecamp-paper { background-color: var(--skin-surface); background-image: linear-gradient(rgba(32,104,111,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(32,104,111,.07) 1px, transparent 1px); background-size: 22px 22px; }
 .skin-basecamp .basecamp-tape { position:absolute; z-index:20; top:-13px; width:74px; height:27px; background:rgba(226,218,174,.82); border:1px solid rgba(80,70,40,.25); box-shadow:0 2px 4px rgba(0,0,0,.18); }
 .skin-basecamp .basecamp-tape--left { left:11%; transform:rotate(-5deg); }

@@ -7,9 +7,10 @@ import {
   isTrevorFocusedRoute,
 } from '../services/trevorContextService';
 import {
-  getTrevorRecommendation,
   type ResolvedTrevorRecommendation,
 } from '../services/trevorRecommendationEngine';
+import { buildTrevorRecommendationFromGuidance } from '../services/trevorGuidanceAdapter';
+import { usePlayerGuidance } from '../hooks/usePlayerGuidance';
 import {
   isTrevorSuppressedForSession,
   readTrevorHistory,
@@ -29,6 +30,8 @@ export function TrevorGuide() {
     isExpanded: false,
     isSuppressed: false,
   });
+  const autoOpenedState = useRef<string | null>(null);
+  const guidance = usePlayerGuidance();
 
   const accessibleDecks = useMemo(
     () => app.deckPacks.filter(deck => app.getDeckAccessForPack(deck).playable),
@@ -95,8 +98,8 @@ export function TrevorGuide() {
     [trevorContext.userId, location.pathname],
   );
   const recommendation = useMemo(
-    () => getTrevorRecommendation(trevorContext, { history, now: app.currentDate }),
-    [app.currentDate, history, trevorContext],
+    () => buildTrevorRecommendationFromGuidance(guidance),
+    [guidance],
   );
   const message = recommendation
     ? renderTrevorDialogue(recommendation, trevorContext, history)
@@ -105,6 +108,13 @@ export function TrevorGuide() {
   useEffect(() => {
     dispatchPanelEvent('collapse');
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!guidance.autoOpenTrevor) return;
+    if (autoOpenedState.current === guidance.state) return;
+    autoOpenedState.current = guidance.state;
+    dispatchPanelEvent('open');
+  }, [guidance.autoOpenTrevor, guidance.state]);
 
   useEffect(() => {
     if (!recommendation) return;

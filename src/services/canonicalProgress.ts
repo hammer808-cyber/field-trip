@@ -6,7 +6,7 @@ import { Entry } from '../constants';
 import { TripCard } from '../types/challenges';
 import { UserProfile } from './userService';
 
-export type FeatureKey = 'starter' | 'crew' | 'memories' | 'voting' | 'tribunal' | 'heatwave-receipts' | 'socal-summer';
+export type FeatureKey = 'starter' | 'crew' | 'memories' | 'voting' | 'tribunal' | 'heatwave-receipts' | 'socal-summer' | 'loteria';
 
 export type CanonicalChallengeStatus =
   | 'available'

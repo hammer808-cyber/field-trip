@@ -140,7 +140,7 @@ function input(overrides: Partial<BuildBasecampViewModelInput> = {}): BuildBasec
 
 test('a new player receives the canonical Starter Signals next action', () => {
   const model = buildBasecampViewModel(input({ profile: profile({ onboardingCompleted: false }) }));
-  assert.equal(model.nextAction.title, 'Finish Starter Signals');
+  assert.equal(model.nextAction.guidanceState, 'DRAW_STARTER_MISSION');
   assert.equal(model.nextAction.action.href, '/missions?pack=starter-signals');
   assert.equal(model.progress.starterApprovedCount, 0);
   assert.equal(model.recentActivity.length, 0);
@@ -157,8 +157,8 @@ test('an active mission is surfaced with a direct continuation action', () => {
   }));
   assert.equal(model.nextAction.mission?.id, 'heat-1');
   assert.equal(model.nextAction.mission?.status, 'active');
-  assert.equal(model.nextAction.action.label, 'Continue Mission');
-  assert.equal(model.nextAction.action.href, '/capture?id=heat-1');
+  assert.match(model.nextAction.action.label, /Resume|Continue/i);
+  assert.match(model.nextAction.action.href, /capture\?id=heat-1/);
 });
 
 test('a drawn mission opens its briefing before capture', () => {
@@ -181,11 +181,11 @@ test('a drawn mission opens its briefing before capture', () => {
     isHeatwaveDeckUnlocked: true,
   }));
   assert.equal(model.nextAction.mission?.status, 'drawn');
-  assert.equal(model.nextAction.action.label, 'Open Briefing');
-  assert.equal(model.nextAction.action.href, '/mission-briefing?id=heat-1');
+  assert.equal(model.nextAction.guidanceState, 'RESUME_ACTIVE_MISSION');
+  assert.match(model.nextAction.action.href, /mission-briefing\?id=heat-1/);
 });
 
-test('an active mission pending review routes to status without blocking future play copy', () => {
+test('an active mission pending review keeps drawing as the primary action', () => {
   const pendingMission = trip({ status: 'submitted' });
   const model = buildBasecampViewModel(input({
     entries: starterApprovals(),
@@ -195,7 +195,9 @@ test('an active mission pending review routes to status without blocking future 
     isHeatwaveDeckUnlocked: true,
   }));
   assert.equal(model.nextAction.mission?.status, 'pending_review');
-  assert.equal(model.nextAction.action.href, '/profile?tab=logbook');
+  assert.equal(model.nextAction.guidanceState, 'DRAW_MISSION');
+  assert.match(model.nextAction.action.href, /missions/);
+  assert.equal(model.nextAction.secondaryAction?.href, '/profile?tab=logbook');
   assert.match(model.nextAction.description, /does not stop you from drawing another mission/i);
 });
 
@@ -217,7 +219,7 @@ test('a proof needing more evidence becomes the next repair action', () => {
   assert.equal(model.attention.item?.entryId, 'needs-proof-entry');
   assert.equal(model.nextAction.action.intent, 'retry-proof');
   assert.equal(model.nextAction.action.missionId, 'heat-1');
-  assert.equal(model.nextAction.deckId, 'heatwave-receipts');
+  assert.equal(model.nextAction.guidanceState, 'REPAIR_PROOF');
 });
 
 test('a pending proof remains visible but does not block another mission', () => {
@@ -308,4 +310,31 @@ test('recent activity combines only personal AppContext-backed event types in ti
   }));
   assert.deepEqual(model.recentActivity.map(item => item.kind), ['proof', 'badge', 'observation', 'vote']);
   assert.ok(model.recentActivity.every(item => item.timestamp > 0));
+});
+
+test('a published challenge definition status of approved does not mark a drawn mission cleared', () => {
+  const published = trip({ id: 'heatwave-18', status: 'approved', title: 'Emotional Support Beverage' });
+  const model = buildBasecampViewModel(input({
+    entries: starterApprovals(),
+    activeTrip: published,
+    drawnMissionCards: [{
+      id: 'basecamp-user_heatwave-18',
+      uid: 'basecamp-user',
+      missionId: 'heatwave-18',
+      challengeId: 'heatwave-18',
+      deckId: 'heatwave-receipts',
+      missionTitle: published.title,
+      missionSummary: published.description,
+      drawnAt: Timestamp.fromDate(NOW),
+      status: 'drawn',
+      isActive: true,
+    }],
+    trips: [published],
+    isHeatwaveDeckUnlocked: true,
+  }));
+  assert.notEqual(model.nextAction.mission?.status, 'approved');
+  assert.equal(model.nextAction.guidanceState, 'RESUME_ACTIVE_MISSION');
+  assert.doesNotMatch(model.nextAction.title, /cleared/i);
+  assert.doesNotMatch(model.nextAction.action.label, /cleared/i);
+  assert.equal(model.quickLinks[0].description, model.nextAction.action.label);
 });

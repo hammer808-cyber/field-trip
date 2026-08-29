@@ -110,7 +110,7 @@ export default function Basecamp() {
         infoCardAccent="lime"
       />
 
-      <div className="mx-auto flex w-full max-w-7xl flex-wrap justify-end gap-3 px-4 pt-5 sm:px-6 lg:px-8">
+      <div className={`mx-auto flex w-full max-w-7xl flex-wrap justify-end gap-3 px-4 pt-5 sm:px-6 lg:px-8 ${viewModel.nextAction.urgency === 'critical' || viewModel.nextAction.urgency === 'high' ? 'basecamp-secondary-quiet' : ''}`}>
         <button
           type="button"
           onClick={() => navigate('/loteria')}
@@ -146,6 +146,9 @@ export default function Basecamp() {
               model={viewModel.nextAction}
               pack={activePack}
               onAction={() => void runAction(viewModel.nextAction.action)}
+              onSecondaryAction={viewModel.nextAction.secondaryAction
+                ? () => void runAction(viewModel.nextAction.secondaryAction!)
+                : undefined}
             />
             <BasecampAttentionPanel
               model={viewModel.attention}
@@ -162,7 +165,7 @@ export default function Basecamp() {
             <BasecampRecentActivity items={viewModel.recentActivity} />
           </>
         )}
-        quickLinks={<BasecampQuickLinks links={viewModel.quickLinks} onOpen={navigate} />}
+        quickLinks={<div className={viewModel.nextAction.urgency === 'critical' || viewModel.nextAction.urgency === 'high' ? 'basecamp-secondary-quiet' : ''}><BasecampQuickLinks links={viewModel.quickLinks} onOpen={navigate} /></div>}
       />
 
       <IOSHomeScreenPrompt />

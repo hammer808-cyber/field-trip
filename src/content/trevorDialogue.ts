@@ -33,8 +33,8 @@ const TREVOR_DIALOGUE: Readonly<Record<TrevorMessageKey, readonly string[]>> = {
     'Your Starter receipts are at the review desk. Check the Logbook; drawing duplicates will not improve bureaucracy.',
   ],
   active_mission: [
+    'You already pulled one. Finish {missionTitle} first.',
     '{missionTitle} is still active. Resume it before it becomes decorative paperwork.',
-    'You already have {missionTitle} in motion. The field would like an ending.',
   ],
   voting_open: [
     'Voting is open, and apparently democracy once again requires your participation.',

@@ -342,6 +342,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const isCollectionPage = location.pathname.startsWith('/collection') || location.pathname.startsWith('/dex');
   const isMemoriesPage = location.pathname.startsWith('/memories') || location.pathname.startsWith('/dex/memories');
   const isVotingPage = location.pathname.startsWith('/voting');
+  const isLoteriaPage = location.pathname.startsWith('/loteria');
 
   // Centralized login/returning destination selector
   const correctDestination = resolveOnboardingDestination({
@@ -384,7 +385,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Step 3: Resume guided onboarding or mission at correct saved step.
   // Allow all pages used in the tour: Deck, Capture, Profile, Big Board, and Field Type.
-  const isAllowedOnboardingPage = isDeckPage || isCapturePage || isProfilePage || isBigBoardPage || isFieldTypePage || isBasecampPage || isCrewPage || isCollectionPage || isMemoriesPage;
+  const isAllowedOnboardingPage = isDeckPage || isCapturePage || isProfilePage || isBigBoardPage || isFieldTypePage || isBasecampPage || isCrewPage || isCollectionPage || isMemoriesPage || isVotingPage || isLoteriaPage;
   if (user && hasConfirmedLegal && fieldClassificationComplete && hasSeenFieldTypeResults && !onboardingCompleted && !isAllowedOnboardingPage && !isBypassingGuards) {
     return <Navigate to="/missions" replace />;
   }
@@ -634,11 +635,11 @@ export default function App() {
                     <Route path="/big-board/live" element={<StarterGate requiredFeature="leaderboard"><BigBoard /></StarterGate>} />
                     <Route path="/big-board/results" element={<StarterGate requiredFeature="leaderboard"><BigBoard /></StarterGate>} />
                     <Route path="/big-board/field-conditions" element={<StarterGate requiredFeature="leaderboard"><BigBoard /></StarterGate>} />
-                    <Route path="/loteria" element={<LoteriaExploreBoard />} />
+                    <Route path="/loteria" element={<StarterGate requiredFeature="loteria"><LoteriaExploreBoard /></StarterGate>} />
                     <Route path="/mission-briefing" element={<MissionBriefing />} />
                     <Route path="/mission-submitted" element={<MissionSubmitted />} />
                     <Route path="/voting">
-                      <Route index element={<VotingHubPage />} />
+                      <Route index element={<StarterGate requiredFeature="voting"><VotingHubPage /></StarterGate>} />
                       <Route path="weekly" element={<Navigate to="/voting?tab=vote" replace />} />
                       <Route path="tribunal" element={<Navigate to="/voting?tab=tribunal" replace />} />
                       <Route path="results" element={<Navigate to="/voting?tab=results" replace />} />

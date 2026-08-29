@@ -144,6 +144,8 @@ import { ActiveDeckPanel } from '../components/missions/ActiveDeckPanel';
 import { DeckShelfPanel, type DeckShelfSection } from '../components/missions/DeckShelfPanel';
 import { MissionActionPanel } from '../components/missions/MissionActionPanel';
 import { MissionLogbookPanel, type MissionLogbookItem } from '../components/missions/MissionLogbookPanel';
+import { MissionsGuidanceStrip } from '../components/missions/MissionsGuidanceStrip';
+import { usePlayerGuidance } from '../hooks/usePlayerGuidance';
 
 export default function DeckPage() {
   const navigate = useNavigate();
@@ -170,6 +172,7 @@ export default function DeckPage() {
     drawnMissionCards, updateMissionCardStatus, setActiveMissionCard, canonicalProgress, progressMismatches,
     deckPacks, visibleDeckPacks, getDeckAccessForPack
   } = useApp();
+  const guidance = usePlayerGuidance();
   const { frankieMode, skin, fc } = useTheme();
 
   const [activePackId, setActivePackId] = useState<string>(() => {
@@ -514,13 +517,16 @@ export default function DeckPage() {
   const isPending = (id: string) => getChallengeStatus(canonicalProgress, id, activeTrip?.id || null) === 'pending_review';
   const isUnavailable = (id: string) => isCompleted(id) || isPending(id);
 
-  // Sync initial state if mission already exists AND they have already revealed it in this session
+  // Sync initial state from session reveal OR persisted canonical mission state.
   useEffect(() => {
-    if (activeTrip && !drawnTrip && hasRevealedInActiveSession) {
+    const shouldResumePersisted = guidance.state === 'RESUME_ACTIVE_MISSION'
+      || guidance.state === 'REPAIR_PROOF'
+      || guidance.state === 'RETRY_REJECTED_PROOF';
+    if (activeTrip && !drawnTrip && (hasRevealedInActiveSession || shouldResumePersisted)) {
       setIsDrawn(true);
       setAnimationStep('settling');
     }
-  }, [activeTrip, trips.length, hasRevealedInActiveSession]);
+  }, [activeTrip, trips.length, hasRevealedInActiveSession, guidance.state, drawnTrip]);
 
   const handleDraw = async (isRedraw: boolean = false) => {
     if (isDrawing || isStarterConfigurationBlocked || (isExhausted && !activeTrip) || animationStep === 'drawing' || animationStep === 'flipping') return;
@@ -976,6 +982,32 @@ export default function DeckPage() {
 
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.75fr)] lg:gap-8">
           <main className="min-w-0 space-y-6">
+            <MissionsGuidanceStrip
+              guidance={guidance}
+              onPrimary={() => {
+                const dest = guidance.primaryActionDestination;
+                if (
+                  (guidance.state === 'DRAW_STARTER_MISSION'
+                    || guidance.state === 'DRAW_NEXT_STARTER'
+                    || guidance.state === 'DRAW_MISSION'
+                    || guidance.state === 'STARTER_COMPLETE')
+                  && dest.startsWith('/missions')
+                  && !isDrawn
+                  && !isWaitingForReview
+                ) {
+                  void handleDraw();
+                  return;
+                }
+                if (guidance.primaryActionIntent === 'retry-proof' && guidance.relevantMissionId) {
+                  void retryMissionSubmission(guidance.relevantMissionId).then(() => navigate(dest));
+                  return;
+                }
+                navigate(dest);
+              }}
+              onSecondary={guidance.secondaryAction
+                ? () => navigate(guidance.secondaryAction!.destination)
+                : undefined}
+            />
             <ActiveDeckPanel
               pack={activePack}
               displayName={activeDeckDisplayName}
