@@ -22,6 +22,7 @@ export type FeedVisibility = 'crew_only' | 'followers_only' | 'public_discovery'
 export interface CommunityFeedScope {
   viewerUserId: string;
   activeCrewId?: string | null;
+  acceptedCrewUserIds?: readonly string[];
   activeSeasonId?: string | null;
   blockedUserIds?: readonly string[];
 }
@@ -39,9 +40,15 @@ export function getSocialFeedExclusionReasons(entry: any, scope: CommunityFeedSc
   if (scope.activeSeasonId && !getEntrySeasonId(entry)) reasons.push('missing_season');
   else if (scope.activeSeasonId && getEntrySeasonId(entry) !== scope.activeSeasonId) reasons.push('different_season');
   if (ownerId && ownerId !== scope.viewerUserId) {
+    const feedVisibility = getProfileFeedVisibility(entry);
+    const acceptedCrew = scope.acceptedCrewUserIds?.includes(ownerId) === true;
     const entryCrewId = String(entry?.crewId || entry?.activeCrewId || '').trim();
-    if (!scope.activeCrewId) reasons.push('viewer_has_no_crew');
-    else if (entryCrewId !== scope.activeCrewId) reasons.push(entryCrewId ? 'outside_social_scope' : 'missing_crew_scope');
+    const sameGroupCrew = Boolean(scope.activeCrewId && entryCrewId && entryCrewId === scope.activeCrewId);
+    const publicDiscovery = feedVisibility === 'public_discovery';
+    if (feedVisibility === 'private') reasons.push('private_visibility');
+    else if (!acceptedCrew && !sameGroupCrew && !publicDiscovery) {
+      reasons.push(scope.acceptedCrewUserIds?.length || scope.activeCrewId ? 'outside_social_scope' : 'viewer_has_no_crew');
+    }
   }
   return Array.from(new Set(reasons));
 }

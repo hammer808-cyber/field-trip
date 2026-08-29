@@ -58,7 +58,6 @@ import {
   subscribeToProfile, 
   updateProfile,
   UserProfile,
-  subscribeToTopStandings,
   secureCompleteOnboarding
 } from '../services/userService';
 import { 
@@ -118,6 +117,8 @@ import {
 } from '../services/legalService';
 import { DEFAULT_AVATAR } from '../constants/avatarAssets';
 import { subscribeToBlocks } from '../services/moderationService';
+import { emptyCrewGraph, getCommunityStandings, subscribeToCrewGraph } from '../services/crewGraphService';
+import type { CrewGraphSnapshot } from '../logic/crewGraph';
 import { DECK_PACKS, getDeckPackById } from '../data/deckPacks';
 import { DeckPack } from '../types/deckPacks';
 import { getDeckAccess, DeckAccessResult } from '../logic/deckAccess';
@@ -158,6 +159,7 @@ interface AppContextType {
   fieldClassificationComplete: boolean;
   onboardingCompleted: boolean;
   blockedIds: string[];
+  crewGraph: CrewGraphSnapshot;
   refreshConsent: () => Promise<void>;
   updateProfile: (uid: string, data: Partial<UserProfile>) => Promise<void>;
   loading: boolean;
@@ -334,6 +336,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [legalConsent, setLegalConsent] = useState<any | null>(null);
   const [hasConfirmedLegal, setHasConfirmedLegal] = useState<boolean>(true); 
   const [blockedIds, setBlockedIds] = useState<string[]>([]);
+  const [crewGraph, setCrewGraph] = useState<CrewGraphSnapshot>(() => emptyCrewGraph());
   const [rewardQueue, setRewardQueue] = useState<RewardQueueItem[]>([]);
   const [sessionSeenRewards, setSessionSeenRewards] = useState<Set<string>>(new Set());
   const [pendingEntries, setPendingEntries] = useState<Entry[]>([]);
@@ -959,6 +962,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const authUnsubRef = useRef<(() => void) | null>(null);
   const profileUnsubRef = useRef<(() => void) | null>(null);
   const blocksUnsubRef = useRef<(() => void) | null>(null);
+  const crewGraphUnsubRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!auth) {
@@ -979,6 +983,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (blocksUnsubRef.current) {
         blocksUnsubRef.current();
         blocksUnsubRef.current = null;
+      }
+      if (crewGraphUnsubRef.current) {
+        crewGraphUnsubRef.current();
+        crewGraphUnsubRef.current = null;
       }
 
       try {
@@ -1057,6 +1065,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
           // Blocks subscription
           blocksUnsubRef.current = subscribeToBlocks(u.uid, setBlockedIds);
+          crewGraphUnsubRef.current = subscribeToCrewGraph(u.uid, setCrewGraph);
 
           setProfileLoading(false);
           
@@ -1072,6 +1081,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setEntries([]);
           setLegalConsent(null);
           setHasConfirmedLegal(false);
+          setCrewGraph(emptyCrewGraph());
           setAuthLoading(false);
           setProfileLoading(false);
         }
@@ -1087,6 +1097,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (authUnsubRef.current) authUnsubRef.current();
       if (profileUnsubRef.current) profileUnsubRef.current();
       if (blocksUnsubRef.current) blocksUnsubRef.current();
+      if (crewGraphUnsubRef.current) crewGraphUnsubRef.current();
     };
   }, []);
 
@@ -1306,15 +1317,50 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // Sync standings
+  // Sync standings from sanitized community standings, not a full users list.
   useEffect(() => {
     if (!user) {
       setStandings([]);
       return;
     }
-    return subscribeToTopStandings((newStandings) => {
-      setStandings(newStandings);
-    });
+    let cancelled = false;
+    getCommunityStandings({ limit: 10, sort: 'xp' })
+      .then((players) => {
+        if (!cancelled) {
+          setStandings(players.map(player => ({
+            id: player.userId,
+            name: player.displayName,
+            displayName: player.displayName,
+            username: player.username || undefined,
+            email: '',
+            avatar: player.avatar || undefined,
+            photoURL: player.photoURL || undefined,
+            fieldType: player.fieldType as any,
+            fieldTypeName: player.fieldTypeName,
+            fieldClassificationComplete: true,
+            onboardingCompleted: true,
+            crewModeUnlocked: true,
+            crewModeSeen: true,
+            xp: (player as any).xp || 0,
+            weeklyXp: (player as any).weeklyXp || 0,
+            level: player.level || 1,
+            levelTitle: player.levelTitle || undefined,
+            soloTripsCount: 0,
+            completedCoreChallenges: 0,
+            boldTripsCount: 0,
+            crewTripsCount: 0,
+            rerollsAvailable: 0,
+            activeTrip: null,
+            lastSnitchDate: null,
+          } as UserProfile)));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setStandings([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   // Sync Field Signal
@@ -2701,6 +2747,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       legalConsent,
       hasConfirmedLegal,
       blockedIds,
+      crewGraph,
       refreshConsent,
       updateProfile: handleUpdateProfile,
       isFeatureEnabled,

@@ -40,6 +40,7 @@ export default function Basecamp() {
     trips,
     user,
     userVotes,
+    crewGraph,
   } = useApp();
   const navigate = useNavigate();
 
@@ -57,6 +58,10 @@ export default function Basecamp() {
     currentDate,
     isHeatwaveDeckUnlocked,
     isVotingOpen: isVotingWindowOpen(currentWeekNumber),
+    crewGraph: {
+      acceptedCount: crewGraph?.acceptedCount || 0,
+      incomingCount: crewGraph?.incomingCount || 0,
+    },
   }), [
     activeSubmissionStatus,
     activeTrip,
@@ -72,6 +77,7 @@ export default function Basecamp() {
     profile,
     trips,
     userVotes,
+    crewGraph,
   ]);
 
   const fieldTypeName = fieldType ? FIELD_TYPES[fieldType]?.name : null;
@@ -184,7 +190,7 @@ export default function Basecamp() {
         sidebar={(
           <>
             <BasecampProgressPanel model={viewModel.progress} onOpenProfile={() => navigate('/profile')} />
-            <BasecampCrewSummary model={viewModel.crew} onOpenCrew={() => navigate('/crew')} />
+            <BasecampCrewSummary model={viewModel.crew} onOpenCrew={() => navigate(viewModel.crew.acceptedCount === 0 && !viewModel.crew.crewId ? '/crew#find-players' : '/crew')} />
             <BasecampRecentActivity items={viewModel.recentActivity} />
           </>
         )}

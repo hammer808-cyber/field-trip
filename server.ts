@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 import { App } from 'firebase-admin/app';
-import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { FieldPath, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { getAppCheck } from 'firebase-admin/app-check';
 import cron from 'node-cron';
 import fs from 'fs';
@@ -64,6 +64,20 @@ import {
   isTribunalVerdict,
 } from "./src/logic/firelightTribunal";
 import { getCommunityFeedExclusionReasons, getCommunityFeedOwnerId, getSocialFeedExclusionReasons, isCommunityFeedEligible } from "./src/logic/communityFeed";
+import {
+  buildCrewGraphSnapshot,
+  COMMUNITY_SPOTLIGHT_LIMIT,
+  CREW_CONNECTIONS_COLLECTION,
+  deriveCrewRelationshipState,
+  getCrewConnectionId,
+  isValidPlayerSearchQuery,
+  normalizeUsernameQuery,
+  publicPlayerIdentityHasPrivateLeak,
+  resolveCrewConnectionWrite,
+  sortUserIds,
+  toPublicPlayerIdentity,
+  type CrewConnectionRecord,
+} from "./src/logic/crewGraph";
 import { getProofImageReference } from "./src/logic/proofDistribution";
 import { getDeckAccess, sanitizeDeckForUnauthorized } from "./src/logic/deckAccess";
 import {
@@ -4506,6 +4520,126 @@ async function startServer() {
     };
   };
 
+  const toSafePublicPlayer = (profile: any, userId: string) => {
+    const identity = toPublicPlayerIdentity(profile, userId);
+    if (publicPlayerIdentityHasPrivateLeak(identity as unknown as Record<string, unknown>)) {
+      throw new Error('PUBLIC_IDENTITY_LEAK');
+    }
+    return identity;
+  };
+
+  const readCrewConnection = async (userA: string, userB: string) => {
+    if (!dbAdmin) return null;
+    const id = getCrewConnectionId(userA, userB);
+    const snap = await dbAdmin.collection(CREW_CONNECTIONS_COLLECTION).doc(id).get();
+    return snap.exists ? { id: snap.id, ...snap.data() } as CrewConnectionRecord : null;
+  };
+
+  const hasBlockBetween = async (actorId: string, targetId: string) => {
+    if (!dbAdmin) return { actorBlockedTarget: false, targetBlockedActor: false };
+    const [actorBlock, targetBlock] = await Promise.all([
+      dbAdmin.collection('users').doc(actorId).collection('blocks').doc(targetId).get(),
+      dbAdmin.collection('users').doc(targetId).collection('blocks').doc(actorId).get(),
+    ]);
+    return {
+      actorBlockedTarget: actorBlock.exists,
+      targetBlockedActor: targetBlock.exists,
+    };
+  };
+
+  const writeCrewConnection = async (actorId: string, targetId: string, action: 'send_request' | 'accept' | 'decline' | 'remove' | 'block') => {
+    if (!dbAdmin) throw new Error('DB_ADMIN_NOT_READY');
+    const [low, high] = sortUserIds(actorId, targetId);
+    const connectionId = getCrewConnectionId(actorId, targetId);
+    const connectionRef = dbAdmin.collection(CREW_CONNECTIONS_COLLECTION).doc(connectionId);
+    const actorRef = dbAdmin.collection('users').doc(actorId);
+    const targetRef = dbAdmin.collection('users').doc(targetId);
+    const actorBlockRef = actorRef.collection('blocks').doc(targetId);
+    const targetBlockRef = targetRef.collection('blocks').doc(actorId);
+
+    return dbAdmin.runTransaction(async (transaction) => {
+      const [connectionSnap, actorSnap, targetSnap, actorBlockSnap, targetBlockSnap] = await Promise.all([
+        transaction.get(connectionRef),
+        transaction.get(actorRef),
+        transaction.get(targetRef),
+        transaction.get(actorBlockRef),
+        transaction.get(targetBlockRef),
+      ]);
+      if (!targetSnap.exists) {
+        const err: any = new Error('PLAYER_NOT_FOUND');
+        err.status = 404;
+        throw err;
+      }
+      const existing = connectionSnap.exists ? { id: connectionSnap.id, ...connectionSnap.data() } as CrewConnectionRecord : null;
+      const resolved = resolveCrewConnectionWrite({
+        actorId,
+        targetId,
+        action,
+        existing,
+        actorBlockedTarget: actorBlockSnap.exists,
+        targetBlockedActor: targetBlockSnap.exists,
+      });
+      if (!resolved.ok || !resolved.next) {
+        const err: any = new Error(resolved.error || 'CREW_WRITE_FAILED');
+        err.status = resolved.error === 'BLOCKED' ? 403 : 400;
+        throw err;
+      }
+      const payload: Record<string, any> = {
+        userLow: low,
+        userHigh: high,
+        participants: [low, high],
+        requesterId: resolved.next.requesterId,
+        addresseeId: resolved.next.addresseeId,
+        status: resolved.next.status,
+        updatedAt: FieldValue.serverTimestamp(),
+        requesterSnapshot: toSafePublicPlayer(resolved.next.requesterId === actorId ? actorSnap.data() : targetSnap.data(), resolved.next.requesterId),
+        addresseeSnapshot: toSafePublicPlayer(resolved.next.addresseeId === actorId ? actorSnap.data() : targetSnap.data(), resolved.next.addresseeId),
+      };
+      if (!existing) payload.createdAt = FieldValue.serverTimestamp();
+      if (resolved.next.status === 'accepted') payload.acceptedAt = FieldValue.serverTimestamp();
+      if (resolved.next.status === 'declined' || resolved.next.status === 'removed' || resolved.next.status === 'blocked') {
+        payload.resolvedAt = FieldValue.serverTimestamp();
+      }
+      if (resolved.next.blockedBy) payload.blockedBy = resolved.next.blockedBy;
+      transaction.set(connectionRef, payload, { merge: true });
+      if (action === 'block') {
+        transaction.set(actorBlockRef, {
+          userId: actorId,
+          blockedUserId: targetId,
+          createdAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
+      return {
+        relationship: deriveCrewRelationshipState({
+          viewerUserId: actorId,
+          connection: { id: connectionId, ...payload } as CrewConnectionRecord,
+        }),
+        idempotent: resolved.idempotent,
+        status: resolved.next.status,
+      };
+    });
+  };
+
+  const resolvePlayerByUsernameOrId = async (input: { userId?: string; username?: string }) => {
+    if (!dbAdmin) return null;
+    const userId = String(input.userId || '').trim();
+    if (userId) {
+      const snap = await dbAdmin.collection('users').doc(userId).get();
+      return snap.exists ? { id: snap.id, ...snap.data() } : null;
+    }
+    const username = normalizeUsernameQuery(input.username);
+    if (!username) return null;
+    const usernameSnap = await dbAdmin.collection('usernames').doc(username).get();
+    const mappedId = usernameSnap.data()?.userId;
+    if (!mappedId) {
+      const usersSnap = await dbAdmin.collection('users').where('username', '==', username).limit(1).get();
+      if (usersSnap.empty) return null;
+      return { id: usersSnap.docs[0].id, ...usersSnap.docs[0].data() };
+    }
+    const userSnap = await dbAdmin.collection('users').doc(mappedId).get();
+    return userSnap.exists ? { id: userSnap.id, ...userSnap.data() } : null;
+  };
+
   const getCrewJoinEligibilityInTransaction = async (
     transaction: FirebaseFirestore.Transaction,
     crewRef: FirebaseFirestore.DocumentReference,
@@ -5586,6 +5720,175 @@ async function startServer() {
     } catch (error: any) {
       const status = error?.message === 'ADMIN_REQUIRED' ? 403 : 500;
       res.status(status).json({ error: error.message || 'ZINE_BACKFILL_FAILED' });
+    }
+  });
+
+  app.get("/api/social/search-players", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const q = normalizeUsernameQuery(req.query.q);
+    if (!isValidPlayerSearchQuery(q)) return res.json({ players: [] });
+    try {
+      const usernameSnap = await dbAdmin.collection('usernames')
+        .orderBy(FieldPath.documentId())
+        .startAt(q)
+        .endAt(`${q}\uf8ff`)
+        .limit(12)
+        .get();
+      const mappedIds = usernameSnap.docs
+        .map(item => ({ username: item.id, userId: String(item.data()?.userId || '') }))
+        .filter(item => item.userId && item.userId !== req.user.uid);
+      const players = [];
+      for (const mapped of mappedIds) {
+        const userSnap = await dbAdmin.collection('users').doc(mapped.userId).get();
+        if (!userSnap.exists) continue;
+        const blocks = await hasBlockBetween(req.user.uid, mapped.userId);
+        if (blocks.actorBlockedTarget || blocks.targetBlockedActor) continue;
+        players.push(toSafePublicPlayer(userSnap.data(), mapped.userId));
+      }
+      res.json({ players });
+    } catch (error: any) {
+      console.error("[SOCIAL_SEARCH] Failed:", error);
+      res.status(500).json({ error: "PLAYER_SEARCH_FAILED", message: error.message || String(error) });
+    }
+  });
+
+  app.get("/api/community/spotlight", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const limitCount = Math.min(COMMUNITY_SPOTLIGHT_LIMIT, Math.max(1, Number(req.query.limit) || COMMUNITY_SPOTLIGHT_LIMIT));
+    try {
+      const snap = await dbAdmin.collection('users').orderBy('xp', 'desc').limit(40).get();
+      const players = [];
+      for (const userDoc of snap.docs) {
+        if (userDoc.id === req.user.uid) continue;
+        if (userDoc.data()?.role === 'admin' || userDoc.data()?.isAdmin === true) continue;
+        if (userDoc.data()?.preferences?.showOnBigBoard === false) continue;
+        const blocks = await hasBlockBetween(req.user.uid, userDoc.id);
+        if (blocks.actorBlockedTarget || blocks.targetBlockedActor) continue;
+        players.push(toSafePublicPlayer(userDoc.data(), userDoc.id));
+        if (players.length >= limitCount) break;
+      }
+      res.json({ players, label: 'Community Spotlight' });
+    } catch (error: any) {
+      console.error("[COMMUNITY_SPOTLIGHT] Failed:", error);
+      res.status(500).json({ error: "SPOTLIGHT_FAILED", message: error.message || String(error) });
+    }
+  });
+
+  app.get("/api/community/standings", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const sort = req.query.sort === 'weeklyXp' ? 'weeklyXp' : 'xp';
+    const limitCount = Math.min(25, Math.max(1, Number(req.query.limit) || 15));
+    try {
+      const snap = await dbAdmin.collection('users').orderBy(sort, 'desc').limit(limitCount).get();
+      const players = snap.docs
+        .filter(userDoc => userDoc.data()?.role !== 'admin' && userDoc.data()?.isAdmin !== true)
+        .map(userDoc => ({
+          ...toSafePublicPlayer(userDoc.data(), userDoc.id),
+          xp: Number(userDoc.data()?.xp || 0),
+          weeklyXp: Number(userDoc.data()?.weeklyXp || 0),
+          id: userDoc.id,
+        }));
+      res.json({ players });
+    } catch (error: any) {
+      console.error("[COMMUNITY_STANDINGS] Failed:", error);
+      res.status(500).json({ error: "STANDINGS_FAILED", message: error.message || String(error) });
+    }
+  });
+
+  app.get("/api/social/players/:username", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    try {
+      const player = await resolvePlayerByUsernameOrId({ username: req.params.username });
+      if (!player) return res.status(404).json({ error: "PLAYER_NOT_FOUND" });
+      const blocks = await hasBlockBetween(req.user.uid, player.id);
+      if (blocks.actorBlockedTarget || blocks.targetBlockedActor) {
+        return res.status(403).json({ error: "BLOCKED" });
+      }
+      const connection = await readCrewConnection(req.user.uid, player.id);
+      const relationship = deriveCrewRelationshipState({ viewerUserId: req.user.uid, connection });
+      res.json({
+        player: toSafePublicPlayer(player, player.id),
+        relationship,
+        canViewCrewActivity: relationship === 'accepted' || player.id === req.user.uid,
+      });
+    } catch (error: any) {
+      console.error("[SOCIAL_PLAYER] Failed:", error);
+      res.status(500).json({ error: "PLAYER_PROFILE_FAILED", message: error.message || String(error) });
+    }
+  });
+
+  app.get("/api/social/crew", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    try {
+      const snap = await dbAdmin.collection(CREW_CONNECTIONS_COLLECTION)
+        .where('participants', 'array-contains', req.user.uid)
+        .limit(100)
+        .get();
+      const connections = snap.docs.map(item => ({ id: item.id, ...item.data() } as CrewConnectionRecord));
+      res.json(buildCrewGraphSnapshot(req.user.uid, connections));
+    } catch (error: any) {
+      console.error("[SOCIAL_CREW] Failed:", error);
+      res.status(500).json({ error: "CREW_GRAPH_FAILED", message: error.message || String(error) });
+    }
+  });
+
+  app.post("/api/social/crew/request", authRateLimiter, authenticate, async (req: any, res) => {
+    try {
+      const player = await resolvePlayerByUsernameOrId({ userId: req.body?.userId, username: req.body?.username });
+      if (!player) return res.status(404).json({ error: "PLAYER_NOT_FOUND" });
+      const result = await writeCrewConnection(req.user.uid, player.id, 'send_request');
+      res.json({ ...result, player: toSafePublicPlayer(player, player.id) });
+    } catch (error: any) {
+      console.error("[SOCIAL_CREW_REQUEST] Failed:", error);
+      res.status(error.status || 500).json({ error: error.message || "CREW_REQUEST_FAILED" });
+    }
+  });
+
+  app.post("/api/social/crew/accept", authRateLimiter, authenticate, async (req: any, res) => {
+    try {
+      const player = await resolvePlayerByUsernameOrId({ userId: req.body?.userId, username: req.body?.username });
+      if (!player) return res.status(404).json({ error: "PLAYER_NOT_FOUND" });
+      const result = await writeCrewConnection(req.user.uid, player.id, 'accept');
+      res.json(result);
+    } catch (error: any) {
+      console.error("[SOCIAL_CREW_ACCEPT] Failed:", error);
+      res.status(error.status || 500).json({ error: error.message || "CREW_ACCEPT_FAILED" });
+    }
+  });
+
+  app.post("/api/social/crew/decline", authRateLimiter, authenticate, async (req: any, res) => {
+    try {
+      const player = await resolvePlayerByUsernameOrId({ userId: req.body?.userId, username: req.body?.username });
+      if (!player) return res.status(404).json({ error: "PLAYER_NOT_FOUND" });
+      const result = await writeCrewConnection(req.user.uid, player.id, 'decline');
+      res.json(result);
+    } catch (error: any) {
+      console.error("[SOCIAL_CREW_DECLINE] Failed:", error);
+      res.status(error.status || 500).json({ error: error.message || "CREW_DECLINE_FAILED" });
+    }
+  });
+
+  app.post("/api/social/crew/remove", authRateLimiter, authenticate, async (req: any, res) => {
+    try {
+      const player = await resolvePlayerByUsernameOrId({ userId: req.body?.userId, username: req.body?.username });
+      if (!player) return res.status(404).json({ error: "PLAYER_NOT_FOUND" });
+      const result = await writeCrewConnection(req.user.uid, player.id, 'remove');
+      res.json(result);
+    } catch (error: any) {
+      console.error("[SOCIAL_CREW_REMOVE] Failed:", error);
+      res.status(error.status || 500).json({ error: error.message || "CREW_REMOVE_FAILED" });
+    }
+  });
+
+  app.post("/api/social/block", authRateLimiter, authenticate, async (req: any, res) => {
+    try {
+      const player = await resolvePlayerByUsernameOrId({ userId: req.body?.userId, username: req.body?.username });
+      if (!player) return res.status(404).json({ error: "PLAYER_NOT_FOUND" });
+      const result = await writeCrewConnection(req.user.uid, player.id, 'block');
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      console.error("[SOCIAL_BLOCK] Failed:", error);
+      res.status(error.status || 500).json({ error: error.message || "BLOCK_FAILED" });
     }
   });
 

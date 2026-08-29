@@ -270,6 +270,17 @@ test('crew presence is derived from the profile and the user entry snapshot only
   assert.equal(model.crew.roleLabel, 'member');
 });
 
+test('empty 1:1 Crew stays empty and can surface incoming request attention without changing guidance', () => {
+  const empty = buildBasecampViewModel(input());
+  assert.equal(empty.crew.acceptedCount, 0);
+  assert.equal(empty.crew.crewName, 'Your Crew is empty');
+  const withRequest = buildBasecampViewModel(input({
+    crewGraph: { acceptedCount: 0, incomingCount: 1 },
+  }));
+  assert.equal(withRequest.crew.incomingCount, 1);
+  assert.equal(withRequest.nextAction.guidanceState, empty.nextAction.guidanceState);
+});
+
 test('recent activity combines only personal AppContext-backed event types in timestamp order', () => {
   const proof = entry({
     id: 'approved-entry',

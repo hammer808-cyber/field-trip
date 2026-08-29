@@ -30,6 +30,79 @@ function compact<T extends Record<string, unknown>>(value: T): Record<string, un
 
 const LOCAL_EMULATOR_ADMIN_PASSWORD = process.env.LOCAL_EMULATOR_ADMIN_PASSWORD || 'LocalAdmin1!';
 
+const SOCIAL_FIXTURES = [
+  { email: 'social-b@emulator.test', username: 'socialb', name: 'Bravo Unrelated', fieldTypeName: 'The Gobbler' },
+  { email: 'social-c@emulator.test', username: 'socialc', name: 'Charlie Crew', fieldTypeName: 'Mall Rat' },
+  { email: 'social-d@emulator.test', username: 'sociald', name: 'Delta Incoming', fieldTypeName: 'Lost Camper' },
+  { email: 'social-e@emulator.test', username: 'sociale', name: 'Echo Blocked', fieldTypeName: 'Bigfoot' },
+] as const;
+
+async function upsertEmulatorPlayer(
+  auth: ReturnType<typeof initializeServerFirebase>['auth'],
+  db: ReturnType<typeof initializeServerFirebase>['db'],
+  spec: { email: string; username: string; name: string; fieldTypeName: string },
+  now: Timestamp,
+) {
+  const password = process.env.LOCAL_EMULATOR_PLAYER_PASSWORD || 'LocalPlayer1!';
+  let uid = '';
+  try {
+    const existing = await auth.getUserByEmail(spec.email);
+    await auth.updateUser(existing.uid, { password, emailVerified: true, disabled: false, displayName: spec.name });
+    uid = existing.uid;
+  } catch (error: any) {
+    if (error?.code !== 'auth/user-not-found') throw error;
+    const created = await auth.createUser({
+      email: spec.email,
+      password,
+      emailVerified: true,
+      displayName: spec.name,
+      disabled: false,
+    });
+    uid = created.uid;
+  }
+
+  await db.doc(`users/${uid}`).set({
+    id: uid,
+    name: spec.name,
+    displayName: spec.name,
+    username: spec.username,
+    email: spec.email,
+    role: 'player',
+    isAdmin: false,
+    accessStatus: 'approved',
+    onboardingCompleted: true,
+    fieldClassificationComplete: true,
+    fieldTypeName: spec.fieldTypeName,
+    level: 2,
+    levelTitle: 'Person of Mild Interest',
+    xp: spec.username === 'socialc' ? 80 : 25,
+    weeklyXp: 10,
+    feedVisibility: 'crew_only',
+    preferences: { feedVisibility: 'crew_only', showOnBigBoard: true },
+    localEmulatorOnly: true,
+    createdAt: now,
+    updatedAt: now,
+  }, { merge: true });
+  await db.doc(`usernames/${spec.username}`).set({
+    userId: uid,
+    createdAt: now,
+  });
+  await db.doc(`entries/${spec.username}-private-receipt`).set({
+    userId: uid,
+    uid,
+    status: 'approved',
+    feedVisibility: 'crew_only',
+    photoUrl: 'https://example.com/emulator-proof.jpg',
+    displayName: spec.name,
+    username: spec.username,
+    approvedAt: now,
+    createdAt: now,
+    fieldNote: `${spec.name} private Crew receipt`,
+    localEmulatorOnly: true,
+  });
+  return uid;
+}
+
 async function assertEmulatorHubReachable() {
   const hub = process.env.FIREBASE_EMULATOR_HUB || `${LOCAL_EMULATOR_DEFAULTS.hubHost}:${LOCAL_EMULATOR_DEFAULTS.hubPort}`;
   const url = `http://${hub.replace(/^https?:\/\//, '')}/emulators`;
@@ -213,6 +286,24 @@ async function main() {
     updatedAt: now,
   }, { merge: true });
 
+  const socialUids: Record<string, string> = {};
+  for (const fixture of SOCIAL_FIXTURES) {
+    socialUids[fixture.username] = await upsertEmulatorPlayer(auth, db, fixture, now);
+  }
+  await db.doc(`entries/socialc-public-receipt`).set({
+    userId: socialUids.socialc,
+    uid: socialUids.socialc,
+    status: 'approved',
+    feedVisibility: 'public_discovery',
+    photoUrl: 'https://example.com/emulator-public.jpg',
+    displayName: 'Charlie Crew',
+    username: 'socialc',
+    approvedAt: now,
+    createdAt: now,
+    fieldNote: 'Explicit public discovery receipt',
+    localEmulatorOnly: true,
+  });
+
   const codeSnap = await db.doc(`accessCodes/${LOCAL_EMULATOR_INVITE_CODE}`).get();
   if (!codeSnap.exists) {
     throw new Error('LOCAL_EMULATOR_SEED_FAILED: invite code was not written.');
@@ -227,6 +318,7 @@ async function main() {
     adminEmail: LOCAL_EMULATOR_ADMIN_EMAIL,
     playerNotSeeded: true,
     playerShouldSignUpThroughUi: true,
+    socialFixtures: SOCIAL_FIXTURES.map(fixture => fixture.email),
   }, null, 2));
 }
 

@@ -106,6 +106,21 @@ service cloud.firestore {
                get(/databases/$(database)/documents/crews/$(crewId)).data.get('founderId', '')
              ) == request.auth.uid;
     }
+    function crewConnectionId(otherId) {
+      return otherId < request.auth.uid
+        ? otherId + '::' + request.auth.uid
+        : request.auth.uid + '::' + otherId;
+    }
+    function hasAcceptedCrewConnection(otherId) {
+      return otherId is string &&
+             otherId.size() > 0 &&
+             otherId != request.auth.uid &&
+             exists(/databases/$(database)/documents/crewConnections/$(crewConnectionId(otherId))) &&
+             get(/databases/$(database)/documents/crewConnections/$(crewConnectionId(otherId))).data.get('status', '') == 'accepted';
+    }
+    function isExplicitPublicDiscovery(data) {
+      return data.get('feedVisibility', 'crew_only') == 'public_discovery';
+    }
     function canReadSocialEntry(data) {
       let ownerId = data.get('userId', data.get('uid', ''));
       let crewId = data.get('crewId', data.get('activeCrewId', ''));
@@ -114,7 +129,6 @@ service cloud.firestore {
         ownerId == request.auth.uid ||
         (
           data.get('status', '') in ['approved', 'approved_by_admin', 'auto_approved', 'completed', 'retry-approved', 'verified'] &&
-          crewId.size() > 0 && crewId == activeCrewId() && isActiveCrewMemberOf(crewId) &&
           data.get('isPrivate', false) != true && data.get('private', false) != true &&
           data.get('hidden', false) != true && data.get('isHidden', false) != true &&
           data.get('archived', false) != true && data.get('isArchived', false) != true &&
@@ -122,7 +136,16 @@ service cloud.firestore {
           data.get('disqualified', false) != true && data.get('isDisqualified', false) != true &&
           feedVisibility != 'private' &&
           !exists(/databases/$(database)/documents/users/$(request.auth.uid)/blocks/$(ownerId)) &&
-          !exists(/databases/$(database)/documents/users/$(ownerId)/blocks/$(request.auth.uid))
+          !exists(/databases/$(database)/documents/users/$(ownerId)/blocks/$(request.auth.uid)) &&
+          (
+            hasAcceptedCrewConnection(ownerId) ||
+            isExplicitPublicDiscovery(data) ||
+            (
+              crewId.size() > 0 &&
+              crewId == activeCrewId() &&
+              isActiveCrewMemberOf(crewId)
+            )
+          )
         )
       );
     }
@@ -213,7 +236,9 @@ service cloud.firestore {
                data.userId == request.auth.uid &&
                data.createdAt == requestTime();
       }
-      allow read: if true;
+      // Exact username lookup is allowed. Listing the full username directory is not.
+      allow get: if true;
+      allow list: if isAdmin();
       allow create: if isSignedIn() && isValidUsername(incoming()) && username.size() <= 32;
     }
 
@@ -305,7 +330,7 @@ service cloud.firestore {
 
       // allow get is more robust for non-existent profiles during registration
       allow get: if isSignedIn() && (uId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn();
+      allow list: if isAdmin();
       allow create: if isSignedIn() && hasSafeInitialProgressionState(incoming()) && (
         isAdmin() || (uId == request.auth.uid && hasSafeInitialSkinState(incoming()))
       );
@@ -914,6 +939,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // 1:1 Crew graph. Pair document id is `{minUid}::{maxUid}`. Writes are server-owned.
+    match /crewConnections/{id} {
+      allow get, list: if isSignedIn() && (
+        isAdmin() ||
+        request.auth.uid in resource.data.participants
+      );
+      allow write: if false;
+    }
+
     match /crewInvites/{id} {
       allow get, list: if isSignedIn() && (
         isAdmin() ||
@@ -976,7 +1010,13 @@ service cloud.firestore {
 
     // AI CONTROL ACTIONS (SERVER-ONLY WRITES)
     match /proofs/{proofId} {
-      allow read: if isSignedIn();
+      allow get: if isSignedIn() && (
+        resource == null ||
+        isAdmin() ||
+        resource.data.get('userId', resource.data.get('uid', '')) == request.auth.uid ||
+        canReadSocialEntry(resource.data)
+      );
+      allow list: if isAdmin() || canReadSocialEntry(resource.data);
       allow write: if false;
     }
 
