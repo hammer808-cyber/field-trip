@@ -47,7 +47,12 @@ export function BottomNav() {
   const isHeat = skin.id === 'heatwave';
   const dexUnlocked = canAccessFeature(canonicalProgress, 'memories', { isAdmin });
   const votingUnlocked = canAccessFeature(canonicalProgress, 'voting', { isAdmin });
-  const attentionPath = guidance.navigationTarget === 'missions'
+  // DEV-only preview so CURRENT vs NEXT Dex can be live-checked without changing guidance.
+  const debugAttention = import.meta.env.DEV
+    ? (new URLSearchParams(location.search).get('ftNavAttention')
+      || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('ftNavAttention') : null))
+    : null;
+  const guidanceAttentionPath = guidance.navigationTarget === 'missions'
     ? '/missions'
     : guidance.navigationTarget === 'voting'
       ? '/voting'
@@ -56,6 +61,12 @@ export function BottomNav() {
         : guidance.navigationTarget === 'basecamp'
           ? '/basecamp'
           : null;
+  const attentionPath = debugAttention === 'dex'
+    || debugAttention === 'missions'
+    || debugAttention === 'voting'
+    || debugAttention === 'basecamp'
+    ? `/${debugAttention}`
+    : guidanceAttentionPath;
 
   const navItems: Array<{
     icon: LucideIcon;
@@ -169,7 +180,7 @@ export function BottomNav() {
               {dexPresentation.showHere && (
                 <span
                   data-dex-marker="here"
-                  className="ft-nav-dex-marker ft-nav-dex-marker--here absolute -top-3 left-1/2 -translate-x-1/2 z-50 border-2 border-on-surface bg-brand-yellow px-2 py-0.5 font-mono text-[8px] font-black uppercase tracking-widest text-on-surface shadow-[2px_2px_0_black]"
+                  className="ft-nav-dex-marker ft-nav-dex-marker--here absolute -bottom-7 left-1/2 -translate-x-1/2 z-[60] border-2 border-on-surface bg-brand-yellow px-2 py-0.5 font-mono text-[8px] font-black uppercase tracking-widest text-on-surface shadow-[2px_2px_0_black] whitespace-nowrap"
                 >
                   Here
                 </span>
@@ -177,7 +188,7 @@ export function BottomNav() {
               {dexPresentation.showNow && (
                 <span
                   data-dex-marker="now"
-                  className="ft-nav-now-label ft-nav-dex-marker ft-nav-dex-marker--now absolute -top-3 left-1/2 -translate-x-1/2 z-50 shadow-[2px_2px_0_black]"
+                  className="ft-nav-now-label ft-nav-dex-marker ft-nav-dex-marker--now absolute -bottom-7 left-1/2 -translate-x-1/2 z-[60] mt-0 shadow-[2px_2px_0_black] whitespace-nowrap"
                 >
                   Now
                 </span>

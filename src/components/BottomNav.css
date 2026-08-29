@@ -21,6 +21,9 @@
 }
 
 /* Dex special branch: CURRENT vs NEXT must differ by label + border pattern, not hue alone. */
+.ft-nav-dex {
+  overflow: visible;
+}
 .ft-nav-dex--current .ft-nav-dex-icon {
   border-style: solid;
 }
@@ -36,6 +39,9 @@
 .ft-nav-dex-marker--now {
   background: #c7ff00;
   color: #111;
+}
+.ft-bottom-nav {
+  overflow: visible;
 }
 
 @media (prefers-reduced-motion: no-preference) {
