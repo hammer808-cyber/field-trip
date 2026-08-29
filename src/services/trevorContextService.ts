@@ -363,7 +363,7 @@ function resolveActiveMission(input: {
   } else if (PLAYER_PROOF_STATUSES.has(cardStatus)) {
     status = cardStatus;
   } else if (PLAYER_ACTIVE_STATUSES.has(cardStatus)) {
-    status = cardStatus === 'active' || cardStatus === 'in-progress' ? 'active' : 'drawn';
+    status = cardStatus === 'active' ? 'active' : 'drawn';
   } else if (input.activeTrip) {
     status = PLAYER_ACTIVE_STATUSES.has(submissionStatus) ? submissionStatus : 'active';
   }

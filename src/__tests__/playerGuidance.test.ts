@@ -140,7 +140,7 @@ function input(overrides: Partial<ResolvePlayerGuidanceInput> & { profile?: User
       trips,
       activeMissionId: overrides.activeTrip?.id || null,
       activeSubmissionStatus: overrides.activeSubmissionStatus || null,
-      drawnMissionCards: overrides.drawnMissionCards || [],
+      drawnMissionCards: overrides.drawnMissionCards ? [...overrides.drawnMissionCards] : [],
     }),
     entries,
     activeTrip: overrides.activeTrip || null,

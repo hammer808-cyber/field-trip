@@ -200,9 +200,11 @@ export function resolvePlayerMissionLifecycle(input: {
   } else if (isPlayerProofStatus(input.activeSubmissionStatus)) {
     status = input.activeSubmissionStatus;
   } else if (isPlayerActiveDrawStatus(drawnCard?.status)) {
-    status = drawnCard?.status === 'active' || drawnCard?.status === 'in-progress'
+    status = drawnCard?.status === 'active'
       ? 'active'
-      : 'drawn';
+      : drawnCard?.status === 'drawn' || drawnCard?.status === 'saved_for_later'
+        ? 'drawn'
+        : 'active';
   } else if (canonicalStatus === 'drawn' || input.activeTrip) {
     const drawStatus = drawnCard?.status;
     status = drawStatus === 'drawn' || drawStatus === 'saved_for_later'
