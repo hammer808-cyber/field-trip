@@ -344,27 +344,35 @@ function resolveActiveMission(input: {
   drawnMissionCards: readonly DrawnMissionCard[];
   tripById: ReadonlyMap<string, TripCard>;
 }): TrevorActiveMission | undefined {
-  if (input.activeTrip?.id) {
-    return {
-      id: input.activeTrip.id,
-      title: input.activeTrip.title || 'Current mission',
-      status: input.activeSubmissionStatus || input.activeTrip.status || 'active',
-      deckId: normalizeOptionalString(input.activeTrip.deckId),
-    };
+  const PLAYER_PROOF_STATUSES = new Set(['pending_review', 'needs_more_proof', 'rejected', 'approved']);
+  const PLAYER_ACTIVE_STATUSES = new Set(['drawn', 'active', 'saved_for_later', 'in-progress']);
+
+  const drawnCard = input.drawnMissionCards.find(card => (
+    card.isActive === true || PLAYER_ACTIVE_STATUSES.has(card.status)
+  ));
+  const missionId = input.activeTrip?.id
+    || (drawnCard ? normalizeOptionalString(drawnCard.missionId || drawnCard.challengeId) : undefined);
+  if (!missionId) return undefined;
+
+  const mission = input.tripById.get(missionId.toLowerCase());
+  const submissionStatus = input.activeSubmissionStatus || '';
+  const cardStatus = drawnCard?.status || '';
+  let status = 'active';
+  if (PLAYER_PROOF_STATUSES.has(submissionStatus)) {
+    status = submissionStatus;
+  } else if (PLAYER_PROOF_STATUSES.has(cardStatus)) {
+    status = cardStatus;
+  } else if (PLAYER_ACTIVE_STATUSES.has(cardStatus)) {
+    status = cardStatus === 'active' ? 'active' : 'drawn';
+  } else if (input.activeTrip) {
+    status = PLAYER_ACTIVE_STATUSES.has(submissionStatus) ? submissionStatus : 'active';
   }
 
-  const activeCard = input.drawnMissionCards.find(card => (
-    card.isActive === true || card.status === 'active' || card.status === 'drawn'
-  ));
-  if (!activeCard) return undefined;
-  const missionId = normalizeOptionalString(activeCard.missionId || activeCard.challengeId);
-  if (!missionId) return undefined;
-  const mission = input.tripById.get(missionId.toLowerCase());
   return {
     id: missionId,
-    title: activeCard.missionTitle || mission?.title || 'Current mission',
-    status: activeCard.status,
-    deckId: normalizeOptionalString(activeCard.deckId || mission?.deckId),
+    title: input.activeTrip?.title || drawnCard?.missionTitle || mission?.title || 'Current mission',
+    status,
+    deckId: normalizeOptionalString(input.activeTrip?.deckId || drawnCard?.deckId || mission?.deckId),
   };
 }
 

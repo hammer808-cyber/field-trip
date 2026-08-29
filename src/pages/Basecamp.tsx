@@ -17,6 +17,7 @@ import {
   buildBasecampViewModel,
   type BasecampPrimaryAction,
 } from '../logic/basecampViewModel';
+import { acknowledgeStarterUnlockSeen } from '../services/starterUnlockAck';
 import './Basecamp.css';
 
 export default function Basecamp() {
@@ -90,11 +91,33 @@ export default function Basecamp() {
   }, [canonicalProgress, profile?.id, user?.uid, viewModel]);
 
   const runAction = React.useCallback(async (action: BasecampPrimaryAction) => {
+    if (
+      viewModel.guidance.state === 'STARTER_COMPLETE'
+      && (profile?.id || user?.uid)
+      && canonicalProgress.starter.starterComplete
+    ) {
+      try {
+        await acknowledgeStarterUnlockSeen(
+          profile?.id || user!.uid,
+          canonicalProgress.starter.starterApprovedCount,
+        );
+      } catch (error) {
+        console.warn('[Basecamp] Failed to acknowledge Starter unlock:', error);
+      }
+    }
     if (action.intent === 'retry-proof' && action.missionId) {
       await retryMissionSubmission(action.missionId);
     }
     navigate(action.href);
-  }, [navigate, retryMissionSubmission]);
+  }, [
+    navigate,
+    retryMissionSubmission,
+    viewModel.guidance.state,
+    profile?.id,
+    user?.uid,
+    canonicalProgress.starter.starterComplete,
+    canonicalProgress.starter.starterApprovedCount,
+  ]);
 
   return (
     <div className="skin-page skin-basecamp page-scroll min-h-screen bg-[var(--skin-background)] pb-32 text-[var(--skin-text)] [background-image:var(--skin-background-texture)]">
@@ -110,7 +133,7 @@ export default function Basecamp() {
         infoCardAccent="lime"
       />
 
-      <div className="mx-auto flex w-full max-w-7xl flex-wrap justify-end gap-3 px-4 pt-5 sm:px-6 lg:px-8">
+      <div className={`mx-auto flex w-full max-w-7xl flex-wrap justify-end gap-3 px-4 pt-5 sm:px-6 lg:px-8 ${viewModel.nextAction.urgency === 'critical' || viewModel.nextAction.urgency === 'high' ? 'basecamp-secondary-quiet' : ''}`}>
         <button
           type="button"
           onClick={() => navigate('/loteria')}
@@ -146,6 +169,9 @@ export default function Basecamp() {
               model={viewModel.nextAction}
               pack={activePack}
               onAction={() => void runAction(viewModel.nextAction.action)}
+              onSecondaryAction={viewModel.nextAction.secondaryAction
+                ? () => void runAction(viewModel.nextAction.secondaryAction!)
+                : undefined}
             />
             <BasecampAttentionPanel
               model={viewModel.attention}
@@ -162,7 +188,7 @@ export default function Basecamp() {
             <BasecampRecentActivity items={viewModel.recentActivity} />
           </>
         )}
-        quickLinks={<BasecampQuickLinks links={viewModel.quickLinks} onOpen={navigate} />}
+        quickLinks={<div className={viewModel.nextAction.urgency === 'critical' || viewModel.nextAction.urgency === 'high' ? 'basecamp-secondary-quiet' : ''}><BasecampQuickLinks links={viewModel.quickLinks} onOpen={navigate} /></div>}
       />
 
       <IOSHomeScreenPrompt />

@@ -81,6 +81,13 @@ function isStarterId(id: string | null): id is string {
   return !!id && STARTER_SIGNAL_IDS.includes(id as any);
 }
 
+const STARTER_STATUS_RANK: Record<CanonicalStarterStatus, number> = {
+  approved: 4,
+  pending_review: 3,
+  needs_more_proof: 2,
+  rejected: 1,
+};
+
 function addStatus(
   statusById: Map<string, CanonicalStarterStatus>,
   sourceById: Map<string, CanonicalStarterDeckState['sourceById'][string]>,
@@ -90,7 +97,11 @@ function addStatus(
   overwrite = false
 ) {
   if (!isStarterId(id)) return;
-  if (!overwrite && statusById.has(id)) return;
+  const existing = statusById.get(id);
+  if (!overwrite && existing) return;
+  // Live entries may include an older rejection beside a newer retry. Keep the
+  // highest-ranked lifecycle status so pending/approved outrank rejected.
+  if (overwrite && existing && STARTER_STATUS_RANK[existing] > STARTER_STATUS_RANK[status]) return;
   statusById.set(id, status);
   sourceById.set(id, source);
 }

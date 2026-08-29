@@ -498,7 +498,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [completedChallengeIds, ONBOARDING_IDS]);
 
   const activeMissionId = profile?.activeMissionId || profile?.activeTrip?.id || null;
-  const activeSubmissionStatus = (profile?.activeSubmissionStatus || profile?.activeTrip?.status || null) as 'pending_review' | 'needs_more_proof' | 'rejected' | 'approved' | null;
+  // Player proof lifecycle only. Never fall back to activeTrip.status — that field
+  // is often the challenge-definition publication status ("approved"), not player completion.
+  const activeSubmissionStatus = (profile?.activeSubmissionStatus || null) as 'pending_review' | 'needs_more_proof' | 'rejected' | 'approved' | null;
 
   // Canonical Starter Deck Gating State Calculation
   const starterState = React.useMemo(() => {

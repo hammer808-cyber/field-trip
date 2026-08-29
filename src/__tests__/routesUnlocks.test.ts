@@ -75,7 +75,7 @@ test('Dex exposes Collection, Zines, and Memories without Personas or Crew Home 
 
 test('Voting routes remain reachable from the primary nav', () => {
   assert.match(appSource, /<Route path="\/voting">/);
-  assert.match(appSource, /<Route index element=\{<VotingHubPage \/>}/);
+  assert.match(appSource, /<Route index element=\{<StarterGate requiredFeature="voting"><VotingHubPage \/><\/StarterGate>}/);
   assert.match(appSource, /<Route path="weekly" element=\{<Navigate to="\/voting\?tab=vote" replace \/>}/);
   assert.match(appSource, /<Route path="tribunal" element=\{<Navigate to="\/voting\?tab=tribunal" replace \/>}/);
   assert.match(appSource, /<Route path="results" element=\{<Navigate to="\/voting\?tab=results" replace \/>}/);
@@ -83,9 +83,14 @@ test('Voting routes remain reachable from the primary nav', () => {
   assert.match(appSource, /<Route path="council" element=\{<SnitchCouncilPage \/>}/);
   assert.match(appSource, /<Route path="awards" element=\{<WeeklyAwardsPage \/>}/);
   assert.match(bottomNavSource, /label: 'VOTING', path: '\/voting'/);
-  assert.doesNotMatch(bottomNavSource, /itemPathname === '\/voting' && !canAccessFeature\(canonicalProgress, 'voting'/);
   assert.match(votingHubPageSource, /VotingLockedPanel/);
   assert.match(votingBallotPageSource, /Ballot booth locked/);
+});
+
+test('Starter-locked destinations stay reachable and explain the lock instead of silently redirecting', () => {
+  assert.match(appSource, /isVotingPage \|\| isLoteriaPage/);
+  assert.match(appSource, /requiredFeature="loteria"/);
+  assert.match(starterGateSource, /GatedFeaturePanel/);
 });
 
 test('Fieldtrip loading system is shared by app boot, voting, and crew memories', () => {

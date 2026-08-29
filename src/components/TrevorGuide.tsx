@@ -7,15 +7,17 @@ import {
   isTrevorFocusedRoute,
 } from '../services/trevorContextService';
 import {
-  getTrevorRecommendation,
   type ResolvedTrevorRecommendation,
 } from '../services/trevorRecommendationEngine';
+import { buildTrevorRecommendationFromGuidance } from '../services/trevorGuidanceAdapter';
+import { usePlayerGuidance } from '../hooks/usePlayerGuidance';
 import {
   isTrevorSuppressedForSession,
   readTrevorHistory,
   recordTrevorRecommendation,
   suppressTrevorForSession,
 } from '../services/trevorHistoryService';
+import { acknowledgeStarterUnlockSeen } from '../services/starterUnlockAck';
 import type { ResolvedTrevorAction } from '../config/trevorActions';
 import { reduceTrevorPanelState, TrevorGuideView } from './TrevorGuideView';
 
@@ -29,6 +31,8 @@ export function TrevorGuide() {
     isExpanded: false,
     isSuppressed: false,
   });
+  const autoOpenedState = useRef<string | null>(null);
+  const guidance = usePlayerGuidance();
 
   const accessibleDecks = useMemo(
     () => app.deckPacks.filter(deck => app.getDeckAccessForPack(deck).playable),
@@ -95,8 +99,8 @@ export function TrevorGuide() {
     [trevorContext.userId, location.pathname],
   );
   const recommendation = useMemo(
-    () => getTrevorRecommendation(trevorContext, { history, now: app.currentDate }),
-    [app.currentDate, history, trevorContext],
+    () => buildTrevorRecommendationFromGuidance(guidance),
+    [guidance],
   );
   const message = recommendation
     ? renderTrevorDialogue(recommendation, trevorContext, history)
@@ -105,6 +109,34 @@ export function TrevorGuide() {
   useEffect(() => {
     dispatchPanelEvent('collapse');
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!guidance.autoOpenTrevor) return;
+    if (autoOpenedState.current === guidance.state) return;
+    autoOpenedState.current = guidance.state;
+    dispatchPanelEvent('open');
+    // Persist one-shot Starter unlock acknowledgement so remount does not
+    // re-select STARTER_COMPLETE / re-auto-open Trevor.
+    if (
+      guidance.state === 'STARTER_COMPLETE'
+      && app.user?.uid
+      && app.starterState.starterComplete
+    ) {
+      void acknowledgeStarterUnlockSeen(
+        app.user.uid,
+        app.starterState.starterApprovedCount || app.starterApprovedCount || 3,
+      ).catch((error) => {
+        console.warn('[TrevorGuide] Failed to acknowledge Starter unlock:', error);
+      });
+    }
+  }, [
+    guidance.autoOpenTrevor,
+    guidance.state,
+    app.user?.uid,
+    app.starterState.starterComplete,
+    app.starterState.starterApprovedCount,
+    app.starterApprovedCount,
+  ]);
 
   useEffect(() => {
     if (!recommendation) return;
@@ -149,6 +181,18 @@ export function TrevorGuide() {
 
   const handleAction = (action: ResolvedTrevorAction) => {
     emitTrevorActionEvent(recommendation, action);
+    if (
+      guidance.state === 'STARTER_COMPLETE'
+      && app.user?.uid
+      && app.starterState.starterComplete
+    ) {
+      void acknowledgeStarterUnlockSeen(
+        app.user.uid,
+        app.starterState.starterApprovedCount || app.starterApprovedCount || 3,
+      ).catch((error) => {
+        console.warn('[TrevorGuide] Failed to acknowledge Starter unlock on action:', error);
+      });
+    }
     if (action.route) navigate(action.route);
     dispatchPanelEvent('collapse');
   };

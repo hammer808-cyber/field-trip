@@ -5,11 +5,13 @@ import { cn } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
 import { canAccessFeature } from '../services/canonicalProgress';
+import { usePlayerGuidance } from '../hooks/usePlayerGuidance';
 
 export function BottomNav() {
   const location = useLocation();
   const { skin } = useTheme();
   const { isAdmin, canonicalProgress } = useApp();
+  const guidance = usePlayerGuidance();
 
   const [isNavActive, setIsNavActive] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -43,7 +45,16 @@ export function BottomNav() {
   const isDiamond = skin.id === 'slippery-diamond';
   const isHeat = skin.id === 'heatwave';
   const dexUnlocked = canAccessFeature(canonicalProgress, 'memories', { isAdmin });
-  const highlightMissions = !dexUnlocked;
+  const votingUnlocked = canAccessFeature(canonicalProgress, 'voting', { isAdmin });
+  const attentionPath = guidance.navigationTarget === 'missions'
+    ? '/missions'
+    : guidance.navigationTarget === 'voting'
+      ? '/voting'
+      : guidance.navigationTarget === 'dex'
+        ? '/dex'
+        : guidance.navigationTarget === 'basecamp'
+          ? '/basecamp'
+          : null;
 
   const navItems: Array<{
     icon: LucideIcon;
@@ -54,9 +65,9 @@ export function BottomNav() {
     highlight?: boolean;
   }> = [
     { icon: Home, label: 'BASECAMP', path: '/basecamp' },
-    { icon: Target, label: 'MISSIONS', path: '/missions', highlight: highlightMissions },
+    { icon: Target, label: 'MISSIONS', path: '/missions' },
     { icon: LayoutGrid, label: 'DEX', path: '/dex', special: dexUnlocked, locked: !dexUnlocked },
-    { icon: Vote, label: 'VOTING', path: '/voting' },
+    { icon: Vote, label: 'VOTING', path: '/voting', locked: !votingUnlocked },
     { icon: Trophy, label: 'BIG BOARD', path: '/big-board' }
   ];
 
@@ -132,7 +143,7 @@ export function BottomNav() {
         }
 
         const isLockedTab = !!item.locked || (itemPathname === '/big-board' && !canAccessFeature(canonicalProgress, 'voting', { isAdmin }));
-        const isHighlightedDestination = !!item.highlight && !isActive && !isLockedTab;
+        const isHighlightedDestination = attentionPath === itemPathname && !isActive && !isLockedTab;
 
         return (
           <Link
@@ -142,7 +153,8 @@ export function BottomNav() {
             data-nav-item={itemPathname}
             data-active={isActive ? 'true' : 'false'}
             data-nav-locked={isLockedTab ? 'true' : 'false'}
-            aria-label={isLockedTab ? `${item.label}, locked` : item.highlight ? `${item.label}, go here next` : item.label}
+            aria-label={isLockedTab ? `${item.label}, locked` : isHighlightedDestination ? `${item.label}, go here next` : item.label}
+            data-nav-attention={isHighlightedDestination ? 'true' : 'false'}
             className={cn(
               "flex flex-col items-center justify-center flex-1 h-full py-1 relative select-none",
               isActive 

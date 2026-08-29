@@ -6,7 +6,7 @@ import { Entry } from '../constants';
 import { TripCard } from '../types/challenges';
 import { UserProfile } from './userService';
 
-export type FeatureKey = 'starter' | 'crew' | 'memories' | 'voting' | 'tribunal' | 'heatwave-receipts' | 'socal-summer';
+export type FeatureKey = 'starter' | 'crew' | 'memories' | 'voting' | 'tribunal' | 'heatwave-receipts' | 'socal-summer' | 'loteria';
 
 export type CanonicalChallengeStatus =
   | 'available'
@@ -135,12 +135,13 @@ export function buildCanonicalProgress(input: BuildCanonicalProgressInput): Cano
   const rejectedChallengeIds = new Set<string>();
   const archivedChallengeIds = new Set<string>();
 
-  if (activeEntries.length === 0) {
-    addIds(approvedCompletedChallengeIds, (profile as any)?.approvedCompletedChallengeIds);
-    addIds(approvedCompletedChallengeIds, profile?.completedChallengeIds);
-    addIds(needsMoreProofChallengeIds, profile?.needsMoreProofChallengeIds);
-    addIds(rejectedChallengeIds, profile?.rejectedChallengeIds);
-  }
+  // Always seed from profile completion caches. Live entry pages are paginated, so
+  // omitting profile IDs whenever any entry is loaded undercounts approvals and can
+  // falsely keep decks drawable (dead Draw Mission CTAs after exhaustion).
+  addIds(approvedCompletedChallengeIds, (profile as any)?.approvedCompletedChallengeIds);
+  addIds(approvedCompletedChallengeIds, profile?.completedChallengeIds);
+  addIds(needsMoreProofChallengeIds, profile?.needsMoreProofChallengeIds);
+  addIds(rejectedChallengeIds, profile?.rejectedChallengeIds);
 
   allEntries.forEach(entry => {
     const missionId = getEntryMissionId(entry);
@@ -164,13 +165,18 @@ export function buildCanonicalProgress(input: BuildCanonicalProgressInput): Cano
     }
   });
 
+  // One lifecycle status per mission. Higher ranks win so a retry pending_review
+  // is not erased by an older rejected / needs-more entry for the same mission.
   approvedCompletedChallengeIds.forEach(id => {
     submittedPendingChallengeIds.delete(id);
     needsMoreProofChallengeIds.delete(id);
     rejectedChallengeIds.delete(id);
   });
-  needsMoreProofChallengeIds.forEach(id => submittedPendingChallengeIds.delete(id));
-  rejectedChallengeIds.forEach(id => submittedPendingChallengeIds.delete(id));
+  submittedPendingChallengeIds.forEach(id => {
+    needsMoreProofChallengeIds.delete(id);
+    rejectedChallengeIds.delete(id);
+  });
+  needsMoreProofChallengeIds.forEach(id => rejectedChallengeIds.delete(id));
 
   STARTER_IDS.forEach(id => {
     approvedCompletedChallengeIds.delete(id);

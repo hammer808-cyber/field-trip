@@ -6,13 +6,18 @@ import type { Observation } from '../types/observations';
 import type { UserProfile } from '../services/userService';
 import type { CanonicalProgressSnapshot } from '../services/canonicalProgress';
 import {
-  getChallengeStatus,
   getDeckProgress,
   getStarterProgress,
   getUserXp,
 } from '../services/canonicalProgress';
 import { getLevelProgress } from './playerLevel';
 import { isArchivedEntry, normalizeEntryStatus } from './entryLogic';
+import {
+  isUnseenStarterUnlock,
+  resolvePlayerGuidance,
+  resolvePlayerMissionLifecycle,
+  type PlayerGuidanceSnapshot,
+} from './playerGuidance';
 
 export type BasecampActionIntent = 'navigate' | 'retry-proof';
 
@@ -46,6 +51,10 @@ export interface BasecampNextActionModel {
   description: string;
   statusLabel: string;
   action: BasecampPrimaryAction;
+  secondaryAction: BasecampPrimaryAction | null;
+  flavorMessage: string;
+  urgency: PlayerGuidanceSnapshot['urgency'];
+  guidanceState: PlayerGuidanceSnapshot['state'];
   mission: BasecampMissionSummaryModel | null;
   deckId: string;
 }
@@ -115,6 +124,7 @@ export interface BasecampViewModel {
   crew: BasecampCrewModel;
   recentActivity: BasecampActivityItem[];
   quickLinks: BasecampQuickLink[];
+  guidance: PlayerGuidanceSnapshot;
 }
 
 export interface BuildBasecampViewModelInput {
@@ -177,54 +187,13 @@ function entryTitle(entry: Entry): string {
 }
 
 function resolveMission(input: BuildBasecampViewModelInput): BasecampMissionSummaryModel | null {
-  const tripById = new Map(input.trips.map(trip => [trip.id.toLowerCase(), trip]));
-  const drawnCard = input.drawnMissionCards.find(card => (
-    card.isActive === true || card.status === 'active' || card.status === 'drawn'
-  ));
-  const drawnMissionId = drawnCard?.missionId || drawnCard?.challengeId;
-  const trip = input.activeTrip || (drawnMissionId ? tripById.get(drawnMissionId.toLowerCase()) || null : null);
-  const missionId = trip?.id || drawnMissionId;
-  if (!missionId) return null;
-
-  const canonicalStatus = getChallengeStatus(
-    input.canonicalProgress,
-    missionId,
-    input.activeTrip?.id || drawnMissionId || null,
-  );
-  const explicitStatus = input.activeSubmissionStatus || drawnCard?.status || trip?.status;
-  let status: BasecampMissionSummaryModel['status'];
-  if (['pending_review', 'needs_more_proof', 'rejected', 'approved'].includes(canonicalStatus)) {
-    status = canonicalStatus as BasecampMissionSummaryModel['status'];
-  } else if (['pending_review', 'needs_more_proof', 'rejected', 'approved'].includes(explicitStatus || '')) {
-    status = explicitStatus as BasecampMissionSummaryModel['status'];
-  } else if (explicitStatus === 'active' || explicitStatus === 'in-progress') {
-    status = 'active';
-  } else {
-    status = 'drawn';
-  }
-
-  const statusLabels: Record<BasecampMissionSummaryModel['status'], string> = {
-    drawn: 'Ready to start',
-    active: 'Mission active',
-    pending_review: 'Proof in review',
-    needs_more_proof: 'More proof needed',
-    rejected: 'Retry available',
-    approved: 'Mission approved',
-  };
-  const deckId = trip?.deckId || drawnCard?.deckId || null;
-
-  return {
-    id: missionId,
-    title: trip?.title || drawnCard?.missionTitle || 'Current mission',
-    description: trip?.shortDescription || trip?.description || drawnCard?.missionSummary || 'Open the mission for the full field brief.',
-    deckId,
-    deckName: trip?.deckName || deckId || 'Fieldtrip deck',
-    status,
-    statusLabel: statusLabels[status],
-    rewardXp: Number.isFinite(Number(trip?.baseXP || trip?.basePoints))
-      ? Number(trip?.baseXP || trip?.basePoints)
-      : null,
-  };
+  return resolvePlayerMissionLifecycle({
+    canonicalProgress: input.canonicalProgress,
+    activeTrip: input.activeTrip,
+    activeSubmissionStatus: input.activeSubmissionStatus,
+    drawnMissionCards: input.drawnMissionCards,
+    trips: input.trips,
+  });
 }
 
 function getActiveEntries(entries: readonly Entry[]): Entry[] {
@@ -240,10 +209,23 @@ function getActiveEntries(entries: readonly Entry[]): Entry[] {
 
 function buildAttention(entries: readonly Entry[]): BasecampProofAttentionModel {
   const activeEntries = getActiveEntries(entries);
-  const actionable = activeEntries
+  const newestByMission = new Map<string, Entry>();
+  for (const entry of activeEntries) {
+    const rawStatus = String(entry.status || '').toLowerCase().trim();
+    if (rawStatus === 'retried') continue;
+    const missionId = entryMissionId(entry);
+    if (!missionId) continue;
+    const previous = newestByMission.get(missionId);
+    if (!previous || getEntryTimestamp(entry) >= getEntryTimestamp(previous)) {
+      newestByMission.set(missionId, entry);
+    }
+  }
+  const actionable = [...newestByMission.values()]
     .filter(entry => ['needs_more_proof', 'rejected'].includes(normalizeEntryStatus(entry.status)))
     .sort((left, right) => getEntryTimestamp(right) - getEntryTimestamp(left));
-  const pendingCount = activeEntries.filter(entry => normalizeEntryStatus(entry.status) === 'pending_review').length;
+  const pendingCount = [...newestByMission.values()]
+    .filter(entry => normalizeEntryStatus(entry.status) === 'pending_review')
+    .length;
   const latest = actionable[0];
   if (!latest) return { actionableCount: 0, pendingCount, item: null };
 
@@ -274,108 +256,33 @@ function buildAttention(entries: readonly Entry[]): BasecampProofAttentionModel 
 }
 
 function buildNextAction(
-  input: BuildBasecampViewModelInput,
-  attention: BasecampProofAttentionModel,
+  guidance: PlayerGuidanceSnapshot,
   mission: BasecampMissionSummaryModel | null,
 ): BasecampNextActionModel {
-  if (attention.item) {
-    return {
-      eyebrow: 'Proof attention',
-      title: attention.item.title,
-      description: attention.item.note,
-      statusLabel: attention.item.statusLabel,
-      action: attention.item.action,
-      mission,
-      deckId: attention.item.deckId || mission?.deckId || 'starter-signals',
-    };
-  }
-
-  if (mission) {
-    if (mission.status === 'needs_more_proof' || mission.status === 'rejected') {
-      return {
-        eyebrow: 'Proof attention',
-        title: mission.title,
-        description: mission.status === 'needs_more_proof'
-          ? 'This mission needs another proof attempt before it can count toward deck progress.'
-          : 'This proof did not pass review. You can reset the attempt and try the mission again.',
-        statusLabel: mission.statusLabel,
-        action: {
-          label: 'Retry Mission',
-          href: `/capture?id=${encodeURIComponent(mission.id)}`,
-          intent: 'retry-proof',
-          missionId: mission.id,
-        },
-        mission,
-        deckId: mission.deckId || 'starter-signals',
-      };
-    }
-    if (mission.status === 'pending_review') {
-      return {
-        eyebrow: 'Proof status',
-        title: mission.title,
-        description: 'Your proof is with the review team. Pending review does not stop you from drawing another mission.',
-        statusLabel: mission.statusLabel,
-        action: { label: 'View Logbook', href: '/profile?tab=logbook', intent: 'navigate' },
-        mission,
-        deckId: mission.deckId || 'starter-signals',
-      };
-    }
-    if (mission.status === 'approved') {
-      return {
-        eyebrow: 'Mission cleared',
-        title: mission.title,
-        description: 'This receipt is approved and now counts toward your deck progress.',
-        statusLabel: mission.statusLabel,
-        action: { label: 'Draw Next Mission', href: '/missions', intent: 'navigate' },
-        mission,
-        deckId: mission.deckId || 'starter-signals',
-      };
-    }
-    return {
-      eyebrow: 'Current mission',
-      title: mission.title,
-      description: mission.description,
-      statusLabel: mission.statusLabel,
-      action: {
-        label: mission.status === 'drawn' ? 'Open Briefing' : 'Continue Mission',
-        href: mission.status === 'drawn'
-          ? `/mission-briefing?id=${encodeURIComponent(mission.id)}`
-          : `/capture?id=${encodeURIComponent(mission.id)}`,
-        intent: 'navigate',
-      },
-      mission,
-      deckId: mission.deckId || 'starter-signals',
-    };
-  }
-
-  const starter = getStarterProgress(input.canonicalProgress);
-  if (!starter.starterComplete) {
-    return {
-      eyebrow: 'Next assignment',
-      title: 'Finish Starter Signals',
-      description: `${starter.starterApprovedCount} of ${starter.starterRequiredCount} Starter Signals approved. Complete all three to open the wider field map.`,
-      statusLabel: starter.status === 'PENDING_REVIEW' ? 'Starter proofs in review' : 'Starter training',
-      action: { label: 'Open Starter Deck', href: '/missions?pack=starter-signals', intent: 'navigate' },
-      mission: null,
-      deckId: 'starter-signals',
-    };
-  }
-
-  const deckId = input.isHeatwaveDeckUnlocked ? 'heatwave-receipts' : 'starter-signals';
   return {
-    eyebrow: 'Next assignment',
-    title: input.isHeatwaveDeckUnlocked ? 'Find Your Next Receipt' : 'Choose a Mission',
-    description: input.isHeatwaveDeckUnlocked
-      ? 'Heatwave Receipts is open. Draw a mission when you are ready to head back outside.'
-      : 'Open Missions to choose an available deck and draw your next field assignment.',
-    statusLabel: input.isHeatwaveDeckUnlocked ? 'Season deck available' : 'Field deck available',
+    eyebrow: guidance.shortMessage,
+    title: guidance.title,
+    description: guidance.flavorMessage,
+    statusLabel: mission?.statusLabel || guidance.shortMessage,
     action: {
-      label: input.isHeatwaveDeckUnlocked ? 'Open Heatwave Deck' : 'Open Missions',
-      href: input.isHeatwaveDeckUnlocked ? '/missions?pack=heatwave-receipts' : '/missions',
-      intent: 'navigate',
+      label: guidance.primaryActionLabel,
+      href: guidance.primaryActionDestination,
+      intent: guidance.primaryActionIntent,
+      missionId: guidance.relevantMissionId || undefined,
     },
-    mission: null,
-    deckId,
+    secondaryAction: guidance.secondaryAction
+      ? {
+          label: guidance.secondaryAction.label,
+          href: guidance.secondaryAction.destination,
+          intent: guidance.secondaryAction.intent,
+          missionId: guidance.secondaryAction.missionId,
+        }
+      : null,
+    flavorMessage: guidance.flavorMessage,
+    urgency: guidance.urgency,
+    guidanceState: guidance.state,
+    mission,
+    deckId: guidance.deckId,
   };
 }
 
@@ -483,9 +390,30 @@ function buildRecentActivity(input: BuildBasecampViewModelInput): BasecampActivi
 }
 
 export function buildBasecampViewModel(input: BuildBasecampViewModelInput): BasecampViewModel {
+  const starter = getStarterProgress(input.canonicalProgress);
+  const guidance = resolvePlayerGuidance({
+    canonicalProgress: input.canonicalProgress,
+    entries: input.entries,
+    activeTrip: input.activeTrip,
+    activeSubmissionStatus: input.activeSubmissionStatus,
+    drawnMissionCards: input.drawnMissionCards,
+    trips: input.trips,
+    legalComplete: true,
+    fieldClassificationComplete: input.profile?.fieldClassificationComplete !== false,
+    hasSeenFieldTypeResults: true,
+    hasCompletedFieldKitOnboarding: true,
+    isHeatwaveDeckUnlocked: input.isHeatwaveDeckUnlocked,
+    voteAvailable: input.isVotingOpen && input.userVotes.length === 0,
+    hasUnseenStarterUnlock: isUnseenStarterUnlock({
+      starterComplete: starter.starterComplete,
+      starterApprovedCount: starter.starterApprovedCount,
+      starterRequiredCount: starter.starterRequiredCount,
+      lastSeenApprovedCount: input.profile?.trevorSettings?.lastSeenApprovedCount,
+    }),
+  });
   const attention = buildAttention(input.entries);
   const mission = resolveMission(input);
-  const nextAction = buildNextAction(input, attention, mission);
+  const nextAction = buildNextAction(guidance, mission);
   const progress = buildProgress(input, nextAction.deckId);
   const activeEntries = getActiveEntries(input.entries);
   const approvedCount = activeEntries.filter(entry => normalizeEntryStatus(entry.status) === 'approved').length;
@@ -497,12 +425,13 @@ export function buildBasecampViewModel(input: BuildBasecampViewModelInput): Base
     progress,
     crew: buildCrew(input.profile, input.entries),
     recentActivity: buildRecentActivity(input),
+    guidance,
     quickLinks: [
       {
         id: 'missions',
         label: 'Missions',
-        description: mission ? `Continue ${mission.title}` : 'Choose a deck and draw a field assignment.',
-        href: '/missions',
+        description: guidance.primaryActionLabel,
+        href: guidance.navigationTarget === 'missions' ? guidance.primaryActionDestination : '/missions',
       },
       {
         id: 'logbook',

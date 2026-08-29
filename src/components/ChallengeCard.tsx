@@ -331,7 +331,7 @@ export function MissionCard({
           <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-transparent pointer-events-none" />
           <span className="relative z-10 flex items-center gap-2">
             <Camera className="w-6 h-6 stroke-[2.5]" />
-            {challenge.status === 'approved' ? 'ADVENTURE SAVED ✓' : 'SNAP A PIC'}
+            SNAP A PIC
             <ArrowRight className="w-5 h-5 stroke-[2.5]" />
           </span>
         </button>
