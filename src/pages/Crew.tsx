@@ -290,7 +290,7 @@ export default function CrewPage() {
             <Users className="w-14 h-14 mx-auto text-brand-orange" />
             <h1 className="font-display text-4xl italic font-black uppercase leading-none">Create Your Crew</h1>
             <p className="font-serif italic text-sm opacity-70">
-              Crews can start before Starter Signals. Starter receipts stay personal; seasonal receipts join the Crew archive after approval.
+              Crews are optional. Create or join one, or go draw a mission.
             </p>
           </div>
 

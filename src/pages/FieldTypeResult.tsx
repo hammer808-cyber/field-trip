@@ -96,10 +96,10 @@ export default function FieldTypeResult() {
           isDiamond ? "liquid-chrome bg-clip-text text-transparent font-black" :
           isHeat ? "text-white font-display uppercase not-italic" :
           "text-on-surface font-display uppercase"
-        )}>{isBaja || isDiamond || isHeat ? 'Field Trip' : 'PROT_CLASSIFICATION.HV'}</h1>
+        )}>{isBaja || isDiamond || isHeat ? 'Field Trip' : 'Your Explorer Type'}</h1>
         {!isBaja && !isDiamond && !isHeat && (
           <div className="flex flex-col items-end">
-            <span className="text-[10px] font-mono font-black text-brand-orange uppercase tracking-[0.2em] italic">SIGNAL_IDENTIFIED</span>
+            <span className="text-[10px] font-mono font-black text-brand-orange uppercase tracking-[0.2em] italic">Almost ready</span>
             <div className="h-1 w-20 bg-brand-orange mt-1" />
           </div>
         )}
@@ -166,7 +166,7 @@ export default function FieldTypeResult() {
             
             {!isBaja && !isDiamond && !isHeat && (
               <div className="absolute top-0 left-0 w-full bg-on-surface text-brand-lime px-6 py-2 flex justify-between items-center z-10 italic">
-                <span className="text-[10px] font-black tracking-[0.2em] uppercase">MISSION BRIEFING // HV-LE</span>
+                <span className="text-[10px] font-black tracking-[0.2em] uppercase">Your Explorer Type</span>
                 <span className="text-[9px] font-mono opacity-60">REF_704_B</span>
               </div>
             )}
@@ -193,7 +193,7 @@ export default function FieldTypeResult() {
               <>
                 <div className="absolute bottom-6 left-6 right-6 flex flex-col items-center">
                    <div className="w-full h-[2px] bg-brand-lime shadow-[0_0_8px_var(--color-brand-lime)]" />
-                   <p className="text-[10px] font-black uppercase tracking-[0.4em] mt-3 text-on-surface italic">LOG_IDENT_SECURE</p>
+                   <p className="text-[10px] font-black uppercase tracking-[0.4em] mt-3 text-on-surface italic">Locked in</p>
                 </div>
                 {/* Decorative bits */}
                 <div className="absolute bottom-10 right-4 flex flex-col gap-1.5">
@@ -313,13 +313,13 @@ export default function FieldTypeResult() {
                    <div className="space-y-3">
                       <div className="flex items-center gap-3">
                          <div className="w-6 h-1 bg-brand-orange" />
-                         <span className="text-[11px] font-bold uppercase text-on-surface/50 tracking-wider italic">PROT_DRIVE</span>
+                         <span className="text-[11px] font-bold uppercase text-on-surface/50 tracking-wider italic">Instinct</span>
                       </div>
                       <p className="text-xl font-bold uppercase tracking-tight text-on-surface italic border-b-4 border-brand-lime pb-3 leading-tight">{data.coreInstinct}</p>
                    </div>
                    <div className="space-y-3 text-right">
                       <div className="flex items-center gap-3 justify-end">
-                         <span className="text-[11px] font-bold uppercase text-on-surface/50 tracking-wider italic">BUREAU_STAMP</span>
+                         <span className="text-[11px] font-bold uppercase text-on-surface/50 tracking-wider italic">Stamp</span>
                          <div className="w-6 h-1 bg-brand-lime" />
                       </div>
                       <p className="text-xl font-bold uppercase tracking-tight text-brand-orange italic leading-tight">{data.stamp}</p>
@@ -329,7 +329,7 @@ export default function FieldTypeResult() {
                 <div className="grid grid-cols-1 gap-8">
                    <div className="p-6 bg-white border-2 border-on-surface shadow-[10px_10px_0px_var(--color-brand-cyan)] relative overflow-hidden group/metrics">
                       <div className="absolute top-0 right-0 w-24 h-24 prism-bg opacity-5 -translate-y-10 translate-x-10 rotate-45" />
-                      <span className="text-[10px] font-black uppercase text-on-surface/40 tracking-[0.3em] italic mb-4 block">FIELD_OPERATIONAL_CAPS</span>
+                      <span className="text-[10px] font-black uppercase text-on-surface/40 tracking-[0.3em] italic mb-4 block">Field stats</span>
                       <div className="flex justify-between mt-4 gap-4">
                         <div className="flex-1 text-center py-4 bg-on-surface text-brand-lime shadow-[4px_4px_0px_black]">
                            <p className="text-[9px] opacity-60 uppercase font-black tracking-widest">Strength_lvl</p>
@@ -356,7 +356,7 @@ export default function FieldTypeResult() {
                 <div className="pt-8 border-t-4 border-on-surface/10 space-y-4">
                    <div className="flex items-center gap-3">
                       <div className="w-10 h-[2px] bg-brand-orange" />
-                      <span className="text-[11px] font-black uppercase opacity-60 tracking-[0.4em] italic">IDENTITY_TAGS.HV</span>
+                      <span className="text-[11px] font-black uppercase opacity-60 tracking-[0.4em] italic">Vibe tags</span>
                    </div>
                    <div className="flex flex-wrap gap-3">
                       {data.recommendedChallengeTags.map(tag => (
@@ -391,7 +391,7 @@ export default function FieldTypeResult() {
                 "bg-brand-orange text-white border-on-surface shadow-[16px_16px_0px_black] hover:bg-on-surface hover:text-brand-lime hover:shadow-[20px_20px_0px_var(--color-brand-orange)]"
               )}
             >
-              {isNavigating ? 'Opening mission...' : (isBaja ? 'START THE BEACH VACAY' : isDiamond ? 'INITIATE DEPLOYMENT' : isHeat ? 'TAKE THE PLUNGE' : (isGuidedActive ? 'Start First Mission' : 'Enter the Field'))}
+              {isNavigating ? 'Opening mission...' : (isBaja ? 'START THE BEACH VACAY' : isDiamond ? 'INITIATE DEPLOYMENT' : isHeat ? 'TAKE THE PLUNGE' : (isGuidedActive ? 'Start my first mission' : 'Enter the Field'))}
             </button>
           </div>
 
@@ -415,7 +415,7 @@ export default function FieldTypeResult() {
                isNavigating && "opacity-80 grayscale pointer-events-none"
             )}
           >
-            {isNavigating ? 'Opening mission...' : 'Start First Mission'}
+            {isNavigating ? 'Opening mission...' : 'Start my first mission'}
           </button>
         </div>
       )}

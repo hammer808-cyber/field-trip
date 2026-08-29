@@ -229,9 +229,14 @@ export function BetaAccessGate({ userId, onAccepted, showWelcome = false }: Beta
               (!consentChecked || isSubmitting) && "opacity-30 pointer-events-none cursor-not-allowed"
             )}
           >
-            <span>{isSubmitting ? "AUTHORIZING..." : "Agree & Continue"}</span>
+            <span>{isSubmitting ? "Saving..." : "I agree — continue"}</span>
             <CheckCircle2 className="w-5 h-5" />
           </button>
+          {!consentChecked && (
+            <p className="text-center font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/50">
+              Check the box to continue.
+            </p>
+          )}
         </motion.div>
       </div>
 

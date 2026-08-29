@@ -10,68 +10,68 @@ import {
 
 const TREVOR_DIALOGUE: Readonly<Record<TrevorMessageKey, readonly string[]>> = {
   legal_required: [
-    'The paperwork is blocking the door. Finish setup, then we can resume making questionable field decisions.',
+    'Finish setup, then we can play.',
   ],
   classification_required: [
-    'Your Explorer Type is still unfiled. Pick one so the Bureau knows what kind of problem it hired.',
+    'Pick your Explorer Type so Fieldtrip knows how to talk to you.',
   ],
   proof_needs_more: [
-    '{missionTitle} needs one clearer receipt. Fix that before we add another mystery to the pile.',
-    'The review desk wants more evidence for {missionTitle}. Annoying, but specific. Let us repair it.',
+    '{missionTitle} needs a clearer photo. Add more proof.',
+    'Review wants more evidence for {missionTitle}. Fix that first.',
   ],
   starter_retry: [
-    'One Starter receipt did not hold up. Retry {missionTitle} with clearer evidence and less interpretive fog.',
+    '{missionTitle} didn’t pass. Retry with a clearer photo.',
   ],
   starter_active: [
-    '{missionTitle} is already in your hands. Finish that signal before drawing another tiny obligation.',
+    '{missionTitle} is already in your hands. Finish it first.',
   ],
   starter_incomplete: [
-    '{starterRemaining} Starter Signal{starterPlural} left. The larger map stays dramatically unavailable until those approvals land.',
-    'Starter clearance is {starterApprovedCount}/{starterRequiredCount}. One honest receipt at a time.',
+    'Draw your next Starter mission. {starterRemaining} left.',
+    'Starter progress is {starterApprovedCount}/{starterRequiredCount}. Draw the next one.',
   ],
   starter_pending: [
-    'Your Starter receipts are at the review desk. Check the Logbook; drawing duplicates will not improve bureaucracy.',
+    'Your Starter proofs are in review. Check the Logbook.',
   ],
   active_mission: [
-    'You already pulled one. Finish {missionTitle} first.',
-    '{missionTitle} is still active. Resume it before it becomes decorative paperwork.',
+    '{missionTitle} is still open. Resume it.',
+    'Finish {missionTitle} before drawing another.',
   ],
   voting_open: [
-    'Voting is open, and apparently democracy once again requires your participation.',
-    'The weekly ballot is live. Vote now; the receipts cannot judge themselves responsibly.',
+    'Your vote is ready.',
+    'Weekly voting is open. Cast it now.',
   ],
   starter_complete_unlock: [
-    'Starter clearance confirmed. New decks, levels, voting, crews, and zines are live. We will inspect one thing at a time.',
+    'Starter done. New decks are open — draw one.',
   ],
   near_level: [
-    'You are {xp} XP from {nextLevelTitle}. A normal mission should finish the paperwork.',
-    '{xp} XP separates you from the next dubious promotion. Mildly dramatic.',
+    'You are {xp} XP from {nextLevelTitle}. One mission should do it.',
+    '{xp} XP left to the next level.',
   ],
   weekly_rank: [
-    'You are ranked {rank}, and {pointsToNextRank} points separate you from the next spot. This is almost a plot.',
+    'Rank {rank}. {pointsToNextRank} points to the next spot.',
   ],
   crew_action: [
-    'Your crew has an open field action. Group projects have returned, but at least this one has receipts.',
+    'Your crew has an open field action.',
   ],
   profile_incomplete: [
-    'Your profile is missing {profileField}. Give the archive enough detail to identify its newest local legend.',
+    'Your profile is missing {profileField}.',
   ],
   zine_gap: [
-    'The zine is thin on {zineGap}. Try a mission that gives the story a different shape.',
-    'Your archive could use more {zineGap}. The next receipt should bring actual material.',
+    'Your zine is thin on {zineGap}. Try a different kind of mission.',
+    'Add more {zineGap} to the archive.',
   ],
   proof_variety: [
-    'You have submitted the same kind of proof three times. Try something beyond {proofType} so the zine gets an actual story.',
+    'Try something beyond {proofType} so the story changes.',
   ],
   mission_discovery: [
-    '{deckName} has not appeared in your recent fieldwork. Go make that suspiciously specific.',
+    '{deckName} is still waiting. Go make it specific.',
   ],
   fallback_draw: [
-    'No urgent fires. Open {deckName}, find one interesting thing, and bring back a receipt.',
-    'Systems nominal. A fresh mission is currently the least ridiculous useful option.',
+    'Nothing urgent. Draw a mission when you’re ready.',
+    'Systems calm. A fresh mission is the useful next tap.',
   ],
   fallback_standings: [
-    'No urgent field action found. Check the standings and see what everyone else has been doing outside.',
+    'Nothing urgent. Check the Big Board if you want to look around.',
   ],
 };
 

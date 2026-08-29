@@ -44,16 +44,21 @@ export function BasecampNextActionPanel({ model, pack, onAction, onSecondaryActi
             >
               {model.title}
             </h2>
-            <p className="max-w-2xl text-sm leading-relaxed text-[var(--skin-text-muted)] sm:text-base">
+            <p className="max-w-xl text-sm font-bold leading-snug text-[var(--skin-text)] sm:text-base">
               {model.description}
             </p>
+            <p className="basecamp-flavor">{model.flavorMessage}</p>
           </div>
 
           <div className="flex flex-col items-stretch gap-3 sm:items-start">
+            {isUrgent && (
+              <span className="basecamp-next-stamp" aria-hidden="true">Do this</span>
+            )}
             <button
               type="button"
               onClick={onAction}
-              className="skin-button flex min-h-14 w-full items-center justify-center gap-3 border-[3px] border-[var(--skin-border)] bg-[var(--skin-primary)] px-4 py-4 font-display text-xl font-black uppercase italic tracking-normal text-[var(--skin-on-primary)] shadow-[var(--skin-button-shadow)] transition-transform focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)] active:translate-y-1 active:shadow-none sm:w-fit sm:min-w-[260px] sm:text-2xl"
+              data-basecamp-primary="true"
+              className="basecamp-next-cta skin-button flex min-h-14 w-full items-center justify-center gap-3 border-[3px] border-[var(--skin-border)] bg-[var(--skin-primary)] px-4 py-4 font-display text-xl font-black uppercase italic tracking-normal text-[var(--skin-on-primary)] shadow-[var(--skin-button-shadow)] transition-transform focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)] active:translate-y-1 active:shadow-none sm:w-fit sm:min-w-[280px] sm:text-2xl"
             >
               {model.action.label}
               <ArrowRight size={24} strokeWidth={3} aria-hidden="true" />

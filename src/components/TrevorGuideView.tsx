@@ -44,6 +44,8 @@ export function TrevorGuideView({
 }: TrevorGuideViewProps) {
   const primaryActionRef = useRef<HTMLButtonElement>(null);
   const isWarning = recommendation.tone === 'warning';
+  const isCelebration = recommendation.tone === 'celebration';
+  const firstSentence = (message.replace(/[“”"]/g, '').split(/[.!?]/)[0] || recommendation.primaryAction.label).trim();
 
   useEffect(() => {
     if (isExpanded) primaryActionRef.current?.focus();
@@ -52,6 +54,7 @@ export function TrevorGuideView({
   return (
     <div
       data-testid="trevor-guide-root"
+      data-trevor-tone={recommendation.tone}
       className="pointer-events-none fixed bottom-[calc(100px+env(safe-area-inset-bottom,0px))] left-1/2 z-[105] w-full max-w-sm -translate-x-1/2 px-4"
     >
       <AnimatePresence mode="wait">
@@ -69,6 +72,7 @@ export function TrevorGuideView({
             className={cn(
               'skin-card pointer-events-auto relative overflow-hidden rounded-[2rem] border-4 border-on-surface bg-white p-5 shadow-[8px_8px_0px_black] motion-reduce:transition-none',
               isWarning && 'border-brand-orange shadow-[8px_8px_0px_var(--color-brand-orange)]',
+              isCelebration && 'border-brand-lime shadow-[8px_8px_0px_var(--color-brand-lime)]',
             )}
           >
             <div className="mb-4 flex items-center gap-3">
@@ -79,9 +83,9 @@ export function TrevorGuideView({
                 </p>
                 <p className={cn(
                   'font-display text-sm font-black uppercase italic leading-none tracking-normal',
-                  isWarning ? 'text-brand-orange' : 'text-brand-cyan',
+                  isWarning ? 'text-brand-orange' : isCelebration ? 'text-brand-lime' : 'text-brand-cyan',
                 )}>
-                  Trevor // Counselor
+                  Trevor // Field guide
                 </p>
               </div>
               <button
@@ -95,7 +99,10 @@ export function TrevorGuideView({
             </div>
 
             <div className="mb-5 rounded-2xl border-2 border-dashed border-on-surface/15 bg-neutral-50 p-4">
-              <p className="font-serif text-sm italic leading-relaxed text-on-surface">“{message}”</p>
+              <p className="font-sans text-base font-black leading-snug text-on-surface">{firstSentence}{firstSentence.endsWith('.') ? '' : '.'}</p>
+              {message.trim() !== firstSentence && message.trim() !== `${firstSentence}.` && (
+                <p className="mt-2 font-serif text-sm italic leading-relaxed text-on-surface/70">“{message}”</p>
+              )}
             </div>
 
             <div className="flex flex-col gap-2">
@@ -150,8 +157,9 @@ export function TrevorGuideView({
               aria-expanded="false"
               aria-controls="trevor-guide-panel"
               className={cn(
-                'skin-button pointer-events-auto group relative flex min-h-12 items-center gap-3 rounded-full border-[3px] border-on-surface bg-white py-1.5 pl-2 pr-4 shadow-[4px_4px_0px_black] transition-all hover:shadow-[6px_6px_0px_black] active:translate-x-0.5 active:translate-y-0.5 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand-cyan',
-                isWarning && 'border-brand-orange shadow-[4px_4px_0px_var(--color-brand-orange)]',
+                'skin-button pointer-events-auto group relative flex items-center gap-2 rounded-full border-[3px] border-on-surface bg-white shadow-[4px_4px_0px_black] transition-all hover:shadow-[6px_6px_0px_black] active:translate-x-0.5 active:translate-y-0.5 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand-cyan',
+                isWarning ? 'min-h-12 py-1.5 pl-2 pr-4 border-brand-orange shadow-[4px_4px_0px_var(--color-brand-orange)]' : 'min-h-10 py-1 pl-1.5 pr-3',
+                isCelebration && 'border-brand-lime bg-brand-lime/30',
               )}
             >
               {hasNewState && (
@@ -161,7 +169,10 @@ export function TrevorGuideView({
                 />
               )}
               <TrevorAvatar size="small" />
-              <span className="max-w-[190px] truncate font-display text-[10px] font-black uppercase italic leading-none tracking-normal text-on-surface">
+              <span className={cn(
+                'truncate font-display font-black uppercase italic leading-none tracking-normal text-on-surface',
+                isWarning ? 'max-w-[220px] text-[11px]' : 'max-w-[160px] text-[10px]',
+              )}>
                 {recommendation.primaryAction.label}
               </span>
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-on-surface/5">
