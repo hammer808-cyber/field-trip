@@ -732,6 +732,21 @@ test('fix3: STARTER_COMPLETE primary action draws the post-Starter pack, not sta
   }
 });
 
+test('fix3 interaction: after unlock ack, DRAW_MISSION still targets a playable pack', () => {
+  const snapshot = resolvePlayerGuidance(input({
+    entries: starterApprovals(),
+    isHeatwaveDeckUnlocked: true,
+    hasUnseenStarterUnlock: false,
+  }));
+  assert.equal(snapshot.state, 'DRAW_MISSION');
+  const action = resolveMissionsGuidancePrimaryAction(snapshot);
+  assert.equal(action.kind, 'draw-pack');
+  if (action.kind === 'draw-pack') {
+    assert.equal(action.packId, 'heatwave-receipts');
+    assert.notEqual(action.packId, 'starter-signals');
+  }
+});
+
 test('fix4: Heatwave unlocked + eligibleCount > 0 → Draw Mission', () => {
   const snapshot = resolvePlayerGuidance(withDeckEligibility(input({
     entries: starterApprovals(),

@@ -107,6 +107,8 @@ Unseen when: `starterComplete && lastSeenApprovedCount < starterRequiredCount`.
 
 `latestActionableProof` picks the newest meaningful attempt per mission (timestamp). Raw `retried` markers from `retryMissionSubmission` are excluded so they cannot suppress a later rejection.
 
+Missions primary actions follow the guidance destination pack. After Starter unlock acknowledgement, `DRAW_MISSION` still selects the playable post-Starter pack instead of drawing from leftover `starter-signals`.
+
 ## Drawability
 
 `missionsStillAvailable` uses canonical `eligibleCount` on post-Starter decks. Feature unlock alone does not imply a drawable mission.

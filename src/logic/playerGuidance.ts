@@ -338,17 +338,30 @@ export type MissionsGuidancePrimaryAction =
   | { kind: 'retry-proof'; missionId: string; destination: string }
   | { kind: 'navigate'; destination: string };
 
+function packIdFromGuidanceDestination(guidance: PlayerGuidanceSnapshot): string | null {
+  const destination = guidance.primaryActionDestination || '';
+  const queryIndex = destination.indexOf('?');
+  if (queryIndex >= 0) {
+    const pack = new URLSearchParams(destination.slice(queryIndex + 1)).get('pack');
+    if (pack) return pack;
+  }
+  return guidance.deckId || null;
+}
+
 /**
  * Deck owns draw behavior, but must honor guidance destinations. STARTER_COMPLETE
- * must not draw from an exhausted starter-signals pack.
+ * must not draw from an exhausted starter-signals pack. After the unlock is
+ * acknowledged, DRAW_MISSION must still follow the destination pack so a leftover
+ * starter-signals selection cannot produce a dead draw.
  */
 export function resolveMissionsGuidancePrimaryAction(
   guidance: PlayerGuidanceSnapshot,
 ): MissionsGuidancePrimaryAction {
   const destination = guidance.primaryActionDestination;
+  const destPack = packIdFromGuidanceDestination(guidance);
   if (guidance.state === 'STARTER_COMPLETE') {
-    const packId = guidance.deckId && isPlayablePostStarterDeck(guidance.deckId)
-      ? guidance.deckId
+    const packId = destPack && isPlayablePostStarterDeck(destPack)
+      ? destPack
       : 'heatwave-receipts';
     return {
       kind: 'draw-pack',
@@ -362,6 +375,13 @@ export function resolveMissionsGuidancePrimaryAction(
       || guidance.state === 'DRAW_MISSION')
     && destination.startsWith('/missions')
   ) {
+    if (guidance.state === 'DRAW_MISSION' && destPack && isPlayablePostStarterDeck(destPack)) {
+      return {
+        kind: 'draw-pack',
+        packId: destPack,
+        destination: `/missions?pack=${encodeURIComponent(destPack)}`,
+      };
+    }
     return { kind: 'draw-current', destination };
   }
   if (guidance.primaryActionIntent === 'retry-proof' && guidance.relevantMissionId) {
