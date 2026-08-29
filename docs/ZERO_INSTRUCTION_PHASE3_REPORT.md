@@ -11,6 +11,7 @@
 | Pure resolver | `src/logic/playerGuidance.ts` (`resolvePlayerGuidance`, `resolvePlayerMissionLifecycle`) |
 | App wiring | `src/hooks/usePlayerGuidance.ts` |
 | Trevor adapter | `src/services/trevorGuidanceAdapter.ts` |
+| Starter unlock ack | `src/services/starterUnlockAck.ts` |
 | Docs | `docs/PLAYER_GUIDANCE.md` |
 
 **Inputs (read-only):** `canonicalProgress`, live `entries`, `drawnMissionCards` + `activeTrip`, onboarding flags, voting availability / vote cast state.
@@ -35,61 +36,87 @@
 | 600 | `VOTE_AVAILABLE` |
 | 100 | `NO_URGENT_ACTION` |
 
-Collision examples: active mission + vote → resume; repair outranks vote/draw; Starter 1/3 pending + next available → draw next; normal pending + draws available → draw (proof status secondary).
+## Codex review findings (final corrections)
 
-## Surfaces changed
+### Review finding 1 — Retry / rejection ordering
 
-| Surface | How it consumes the snapshot |
-| --- | --- |
-| **Basecamp** | Next Action panel + missions Quick Link copy + urgency styling from snapshot |
-| **Missions** | `MissionsGuidanceStrip` Now strip; Deck still owns draw/reveal |
-| **Trevor** | `buildTrevorRecommendationFromGuidance` — personality may differ; primary destination may not. Auto-open only for repair / reject / first Starter unlock |
-| **Bottom nav** | One unlocked attention destination (`data-nav-attention`); locked outranks attention |
-| **Feature gates** | `StarterGate` + `GatedFeaturePanel` for Voting / Loteria / Dex / Big Board — no silent redirect during Starter |
+**Root cause:** `latestActionableProof()` treated a mission as superseded whenever any pending/approved-looking entry existed. `retryMissionSubmission` marks prior attempts `retried`, and `normalizeEntryStatus` maps unknown statuses (including `retried`) to `pending_review`, so an older retried marker could suppress a newer rejection.
 
-## Bugs fixed
+**Fix:** Newest meaningful attempt per mission wins via attempt timestamps. Raw `retried` markers are excluded (`isRetriedAttemptMarker`). Applied in guidance and Basecamp attention building. No second proof lifecycle model.
 
-1. **False MISSION CLEARED / MISSION APPROVED on drawn Heatwave cards** — definition `status: "approved"` no longer treated as player completion. Also removed AppContext / starterHelper fallback that copied `activeTrip.status` into `activeSubmissionStatus`.
-2. **Silent Voting / Loteria redirects during Starter** — explicit lock panel with “Finish Starter Missions to unlock {Feature}” + Back to Missions.
-3. **Pending split-brain** — drawable + pending → Draw primary, View Proof Status secondary.
-4. **Superseded rejected after retry** — older rejected entry no longer outranks a newer pending retry / waiting-for-review state.
+**Tests:** `npm run test:guidance` — rejected→pending supersedes; rejected→rejected keeps newest; needs-more→pending supersedes; needs-more→needs-more keeps newest; older retried + newer rejected keeps Retry.
 
-## Live scenario results (emulator)
+### Review finding 2 — Starter complete acknowledgement
 
-Fixture: invite `LOCAL-DEV-PLAYER`, player `local-player@emulator.test` / `localplayer`.
+**Root cause:** `hasUnseenStarterUnlock` depended on `profile.trevorSettings.lastSeenApprovedCount`, but nothing wrote that field after presenting the unlock, so `STARTER_COMPLETE` / Trevor auto-open could repeat forever.
 
-| Scenario | Result | Notes |
+**Acknowledgement persistence mechanism:**  
+Field written: `users/{uid}.trevorSettings.lastSeenApprovedCount = starterApprovedCount`  
+Writer: `acknowledgeStarterUnlockSeen()` in `src/services/starterUnlockAck.ts`  
+Call sites: Trevor auto-open + Trevor action, Basecamp primary action, Deck primary action when state is `STARTER_COMPLETE`.  
+Unseen when: `starterComplete && lastSeenApprovedCount < starterRequiredCount`.  
+Does not change canonical Starter completion.
+
+**Fix:** Persist one-shot ack via dotted-path profile update; shared `isUnseenStarterUnlock()` helper.
+
+**Tests:** unseen → `STARTER_COMPLETE`; acknowledged → not `STARTER_COMPLETE`; after ack, resume / vote follow priority. Live: ack write observed (`lastSeenApprovedCount: 3`); reload stays off `STARTER_COMPLETE` with no Trevor celebration.
+
+### Review finding 3 — Starter Complete CTA must switch pack
+
+**Root cause:** Deck treated `STARTER_COMPLETE` like a direct draw and called `handleDraw()` while `activePackId` was still `starter-signals`. After unlock ack, `DRAW_MISSION` could hit the same leftover pack.
+
+**Fix:** `resolveMissionsGuidancePrimaryAction()` returns `{ kind: 'draw-pack', packId }` for `STARTER_COMPLETE` and for `DRAW_MISSION` when the destination pack is a playable post-Starter deck. Deck navigates to `/missions?pack=…` then `handleDraw(false, packIdOverride)`.
+
+**Live result:** R1 **PASS** — with Starter selected, primary CTA switched to `heatwave-receipts` and drew **Bag of Consequences** (not Starter).
+
+### Review finding 4 — Unlocked ≠ drawable
+
+**Root cause:** `missionsStillAvailable()` returned true whenever Heatwave was unlocked, ignoring `eligibleCount`. Separately, paginated entry pages omitted profile completion caches whenever any entry was loaded, so exhaustion could be invisible to the client.
+
+**Fix:** Use canonical `eligibleCount` on post-Starter decks. Always merge profile `completedChallengeIds` / `approvedCompletedChallengeIds` into canonical progress even when some live entries are present.
+
+**Tests:** eligible > 0 → Draw; all 0 → not Draw / No Urgent Action; one deck eligible → Draw; exhausted + vote → Vote; pagination-gap profile completions → No Urgent Action.
+
+## Live authenticated regression (R1–R5)
+
+Fixture: invite `LOCAL-DEV-PLAYER`, player `r1-player@emulator.test` / `r1player`.
+
+| ID | Expected | Result |
 | --- | --- | --- |
-| A Fresh → Starter active / resume agreement | **PASS** | Basecamp / Missions / Trevor / nav agree on Resume The Initial Signal |
-| B 1 Starter pending + next available | **PASS** | Draw Next Mission primary; View Proof Status secondary |
-| C 3/3 Starter pending | **PASS** | View Proof Status / proofs being reviewed primary |
-| D Needs more proof | **PASS** | Add More Proof primary everywhere; nav attention on Missions |
-| E Rejected | **PASS** | Retry Mission primary; Trevor auto-opens |
-| F Post-Starter active Heatwave | **PASS** | Resume Main Character Checkpoint — not cleared (after definition-status leak fix) |
-| G Normal pending + missions available | **PASS** | Draw Another Mission primary; View Proof Status secondary |
-| H Vote available while mission active | **PARTIAL** | Live ballot was building (no Vote Now). Unit test asserts resume > vote. While mission active, no Vote Now primary observed |
-| I Locked Voting / Loteria / Dex / Big Board | **PASS** | Explicit lock panels; no silent redirects |
+| R1 | Starter complete + Starter selected → CTA switches to playable pack and draws | **PASS** |
+| R2 | Unlock ack + reload → no repeat celebration / no Trevor auto-open for Starter | **PASS** |
+| R3 | Reject → retry → reject again → Retry primary for newest rejection | **PASS** |
+| R4 | All drawable exhausted → no dead Draw CTA | **PASS** |
+| R5 | Exhausted + vote available → Vote Now primary | **PASS** |
 
-## Tests
+Notes: Deck chooser intro overlay can briefly coexist with Trevor ack writes; by the time the Now strip is visible after dismiss, guidance may already be post-ack (`DRAW_MISSION`). Ack field is still written and persists across remount.
+
+## Full regression
 
 ```text
-npm run test:guidance          # 28 pass
+npm run test:guidance          # 43 pass
 npm run test:starter           # pass
 npm run test:trevor            # 25 pass
-npm run test:emulator-guard    # 9 pass
-npm run test:beta-blockers     # 28 pass
+npm run test:beta-blockers     # 28 pass (includes routesUnlocks)
 npm run test:mission-scoring   # 37 pass
+npm run test:emulator-guard    # 9 pass
+npm run test:guidance (Basecamp view-model suite included)
 npm run lint                   # pass
 npm run build                  # pass
+npm run test:firestore-rules   # 10 pass (play emulators stopped first)
 ```
 
-`npm run test:firestore-rules` not re-run while play emulators occupied the same ports (`emulators:exec` conflicts).
+## Remaining risks
+
+- Trevor auto-open may race with the Deck “Starter Deck Complete” chooser overlay, so the Now strip may already be past `STARTER_COMPLETE` when first inspected — ack still persists.
+- Live voting UI can still show “ballot building” while guidance correctly prioritizes Vote Now.
+- Entry pagination means profile completion caches must stay accurate after approvals; Fix 4 now depends on that merge.
+- Human verification recommended for production review-queue paths and real camera capture (emulator used Simulate Beta Capture / admin seed proofs).
 
 ## Deferred (Phase 4)
 
 - Major Basecamp visual redesign / quieter secondary chrome polish
-- Stronger nav attention affordance (lime dot is intentionally restrained)
-- Voting-window seed for live Scenario H ballot-open path
+- Stronger nav attention affordance
 - Submit button character counter polish
 - Signup jargon / Welcome overpromise (Phase 2 leftovers)
 - Notification infrastructure, Crew rewrite, scoring/reward rewrites
