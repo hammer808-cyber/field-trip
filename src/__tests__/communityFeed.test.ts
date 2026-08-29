@@ -190,7 +190,9 @@ test('Hype writes go through server endpoint and direct Firestore like writes ar
 test('Firestore rules scope approved entry reads to owners and active Crew members', () => {
   assert.match(rulesSource, /function canReadSocialEntry/);
   assert.match(rulesSource, /crewId == activeCrewId\(\)/);
-  assert.match(rulesSource, /allow get, list: if isAdmin\(\) \|\| canReadSocialEntry\(resource\.data\);/);
+  // Missing-doc gets are signed-in-only; existing docs stay owner/social/admin.
+  assert.match(rulesSource, /allow get: if \(resource == null && isSignedIn\(\)\) \|\| isAdmin\(\) \|\| canReadSocialEntry\(resource\.data\);/);
+  assert.match(rulesSource, /allow list: if isAdmin\(\) \|\| canReadSocialEntry\(resource\.data\);/);
   assert.doesNotMatch(rulesSource, /allow list: if isAdmin\(\) \|\| isApproved\(\);/);
 });
 

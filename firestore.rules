@@ -555,7 +555,10 @@ service cloud.firestore {
                ]);
       }
 
-      allow get: if resource == null || isAdmin() || canReadSocialEntry(resource.data);
+      // Missing-doc gets must stay signed-in-only. resource == null alone would
+      // let anonymous clients probe entry-id existence (null → allow vs private
+      // existing → deny). Existing docs still use owner/social/admin checks.
+      allow get: if (resource == null && isSignedIn()) || isAdmin() || canReadSocialEntry(resource.data);
       allow list: if isAdmin() || canReadSocialEntry(resource.data);
       
       // Proof submission must be allowed for signed-in users before review.

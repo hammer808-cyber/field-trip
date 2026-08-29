@@ -418,13 +418,23 @@ export async function submitTripEntry(
     // the linked proofReviews document used by diagnostics and admin tools.
     const reviewDocId = `review_${entryId}`;
     const reviewRef = doc(db, 'proofReviews', reviewDocId);
+    // Prefer the stable review_${entryId} id on first submit. If that doc already
+    // exists (repair / add-more-proof on the same entry), write a new sibling
+    // instead of overwriting admin/AI history. Players cannot update proofReviews.
+    let writableReviewRef = reviewRef;
+    try {
+      const reviewSnap = await getDoc(reviewRef);
+      if (reviewSnap.exists()) {
+        writableReviewRef = doc(db, 'proofReviews', `review_${entryId}_${timestamp}`);
+      }
+    } catch (peekErr) {
+      console.warn('[SUBMISSION_PIPELINE] proofReviews existence peek failed; attempting canonical create:', peekErr);
+    }
 
     try {
-      // Do not getDoc() first: missing-doc reads evaluate resource.data and can
-      // throw Null value errors under the current proofReviews read rule.
-      await setDoc(reviewRef, {
-        id: reviewDocId,
-        reviewId: reviewDocId,
+      await setDoc(writableReviewRef, {
+        id: writableReviewRef.id,
+        reviewId: writableReviewRef.id,
         entryId,
         submissionId: entryId,
         userId,

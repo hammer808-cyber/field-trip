@@ -29,6 +29,7 @@
     "test:player-level-rules": "firebase emulators:exec --project field-trip-player-progression-rules --only firestore \"tsx --test --test-force-exit src/__tests__/playerProgressionRules.integration.test.ts\"",
     "test:mission-scoring": "tsx --test src/__tests__/missionScoring.test.ts src/__tests__/missionBonuses.test.ts src/__tests__/missionHintFlow.test.ts src/__tests__/missionScoringSecurity.test.ts src/__tests__/playerProgressionAward.test.ts src/__tests__/postSubmitStarterGuidance.test.ts",
     "test:mission-scoring-rules": "firebase emulators:exec --project field-trip-mission-scoring-rules --only firestore \"tsx --test --test-force-exit src/__tests__/missionScoringRules.integration.test.ts\"",
+    "test:proof-submission-rules": "firebase emulators:exec --project field-trip-proof-submission-rules --only firestore \"tsx --test --test-force-exit src/__tests__/proofSubmissionRules.integration.test.ts\"",
     "emulators": "firebase emulators:start --only auth,firestore,storage --project field-trip-495823",
     "seed:emulator": "tsx scripts/seed-local-emulator.ts",
     "review:emulator": "tsx scripts/emulator-review.ts",
