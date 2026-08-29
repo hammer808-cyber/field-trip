@@ -145,6 +145,7 @@ import { DeckShelfPanel, type DeckShelfSection } from '../components/missions/De
 import { MissionActionPanel } from '../components/missions/MissionActionPanel';
 import { MissionLogbookPanel, type MissionLogbookItem } from '../components/missions/MissionLogbookPanel';
 import { MissionsGuidanceStrip, getMissionsStripRole } from '../components/missions/MissionsGuidanceStrip';
+import { SAVE_FOR_LATER_RECOVERY_NOTICE } from '../components/bottomNavPresentation';
 import { usePlayerGuidance } from '../hooks/usePlayerGuidance';
 import { resolveMissionsGuidancePrimaryAction } from '../logic/playerGuidance';
 import { acknowledgeStarterUnlockSeen } from '../services/starterUnlockAck';
@@ -1308,7 +1309,7 @@ export default function DeckPage() {
                         setIsDrawn(false);
                         setDrawnTrip(null);
                         setHasRevealedInActiveSession(false);
-                        setSavedForLaterNotice('Saved for later. Resume it from Missions when you are ready.');
+                        setSavedForLaterNotice(SAVE_FOR_LATER_RECOVERY_NOTICE);
                       } catch (err: any) {
                         console.error("[Deck] Failed to updateMissionCardStatus:", err.message);
                       }

@@ -19,6 +19,25 @@
   letter-spacing: .12em;
   text-transform: uppercase;
 }
+
+/* Dex special branch: CURRENT vs NEXT must differ by label + border pattern, not hue alone. */
+.ft-nav-dex--current .ft-nav-dex-icon {
+  border-style: solid;
+}
+.ft-nav-dex--attention .ft-nav-dex-icon {
+  border-style: dashed;
+  outline: 3px dashed #111;
+  outline-offset: 3px;
+}
+.ft-nav-dex-marker--here {
+  background: #ffe600;
+  color: #111;
+}
+.ft-nav-dex-marker--now {
+  background: #c7ff00;
+  color: #111;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .ft-bottom-nav [data-nav-state="attention"] .ft-nav-now-dot {
     animation: ft-nav-now-once 1.2s ease-out 1;
