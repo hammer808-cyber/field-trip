@@ -865,9 +865,15 @@ export default function DeckPage() {
       ? 'Pending review'
       : displayedMissionStatus === 'needs_more_proof'
         ? 'Needs more proof'
-        : displayedMissionStatus === 'rejected'
+      : displayedMissionStatus === 'rejected'
           ? 'Retry required'
-          : displayState.label;
+          : isDrawn && displayedMission
+            ? (guidance.state === 'REPAIR_PROOF'
+              ? 'Needs more proof'
+              : guidance.state === 'RETRY_REJECTED_PROOF'
+                ? 'Retry required'
+                : 'In progress')
+            : displayState.label;
   const missionPanelTitle = isDrawn && displayedMission
     ? displayedMission.title
     : deckLockState.locked
@@ -996,8 +1002,6 @@ export default function DeckPage() {
           </span>
         </div>
 
-        {deckDiagnosticsPanel}
-
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.75fr)] lg:gap-8">
           <main className="min-w-0 space-y-6">
             {savedForLaterNotice && (
@@ -1056,6 +1060,7 @@ export default function DeckPage() {
               eyebrow={isDrawn ? 'Current assignment' : 'Mission draw'}
               title={missionPanelTitle}
               status={missionPanelStatus}
+              className={cn(demoteMissionBrowsing && isDrawn && 'ring-4 ring-[var(--skin-secondary)] ring-offset-2')}
             >
         <AnimatePresence mode="wait">
           {!isDrawn ? (
@@ -1342,6 +1347,11 @@ export default function DeckPage() {
               items={logbookItems}
               onOpenFullLogbook={() => navigate('/profile?tab=logbook')}
             />
+            {deckDiagnosticsPanel && (
+              <div className="opacity-50">
+                {deckDiagnosticsPanel}
+              </div>
+            )}
           </aside>
         </div>
       </div>

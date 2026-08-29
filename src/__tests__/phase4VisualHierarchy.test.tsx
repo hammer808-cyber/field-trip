@@ -94,3 +94,10 @@ test('Missions strip is quiet for draw states and dominant for resume/repair', (
   assert.match(dominant, /data-strip-role="dominant"/);
   assert.match(dominant, /Resume Coolest Shadow/);
 });
+
+test('active mission panel status never falls back to Draw a Mission while resuming', () => {
+  const deckSource = readFileSync('src/pages/Deck.tsx', 'utf8');
+  assert.match(deckSource, /isDrawn && displayedMission/);
+  assert.match(deckSource, /'In progress'/);
+  assert.match(deckSource, /demoteMissionBrowsing && isDrawn/);
+});
