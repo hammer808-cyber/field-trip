@@ -163,17 +163,18 @@ Authenticated emulator: invite `LOCAL-DEV-PLAYER`, player `phase4-player@emulato
 
 ```text
 npm run test:guidance          # 53 pass (includes phase4VisualHierarchy)
-npm run test:starter
+npm run test:starter           # pass
 npm run test:trevor            # 25 pass
 npm run test:beta-blockers     # 28 pass
-npm run test:mission-scoring
-npm run test:emulator-guard
-npm run lint
-npx tsc --noEmit
-npm run build
-npm run test:firestore-rules   # 10 pass
+npm run test:mission-scoring   # 37 pass
+npm run test:emulator-guard    # 9 pass
+npm run lint / tsc --noEmit    # pass
+npm run build                  # pass
+firestore rules (alt ports)    # 10 pass — no rules files changed in this PR
 ```
 
-Live authenticated emulator testing covered Welcome → Invite → Sign Up → Legal → Quiz → Result → Field Kit → Basecamp (Today/Progress/More places) → Missions resume → Do This Mission → locked Voting/Dex/Big Board → Trevor collapsed/expanded.
+Live authenticated emulator testing covered Welcome → Invite → Sign Up → Legal → Quiz → Result → Field Kit → Basecamp (Today/Progress/More places) → Missions resume (**IN PROGRESS** status, not Draw) → Capture accept → locked Voting/Dex/Big Board → Trevor collapsed/expanded.
+
+Follow-up live check after diagnostics demotion + status fix: Basecamp Today dominant → Missions NOW + IN PROGRESS → Voting locked one CTA → return via Go do a mission.
 
 Guidance architecture untouched: presentation consumes `usePlayerGuidance()` / strip roles only.
