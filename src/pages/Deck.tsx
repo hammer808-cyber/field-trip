@@ -1308,7 +1308,7 @@ export default function DeckPage() {
                         setIsDrawn(false);
                         setDrawnTrip(null);
                         setHasRevealedInActiveSession(false);
-                        setSavedForLaterNotice('Saved on Missions. Find it in the deck shelf when you want it back.');
+                        setSavedForLaterNotice('Saved for later. Resume it from Missions when you are ready.');
                       } catch (err: any) {
                         console.error("[Deck] Failed to updateMissionCardStatus:", err.message);
                       }

@@ -38,12 +38,20 @@ function snapshot(overrides: Partial<PlayerGuidanceSnapshot> = {}): PlayerGuidan
 
 test('nav markup distinguishes current, attention, locked, and normal states', () => {
   assert.match(bottomNav, /data-nav-state=\{navState\}/);
-  assert.match(bottomNav, /data-nav-state=\{isActive \? 'current' : 'attention'\}/);
+  assert.match(bottomNav, /data-nav-state=\{dexNavState\}/);
+  assert.match(bottomNav, /dexNavState === 'current'/);
+  assert.match(bottomNav, /dexNavState === 'attention'/);
   assert.match(bottomNav, />Locked</);
   assert.match(bottomNav, />Now</);
   assert.match(bottomNav, />Here</);
   assert.match(bottomNav, /showDexSpecial = itemPathname === '\/dex' && dexUnlocked && \(isActive \|\| isHighlightedDestination\)/);
   assert.doesNotMatch(bottomNav, /special: dexUnlocked/);
+});
+
+test('save-for-later notice points at Resume on Missions, not the deck shelf', () => {
+  const deckSource = readFileSync('src/pages/Deck.tsx', 'utf8');
+  assert.match(deckSource, /Resume it from Missions when you are ready/);
+  assert.doesNotMatch(deckSource, /Find it in the deck shelf/);
 });
 
 test('Basecamp keeps Loteria and Settings out of the above-the-fold utility row', () => {

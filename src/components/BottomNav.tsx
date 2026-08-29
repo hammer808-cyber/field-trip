@@ -106,6 +106,7 @@ export function BottomNav() {
         else if (itemPathname === '/dex') dataOnboarding = 'dex-nav';
 
         if (showDexSpecial) {
+          const dexNavState = isActive ? 'current' : 'attention';
           return (
             <Link
               key={item.path}
@@ -113,21 +114,27 @@ export function BottomNav() {
               data-onboarding={dataOnboarding}
               data-nav-item={itemPathname}
               data-nav-special="true"
-              data-nav-state={isActive ? 'current' : 'attention'}
+              data-nav-state={dexNavState}
+              data-nav-attention={dexNavState === 'attention' ? 'true' : 'false'}
               data-active={isActive ? 'true' : 'false'}
+              aria-current={isActive ? 'page' : undefined}
               aria-label={isActive ? `${item.label}, you are here` : `${item.label}, go here next`}
               className="relative -translate-y-6 group flex justify-center z-40"
             >
               <div className={cn(
-                "w-16 h-16 flex items-center justify-center border-4 flex-col shadow-2xl active:scale-90 transition-all group-hover:scale-110",
+                "relative w-16 h-16 flex items-center justify-center border-4 flex-col shadow-2xl active:scale-90 transition-all group-hover:scale-110",
                 isBaja ? "bg-white border-baja-pink text-baja-pink rounded-[1.25rem]" :
                 isDiamond ? "bg-black border-white text-white rounded-none shadow-[0_0_20px_rgba(255,255,255,0.3)]" :
                 isHeat ? "bg-white border-white text-heat-pink rounded-full shadow-md" :
-                "bg-brand-orange text-white border-[4px] border-on-surface rounded-[1.5rem] shadow-[6px_6px_0px_rgba(0,0,0,1)] active:shadow-none translate-y-0 active:translate-y-0.5 hover:rotate-[-2deg]"
+                "bg-brand-orange text-white border-[4px] border-on-surface rounded-[1.5rem] shadow-[6px_6px_0px_rgba(0,0,0,1)] active:shadow-none translate-y-0 active:translate-y-0.5 hover:rotate-[-2deg]",
+                dexNavState === 'attention' && !isBaja && !isDiamond && !isHeat && "ring-4 ring-brand-lime ring-offset-2"
               )}>
                 <item.icon className={cn("w-8 h-8 stroke-[3]", !isBaja && !isDiamond && !isHeat && "text-white")} />
                 {!isBaja && !isDiamond && !isHeat && (
                   <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/25 to-transparent pointer-events-none rounded-t-xl" />
+                )}
+                {dexNavState === 'attention' && (
+                  <span className="ft-nav-now-dot left-auto right-0 top-0" aria-hidden="true" />
                 )}
               </div>
               <div className={cn(
@@ -139,6 +146,15 @@ export function BottomNav() {
               )}>
                 {item.label}
               </div>
+              {dexNavState === 'current' ? (
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 z-50 border-2 border-on-surface bg-brand-yellow px-2 py-0.5 font-mono text-[8px] font-black uppercase tracking-widest text-on-surface shadow-[2px_2px_0_black]">
+                  Here
+                </span>
+              ) : (
+                <span className="ft-nav-now-label absolute -top-3 left-1/2 -translate-x-1/2 z-50 shadow-[2px_2px_0_black]">
+                  Now
+                </span>
+              )}
             </Link>
           );
         }

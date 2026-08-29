@@ -143,6 +143,7 @@ Authenticated emulator: invite `LOCAL-DEV-PLAYER`, player `phase4-player@emulato
 - Stronger empty Logbook / no-rewards surfaces when player has history elsewhere
 - Ensure Big Board locked path stays identical to Voting/Dex gated panel on all skins
 - Resume state: consider collapsing ActiveDeckPanel further on small viewports so Do This Mission never competes with deck art
+- Surface saved missions in a visible Missions-adjacent list (Dex `missions` tab exists but is not in the Dex hero tabs)
 
 ### OPTIONAL POLISH
 - Nav Locked label size vs Here/Now (readable but still small on dense skins)
