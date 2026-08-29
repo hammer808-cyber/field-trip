@@ -330,13 +330,14 @@ export async function submitTripEntry(
 
     if (entryId) {
       entryRef = doc(db, 'entries', entryId);
-      await setDoc(entryRef, { ...finalEntryData, id: entryId }, { merge: true });
+      await setDoc(entryRef, { ...finalEntryData, id: entryId, entryId }, { merge: true });
     } else {
-      const entryRefDoc = await addDoc(collection(db, 'entries'), finalEntryData);
-      entryRef = entryRefDoc;
-      entryId = entryRefDoc.id;
-      // Self-heal id field
-      await updateDoc(entryRef, { id: entryId, entryId: entryId }); // Keeping both for safety
+      // Predetermine the id so create can include it in one rules-valid write.
+      // A follow-up updateDoc({ id }) is rejected by Firestore rules (id is not
+      // in the player-updatable key allowlist) and previously aborted submit.
+      entryRef = doc(collection(db, 'entries'));
+      entryId = entryRef.id;
+      await setDoc(entryRef, { ...finalEntryData, id: entryId, entryId });
     }
 
     const canonicalEntryForValidation = {
@@ -380,29 +381,13 @@ export async function submitTripEntry(
       );
 
       const entryUpdate: any = {
-        status: 'pending_review', // Explicitly keep as pending_review to restrict self-approvals
-        reviewStatus: 'pending_review', // Same
-        proofCheckId: review.id,
-        aiRecommendation: review.status,
-        aiAnalysisStatus: 'completed',
-        adminNotes: review.reviewNotes,
+        // Players may only patch a small allowlisted key set on entries.
+        // AI / trust metadata is persisted on proofReviews below.
+        status: 'pending_review',
+        reviewStatus: 'pending_review',
+        submissionStatus: 'pending_review',
+        proofStatus: 'pending_review',
         updatedAt: serverTimestamp(),
-        
-        // Save all multi-signal pipeline variables
-        proofTrustScore: (review as any).proofTrustScore !== undefined ? (review as any).proofTrustScore : 70,
-        aiRiskScore: (review as any).aiRiskScore !== undefined ? (review as any).aiRiskScore : 20,
-        riskLevel: (review as any).riskLevel || 'low',
-        riskReasons: (review as any).riskReasons || [],
-        metadataSummary: (review as any).metadataSummary || '',
-        duplicateWarning: (review as any).duplicateWarning || null,
-        duplicateReusedDesc: (review as any).duplicateReusedDesc || null,
-        receiptChallengeResult: (review as any).receiptChallengeResult || 'unverified',
-        imageHash: (review as any).imageHash || 'no-image',
-        perceptualHash: (review as any).perceptualHash || '',
-        cameraMake: (review as any).cameraMake || null,
-        cameraModel: (review as any).cameraModel || null,
-        editingSoftware: (review as any).editingSoftware || null,
-        missionMatchScore: (review as any).missionMatchScore || 100
       };
 
       await updateDoc(doc(db, 'entries', entryId), entryUpdate);
@@ -415,15 +400,17 @@ export async function submitTripEntry(
         reviewNotes: `AI analysis failed. Send to manual admin review. Error: ${reviewErr?.message || reviewErr}`,
         missingRequirements: []
       };
-      await updateDoc(doc(db, 'entries', entryId), {
-        status: 'pending_review',
-        reviewStatus: 'pending_review',
-        proofCheckId: review.id,
-        aiRecommendation: 'pending_review',
-        aiAnalysisStatus: 'failed',
-        adminNotes: review.reviewNotes,
-        updatedAt: serverTimestamp()
-      });
+      try {
+        await updateDoc(doc(db, 'entries', entryId), {
+          status: 'pending_review',
+          reviewStatus: 'pending_review',
+          submissionStatus: 'pending_review',
+          proofStatus: 'pending_review',
+          updatedAt: serverTimestamp()
+        });
+      } catch (pendingPatchErr) {
+        console.warn('[SUBMISSION_PIPELINE] Pending status patch failed after AI error; entry may already be pending_review:', pendingPatchErr);
+      }
     }
 
     // Keep the admin review queue in sync with the canonical entry.
