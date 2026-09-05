@@ -125,21 +125,34 @@ Bottom nav unchanged (Phase 4 Here/Now). Destination headers may include back la
 
 ## Before / after screenshots
 
-Authenticated emulator walkthrough screenshots land in `/opt/cursor/artifacts/` after live testing. This section is updated when those captures exist.
+Authenticated emulator walkthrough (`LOCAL-DEV-PLAYER`, then an established fixture with 3 approved Starter missions).
 
-Planned captures:
+### New player (locked / empty)
 
-- Dex collection / empty / locked
-- Profile / Logbook / Settings
-- Field Identity
-- Crew empty / populated
-- Big Board
-- Voting hub / ballot locked / tribunal / awards
-- Lotería board
-- Frontlines locked
-- Banned / error panel (static)
-- Mobile 320 / 375 / 390 / 430
-- Skins: classic, baja-bratz, slippery-diamond, heatwave
+- Dex locked + Go do a mission: `dex_locked.webp`
+- Voting / Big Board / Lotería locked: `voting_locked.webp`, `big_board_locked.webp`, `loteria_locked.webp`
+- Crew empty clubhouse: `crew_empty.webp`
+- Logbook empty: `logbook_empty.webp`
+- Settings utility groups: `settings_utility.webp`
+- Ballot locked with editorial header: `voting_ballot_locked.webp`
+- Awards honors pending: `voting_awards.webp`
+
+### Established (Starter complete)
+
+- Dex collector cabinet: `established_dex.webp`
+- Profile field record + Pending / Needs more proof / Approved: `established_profile.webp`
+- Logbook mission history: `established_logbook.webp`
+- Settings backstage: `established_settings.webp`
+- Field ID: `established_field_id.webp`
+- Frontlines chrome scoreboard (retained, flagged legacy): `established_frontlines.webp`
+- Crew empty (still no crew): `established_crew.webp`
+- Voting hub / Big Board / Lotería: `established_voting.webp`, `established_big_board.webp`, `established_loteria.webp`
+
+### Mobile
+
+- 320 Profile / Dex / Crew / Frontlines: `mobile_320_profile.webp`, `mobile_320_dex.webp`, `mobile_320_crew.webp`, `mobile_320_frontlines.webp`
+- 375 / 390 / 430 Profile: `mobile_375_profile.webp`, `mobile_390_profile.webp`, `mobile_430_profile.webp`
+- 430 Dex / Frontlines: `mobile_430_dex.webp`, `mobile_430_frontlines.webp`
 
 ---
 
@@ -165,27 +178,27 @@ Introduced / reused (no mass rewrite):
 
 ## Mobile results
 
-| Width | Expectation | Result |
-| --- | --- | --- |
-| 320 | Hero clamp, no overflow, 44px targets | Code: `.ft-page-hero h1` clamp + editorial `break-words`. Live verification pending. |
-| 375 | iPhone SE-class | Pending live |
-| 390 | iPhone 14-class | Pending live |
-| 430 | iPhone 16 Pro Max-class | Pending live |
+| Width | Result |
+| --- | --- |
+| 320 | Profile / Dex / Crew / Frontlines: editorial titles clamp, tabs remain tappable, bottom nav readable. Trevor pill can cover lower identity content (existing guidance chrome). Field ID category labels truncate (`BACKGR`). |
+| 375 | Profile hierarchy intact. |
+| 390 | Primary capture width. Dex collector cabinet + Profile chips + Voting hub all readable. |
+| 430 | Profile / Dex / Frontlines: no horizontal overflow observed. |
 
-Code already: horizontal tab scroll on editorial heroes; body gutter 16px; Lotería tighter 3-col grid; Capture/result quality bar retained.
+No first-viewport giant heroes on cleaned destinations. Primary CTAs (Create Crew, Save look, Vote now) appear without needing a full-page scroll past a decorative hero.
 
 ---
 
 ## Skin results
 
-| Skin | id | Result |
-| --- | --- | --- |
-| Default | `classic` | Tokens `--skin-*` drive editorial heroes. Pending live. |
-| Baja | `baja-bratz` | Frontlines keeps Baja ranking labels inside content, not a second hero. Pending live. |
-| Diamond | `slippery-diamond` | Chrome heroes stay high-contrast white-on-dark. Pending live. |
-| Heat | `heatwave` | Pending live. |
+Current registry (`src/skins/registry.ts`) ships: `classic`, `arcade`, `journal` (Field Notebook), `clubhouse-wall`, `baja-bratz`.
 
-Hierarchy must survive skins: DISPLAY title, body subtitle, one info card, one primary CTA.
+| Skin | Result |
+| --- | --- |
+| Default `classic` | Verified on Dex, Profile, Logbook, Settings, Crew, Voting, Big Board, Lotería, Field ID, Frontlines. Hierarchy survives: DISPLAY title, subtitle, info card, one primary CTA. Nav Here/Now remain labeled, not color-only. |
+| Baja `baja-bratz` | Present in Settings Field Kit chooser. Automated lock-in did not persist in this pass (preview vs apply). Baja still has dedicated ranking copy inside Frontlines content. |
+| Diamond `slippery-diamond` | **Not in the current player skin registry.** Leftover `isDiamond` branches exist in Frontlines / Capture / ProofCorrection. Not live-testable until the skin is re-registered. |
+| Heat `heatwave` | **Not in the current player skin registry.** Same leftover branches. Heatwave remains a deck/season id, not a visual skin. |
 
 ---
 
@@ -218,20 +231,21 @@ Explicitly **not** in this pass:
 
 ## Tests
 
-Exact results filled after the regression run.
+| Suite | Command | Result |
+| --- | --- | --- |
+| Guidance + Phase 4 + this pass | `npm run test:guidance` | pass (includes `globalPlayerScreenCleanup.test.ts`) |
+| Starter | `npm run test:starter` | pass |
+| Trevor | `npm run test:trevor` | pass |
+| Beta blockers / routes | `npm run test:beta-blockers` | pass |
+| Mission scoring | `npm run test:mission-scoring` | pass |
+| Emulator guard | `npm run test:emulator-guard` | pass |
+| Starter draw | `npm test` | pass |
+| Physical memory / logbook | `npm run test:physical-memory` | pass |
+| TypeScript | `npm run lint` (`tsc --noEmit`) | pass |
+| Build | `npm run build` | pass |
+| Firestore rules | `npm run test:firestore-rules` | pass (10/10) |
 
-Planned:
-
-- `npm run test:guidance` (includes `globalPlayerScreenCleanup.test.ts` + Phase 4)
-- starter / Trevor / beta blockers / mission scoring
-- emulator guard
-- Firestore rules
-- route/unlock
-- presentation tests
-- `tsc --noEmit`
-- `npm run build`
-
-`tsc --noEmit` already passed during implementation.
+No gameplay rules were changed to make tests pass. Route unlock test now asserts Ballot uses `GatedFeaturePanel` instead of the old “Ballot booth locked” copy.
 
 ---
 
@@ -240,8 +254,8 @@ Planned:
 ### HIGH
 
 - Frontlines still contains a full second ranking UI under the new header. Consolidation needs a product decision (Field Check / Sabotage).
-- Field Identity vs Profile identity editor duplication.
-- Authenticated live screenshot matrix (new / mid / established × skins × 320–430) still required on this PR.
+- Field Identity vs Profile identity editor duplication. New players cannot reach `/field-id` until Starter is complete (`onboardingCompleted` in AppContext is canonical Starter complete).
+- RewardFeedback starter-unlock modal still leads with `DATA_STREAM_CONFIRMED` / `BUREAU_CREDIT_UNLOCKED` (not restyled in this pass; covers destinations until dismissed).
 
 ### MEDIUM
 
@@ -249,13 +263,17 @@ Planned:
 - Awards category chips still use `CAT_n` flavor; keep secondary.
 - Dex `missions` / `decks` / `badges` tab types exist in code but not in the header.
 - Profile Vault vs Dex overlap.
+- Field ID category tabs truncate at 320–390 (`BACKGR`).
+- Diamond / Heatwave leftover `isDiamond` / `isHeat` branches in several pages, but those skins are not in `APP_SKINS`.
 - Some Capture / Missions interior chrome is Phase 4 quality and was intentionally not restyled.
+- Baja / Arcade live lock-in not fully captured after Starter unlock modal.
 
 ### OPTIONAL
 
 - Welcome collage personality vs destination departments (already a different “door” on purpose).
 - Skin-specific Frontlines ranking nicknames (Beach Babes, etc.) could move to a skin overlay later.
 - `FieldButton` not yet swapped onto every legacy `bureau-btn` inside Crew populated tabs (upcoming Crew rebuild).
+- Trevor “Draw another mission” pill can sit on top of Profile identity at 320px (existing guidance chrome).
 
 ---
 
