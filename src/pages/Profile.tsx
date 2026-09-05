@@ -23,7 +23,6 @@ import { cn } from '../lib/utils';
 import { Card, FieldBadge, FieldCard, FieldCTA } from '../components/UI';
 import { SkinSelector } from '../components/SkinSelector';
 import { BadgeCollection } from '../components/BadgeCollection';
-// Removed: import { StatusSticker } from '../components/StickerDecals';
 import { AvatarPreview } from '../components/AvatarPreview';
 import { FeaturedStickerShowcase } from '../components/stickers/FeaturedStickerShowcase';
 import { DEFAULT_AVATAR, AVATAR_MANIFEST } from '../constants/avatarAssets';
@@ -40,6 +39,9 @@ import {
   getLevelProgress,
 } from '../logic/playerLevel';
 import { updateFeedPrivacy } from '../services/userService';
+import { FieldPageHero } from '../components/FieldPageHero';
+import { EmptyStatePanel } from '../components/FieldtripLoader';
+import { FieldButton, FieldSection, FieldStatusChip, PlayerPageBody, PlayerPageShell } from '../components/player';
 
 export default function ProfilePage() {
   const { 
@@ -183,123 +185,42 @@ export default function ProfilePage() {
   const nmpCount = needsMoreProofChallengeIds?.size || 0;
 
   const handleSignOut = async () => {
-    if (confirm("Sign out of Fieldtrip? Active session will be ended.")) {
+    if (confirm("Sign out of Fieldtrip?")) {
       await signOut();
       navigate('/');
     }
   };
 
   return (
-    <div className="skin-page skin-profile skin-logbook page-scroll px-4 sm:px-8 pt-6 sm:pt-12 max-w-2xl mx-auto relative bg-[#F9F7F2] ft-paper-texture min-h-screen">
-      {/* Global Grain Overlay */}
-      <div className="fixed inset-0 pointer-events-none opacity-[0.03] z-50 bg-[url('https://www.transparenttextures.com/patterns/felt.png')]" />
-      
-      {/* 1. Header: Your Field Profile */}
-      <header className="mb-10 space-y-6 relative">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 mb-1">
-               <div className="h-4 w-1 bg-brand-cyan shadow-[1px_1px_0px_black]" />
-               <span className="text-[10px] font-mono font-black text-on-surface/30 uppercase tracking-[0.3em]">{getDisplayLabel('FIELD_STATION')}</span>
-            </div>
-            <h1 className="text-5xl sm:text-6xl font-black tracking-tighter text-on-surface uppercase italic leading-[0.8] drop-shadow-[4px_4px_0px_white]">
-              PROFILE <span className="text-brand-magenta">_</span>
-            </h1>
-            <p className="text-[10px] font-mono font-black text-on-surface/40 uppercase tracking-[0.2em] pt-2">
-              {getDisplayLabel('AGENT_ID')} // {profile?.name || 'Explorer'}
-            </p>
-            <button 
-              onClick={() => {
-                setEditName(profile?.name || '');
-                if (profile?.avatar) {
-                  setEditAvatar({ ...profile.avatar });
-                } else {
-                  setEditAvatar({ ...DEFAULT_AVATAR });
-                }
-                setIsEditModalOpen(true);
-              }}
-              className="mt-1.5 inline-flex items-center gap-1 text-[9px] font-mono font-bold text-brand-orange hover:text-on-surface border border-brand-orange/20 hover:border-on-surface px-2 py-0.5 rounded transition-all bg-brand-orange/[0.03] cursor-pointer"
-            >
-              <Sparkles className="w-2.5 h-2.5" /> Edit Profile Dossier
-            </button>
-          </div>
-          <div className="relative group">
-            <div className="bg-white border-[3.5px] border-on-surface p-1 shadow-[8px_8px_0px_black] group-hover:rotate-3 transition-transform">
-              <AvatarPreview 
-                avatar={profile?.avatar || DEFAULT_AVATAR} 
-                size="lg" 
-                className="w-16 h-16 border-none" 
-                showBackground={false}
-              />
-            </div>
-            <div className="absolute -top-2 -right-2 transform rotate-12">
-               <FieldBadge size="xs" variant="sticker" color="lime" className="px-2 py-0.5">ACTIVE</FieldBadge>
-            </div>
-          </div>
-        </div>
+    <PlayerPageShell department={activeTab === 'history' ? 'logbook' : activeTab === 'settings' ? 'settings' : 'profile'} className="skin-profile skin-logbook">
+      <FieldPageHero
+        variant="editorial"
+        department={activeTab === 'history' ? 'logbook' : activeTab === 'settings' ? 'settings' : 'profile'}
+        eyebrow={activeTab === 'history' ? 'Mission history' : activeTab === 'settings' ? 'Backstage' : 'Field record'}
+        title={activeTab === 'history' ? 'LOGBOOK' : activeTab === 'settings' ? 'SETTINGS' : 'PROFILE'}
+        subtitle={
+          activeTab === 'history'
+            ? 'What have I done?'
+            : activeTab === 'settings'
+              ? 'Controls. No extra game mode energy.'
+              : 'Who am I in Fieldtrip and how am I doing?'
+        }
+        backgroundIcon={activeTab === 'history' ? <History className="h-64 w-64" /> : activeTab === 'settings' ? <Settings className="h-64 w-64" /> : <User className="h-64 w-64" />}
+        infoCardLabel={activeTab === 'settings' ? 'Account' : 'Level'}
+        infoCardValue={activeTab === 'settings' ? (profile?.name || 'Explorer') : level}
+        infoCardSubtext={activeTab === 'settings' ? 'Utility controls' : displayedLevelTitle}
+        infoCardAccent={activeTab === 'history' ? 'lime' : activeTab === 'settings' ? 'blue' : 'pink'}
+        tabs={[
+          { id: 'overview', label: 'Overview' },
+          { id: 'history', label: 'Logbook' },
+          { id: 'vault', label: 'Vault' },
+          { id: 'settings', label: 'Settings' },
+        ]}
+        activeTab={activeTab}
+        onTabChange={(id) => selectProfileTab(id as ProfileTab)}
+      />
 
-        {/* Level & Rank Summary */}
-        <div className="grid grid-cols-1 gap-5 pt-4 sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-          <FieldCard variant="paper" className="p-5 rotate-[-1deg] hover:rotate-0 transition-transform">
-            <div className="flex items-start gap-4">
-              <div className="w-14 h-14 shrink-0 bg-on-surface text-brand-lime border-[3px] border-on-surface flex items-center justify-center font-display font-black italic text-2xl shadow-[4px_4px_0px_black]">
-              {level}
-              </div>
-              <div className="min-w-0 flex-1 space-y-1">
-                <p className="text-[9px] font-mono font-black opacity-40 uppercase tracking-widest leading-none">Level {level} // Bureau Rank</p>
-                <p className="font-display font-black uppercase italic text-lg leading-tight text-on-surface break-words">{displayedLevelTitle}</p>
-                {hasClassifiedRank && fieldTypeData?.name && (
-                  <p className="text-[9px] font-mono font-bold uppercase tracking-wider text-brand-orange">{fieldTypeData.name}</p>
-                )}
-              </div>
-            </div>
-            <div className="mt-5 space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[9px] font-black uppercase tracking-wide">
-                <span>{levelProgress.xp.toLocaleString()} / {levelProgress.nextLevel.minXp.toLocaleString()} XP</span>
-                <span className="text-brand-orange">{levelProgress.xpToNextLevel.toLocaleString()} XP to next dubious promotion</span>
-              </div>
-              <div className="h-3 overflow-hidden border-2 border-on-surface bg-white" role="progressbar" aria-label="Lifetime XP progress" aria-valuemin={levelProgress.currentLevelMinXp} aria-valuemax={levelProgress.nextLevel.minXp} aria-valuenow={levelProgress.xp}>
-                <div className="h-full bg-brand-lime motion-reduce:transition-none" style={{ width: `${levelProgress.progressPercent}%` }} />
-              </div>
-            </div>
-          </FieldCard>
-          
-          <FieldCard variant="paper" className="p-5 flex items-center gap-4 rotate-[1.5deg] hover:rotate-0 transition-transform bg-[#FFFDF5]">
-             <div className="w-12 h-12 bg-brand-orange text-white border-[3px] border-on-surface flex items-center justify-center font-display font-black italic text-xl shadow-[4px_4px_0px_black]">
-               #{profile?.weeklyRank || '--'}
-             </div>
-             <div className="space-y-0.5">
-               <p className="text-[9px] font-mono font-black opacity-30 uppercase tracking-widest leading-none">{getDisplayLabel('WEEKLY_RANK')}</p>
-               <p className="font-display font-black uppercase italic text-sm text-on-surface">{Number(profile?.weeklyXp || 0).toLocaleString()} Weekly XP</p>
-             </div>
-          </FieldCard>
-        </div>
-      </header>
-      
-      {/* 2. Navigation Tabs - FieldTrip Style */}
-      <div className="relative z-10 flex gap-0.5 mb-10 border-b-[8px] border-on-surface pt-2 select-none overflow-x-auto no-scrollbar scroll-smooth">
-        {[
-          { id: 'overview', label: 'Overview', icon: Shield },
-          { id: 'history', label: 'Logbook', icon: History },
-          { id: 'vault', label: 'Vault', icon: BarChart3 },
-          { id: 'settings', label: 'Settings', icon: Settings }
-        ].map(tab => (
-          <button 
-            key={tab.id}
-            onClick={() => selectProfileTab(tab.id as ProfileTab)}
-            className={cn(
-              "px-6 py-4 font-display uppercase tracking-tighter text-xl transition-all font-black shrink-0 flex items-center gap-2 italic",
-              "border-t-[4px] border-x-[4px] border-on-surface rounded-t-[1.5rem] -mb-[8px] cursor-pointer",
-              activeTab === tab.id 
-                ? "bg-white text-on-surface z-30 shadow-[0_-8px_0px_white,6px_0px_0px_black]" 
-                : "bg-stone-200/50 text-on-surface/40 hover:bg-white/50 hover:text-on-surface"
-            )}
-          >
-            <tab.icon className={cn("w-4 h-4", activeTab === tab.id ? "text-brand-orange" : "text-on-surface/20")} />
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <PlayerPageBody>
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -310,27 +231,21 @@ export default function ProfilePage() {
           transition={{ duration: 0.2 }}
         >
           {activeTab === 'overview' && (
-            <div className="space-y-10">
-              {/* Quick Summary Section */}
-              <div className="grid grid-cols-3 gap-4">
+            <div className="mx-auto max-w-2xl space-y-10">
+              <div className="grid grid-cols-3 gap-3">
                 {[
-                  { label: 'Pending', count: pendingCount, color: 'text-brand-orange', bg: 'bg-[#FFFAF5]' },
-                  { label: 'Retries', count: nmpCount, color: 'text-brand-magenta', bg: 'bg-[#FFF5F8]' },
-                  { label: 'Verified', count: approvedEntriesCount, color: 'text-brand-lime', bg: 'bg-[#F2FAF2]' }
-                ].map((stat, i) => (
-                  <FieldCard key={i} variant="paper" className={cn("p-4 flex flex-col items-center gap-1", stat.bg)}>
-                    <p className={cn("text-4xl font-black font-display italic leading-none", stat.color)}>{stat.count}</p>
-                    <p className="text-[8px] font-mono font-black uppercase opacity-40 tracking-widest">{stat.label}</p>
+                  { label: 'Pending', count: pendingCount, status: 'pending' as const },
+                  { label: 'Needs more proof', count: nmpCount, status: 'needs_more_proof' as const },
+                  { label: 'Approved', count: approvedEntriesCount, status: 'approved' as const }
+                ].map((stat) => (
+                  <FieldCard key={stat.label} variant="paper" className="flex flex-col items-center gap-2 p-4">
+                    <p className="font-display text-3xl font-black italic leading-none">{stat.count}</p>
+                    <FieldStatusChip status={stat.status} />
                   </FieldCard>
                 ))}
               </div>
 
-              {/* Identity Section */}
-              <section className="space-y-4">
-                <div className="flex items-center gap-3 px-1">
-                  <User className="w-4 h-4 text-brand-magenta" />
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-on-surface/30">Field Identity</h3>
-                </div>
+              <FieldSection eyebrow="Identity" title="Explorer Type">
                 <FieldCard variant="paper" className="p-8 bg-gradient-to-br from-white to-[#F9F7F2] border-[4px] border-on-surface shadow-[10px_10px_0px_black] rounded-[2.5rem] relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-brand-magenta/5 border-l-2 border-b-2 border-brand-magenta/10 -rotate-12 pointer-events-none" />
                   
@@ -348,7 +263,7 @@ export default function ProfilePage() {
                     
                     <div className="flex-1 space-y-3 text-center sm:text-left">
                       <div className="flex flex-col items-center sm:items-start gap-1">
-                        <FieldBadge variant="sticker" color="purple" size="xs" className="px-2 py-0.5 italic">{getDisplayLabel('RANK_VERIFIED')}</FieldBadge>
+                        <FieldBadge variant="sticker" color="purple" size="xs" className="px-2 py-0.5 italic">{fieldTypeData?.name ? 'Explorer Type' : 'Unclassified'}</FieldBadge>
                         <h4 className="text-3xl font-black uppercase italic tracking-tighter text-on-surface leading-none mt-1">{fieldTypeData?.name || 'Trailblazer'}</h4>
                       </div>
                       <p className="text-sm font-serif italic font-bold opacity-60 leading-relaxed max-w-sm">
@@ -365,41 +280,36 @@ export default function ProfilePage() {
                             }
                             setIsEditModalOpen(true);
                           }}
-                          className="px-4 py-2 bg-brand-orange text-white border-2 border-on-surface font-display font-black uppercase italic tracking-tight shadow-[4px_4px_0px_black] hover:bg-on-surface hover:text-white transition-all rounded-xl text-xs flex items-center gap-2 active:translate-y-0.5 active:shadow-none"
+                          className="flex min-h-11 items-center gap-2 border-2 border-on-surface bg-brand-orange px-4 py-2 font-display text-xs font-black uppercase italic text-white shadow-[4px_4px_0px_black] active:translate-y-0.5 active:shadow-none"
                         >
                           <Sparkles className="w-3.5 h-3.5 text-brand-lime" />
-                          Edit Profile
+                          Edit profile
                         </button>
 
                         <button 
                           onClick={() => navigate('/field-id')}
-                          className="text-[10px] font-mono font-black uppercase tracking-[0.2em] text-on-surface/40 hover:text-brand-orange flex items-center justify-center sm:justify-start gap-2 transition-all animate-fade-in"
+                          className="flex min-h-11 items-center gap-2 font-sans text-sm font-bold text-on-surface/60 hover:text-brand-orange"
                         >
-                          Adjust Dossier <ChevronRight className="w-3 h-3 bg-on-surface text-brand-lime rounded p-0.5" />
+                          Open Field Identity <ChevronRight className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
                   </div>
                 </FieldCard>
-              </section>
+              </FieldSection>
 
               <FeaturedStickerShowcase
                 userId={user?.uid}
                 onManage={() => navigate('/dex/stickers')}
               />
 
-              {/* Progress Summary */}
-              <section className="space-y-4">
-                <div className="flex items-center gap-3 px-1">
-                  <Zap className="w-4 h-4 text-brand-lime" />
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-on-surface/30">Bureau Standing</h3>
-                </div>
+              <FieldSection eyebrow="Progress" title="How I'm doing">
                 <FieldCard variant="paper" className="p-8 bg-white border-[4px] border-on-surface shadow-[10px_10px_0px_black] rounded-[2.5rem]">
                   <div className="space-y-6">
                     <div className="flex justify-between items-end">
                       <div className="space-y-1">
                          <p className="text-4xl font-display font-black italic uppercase tracking-tighter text-on-surface leading-none">Level {level}</p>
-                         <p className="text-[10px] font-mono font-black uppercase tracking-widest text-on-surface/30 px-1">{getDisplayLabel('PROTOCOL_STANDING')}</p>
+                         <p className="text-[10px] font-mono font-black uppercase tracking-widest text-on-surface/30 px-1">{displayedLevelTitle}</p>
                       </div>
                       <p className="text-[10px] font-mono font-black text-on-surface bg-brand-cyan/20 px-2 py-1 rounded border border-on-surface/10">
                         {levelProgress.xp.toLocaleString()} / {levelProgress.nextLevel.minXp.toLocaleString()} XP
@@ -447,7 +357,7 @@ export default function ProfilePage() {
                     </div>
                   </div>
                 </FieldCard>
-              </section>
+              </FieldSection>
 
               {/* Quick Links */}
               <div className="grid grid-cols-2 gap-4 pb-8">
@@ -458,7 +368,7 @@ export default function ProfilePage() {
                    <div className="w-12 h-12 bg-brand-magenta/10 border-2 border-brand-magenta/20 rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-transform">
                       <History className="w-6 h-6 text-brand-magenta" />
                    </div>
-                   <span className="text-[10px] font-black uppercase tracking-[0.25em] text-on-surface">Open Logbook</span>
+                   <span className="text-sm font-black uppercase tracking-wide text-on-surface">Open Logbook</span>
                  </button>
                  <button 
                    onClick={() => selectProfileTab('vault')}
@@ -467,85 +377,73 @@ export default function ProfilePage() {
                    <div className="w-12 h-12 bg-brand-orange/10 border-2 border-brand-orange/20 rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-transform">
                       <BarChart3 className="w-6 h-6 text-brand-orange" />
                    </div>
-                   <span className="text-[10px] font-black uppercase tracking-[0.25em] text-on-surface">Open Vault</span>
+                   <span className="text-sm font-black uppercase tracking-wide text-on-surface">Open Vault</span>
                  </button>
               </div>
             </div>
           )}
           
           {activeTab === 'vault' && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-               <header className="space-y-1 mb-8">
-                <h2 className="text-3xl font-black tracking-tighter text-on-surface uppercase italic">The Vault</h2>
-                <p className="text-xs font-mono font-bold text-on-surface/40 uppercase tracking-widest">Achieved Sector Badges</p>
-              </header>
+            <div className="mx-auto max-w-2xl space-y-6">
+              <p className="font-sans text-sm font-bold text-on-surface/70">Badges and achievements you've earned.</p>
               <BadgeCollection progress={badgeProgress || []} />
             </div>
           )}
 
           {activeTab === 'history' && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-               <header className="space-y-1 mb-8">
-                <h2 className="text-3xl font-black tracking-tighter text-on-surface uppercase italic">Logbook</h2>
-                <p className="text-xs font-mono font-bold text-on-surface/40 uppercase tracking-widest">Your private field journal</p>
-              </header>
-              <LogbookFlipbook
-                entries={logbookEntries}
-                displayName={profile?.displayName || profile?.username || 'Field Agent'}
-                seasonName={activeSeason?.title || activeSeason?.id || 'Current Season'}
-                explorerTypeName={fieldTypeData?.name || profile?.fieldTypeName || 'Unclassified Explorer'}
-                proofStickerAssignments={profile?.proofStickerAssignments || {}}
-                hasMore={hasMoreEntries}
-                loadingMore={isLoadingMoreLogbook}
-                onRequestMore={loadMoreLogbookEntries}
-              />
+            <div className="mx-auto max-w-2xl space-y-6">
+              {logbookEntries.length === 0 ? (
+                <EmptyStatePanel
+                  title="No receipts yet"
+                  body="Logbook is your mission and proof history."
+                  hint="Draw a mission, take a photo, and submissions will land here as Pending, Approved, Needs more proof, or Rejected."
+                  icon={<History className="h-8 w-8" />}
+                  action={<FieldButton onClick={() => navigate('/missions')}>Draw a mission</FieldButton>}
+                />
+              ) : (
+                <LogbookFlipbook
+                  entries={logbookEntries}
+                  displayName={profile?.displayName || profile?.username || 'Explorer'}
+                  seasonName={activeSeason?.title || activeSeason?.id || 'Current Season'}
+                  explorerTypeName={fieldTypeData?.name || profile?.fieldTypeName || 'Unclassified Explorer'}
+                  proofStickerAssignments={profile?.proofStickerAssignments || {}}
+                  hasMore={hasMoreEntries}
+                  loadingMore={isLoadingMoreLogbook}
+                  onRequestMore={loadMoreLogbookEntries}
+                />
+              )}
             </div>
           )}
 
           {activeTab === 'settings' && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-               <header className="space-y-1 mb-8">
-                <h2 className="text-3xl font-black tracking-tighter text-on-surface uppercase italic">Settings</h2>
-                <p className="text-xs font-mono font-bold text-on-surface/40 uppercase tracking-widest">Protocol Configurations</p>
-              </header>
-              
-              <div className="space-y-6">
-                        {/* Removed: Trevor Guide Assistant Setting */}
+            <div className="mx-auto max-w-2xl space-y-4">
 
                   <SkinSelector />
 
                   {(profile?.role === 'admin' || isAdmin) && (
-                    <div className="field-card bg-[#FFF2EA] p-6 space-y-4 border-4 border-brand-orange shadow-[6px_6px_0px_black]">
+                    <div className="ft-settings-group space-y-4">
                       <div className="flex items-center justify-between">
                         <div className="space-y-1">
-                          <p className="font-display text-lg font-black uppercase text-brand-orange">Admin Terminal</p>
-                          <p className="text-[10px] opacity-60 uppercase font-mono text-on-surface">System OVERRIDE ENABLED</p>
+                          <h2>Admin</h2>
+                          <p>Proof review, moderation, and overrides.</p>
                         </div>
-                        <Shield className="w-6 h-6 text-brand-orange animate-pulse" />
+                        <Shield className="w-6 h-6 text-brand-orange" />
                       </div>
-                      <p className="text-[11px] font-serif italic opacity-70 leading-relaxed font-bold">
-                        Bypass player gates to access proof reviews, user moderation, and deployment overrides.
-                      </p>
-                      <button 
-                        onClick={() => navigate('/admin')}
-                        className="w-full py-4 bg-brand-orange text-white font-black uppercase tracking-widest text-[10px] rounded-xl shadow-[4px_4px_0px_black] active:shadow-none active:translate-y-1 transition-all"
-                      >
-                        Enter Admin Board
-                      </button>
+                      <FieldButton className="w-full" onClick={() => navigate('/admin')}>
+                        Open admin board
+                      </FieldButton>
                     </div>
                   )}
 
-                 <div className="field-card field-card--paper p-6 space-y-4 border-4 border-on-surface shadow-[6px_6px_0px_black] bg-[#FFFDF6]">
-                    <div className="flex items-center justify-between">
-                       <div className="space-y-1">
-                          <p className="font-display text-lg font-black uppercase">Kinetic Ceremony</p>
-                          <p className="text-[10px] opacity-40 uppercase font-mono">Intensity Calibration</p>
-                       </div>
+                 <div className="ft-settings-group space-y-4">
+                    <div className="space-y-1">
+                       <h2>Motion</h2>
+                       <p>How loud reward celebrations feel.</p>
                     </div>
                     
                     <div className="space-y-4">
-                       <p className="text-[11px] font-serif italic opacity-60 leading-relaxed font-bold">
-                         Configure feedback ceremonies for XP and badge unlocks. Reduced suppresses massive stamp rotations & blurs, whilst minimal reroutes alerts directly as subtle log notifications.
+                       <p className="text-sm font-sans font-bold text-on-surface/70 leading-relaxed">
+                         Full keeps the stamps and confetti. Reduced calms the motion. Minimal sends quiet notifications.
                        </p>
                        <div className="grid grid-cols-3 gap-2 font-mono">
                           {[
@@ -581,17 +479,15 @@ export default function ProfilePage() {
                     </div>
                  </div>
                  
-                  <div className="field-card field-card--paper p-6 space-y-4 border-4 border-on-surface shadow-[6px_6px_0px_black] bg-[#FFFDF6]">
-                     <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                           <p className="font-display text-lg font-black uppercase">Privacy Guards</p>
-                           <p className="text-[10px] opacity-40 uppercase font-mono">Ballots & Metadata Opt-In</p>
-                        </div>
+                  <div className="ft-settings-group space-y-4">
+                     <div className="space-y-1">
+                        <h2>Privacy</h2>
+                        <p>Who can see receipts, hype, and location.</p>
                      </div>
                      
                      <div className="space-y-4 mt-2">
-                        <p className="text-[11px] font-serif italic opacity-60 leading-relaxed font-bold text-left">
-                           Configure whether you want to participate in weekly ballots or allow exact GPS coordinate markings on public views.
+                        <p className="text-sm font-sans font-bold text-on-surface/70 leading-relaxed text-left">
+                           Choose who can see your receipts. Exact GPS stays off unless you turn it on.
                         </p>
                         
                         <div className="space-y-3">
@@ -651,44 +547,23 @@ export default function ProfilePage() {
                      </div>
                   </div>
 
-                  <div className="field-card field-card--paper p-6 space-y-6 border-4 border-on-surface shadow-[6px_6px_0px_black] bg-[#FFFDF6]">
-                    <div className="flex items-center justify-between">
-                       <div className="space-y-1">
-                          <p className="font-display text-lg font-black uppercase">Account Control</p>
-                          <p className="text-[10px] opacity-40 uppercase font-mono">Session Management</p>
-                       </div>
-                       <ShieldCheck className="w-6 h-6 text-brand-lime" />
+                  <div className="ft-settings-group space-y-4">
+                    <div className="space-y-1">
+                       <h2>Account</h2>
+                       <p>Sign out of this device.</p>
                     </div>
                     <div className="space-y-3">
-                       <button 
-                         onClick={handleSignOut}
-                         className="w-full py-4 bg-white border-2 border-error text-error font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-error/5 shadow-[3px_3px_0px_var(--color-error)] active:shadow-none active:translate-y-0.5 transition-all flex items-center justify-center gap-2"
-                       >
+                       <FieldButton variant="destructive" className="w-full" onClick={handleSignOut}>
                          <LogOut className="w-4 h-4" />
-                         Terminate Session
-                       </button>
+                         Sign out
+                       </FieldButton>
                     </div>
                  </div>
-              </div>
             </div>
           )}
         </motion.div>
       </AnimatePresence>
-
-      <footer className="pt-24 pb-12 flex flex-col items-center justify-center space-y-4">
-        <FieldBadge 
-          variant="stamp" 
-          color="paper" 
-          size="md" 
-          rotation={-2} 
-          className="px-6 py-2 opacity-40 border-dashed"
-        >
-          {fc('Bureau Protocol v12.4', 'Intel Manifest v3.0')}
-        </FieldBadge>
-        <p className="font-mono text-[8px] uppercase tracking-[0.4em] opacity-20">
-          Fieldtrip Scouts Auxiliary
-        </p>
-      </footer>
+      </PlayerPageBody>
 
       {/* Edit Profile Modal */}
       <AnimatePresence>
@@ -709,7 +584,7 @@ export default function ProfilePage() {
               <div className="flex items-center justify-between border-b-4 border-dashed border-on-surface/10 pb-4">
                 <div className="flex items-center gap-2">
                   <div className="h-4 w-1 bg-brand-orange shadow-[1px_1px_0px_black]" />
-                  <span className="text-[10px] font-mono font-black text-on-surface/50 uppercase tracking-[0.2em]">AGENT_DOSSIER // EDIT</span>
+                  <span className="text-[10px] font-mono font-black text-on-surface/50 uppercase tracking-[0.2em]">Edit profile</span>
                 </div>
                 <button 
                   onClick={() => setIsEditModalOpen(false)}
@@ -721,12 +596,12 @@ export default function ProfilePage() {
 
               {/* Display Name Input */}
               <div className="space-y-2 text-left">
-                <label className="text-[10px] font-mono font-black text-on-surface/50 uppercase tracking-widest block font-bold">AGENT NAME</label>
+                <label className="text-xs font-sans font-bold text-on-surface/70 block">Display name</label>
                 <input 
                   type="text" 
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  placeholder="Enter Agent Name"
+                  placeholder="Your name"
                   className="w-full px-4 py-3 bg-[#FFFDF9] border-[3px] border-on-surface rounded-xl shadow-[4px_4px_0px_black] focus:shadow-none focus:translate-y-1 focus:outline-none font-display font-black uppercase text-sm tracking-tight transition-all"
                   maxLength={25}
                 />
@@ -817,7 +692,7 @@ export default function ProfilePage() {
                   disabled={isSavingProfile}
                   onClick={async () => {
                     if (!editName.trim()) {
-                      alert("Please provide an Agent name.");
+                      alert("Please enter a name.");
                       return;
                     }
                     setIsSavingProfile(true);
@@ -836,13 +711,13 @@ export default function ProfilePage() {
                   }}
                   className="flex-1 py-3 bg-brand-orange hover:bg-on-surface text-white hover:text-brand-lime font-display font-black uppercase italic tracking-tight border-2 border-on-surface rounded-xl shadow-[4px_4px_0px_black] active:translate-y-0.5 active:shadow-none transition-all text-xs flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                  {isSavingProfile ? 'Saving...' : 'Sync Intel'}
+                  {isSavingProfile ? 'Saving...' : 'Save'}
                 </button>
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </PlayerPageShell>
   );
 }

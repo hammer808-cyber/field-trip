@@ -20,6 +20,10 @@ import { DEFAULT_AVATAR } from '../constants/avatarAssets';
 import { SabotageHub } from '../components/SabotageHub';
 import { getServerDate } from '../services/timeService';
 import { StickerBackground } from '../components/StickerBackground';
+import { useNavigate } from 'react-router-dom';
+import { FieldPageHero } from '../components/FieldPageHero';
+import { LockedStatePanel } from '../components/FieldtripLoader';
+import { FieldButton, PlayerPageBody, PlayerPageShell } from '../components/player';
 
 export default function FrontlinesPage() {
   const { 
@@ -109,6 +113,7 @@ export default function FrontlinesPage() {
   const isHeat = skin.id === 'heatwave';
 
   const isQuiet = profile?.quietCrewMode;
+  const navigate = useNavigate();
 
   const crewRankings = weeklySummary ? Object.entries(weeklySummary.crewStats).map(([id, stats]: [string, any]) => ({
     id,
@@ -124,31 +129,40 @@ export default function FrontlinesPage() {
   })).sort((a, b) => b.points - a.points) : (fullBoard as any[]);
 
   return (
-    <div className="pb-40 px-6 pt-12 space-y-24 max-w-5xl mx-auto overflow-hidden relative">
+    <PlayerPageShell department="frontlines" className="skin-board overflow-hidden">
       <StickerBackground density={5} variant="general" className="opacity-30" seed="frontlines-feed" />
       {!visible ? (
-        <div className="flex flex-col items-center justify-center p-12 py-24 text-center space-y-12 bg-white min-h-[70vh] border-8 border-on-surface shadow-[24px_24px_0px_var(--color-brand-orange)] relative overflow-hidden">
-           {/* Decorative Background Elements */}
-           <div className="absolute top-0 left-0 w-full h-4 bg-brand-lime" />
-           <div className="absolute -top-24 -right-24 w-64 h-64 border-8 border-on-surface rounded-full opacity-5 rotate-12" />
-           <div className="absolute -bottom-24 -left-24 w-64 h-64 border-8 border-on-surface rounded-full opacity-5 -rotate-12" />
-
-           <div className="w-32 h-32 bg-brand-orange border-4 border-on-surface flex items-center justify-center shadow-[10px_10px_0px_black] rotate-6 relative z-10">
-             <ShieldAlert className="w-16 h-16 text-white stroke-[3]" />
-           </div>
-           <div className="space-y-8 relative z-10">
-             <h2 className="font-display text-huge text-[6rem] md:text-[8rem] italic uppercase tracking-tight font-bold leading-tight">Scoreboard Locked</h2>
-             <div className="bg-brand-lime p-8 border-4 border-on-surface shadow-[8px_8px_0px_black] -rotate-1 max-w-xl mx-auto">
-               <p className="font-display text-2xl md:text-3xl italic leading-relaxed text-on-surface">"The Bureau only declassifies high-standing agents. Reach 50 points to access the Scoreboard."</p>
-             </div>
-           </div>
-           <div className="w-full max-w-lg space-y-4 relative z-10">
-             <div className="w-full h-12 bg-white border-4 border-on-surface shadow-[6px_6px_0px_black] overflow-hidden p-1.5">
-               <div className="h-full bg-brand-lime transition-all duration-1000 border-2 border-on-surface shadow-[inset_0_4px_0_rgba(255,107,0,0.2)]" style={{ width: `${Math.min((points / 50) * 100, 100)}%` }} />
-             </div>
-             <p className="micro-label font-bold text-sm text-center bg-on-surface text-white py-2 px-6 inline-block mx-auto">{points} / 50 STANDING_POINTS</p>
-           </div>
-        </div>
+        <>
+          <FieldPageHero
+            variant="editorial"
+            department="frontlines"
+            tone="chrome"
+            eyebrow="Legacy scoreboard"
+            title="FRONTLINES"
+            subtitle="A legacy ranking page. Big Board is the current public scoreboard."
+            backgroundIcon={<ShieldAlert className="h-64 w-64" />}
+            infoCardLabel="Status"
+            infoCardValue="Locked"
+            infoCardSubtext={`${points} / 50 standing`}
+            infoCardAccent="lime"
+          />
+          <PlayerPageBody>
+            <LockedStatePanel
+              title="Scoreboard locked"
+              body="Frontlines stays locked until you reach 50 standing points."
+              hint="This page is a leftover ranking surface. Big Board is the live public scoreboard."
+              progressLabel={`${points} / 50 standing points`}
+              progressValue={Math.min((points / 50) * 100, 100)}
+              icon={<ShieldAlert className="h-8 w-8" />}
+              action={
+                <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+                  <FieldButton onClick={() => navigate('/missions')}>Go do a mission</FieldButton>
+                  <FieldButton variant="secondary" onClick={() => navigate('/big-board')}>Open Big Board</FieldButton>
+                </div>
+              }
+            />
+          </PlayerPageBody>
+        </>
       ) : (
         <>
           {isBaja && !frankieMode && (
@@ -174,60 +188,21 @@ export default function FrontlinesPage() {
         </>
       )}
 
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-12 relative border-b-8 border-on-surface pb-12">
-        <div className="space-y-6 text-left">
-          <div className="flex items-center gap-3">
-             <span className="w-4 h-4 bg-brand-lime animate-pulse border-2 border-on-surface shadow-[2px_2px_0px_black]" />
-             <p className="micro-label font-black tracking-[0.4em] bg-on-surface text-white px-3 py-1">
-               {isBaja ? 'Coastal Heat List' : 
-                isDiamond ? 'Elite Shine Index' :
-                isHeat ? 'The Hot List' : 
-                'MISSION_CONTROL // SIGNAL_STIR'}
-             </p>
-          </div>
-          <h1 className={cn(
-            "text-huge leading-[0.8] font-black uppercase tracking-tighter italic",
-            isBaja ? "text-baja-pink drop-shadow-[4px_4px_0px_#40e0d0]" : 
-            isDiamond ? "liquid-chrome bg-clip-text text-transparent filter drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]" :
-            isHeat ? "text-white drop-shadow-[0_4px_#ff007f] font-display" :
-            "text-on-surface"
-          )}>
-            {isBaja ? 'High Tide' : isDiamond ? 'Diamond Rank' : isHeat ? 'Heat Rank' : 'Frontlines'}
-          </h1>
-          <div className="flex items-center gap-4 mt-2">
-            <span className="px-6 py-2 bg-brand-lime text-on-surface font-display italic text-2xl border-4 border-on-surface shadow-[6px_6px_0px_black]">WEEK {currentWeekNumber}</span>
-            <span className="px-4 py-1.5 border-2 border-on-surface bg-white font-mono text-[10px] font-black uppercase tracking-widest shadow-[4px_4px_0px_black]">STATUS_UPSTREAM</span>
-          </div>
-          {!isBaja && !isDiamond && !isHeat && (
-            <div className="bg-white p-6 border-4 border-on-surface shadow-[10px_10px_0px_var(--color-brand-lime)] max-w-lg -rotate-1 mt-6">
-              <p className="font-display italic text-2xl text-on-surface leading-tight">"The field is active. Standing is everything. Document the vibe with prejudice."</p>
-            </div>
-          )}
-          {isQuiet && (
-            <div className="flex items-center gap-2 text-brand-orange animate-pulse">
-               <Shield className="w-5 h-5 stroke-[2.5]" />
-               <span className="font-mono text-[10px] uppercase font-black tracking-widest text-brand-orange">Quiet Mode Active // Visuals Filtered</span>
-            </div>
-          )}
-        </div>
-        <div className="text-left md:text-right bg-white p-8 border-4 border-on-surface shadow-[12px_12px_0px_black] relative">
-          <div className="absolute top-0 right-0 w-8 h-8 bg-brand-lime border-l-4 border-b-4 border-on-surface" />
-          <p className="micro-label opacity-40 font-black tracking-widest mb-2">
-            {isBaja ? 'YOUR GLOW' : isDiamond ? 'GLARE DEPTH' : isHeat ? 'VIBE LEVEL' : 'STANDING_UNITS'}
-          </p>
-          <div className="flex items-baseline gap-2 justify-start md:justify-end">
-            <p className={cn(
-              "text-huge text-8xl leading-[0.8] font-black italic",
-              isBaja ? "text-baja-aqua" : 
-              isDiamond ? "text-white" :
-              isHeat ? "text-heat-mango" :
-              "text-brand-orange drop-shadow-[4px_4px_0px_black]"
-            )}>
-              {points}
-            </p>
-          </div>
-        </div>
-      </header>
+      <FieldPageHero
+        variant="editorial"
+        department="frontlines"
+        tone="chrome"
+        eyebrow="Legacy scoreboard"
+        title="FRONTLINES"
+        subtitle={isQuiet ? 'Quiet mode is on. Some visuals are filtered.' : 'A leftover ranking page. Big Board is the current public scoreboard.'}
+        backgroundIcon={<Trophy className="h-64 w-64" />}
+        infoCardLabel="Standing"
+        infoCardValue={String(points)}
+        infoCardSubtext={`Week ${currentWeekNumber || '—'}`}
+        infoCardAccent="lime"
+      />
+
+      <PlayerPageBody>
 
       {/* Season Rankings */}
       <section className="space-y-8">
@@ -249,7 +224,7 @@ export default function FrontlinesPage() {
             isHeat ? "text-white font-display uppercase tracking-tight" : 
             "font-display uppercase text-on-surface tracking-tight font-bold"
           )}>
-            {isBaja ? 'The Heat List' : isDiamond ? 'The Shine Board' : isHeat ? 'Splash Rankings' : 'Live Leadboard'}
+            {isBaja ? 'The Heat List' : isDiamond ? 'The Shine Board' : isHeat ? 'Splash Rankings' : 'Live Leaderboard'}
           </h2>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-brand-lime" />
@@ -263,7 +238,7 @@ export default function FrontlinesPage() {
           {/* Individual Rankings */}
           <div className="space-y-4">
             <h3 className={cn("inline-block micro-label bg-brand-orange text-white px-3 py-1 border-2 border-on-surface shadow-[4px_4px_0px_black]", isBaja ? "text-baja-aqua" : isDiamond ? "text-white/40" : isHeat ? "text-white" : "")}>
-              {isBaja ? 'BEACH BABES' : isDiamond ? 'MIRROR ENTITIES' : isHeat ? 'POOLSIDE SQUAD' : 'GET PROOF'}
+              {isBaja ? 'BEACH BABES' : isDiamond ? 'MIRROR ENTITIES' : isHeat ? 'POOLSIDE SQUAD' : 'EXPLORERS'}
             </h3>
             <div className="space-y-8 mt-8">
               {playerRankings.map((user: any, idx) => (
@@ -693,8 +668,9 @@ export default function FrontlinesPage() {
         
         <SabotageHub />
       </section>
+          </PlayerPageBody>
     </>
     )}
-  </div>
+    </PlayerPageShell>
 );
 }

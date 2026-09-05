@@ -52,6 +52,9 @@ import { Crew, CrewLore, CrewDispatch, CrewInvite, CrewJoinRequest, CrewMembersh
 import { CrewArtifactsGallery } from '../components/CrewArtifactsGallery';
 import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
 import { ZineWorkspace } from '../components/ZineWorkspace';
+import { FieldPageHero } from '../components/FieldPageHero';
+import { EmptyStatePanel, FieldtripLoader } from '../components/FieldtripLoader';
+import { FieldButton, PlayerPageBody, PlayerPageShell } from '../components/player';
 
 export default function CrewPage() {
   const { user, profile, crewArtifacts, activeSeason, currentWeekNumber } = useApp();
@@ -274,7 +277,13 @@ export default function CrewPage() {
     .sort(([, a]: any, [, b]: any) => b.totalScore - a.totalScore)
     .findIndex(([id]) => id === crewId) + 1) : 0;
 
-  if (loading) return <div className="skin-page skin-loading-state flex items-center justify-center min-h-screen font-mono">LOADING_CREW_IDENTITY...</div>;
+  if (loading) {
+    return (
+      <PlayerPageShell department="crew" className="skin-crew">
+        <FieldtripLoader variant="community" label="Opening Crew" fullScreen showProgress />
+      </PlayerPageShell>
+    );
+  }
 
   if (!crew) {
     const cooldownUntil = membershipState?.cooldownUntil || profile?.crewCooldownUntil || null;
@@ -284,15 +293,28 @@ export default function CrewPage() {
         ? cooldownUntil.toDate().toLocaleString()
         : null;
     return (
-      <div className="skin-page skin-crew min-h-screen p-6 pb-32 flex items-center justify-center">
-        <form onSubmit={handleCreateCrew} className="w-full max-w-xl bg-white border-[6px] border-on-surface shadow-[14px_14px_0px_black] p-6 sm:p-8 space-y-6">
-          <div className="space-y-2 text-center">
-            <Users className="w-14 h-14 mx-auto text-brand-orange" />
-            <h1 className="font-display text-4xl italic font-black uppercase leading-none">Create Your Crew</h1>
-            <p className="font-serif italic text-sm opacity-70">
-              Crews are optional. Create or join one, or go draw a mission.
-            </p>
-          </div>
+      <PlayerPageShell department="crew" className="skin-crew">
+        <FieldPageHero
+          variant="editorial"
+          department="crew"
+          eyebrow="Social clubhouse"
+          title="CREW"
+          subtitle="Find people to play with. Optional, not the main quest."
+          backgroundIcon={<Users className="h-64 w-64" />}
+          infoCardLabel="Status"
+          infoCardValue="Empty"
+          infoCardSubtext="Create or join when you're ready"
+          infoCardAccent="orange"
+        />
+        <PlayerPageBody>
+        <form onSubmit={handleCreateCrew} className="mx-auto w-full max-w-xl border-4 border-[var(--skin-border)] bg-[var(--skin-surface)] p-6 shadow-[8px_8px_0_var(--skin-border)] sm:p-8 space-y-6">
+          <EmptyStatePanel
+            className="border-none bg-transparent p-0 shadow-none"
+            title="No Crew yet"
+            body="Crews are a social clubhouse. You can create one, join one, or skip this and go draw a mission."
+            hint="A Crew fills in after you create it or a captain accepts you."
+            icon={<Users className="h-8 w-8" />}
+          />
 
           <div className="grid grid-cols-2 border-4 border-on-surface bg-white p-1" role="tablist" aria-label="Crew start options">
             <button type="button" role="tab" aria-selected={noCrewView === 'create'} onClick={() => setNoCrewView('create')} className={cn('p-3 font-mono text-[10px] font-black uppercase', noCrewView === 'create' ? 'bg-brand-lime' : 'text-on-surface/45')}>
@@ -375,9 +397,9 @@ export default function CrewPage() {
                   </select>
                 </label>
               </div>
-              <button type="submit" disabled={crewActionBusy || !!cooldownText} className="bureau-btn w-full bg-brand-lime text-on-surface disabled:opacity-50 disabled:cursor-not-allowed">
-                {crewActionBusy ? 'CREATING_CREW...' : 'INITIALIZE CREW'}
-              </button>
+              <FieldButton type="submit" disabled={crewActionBusy || !!cooldownText} className="w-full" size="lg">
+                {crewActionBusy ? 'Creating…' : 'Create Crew'}
+              </FieldButton>
             </>
           ) : (
             <div className="space-y-4 text-left">
@@ -386,7 +408,15 @@ export default function CrewPage() {
                 <p className="font-serif italic text-sm opacity-60">Send one request. The captain must approve it before membership changes.</p>
               </div>
               {discoverableCrews.length === 0 ? (
-                <div className="border-4 border-dashed border-on-surface/20 p-8 text-center font-mono text-[10px] uppercase opacity-55">No open Crews are broadcasting right now.</div>
+                <div className="border-4 border-dashed border-on-surface/20 p-8 text-center">
+                  <EmptyStatePanel
+                    title="No open Crews"
+                    body="Nobody is broadcasting a public Crew right now."
+                    hint="Create your own, or wait for an invite."
+                    icon={<Users className="h-8 w-8" />}
+                    action={<FieldButton type="button" variant="secondary" onClick={() => setNoCrewView('create')}>Create a Crew</FieldButton>}
+                  />
+                </div>
               ) : discoverableCrews.map(discovered => {
                 const pending = outgoingRequests.some(request => request.crewId === discovered.id && request.status === 'pending');
                 return (
@@ -405,7 +435,8 @@ export default function CrewPage() {
             </div>
           )}
         </form>
-      </div>
+        </PlayerPageBody>
+      </PlayerPageShell>
     );
   }
 
@@ -423,51 +454,23 @@ export default function CrewPage() {
   ];
 
   return (
-    <div className="skin-page skin-crew pb-40 px-6 pt-12 space-y-16 max-w-5xl mx-auto relative overflow-hidden">
-      {/* Header */}
-      <header className="space-y-12 border-b-8 border-on-surface pb-12">
-        <div className="flex flex-col md:flex-row items-start md:items-end gap-8 relative">
-          <div className="w-40 h-40 bg-white border-8 border-on-surface shadow-[16px_16px_0px_black] overflow-hidden flex items-center justify-center -rotate-2 group transition-transform hover:rotate-0">
-             {crew.badge ? <img src={crew.badge} alt="Badge" className="w-full h-full object-cover" /> : <Users className="w-20 h-20 text-on-surface" />}
-          </div>
-          <div className="space-y-4 flex-1">
-             <div className="flex items-center gap-3">
-               <div className="bureau-tag bg-brand-lime text-on-surface border-2 border-on-surface shadow-[4px_4px_0px_black] px-3 py-1 text-[10px] font-black uppercase">
-                 {crew.currentSeason}_UNIT
-               </div>
-               {crewRank > 0 && <div className="bureau-tag bg-brand-orange text-white border-2 border-on-surface shadow-[4px_4px_0px_black] px-3 py-1 text-[10px] font-black uppercase">RANK_#{crewRank}</div>}
-             </div>
-             <h1 className="font-display text-huge uppercase tracking-tighter leading-none italic font-black text-on-surface">{crew.name}</h1>
-             <p className="font-display text-2xl italic opacity-100 text-on-surface/40 uppercase font-black tracking-widest leading-none">
-               ESTABLISHED // {formatSafeDateOnly(crew.createdAt)}
-             </p>
-          </div>
-          <div className="absolute top-0 right-0 hidden md:block opacity-[0.03] rotate-12 scale-150 pointer-events-none">
-             <Users className="w-64 h-64 text-on-surface" />
-          </div>
-        </div>
-
-        {/* Tab Rail */}
-        <div className="flex gap-4 border-b-4 border-on-surface/5 pb-0 flex-nowrap overflow-x-auto no-scrollbar">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={cn(
-                "px-8 py-4 flex items-center gap-3 font-display uppercase tracking-[0.2em] text-xs transition-all border-b-8 font-black shrink-0",
-                activeTab === tab.id 
-                  ? "border-brand-orange text-on-surface scale-105" 
-                  : "border-transparent text-on-surface/30 hover:text-on-surface hover:border-on-surface/10"
-              )}
-            >
-              <tab.icon className={cn("w-5 h-5", activeTab === tab.id ? "text-brand-orange" : "text-current")} />
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </header>
-
-      {/* Tab Content */}
+    <PlayerPageShell department="crew" className="skin-crew">
+      <FieldPageHero
+        variant="editorial"
+        department="crew"
+        eyebrow="Social clubhouse"
+        title={crew.name}
+        subtitle={crew.motto || `Established ${formatSafeDateOnly(crew.createdAt)}`}
+        backgroundIcon={<Users className="h-64 w-64" />}
+        infoCardLabel={crewRank > 0 ? 'Rank' : 'Mode'}
+        infoCardValue={crewRank > 0 ? `#${crewRank}` : (crew.mode || 'Friendly')}
+        infoCardSubtext={`${rosterState?.crew?.memberCount || crew.memberCount || 0} members`}
+        infoCardAccent="orange"
+        tabs={tabs.map(tab => ({ id: tab.id, label: tab.label }))}
+        activeTab={activeTab}
+        onTabChange={(id) => setActiveTab(id as typeof activeTab)}
+      />
+      <PlayerPageBody>
       <div className="min-h-[40vh]">
         {activeTab === 'members' && (
           <div className="space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-500">
@@ -1020,7 +1023,7 @@ export default function CrewPage() {
                   disabled={crewActionBusy || viewerIsCaptain}
                   className="bureau-btn bg-red-500 text-white disabled:opacity-50"
                 >
-                  {crewActionBusy ? 'UPDATING...' : 'LEAVE CREW'}
+                  {crewActionBusy ? 'Updating…' : 'Leave Crew'}
                 </button>
               </div>
 
@@ -1038,6 +1041,7 @@ export default function CrewPage() {
           </div>
         )}
       </div>
-    </div>
+      </PlayerPageBody>
+    </PlayerPageShell>
   );
 }

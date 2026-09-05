@@ -7,7 +7,9 @@ import { getServerDate } from '../services/timeService';
 import { getCurrentVotingCycle, getVotingPhase } from '../services/votingCycleService';
 import { getWeeklySummary } from '../services/summaryService';
 import { WeeklySummary } from '../types/game';
-import { getDisplayLabel } from '../utils/labelUtils';
+import { FieldPageHero } from '../components/FieldPageHero';
+import { EmptyStatePanel, FieldtripLoader } from '../components/FieldtripLoader';
+import { PlayerPageBody, PlayerPageShell } from '../components/player';
 
 const CATEGORIES = [
   { id: 'best_field_note', label: 'Best Story Note', description: 'A note that made the find feel weirdly important.', icon: BookOpen },
@@ -66,59 +68,36 @@ export default function WeeklyAwardsPage() {
       : 'Standby';
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] pb-48 relative overflow-x-hidden ft-paper-texture">
-      <header className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 sm:pt-14 relative z-20">
-        <div className="flex items-center justify-between gap-4 mb-8">
-          <Link to="/voting" className="inline-flex items-center gap-2 px-4 py-3 bg-white border-4 border-on-surface shadow-[4px_4px_0px_black] hover:bg-brand-lime transition-all active:translate-x-0.5 active:translate-y-0.5 active:shadow-none">
-            <ChevronRight className="w-5 h-5 rotate-180 stroke-[3]" />
-            <span className="font-mono text-[10px] font-black uppercase tracking-widest">Voting</span>
-          </Link>
-          <div className="bg-on-surface text-white px-3 py-2 border-2 border-on-surface shadow-[3px_3px_0px_var(--color-brand-orange)] font-mono text-[9px] font-black uppercase tracking-widest">
-            {statusLabel}
-          </div>
-        </div>
+    <PlayerPageShell department="voting" className="skin-voting">
+      <FieldPageHero
+        variant="editorial"
+        department="voting"
+        eyebrow="Weekly event"
+        title="AWARDS"
+        subtitle="This week's community honors."
+        backLabel="Voting"
+        backTo="/voting"
+        backgroundIcon={<Trophy className="h-64 w-64" />}
+        infoCardLabel="Release"
+        infoCardValue={statusLabel}
+        infoCardSubtext={`Cycle ${currentWeekNumber || '—'}`}
+        infoCardAccent={hasWinnersReleased ? 'lime' : 'orange'}
+      />
+      <PlayerPageBody>
 
-        <section className="bg-white border-[5px] border-on-surface shadow-[12px_12px_0px_black] rounded-[2rem] p-6 sm:p-10 relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(rgba(0,0,0,0.018)_1.5px,transparent_0)] bg-[size:15px_15px] pointer-events-none" />
-          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-8 items-center">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 bg-brand-cyan text-on-surface border-2 border-on-surface px-3 py-1 shadow-[3px_3px_0px_black]">
-                <span className="w-2 h-2 bg-brand-orange rounded-full animate-pulse" />
-                <span className="font-mono text-[9px] font-black uppercase tracking-[0.22em]">{getDisplayLabel('CURRENT_CYCLE')}</span>
-              </div>
-              <h1 className="font-display text-5xl sm:text-7xl lg:text-8xl font-black uppercase italic tracking-tighter leading-[0.85] text-on-surface">
-                Cycle {currentWeekNumber} Laureates
-              </h1>
-              <p className="font-serif italic text-base sm:text-lg text-on-surface/65 max-w-2xl">
-                The Bureau is distilling weekly votes into final honors. Winners publish here after the weekly review snapshot is locked.
-              </p>
-            </div>
-            <div className="bg-[#FFFCEB] border-4 border-on-surface p-5 sm:p-6 shadow-[7px_7px_0px_black] space-y-4">
-              <div className="flex items-center gap-3">
-                {hasWinnersReleased ? <Trophy className="w-8 h-8 text-brand-orange" /> : <Clock className="w-8 h-8 text-brand-orange" />}
-                <div>
-                  <p className="font-mono text-[9px] font-black uppercase tracking-widest text-on-surface/45">Release State</p>
-                  <p className="font-display text-2xl font-black uppercase italic leading-none">{statusLabel}</p>
-                </div>
-              </div>
-              <p className="font-serif italic text-sm text-on-surface/65">
-                {hasWinnersReleased
-                  ? 'The weekly snapshot is locked. Laureates are live.'
-                  : phase === 'awards'
-                    ? 'Awards phase is active. Final admin review is pending.'
-                    : 'Come back during awards phase for winners and recap notes.'}
-              </p>
-            </div>
-          </div>
+        <section className="border-4 border-[var(--skin-border)] bg-[var(--skin-surface)] p-5 shadow-[6px_6px_0_var(--skin-border)] sm:p-6">
+          <p className="font-sans text-sm font-bold text-on-surface/80">
+            {hasWinnersReleased
+              ? 'The weekly snapshot is locked. Winners are live.'
+              : phase === 'awards'
+                ? 'Awards phase is active. Final admin review is pending.'
+                : 'Come back during awards phase for winners and recap notes.'}
+          </p>
         </section>
-      </header>
 
-      <main className="relative z-10 mt-8 max-w-6xl mx-auto px-4 sm:px-6 space-y-8">
-        <section className="bg-white/80 border-4 border-on-surface rounded-[2rem] shadow-[8px_8px_0px_black] p-4 sm:p-8">
+      <section className="border-4 border-[var(--skin-border)] bg-[var(--skin-surface)] p-4 shadow-[8px_8px_0_var(--skin-border)] sm:p-8">
             {loading ? (
-              <div className="p-12 text-center font-mono text-xs uppercase animate-pulse">
-                Uplinking core database...
-              </div>
+              <FieldtripLoader variant="voting" label="Loading awards" showProgress />
             ) : hasWinnersReleased ? (
               // Released View of Winners
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -221,18 +200,14 @@ export default function WeeklyAwardsPage() {
             )}
         </section>
 
-        {/* 2. Hall of Records */}
-        <section className="bg-white border-4 border-dashed border-on-surface/20 rounded-[2rem] p-8 sm:p-12 text-center space-y-6">
-          <Sparkles className="w-10 h-10 text-brand-lime animate-pulse opacity-60 mx-auto" />
-          <div className="space-y-2">
-            <p className="font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/35">{getDisplayLabel('PROTOCOL_HISTORY')}</p>
-            <h3 className="font-display text-3xl sm:text-5xl uppercase tracking-tighter font-black text-on-surface/35">Hall of Records</h3>
-            <p className="font-serif italic text-on-surface/45 leading-relaxed max-w-xl mx-auto">
-              Digital dust on the archives. Historical weekly results will stack here once more cycles close.
-            </p>
-          </div>
-        </section>
-      </main>
-    </div>
+        {/* Hall of Records */}
+        <EmptyStatePanel
+          title="Hall of records"
+          body="Past weekly winners will stack here as more cycles close."
+          hint="This season's archive starts after the first awards lock."
+          icon={<Sparkles className="h-8 w-8" />}
+        />
+      </PlayerPageBody>
+    </PlayerPageShell>
   );
 }

@@ -1077,7 +1077,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (err: any) {
         console.error("Critical Auth Initialization Error:", err);
-        setError(err.message || "BUREAU_SYSTEM_FAILURE: Could not initialize field profile.");
+        setError(err.message || "Could not load your Fieldtrip profile.");
         setAuthLoading(false);
         setProfileLoading(false);
       }

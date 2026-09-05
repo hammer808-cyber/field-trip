@@ -89,7 +89,7 @@ test('flipbook includes keyboard, swipe, persisted grid/list fallback, and reduc
 });
 
 test('private Logbook statuses normalize without making pending or rejected proofs public', () => {
-  assert.equal(getLogbookStatusPresentation({ status: 'pending_review' }).label, 'Pending Review');
+  assert.equal(getLogbookStatusPresentation({ status: 'pending_review' }).label, 'Pending');
   assert.equal(getLogbookStatusPresentation({ status: 'needs-more-proof' }).status, 'needs_more_proof');
   assert.equal(getLogbookStatusPresentation({ status: 'rejected' }).tone, 'rejected');
 

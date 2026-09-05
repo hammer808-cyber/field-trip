@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { cn } from '../lib/utils';
+import { FieldPageHero } from '../components/FieldPageHero';
+import { PlayerPageBody, PlayerPageShell } from '../components/player';
 import {
   LOTERIA_BOARDS,
   LoteriaBoard,
@@ -89,38 +91,22 @@ export default function LoteriaExploreBoard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#d8cb83] text-on-surface relative overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none opacity-[0.18] bg-[radial-gradient(rgba(0,0,0,0.12)_1px,transparent_1px)] [background-size:8px_8px]" />
-      <div className="absolute inset-0 pointer-events-none opacity-[0.08] bg-[linear-gradient(90deg,transparent_0_49%,rgba(0,0,0,0.22)_50%,transparent_51%)] [background-size:46px_46px]" />
-
-      <header className="sticky top-0 z-40 border-b-[5px] border-on-surface bg-[#d8cb83]/95 backdrop-blur px-4 py-4">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => view === 'home' ? navigate('/basecamp') : setView('home')}
-            className="grid min-h-11 min-w-11 place-items-center border-[3px] border-on-surface bg-white shadow-[4px_4px_0_black] active:translate-x-1 active:translate-y-1 active:shadow-none"
-            aria-label={view === 'home' ? 'Back to Basecamp' : 'Back to Loteria home'}
-          >
-            {view === 'home' ? <ChevronLeft className="h-5 w-5 stroke-[3]" /> : <Home className="h-5 w-5 stroke-[3]" />}
-          </button>
-          <div className="flex items-center gap-2">
-            <div className="border-[3px] border-on-surface bg-black px-2 py-1 text-white shadow-[3px_3px_0_white]">
-              <span className="font-display text-lg font-black uppercase italic leading-none">Loteria</span>
-            </div>
-            <span className="hidden font-mono text-[9px] font-black uppercase tracking-[0.25em] sm:inline">Explorer Board</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setView('boards')}
-            className="grid min-h-11 min-w-11 place-items-center rounded-full border-[3px] border-on-surface bg-white shadow-[4px_4px_0_black] active:translate-x-1 active:translate-y-1 active:shadow-none"
-            aria-label="Choose board"
-          >
-            <HelpCircle className="h-5 w-5 stroke-[3]" />
-          </button>
-        </div>
-      </header>
-
-      <main className="relative z-10 mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <PlayerPageShell department="loteria">
+      <FieldPageHero
+        variant="editorial"
+        department="loteria"
+        eyebrow="Collectible card table"
+        title="LOTERÍA"
+        subtitle="Mark the board. Hunt the cards. Photos come later."
+        backLabel={view === 'home' ? 'Basecamp' : 'Lotería home'}
+        onBack={() => view === 'home' ? navigate('/basecamp') : setView('home')}
+        backgroundIcon={<Grid3X3 className="h-64 w-64" />}
+        infoCardLabel="Board"
+        infoCardValue={`${completionCount}/${activeBoard.cards.length}`}
+        infoCardSubtext={isBoardComplete ? 'Complete' : 'In progress'}
+        infoCardAccent="orange"
+      />
+      <PlayerPageBody>
         {view === 'home' && (
           <section className="space-y-8">
             <PlayerCard panel={playerPanel} />
@@ -242,8 +228,8 @@ export default function LoteriaExploreBoard() {
             </div>
           </section>
         )}
-      </main>
-    </div>
+      </PlayerPageBody>
+    </PlayerPageShell>
   );
 }
 
@@ -255,7 +241,7 @@ function PlayerCard({ panel }: { panel: ReturnType<typeof buildLoteriaPlayerPane
           <User className="h-10 w-10 stroke-[3]" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-mono text-[10px] font-black uppercase tracking-[0.2em] text-brand-orange">ID: LT-AUTH-012</p>
+          <p className="font-mono text-[10px] font-black uppercase tracking-[0.2em] text-brand-orange">{panel.fieldTypeLabel || 'Explorer'}</p>
           <h1 className="truncate font-display text-3xl font-black uppercase italic leading-none">{panel.displayName}</h1>
           <div className="mt-3 flex items-center gap-3">
             <div className="h-6 flex-1 border-[3px] border-on-surface bg-[#c4c2a2]">
@@ -383,7 +369,7 @@ function ActiveBoardHeader({ board, completionCount, complete, onResults }: { bo
 
 function LoteriaGrid({ board, markedIds, onCardClick }: { board: LoteriaBoard; markedIds: Set<string>; onCardClick: (card: LoteriaCard) => void }) {
   return (
-    <div className="grid grid-cols-3 gap-3 border-[5px] border-on-surface bg-[#4b0082] p-3 shadow-[10px_10px_0_black]">
+    <div className="grid grid-cols-3 gap-1.5 border-[4px] border-on-surface bg-[#4b0082] p-2 shadow-[8px_8px_0_black] sm:gap-3 sm:border-[5px] sm:p-3 sm:shadow-[10px_10px_0_black]">
       {board.cards.map((card) => (
         <MiniLoteriaCard key={card.id} card={card} marked={markedIds.has(card.id)} onClick={() => onCardClick(card)} compact />
       ))}

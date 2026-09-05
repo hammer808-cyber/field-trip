@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { ShieldAlert, LogOut, Mail } from 'lucide-react';
 import { auth } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
+import { FieldButton, PlayerPageBody, PlayerPageShell } from '../components/player';
 
 export default function Banned() {
   const handleSignOut = async () => {
@@ -11,73 +12,56 @@ export default function Banned() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] p-6 text-white font-mono">
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="max-w-xl w-full border-2 border-error p-8 space-y-6 bg-error/5 relative overflow-hidden"
-      >
-        {/* Background Glitch Effect */}
-        <div className="absolute inset-0 opacity-5 pointer-events-none">
-          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
-        </div>
-
-        <div className="flex items-center gap-4 text-error relative">
-          <div className="w-12 h-12 bg-error/20 flex items-center justify-center rounded-full border border-error/50">
-            <ShieldAlert className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-black uppercase tracking-tighter leading-none">Access_Revoked</h1>
-            <p className="text-[10px] font-bold opacity-60 tracking-[0.2em] mt-1">CODE: ACCOUNT_CLOSED_03</p>
-          </div>
-        </div>
-
-        <div className="space-y-4 relative">
-          <div className="bg-black/60 p-6 border-l-4 border-error">
-            <p className="text-sm leading-relaxed opacity-90">
-              Your invitation has been revoked by Fieldtrip HQ. This usually occurs due to severe safety violations, illegal trespassing, or submission of harmful artifacts.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-white/5 border border-white/10 space-y-2">
-              <div className="flex items-center gap-2 opacity-40">
-                <Mail className="w-4 h-4" />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Support_Channel</span>
-              </div>
-              <p className="text-xs font-bold text-error">support@fieldtrip.zone</p>
+    <PlayerPageShell department="utility" className="min-h-screen bg-paper">
+      <PlayerPageBody className="flex min-h-screen items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-xl border-4 border-on-surface bg-white p-6 shadow-[8px_8px_0px_#c52233] sm:p-8"
+        >
+          <div className="flex items-start gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center border-4 border-on-surface bg-error text-white shadow-[4px_4px_0px_black]">
+              <ShieldAlert className="h-7 w-7" aria-hidden="true" />
             </div>
-            <div className="p-4 bg-white/5 border border-white/10 space-y-2">
-              <div className="flex items-center gap-2 opacity-40">
-                <ShieldAlert className="w-4 h-4" />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Status</span>
-              </div>
-              <p className="text-xs font-bold text-white">PERMANENT_SUSPENSION</p>
+            <div>
+              <p className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-on-surface/45">Account closed</p>
+              <h1 className="mt-1 font-display text-4xl font-black uppercase italic leading-none">Access revoked</h1>
             </div>
           </div>
-        </div>
 
-        <div className="pt-4 flex flex-col sm:flex-row gap-3 relative">
-          <button 
-            onClick={handleSignOut}
-            className="flex-1 bureau-btn bg-error text-white hover:bg-error/90 flex items-center justify-center gap-2 py-4"
-          >
-            <LogOut className="w-4 h-4" />
-            SIGN OUT
-          </button>
-          <a 
-            href="mailto:support@fieldtrip.zone"
-            className="flex-1 bureau-btn border-2 border-white/20 text-white hover:bg-white/5 flex items-center justify-center gap-2 py-4"
-          >
-            SUBMIT_APPEAL
-          </a>
-        </div>
+          <p className="mt-5 font-sans text-sm font-bold leading-relaxed text-on-surface/80">
+            Fieldtrip HQ closed this invitation. That usually happens after a serious safety issue, illegal trespassing, or harmful submissions.
+          </p>
 
-        <div className="pt-6 border-t border-white/5 flex justify-between items-center opacity-30">
-          <span className="text-[8px] font-mono uppercase tracking-widest leading-none">Security_Audit: Fail</span>
-          <span className="text-[8px] font-mono leading-none">©2026 Fieldtrip HQ</span>
-        </div>
-      </motion.div>
-    </div>
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="border-2 border-on-surface/15 bg-paper p-4">
+              <p className="flex items-center gap-2 font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/45">
+                <Mail className="h-4 w-4" aria-hidden="true" /> Support
+              </p>
+              <p className="mt-1 text-sm font-bold">support@fieldtrip.zone</p>
+            </div>
+            <div className="border-2 border-on-surface/15 bg-paper p-4">
+              <p className="flex items-center gap-2 font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/45">
+                <ShieldAlert className="h-4 w-4" aria-hidden="true" /> Status
+              </p>
+              <p className="mt-1 text-sm font-bold">Permanent suspension</p>
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <FieldButton variant="destructive" className="flex-1" onClick={handleSignOut}>
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              Sign out
+            </FieldButton>
+            <a
+              href="mailto:support@fieldtrip.zone"
+              className="inline-flex min-h-11 flex-1 items-center justify-center border-2 border-on-surface bg-white px-4 font-display text-sm font-black uppercase italic shadow-[3px_3px_0_black]"
+            >
+              Email support
+            </a>
+          </div>
+        </motion.div>
+      </PlayerPageBody>
+    </PlayerPageShell>
   );
 }

@@ -9,6 +9,7 @@ import { DevTools } from './components/DevTools';
 import { LocalEmulatorBanner } from './components/LocalEmulatorBanner';
 import FieldKitOnboarding from './components/FieldKitOnboarding';
 import { PageLoader } from './components/PageLoader';
+import { ErrorStatePanel } from './components/FieldtripLoader';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { RewardFeedback } from './components/RewardFeedback';
 import { PlayerLevelUpFeedback } from './components/PlayerLevelUpFeedback';
@@ -89,61 +90,33 @@ const LoteriaExploreBoard = lazy(() => import('./pages/LoteriaExploreBoard'));
 const GlobalErrorBoundary = ({ children }: { children: React.ReactNode }) => {
   return (
     <ErrorBoundary fallback={(error: Error | null) => (
-      <div className="min-h-screen bg-paper flex items-center justify-center p-6 font-mono text-on-surface">
-        <div className="max-w-4xl w-full border-4 border-on-surface p-8 space-y-6 bg-white shadow-[12px_12px_0px_#ff3131]">
-          <div className="flex items-center gap-3">
-            <div className="w-4 h-4 bg-error animate-pulse" />
-            <h1 className="text-2xl font-black uppercase tracking-tighter">FATAL_RUNTIME_FAILURE</h1>
-          </div>
-          <div className="bg-error/5 p-6 border-l-8 border-error space-y-4">
-            <p className="text-[10px] text-error font-black uppercase tracking-widest">Diagnostic_Report:</p>
-            <p className="text-sm font-bold leading-relaxed">
-              The application encountered a critical error during initialization. This may be due to a failed connection to Bureau assets or a corrupted local cache.
-            </p>
-            
-            <div className="mt-4 p-4 bg-black/5 rounded font-mono text-[10px] whitespace-pre-wrap overflow-auto max-h-[400px]">
-              <p className="text-error font-black mb-1">[RUNTIME_EXCEPTION]</p>
-              <div id="error-stack-trace" className="text-on-surface/80">
-                {error ? (
-                  <>
-                    <p className="font-bold mb-2">{error.name}: {error.message}</p>
-                    <pre className="opacity-70 leading-tight">
-                      {error.stack}
-                    </pre>
-                  </>
-                ) : (
-                  "System encountered an unidentified exception. Check local console logs for full stack trace."
-                )}
-              </div>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button 
-              onClick={() => window.location.reload()} 
-              className="py-4 border-4 border-on-surface hover:bg-on-surface hover:text-white font-black transition-all uppercase tracking-widest text-[10px]"
-            >
-              Retry Sync
-            </button>
-            <button 
+      <div className="min-h-screen bg-paper flex items-center justify-center p-6">
+        <ErrorStatePanel
+          title="Something went wrong"
+          body="Fieldtrip hit a snag while starting. Your progress is still here. Try again, or clear this device's cache if it keeps happening."
+          details={error ? `${error.name}: ${error.message}\n${error.stack || ''}` : 'No stack trace was captured. Check the browser console if this keeps happening.'}
+          detailsId="error-stack-trace"
+          onRetry={() => window.location.reload()}
+          retryLabel="Try again"
+          secondaryAction={
+            <button
+              type="button"
               onClick={() => {
                 localStorage.clear();
                 sessionStorage.clear();
-                // Try to clear IndexedDB as it might be corrupted for Firebase
                 if (window.indexedDB) {
                   try {
-                    const req = window.indexedDB.deleteDatabase('firestore/[DEFAULT]/field-trip-495823/main');
-                    req.onsuccess = () => console.log('Firestore IDB Cleared');
+                    window.indexedDB.deleteDatabase('firestore/[DEFAULT]/field-trip-495823/main');
                   } catch (e) {}
                 }
                 window.location.reload();
-              }} 
-              className="py-4 bg-on-surface text-white font-black hover:bg-error transition-all uppercase tracking-widest text-[10px] shadow-[4px_4px_0px_black]"
+              }}
+              className="min-h-12 border-4 border-on-surface bg-white px-4 py-3 font-display text-lg font-black uppercase italic shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none"
             >
-              Clear Cache & Hard Reset
+              Clear cache
             </button>
-          </div>
-        </div>
+          }
+        />
       </div>
     )}>
       {children}
@@ -152,37 +125,23 @@ const GlobalErrorBoundary = ({ children }: { children: React.ReactNode }) => {
 };
 
 const SystemError = ({ error, onRetry, onSignOut }: { error: string, onRetry: () => void, onSignOut: () => void }) => (
-  <div className="min-h-screen flex items-center justify-center bg-paper p-6 text-on-surface font-mono">
-    <div className="max-w-xl w-full border-4 border-on-surface p-8 space-y-6 bg-white shadow-[12px_12px_0px_var(--color-brand-orange)]">
-      <div className="flex items-center gap-3 text-on-surface">
-        <div className="w-4 h-4 bg-brand-orange animate-pulse" />
-        <h1 className="text-3xl font-black uppercase tracking-tighter">We couldn't load Fieldtrip</h1>
-      </div>
-      
-      <div className="space-y-4">
-        <div className="bg-brand-orange/5 p-6 border-l-8 border-brand-orange">
-          <p className="text-sm font-sans font-bold leading-relaxed">
-            Something went wrong while setting up your session. Try again.
-          </p>
-          <p className="mt-3 text-[10px] font-mono text-on-surface/50 overflow-auto max-h-40 break-all">{error}</p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <button 
-          onClick={onSignOut} 
-          className="py-4 border-4 border-on-surface hover:bg-on-surface hover:text-white font-black transition-all uppercase tracking-widest text-xs"
+  <div className="min-h-screen flex items-center justify-center bg-paper p-6">
+    <ErrorStatePanel
+      title="We couldn't load Fieldtrip"
+      body="Something went wrong while setting up your session. Your progress is still here. Try again."
+      details={error}
+      onRetry={onRetry}
+      retryLabel="Try again"
+      secondaryAction={
+        <button
+          type="button"
+          onClick={onSignOut}
+          className="min-h-12 border-4 border-on-surface bg-white px-4 py-3 font-display text-lg font-black uppercase italic shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none"
         >
-          Sign Out
+          Sign out
         </button>
-        <button 
-          onClick={onRetry} 
-          className="py-4 bg-on-surface text-white font-black transition-all uppercase tracking-widest text-xs shadow-[6px_6px_0px_var(--color-brand-lime)] hover:bg-brand-orange"
-        >
-          Try again
-        </button>
-      </div>
-    </div>
+      }
+    />
   </div>
 );
 
@@ -278,7 +237,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   // Profile-specific system error if user exists but profile failed
   if (user && !profile && !profileLoading && !authLoading) {
     console.error('[AppLayout] User exists but Profile lookup returned null.');
-    return <SystemError error="BUREAU_PROFILE_NOT_FOUND: Could not verify field agent clearance." onRetry={() => window.location.reload()} onSignOut={signOut} />;
+    return <SystemError error="Could not load your Fieldtrip profile." onRetry={() => window.location.reload()} onSignOut={signOut} />;
   }
 
   // CRITICAL: Wait for AUTH and PROFILE to load before doing any redirects
@@ -501,12 +460,13 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="skin-app-shell min-h-screen text-on-surface relative overflow-x-hidden">
       <ErrorBoundary fallback={
-        <div className="skin-page skin-error-state min-h-screen bg-paper flex items-center justify-center p-8 font-mono">
-          <div className="skin-card skin-state-panel border-4 border-on-surface p-8 bg-white shadow-[8px_8px_0px_black] max-w-md text-center">
-            <h2 className="text-xl font-black mb-4">COMPONENT_RENDER_FAILURE</h2>
-            <p className="text-xs opacity-60 mb-6 font-bold">A specific UI module failed to synchronize. The rest of the system remains stable.</p>
-            <button onClick={() => window.location.reload()} className="px-6 py-3 bg-on-surface text-white font-black uppercase text-[10px]">Re-Sync Component</button>
-          </div>
+        <div className="skin-page skin-error-state min-h-screen bg-paper flex items-center justify-center p-8">
+          <ErrorStatePanel
+            title="This page didn't load"
+            body="A part of Fieldtrip failed to render. The rest of the app is still here. Try again."
+            onRetry={() => window.location.reload()}
+            retryLabel="Try again"
+          />
         </div>
       }>
         {!hideHelpers && (
