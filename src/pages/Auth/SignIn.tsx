@@ -70,7 +70,7 @@ export default function SignIn({ onSuccess, onBack, onCreateAccount }: SignInPro
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-1 text-left">
-          <label className="micro-label opacity-40 ml-1">{fc('Email_Address', 'Email Address')}</label>
+          <label className="micro-label opacity-40 ml-1">{fc('Email', 'Email Address')}</label>
           <input 
             type="email"
             value={email}

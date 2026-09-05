@@ -11,7 +11,7 @@ export function BasecampCrewSummary({ model, onOpenCrew }: BasecampCrewSummaryPr
   return (
     <section
       aria-labelledby="basecamp-crew-heading"
-      className="basecamp-crew relative overflow-hidden p-5 text-white sm:p-6"
+      className={`basecamp-crew relative overflow-hidden p-5 text-white sm:p-6 ${model.hasCrew ? '' : 'basecamp-crew--quiet'}`}
     >
       <div className="basecamp-crew-glow" aria-hidden="true" />
       <div className="flex items-start justify-between gap-4">
@@ -36,12 +36,12 @@ export function BasecampCrewSummary({ model, onOpenCrew }: BasecampCrewSummaryPr
       )}
 
       <div className="relative mt-5 border-t border-white/25 pt-4">
-        <p className="text-sm leading-relaxed text-[var(--skin-text-muted)]">
+        <p className="text-sm leading-relaxed text-white/80">
           {empty
             ? 'Fieldtrip starts solo. Add people you actually want to play with.'
             : model.acceptedCount > 0
               ? 'Your Crew is the people you chose. Find more players anytime.'
-              : 'Your active Crew home contains members, invitations, shared memories, and Crew settings.'}
+              : 'Open Crew for members, invites, and shared memories.'}
         </p>
         {model.incomingCount > 0 && (
           <p className="mt-3 font-mono text-[8px] font-black uppercase tracking-widest text-[#dfff45]">

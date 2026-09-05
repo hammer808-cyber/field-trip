@@ -14,7 +14,7 @@ interface GatedFeaturePanelProps {
 export function GatedFeaturePanel({
   featureName,
   primaryHref = '/missions',
-  primaryLabel = 'Back to Missions',
+  primaryLabel = 'Go do a mission',
 }: GatedFeaturePanelProps) {
   const navigate = useNavigate();
   const { canonicalProgress } = useApp();
@@ -32,10 +32,13 @@ export function GatedFeaturePanel({
           Locked for now
         </p>
         <h1 className="mt-2 font-display text-3xl font-black uppercase italic leading-none tracking-tight">
-          Finish Starter Missions to unlock {featureName}
+          {featureName} is locked
         </h1>
-        <p className="mx-auto mt-4 max-w-sm font-serif italic text-on-surface/70">
-          {approved} of {required} Starter Signals approved.
+        <p className="mx-auto mt-4 max-w-sm font-sans text-sm font-bold text-on-surface/80">
+          Finish 3 starter missions to open this.
+        </p>
+        <p className="mx-auto mt-2 font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/45">
+          {approved} of {required} approved
         </p>
         <div className="mx-auto mt-5 h-5 w-full max-w-xs overflow-hidden rounded-full border-2 border-on-surface bg-white shadow-[3px_3px_0px_black]">
           <div

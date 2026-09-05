@@ -299,7 +299,7 @@ export function MissionResultCard({
                {getDisplayLabel('PROOF_SENT')}
              </p>
              <p className="font-mono text-[9px] font-black uppercase tracking-[0.25em] text-on-surface/35">
-               TRANSMISSION COMPLETE
+               Waiting for approval
              </p>
              {showStarterGuidance && starterGuidance.progressLine && (
                <p className="text-sm font-sans font-bold text-on-surface">
@@ -334,7 +334,7 @@ export function MissionResultCard({
                className="w-full py-4 border-4 border-on-surface/10 text-on-surface/30 font-black uppercase text-[10px] flex items-center justify-center gap-3 cursor-not-allowed group transition-all italic tracking-[0.25em] rounded-2xl"
              >
                <Download className="w-4 h-4 opacity-30" />
-               Print card
+               Print card (coming soon)
              </button>
              <p className="text-center text-[11px] font-sans font-bold text-on-surface/45">
                Printing isn't available yet.

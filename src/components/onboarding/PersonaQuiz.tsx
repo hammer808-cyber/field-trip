@@ -188,7 +188,8 @@ export const PersonaQuiz: React.FC<PersonaQuizProps> = ({ onComplete }) => {
           className="space-y-6"
         >
           <div className="space-y-2">
-            <p className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-brand-orange">Explorer Type Signal</p>
+            <p className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-brand-orange">3 quick picks</p>
+            <p className="font-sans text-sm font-bold text-on-surface/70">This picks your Explorer Type.</p>
             <h1
               id={`question-${question.id}`}
               ref={questionHeadingRef}

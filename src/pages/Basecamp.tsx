@@ -1,5 +1,5 @@
 import React from 'react';
-import { Compass, Grid3X3, Settings, Shield } from 'lucide-react';
+import { Compass, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { BasecampAttentionPanel } from '../components/basecamp/BasecampAttentionPanel';
 import { BasecampBoard } from '../components/basecamp/BasecampBoard';
@@ -131,7 +131,7 @@ export default function Basecamp() {
         variant="editorial"
         eyebrow="FIELD_START"
         title="BASECAMP"
-        subtitle="Your next move, proof status, and field progress."
+        subtitle="What matters today."
         backgroundIcon={<Compass className="h-64 w-64" />}
         infoCardLabel="TOTAL_XP"
         infoCardValue={viewModel.progress.xp.toLocaleString()}
@@ -139,30 +139,14 @@ export default function Basecamp() {
         infoCardAccent="lime"
       />
 
-      <div className={`mx-auto flex w-full max-w-7xl flex-wrap justify-end gap-3 px-4 pt-5 sm:px-6 lg:px-8 ${viewModel.nextAction.urgency === 'critical' || viewModel.nextAction.urgency === 'high' ? 'basecamp-secondary-quiet' : ''}`}>
-        <button
-          type="button"
-          onClick={() => navigate('/loteria')}
-          className="skin-button inline-flex min-h-11 items-center gap-2 border-2 border-[var(--skin-border)] bg-[var(--skin-accent)] px-4 py-2 font-mono text-[9px] font-black uppercase tracking-widest text-[var(--skin-on-accent)] shadow-[3px_3px_0_var(--skin-border)] focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)]"
-        >
-          <Grid3X3 size={16} aria-hidden="true" />
-          Loteria Board
-        </button>
-        <button
-          type="button"
-          onClick={() => navigate('/settings')}
-          className="skin-button inline-flex min-h-11 items-center gap-2 border-2 border-[var(--skin-border)] bg-[var(--skin-surface)] px-4 py-2 font-mono text-[9px] font-black uppercase tracking-widest text-[var(--skin-text)] shadow-[3px_3px_0_var(--skin-border)] focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)]"
-        >
-          <Settings size={16} aria-hidden="true" />
-          Settings
-        </button>
+      <div className={`basecamp-utility mx-auto w-full max-w-7xl px-4 pt-3 sm:px-6 lg:px-8 ${viewModel.nextAction.urgency === 'critical' || viewModel.nextAction.urgency === 'high' ? 'basecamp-secondary-quiet' : ''}`}>
         {isAdmin && (
           <button
             type="button"
             onClick={() => navigate('/admin')}
-            className="skin-button inline-flex min-h-11 items-center gap-2 border-2 border-[var(--skin-border)] bg-[var(--skin-text)] px-4 py-2 font-mono text-[9px] font-black uppercase tracking-widest text-[var(--skin-surface)] shadow-[3px_3px_0_var(--skin-secondary)] focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)]"
+            className="skin-button inline-flex items-center gap-2 border-2 border-[var(--skin-border)] bg-[var(--skin-text)] px-3 py-2 font-mono font-black uppercase tracking-widest text-[var(--skin-surface)] focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)]"
           >
-            <Shield size={16} aria-hidden="true" />
+            <Shield size={14} aria-hidden="true" />
             Admin Console
           </button>
         )}
@@ -188,13 +172,29 @@ export default function Basecamp() {
           </>
         )}
         sidebar={(
-          <>
+          <div className="space-y-5">
             <BasecampProgressPanel model={viewModel.progress} onOpenProfile={() => navigate('/profile')} />
-            <BasecampCrewSummary model={viewModel.crew} onOpenCrew={() => navigate(viewModel.crew.acceptedCount === 0 && !viewModel.crew.crewId ? '/crew#find-players' : '/crew')} />
-            <BasecampRecentActivity items={viewModel.recentActivity} />
-          </>
+            <BasecampCrewSummary
+              model={viewModel.crew}
+              onOpenCrew={() => navigate(viewModel.crew.acceptedCount === 0 && !viewModel.crew.crewId ? '/crew#find-players' : '/crew')}
+            />
+            <div className={viewModel.nextAction.urgency === 'critical' || viewModel.nextAction.urgency === 'high' ? 'basecamp-secondary-quiet' : ''}>
+              <BasecampRecentActivity items={viewModel.recentActivity} />
+            </div>
+          </div>
         )}
-        quickLinks={<div className={viewModel.nextAction.urgency === 'critical' || viewModel.nextAction.urgency === 'high' ? 'basecamp-secondary-quiet' : ''}><BasecampQuickLinks links={viewModel.quickLinks} onOpen={navigate} /></div>}
+        quickLinks={(
+          <div className={`space-y-4 ${viewModel.nextAction.urgency === 'critical' || viewModel.nextAction.urgency === 'high' ? 'basecamp-secondary-quiet' : ''}`}>
+            <BasecampQuickLinks
+              links={viewModel.quickLinks}
+              onOpen={navigate}
+              extraActions={[
+                { id: 'loteria', label: 'Loteria Board', href: '/loteria', icon: 'loteria' },
+                { id: 'settings', label: 'Settings', href: '/settings', icon: 'settings' },
+              ]}
+            />
+          </div>
+        )}
       />
 
       <IOSHomeScreenPrompt />

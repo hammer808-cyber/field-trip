@@ -75,7 +75,7 @@ export default function FieldKitOnboarding() {
       <div className="fixed inset-0 z-[200] flex items-center justify-center bg-paper p-4">
         <div className="w-full max-w-sm space-y-8 text-center">
           <div className="space-y-2">
-            <h2 className="font-mono text-[10px] font-black uppercase tracking-[0.4em] text-on-surface/40">Initializing_Systems</h2>
+            <h2 className="font-mono text-[10px] font-black uppercase tracking-[0.4em] text-on-surface/40">Getting ready</h2>
             <div className="h-1.5 bg-on-surface/5 border border-on-surface/10 rounded-full overflow-hidden p-0.5">
               <motion.div 
                 initial={{ width: 0 }}
@@ -106,8 +106,8 @@ export default function FieldKitOnboarding() {
             <ShieldCheck className="w-10 h-10 text-on-surface" />
           </div>
           <div className="space-y-2">
-            <h2 className="font-display text-4xl font-black uppercase tracking-tighter italic">Handshake Complete</h2>
-            <p className="font-mono text-[10px] font-bold text-on-surface/40 uppercase tracking-widest">Protocol: READY_FOR_DEPLOYMENT</p>
+            <h2 className="font-display text-4xl font-black uppercase tracking-tighter italic">You&apos;re ready</h2>
+            <p className="font-mono text-[10px] font-bold text-on-surface/40 uppercase tracking-widest">Camera + location set</p>
           </div>
         </motion.div>
       </div>
@@ -131,13 +131,13 @@ export default function FieldKitOnboarding() {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-brand-orange animate-pulse" />
-            <span className="font-mono text-[10px] font-black uppercase tracking-widest text-brand-orange">Priority_Handshake</span>
+            <span className="font-mono text-[10px] font-black uppercase tracking-widest text-brand-orange">Camera + location</span>
           </div>
           <h1 className="font-display text-3xl sm:text-4xl font-black uppercase tracking-tighter leading-none italic">
-            Ready Your Field Kit
+            Turn on camera + location
           </h1>
           <p className="font-serif italic text-sm text-on-surface/70 leading-relaxed">
-            Fieldtrip needs two tools to run missions:
+            Fieldtrip needs these to run missions:
           </p>
         </div>
 
@@ -149,7 +149,7 @@ export default function FieldKitOnboarding() {
             </div>
             <div className="space-y-1">
               <p className="font-mono text-[11px] font-black uppercase tracking-wider leading-none">Camera</p>
-              <p className="text-[11px] text-on-surface/60 leading-relaxed">Needed to capture proof photos for your missions.</p>
+              <p className="text-[11px] text-on-surface/60 leading-relaxed">So you can take proof photos.</p>
             </div>
           </div>
 
@@ -160,7 +160,7 @@ export default function FieldKitOnboarding() {
             </div>
             <div className="space-y-1">
               <p className="font-mono text-[11px] font-black uppercase tracking-wider leading-none">Location</p>
-              <p className="text-[11px] text-on-surface/60 leading-relaxed">Used to verify mission context and unlock nearby rewards.</p>
+              <p className="text-[11px] text-on-surface/60 leading-relaxed">So Fieldtrip can check you were really out there.</p>
             </div>
           </div>
         </div>
@@ -179,7 +179,7 @@ export default function FieldKitOnboarding() {
               isRequesting && "opacity-50 cursor-wait"
             )}
           >
-            {isRequesting ? "Initializing..." : "Allow Camera + Location"}
+            {isRequesting ? "Asking..." : "Allow"}
             {!isRequesting && <ChevronRight className="w-4 h-4" />}
           </button>
           
@@ -188,7 +188,7 @@ export default function FieldKitOnboarding() {
             disabled={isRequesting}
             className="w-full py-3 text-on-surface/50 hover:text-on-surface font-mono text-[10px] font-bold uppercase tracking-widest transition-colors"
           >
-            Maybe Later
+            Not now
           </button>
         </div>
 

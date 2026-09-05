@@ -190,14 +190,14 @@ export default function SignUp({ accessCode, onSuccess, onBack }: SignUpProps) {
         <div className="mx-auto w-12 h-12 md:w-16 md:h-16 bg-brand-cyan flex items-center justify-center rounded-none border-4 border-on-surface shadow-[4px_4px_0px_black]">
           <UserPlus className="w-6 h-6 md:w-8 md:h-8 text-on-surface" />
         </div>
-        <h1 className="font-display text-4xl md:text-5xl uppercase tracking-tighter leading-none pt-4">{fc('Create Profile', 'Create Profile')}</h1>
-        <p className="text-[10px] uppercase font-black tracking-[0.3em] opacity-60">{fc('PROFILE_SETUP // AUTH_SECURE', 'PROFILE SETUP')}</p>
+        <h1 className="font-display text-4xl md:text-5xl uppercase tracking-tighter leading-none pt-4">{fc('Create account', 'Create Profile')}</h1>
+        <p className="text-sm font-sans font-bold text-on-surface/70">Email, username, and a strong password.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
         <div className="space-y-1 text-left">
           <label className="micro-label opacity-40 ml-1 flex justify-between">
-            <span>{fc('Username (unique, lowercase)', 'Username')}</span>
+            <span>{fc('Username', 'Username')}</span>
             {usernameStatus === 'checking' && <Loader2 className="w-3 h-3 animate-spin border-on-surface" />}
           </label>
           <div className="relative">
@@ -228,14 +228,14 @@ export default function SignUp({ accessCode, onSuccess, onBack }: SignUpProps) {
                 exit={{ opacity: 0, height: 0 }}
                 className="text-[10px] uppercase font-black tracking-tighter text-error mt-1 ml-1"
               >
-                SYSTEM_MESSAGE: {usernameError}
+                {usernameError}
               </motion.p>
             )}
           </AnimatePresence>
         </div>
 
         <div className="space-y-1 text-left">
-          <label className="micro-label opacity-40 ml-1">{fc('Email_Address', 'Email Address')}</label>
+          <label className="micro-label opacity-40 ml-1">{fc('Email', 'Email Address')}</label>
           <input 
             type="email"
             value={formData.email}
@@ -311,7 +311,7 @@ export default function SignUp({ accessCode, onSuccess, onBack }: SignUpProps) {
             className="flex items-center gap-3 p-4 bg-error text-white font-black text-[10px] uppercase tracking-widest border-4 border-on-surface shadow-[8px_8px_0px_black]"
           >
             <AlertCircle className="w-5 h-5 shrink-0" />
-            CRITICAL: {error}
+            {error}
           </motion.div>
         )}
 
@@ -321,7 +321,7 @@ export default function SignUp({ accessCode, onSuccess, onBack }: SignUpProps) {
             disabled={loading}
             className="w-full bureau-btn bg-brand-orange text-white flex items-center justify-center gap-3 disabled:opacity-20 py-6 border-4 border-on-surface shadow-[10px_10px_0px_var(--color-brand-lime)] active:shadow-none active:translate-x-1 active:translate-y-1 transition-all"
           >
-            {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : fc('READY_FOR_LAUNCH', 'CREATE PROFILE')}
+            {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : fc('Create account', 'CREATE PROFILE')}
           </button>
           
           <button 

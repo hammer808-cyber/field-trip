@@ -6,7 +6,6 @@ import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
 import { cn } from '../lib/utils';
 import { Sparkle } from '../components/SkinAssets';
-import { getDisplayLabel } from '../utils/labelUtils';
 
 import AccessCodeGate from './Auth/AccessCodeGate';
 import SignUp from './Auth/SignUp';
@@ -215,7 +214,7 @@ export default function WelcomePage() {
                     className="skin-button flex-1 border-[3.5px] border-on-surface bg-on-surface px-5 py-4 font-display text-xl font-black italic uppercase leading-tight tracking-normal text-white shadow-[8px_8px_0px_var(--color-brand-lime)] transition-all hover:bg-brand-orange active:translate-x-1 active:translate-y-1 active:shadow-none sm:text-2xl"
                   >
                     <span className="flex items-center justify-center gap-3">
-                      Start Fieldtrip
+                      Get Started
                       <ChevronRight className="h-6 w-6" />
                     </span>
                   </button>
@@ -277,11 +276,11 @@ export default function WelcomePage() {
                     
                     <div className="space-y-4 font-mono text-[11px] text-left">
                       {[
-                        { step: "01", title: "OPEN APP", text: "Tune in daily for fresh, simple photo challenges curated for summer vibes." },
-                        { step: "02", title: "GET PHOTO " + getDisplayLabel('MISSIONS').toUpperCase(), text: "Browse your deck and draw a mission card detailing the photo requirement." },
-                        { step: "03", title: "TAKE PHOTO", text: "Point your lens, capture the summer evidence, and add a quick caption receipt." },
-                        { step: "04", title: "SUBMIT TO CREW", text: "Your photos instant-post onto your friends' Crew Memories Feed." },
-                        { step: "05", title: "EARN POINTS", text: "Rack up points and complete summer boards to help decide the ultimate winner of the season!" }
+                        { step: "01", title: "OPEN APP", text: "Come back for simple photo missions." },
+                        { step: "02", title: "GET A PHOTO MISSION", text: "Draw a mission card and see what to photograph." },
+                        { step: "03", title: "TAKE PHOTO", text: "Capture one clear photo and add a short note." },
+                        { step: "04", title: "SEND IT IN", text: "Submit your proof. Approval unlocks more of the game." },
+                        { step: "05", title: "KEEP PLAYING", text: "Collect receipts, vote, and climb the board with your crew." }
                       ].map((item, idx) => (
                         <div key={idx} className="flex gap-4 items-start p-3 bg-white border-2 border-on-surface/10 rounded-lg hover:border-brand-orange/40 transition-colors">
                           <span className="font-sans font-black text-xs px-2 py-0.5 bg-brand-orange text-white rounded-sm">{item.step}</span>

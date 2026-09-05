@@ -29,6 +29,7 @@ import { getDeckProgress, getStarterProgress } from '../services/canonicalProgre
 import { ZineWorkspace } from '../components/ZineWorkspace';
 import { StickerBook } from '../components/StickerBook';
 import { StickerMachine } from '../components/stickers/StickerMachine';
+import { GatedFeaturePanel } from '../components/GatedFeaturePanel';
 
 type CollectionTab = 'collection' | 'zines' | 'memories' | 'stickers' | 'badges' | 'decks' | 'missions' | 'crew_memories';
 type MemoriesView = 'mine' | 'community';
@@ -238,15 +239,8 @@ export default function CollectionPage() {
     </motion.div>
   );
 
-  const LockedStarterPanel = ({ label = 'this' }: { label?: string }) => (
-    <div className="py-14 px-4 text-center space-y-5 max-w-xl mx-auto">
-      <div className="w-16 h-16 bg-brand-magenta text-white border-4 border-on-surface shadow-[6px_6px_0px_black] rounded-2xl flex items-center justify-center mx-auto">
-        <Lock className="w-8 h-8" />
-      </div>
-      <h2 className="font-display text-3xl font-black uppercase italic tracking-tight text-on-surface">Access Restricted</h2>
-      <p className="font-serif italic text-on-surface/70">Complete all 3 Starter Signals to unlock {label}.</p>
-      <button onClick={() => navigate('/missions')} className="bureau-btn bg-brand-lime text-on-surface text-xs">Go to Starter Signals</button>
-    </div>
+  const LockedStarterPanel = (_props?: { label?: string }) => (
+    <GatedFeaturePanel featureName="Dex" />
   );
 
   return (
@@ -366,8 +360,8 @@ export default function CollectionPage() {
                   <div className="w-16 h-16 bg-on-surface/5 border-2 border-dashed border-on-surface/20 rounded-full flex items-center justify-center mx-auto">
                     <Box className="w-6 h-6 text-on-surface/20" />
                   </div>
-                  <p className="font-serif italic text-on-surface/40">"No field dossiers have been synchronized to this unit."</p>
-                  <button onClick={() => navigate('/missions')} className="bureau-btn text-xs">Access Deck</button>
+                  <p className="font-sans font-bold text-on-surface/70">No saved missions yet.</p>
+                  <button onClick={() => navigate('/missions')} className="bureau-btn text-xs">Draw a mission</button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

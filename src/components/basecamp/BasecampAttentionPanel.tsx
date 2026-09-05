@@ -11,7 +11,7 @@ export function BasecampAttentionPanel({ model, onAction }: BasecampAttentionPan
   return (
     <section
       aria-labelledby="basecamp-attention-heading"
-      className="basecamp-notice skin-state-panel border-[var(--skin-border-width)] border-[var(--skin-border)] bg-[var(--skin-surface)] p-5 shadow-[var(--skin-card-shadow)] sm:p-6"
+      className={`basecamp-notice skin-state-panel border-[var(--skin-border-width)] border-[var(--skin-border)] bg-[var(--skin-surface)] shadow-[var(--skin-card-shadow)] ${item ? 'p-5 sm:p-6' : 'basecamp-notice--clear'}`}
     >
       <span className="basecamp-pushpin" aria-hidden="true" />
       <div className="flex items-start justify-between gap-4">

@@ -144,7 +144,8 @@ import { ActiveDeckPanel } from '../components/missions/ActiveDeckPanel';
 import { DeckShelfPanel, type DeckShelfSection } from '../components/missions/DeckShelfPanel';
 import { MissionActionPanel } from '../components/missions/MissionActionPanel';
 import { MissionLogbookPanel, type MissionLogbookItem } from '../components/missions/MissionLogbookPanel';
-import { MissionsGuidanceStrip } from '../components/missions/MissionsGuidanceStrip';
+import { MissionsGuidanceStrip, getMissionsStripRole } from '../components/missions/MissionsGuidanceStrip';
+import { SAVE_FOR_LATER_RECOVERY_NOTICE } from '../components/bottomNavPresentation';
 import { usePlayerGuidance } from '../hooks/usePlayerGuidance';
 import { resolveMissionsGuidancePrimaryAction } from '../logic/playerGuidance';
 import { acknowledgeStarterUnlockSeen } from '../services/starterUnlockAck';
@@ -175,6 +176,9 @@ export default function DeckPage() {
     deckPacks, visibleDeckPacks, getDeckAccessForPack
   } = useApp();
   const guidance = usePlayerGuidance();
+  const stripRole = getMissionsStripRole(guidance.state);
+  const demoteMissionBrowsing = stripRole === 'dominant';
+  const [savedForLaterNotice, setSavedForLaterNotice] = useState<string | null>(null);
   const { frankieMode, skin, fc } = useTheme();
 
   const [activePackId, setActivePackId] = useState<string>(() => {
@@ -862,9 +866,15 @@ export default function DeckPage() {
       ? 'Pending review'
       : displayedMissionStatus === 'needs_more_proof'
         ? 'Needs more proof'
-        : displayedMissionStatus === 'rejected'
+      : displayedMissionStatus === 'rejected'
           ? 'Retry required'
-          : displayState.label;
+          : isDrawn && displayedMission
+            ? (guidance.state === 'REPAIR_PROOF'
+              ? 'Needs more proof'
+              : guidance.state === 'RETRY_REJECTED_PROOF'
+                ? 'Retry required'
+                : 'In progress')
+            : displayState.label;
   const missionPanelTitle = isDrawn && displayedMission
     ? displayedMission.title
     : deckLockState.locked
@@ -885,7 +895,7 @@ export default function DeckPage() {
              {getDisplayLabel('TRANSMISSION_RECEIVED')}
            </div>
            <h1 className="font-display text-3xl sm:text-4xl font-black uppercase italic tracking-tighter leading-none">Your Mission</h1>
-           <p className="text-on-surface/50 font-mono text-[8px] uppercase tracking-[0.2em] font-black">Frequency Locked: {LAUNCH_MISSION_ID}</p>
+           <p className="text-on-surface/50 font-mono text-[10px] uppercase tracking-[0.2em] font-black">Starter 1 of 3</p>
         </div>
 
         <div className="w-full max-w-[320px] sm:max-w-sm relative z-10">
@@ -972,7 +982,7 @@ export default function DeckPage() {
       <FieldPageHero
         eyebrow={getDisplayLabel('MISSION_DRAW_SYSTEM')}
         title="MISSIONS"
-        subtitle="Sector 7-B // Field Headquarters"
+        subtitle="Draw a card. Take a photo. Bring back a receipt."
         backgroundIcon={<Layers className="w-64 h-64" />}
         infoCardLabel={getDisplayLabel('ACTIVE_DECK')}
         infoCardValue={activePack?.shortName || activeDeckShortName}
@@ -982,7 +992,7 @@ export default function DeckPage() {
       />
 
       <div className="relative z-10 mx-auto max-w-6xl px-4 pb-24 pt-5 sm:px-6 sm:pt-6">
-        <div className="mb-6 flex items-center justify-between gap-3 border-y-2 border-[var(--skin-border-muted)] bg-[var(--skin-surface)] px-3 py-2 font-mono text-[9px] font-black uppercase tracking-wider text-[var(--skin-text-muted)]" aria-live="polite">
+        <div className="mb-4 flex items-center justify-between gap-3 border-y border-[var(--skin-border-muted)] bg-[var(--skin-surface)]/70 px-3 py-1.5 font-mono text-[9px] font-black uppercase tracking-wider text-[var(--skin-text-muted)] opacity-70" aria-live="polite">
           <span>{countdown?.label || 'Season timing is loading from game configuration'}</span>
           <span className="shrink-0 text-[var(--skin-primary)]">
             {countdown
@@ -993,10 +1003,13 @@ export default function DeckPage() {
           </span>
         </div>
 
-        {deckDiagnosticsPanel}
-
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.75fr)] lg:gap-8">
           <main className="min-w-0 space-y-6">
+            {savedForLaterNotice && (
+              <div className="mb-4 border-2 border-[var(--skin-border)] bg-[var(--skin-secondary)] px-4 py-3 font-sans text-sm font-bold text-[var(--skin-text)]" role="status">
+                {savedForLaterNotice}
+              </div>
+            )}
             <MissionsGuidanceStrip
               guidance={guidance}
               onPrimary={() => {
@@ -1028,6 +1041,7 @@ export default function DeckPage() {
                 ? () => navigate(guidance.secondaryAction!.destination)
                 : undefined}
             />
+            <div className={cn(demoteMissionBrowsing && 'opacity-55')}>
             <ActiveDeckPanel
               pack={activePack}
               displayName={activeDeckDisplayName}
@@ -1038,14 +1052,16 @@ export default function DeckPage() {
               pendingPercent={deckPendingPercent}
               locked={deckLockState.locked}
               lockReason={deckLockState.reason}
-              onCoverAction={!activeTrip && !drawnTrip && !deckLockState.locked ? () => handleDraw() : undefined}
+              onCoverAction={!demoteMissionBrowsing && !activeTrip && !drawnTrip && !deckLockState.locked ? () => handleDraw() : undefined}
               coverActionLabel={`Draw a mission from ${activeDeckDisplayName}`}
             />
+            </div>
 
             <MissionActionPanel
               eyebrow={isDrawn ? 'Current assignment' : 'Mission draw'}
               title={missionPanelTitle}
               status={missionPanelStatus}
+              className={cn(demoteMissionBrowsing && isDrawn && 'ring-4 ring-[var(--skin-secondary)] ring-offset-2')}
             >
         <AnimatePresence mode="wait">
           {!isDrawn ? (
@@ -1293,6 +1309,7 @@ export default function DeckPage() {
                         setIsDrawn(false);
                         setDrawnTrip(null);
                         setHasRevealedInActiveSession(false);
+                        setSavedForLaterNotice(SAVE_FOR_LATER_RECOVERY_NOTICE);
                       } catch (err: any) {
                         console.error("[Deck] Failed to updateMissionCardStatus:", err.message);
                       }
@@ -1315,7 +1332,7 @@ export default function DeckPage() {
             </MissionActionPanel>
           </main>
 
-          <aside className="min-w-0 space-y-6 lg:sticky lg:top-6">
+          <aside className={cn('min-w-0 space-y-6 lg:sticky lg:top-6', demoteMissionBrowsing && 'opacity-55')}>
             <DeckShelfPanel
               open={isDeckShelfExpanded}
               onOpenChange={setIsDeckShelfExpanded}
@@ -1331,6 +1348,11 @@ export default function DeckPage() {
               items={logbookItems}
               onOpenFullLogbook={() => navigate('/profile?tab=logbook')}
             />
+            {deckDiagnosticsPanel && (
+              <div className="opacity-50">
+                {deckDiagnosticsPanel}
+              </div>
+            )}
           </aside>
         </div>
       </div>
