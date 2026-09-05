@@ -75,7 +75,7 @@ test('selecting Logbook replaces a stale Settings URL tab and page turns stay in
   selected.set('page', '3');
   assert.equal(selected.get('tab'), 'logbook');
   assert.equal(selected.get('page'), '3');
-  assert.match(profileSource, /onClick=\{\(\) => selectProfileTab\(tab\.id as ProfileTab\)\}/);
+  assert.match(profileSource, /onTabChange=\{\(id\) => selectProfileTab\(id as ProfileTab\)\}/);
 });
 
 test('flipbook includes keyboard, swipe, persisted grid/list fallback, and reduced motion', () => {

@@ -58,7 +58,7 @@ test('department tokens and shared state panels are loaded', () => {
   assert.match(departments, /\.ft-dept-dex/);
   assert.match(departments, /\.ft-dept-voting/);
   assert.match(departments, /\.ft-status-chip--needs_more_proof/);
-  assert.match(hero, /variant \?= "default" \| "editorial"/);
+  assert.match(hero, /variant\?: "default" \| "editorial"/);
   assert.match(loader, /export function EmptyStatePanel/);
   assert.match(loader, /export function LockedStatePanel/);
   assert.match(loader, /export function ErrorStatePanel/);
