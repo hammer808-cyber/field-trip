@@ -54,6 +54,7 @@ export function subscribeToPublicProofs(limitCount: number, callback: (entries: 
   const q = query(
     collection(db, 'entries'),
     where('status', 'in', COMMUNITY_FEED_QUERY_STATUSES),
+    where('feedVisibility', '==', 'public_discovery'),
     limit(fetchLimit)
   );
 
@@ -81,9 +82,10 @@ export function subscribeToSocialProofs(
   viewerUserId: string,
   activeCrewId: string | null,
   limitCount: number,
-  callback: (entries: any[], errors: string[]) => void
+  callback: (entries: any[], errors: string[]) => void,
+  acceptedCrewUserIds: readonly string[] = []
 ) {
-  const results = new Map<'own' | 'crew', any[]>();
+  const results = new Map<string, any[]>();
   const errors = new Set<string>();
   const subscriptions: Array<() => void> = [];
   const publish = () => callback(
@@ -92,8 +94,13 @@ export function subscribeToSocialProofs(
       .slice(0, limitCount),
     Array.from(errors)
   );
-  const listen = (key: 'own' | 'crew', constraint: ReturnType<typeof where>) => {
-    const q = query(collection(db, 'entries'), where('status', 'in', COMMUNITY_FEED_QUERY_STATUSES), constraint, limit(Math.max(limitCount, 24)));
+  const listen = (key: string, constraints: Array<ReturnType<typeof where>>) => {
+    const q = query(
+      collection(db, 'entries'),
+      where('status', 'in', COMMUNITY_FEED_QUERY_STATUSES),
+      ...constraints,
+      limit(Math.max(limitCount, 24))
+    );
     subscriptions.push(onSnapshot(q, snap => {
       results.set(key, snap.docs.map(item => ({ ...item.data(), id: item.id, sourceDocumentId: item.id })));
       errors.delete(key);
@@ -105,7 +112,16 @@ export function subscribeToSocialProofs(
       publish();
     }));
   };
-  listen('own', where('userId', '==', viewerUserId));
-  if (activeCrewId) listen('crew', where('crewId', '==', activeCrewId));
+  listen('own', [where('userId', '==', viewerUserId)]);
+  const crewVisible = ['crew_only', 'followers_only', 'public_discovery'] as const;
+  const uniquePeers = Array.from(new Set(acceptedCrewUserIds.filter(id => id && id !== viewerUserId)));
+  for (let index = 0; index < uniquePeers.length; index += 10) {
+    const chunk = uniquePeers.slice(index, index + 10);
+    listen(`crew-people-${index}`, [where('userId', 'in', chunk), where('feedVisibility', 'in', crewVisible)]);
+  }
+  if (activeCrewId) {
+    listen('crew-company', [where('crewId', '==', activeCrewId), where('feedVisibility', 'in', crewVisible)]);
+  }
+  listen('public-discovery', [where('feedVisibility', '==', 'public_discovery')]);
   return () => subscriptions.forEach(unsubscribe => unsubscribe());
 }

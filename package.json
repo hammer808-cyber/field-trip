@@ -19,7 +19,8 @@
     "test:onboarding": "tsx --test src/__tests__/onboardingClassification.test.ts",
     "test:voting-security": "tsx --test src/__tests__/weeklyVotingSecurity.test.ts src/__tests__/tribunalSecurity.test.ts src/__tests__/susReports.test.ts src/__tests__/firelightBehavior.test.ts",
     "test:weekly-cycle": "tsx --test src/__tests__/weeklySeasonCycle.test.ts",
-    "test:firestore-rules": "firebase emulators:exec --only firestore \"tsx --test src/__tests__/firelightRules.integration.test.ts src/__tests__/weeklyVotingRules.integration.test.ts\"",
+    "test:firestore-rules": "firebase emulators:exec --only firestore \"tsx --test src/__tests__/firelightRules.integration.test.ts src/__tests__/weeklyVotingRules.integration.test.ts src/__tests__/crewGraphRules.integration.test.ts\"",
+    "test:crew-graph": "tsx --test src/__tests__/crewGraph.test.ts",
     "test:skins": "tsx --test src/__tests__/skinArchitecture.test.ts",
     "test:trevor": "tsx --test src/__tests__/trevorRecommendationEngine.test.ts src/__tests__/trevorGuide.test.tsx",
     "test:physical-memory": "tsx --test src/__tests__/physicalMemorySystem.test.ts src/__tests__/proofDistribution.test.ts src/__tests__/communityFeed.test.ts",
@@ -35,7 +36,8 @@
     "review:emulator": "tsx scripts/emulator-review.ts",
     "dev:emulator": "VITE_USE_FIREBASE_EMULATORS=true FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIREBASE_STORAGE_EMULATOR_HOST=127.0.0.1:9199 tsx server.ts",
     "test:emulator-guard": "tsx --test --test-force-exit src/__tests__/firebaseEmulatorGuard.test.ts",
-    "test:guidance": "tsx --test --test-force-exit src/__tests__/playerGuidance.test.ts src/__tests__/basecampViewModel.test.ts src/__tests__/basecampPresentation.test.tsx src/__tests__/phase4VisualHierarchy.test.tsx"
+    "test:guidance": "tsx --test --test-force-exit src/__tests__/playerGuidance.test.ts src/__tests__/basecampViewModel.test.ts src/__tests__/basecampPresentation.test.tsx src/__tests__/phase4VisualHierarchy.test.tsx",
+    "test:crew-social": "tsx --test --test-force-exit src/__tests__/crewGraph.test.ts src/__tests__/communityFeed.test.ts src/__tests__/basecampViewModel.test.ts src/__tests__/basecampPresentation.test.tsx"
   },
   "dependencies": {
     "@google/genai": "^2.3.0",

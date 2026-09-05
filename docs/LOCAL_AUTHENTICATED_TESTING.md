@@ -55,7 +55,14 @@ The seed creates:
 - Invite code `LOCAL-DEV-PLAYER` (active, high max uses)
 - App config, starter missions, public decks, active season
 - A **separate** emulator admin for review actions
-- **No player account** — sign up through the UI as a normal player
+- **No player account for the tester** — sign up through the UI as a normal player
+- **Social fixtures** for Crew privacy testing (emulator-only, password `LocalPlayer1!` unless `LOCAL_EMULATOR_PLAYER_PASSWORD` is set):
+  - `social-b@emulator.test` / username `socialb` — unrelated player
+  - `social-c@emulator.test` / username `socialc` — intended accepted Crew partner, plus one explicit `public_discovery` receipt
+  - `social-d@emulator.test` / username `sociald` — intended incoming-request partner
+  - `social-e@emulator.test` / username `sociale` — intended block target
+
+These fixture players are searchable after you sign up as the local player. They are not automatically added to a new player's Crew.
 
 Suggested local-only signup (not a production identity):
 

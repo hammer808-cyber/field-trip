@@ -52,6 +52,7 @@ import { Crew, CrewLore, CrewDispatch, CrewInvite, CrewJoinRequest, CrewMembersh
 import { CrewArtifactsGallery } from '../components/CrewArtifactsGallery';
 import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
 import { ZineWorkspace } from '../components/ZineWorkspace';
+import { CrewPeopleHome } from '../components/crew/CrewPeopleHome';
 
 export default function CrewPage() {
   const { user, profile, crewArtifacts, activeSeason, currentWeekNumber } = useApp();
@@ -284,13 +285,14 @@ export default function CrewPage() {
         ? cooldownUntil.toDate().toLocaleString()
         : null;
     return (
-      <div className="skin-page skin-crew min-h-screen p-6 pb-32 flex items-center justify-center">
-        <form onSubmit={handleCreateCrew} className="w-full max-w-xl bg-white border-[6px] border-on-surface shadow-[14px_14px_0px_black] p-6 sm:p-8 space-y-6">
+      <div className="skin-page skin-crew min-h-screen p-6 pb-32 space-y-16 max-w-5xl mx-auto">
+        <CrewPeopleHome />
+        <form onSubmit={handleCreateCrew} className="w-full bg-white border-[6px] border-on-surface shadow-[14px_14px_0px_black] p-6 sm:p-8 space-y-6">
           <div className="space-y-2 text-center">
             <Users className="w-14 h-14 mx-auto text-brand-orange" />
-            <h1 className="font-display text-4xl italic font-black uppercase leading-none">Create Your Crew</h1>
+            <h1 className="font-display text-4xl italic font-black uppercase leading-none">Crew Company</h1>
             <p className="font-serif italic text-sm opacity-70">
-              Crews are optional. Create or join one, or go draw a mission.
+              Optional named Crew company for zines and shared archives. Your people graph above is the everyday social world.
             </p>
           </div>
 
@@ -424,6 +426,7 @@ export default function CrewPage() {
 
   return (
     <div className="skin-page skin-crew pb-40 px-6 pt-12 space-y-16 max-w-5xl mx-auto relative overflow-hidden">
+      <CrewPeopleHome />
       {/* Header */}
       <header className="space-y-12 border-b-8 border-on-surface pb-12">
         <div className="flex flex-col md:flex-row items-start md:items-end gap-8 relative">

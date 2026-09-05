@@ -106,9 +106,10 @@ test('sidebar panels render honest progress, crew, activity, and empty states', 
   assert.match(progressHtml, /1 pending/i);
 
   const crewHtml = renderToStaticMarkup(
-    <BasecampCrewSummary model={{ hasCrew: false, crewId: null, crewName: 'No active crew', roleLabel: null }} onOpenCrew={noop} />,
+    <BasecampCrewSummary model={{ hasCrew: false, crewId: null, crewName: 'Your Crew is empty', roleLabel: null, acceptedCount: 0, incomingCount: 0 }} onOpenCrew={noop} />,
   );
-  assert.match(crewHtml, /Find a Crew/i);
+  assert.match(crewHtml, /Find Players/i);
+  assert.match(crewHtml, /Fieldtrip starts solo/i);
   assert.doesNotMatch(crewHtml, /Crew rank|contribution/i);
 
   const activityHtml = renderToStaticMarkup(<BasecampRecentActivity items={[]} />);

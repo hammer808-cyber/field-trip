@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { ReportModal } from './ReportModal';
 import { blockUser } from '../services/moderationService';
+import { blockPlayer } from '../services/crewGraphService';
 import { useApp } from '../context/AppContext';
 import { ReportTargetType } from '../types/game';
 import { cn } from '../lib/utils';
@@ -34,6 +35,7 @@ export function ContentMenu({ targetId, targetType, authorId, authorName, classN
     if (!user || !authorId || !window.confirm(`Block ${authorName}? You will no longer see their activity.`)) return;
     setIsBlocking(true);
     await blockUser(user.uid, authorId);
+    await blockPlayer(authorId).catch(() => undefined);
     setIsBlocking(false);
     setIsOpen(false);
   };

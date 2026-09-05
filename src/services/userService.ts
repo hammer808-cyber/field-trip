@@ -24,6 +24,7 @@ import { AvatarData } from '../types/avatar';
 import type { ProofStickerAssignments, StickerPlacement } from '../types/stickers';
 import { DEFAULT_AVATAR } from '../constants/avatarAssets';
 import { getLevelFromXp, getLevelTitle } from '../logic/playerLevel';
+import { getCommunityStandings } from './crewGraphService';
 
 export interface UserProfile {
   id: string;
@@ -444,40 +445,33 @@ export async function secureCompleteOnboarding() {
  * Cost: limited per call.
  */
 export async function getLeaderboardPage(pageSize = 25, lastVisible?: QueryDocumentSnapshot<DocumentData>) {
-  let q = query(
-    collection(db, COLLECTION),
-    orderBy('xp', 'desc'),
-    limit(pageSize)
-  );
-
   if (lastVisible) {
-    q = query(q, startAfter(lastVisible));
+    return { docs: [] as UserProfile[], lastVisible: undefined };
   }
-
-  try {
-    const snapshot = await getDocs(q);
-    return {
-      docs: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile)),
-      lastVisible: snapshot.docs[snapshot.docs.length - 1]
-    };
-  } catch (error) {
-    return handleFirestoreError(error, OperationType.LIST, COLLECTION);
-  }
+  const players = await getCommunityStandings({ limit: pageSize, sort: 'xp' });
+  return {
+    docs: players.map(player => ({
+      id: player.userId,
+      ...player,
+      name: player.displayName,
+      email: '',
+    } as unknown as UserProfile)),
+    lastVisible: undefined,
+  };
 }
 
 export async function getWeeklyLeaderboardPage(pageSize = 25, lastVisible?: QueryDocumentSnapshot<DocumentData>) {
-  let q = query(
-    collection(db, COLLECTION),
-    orderBy('weeklyXp', 'desc'),
-    limit(pageSize),
-  );
-  if (lastVisible) q = query(q, startAfter(lastVisible));
-
   try {
-    const snapshot = await getDocs(q);
+    if (lastVisible) return { docs: [] as UserProfile[], lastVisible: undefined };
+    const players = await getCommunityStandings({ limit: pageSize, sort: 'weeklyXp' });
     return {
-      docs: snapshot.docs.map(profileDoc => ({ id: profileDoc.id, ...profileDoc.data() } as UserProfile)),
-      lastVisible: snapshot.docs[snapshot.docs.length - 1],
+      docs: players.map(player => ({
+        id: player.userId,
+        ...player,
+        name: player.displayName,
+        email: '',
+      } as unknown as UserProfile)),
+      lastVisible: undefined,
     };
   } catch (error: any) {
     if (error?.code === 'unavailable' || error?.message?.includes('offline')) {
@@ -492,18 +486,25 @@ export async function getWeeklyLeaderboardPage(pageSize = 25, lastVisible?: Quer
 /**
  * REALTIME: Only listen to top 10 for "live" feel.
  * Cost: 10 Reads + updates.
+ * Full user documents are no longer client-listable; this now uses sanitized community standings.
  */
 export function subscribeToTopStandings(callback: (users: UserProfile[]) => void, count = 10) {
-  const q = query(
-    collection(db, COLLECTION),
-    orderBy('xp', 'desc'),
-    limit(count)
-  );
-  return onSnapshot(q, (snapshot) => {
-    callback(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserProfile)));
-  }, (error) => {
-    // Only log, don't crash the whole app for leaderboard failures
-    console.warn("[userService] Standing subscription skipped (likely pending accessStatus):", error.message);
-    callback([]);
-  });
+  let cancelled = false;
+  getCommunityStandings({ limit: count, sort: 'xp' })
+    .then(players => {
+      if (cancelled) return;
+      callback(players.map(player => ({
+        id: player.userId,
+        ...player,
+        name: player.displayName,
+        email: '',
+      } as unknown as UserProfile)));
+    })
+    .catch((error) => {
+      console.warn("[userService] Standing subscription skipped:", error.message);
+      if (!cancelled) callback([]);
+    });
+  return () => {
+    cancelled = true;
+  };
 }

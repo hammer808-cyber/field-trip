@@ -856,6 +856,7 @@ export default function BigBoardPage() {
     activeSeason,
     crewArtifacts,
     blockedIds,
+    crewGraph,
     onboardingCompletedCount,
     memories,
     fieldTokens,
@@ -1060,6 +1061,7 @@ export default function BigBoardPage() {
   const [lore, setLore] = useState<CrewLore | null>(null);
   const [dispatch, setDispatch] = useState<CrewDispatch | null>(null);
   const crewId = profile?.activeCrewId || profile?.crewId || null;
+  const acceptedCrewUserIds = crewGraph?.acceptedUserIds || [];
   const [hasEarnedBonus, setHasEarnedBonus] = useState(false);
 
   useEffect(() => {
@@ -1156,9 +1158,9 @@ export default function BigBoardPage() {
     if (!user?.uid) return;
     const unsub = subscribeToSocialProofs(user.uid, crewId, 30, (entries: any[]) => {
       setPublicProofs(entries as Entry[]);
-    });
+    }, acceptedCrewUserIds);
     return () => unsub();
-  }, [crewId, user?.uid]);
+  }, [acceptedCrewUserIds.join('|'), crewId, user?.uid]);
 
   useEffect(() => {
     if (!crewId || !isCrewUnlocked) return;
@@ -1278,7 +1280,11 @@ export default function BigBoardPage() {
 
   const communityFeedProofs = useMemo(() => {
     let list = dedupeCommunityFeedProofs(publicProofs.filter(entry => isVisibleInSocialFeed(entry, {
-      viewerUserId: user?.uid || '', activeCrewId: crewId, activeSeasonId: activeSeason?.id, blockedUserIds: blockedIds,
+      viewerUserId: user?.uid || '',
+      activeCrewId: crewId,
+      acceptedCrewUserIds,
+      activeSeasonId: activeSeason?.id,
+      blockedUserIds: blockedIds,
     })));
 
     const now = getServerDate();
@@ -1291,8 +1297,11 @@ export default function BigBoardPage() {
       list = list.filter(p => getCommunityFeedApprovedTime(p) >= weekAgo);
     } else if (feedFilter === "season" && seasonStart > 0) {
       list = list.filter(p => getCommunityFeedApprovedTime(p) >= seasonStart);
-    } else if (feedFilter === "crew" && crewId) {
-      list = list.filter(p => isCrewProofEligible(p, crewId));
+    } else if (feedFilter === "crew") {
+      list = list.filter(p => {
+        const ownerId = String((p as any).userId || (p as any).uid || '');
+        return (crewId && isCrewProofEligible(p, crewId)) || acceptedCrewUserIds.includes(ownerId);
+      });
     }
 
     return [...list].sort((a, b) => {
@@ -1302,7 +1311,7 @@ export default function BigBoardPage() {
       }
       return getCommunityFeedApprovedTime(b) - getCommunityFeedApprovedTime(a);
     });
-  }, [publicProofs, feedFilter, activeSeason?.id, activeSeason?.startDate, blockedIds, crewId, user?.uid]);
+  }, [publicProofs, feedFilter, activeSeason?.id, activeSeason?.startDate, blockedIds, crewId, acceptedCrewUserIds, user?.uid]);
 
   // Development-only logs for verification in BigBoard
   useEffect(() => {
