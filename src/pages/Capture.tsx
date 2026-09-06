@@ -1256,7 +1256,7 @@ export default function CapturePage() {
             {isRepairMode && repairFeedback && fcState === 'brief' && (
               <div className="mb-6 bg-brand-orange/10 border-l-4 border-brand-orange p-5 rounded-2xl text-left space-y-1.5 shadow-sm">
                 <p className="font-mono text-[9px] font-black uppercase tracking-wider text-brand-orange flex items-center gap-1.5">
-                  <AlertCircle className="w-3.5 h-3.5" /> BUREAU_REPAIR_FEEDBACK
+                  <AlertCircle className="w-3.5 h-3.5" /> Needs more proof
                 </p>
                 <p className="text-xs font-serif italic text-on-surface leading-relaxed">
                   "{repairFeedback}"

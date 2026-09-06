@@ -12,6 +12,9 @@ import {
   getTribunalResults,
   getTribunalVotesForUser
 } from '../services/tribunalService';
+import { FieldPageHero } from '../components/FieldPageHero';
+import { EmptyStatePanel, ErrorStatePanel, FieldtripLoader } from '../components/FieldtripLoader';
+import { PlayerPageBody, PlayerPageShell } from '../components/player';
 import { cn } from '../lib/utils';
 
 type BoothVote = 'valid' | 'sus';
@@ -100,52 +103,43 @@ export default function SnitchCouncilPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#19140f] text-[#fff8e8] pb-36">
-      <div className="max-w-6xl mx-auto px-5 pt-10 space-y-8">
-        <header className="flex items-start justify-between gap-4">
-          <div className="space-y-4">
-            <Link to="/voting" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.22em] text-[#ffd08a] hover:text-white">
-              <ArrowLeft className="w-4 h-4" />
-              Back to Voting
-            </Link>
-            <div>
-              <div className="flex items-center gap-3 text-[#ff9d4d]">
-                <Flame className="w-6 h-6" />
-                <p className="text-[10px] font-black uppercase tracking-[0.34em]">Private Signal Checks Become Public Only After Admin Review</p>
-              </div>
-              <h1 className="font-display text-5xl sm:text-7xl uppercase italic tracking-tight leading-none mt-3">
-                Firelight Tribunal
-              </h1>
-              <p className="max-w-2xl mt-4 text-base sm:text-lg font-serif italic text-[#ffe2bd]/80">
-                Vote the receipt, not the person. Community verdicts are recommendations; admins make the final call.
-              </p>
-            </div>
-          </div>
-          <div className="hidden sm:flex items-center gap-2 rounded-sm border border-[#ff9d4d]/40 bg-[#2a1c12] px-4 py-3 shadow-[6px_6px_0px_rgba(0,0,0,0.35)]">
-            <Sparkles className="w-4 h-4 text-[#adff4f]" />
-            <span className="text-[10px] font-black uppercase tracking-[0.22em]">Week {currentWeekNumber || 1}</span>
-          </div>
-        </header>
+    <PlayerPageShell department="voting" className="skin-voting">
+      <FieldPageHero
+        variant="editorial"
+        department="voting"
+        tone="chrome"
+        eyebrow="Weekly event"
+        title="TRIBUNAL"
+        subtitle="Vote the receipt, not the person. Admins make the final call."
+        backLabel="Voting"
+        backTo="/voting"
+        backgroundIcon={<Flame className="h-64 w-64" />}
+        infoCardLabel="Week"
+        infoCardValue={currentWeekNumber || 1}
+        infoCardSubtext="Firelight review"
+        infoCardAccent="orange"
+      />
+      <PlayerPageBody>
 
         {error && (
-          <div className="border border-[#ff7676] bg-[#3b1515] text-[#ffd8d8] p-4 text-xs font-bold uppercase tracking-wider">
-            {error}
-          </div>
+          <ErrorStatePanel title="Couldn't load Tribunal" body={error} />
         )}
 
         {isLoading ? (
-          <TribunalStateCard icon={<Flame className="w-10 h-10" />} title="Stoking The Fire" body="Loading reviewed case files." />
+          <FieldtripLoader variant="voting" label="Opening Tribunal" showProgress />
         ) : pageState === 'locked' ? (
-          <TribunalStateCard
-            icon={<Lock className="w-10 h-10" />}
-            title="Tribunal Locked"
-            body="The Firelight Tribunal opens after you have enough approved Fieldtrip progress. Sus signals stay private until then."
+          <EmptyStatePanel
+            title="Tribunal is locked"
+            body="This weekly review booth opens after you have enough approved progress."
+            hint="Sus signals stay private until then."
+            icon={<Lock className="h-8 w-8" />}
           />
         ) : pageState === 'lobby' ? (
-          <TribunalStateCard
-            icon={<ShieldAlert className="w-10 h-10" />}
-            title="No Cases At The Fire"
-            body="There are no admin-reviewed Signal Checks open for community review right now."
+          <EmptyStatePanel
+            title="No cases right now"
+            body="There are no admin-reviewed Signal Checks open for community review."
+            hint="Flagged receipts appear here after review."
+            icon={<ShieldAlert className="h-8 w-8" />}
           />
         ) : (
           <main className="grid lg:grid-cols-[minmax(0,1.1fr)_360px] gap-6 items-start">
@@ -270,8 +264,8 @@ export default function SnitchCouncilPage() {
             </aside>
           </main>
         )}
-      </div>
-    </div>
+      </PlayerPageBody>
+    </PlayerPageShell>
   );
 }
 

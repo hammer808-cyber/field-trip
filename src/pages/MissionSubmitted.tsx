@@ -9,6 +9,7 @@ import { canAccessFeature, canonicalizeId, getStarterProgress } from '../service
 import { STARTER_SIGNAL_IDS } from '../logic/starterDeckState';
 import { buildPostSubmitStarterGuidance } from '../logic/postSubmitStarterGuidance';
 import { getDisplayLabel } from '../utils/labelUtils';
+import { PlayerPageShell } from '../components/player';
 
 export default function MissionSubmittedPage() {
   const navigate = useNavigate();
@@ -31,7 +32,7 @@ export default function MissionSubmittedPage() {
   const primaryLabel = showStarterGuidance ? starterGuidance.primaryLabel : 'Draw Next Mission →';
 
   return (
-    <div className="skin-page skin-proof-status skin-success-state min-h-screen bg-[#FCF8F2] flex flex-col items-center justify-center p-6 relative overflow-hidden">
+    <PlayerPageShell department="missions" className="skin-page skin-proof-status skin-success-state min-h-screen bg-[#FCF8F2] flex flex-col items-center justify-center p-6 relative overflow-hidden">
       <Confetti />
       
       {/* Background Grid Pattern (field trip dossier style) */}
@@ -146,6 +147,6 @@ export default function MissionSubmittedPage() {
           </button>
         </div>
       </motion.div>
-    </div>
+    </PlayerPageShell>
   );
 }

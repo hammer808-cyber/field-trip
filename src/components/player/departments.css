@@ -1,0 +1,161 @@
+/* Fieldtrip player destination personality — same system, different department. */
+
+.ft-dept {
+  --ft-page-gutter: 16px;
+  --ft-section-gap: 28px;
+  --ft-card-pad: 16px;
+  --dept-accent: var(--skin-primary, #ff5c00);
+  color: var(--skin-text, #111);
+  background-color: var(--skin-background, #f4f3ef);
+  background-image: var(--skin-background-texture, none);
+}
+
+@media (min-width: 640px) {
+  .ft-dept {
+    --ft-page-gutter: 24px;
+    --ft-section-gap: 36px;
+    --ft-card-pad: 20px;
+  }
+}
+
+.ft-dept-body {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 72rem;
+  padding: 20px var(--ft-page-gutter) 8px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ft-section-gap);
+}
+
+.ft-dept-dex { --dept-accent: #7a3cff; }
+.ft-dept-profile,
+.ft-dept-identity { --dept-accent: #ff2daa; }
+.ft-dept-logbook { --dept-accent: #14804a; }
+.ft-dept-crew { --dept-accent: #ff5c00; }
+.ft-dept-board,
+.ft-dept-frontlines { --dept-accent: #c7ff00; }
+.ft-dept-voting { --dept-accent: #19d7ff; }
+.ft-dept-loteria {
+  --dept-accent: #ff5c00;
+  background-color: #d8cb83;
+  background-image:
+    radial-gradient(rgba(0, 0, 0, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, transparent 0 49%, rgba(0, 0, 0, 0.16) 50%, transparent 51%);
+  background-size: 8px 8px, 46px 46px;
+}
+.ft-dept-settings { --dept-accent: #5c5c59; }
+
+.ft-dept-dex .ft-page-hero {
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0 18px,
+      rgba(122, 60, 255, 0.08) 18px 20px
+    );
+}
+
+.ft-dept-crew .ft-page-hero {
+  background-image:
+    radial-gradient(circle at 88% 18%, rgba(255, 92, 0, 0.16), transparent 32%);
+}
+
+.ft-dept-voting .ft-page-hero {
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 13px,
+      rgba(25, 215, 255, 0.12) 13px 14px
+    );
+}
+
+.ft-dept-logbook .ft-page-hero {
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 22px,
+      rgba(20, 128, 74, 0.1) 22px 23px
+    );
+}
+
+.ft-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 28px;
+  border: 2px solid var(--skin-border, #111);
+  padding: 0.2rem 0.55rem;
+  font-family: var(--font-mono, "Courier Prime", monospace);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 2px 2px 0 var(--skin-border, #111);
+}
+
+.ft-status-chip--approved,
+.ft-status-chip--complete {
+  background: var(--skin-secondary, #ccff00);
+  color: var(--skin-on-secondary, #111);
+}
+
+.ft-status-chip--pending {
+  background: #ffd02a;
+  color: #111;
+}
+
+.ft-status-chip--needs_more_proof,
+.ft-status-chip--in_progress,
+.ft-status-chip--now {
+  background: var(--skin-primary, #ff5c00);
+  color: #fff;
+}
+
+.ft-status-chip--rejected {
+  background: var(--skin-error, #c52233);
+  color: #fff;
+}
+
+.ft-status-chip--locked {
+  background: #6d6d68;
+  color: #fff;
+}
+
+.ft-status-chip--here {
+  background: var(--skin-text, #111);
+  color: var(--skin-surface, #fff);
+}
+
+.ft-settings-group {
+  border: 3px solid var(--skin-border, #111);
+  background: var(--skin-surface, #fff);
+  box-shadow: 4px 4px 0 var(--skin-border, #111);
+  padding: 16px;
+}
+
+.ft-settings-group + .ft-settings-group {
+  margin-top: 16px;
+}
+
+.ft-settings-group h2 {
+  font-family: var(--font-display, inherit);
+  font-size: 1.35rem;
+  font-style: italic;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.ft-settings-group p {
+  margin-top: 6px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--skin-text-muted, #5c5c59);
+}
+
+@media (max-width: 374px) {
+  .ft-page-hero h1 {
+    font-size: clamp(2.6rem, 16vw, 4rem) !important;
+  }
+}

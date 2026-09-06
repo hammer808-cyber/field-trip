@@ -3,6 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Link, ShieldAlert, Users } from 'lucide-react';
 import { getCrewInviteByToken, joinCrewByInviteToken } from '../services/crewService';
 import { formatSafeDateOnly } from '../lib/utils';
+import { FieldPageHero } from '../components/FieldPageHero';
+import { EmptyStatePanel, ErrorStatePanel, FieldtripLoader } from '../components/FieldtripLoader';
+import { FieldButton, PlayerPageBody, PlayerPageShell } from '../components/player';
 
 export default function CrewInvitePage() {
   const { token = '' } = useParams();
@@ -40,19 +43,35 @@ export default function CrewInvitePage() {
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center font-mono text-xs uppercase">Checking invite...</div>;
+    return (
+      <PlayerPageShell department="crew" className="skin-crew">
+        <FieldtripLoader variant="community" fullScreen label="Checking invite" />
+      </PlayerPageShell>
+    );
   }
 
   if (error || !state?.valid) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="max-w-md bg-white border-8 border-on-surface shadow-[12px_12px_0px_black] p-8 text-center space-y-5">
-          <ShieldAlert className="w-16 h-16 mx-auto text-brand-orange" />
-          <h1 className="font-display font-black italic uppercase text-4xl leading-none">Invite Unavailable</h1>
-          <p className="font-serif italic text-sm opacity-70">{error || 'This Crew invite cannot be used.'}</p>
-          <button className="bureau-btn bg-brand-lime text-on-surface" onClick={() => navigate('/crew')}>Go To Crew HQ</button>
-        </div>
-      </div>
+      <PlayerPageShell department="crew" className="skin-crew">
+        <FieldPageHero
+          variant="editorial"
+          department="crew"
+          eyebrow="Social clubhouse"
+          title="CREW"
+          subtitle="This invite cannot be used."
+          backLabel="Crew"
+          backTo="/crew"
+          backgroundIcon={<Users className="h-64 w-64" />}
+        />
+        <PlayerPageBody>
+          <ErrorStatePanel
+            title="Invite unavailable"
+            body={error || 'This Crew invite cannot be used.'}
+            onRetry={() => navigate('/crew')}
+            retryLabel="Go to Crew"
+          />
+        </PlayerPageBody>
+      </PlayerPageShell>
     );
   }
 
@@ -61,37 +80,78 @@ export default function CrewInvitePage() {
   const inAnotherCrew = state.viewer?.activeCrewId && state.viewer.activeCrewId !== crew.id;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 pb-32">
-      <div className="max-w-lg w-full bg-white border-8 border-on-surface shadow-[14px_14px_0px_black] p-7 space-y-6">
-        <div className="text-center space-y-3">
-          <div className="w-20 h-20 mx-auto bg-brand-cyan border-4 border-on-surface shadow-[6px_6px_0px_black] flex items-center justify-center">
-            <Users className="w-10 h-10" />
+    <PlayerPageShell department="crew" className="skin-crew">
+      <FieldPageHero
+        variant="editorial"
+        department="crew"
+        eyebrow="Social clubhouse"
+        title="JOIN CREW"
+        subtitle={crew.motto ? `"${crew.motto}"` : 'Use this invite to join the clubhouse.'}
+        backLabel="Crew"
+        backTo="/crew"
+        backgroundIcon={<Users className="h-64 w-64" />}
+        infoCardLabel="Members"
+        infoCardValue={`${crew.memberCount}/${crew.memberLimit}`}
+        infoCardSubtext={crew.privacy}
+        infoCardAccent="orange"
+      />
+      <PlayerPageBody>
+        <div className="border-4 border-[var(--skin-border)] bg-[var(--skin-surface)] p-5 shadow-[6px_6px_0_var(--skin-border)] sm:p-8">
+          <div className="flex items-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center border-4 border-on-surface bg-brand-orange text-white shadow-[4px_4px_0px_black]">
+              <Users className="h-8 w-8" aria-hidden="true" />
+            </div>
+            <div>
+              <p className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-on-surface/45">Crew invite</p>
+              <h2 className="font-display text-3xl font-black uppercase italic leading-none">{crew.name}</h2>
+            </div>
           </div>
-          <p className="font-mono text-[10px] uppercase tracking-widest text-brand-orange font-black">Crew Invite Link</p>
-          <h1 className="font-display font-black italic uppercase text-5xl leading-none">{crew.name}</h1>
-          {crew.motto && <p className="font-serif italic text-sm opacity-70">"{crew.motto}"</p>}
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="border-2 border-on-surface/15 p-3">
+              <p className="font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/45">Mode</p>
+              <p className="mt-1 font-sans text-sm font-bold">{crew.mode}</p>
+            </div>
+            <div className="border-2 border-on-surface/15 p-3">
+              <p className="font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/45">Privacy</p>
+              <p className="mt-1 font-sans text-sm font-bold">{crew.privacy}</p>
+            </div>
+            <div className="border-2 border-on-surface/15 p-3">
+              <p className="font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/45">Members</p>
+              <p className="mt-1 font-sans text-sm font-bold">{crew.memberCount} / {crew.memberLimit}</p>
+            </div>
+            <div className="border-2 border-on-surface/15 p-3">
+              <p className="font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/45">Expires</p>
+              <p className="mt-1 font-sans text-sm font-bold">{formatSafeDateOnly(state.invite?.expiresAt)}</p>
+            </div>
+          </div>
+
+          {message && (
+            <EmptyStatePanel
+              className="mt-5"
+              title="Request sent"
+              body={message}
+              icon={<ShieldAlert className="h-8 w-8" />}
+            />
+          )}
+          {alreadyInThisCrew && (
+            <p className="mt-5 border-2 border-brand-cyan bg-brand-cyan/15 p-3 font-sans text-sm font-bold">You are already in this Crew.</p>
+          )}
+          {inAnotherCrew && (
+            <p className="mt-5 border-2 border-brand-orange bg-brand-orange/10 p-3 font-sans text-sm font-bold">You are already in another Crew. Leave it first to request this one.</p>
+          )}
+
+          <FieldButton
+            className="mt-6 w-full"
+            size="lg"
+            disabled={busy || alreadyInThisCrew || inAnotherCrew}
+            onClick={handleJoin}
+          >
+            <Link className="h-4 w-4" aria-hidden="true" />
+            {busy ? 'Working…' : crew.privacy === 'discoverable' && crew.autoApproveShareLinks ? 'Join Crew' : 'Request to join'}
+          </FieldButton>
         </div>
-
-        <div className="grid grid-cols-2 gap-3 font-mono text-[10px] uppercase">
-          <div className="border-2 border-on-surface/20 p-3"><span className="opacity-50">Mode</span><br/><b>{crew.mode}</b></div>
-          <div className="border-2 border-on-surface/20 p-3"><span className="opacity-50">Privacy</span><br/><b>{crew.privacy}</b></div>
-          <div className="border-2 border-on-surface/20 p-3"><span className="opacity-50">Members</span><br/><b>{crew.memberCount} / {crew.memberLimit}</b></div>
-          <div className="border-2 border-on-surface/20 p-3"><span className="opacity-50">Expires</span><br/><b>{formatSafeDateOnly(state.invite?.expiresAt)}</b></div>
-        </div>
-
-        {message && <div className="border-2 border-brand-lime bg-brand-lime/20 p-3 font-mono text-xs font-black uppercase">{message}</div>}
-        {alreadyInThisCrew && <div className="border-2 border-brand-cyan bg-brand-cyan/20 p-3 font-mono text-xs font-black uppercase">You are already in this Crew.</div>}
-        {inAnotherCrew && <div className="border-2 border-brand-orange bg-brand-orange/10 p-3 font-mono text-xs font-black uppercase">You are already in another Crew. Leave it first to request this one.</div>}
-
-        <button
-          className="bureau-btn w-full bg-brand-lime text-on-surface disabled:opacity-50"
-          disabled={busy || alreadyInThisCrew || inAnotherCrew}
-          onClick={handleJoin}
-        >
-          <Link className="w-4 h-4 mr-2" />
-          {crew.privacy === 'discoverable' && crew.autoApproveShareLinks ? 'Join Crew' : 'Request To Join'}
-        </button>
-      </div>
-    </div>
+      </PlayerPageBody>
+    </PlayerPageShell>
   );
 }

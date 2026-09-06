@@ -7,6 +7,8 @@ import { AvatarData, AvatarOption } from '../types/avatar';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, Save, ChevronRight, Check, RefreshCcw } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { FieldPageHero } from '../components/FieldPageHero';
+import { FieldButton, PlayerPageBody, PlayerPageShell } from '../components/player';
 
 type Category = keyof typeof AVATAR_MANIFEST;
 
@@ -78,35 +80,31 @@ export default function FieldIdentity() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-on-surface font-mono flex flex-col pt-safe">
-      {/* Header */}
-      <header className="p-6 border-b-8 border-on-surface flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-50">
-        <button onClick={() => navigate(-1)} className="p-3 hover:bg-on-surface/5 rounded-none border-2 border-on-surface shadow-[4px_4px_0px_black] transition-all font-mono uppercase text-[10px] tracking-widest flex items-center gap-2 font-black">
-          <ChevronLeft size={16} strokeWidth={3} />
-          <span>Exit</span>
-        </button>
-        <div className="text-center">
-          <h1 className="text-xl font-black uppercase tracking-tighter italic leading-none">Field_ID_Editor</h1>
-          <p className="text-[9px] opacity-40 uppercase font-black tracking-widest mt-1">Archival_Interface_V2.0</p>
+    <PlayerPageShell department="identity" className="skin-profile">
+      <FieldPageHero
+        variant="editorial"
+        department="identity"
+        eyebrow="Personal field record"
+        title="FIELD ID"
+        subtitle="Build the look that shows up on your Profile."
+        backLabel="Profile"
+        backTo="/profile"
+        backgroundIcon={<Save className="h-64 w-64" />}
+        infoCardLabel="Status"
+        infoCardValue={isSaving ? 'Saving' : 'Draft'}
+        infoCardSubtext={profile?.fieldTypeName || 'Explorer look'}
+        infoCardAccent="pink"
+      />
+      <PlayerPageBody>
+      <div className="relative flex flex-col gap-6 overflow-hidden">
+        <div className="flex justify-end">
+          <FieldButton onClick={handleSave} disabled={isSaving}>
+            <Save size={16} strokeWidth={3} />
+            {isSaving ? 'Saving…' : 'Save look'}
+          </FieldButton>
         </div>
-        <button 
-          onClick={handleSave} 
-          disabled={isSaving}
-          className="bg-brand-orange text-white px-6 py-2 border-4 border-on-surface shadow-[6px_6px_0px_var(--color-brand-lime)] font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:scale-105 active:scale-95 disabled:opacity-50 transition-all"
-        >
-          {isSaving ? <span className="animate-pulse">Archiving...</span> : (
-            <>
-              <Save size={16} strokeWidth={3} />
-              <span>Secure ID</span>
-            </>
-          )}
-        </button>
-      </header>
-
-      {/* Main Preview Area */}
-      <div className="flex-1 flex flex-col items-center justify-center p-12 bg-white relative overflow-hidden">
         {/* Background Gradients */}
-        <div className="absolute inset-0 z-0 opacity-10">
+        <div className="absolute inset-0 z-0 opacity-10 pointer-events-none">
           <div className="absolute top-1/4 -left-1/4 w-[600px] h-[600px] bg-brand-orange/20 blur-[150px] rounded-full" />
           <div className="absolute bottom-1/4 -right-1/4 w-[600px] h-[600px] bg-brand-lime/20 blur-[150px] rounded-full" />
         </div>
@@ -118,12 +116,11 @@ export default function FieldIdentity() {
         >
           <div className="absolute -inset-12 border-4 border-on-surface/5 pointer-events-none -rotate-3" />
           <div className="absolute -inset-6 border-4 border-on-surface/10 pointer-events-none rotate-6" />
-          <AvatarPreview avatar={currentAvatar} size="xl" className="shadow-[20px_20px_0px_black] border-8 border-on-surface bg-white" />
+          <AvatarPreview avatar={currentAvatar} size="xl" className="border-4 border-on-surface bg-white shadow-[8px_8px_0px_black]" />
           
-          {/* Label */}
-          <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 w-full text-center">
-             <div className="inline-block bg-on-surface text-brand-lime px-4 py-1 border-2 border-on-surface -rotate-2">
-               <span className="text-[12px] uppercase tracking-[0.4em] font-black italic">Field_Asset_ID</span>
+          <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-full text-center">
+             <div className="inline-block bg-on-surface px-4 py-1 text-brand-lime">
+               <span className="text-xs font-black uppercase italic tracking-wide">Preview</span>
              </div>
           </div>
         </motion.div>
@@ -211,13 +208,14 @@ export default function FieldIdentity() {
                 <Check size={64} className="text-white" strokeWidth={5} />
               </div>
               <div className="space-y-6">
-                <h2 className="text-7xl font-black uppercase tracking-tighter italic leading-none drop-shadow-[6px_6px_0px_white]">ID_LOCKED</h2>
-                <p className="text-xl text-on-surface bg-white inline-block px-6 py-2 border-4 border-on-surface shadow-[8px_8px_0px_black] font-black uppercase tracking-[0.2em] -rotate-3">Dossier archived and approved.</p>
+                <h2 className="font-display text-4xl font-black uppercase italic leading-none">Saved</h2>
+                <p className="font-sans text-sm font-bold">Your Field Identity is updated.</p>
               </div>
             </div>
           </motion.div>
         )}
-      </AnimatePresence>
-    </div>
+          </AnimatePresence>
+      </PlayerPageBody>
+    </PlayerPageShell>
   );
 }

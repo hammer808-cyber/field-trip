@@ -48,6 +48,9 @@ import { FieldtripLoader } from '../components/FieldtripLoader';
 type VotingTab = 'vote' | 'tribunal' | 'results';
 
 import { FieldPageHero } from '../components/FieldPageHero';
+import { EmptyStatePanel } from '../components/FieldtripLoader';
+import { FieldButton, PlayerPageBody, PlayerPageShell } from '../components/player';
+import { GatedFeaturePanel } from '../components/GatedFeaturePanel';
 
 export default function VotingHubPage() {
   const { user, currentWeekNumber, activeSeason, isVotingWindowOpen, unlockDiscoverySticker, isTribunalUnlocked, canonicalProgress } = useApp();
@@ -135,37 +138,28 @@ export default function VotingHubPage() {
   };
 
   return (
-    <div className="skin-page skin-voting min-h-screen bg-paper pb-56 sm:pb-64 relative overflow-hidden ft-paper-texture">
-      {/* Visual Spiral Notebook Rings at the top */}
-      <div className="w-full flex justify-center py-1 opacity-55 z-20 relative select-none pointer-events-none mb-3 pt-3">
-        <div className="h-4 w-60 border-y-2 border-on-surface bg-[#EAE5D8] flex justify-between px-4 rounded-full shadow-[inset_0_2px_4.5px_rgba(0,0,0,0.15)]">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="w-2.5 h-6 bg-slate-400 border-2 border-on-surface rounded-full -mt-1 shadow" />
-          ))}
-        </div>
-      </div>
-
+    <PlayerPageShell department="voting" className="skin-voting">
       <FieldPageHero
-        eyebrow="WEEKLY_COMMUNITY_MATCHUP"
-        title="PEER VOTE"
-        subtitle="Sector 7-B // Field Headquarters"
-        backLabel="My_Findings"
-        backTo="/missions"
+        variant="editorial"
+        department="voting"
+        eyebrow="Weekly event"
+        title="VOTING"
+        subtitle="This week's community ballot and awards."
         backgroundIcon={<Trophy className="w-64 h-64" />}
-        infoCardLabel="STATION_CLOCK"
+        infoCardLabel="Clock"
         infoCardValue={
           clockInfo.phase === 'submission' 
             ? `${clockInfo.daysLeft}D` 
             : clockInfo.phase === 'voting' 
               ? `${clockInfo.hoursLeft}H` 
-              : 'LIVE'
+              : 'Live'
         }
         infoCardSubtext={
           clockInfo.phase === 'submission' 
-            ? 'DAYS LEFT // SUBMISSION WINDOW ACTIVE' 
+            ? 'Days left in the submission window' 
             : clockInfo.phase === 'voting' 
-              ? 'HOURS LEFT // CAST MATCHUP BALLOTS' 
-              : 'WEEKLY RESULTS RELEASED'
+              ? 'Hours left to vote' 
+              : 'Results released'
         }
         infoCardAccent={
           clockInfo.phase === 'submission' 
@@ -175,7 +169,7 @@ export default function VotingHubPage() {
               : 'lime'
         }
         tabs={[
-          { id: 'vote', label: 'Weekly Votes' },
+          { id: 'vote', label: 'Ballot' },
           { id: 'tribunal', label: 'Tribunal', locked: !isTribunalUnlocked },
           { id: 'results', label: 'Results' }
         ]}
@@ -183,8 +177,7 @@ export default function VotingHubPage() {
         onTabChange={(id) => setActiveTab(id as VotingTab)}
       />
 
-      {/* 3. MAIN CONTENT */}
-      <main className="max-w-6xl mx-auto p-4 sm:p-8 overflow-hidden">
+      <PlayerPageBody>
 
          <AnimatePresence mode="wait">
             {activeTab === 'vote' && (
@@ -253,9 +246,9 @@ export default function VotingHubPage() {
                 className="space-y-12"
               >
                  <div className="text-left space-y-2">
-                    <h2 className="text-5xl font-display font-black uppercase italic text-on-surface leading-none">The Tribunal</h2>
-                    <p className="text-sm font-serif italic text-on-surface/40 leading-none tracking-widest pl-1 font-bold">
-                       // PEER_MODERATION_CHANNEL
+                    <h2 className="text-3xl font-display font-black uppercase italic text-on-surface leading-none">Tribunal</h2>
+                    <p className="text-sm font-sans font-bold text-on-surface/65">
+                       Community review for flagged receipts. Admins make the final call.
                     </p>
                  </div>
 
@@ -273,10 +266,12 @@ export default function VotingHubPage() {
                        <button onClick={() => navigate('/missions')} className="px-8 py-3 bg-on-surface text-white rounded-xl font-display text-xl font-black uppercase italic shadow-[6px_6px_0px_var(--color-brand-orange)] active:shadow-none hover:bg-brand-magenta transition-all">Go to Missions</button>
                     </div>
                  ) : tribunalCases.length === 0 ? (
-                    <div className="py-32 border-4 border-dashed border-on-surface/10 rounded-[3rem] text-center space-y-6">
-                       <Gavel className="w-16 h-16 mx-auto opacity-10" />
-                       <p className="font-display text-2xl uppercase italic font-black opacity-30">Docket is Clear</p>
-                    </div>
+                    <EmptyStatePanel
+                      title="No cases right now"
+                      body="The Tribunal docket is empty."
+                      hint="Flagged receipts appear here after admin review."
+                      icon={<Gavel className="h-8 w-8" />}
+                    />
                  ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                        {tribunalCases.map(c => (
@@ -348,17 +343,19 @@ export default function VotingHubPage() {
                 className="space-y-12"
               >
                   <div className="text-left space-y-2">
-                    <h2 className="text-5xl font-display font-black uppercase italic text-on-surface leading-none">Outcome Log</h2>
-                    <p className="text-sm font-serif italic text-on-surface/40 leading-none tracking-widest pl-1 font-bold">
-                       // RESOLVED_CASE_HISTORY
+                    <h2 className="text-3xl font-display font-black uppercase italic text-on-surface leading-none">Results</h2>
+                    <p className="text-sm font-sans font-bold text-on-surface/65">
+                       Resolved cases from this week's event.
                     </p>
                  </div>
 
                  {resolvedCases.length === 0 ? (
-                    <div className="py-32 border-4 border-dashed border-on-surface/10 rounded-[3rem] text-center space-y-6">
-                       <History className="w-16 h-16 mx-auto opacity-10" />
-                       <p className="font-display text-2xl uppercase italic font-black opacity-30">No Historic Data</p>
-                    </div>
+                    <EmptyStatePanel
+                      title="No results yet"
+                      body="Resolved Tribunal cases will show up here."
+                      hint="Come back after this week's review."
+                      icon={<History className="h-8 w-8" />}
+                    />
                  ) : (
                     <div className="space-y-6">
                        {resolvedCases.map(c => (
@@ -391,7 +388,7 @@ export default function VotingHubPage() {
               </motion.div>
             )}
          </AnimatePresence>
-      </main>
+      </PlayerPageBody>
 
       {/* Rules Modal Overlay */}
       <AnimatePresence>
@@ -437,34 +434,10 @@ export default function VotingHubPage() {
           </div>
         )}
       </AnimatePresence>
-    </div>
+    </PlayerPageShell>
   );
 }
 
-function VotingLockedPanel({ approvedCount }: { approvedCount: number }) {
-  return (
-    <div className="border-4 border-on-surface bg-[#fff8e8] p-8 text-center shadow-[8px_8px_0px_black] rounded-[2rem]">
-      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border-4 border-on-surface bg-brand-magenta text-white shadow-[5px_5px_0px_black]">
-        <Lock className="h-10 w-10" />
-      </div>
-      <h3 className="mt-5 font-display text-4xl font-black italic uppercase leading-none">
-        Voting is locked
-      </h3>
-      <p className="mx-auto mt-3 max-w-lg font-sans text-sm font-bold text-on-surface/75">
-        Finish 3 starter missions to open voting.
-      </p>
-      <div className="mx-auto mt-6 max-w-sm border-2 border-on-surface bg-white p-3 shadow-[3px_3px_0px_black]">
-        <p className="font-mono text-[10px] font-black uppercase tracking-widest text-brand-orange">
-          {Math.min(3, Math.max(0, approvedCount))} of 3 approved
-        </p>
-      </div>
-      <Link
-        to="/missions"
-        className="mt-6 inline-flex items-center justify-center gap-2 border-4 border-on-surface bg-brand-lime px-6 py-3 font-display text-lg font-black italic uppercase shadow-[5px_5px_0px_black] active:translate-y-1 active:shadow-none"
-      >
-        Go do a mission
-        <ArrowRight className="h-5 w-5" />
-      </Link>
-    </div>
-  );
+function VotingLockedPanel({ approvedCount: _approvedCount }: { approvedCount: number }) {
+  return <GatedFeaturePanel featureName="Voting" />;
 }

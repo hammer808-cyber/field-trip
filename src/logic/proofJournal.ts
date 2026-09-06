@@ -14,15 +14,15 @@ export function getLogbookStatusPresentation(entry: any): LogbookStatusPresentat
   );
 
   if (status === 'approved') {
-    return { status, label: 'Verified', detail: 'Approved for your archive and public distribution rules.', tone: 'approved' };
+    return { status, label: 'Approved', detail: 'Approved for your archive and public distribution rules.', tone: 'approved' };
   }
   if (status === 'needs_more_proof') {
-    return { status, label: 'Add More Proof', detail: 'This receipt is private until the requested correction is reviewed.', tone: 'correction' };
+    return { status, label: 'Needs more proof', detail: 'This receipt is private until the requested correction is reviewed.', tone: 'correction' };
   }
   if (status === 'rejected') {
-    return { status, label: 'Not Verified', detail: 'This receipt remains private and is excluded from community pages.', tone: 'rejected' };
+    return { status, label: 'Rejected', detail: 'This receipt remains private and is excluded from community pages.', tone: 'rejected' };
   }
-  return { status: 'pending_review', label: 'Pending Review', detail: 'Only you and reviewers can see this receipt.', tone: 'pending' };
+  return { status: 'pending_review', label: 'Pending', detail: 'Only you and reviewers can see this receipt.', tone: 'pending' };
 }
 
 export function getSafeProofLocation(entry: any): string | null {
