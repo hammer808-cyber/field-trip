@@ -107,7 +107,7 @@ Bottom nav unchanged (Phase 4 Here/Now). Destination headers may include back la
 | Logbook | Buried Profile tab, archive poetry empty | Editorial LOGBOOK; mission history dominant; canonical statuses | Receipts / history | Done |
 | Settings | Same page as Profile, decorative competition | Editorial SETTINGS; grouped utility (`ft-settings-group`) | Backstage controls | Done |
 | Field Identity | Sticky header, duplication with Profile | Editorial FIELD ID; Save look primary | Explorer look editor | Done (duplication flagged) |
-| Crew | Loading jargon, dated empty | Editorial CREW; Create / Find; standard empty | Social clubhouse | Visual only |
+| Crew | Loading jargon, dated empty; later `main` added a 1:1 people graph | Editorial CREW + `CrewPeopleHome`; named company is optional | People first, named company optional | Visual chrome + merge with #48 |
 | Crew invite | Isolated white card | Editorial JOIN CREW + shared empty/error/loading | Clubhouse invite | Done |
 | Big Board | Giant hero, rings, “Top Operatives”, stats noise | Chrome editorial BIG BOARD; live phase + rank; Top explorers | Public marquee | Done |
 | Voting Hub | Rings, back-to-missions, mixed lock UI | Editorial VOTING; Ballot / Tribunal / Results; `VotingLockedPanel` → `GatedFeaturePanel` | Weekly ballot board | Done |
@@ -212,7 +212,7 @@ Do **not** remove in this branch.
 | Field Identity | `/field-id` | Avatar editor | Profile already owns identity + edit modal | Absorb into Profile overview “Edit look” | **Medium** — Profile save/updateAvatar still depends on this route |
 | Dex missions / decks / badges tabs | `Collection.tsx` tab type, not in hero tabs | Hidden tab ids exist in code | Players cannot reach them from the Dex header | Drop dead tab types or expose under Collection | **Low–medium** — URL params may still deep-link |
 | Profile Vault | Profile `vault` tab | Stickers / featured showcase | Overlaps Dex collection / stickers | Keep one collector surface (Dex) | **Medium** — players may bookmark Profile vault |
-| Crew voting / memories / zine | Crew populated tabs | Mini social copies of global Voting + Dex | Upcoming Social Privacy + Crew Foundation will replace | Leave until that project | **High** if removed now |
+| Crew voting / memories / zine | Named Crew company tabs | Mini social copies of global Voting + Dex | #48 made 1:1 people the everyday social world; named company still owns zines/archives | Keep until zine/archive product is explicit | **High** if removed now |
 | Quiet Crew Mode | Frontlines + Profile privacy | Filters visuals | Split across destinations | Settings-only privacy control | **Medium** |
 | SabotageHub | Frontlines (and Big Board) | Social attack toys | Unclear if still product-intent | Product decision | **High** without design sign-off |
 
@@ -222,10 +222,11 @@ Do **not** remove in this branch.
 
 Explicitly **not** in this pass:
 
-- Social Privacy + Crew Foundation
 - Deck Store + My Decks
 - Lotería Photo Board (approved mission cards → player photos)
 - Voting 2.0
+
+Social Privacy + Crew Foundation landed on `main` as #48 while this branch was open. The merge keeps that 1:1 people graph (`CrewPeopleHome`, `/players/:username`) and this branch’s editorial Crew chrome. Gameplay from #48 is unchanged.
 
 ---
 
@@ -256,6 +257,8 @@ No gameplay rules were changed to make tests pass. Route unlock test now asserts
 - Frontlines still contains a full second ranking UI under the new header. Consolidation needs a product decision (Field Check / Sabotage).
 - Field Identity vs Profile identity editor duplication. New players cannot reach `/field-id` until Starter is complete (`onboardingCompleted` in AppContext is canonical Starter complete).
 - RewardFeedback starter-unlock modal still leads with `DATA_STREAM_CONFIRMED` / `BUREAU_CREDIT_UNLOCKED` (not restyled in this pass; covers destinations until dismissed).
+- `CrewPeopleHome` still uses its own giant `h1` (“Your people”) inside the editorial Crew page, so empty Crew can show two page titles.
+- `PlayerPublicProfile` (`/players/:username`) shipped in #48 without the shared shell: `LOADING_PLAYER...` and no `FieldPageHero` / `PlayerPageShell`.
 
 ### MEDIUM
 
