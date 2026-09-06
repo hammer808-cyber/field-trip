@@ -30,6 +30,8 @@ import { ZineWorkspace } from '../components/ZineWorkspace';
 import { StickerBook } from '../components/StickerBook';
 import { StickerMachine } from '../components/stickers/StickerMachine';
 import { GatedFeaturePanel } from '../components/GatedFeaturePanel';
+import { EmptyStatePanel } from '../components/FieldtripLoader';
+import { FieldButton, FieldSection, FieldStatusChip, PlayerPageBody, PlayerPageShell } from '../components/player';
 
 type CollectionTab = 'collection' | 'zines' | 'memories' | 'stickers' | 'badges' | 'decks' | 'missions' | 'crew_memories';
 type MemoriesView = 'mine' | 'community';
@@ -244,29 +246,21 @@ export default function CollectionPage() {
   );
 
   return (
-    <div className="skin-page skin-memories min-h-screen bg-[#FAF8F5] pb-56 ft-paper-texture">
-      <div className="w-full flex justify-center py-1 opacity-55 z-20 relative select-none pointer-events-none mb-3 pt-3">
-        <div className="h-4 w-60 border-y-2 border-on-surface bg-[#EAE5D8] flex justify-between px-4 rounded-full shadow-[inset_0_2px_4.5px_rgba(0,0,0,0.15)]">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="w-2.5 h-6 bg-slate-400 border-2 border-on-surface rounded-full -mt-1 shadow" />
-          ))}
-        </div>
-      </div>
-
+    <PlayerPageShell department="dex" className="skin-memories">
       <FieldPageHero
-        eyebrow="FIELD_ARCHIVE"
+        variant="editorial"
+        department="dex"
+        eyebrow="Collector cabinet"
         title="DEX"
-        subtitle="Sector 7-B // Field Headquarters"
-        backTo="/profile"
+        subtitle="This is where the stuff you've earned and collected lives."
         backgroundIcon={<Book className="w-64 h-64" />}
-        infoCardLabel="DISCOVERIES"
+        infoCardLabel="Collected"
         infoCardValue={totalUnlocked.toString()}
-        infoCardSubtext="Collected field artifacts"
-        infoCardAccent="orange"
-        infoCardVariant="sticker"
+        infoCardSubtext={`${totalUnlocked} of ${totalRewards} unlocked`}
+        infoCardAccent="purple"
         tabs={[
           { id: 'collection', label: 'Collection' },
-          { id: 'stickers', label: 'Sticker Machine' },
+          { id: 'stickers', label: 'Stickers' },
           { id: 'zines', label: 'Zines' },
           { id: 'memories', label: 'Memories' }
         ]}
@@ -274,8 +268,10 @@ export default function CollectionPage() {
         onTabChange={(id) => handleTabChange(id as CollectionTab)}
       />
 
-      <main className="px-4 sm:px-10 py-10 max-w-6xl mx-auto min-h-[45vh] bg-white border-x-4 border-b-4 border-on-surface shadow-[10px_10px_0px_black] relative rounded-b-[2.5rem] z-10 -mt-1">
-         <div className="absolute inset-0 bg-[radial-gradient(rgba(0,0,0,0.015)_1.5px,transparent_0)] bg-[size:16px_16px] pointer-events-none rounded-b-[2.5rem]" />
+      <PlayerPageBody>
+        <main className="relative min-h-[45vh] border-4 border-[var(--skin-border)] bg-[var(--skin-surface)] p-4 shadow-[8px_8px_0_var(--skin-border)] sm:p-8">
+         <div className="absolute inset-0 bg-[radial-gradient(rgba(0,0,0,0.015)_1.5px,transparent_0)] bg-[size:16px_16px] pointer-events-none" />
+         <div className="relative z-10">
         <AnimatePresence mode="wait">
           {activeTab === 'collection' && (
             <motion.div
@@ -287,17 +283,13 @@ export default function CollectionPage() {
             >
               <StickerBook />
 
-              <section className="space-y-4">
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="font-display text-2xl font-black uppercase italic tracking-tight text-on-surface">Medals</h2>
-                  <span className="font-mono text-[10px] font-black uppercase text-on-surface/40">{badges.filter(r => unlockedBadges.has(r.id)).length} earned</span>
-                </div>
+              <FieldSection eyebrow="Cabinet" title="Medals" action={<span className="font-mono text-[10px] font-black uppercase text-on-surface/40">{badges.filter(r => unlockedBadges.has(r.id)).length} earned</span>}>
                 <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
                   {badges.map(r => (
                     <RewardItem key={r.id} reward={r} isUnlocked={unlockedBadges.has(r.id)} />
                   ))}
                 </div>
-              </section>
+              </FieldSection>
             </motion.div>
           )}
 
@@ -355,14 +347,14 @@ export default function CollectionPage() {
               exit={{ opacity: 0, y: -15 }}
               className="space-y-12"
             >
-              {drawnMissionCards.length === 0 ? (
-                <div className="py-20 text-center space-y-4">
-                  <div className="w-16 h-16 bg-on-surface/5 border-2 border-dashed border-on-surface/20 rounded-full flex items-center justify-center mx-auto">
-                    <Box className="w-6 h-6 text-on-surface/20" />
-                  </div>
-                  <p className="font-sans font-bold text-on-surface/70">No saved missions yet.</p>
-                  <button onClick={() => navigate('/missions')} className="bureau-btn text-xs">Draw a mission</button>
-                </div>
+                  {drawnMissionCards.length === 0 ? (
+                <EmptyStatePanel
+                  title="No saved missions"
+                  body="Saved missions will show up here."
+                  hint="Draw a card on Missions, then tap Save for later."
+                  icon={<Box className="h-8 w-8" />}
+                  action={<FieldButton onClick={() => navigate('/missions')}>Draw a mission</FieldButton>}
+                />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {drawnMissionCards.map(card => {
@@ -384,7 +376,7 @@ export default function CollectionPage() {
                                "bg-white text-on-surface/40 border-on-surface/10"
                              )}>
                                {card.status === 'active' && <div className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />}
-                               {card.status.replace('_', ' ')}
+                               {card.status === 'active' ? 'In progress' : card.status === 'pending_review' ? 'Pending' : card.status === 'approved' ? 'Approved' : card.status.replace('_', ' ')}
                              </div>
                              
                              {/* CTAs */}
@@ -547,24 +539,9 @@ export default function CollectionPage() {
             </motion.div>
           )}
         </AnimatePresence>
-      </main>
-
-      <footer className="mt-28 px-4 text-center pb-12">
-         <div className="max-w-md mx-auto space-y-6">
-            <div className="flex justify-center gap-1.5">
-               {[1, 2, 3].map(i => <div key={i} className="w-1.5 h-1.5 rounded-full bg-on-surface/15" />)}
-            </div>
-            <div className="space-y-1">
-               <p className="font-display text-3xl font-black uppercase italic tracking-wide text-on-surface/5 select-none">Fieldtrip Archive</p>
-               <p className="font-mono text-[9px] font-black text-on-surface/25 uppercase tracking-[0.4em] leading-none">Registry // v.4.0.2</p>
-            </div>
-            <div className="flex justify-center gap-5 text-on-surface/15 pt-2">
-               <Zap className="w-4 h-4" />
-               <Heart className="w-4 h-4" />
-               <LayoutGrid className="w-4 h-4" />
-            </div>
          </div>
-      </footer>
-    </div>
+      </main>
+      </PlayerPageBody>
+    </PlayerPageShell>
   );
 }

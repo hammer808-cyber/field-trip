@@ -85,7 +85,7 @@ test('Voting routes remain reachable from the primary nav', () => {
   assert.match(appSource, /<Route path="awards" element=\{<WeeklyAwardsPage \/>}/);
   assert.match(bottomNavSource, /label: 'VOTING', path: '\/voting'/);
   assert.match(votingHubPageSource, /VotingLockedPanel/);
-  assert.match(votingBallotPageSource, /Ballot booth locked/);
+  assert.match(votingBallotPageSource, /GatedFeaturePanel/);
 });
 
 test('Starter-locked destinations stay reachable and explain the lock instead of silently redirecting', () => {

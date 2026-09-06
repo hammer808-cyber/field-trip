@@ -43,9 +43,9 @@ export const ProofCorrection: React.FC<ProofCorrectionProps> = ({ review, onRetr
             <AlertTriangle className="w-8 h-8" />
           </div>
           <div>
-            <p className="micro-label opacity-40 uppercase">EVIDENCE_VERIFICATION</p>
-            <h2 className="font-display text-2xl uppercase tracking-tighter leading-none">
-              {isRejected ? 'Mission Failure' : 'Field Check Required'}
+            <p className="font-mono text-[10px] font-black uppercase tracking-[0.18em] text-on-surface/45">Proof review</p>
+            <h2 className="font-display text-2xl uppercase italic tracking-normal leading-none">
+              {isRejected ? 'Rejected' : 'Needs more proof'}
             </h2>
           </div>
         </div>
@@ -54,7 +54,7 @@ export const ProofCorrection: React.FC<ProofCorrectionProps> = ({ review, onRetr
         <div className="space-y-4">
           <div className="bg-on-surface/5 p-4 rounded-2xl space-y-2 border-l-4 border-brand-orange">
             <p className="micro-label opacity-40 flex items-center gap-1">
-              <Info className="w-3 h-3" /> BUREAU_FEEDBACK
+              <Info className="w-3 h-3" aria-hidden="true" /> {isRejected ? 'Rejected' : 'Needs more proof'}
             </p>
             <p className="text-sm italic font-serif leading-relaxed line-clamp-4">
               "{review.reviewNotes}"

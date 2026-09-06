@@ -56,6 +56,8 @@ import { UNCLASSIFIED_LEVEL_TITLE, getExplorerTypeLevelTitle, getLevelProgress }
 import { MARKER_STICKERS } from "../data/markers";
 import { TabbedSection } from "../components/TabbedSection";
 import { FieldPageHero } from "../components/FieldPageHero";
+import { EmptyStatePanel } from "../components/FieldtripLoader";
+import { PlayerPageBody, PlayerPageShell } from "../components/player";
 import { StickerBackground } from "../components/StickerBackground";
 import { CommunityProofCard } from "../components/CommunityProofCard";
 import { 
@@ -1328,72 +1330,22 @@ export default function BigBoardPage() {
   }, [communityFeedProofs.length, canonicalProgress, user?.uid]);
 
   return (
-    <div className="page-scroll pt-6 sm:pt-12 px-2 sm:px-8 space-y-4 sm:space-y-24 max-w-full mx-auto relative bg-paper ft-paper-texture">
-      {/* Global Grain Overlay */}
-      <div className="fixed inset-0 pointer-events-none opacity-[0.03] z-50 bg-[url('https://www.transparenttextures.com/patterns/felt.png')]" />
-      
-      {/* Visual Spiral Notebook Rings at the top */}
-      <div className="w-full flex justify-center py-1 opacity-55 z-20 relative select-none pointer-events-none mb-3">
-        <div className="h-4 w-60 border-y-2 border-on-surface bg-[#EAE5D8] flex justify-between px-4 rounded-full shadow-[inset_0_2px_4.5px_rgba(0,0,0,0.15)]">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="w-2.5 h-6 bg-slate-400 border-2 border-on-surface rounded-full -mt-1 shadow" />
-          ))}
-        </div>
-      </div>
-
+    <PlayerPageShell department="board" className="skin-board">
       <FieldPageHero
-        eyebrow={getDisplayLabel('FIELD_HQ_BOARD')}
+        variant="editorial"
+        department="board"
+        tone="chrome"
+        eyebrow="Public scoreboard"
         title="BIG BOARD"
-        subtitle="Sector 7-B // Public Status Board"
+        subtitle="The public Fieldtrip scoreboard / marquee."
         backgroundIcon={<Trophy className="w-64 h-64" />}
-        infoCardLabel="FIELD STATUS"
+        infoCardLabel="Live status"
         infoCardValue={
-          <div className="flex flex-col gap-2 font-sans text-left mt-1 w-full min-w-[200px]">
-            <div className="space-y-0.5">
-              <div className="text-xs font-mono font-black uppercase text-brand-orange leading-tight">
-                {phase === 'submission' ? 'Adventure Window Open' :
-                 phase === 'voting' ? 'Voting Open' :
-                 phase === 'awards' ? 'Awards Phase' : 'Off-Season'}
-              </div>
-              <p className="text-[10px] text-on-surface/70 leading-normal font-medium max-w-[220px]">
-                {phase === 'submission' ? 'Approved receipts are feeding the board. Voting opens Saturday.' :
-                 phase === 'voting' ? 'The community ballot is live. Cast your endorsements!' :
-                 phase === 'awards' ? 'Weekly summary finalized and honors distributed.' : 
-                 'No active community ops currently scheduled.'}
-              </p>
-            </div>
-            
-            <div className="h-px bg-on-surface/10 border-t border-dashed my-1" />
-            
-            <div className="grid grid-cols-2 gap-2 text-[10px] font-mono select-none">
-              <div>
-                <div className="text-on-surface/40 uppercase font-black text-[8px] tracking-wide">Approved Proofs</div>
-                <div className="text-xs font-black text-on-surface mt-0.5">
-                  {approvedEntriesCount > 0 ? `${approvedEntriesCount} Logged` : '0 Logged'}
-                </div>
-              </div>
-              <div>
-                <div className="text-on-surface/40 uppercase font-black text-[8px] tracking-wide">Your Standing</div>
-                <div className="text-xs font-black text-on-surface mt-0.5">
-                  {userWeeklyRank ? `#${userWeeklyRank}` : 'Unranked'}
-                </div>
-              </div>
-            </div>
-
-            {catalyst && (
-              <>
-                <div className="h-px bg-on-surface/10 border-t border-dashed my-1" />
-                <div className="flex items-center gap-1.5 bg-brand-orange/5 p-1 border border-brand-orange/10 rounded">
-                  <span className="w-1.5 h-1.5 bg-brand-orange rounded-full animate-ping shrink-0" />
-                  <span className="text-[8px] sm:text-[9px] font-mono font-black text-[#EA580C] uppercase tracking-tight leading-none truncate max-w-[210px]">
-                    {catalyst.shortLabel || catalyst.title} · {catalyst.multiplier}x
-                  </span>
-                </div>
-              </>
-            )}
-          </div>
+          phase === 'submission' ? 'Open' :
+          phase === 'voting' ? 'Voting' :
+          phase === 'awards' ? 'Awards' : 'Off'
         }
-        infoCardSubtext=""
+        infoCardSubtext={userWeeklyRank ? `Your standing #${userWeeklyRank}` : 'Unranked'}
         infoCardAccent="lime"
         tabs={[
           { id: "standings", label: "Live Board" },
@@ -1404,8 +1356,8 @@ export default function BigBoardPage() {
         onTabChange={(id) => setActiveTab(id as any)}
       />
 
-      {/* Main Content Area */}
-      <main className="relative z-10 w-full min-h-[600px] mb-32">
+      <PlayerPageBody>
+      <main className="relative z-10 w-full min-h-[400px]">
         <AnimatePresence mode="wait">
           {activeTab === "standings" && (
             <motion.section
@@ -1436,29 +1388,19 @@ export default function BigBoardPage() {
                           </button>
                         )}
                       </div>
-                      <h2 className="text-4xl sm:text-7xl lg:text-8xl font-display font-black uppercase italic tracking-tighter text-on-surface leading-none drop-shadow-[2px_2px_0px_white] sm:drop-shadow-[4px_4px_0px_white] break-words">
-                        Top Operatives
+                      <h2 className="text-3xl sm:text-5xl font-display font-black uppercase italic tracking-tighter text-on-surface leading-none">
+                        Top explorers
                       </h2>
                     </div>
                   </div>
 
                   {playerRankings.length === 0 ? (
-                    <div className="py-16 text-center space-y-4 bg-on-surface/[0.02] border-4 border-dashed border-on-surface/20 p-8 rounded-[1.5rem] relative">
-                      <div className="absolute top-2 right-2 text-on-surface/5 font-mono text-[9px] font-black uppercase tracking-widest">
-                        STANDINGS_EMPTY
-                      </div>
-                      <div className="inline-flex items-center justify-center w-12 h-12 bg-white border-4 border-on-surface rounded-full shadow-[3px_3px_0px_black]">
-                        <LucideIcons.Trophy className="w-6 h-6 text-brand-orange animate-pulse" />
-                      </div>
-                      <div className="space-y-2">
-                        <p className="font-outfit text-base font-black uppercase tracking-widest text-on-surface italic">
-                          Board Waiting For Transmissions
-                        </p>
-                        <p className="text-xs font-sans max-w-md mx-auto text-on-surface/70 leading-relaxed">
-                          No standings yet. Approved proofs will appear here once the field starts producing receipts.
-                        </p>
-                      </div>
-                    </div>
+                    <EmptyStatePanel
+                      title="Board is waiting"
+                      body="This is the public Fieldtrip scoreboard."
+                      hint="Approved proofs will appear here once the field starts producing receipts."
+                      icon={<Trophy className="h-8 w-8" />}
+                    />
                   ) : (
                     <div className="space-y-3 sm:space-y-4 relative z-10">
                       {playerRankings.map((player: any, idx: number) => {
@@ -1749,7 +1691,8 @@ export default function BigBoardPage() {
           )}
         </AnimatePresence>
       </main>
-    </div>
+      </PlayerPageBody>
+    </PlayerPageShell>
   );
 }
 
