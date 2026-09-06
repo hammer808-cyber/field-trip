@@ -97,6 +97,8 @@ export interface BasecampCrewModel {
   crewId: string | null;
   crewName: string;
   roleLabel: string | null;
+  acceptedCount: number;
+  incomingCount: number;
 }
 
 export type BasecampActivityKind = 'proof' | 'badge' | 'observation' | 'vote';
@@ -141,6 +143,10 @@ export interface BuildBasecampViewModelInput {
   currentDate: Date;
   isHeatwaveDeckUnlocked: boolean;
   isVotingOpen: boolean;
+  crewGraph?: {
+    acceptedCount: number;
+    incomingCount: number;
+  } | null;
 }
 
 function toMillis(value: unknown): number {
@@ -309,17 +315,28 @@ function buildProgress(input: BuildBasecampViewModelInput, activeDeckId: string)
   };
 }
 
-function buildCrew(profile: UserProfile | null, entries: readonly Entry[]): BasecampCrewModel {
+function buildCrew(
+  profile: UserProfile | null,
+  entries: readonly Entry[],
+  crewGraph?: BuildBasecampViewModelInput['crewGraph'],
+): BasecampCrewModel {
   const crewId = profile?.activeCrewId || profile?.crewId || null;
   const crewName = crewId
     ? getActiveEntries(entries)
       .find(entry => entry.crewContext?.crewId === crewId && entry.crewContext.crewNameSnapshot)?.crewContext?.crewNameSnapshot
     : null;
+  const acceptedCount = Number(crewGraph?.acceptedCount || 0);
+  const incomingCount = Number(crewGraph?.incomingCount || 0);
+  const hasPeople = acceptedCount > 0;
   return {
-    hasCrew: Boolean(crewId),
+    hasCrew: hasPeople || Boolean(crewId),
     crewId,
-    crewName: crewName || (crewId ? 'Your Crew' : 'No active crew'),
+    crewName: hasPeople
+      ? (acceptedCount === 1 ? '1 Crew member' : `${acceptedCount} Crew members`)
+      : (crewName || (crewId ? 'Your Crew' : 'Your Crew is empty')),
     roleLabel: crewId && profile?.crewRole ? profile.crewRole : null,
+    acceptedCount,
+    incomingCount,
   };
 }
 
@@ -423,7 +440,7 @@ export function buildBasecampViewModel(input: BuildBasecampViewModelInput): Base
     nextAction,
     attention,
     progress,
-    crew: buildCrew(input.profile, input.entries),
+    crew: buildCrew(input.profile, input.entries, input.crewGraph),
     recentActivity: buildRecentActivity(input),
     guidance,
     quickLinks: [

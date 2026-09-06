@@ -12,13 +12,14 @@ import { FlipbookShell } from './FlipbookShell';
 type FeedFilter = 'latest' | 'hyped' | 'week' | 'season' | 'crew';
 
 export function CommunityProofsFeed() {
-  const { activeSeason, blockedIds, profile, user } = useApp();
+  const { activeSeason, blockedIds, crewGraph, profile, user } = useApp();
   const [publicProofs, setPublicProofs] = useState<any[]>([]);
   const [feedFilter, setFeedFilter] = useState<FeedFilter>('latest');
   const [queryLimit, setQueryLimit] = useState(12);
   const [loadingMore, setLoadingMore] = useState(true);
   const [queryErrors, setQueryErrors] = useState<string[]>([]);
   const crewId = (profile as any)?.activeCrewId || (profile as any)?.crewId || null;
+  const acceptedCrewUserIds = crewGraph?.acceptedUserIds || [];
 
   useEffect(() => {
     setLoadingMore(true);
@@ -27,23 +28,30 @@ export function CommunityProofsFeed() {
       setPublicProofs(entries);
       setQueryErrors(errors);
       setLoadingMore(false);
-    });
+    }, acceptedCrewUserIds);
     return () => unsub();
-  }, [crewId, queryLimit, user?.uid]);
+  }, [acceptedCrewUserIds.join('|'), crewId, queryLimit, user?.uid]);
 
   const communityFeedProofs = useMemo(() => {
     const seasonStart = activeSeason?.startDate ? new Date(activeSeason.startDate as any).getTime() : 0;
     const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
     let items = dedupeCommunityFeedProofs(publicProofs.filter(entry => isVisibleInSocialFeed(entry, {
-      viewerUserId: user?.uid || '', activeCrewId: crewId, activeSeasonId: activeSeason?.id, blockedUserIds: blockedIds,
+      viewerUserId: user?.uid || '',
+      activeCrewId: crewId,
+      acceptedCrewUserIds,
+      activeSeasonId: activeSeason?.id,
+      blockedUserIds: blockedIds,
     })));
 
     if (feedFilter === 'week') {
       items = items.filter(entry => getCommunityFeedApprovedTime(entry) >= weekAgo);
     } else if (feedFilter === 'season' && seasonStart > 0) {
       items = items.filter(entry => getCommunityFeedApprovedTime(entry) >= seasonStart);
-    } else if (feedFilter === 'crew' && crewId) {
-      items = items.filter(entry => isCrewProofEligible(entry, crewId));
+    } else if (feedFilter === 'crew') {
+      items = items.filter(entry => {
+        const ownerId = String(entry?.userId || entry?.uid || '');
+        return (crewId && isCrewProofEligible(entry, crewId)) || acceptedCrewUserIds.includes(ownerId);
+      });
     }
 
     return items.sort((a: any, b: any) => {
@@ -54,7 +62,7 @@ export function CommunityProofsFeed() {
       }
       return getCommunityFeedApprovedTime(b) - getCommunityFeedApprovedTime(a);
     });
-  }, [activeSeason?.id, activeSeason?.startDate, blockedIds, crewId, feedFilter, publicProofs, user?.uid]);
+  }, [acceptedCrewUserIds, activeSeason?.id, activeSeason?.startDate, blockedIds, crewId, feedFilter, publicProofs, user?.uid]);
 
   const canLoadMore = publicProofs.length >= queryLimit && queryLimit < 120;
   const loadMore = () => setQueryLimit(current => Math.min(120, current + 12));
@@ -83,7 +91,7 @@ export function CommunityProofsFeed() {
             ['hyped', 'Most Hyped'],
             ['week', 'This Week'],
             ['season', 'This Season'],
-            ...(crewId ? [['crew', 'My Crew']] : []),
+            ...(crewId || acceptedCrewUserIds.length > 0 ? [['crew', 'My Crew']] : []),
           ].map(([id, label]) => (
             <button
               key={id}
@@ -113,7 +121,9 @@ export function CommunityProofsFeed() {
               Silent Spectrum
             </p>
             <p className="text-xs font-sans text-on-surface/70 leading-relaxed">
-              {crewId ? 'No eligible Crew receipts yet. Approved photos will appear when your Crew posts them.' : 'Your approved receipts appear here. Join a Crew to see receipts from people you play with.'}
+              {crewId || acceptedCrewUserIds.length > 0
+                ? 'No eligible Crew receipts yet. Approved photos appear when your Crew posts them.'
+                : 'Your approved receipts appear here. Find Players to add Crew. Community Spotlight is separate and limited.'}
             </p>
           </div>
         </div>

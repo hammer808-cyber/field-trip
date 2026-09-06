@@ -59,8 +59,9 @@ test('Basecamp owns settings, admin, and pre-Starter Crew entry points', () => {
   assert.match(basecampSource, /href: '\/settings'/);
   assert.match(basecampSource, /Admin Console/);
   assert.doesNotMatch(basecampSource, /Crew Access Locked/);
-  assert.match(basecampCrewSource, /Starter Signals still gates seasonal Crew proofs, memories, and zine eligibility/);
-  assert.match(basecampSource, /navigate\('\/crew'\)/);
+  assert.match(basecampCrewSource, /Find Players/);
+  assert.match(basecampCrewSource, /Fieldtrip starts solo/);
+  assert.match(basecampSource, /\/crew/);
 });
 
 test('Dex exposes Collection, Zines, and Memories without Personas or Crew Home tabs', () => {

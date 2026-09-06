@@ -163,7 +163,7 @@ test('Dex Community Proofs feed uses the social subscription and does not merge 
   assert.doesNotMatch(communityProofsFeedSource, /\[\.\.\.userPending,\s*\.\.\.filteredPublic\]/);
   assert.match(communityProofsFeedSource, /subscribeToSocialProofs/);
   assert.match(communityProofsFeedSource, /isVisibleInSocialFeed/);
-  assert.match(communityProofsFeedSource, /Join a Crew/);
+  assert.match(communityProofsFeedSource, /Find Players/);
   assert.match(bigBoardSource, /navigate\('\/dex\/memories\/community'/);
   assert.doesNotMatch(bigBoardSource, /\{ id: "proofs", label: "Proofs" \}/);
 });
@@ -173,12 +173,23 @@ test('Community feed subscription does not require legacy visibility flags or ap
   const publicProofs = activitySource.match(/export function subscribeToPublicProofs[\s\S]*?\n\}/)?.[0] || '';
 
   assert.match(publicProofs, /where\('status', 'in', COMMUNITY_FEED_QUERY_STATUSES\)/);
+  assert.match(publicProofs, /where\('feedVisibility', '==', 'public_discovery'\)/);
   assert.doesNotMatch(publicProofs, /where\('showInCommunityFeed'/);
   assert.doesNotMatch(publicProofs, /orderBy\('approvedAt'/);
   assert.match(publicProofs, /dedupeCommunityFeedProofs/);
   assert.match(publicProofs, /sourceDocumentId: doc\.id/);
   assert.match(publicProofs, /filter\(isCommunityFeedEligible\)/);
   assert.match(publicProofs, /sort\(\(a: any, b: any\) => getCommunityFeedApprovedTime\(b\) - getCommunityFeedApprovedTime\(a\)\)/);
+});
+
+test('normal social feed queries own, accepted Crew, and explicit public discovery instead of every entry', () => {
+  const activitySource = readFileSync('src/services/activityService.ts', 'utf8');
+  assert.match(activitySource, /acceptedCrewUserIds: readonly string\[\] = \[\]/);
+  assert.match(activitySource, /listen\('own'/);
+  assert.match(activitySource, /listen\(`crew-people-\$\{index\}`/);
+  assert.match(activitySource, /listen\('public-discovery'/);
+  assert.match(rulesSource, /allow list: if isAdmin\(\);/);
+  assert.match(rulesSource, /match \/crewConnections\/\{id\}/);
 });
 
 test('Hype writes go through server endpoint and direct Firestore like writes are blocked', () => {
@@ -189,6 +200,7 @@ test('Hype writes go through server endpoint and direct Firestore like writes ar
 
 test('Firestore rules scope approved entry reads to owners and active Crew members', () => {
   assert.match(rulesSource, /function canReadSocialEntry/);
+  assert.match(rulesSource, /function hasAcceptedCrewConnection/);
   assert.match(rulesSource, /crewId == activeCrewId\(\)/);
   // Missing-doc gets are signed-in-only; existing docs stay owner/social/admin.
   assert.match(rulesSource, /allow get: if \(resource == null && isSignedIn\(\)\) \|\| isAdmin\(\) \|\| canReadSocialEntry\(resource\.data\);/);
@@ -201,6 +213,9 @@ test('social feed shows own and same-Crew proofs but excludes unrelated and bloc
   assert.equal(isVisibleInSocialFeed(proof, { viewerUserId: 'owner' }), true);
   assert.equal(isVisibleInSocialFeed(proof, { viewerUserId: 'viewer', activeCrewId: 'crew-1' }), true);
   assert.equal(isVisibleInSocialFeed(proof, { viewerUserId: 'viewer', activeCrewId: 'crew-2' }), false);
+  assert.equal(isVisibleInSocialFeed(proof, { viewerUserId: 'viewer', acceptedCrewUserIds: ['owner'] }), true);
+  assert.equal(isVisibleInSocialFeed(proof, { viewerUserId: 'viewer', acceptedCrewUserIds: ['someone-else'] }), false);
+  assert.equal(isVisibleInSocialFeed({ ...proof, crewId: null, feedVisibility: 'public_discovery' }, { viewerUserId: 'viewer' }), true);
   assert.equal(isVisibleInSocialFeed(proof, { viewerUserId: 'viewer', activeCrewId: 'crew-1', blockedUserIds: ['owner'] }), false);
 });
 

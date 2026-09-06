@@ -52,6 +52,7 @@ import { Crew, CrewLore, CrewDispatch, CrewInvite, CrewJoinRequest, CrewMembersh
 import { CrewArtifactsGallery } from '../components/CrewArtifactsGallery';
 import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
 import { ZineWorkspace } from '../components/ZineWorkspace';
+import { CrewPeopleHome } from '../components/crew/CrewPeopleHome';
 import { FieldPageHero } from '../components/FieldPageHero';
 import { EmptyStatePanel, FieldtripLoader } from '../components/FieldtripLoader';
 import { FieldButton, PlayerPageBody, PlayerPageShell } from '../components/player';
@@ -297,24 +298,25 @@ export default function CrewPage() {
         <FieldPageHero
           variant="editorial"
           department="crew"
-          eyebrow="Social clubhouse"
+          eyebrow="People first"
           title="CREW"
-          subtitle="Find people to play with. Optional, not the main quest."
+          subtitle="Your people graph is the everyday social world. A named Crew company is optional for zines and archives."
           backgroundIcon={<Users className="h-64 w-64" />}
-          infoCardLabel="Status"
-          infoCardValue="Empty"
-          infoCardSubtext="Create or join when you're ready"
+          infoCardLabel="Company"
+          infoCardValue="None"
+          infoCardSubtext="Optional for zines"
           infoCardAccent="orange"
         />
         <PlayerPageBody>
+        <CrewPeopleHome />
         <form onSubmit={handleCreateCrew} className="mx-auto w-full max-w-xl border-4 border-[var(--skin-border)] bg-[var(--skin-surface)] p-6 shadow-[8px_8px_0_var(--skin-border)] sm:p-8 space-y-6">
-          <EmptyStatePanel
-            className="border-none bg-transparent p-0 shadow-none"
-            title="No Crew yet"
-            body="Crews are a social clubhouse. You can create one, join one, or skip this and go draw a mission."
-            hint="A Crew fills in after you create it or a captain accepts you."
-            icon={<Users className="h-8 w-8" />}
-          />
+          <div className="space-y-2 text-center">
+            <Users className="w-14 h-14 mx-auto text-brand-orange" />
+            <h2 className="font-display text-4xl italic font-black uppercase leading-none">Crew Company</h2>
+            <p className="font-serif italic text-sm opacity-70">
+              Optional named Crew company for zines and shared archives. Your people graph above is the everyday social world.
+            </p>
+          </div>
 
           <div className="grid grid-cols-2 border-4 border-on-surface bg-white p-1" role="tablist" aria-label="Crew start options">
             <button type="button" role="tab" aria-selected={noCrewView === 'create'} onClick={() => setNoCrewView('create')} className={cn('p-3 font-mono text-[10px] font-black uppercase', noCrewView === 'create' ? 'bg-brand-lime' : 'text-on-surface/45')}>
@@ -471,6 +473,7 @@ export default function CrewPage() {
         onTabChange={(id) => setActiveTab(id as typeof activeTab)}
       />
       <PlayerPageBody>
+      <CrewPeopleHome />
       <div className="min-h-[40vh]">
         {activeTab === 'members' && (
           <div className="space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-500">
