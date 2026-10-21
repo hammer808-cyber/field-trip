@@ -13,6 +13,12 @@ import { StickerDecal, StickerCorner } from './StickerDecals';
 import { cn } from '../lib/utils';
 import { Card } from './UI';
 import { getMissionImage } from '../utils/missionImages';
+import {
+  getFrankieTitle,
+  getFrankieDescription,
+  getFrankieDirectionsArray,
+  getFrankieFieldNotePrompt,
+} from '../logic/frankieModeLogic';
 
 interface DeckLibraryProps {
   allChallenges: TripCard[];
@@ -20,6 +26,8 @@ interface DeckLibraryProps {
 
 export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
   const navigate = useNavigate();
+  const { frankieMode } = useTheme();
+  const fPref = { frankieMode };
   const { 
     profile, activeTrip, currentWeekNumber, 
     activeSeason, isWeekLocked, completedChallengeIds, drawTrip,
@@ -85,8 +93,8 @@ export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
     <div className="space-y-12">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-4">
         <div className="space-y-2">
-          <h3 className="font-display text-3xl sm:text-4xl uppercase tracking-tighter italic font-black">Mission Archive_</h3>
-          <p className="micro-label opacity-40 font-bold tracking-widest uppercase italic text-brand-orange">Beta: Submissions may require admin review before XP updates</p>
+          <h3 className="font-display text-3xl sm:text-4xl uppercase tracking-tighter italic font-black">{frankieMode ? 'See All Cards' : 'Mission Archive_'}</h3>
+          <p className="micro-label opacity-40 font-bold tracking-widest uppercase italic text-brand-orange">{frankieMode ? 'Tap a card to see it. Tap Do This One to start.' : 'Beta: Submissions may require admin review before XP updates'}</p>
         </div>
         
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
@@ -101,36 +109,29 @@ export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
                   : "bg-white text-on-surface border-on-surface/10 opacity-60 hover:opacity-100"
               )}
             >
-              {f.toUpperCase()}
+              {frankieMode ? ({ all: 'ALL', eligible: 'CAN DO', completed: 'DONE', locked: 'LOCKED' } as const)[f] : f.toUpperCase()}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="relative group/scroll">
-        <div className="flex gap-8 overflow-x-auto pb-12 pt-4 px-4 snap-x no-scrollbar">
+      <div className="relative">
+        <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6 pb-12 pt-4 px-4">
           {filteredChallenges.length > 0 ? (
             filteredChallenges.map((challenge, idx) => (
-              <div key={challenge.id} className="snap-center">
-                <MissionCardItem 
-                  challenge={challenge as any} 
+              <div key={challenge.id} className="min-w-0">
+                <MissionCardItem
+                  challenge={challenge as any}
                   onClick={() => setSelectedChallenge(challenge)}
                   idx={idx}
                 />
               </div>
             ))
           ) : (
-            <div className="w-full py-20 text-center bg-on-surface/5 border-4 border-dashed border-on-surface/10">
-               <p className="font-serif italic text-2xl opacity-40">No missions found in this category.</p>
+            <div className="col-span-full w-full py-20 text-center bg-on-surface/5 border-4 border-dashed border-on-surface/10">
+               <p className="font-serif italic text-2xl opacity-40">{frankieMode ? 'No cards here yet.' : 'No missions found in this category.'}</p>
             </div>
           )}
-        </div>
-        
-        <div className="absolute top-1/2 -left-4 -translate-y-1/2 pointer-events-none opacity-0 group-hover/scroll:opacity-100 transition-opacity hidden md:block">
-           <div className="w-12 h-12 bg-white/20 blur-xl rounded-full" />
-        </div>
-        <div className="absolute top-1/2 -right-4 -translate-y-1/2 pointer-events-none opacity-0 group-hover/scroll:opacity-100 transition-opacity hidden md:block">
-           <div className="w-12 h-12 bg-white/20 blur-xl rounded-full" />
         </div>
       </div>
 
@@ -159,6 +160,9 @@ export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
 
 function MissionCardItem({ challenge, onClick, idx }: { challenge: TripCard & { uiStatus: any }, onClick: () => void, idx: number }) {
   const { profile } = useApp();
+  const { frankieMode } = useTheme();
+  const fPref = { frankieMode };
+  const displayTitle = getFrankieTitle(challenge, fPref);
   const isLocked = challenge.uiStatus === 'locked';
   const isCompleted = challenge.uiStatus === 'completed';
   const isInProgress = challenge.uiStatus === 'in-progress';
@@ -175,7 +179,7 @@ function MissionCardItem({ challenge, onClick, idx }: { challenge: TripCard & { 
       whileHover={{ y: -8, rotate: idx % 2 === 0 ? 1 : -1 }}
       onClick={onClick}
       className={cn(
-        "group relative cursor-pointer border-4 transition-all overflow-hidden w-[280px] sm:w-[320px] shrink-0 bg-white",
+        "group relative cursor-pointer border-4 transition-all overflow-hidden w-full bg-white",
         isLocked ? "grayscale opacity-60 border-on-surface/20" : "border-on-surface shadow-[8px_8px_0px_black] hover:shadow-[16px_16px_0px_var(--color-brand-orange)]",
         isCompleted && "bg-brand-lime/5 border-on-surface",
         isCued && "border-brand-orange",
@@ -183,9 +187,9 @@ function MissionCardItem({ challenge, onClick, idx }: { challenge: TripCard & { 
       )}
     >
       <div className="aspect-[3/4] sm:aspect-[4/5] overflow-hidden relative bg-on-surface/5">
-        <img 
-          src={getMissionImage(challenge.id, challenge.category || challenge.type, challenge.image)} 
-          alt={challenge.title} 
+        <img
+          src={getMissionImage(challenge.id, challenge.category || challenge.type, challenge.image)}
+          alt={displayTitle}
           className={cn(
             "w-full h-full object-cover transition-transform duration-700 group-hover:scale-110",
             isLocked && "blur-[2px]"
@@ -243,7 +247,10 @@ function MissionCardItem({ challenge, onClick, idx }: { challenge: TripCard & { 
         {/* Challenge Meta */}
         <div className="absolute bottom-4 left-4 right-4 text-white">
           <p className="micro-label text-[8px] opacity-60 mb-1 tracking-widest italic">{challenge.type || challenge.category}</p>
-          <h4 className="font-display text-xl uppercase tracking-tighter leading-none italic font-black line-clamp-1">{challenge.title}</h4>
+          <h4 className="font-display text-xl uppercase tracking-tighter leading-none italic font-black line-clamp-2">{displayTitle}</h4>
+          {frankieMode && (
+            <p className="mt-2 text-sm font-sans font-semibold leading-snug text-white/90 line-clamp-2">{getFrankieDescription(challenge, fPref)}</p>
+          )}
         </div>
       </div>
 
@@ -259,7 +266,7 @@ function MissionCardItem({ challenge, onClick, idx }: { challenge: TripCard & { 
            </div>
         </div>
         <div className="flex items-center gap-1 text-[10px] font-mono font-black uppercase tracking-tight opacity-40 group-hover:opacity-100 transition-opacity">
-           VIEW_INTEL <ChevronRight className="w-3 h-3" />
+           {frankieMode ? 'SEE IT' : 'VIEW_INTEL'} <ChevronRight className="w-3 h-3" />
         </div>
       </div>
     </motion.div>
@@ -268,6 +275,8 @@ function MissionCardItem({ challenge, onClick, idx }: { challenge: TripCard & { 
 
 function ChallengePreviewModal({ challenge, uiStatus, onClose, onStart }: { challenge: TripCard, uiStatus: any, onClose: () => void, onStart: () => void }) {
   const { profile, updateTripProgress } = useApp();
+  const { frankieMode } = useTheme();
+  const fPref = { frankieMode };
   const isLocked = uiStatus === 'locked';
   const isCompleted = uiStatus === 'completed';
   const canStart = uiStatus === 'eligible' || uiStatus === 'in-progress';
@@ -338,7 +347,7 @@ function ChallengePreviewModal({ challenge, uiStatus, onClose, onStart }: { chal
           {isLocked && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-black/40 backdrop-blur-[2px]">
               <Lock className="w-12 h-12 mb-2 opacity-40" />
-              <h3 className="font-display text-xl uppercase font-black italic">TEMPORAL_LOCK</h3>
+              <h3 className="font-display text-xl uppercase font-black italic">{frankieMode ? 'LOCKED' : 'TEMPORAL_LOCK'}</h3>
             </div>
           )}
           {isCompleted && (
@@ -358,7 +367,7 @@ function ChallengePreviewModal({ challenge, uiStatus, onClose, onStart }: { chal
               </p>
             </div>
             <h2 className="text-2xl sm:text-4xl font-display font-black uppercase italic tracking-tighter leading-none text-on-surface">
-              {challenge.title}
+              {getFrankieTitle(challenge, fPref)}
             </h2>
             {challenge.deckSubtitle && (
               <p className="font-mono text-[9px] font-bold text-on-surface/45">{challenge.deckSubtitle}</p>
@@ -375,15 +384,25 @@ function ChallengePreviewModal({ challenge, uiStatus, onClose, onStart }: { chal
   
           <div className="space-y-4">
             <p className="font-serif text-lg sm:text-xl leading-relaxed italic text-on-surface/80">
-              "{challenge.description || challenge.theAsk}"
+              "{getFrankieDescription(challenge, fPref)}"
             </p>
-            
+            {frankieMode && (
+              <ol className="space-y-2">
+                {getFrankieDirectionsArray(challenge, fPref).map((step, i) => (
+                  <li key={i} className="flex items-start gap-3 text-base font-sans font-semibold text-on-surface">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center border-2 border-on-surface bg-brand-lime font-display text-sm font-black">{i + 1}</span>
+                    <span className="pt-0.5">{step}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+
             <div className="p-4 bg-white border-2 border-on-surface shadow-[6px_6px_0px_var(--color-brand-orange)] space-y-2">
                <h4 className="micro-label opacity-40 font-black tracking-[0.1em] italic uppercase flex items-center gap-2 text-[8px]">
                  <Zap className="w-4 h-4 fill-brand-orange text-brand-orange" />
                  TREVOR WANTS TO KNOW
                </h4>
-               <p className="font-serif italic text-sm sm:text-base leading-snug">"{challenge.fieldNotePrompt || 'Tell Trevor what you found and why it matters.'}"</p>
+               <p className="font-serif italic text-sm sm:text-base leading-snug">"{getFrankieFieldNotePrompt(challenge, fPref)}"</p>
             </div>
           </div>
  
@@ -456,12 +475,12 @@ function ChallengePreviewModal({ challenge, uiStatus, onClose, onStart }: { chal
               onClick={onStart}
               className="flex-grow bg-brand-orange text-white border-2 border-on-surface py-3 sm:py-4 font-display text-lg uppercase italic font-black tracking-widest shadow-[4px_4px_0px_black] hover:shadow-[6px_6px_0px_black] transition-all flex items-center justify-center gap-3"
             >
-              <Play className="w-5 h-5 fill-white" /> 
-              {uiStatus === 'in-progress' ? 'RESUME' : 'START'}
+              <Play className="w-5 h-5 fill-white" />
+              {frankieMode ? (uiStatus === 'in-progress' ? 'KEEP GOING' : 'DO THIS ONE') : (uiStatus === 'in-progress' ? 'RESUME' : 'START')}
             </button>
           ) : (
             <div className="flex-grow bg-on-surface/10 text-on-surface/30 border-2 border-dashed border-on-surface/20 py-3 sm:py-4 font-display text-lg uppercase italic font-black tracking-widest flex items-center justify-center gap-3">
-              {isLocked ? 'LOCKED' : 'COMPLETE'}
+              {isLocked ? (frankieMode ? 'LOCKED — FINISH STARTER FIRST' : 'LOCKED') : (frankieMode ? 'DONE' : 'COMPLETE')}
             </div>
           )}
           <button 

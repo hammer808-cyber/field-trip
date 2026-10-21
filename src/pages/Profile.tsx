@@ -22,6 +22,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { Card, FieldBadge, FieldCard, FieldCTA } from '../components/UI';
 import { SkinSelector } from '../components/SkinSelector';
+import { FrankieModeCard } from '../components/FrankieModeCard';
 import { BadgeCollection } from '../components/BadgeCollection';
 import { AvatarPreview } from '../components/AvatarPreview';
 import { FeaturedStickerShowcase } from '../components/stickers/FeaturedStickerShowcase';
@@ -417,6 +418,8 @@ export default function ProfilePage() {
 
           {activeTab === 'settings' && (
             <div className="mx-auto max-w-2xl space-y-4">
+
+                  <FrankieModeCard />
 
                   <SkinSelector />
 

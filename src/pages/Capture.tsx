@@ -741,7 +741,8 @@ export default function CapturePage() {
     .filter(r => r.key !== 'field_note')
     .every(r => r.fulfilled);
 
-  const isFieldNoteEntered = fcData.note.trim().length >= 10;
+  // Frankie Mode: a field note never locks a level or a submit — the photo is the proof.
+  const isFieldNoteEntered = fcData.note.trim().length >= 10 || isPlain;
   const supportsBonusProof = !!currentTrip?.distanceBonus?.eligible;
   const isBonusProofCompleted = bonusProofFulfilled;
 

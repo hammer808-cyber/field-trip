@@ -19,6 +19,7 @@ import { MissionCard } from '../components/ChallengeCard';
 import { MissionDecodedCard } from '../components/MissionDecodedCard';
 import { EntryCard } from '../components/EntryCard';
 import { DeckLibrary } from '../components/DeckLibrary';
+import { FrankieModeCard } from '../components/FrankieModeCard';
 import { DeckStack } from '../components/DeckStack';
 import { getDeckCatalogSections, getDefaultDeckPack, getDeckPackById, normalizeDeckPackId } from '../data/deckPacks';
 import { getDeckCoverImage, BASE_DECK_PLACEHOLDER } from '../lib/deckUtils';
@@ -399,7 +400,13 @@ export default function DeckPage() {
   const activeDeckName = activePack ? activePack.packName : (activePackId === 'starter-signals' ? 'Starter Deck' : 'Themed Deck');
   const activeDeckShortName = activePack ? activePack.shortName : 'DECK';
   const totalDeckChallenges = activePack ? activePack.missionIds.length : 0;
-  
+  // Face-up browse: every card in the active deck, so players can pick by
+  // looking instead of only drawing blind. Locked cards stay visible in the
+  // library (previewable, not startable) via DeckLibrary's status logic.
+  const browseChallenges = activePack
+    ? MOCK_TRIPS.filter(t => activePack.missionIds.includes(t.id as string))
+    : MOCK_TRIPS;
+
   // Starter-specific counts and variables (based on 'starter-signals')
   const isStarter = activePackId === 'starter-signals';
   const starterProgress = getStarterProgress(canonicalProgress);
@@ -1003,6 +1010,12 @@ export default function DeckPage() {
           </span>
         </div>
 
+        {!frankieMode && (
+          <div className="mb-6">
+            <FrankieModeCard compact />
+          </div>
+        )}
+
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.75fr)] lg:gap-8">
           <main className="min-w-0 space-y-6">
             {savedForLaterNotice && (
@@ -1355,6 +1368,12 @@ export default function DeckPage() {
             )}
           </aside>
         </div>
+
+        {/* Face-up browse for the active deck: pick a card by looking at it,
+            instead of only drawing blind. Locked cards can be previewed. */}
+        <section aria-label={frankieMode ? 'See all cards in this deck' : 'Browse all missions in this deck'} className="mt-4 border-t-4 border-on-surface/10 pt-2">
+          <DeckLibrary allChallenges={browseChallenges as any} />
+        </section>
       </div>
 
 

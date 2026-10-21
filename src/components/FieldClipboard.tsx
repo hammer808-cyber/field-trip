@@ -30,6 +30,18 @@ import { inferMissionCardType } from '../logic/missionSubmission';
 import type { MissionAttemptRecord } from '../services/missionAttemptService';
 import { transitionMissionHintFlow } from '../logic/missionHintFlow';
 import { getMissionBaseMaxScore } from '../logic/missionScoring';
+import { useTheme } from '../context/ThemeContext';
+import { getFrankieFieldNotePrompt } from '../logic/frankieModeLogic';
+
+/** One-tap note starters for Frankie Mode: tap one instead of typing. */
+const FRANKIE_NOTE_CHIPS = [
+  'I found it outside.',
+  'It made me laugh.',
+  'It was hard to find.',
+  'The light looked good.',
+  'I was with my group.',
+  'I want to remember this.',
+];
 
 interface FieldClipboardProps {
   mission: TripCardType;
@@ -82,6 +94,14 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
   const imageUrl = getMissionImage(mission.id, mission.category || mission.type, mission.image);
   const cardType = inferMissionCardType(mission);
   const fieldNotePrompt = mission.fieldNotePrompt || 'Describe what you found and why it belongs in the field log.';
+  const { frankieMode } = useTheme();
+  const isFrankie = frankieMode;
+  const displayNotePrompt = isFrankie
+    ? getFrankieFieldNotePrompt(mission as any, { frankieMode: true })
+    : fieldNotePrompt;
+  // Frankie Mode: a note is welcome, never a wall. Tapping a chip counts,
+  // typing counts, and skipping counts — the photo is the proof.
+  const noteSatisfied = isFrankie ? true : data.note.length >= 10;
 
   const [hintFlow, dispatchHintFlow] = useReducer(
     transitionMissionHintFlow,
@@ -115,7 +135,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
     ? 'analyzing' 
     : (aiAnalysisResult?.status || 'idle');
 
-  const canSubmit = data.photoCaptured && data.note.length >= 10 && !isSubmitting && !isAiAnalyzing;
+  const canSubmit = data.photoCaptured && noteSatisfied && !isSubmitting && !isAiAnalyzing;
 
   const handleFinalSubmit = async () => {
     if (!canSubmit) return;
@@ -433,16 +453,37 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               
               <div className="space-y-4">
                 <p className="font-serif italic text-lg leading-snug text-on-surface/60">
-                   {fieldNotePrompt}
+                   {displayNotePrompt}
                 </p>
-                <textarea 
-                  autoFocus
+                {isFrankie && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-sans font-bold text-on-surface/70">Tap one, or write your own. You can also skip.</p>
+                    <div className="flex flex-wrap gap-2">
+                      {FRANKIE_NOTE_CHIPS.map(chip => (
+                        <button
+                          key={chip}
+                          type="button"
+                          onClick={() => setData(prev => ({ ...prev, note: chip }))}
+                          className={cn(
+                            "min-h-11 px-4 py-2 border-2 border-on-surface rounded-full font-sans text-sm font-bold transition-all",
+                            data.note === chip ? "bg-brand-lime text-on-surface" : "bg-white text-on-surface hover:bg-brand-lime/30"
+                          )}
+                        >
+                          {chip}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <textarea
+                  autoFocus={!isFrankie}
                   className="w-full bg-[#FAF9F6] border-4 border-on-surface p-6 rounded-xl font-serif text-xl italic shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] focus:ring-4 focus:ring-brand-cyan/20 outline-none transition-all"
                   rows={4}
-                  placeholder={`${fieldNotePrompt} (Min 10 characters)`}
+                  placeholder={isFrankie ? displayNotePrompt : `${fieldNotePrompt} (Min 10 characters)`}
                   value={data.note}
                   onChange={(e) => setData(prev => ({ ...prev, note: e.target.value }))}
                 />
+                {!isFrankie && (
                 <div className="flex justify-between items-center px-1">
                    <div className="text-[10px] font-mono font-black uppercase text-on-surface/30 tracking-widest">
                      {data.note.length} / 10 CHARS
@@ -454,22 +495,23 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                      </div>
                    )}
                 </div>
+                )}
               </div>
             </div>
 
             <button
-              disabled={data.note.length < 10}
+              disabled={!noteSatisfied}
               onClick={() => goToState('reviewing')}
               className={cn(
                 "w-full py-6 border-4 border-on-surface rounded-2xl font-display text-4xl font-black uppercase italic tracking-widest shadow-[10px_10px_0px_black] active:translate-y-2 active:shadow-none transition-all",
-                data.note.length >= 10 
-                  ? "bg-brand-lime text-on-surface hover:scale-[1.02]" 
+                noteSatisfied
+                  ? "bg-brand-lime text-on-surface hover:scale-[1.02]"
                   : "bg-on-surface/5 text-on-surface/20 border-on-surface/10 cursor-not-allowed shadow-none"
               )}
             >
-              SAVE NOTE {data.note.length < 10 ? `(${data.note.length}/10)` : ''}
+              {isFrankie && data.note.trim().length === 0 ? 'SKIP — NO NOTE' : `SAVE NOTE ${!isFrankie && data.note.length < 10 ? `(${data.note.length}/10)` : ''}`}
             </button>
-            {data.note.length < 10 && (
+            {!isFrankie && data.note.length < 10 && (
               <p className="text-center text-sm font-sans font-bold text-on-surface/70">
                 Add a short note before continuing.
                 <span className="block mt-1 font-mono text-[10px] uppercase tracking-widest text-on-surface/45">
@@ -531,17 +573,19 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                   <FileText className="w-4 h-4 text-brand-orange" />
                   <span className="font-display font-black uppercase italic text-sm">Tell Trevor</span>
                 </div>
+                {!isFrankie && (
                 <div className={cn(
                   "font-mono text-[9px] font-black uppercase",
                   data.note.length >= 10 ? "text-brand-lime" : "text-on-surface/30"
                 )}>
                   {data.note.length} / 10 Min
                 </div>
+                )}
               </div>
               <p className="font-serif text-sm italic leading-snug text-on-surface/60">
-                {fieldNotePrompt}
+                {displayNotePrompt}
               </p>
-              
+
               <textarea 
                 className="w-full bg-[#FAF9F6] border-2 border-on-surface/10 p-4 rounded-xl font-serif text-base italic outline-none focus:border-brand-orange transition-all h-24"
                 placeholder={fieldNotePrompt}
@@ -553,7 +597,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
             {/* EVIDENCE METER */}
             <EvidenceMeter 
               photoCaptured={!!data.photoCaptured}
-              noteAdded={data.note.length >= 10}
+              noteAdded={data.note.length >= 10 || isFrankie}
               detectedSubject={aiAnalysisResult?.status === 'detected'}
               missionMatchScore={aiAnalysisResult?.missionMatchScore}
               variant="compact"
@@ -565,7 +609,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                  <AlertCircle size={14} /> Add a photo before submitting.
               </div>
             )}
-            {data.photoUrl && data.note.length < 10 && (
+            {!isFrankie && data.photoUrl && data.note.length < 10 && (
               <div className="rounded-xl border-2 border-brand-orange bg-brand-orange/10 px-4 py-3 text-center space-y-1">
                  <p className="text-sm font-bold text-on-surface flex items-center justify-center gap-2">
                    <Info size={14} className="text-brand-orange" />
@@ -589,14 +633,14 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               )}
             >
               {canSubmit
-                ? 'Submit Proof'
+                ? (isFrankie ? 'Send It In' : 'Submit Proof')
                 : !data.photoUrl
                   ? 'Add a photo first'
                   : data.note.length < 10
                     ? `Submit Proof (${data.note.length}/10)`
                     : 'Submit Proof'}
             </button>
-            {!canSubmit && data.photoUrl && data.note.length < 10 && (
+            {!isFrankie && !canSubmit && data.photoUrl && data.note.length < 10 && (
               <p className="text-center text-xs font-sans font-bold text-on-surface/55 -mt-2">
                 Write a little more, then submit.
               </p>

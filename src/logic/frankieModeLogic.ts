@@ -1,10 +1,21 @@
 import { TripCard } from '../types/challenges';
+import { PLAIN_CARD_COPY } from '../data/plainCardCopy';
 
 /**
  * Frankie Mode Logic
  * Centralizes the resolution of plain language copy across the application.
  * Frankie Mode (Plain Language Mode) simplifies task directions and app language.
+ *
+ * Resolution order in Frankie Mode:
+ * 1. PLAIN_CARD_COPY registry (src/data/plainCardCopy.ts) — every playable card
+ * 2. plain* fields on the card itself (e.g. cards authored in Firestore/admin)
+ * 3. The original flavor copy
  */
+
+function registryCopy(task: TripCard) {
+  const id = (task as any)?.id || (task as any)?.missionId || (task as any)?.challengeId;
+  return id ? PLAIN_CARD_COPY[id as string] : undefined;
+}
 
 export interface FrankiePreferences {
   frankieMode: boolean;
@@ -15,7 +26,7 @@ export interface FrankiePreferences {
  */
 export function getFrankieTitle(task: TripCard, pref: FrankiePreferences): string {
   if (pref.frankieMode) {
-    return task.plainTitle || task.title;
+    return registryCopy(task)?.plainTitle || task.plainTitle || task.title;
   }
   return task.title;
 }
@@ -25,7 +36,7 @@ export function getFrankieTitle(task: TripCard, pref: FrankiePreferences): strin
  */
 export function getFrankieDescription(task: TripCard, pref: FrankiePreferences): string {
   if (pref.frankieMode) {
-    return task.plainDescription || (task as any).plainModePrompt || task.description || (task as any).theAsk;
+    return registryCopy(task)?.plainDescription || task.plainDescription || (task as any).plainModePrompt || task.description || (task as any).theAsk;
   }
   return task.description || (task as any).theAsk;
 }
@@ -36,6 +47,8 @@ export function getFrankieDescription(task: TripCard, pref: FrankiePreferences):
  */
 export function getFrankieDirections(task: TripCard, pref: FrankiePreferences): string | string[] {
   if (pref.frankieMode) {
+    const registered = registryCopy(task)?.plainDirections;
+    if (registered) return registered;
     if (task.plainDirections) return task.plainDirections;
     if ((task as any).plainModePrompt) return [(task as any).plainModePrompt];
     if ((task as any).directions) return (task as any).directions;
@@ -62,7 +75,7 @@ export function getFrankieDirectionsArray(task: TripCard, pref: FrankiePreferenc
 export function getFrankieFieldNotePrompt(task: TripCard, pref: FrankiePreferences): string {
   const defaultPrompt = "Write one short note about what you noticed.";
   if (pref.frankieMode) {
-    return task.plainFieldNotePrompt || task.fieldNotePrompt || defaultPrompt;
+    return registryCopy(task)?.plainFieldNotePrompt || task.plainFieldNotePrompt || defaultPrompt;
   }
   return task.fieldNotePrompt || "What did you notice during this mission?";
 }

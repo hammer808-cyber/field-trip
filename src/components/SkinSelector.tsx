@@ -213,14 +213,14 @@ export function SkinSelector() {
         <div className="flex items-center justify-between gap-5">
           <div>
             <p className="font-mono text-[9px] font-black uppercase tracking-widest text-brand-orange">Accessibility</p>
-            <h4 className="font-display text-2xl font-black leading-none">Visual Calm</h4>
-            <p className="mt-2 text-sm text-on-surface/65">Reduce decorative effects while keeping the selected skin readable.</p>
+            <h4 className="font-display text-2xl font-black leading-none">Simple Words &amp; Visual Calm</h4>
+            <p className="mt-2 text-sm text-on-surface/65">This is the Simple Words switch (Frankie Mode). On: short, clear words on every card, calmer screens, fewer decorative effects.</p>
           </div>
           <button
             type="button"
             role="switch"
             aria-checked={frankieMode}
-            aria-label="Toggle Visual Calm"
+            aria-label="Toggle Simple Words and Visual Calm"
             onClick={() => setFrankieMode(!frankieMode)}
             className={cn(
               'relative h-11 w-20 shrink-0 border-2 border-on-surface p-1 transition-colors',
