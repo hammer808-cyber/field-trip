@@ -32,6 +32,10 @@ export function TrevorGuide() {
     isSuppressed: false,
   });
   const autoOpenedState = useRef<string | null>(null);
+  // Whether the panel was last opened by the app itself (auto-open on a
+  // guidance state change) or by the user tapping the launcher. Only a
+  // user-opened panel may move focus into itself.
+  const [expandSource, setExpandSource] = useState<'auto' | 'user'>('auto');
   const guidance = usePlayerGuidance();
 
   const accessibleDecks = useMemo(
@@ -114,6 +118,7 @@ export function TrevorGuide() {
     if (!guidance.autoOpenTrevor) return;
     if (autoOpenedState.current === guidance.state) return;
     autoOpenedState.current = guidance.state;
+    setExpandSource('auto');
     dispatchPanelEvent('open');
     // Persist one-shot Starter unlock acknowledgement so remount does not
     // re-select STARTER_COMPLETE / re-auto-open Trevor.
@@ -175,8 +180,34 @@ export function TrevorGuide() {
   }
 
   const handleOpen = () => {
+    setExpandSource('user');
     dispatchPanelEvent('open');
     recordTrevorRecommendation(trevorContext.userId, recommendation.id, app.currentDate);
+  };
+
+  const handleDisable = () => {
+    // Permanent opt-out from inside the panel: flips the same profile
+    // setting the guide already honours (trevorSettings.enabled), keeping
+    // the other trevorSettings keys intact. The guide hides immediately;
+    // if the save fails the panel still closes for this session.
+    dispatchPanelEvent('suppress');
+    if (app.user?.uid) {
+      const existing = app.profile?.trevorSettings;
+      void app.updateProfile(app.user.uid, {
+        trevorSettings: {
+          enabled: false,
+          collapsed: existing?.collapsed ?? false,
+          ...(existing?.dismissedAfterFiveMissions !== undefined
+            ? { dismissedAfterFiveMissions: existing.dismissedAfterFiveMissions }
+            : {}),
+          ...(existing?.lastSeenApprovedCount !== undefined
+            ? { lastSeenApprovedCount: existing.lastSeenApprovedCount }
+            : {}),
+        },
+      } as any).catch((error: unknown) => {
+        console.warn('[TrevorGuide] Failed to save Trevor opt-out:', error);
+      });
+    }
   };
 
   const handleAction = (action: ResolvedTrevorAction) => {
@@ -213,10 +244,12 @@ export function TrevorGuide() {
       message={message}
       isExpanded={panelState.isExpanded}
       hasNewState={hasNewState}
+      focusPrimaryActionOnOpen={expandSource === 'user'}
       onOpen={handleOpen}
       onCollapse={() => dispatchPanelEvent('collapse')}
       onAction={handleAction}
       onSuppress={handleSuppress}
+      onDisable={handleDisable}
     />
   );
 }

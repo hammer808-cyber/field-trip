@@ -7,6 +7,9 @@ export interface FieldType {
   campRole: string;
   coreInstinct: string;
   description: string;
+  /** One plain sentence that leads the result page; `description` stays as
+   *  the flavor payoff underneath it. */
+  plainSummary?: string;
   vibe: string;
   perk: string;
   perkDesc: string;
@@ -50,6 +53,7 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
     campRole: 'The Routine Architect',
     coreInstinct: 'Organize / Standardize',
     description: 'The primary curator of the Fieldtrip rulebook. Every mission is a masterpiece of documentation and every deviation is a note-in-waiting.',
+    plainSummary: 'You like order. You make the list, keep the list, and write down what happened.',
     vibe: 'Organized, Methodical, Authoritative',
     perk: 'Receipts Department',
     perkDesc: 'Earn +25 when your entry is detailed, organized, ranked, reviewed, compared, audited, list-style, or rule-based.',
@@ -76,6 +80,7 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
     campRole: 'The Plaza Prophet',
     coreInstinct: 'Loiter / Observe',
     description: 'You decode the sacred geometry of the shopping mall. You are a local oracle, finding high-signal metadata in the echo of the food court.',
+    plainSummary: 'You know places. You find the good spots and remember how everything connects.',
     vibe: 'Social, Chill, Consumer-Adjacent',
     perk: 'Found Culture Radar',
     perkDesc: 'Earn +25 when your entry captures social scenes, public weirdness, overheard moments, shopping-center lore, crowd energy, or local culture.',
@@ -102,6 +107,7 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
     campRole: 'The Spirit Specialist',
     coreInstinct: 'Hype / Perform',
     description: 'You are the living, breathing hype-machine of the sector. You don\'t just complete missions—you perform them with maximum kitsch and unshakeable shimmer.',
+    plainSummary: 'You bring the energy. You cheer people on and make everything feel like an event.',
     vibe: 'Performative, Energetic, Kitschy',
     perk: 'Hype Engine',
     perkDesc: 'Earn +25 when your entry captures groups, events, performances, celebrations, team energy, hype, or big public moments.',
@@ -128,6 +134,7 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
     campRole: 'The Narrative Lead',
     coreInstinct: 'Drama / Narrate',
     description: 'A main character by design and a critic by calling. You lead with a sharp eye and even sharper field notes, turning every audit into a dramatic event.',
+    plainSummary: 'You notice details. You have strong opinions and you say what you really think.',
     vibe: 'Sophisticated, Dramatic, Sharp',
     perk: 'Main Character Lens',
     perkDesc: 'Earn +25 when your entry has strong aesthetics, drama, fashion, nightlife, glam, composition, mood, or visual attitude.',
@@ -154,6 +161,7 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
     campRole: 'The Material Harvester',
     coreInstinct: 'Gobble / Hoard',
     description: 'Driven by an insatiable hunger for raw evidence. You swallow missions whole, hoarding proofs like glittering gems in your digital lair.',
+    plainSummary: 'You collect proof. You save everything, and you like having the receipts to show for it.',
     vibe: 'Voracious, Relentless, Chaotic',
     perk: 'Insatiable Index',
     perkDesc: 'Earn +25 when your entry contains multiple proofs, extra details, hidden findings, or chaotic energy that others ignore.',
@@ -180,6 +188,7 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
     campRole: 'The Perimeter Ghost',
     coreInstinct: 'Hide / Document',
     description: 'Silent, elusive, and perfectly framed in the shadows. You document the fringes of reality so the team doesn\'t have to look directly at them.',
+    plainSummary: 'You watch quietly. You explore on your own and find things other people miss.',
     vibe: 'Solo, Elusive, Nature-First',
     perk: 'Off-Trail Evidence',
     perkDesc: 'Earn +25 when your entry captures exploration, outdoor finds, hidden places, trails, strange locations, wandering, or nature evidence.',
@@ -206,6 +215,7 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
     campRole: 'Field Talent',
     coreInstinct: 'Adapt',
     description: 'Awaiting classification. HQ is still processing your behavioral profile.',
+    plainSummary: 'Your type is not set yet. Answer the 3 quick questions to find it.',
     vibe: 'Neutral, observing, flexible',
     perk: 'Base Method',
     perkDesc: 'Standard Fieldtrip rewards and rules apply.',

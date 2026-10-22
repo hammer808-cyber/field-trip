@@ -26,10 +26,18 @@ interface TrevorGuideViewProps {
   message: string;
   isExpanded: boolean;
   hasNewState: boolean;
+  /** Move focus into the panel only when the USER opened it. When the panel
+   *  auto-opens on a game-state change, stealing focus yanks keyboard and
+   *  screen-reader users out of what they were doing — so auto-opens leave
+   *  focus exactly where it is. Defaults to false (no steal). */
+  focusPrimaryActionOnOpen?: boolean;
   onOpen: () => void;
   onCollapse: () => void;
   onAction: (action: ResolvedTrevorAction) => void;
   onSuppress: () => void;
+  /** Permanent opt-out ("Stop showing these tips") — hides Trevor for good
+   *  via the profile setting, not just for this session. */
+  onDisable?: () => void;
 }
 
 export function TrevorGuideView({
@@ -37,10 +45,12 @@ export function TrevorGuideView({
   message,
   isExpanded,
   hasNewState,
+  focusPrimaryActionOnOpen = false,
   onOpen,
   onCollapse,
   onAction,
   onSuppress,
+  onDisable,
 }: TrevorGuideViewProps) {
   const primaryActionRef = useRef<HTMLButtonElement>(null);
   const isWarning = recommendation.tone === 'warning';
@@ -48,8 +58,8 @@ export function TrevorGuideView({
   const firstSentence = (message.replace(/[“”"]/g, '').split(/[.!?]/)[0] || recommendation.primaryAction.label).trim();
 
   useEffect(() => {
-    if (isExpanded) primaryActionRef.current?.focus();
-  }, [isExpanded]);
+    if (isExpanded && focusPrimaryActionOnOpen) primaryActionRef.current?.focus();
+  }, [isExpanded, focusPrimaryActionOnOpen]);
 
   return (
     <div
@@ -140,6 +150,17 @@ export function TrevorGuideView({
               <EyeOff aria-hidden="true" size={14} />
               Hide for this session
             </button>
+
+            {onDisable && (
+              <button
+                type="button"
+                onClick={onDisable}
+                className="flex min-h-11 w-full items-center justify-center gap-2 font-mono text-[9px] font-bold uppercase tracking-widest text-on-surface/40 hover:text-error focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand-cyan"
+              >
+                <EyeOff aria-hidden="true" size={14} />
+                Stop showing these tips
+              </button>
+            )}
           </motion.section>
         ) : (
           <motion.div

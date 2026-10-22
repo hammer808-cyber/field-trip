@@ -5,6 +5,7 @@ import { QUIZ_QUESTIONS } from '../../data/personaQuiz';
 import { FieldTypeId, FIELD_TYPES } from '../../constants';
 import { PERSONA_AVATAR_PRESETS } from '../../constants/avatarAssets';
 import { useApp } from '../../context/AppContext';
+import { useTheme } from '../../context/ThemeContext';
 import { assignFieldType, getScores } from '../../logic/fieldTypeLogic';
 import {
   getStickerArchetypeForFieldType,
@@ -16,8 +17,18 @@ interface PersonaQuizProps {
   onComplete: () => void;
 }
 
+/** Trevor's per-question line lives in the quiz data (trevorVoice / stickyNote)
+ *  with a "TREVOR:" / "TR:" prefix and wrapping quotes — strip both for display. */
+function trevorLine(question: (typeof QUIZ_QUESTIONS)[number]): string | null {
+  const raw = question.trevorVoice ?? question.stickyNote;
+  if (!raw) return null;
+  const cleaned = raw.replace(/^TREVOR:\s*/i, '').replace(/^TR:\s*/i, '').replace(/^["“]|["”]$/g, '').trim();
+  return cleaned || null;
+}
+
 export const PersonaQuiz: React.FC<PersonaQuizProps> = ({ onComplete }) => {
   const { profile, updateProfile } = useApp();
+  const { frankieMode } = useTheme();
   const prefersReducedMotion = useReducedMotion();
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -196,8 +207,19 @@ export const PersonaQuiz: React.FC<PersonaQuizProps> = ({ onComplete }) => {
               tabIndex={-1}
               className="font-display text-3xl sm:text-4xl font-black uppercase italic leading-tight outline-none"
             >
-              {question.prompt}
+              {question.plainHeadline ?? question.prompt}
             </h1>
+            {!frankieMode && question.plainHeadline && question.plainHeadline !== question.prompt && (
+              <p className="font-serif text-base italic leading-relaxed text-on-surface/70">
+                {question.prompt}
+              </p>
+            )}
+            {trevorLine(question) && (
+              <p className="inline-flex items-start gap-2 border-2 border-dashed border-on-surface/25 bg-white/60 px-3 py-2 font-mono text-[11px] font-bold leading-relaxed text-on-surface/75">
+                <span className="shrink-0 bg-on-surface px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-white">Trevor</span>
+                {trevorLine(question)}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-3" role="group" aria-label={`Answers for question ${questionIndex + 1}`}>
@@ -209,7 +231,7 @@ export const PersonaQuiz: React.FC<PersonaQuizProps> = ({ onComplete }) => {
                   type="button"
                   onClick={() => onSelectAnswer(question.id, answer.id)}
                   disabled={isTransitioning || isSaving}
-                  aria-label={`Answer ${answerIndex + 1} of 6: ${answer.text}`}
+                  aria-label={`Answer ${answerIndex + 1} of 6: ${answer.shortLead ? `${answer.shortLead}. ${answer.text}` : answer.text}`}
                   aria-pressed={isSelected}
                   className={`w-full min-h-16 p-4 sm:p-5 text-left border-[3px] border-on-surface shadow-[4px_4px_0px_black] transition-colors focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand-orange disabled:cursor-wait ${
                     isSelected ? 'bg-brand-lime' : 'bg-white hover:bg-brand-lime/35'
@@ -219,7 +241,16 @@ export const PersonaQuiz: React.FC<PersonaQuizProps> = ({ onComplete }) => {
                     <span className="mt-0.5 w-6 h-6 shrink-0 border-2 border-on-surface flex items-center justify-center font-black bg-white" aria-hidden="true">
                       {isSelected ? <Check className="w-4 h-4" /> : answerIndex + 1}
                     </span>
-                    {answer.text}
+                    {answer.shortLead ? (
+                      <span className="flex flex-col gap-0.5">
+                        <span className="font-sans text-sm sm:text-base font-black leading-snug">{answer.shortLead}</span>
+                        {!frankieMode && (
+                          <span className="font-normal leading-relaxed text-on-surface/75">{answer.text}</span>
+                        )}
+                      </span>
+                    ) : (
+                      answer.text
+                    )}
                   </span>
                 </button>
               );

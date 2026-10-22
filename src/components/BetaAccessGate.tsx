@@ -28,18 +28,30 @@ interface BetaAccessGateProps {
 
 export function BetaAccessGate({ userId, onAccepted, showWelcome = false }: BetaAccessGateProps) {
   const [step, setStep] = useState<'welcome' | 'legal'>(showWelcome ? 'welcome' : 'legal');
-  const [consentChecked, setConsentChecked] = useState(false);
+  // Age confirmation and document agreement are SEPARATE consents: bundling
+  // "I am 18+" into the same checkbox as agreeing to three documents weakens
+  // both. Each gets its own explicit check.
+  const [ageChecked, setAgeChecked] = useState(false);
+  const [termsChecked, setTermsChecked] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [modalContent, setModalContent] = useState<{ title: string; content: string } | null>(null);
 
+  const allChecked = ageChecked && termsChecked;
+
   const handleAccept = async () => {
-    if (!consentChecked || isSubmitting) return;
+    if (!allChecked || isSubmitting) return;
     setIsSubmitting(true);
+    setSaveError(null);
     try {
       await saveConsent(userId);
       onAccepted();
     } catch (error) {
       console.error("[BetaAccessGate] Error saving consent:", error);
+      // Never fail silently here: without a saved consent the gate cannot
+      // open, so a dead button with no message strands the user. Say what
+      // happened and let them retry from the same checked state.
+      setSaveError("Your agreement could not be saved. Check your connection and try again — your checkmarks are still here.");
     } finally {
       setIsSubmitting(false);
     }
@@ -206,35 +218,63 @@ export function BetaAccessGate({ userId, onAccepted, showWelcome = false }: Beta
             </div>
           </div>
 
-          {/* Unified Checkbox */}
-          <label className="flex items-start gap-4 p-4 border-2 border-on-surface/20 hover:border-brand-orange bg-on-surface/[0.01] hover:bg-brand-orange/[0.02] transition-colors rounded-xl cursor-pointer group">
-            <input 
-              id="legal-agreement-checkbox"
-              type="checkbox"
-              checked={consentChecked}
-              onChange={(e) => setConsentChecked(e.target.checked)}
-              className="mt-1 w-5 h-5 accent-brand-orange cursor-pointer"
-            />
-            <span className="text-xs font-serif font-bold italic leading-relaxed text-on-surface/95 select-none transition-colors group-hover:text-brand-orange">
-              I confirm that I am 18 or older, I have read and agree to the Terms & Conditions, Privacy Policy, and community participation guidelines.
-            </span>
-          </label>
+          {/* Two separate consents: age first, documents second */}
+          <div className="space-y-3">
+            <label className="flex items-start gap-4 p-4 border-2 border-on-surface/20 hover:border-brand-orange bg-on-surface/[0.01] hover:bg-brand-orange/[0.02] transition-colors rounded-xl cursor-pointer group">
+              <input
+                id="legal-age-checkbox"
+                type="checkbox"
+                checked={ageChecked}
+                onChange={(e) => setAgeChecked(e.target.checked)}
+                className="mt-1 w-5 h-5 accent-brand-orange cursor-pointer"
+              />
+              <span className="text-xs font-serif font-bold italic leading-relaxed text-on-surface/95 select-none transition-colors group-hover:text-brand-orange">
+                I confirm that I am 18 or older.
+              </span>
+            </label>
+            <label className="flex items-start gap-4 p-4 border-2 border-on-surface/20 hover:border-brand-orange bg-on-surface/[0.01] hover:bg-brand-orange/[0.02] transition-colors rounded-xl cursor-pointer group">
+              <input
+                id="legal-agreement-checkbox"
+                type="checkbox"
+                checked={termsChecked}
+                onChange={(e) => setTermsChecked(e.target.checked)}
+                className="mt-1 w-5 h-5 accent-brand-orange cursor-pointer"
+              />
+              <span className="text-xs font-serif font-bold italic leading-relaxed text-on-surface/95 select-none transition-colors group-hover:text-brand-orange">
+                I have read and agree to the Terms & Conditions, Privacy Policy, Community Rules, and Safety Rules.
+              </span>
+            </label>
+          </div>
+
+          {saveError && (
+            <div className="p-4 border-2 border-error bg-error/5 rounded-xl space-y-3" role="alert">
+              <p className="text-sm font-bold text-error">{saveError}</p>
+              <button
+                type="button"
+                onClick={handleAccept}
+                disabled={isSubmitting}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-error text-white font-bold uppercase text-xs rounded-lg disabled:opacity-50"
+              >
+                {isSubmitting ? "Saving..." : "Try saving again"}
+              </button>
+            </div>
+          )}
 
           {/* Action Button CTA */}
-          <button 
-            disabled={!consentChecked || isSubmitting}
+          <button
+            disabled={!allChecked || isSubmitting}
             onClick={handleAccept}
             className={cn(
               "w-full py-4 bg-brand-orange text-white border-2 border-on-surface font-display text-xl font-black uppercase italic shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none transition-all rounded-2xl flex items-center justify-center gap-2",
-              (!consentChecked || isSubmitting) && "opacity-30 pointer-events-none cursor-not-allowed"
+              (!allChecked || isSubmitting) && "opacity-30 pointer-events-none cursor-not-allowed"
             )}
           >
             <span>{isSubmitting ? "Saving..." : "I agree — continue"}</span>
             <CheckCircle2 className="w-5 h-5" />
           </button>
-          {!consentChecked && (
+          {!allChecked && (
             <p className="text-center font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/50">
-              Check the box to continue.
+              Check both boxes to continue.
             </p>
           )}
         </motion.div>

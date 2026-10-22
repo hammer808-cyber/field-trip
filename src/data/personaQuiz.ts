@@ -77,47 +77,50 @@ export const PERSONAS: Record<FieldTypeId, PersonaRequirement> = {
 export const QUIZ_QUESTIONS: QuizQuestion[] = [
   {
     id: 'q1',
+    plainHeadline: 'You\'re at a strip mall. Where do you go first?',
     screenId: 'FT-SCR-Q1-STRIP-MALL',
     prompt: 'You end up at a weird little strip mall with one working neon sign and suspiciously good parking. Where do you go first?',
     weight: 1,
     trevorVoice: 'TREVOR: "Atmosphere is 90% of the audit. Keep your eyes on the exit."',
     answers: [
-      { id: 'q1-a1', text: 'The snack spot. I need to know what the regulars know.', personaWeights: { mallRat: 3, bigfoot: 1 } },
-      { id: 'q1-a2', text: 'The karaoke bar with no sign and too much confidence.', personaWeights: { mascota: 3, elondra: 1 } },
-      { id: 'q1-a3', text: 'The hallway between businesses that feels accidentally haunted.', personaWeights: { bigfoot: 3, theGobbler: 1 } },
-      { id: 'q1-a4', text: 'The directory by the elevator. I need the layout first.', personaWeights: { captainClipboard: 3, mallRat: 1 } },
-      { id: 'q1-a5', text: 'The boutique that looks closed but has one candle burning.', personaWeights: { elondra: 3, mascota: 1 } },
-      { id: 'q1-a6', text: 'The place with covered windows and a handwritten “back soon” sign.', personaWeights: { theGobbler: 3, captainClipboard: 1 } }
+      { id: 'q1-a1', shortLead: 'The snack spot', text: 'The snack spot. I need to know what the regulars know.', personaWeights: { mallRat: 3, bigfoot: 1 } },
+      { id: 'q1-a2', shortLead: 'The karaoke bar', text: 'The karaoke bar with no sign and too much confidence.', personaWeights: { mascota: 3, elondra: 1 } },
+      { id: 'q1-a3', shortLead: 'The quiet hallway', text: 'The hallway between businesses that feels accidentally haunted.', personaWeights: { bigfoot: 3, theGobbler: 1 } },
+      { id: 'q1-a4', shortLead: 'The map first', text: 'The directory by the elevator. I need the layout first.', personaWeights: { captainClipboard: 3, mallRat: 1 } },
+      { id: 'q1-a5', shortLead: 'The small boutique', text: 'The boutique that looks closed but has one candle burning.', personaWeights: { elondra: 3, mascota: 1 } },
+      { id: 'q1-a6', shortLead: 'The closed-looking shop', text: 'The place with covered windows and a handwritten “back soon” sign.', personaWeights: { theGobbler: 3, captainClipboard: 1 } }
     ]
   },
   {
     id: 'q2',
+    plainHeadline: 'You need a local tip. What do you do?',
     screenId: 'FT-SCR-Q2-LOCAL-REC',
     prompt: 'You need a local recommendation, but the person at the counter looks busy. What do you do?',
     weight: 1,
     stickyNote: 'TR: "Think about your reputation. Or lack thereof."',
     answers: [
-      { id: 'q2-a1', text: 'Ask what they personally order when nobody’s judging.', personaWeights: { mallRat: 3, captainClipboard: 1 } },
-      { id: 'q2-a2', text: 'Open with a compliment and somehow leave with their life story.', personaWeights: { mascota: 3, mallRat: 1 } },
-      { id: 'q2-a3', text: 'Hover politely, panic, then read every flyer by the register.', personaWeights: { bigfoot: 3, elondra: 1 } },
-      { id: 'q2-a4', text: 'Ask one clear question and thank them in under 30 seconds.', personaWeights: { captainClipboard: 3, theGobbler: 1 } },
-      { id: 'q2-a5', text: 'Ask where they’d send someone with taste and limited patience.', personaWeights: { elondra: 3, bigfoot: 1 } },
-      { id: 'q2-a6', text: 'Ask one question, then immediately discover six follow-ups.', personaWeights: { theGobbler: 3, mascota: 1 } }
+      { id: 'q2-a1', shortLead: 'Ask what they order', text: 'Ask what they personally order when nobody’s judging.', personaWeights: { mallRat: 3, captainClipboard: 1 } },
+      { id: 'q2-a2', shortLead: 'Start with a compliment', text: 'Open with a compliment and somehow leave with their life story.', personaWeights: { mascota: 3, mallRat: 1 } },
+      { id: 'q2-a3', shortLead: 'Wait and read the flyers', text: 'Hover politely, panic, then read every flyer by the register.', personaWeights: { bigfoot: 3, elondra: 1 } },
+      { id: 'q2-a4', shortLead: 'Ask one quick question', text: 'Ask one clear question and thank them in under 30 seconds.', personaWeights: { captainClipboard: 3, theGobbler: 1 } },
+      { id: 'q2-a5', shortLead: 'Ask for their best pick', text: 'Ask where they’d send someone with taste and limited patience.', personaWeights: { elondra: 3, bigfoot: 1 } },
+      { id: 'q2-a6', shortLead: 'Ask, then keep asking', text: 'Ask one question, then immediately discover six follow-ups.', personaWeights: { theGobbler: 3, mascota: 1 } }
     ]
   },
   {
     id: 'q3',
+    plainHeadline: 'Someone brought mystery snacks. What do you do?',
     screenId: 'FT-SCR-Q3-MYSTERY-SNACKS',
     prompt: 'Someone brought mystery-flavor snacks to the hangout. You:',
     weight: 1,
     trevorVoice: 'TREVOR: "Safety first! Technically."',
     answers: [
-      { id: 'q3-a1', text: 'Check the package first. I’ve been hurt by limited editions.', personaWeights: { mallRat: 3, captainClipboard: 1 } },
-      { id: 'q3-a2', text: 'Turn it into a group taste test immediately.', personaWeights: { mascota: 3, elondra: 1 } },
-      { id: 'q3-a3', text: 'Smell it, inspect it, and say, “Interesting,” too quietly.', personaWeights: { bigfoot: 3, mascota: 1 } },
-      { id: 'q3-a4', text: 'Make everyone rate it from 1 to 10.', personaWeights: { captainClipboard: 3, theGobbler: 1 } },
-      { id: 'q3-a5', text: 'Take one bite and give it a very specific review.', personaWeights: { elondra: 3, theGobbler: 1 } },
-      { id: 'q3-a6', text: 'Keep the wrapper because something about this feels documented.', personaWeights: { theGobbler: 3, bigfoot: 1 } }
+      { id: 'q3-a1', shortLead: 'Check the package first', text: 'Check the package first. I’ve been hurt by limited editions.', personaWeights: { mallRat: 3, captainClipboard: 1 } },
+      { id: 'q3-a2', shortLead: 'Start a group taste test', text: 'Turn it into a group taste test immediately.', personaWeights: { mascota: 3, elondra: 1 } },
+      { id: 'q3-a3', shortLead: 'Look at it closely', text: 'Smell it, inspect it, and say, “Interesting,” too quietly.', personaWeights: { bigfoot: 3, mascota: 1 } },
+      { id: 'q3-a4', shortLead: 'Have everyone rate it', text: 'Make everyone rate it from 1 to 10.', personaWeights: { captainClipboard: 3, theGobbler: 1 } },
+      { id: 'q3-a5', shortLead: 'Taste it and review it', text: 'Take one bite and give it a very specific review.', personaWeights: { elondra: 3, theGobbler: 1 } },
+      { id: 'q3-a6', shortLead: 'Keep the wrapper', text: 'Keep the wrapper because something about this feels documented.', personaWeights: { theGobbler: 3, bigfoot: 1 } }
     ]
   }
 ];

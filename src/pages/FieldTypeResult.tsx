@@ -271,11 +271,24 @@ export default function FieldTypeResult() {
                 <div className="absolute top-0 right-0 p-2 opacity-5">
                    <ChromeStar className="w-16 h-16" />
                 </div>
-               <p className={cn("text-2xl leading-tight font-medium relative z-10", isDiamond ? "font-mono text-white/80" : "font-serif text-on-surface")}>
-                 {isGuidedActive 
-                   ? "Take one photo. Add one short note. Submit it for review."
-                   : `"${data.description}"`}
-               </p>
+               {isGuidedActive ? (
+                 <p className={cn("text-2xl leading-tight font-medium relative z-10", isDiamond ? "font-mono text-white/80" : "font-serif text-on-surface")}>
+                   Take one photo. Add one short note. Submit it for review.
+                 </p>
+               ) : (
+                 <>
+                   {data.plainSummary && (
+                     <p className={cn("text-xl sm:text-2xl leading-snug font-black relative z-10", isDiamond ? "font-sans text-white" : "font-sans text-on-surface")}>
+                       {data.plainSummary}
+                     </p>
+                   )}
+                   {!frankieMode && (
+                     <p className={cn("mt-3 text-2xl leading-tight font-medium relative z-10", isDiamond ? "font-mono text-white/80" : "font-serif text-on-surface")}>
+                       {`"${data.description}"`}
+                     </p>
+                   )}
+                 </>
+               )}
              </div>
 
              {isGuidedActive ? (
