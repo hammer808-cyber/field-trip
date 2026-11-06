@@ -27,8 +27,6 @@ import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
 import { CommunityProofsFeed } from '../components/CommunityProofsFeed';
 import { getDeckProgress, getStarterProgress } from '../services/canonicalProgress';
 import { ZineWorkspace } from '../components/ZineWorkspace';
-import { StickerBook } from '../components/StickerBook';
-import { StickerMachine } from '../components/stickers/StickerMachine';
 import { GatedFeaturePanel } from '../components/GatedFeaturePanel';
 import { EmptyStatePanel } from '../components/FieldtripLoader';
 import { FieldButton, FieldSection, FieldStatusChip, PlayerPageBody, PlayerPageShell } from '../components/player';
@@ -60,7 +58,9 @@ export default function CollectionPage() {
       ? 'collection'
       : initialTabParam === 'crew_memories'
         ? 'memories'
-        : (initialTabParam as CollectionTab)
+        : initialTabParam === 'stickers'
+          ? 'decks'
+          : (initialTabParam as CollectionTab)
   ) || 'decks';
   const [activeTab, setActiveTab] = useState<CollectionTab>(initialTab);
   const [memoriesView, setMemoriesView] = useState<MemoriesView>(
@@ -118,6 +118,9 @@ export default function CollectionPage() {
     } else if (tabParam === 'crew_memories') {
       setActiveTab('memories');
       setMemoriesView('mine');
+    } else if (tabParam === 'stickers') {
+      // Stickers are limited until the sticker flow works: land on the shelf.
+      setActiveTab('decks');
     } else if (tab) {
       setActiveTab(tab);
     }
@@ -136,7 +139,8 @@ export default function CollectionPage() {
     } else if (path.includes('/dex/zines')) {
       setActiveTab('zines');
     } else if (path.includes('/dex/stickers')) {
-      setActiveTab('stickers');
+      // Stickers are limited until the sticker flow works: land on the shelf.
+      setActiveTab('decks');
     } else if (path.includes('/dex/collection')) {
       setActiveTab('collection');
     }
@@ -264,7 +268,6 @@ export default function CollectionPage() {
         tabs={[
           { id: 'decks', label: 'Decks' },
           { id: 'collection', label: 'Collection' },
-          { id: 'stickers', label: 'Stickers' },
           { id: 'zines', label: 'Zines' },
           { id: 'memories', label: 'Memories' }
         ]}
@@ -285,8 +288,6 @@ export default function CollectionPage() {
               exit={{ opacity: 0, y: -15 }}
               className="space-y-10"
             >
-              <StickerBook />
-
               <FieldSection eyebrow="Cabinet" title="Medals" action={<span className="font-mono text-[10px] font-black uppercase text-on-surface/40">{badges.filter(r => unlockedBadges.has(r.id)).length} earned</span>}>
                 <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
                   {badges.map(r => (
@@ -426,18 +427,6 @@ export default function CollectionPage() {
             </motion.div>
           )}
 
-          {activeTab === 'stickers' && (
-            <motion.div 
-              key="stickers-tab"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              className="space-y-10"
-            >
-              <StickerMachine />
-            </motion.div>
-          )}
-
           {activeTab === 'badges' && (
             <motion.div 
               key="badges-tab"
@@ -489,7 +478,7 @@ export default function CollectionPage() {
                     )}
 
                     {pack.coverImage && (
-                      <div className="-mx-6 -mt-6 aspect-[16/9] overflow-hidden border-b-[3px] border-on-surface">
+                      <div className="-mx-6 -mt-6 aspect-[4/3] overflow-hidden border-b-[3px] border-on-surface">
                         <img
                           src={pack.coverImage}
                           alt={`${pack.packName} cover art`}
@@ -536,7 +525,7 @@ export default function CollectionPage() {
                       <button 
                         onClick={() => {
                           localStorage.setItem('active_deck_pack_id', pack.packId);
-                          navigate('/missions');
+                          navigate(`/missions?pack=${pack.packId}`);
                         }}
                         className="w-full py-2 bg-on-surface/5 hover:bg-on-surface/10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
                       >

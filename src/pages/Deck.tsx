@@ -171,7 +171,7 @@ export default function DeckPage() {
     updateTripProgress, completedChallengeIds, submittedPendingChallengeIds, fieldTokens, onboardingCompletedCount,
     onboardingRequiredCount, completedOnboardingMissionIds, isOnboardingComplete, trips, starterState,
     memories, toggleFavoriteMemory, getEligibleDrawPool, updateProfile, blockedIds, unlockDiscoverySticker, currentDate,
-    isAdmin, isHeatwaveDeckUnlocked, isSocalSummerUnlocked, mustCompleteStarterMission,
+    isAdmin, isHeatwaveDeckUnlocked, isSocalSummerUnlocked, mustCompleteStarterMission, authLoading,
     needsMoreProofChallengeIds, rejectedChallengeIds,
     drawnMissionCards, updateMissionCardStatus, setActiveMissionCard, canonicalProgress, progressMismatches,
     deckPacks, visibleDeckPacks, getDeckAccessForPack
@@ -203,7 +203,12 @@ export default function DeckPage() {
   });
 
   // Security Guard: Sync active pack with onboarding/unlock status
+  // Don't snap the deck while auth is still loading: isAdmin and
+  // isOnboardingComplete read false until the session resolves, and snapping
+  // then would discard a deck the user just picked (e.g. from the DEX shelf).
   useEffect(() => {
+    if (authLoading) return;
+
     if (!isOnboardingComplete && !isAdmin && activePackId !== 'starter-signals') {
       setActivePackId('starter-signals');
     }
@@ -217,7 +222,7 @@ export default function DeckPage() {
     if (activePackId === 'heatwave-receipts' && !isHeatwaveDeckUnlocked && !isAdmin) {
       setActivePackId(isOnboardingComplete ? (visibleDeckPacks[0]?.packId || 'starter-signals') : 'starter-signals');
     }
-  }, [isOnboardingComplete, isHeatwaveDeckUnlocked, isAdmin, activePackId, visibleDeckPacks]);
+  }, [authLoading, isOnboardingComplete, isHeatwaveDeckUnlocked, isAdmin, activePackId, visibleDeckPacks]);
 
   // Save active pack ID to localStorage
   useEffect(() => {
