@@ -37,6 +37,7 @@ const HEADER = [
   'Plain title (Frankie Mode)',
   'Plain description (Frankie Mode)',
   'Plain voice-note prompt (Frankie Mode)',
+  'Example photo',
 ];
 
 const abc: string[][] = JSON.parse(readFileSync(process.argv[2], 'utf8'));
@@ -74,6 +75,7 @@ const rows = abc.map(([deckName, deckCode, cardId]) => {
     plain?.plainTitle || '',
     plain?.plainDescription || '',
     plain?.plainVoiceNotePrompt || '',
+    String((card as any).image || ''),
   ];
 });
 

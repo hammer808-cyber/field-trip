@@ -204,6 +204,13 @@ function MissionCardItem({ challenge, onClick, idx }: { challenge: TripCard & { 
         {/* Paper Texture Overlay */}
         <div className="absolute inset-0 opacity-10 pointer-events-none mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')]" />
 
+        {/* Example-photo label: real photo, not the target itself */}
+        {challenge.image && (
+          <span className="absolute right-3 top-3 z-20 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-on-surface border-2 border-on-surface">
+            Example photo
+          </span>
+        )}
+
         {/* Dynamic decorative mission reward sticker decal */}
         {challenge.rewards?.stickers && challenge.rewards.stickers.length > 0 && (
           <StickerDecal

@@ -1,4 +1,9 @@
 export function getMissionImage(id: string, category?: string, suppliedImage?: string): string {
+  // A real example photo always wins over the generated badge art. Cards
+  // with an `image` (Texas deck) show the photo; everything else falls
+  // through to the stylized SVG illustration below.
+  if (suppliedImage) return suppliedImage;
+
   // Determine attributes based on category/type to construct an awesome stylized illustration
   const cat = (category || id || '').toLowerCase();
   

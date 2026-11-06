@@ -101,6 +101,11 @@ export const MissionDetailsModal: React.FC<MissionDetailsModalProps> = ({
                     {mission.difficulty?.toUpperCase() || 'MODERATE'}
                   </div>
                 </div>
+                {mission.image && (
+                  <span className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-on-surface border-2 border-on-surface">
+                    Example photo
+                  </span>
+                )}
                 {isUnavailable && (
                   <div className="absolute inset-0 flex items-center justify-center rotate-[-15deg] pointer-events-none">
                     <div className={cn(
