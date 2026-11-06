@@ -22,6 +22,10 @@ interface DeckStackProps {
   loading?: boolean;
   statusLabel?: string;
   isWaitingForReview?: boolean;
+  /** Shared-element id for the flip-then-expand: the top card of the deck
+      and the revealed mission card carry the same layoutId, so the drawn
+      card grows out of the deck instead of swapping in. Omit to opt out. */
+  layoutId?: string;
 }
 
 export function DeckStack({
@@ -34,7 +38,8 @@ export function DeckStack({
   locked,
   loading,
   statusLabel,
-  isWaitingForReview
+  isWaitingForReview,
+  layoutId
 }: DeckStackProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -79,6 +84,7 @@ export function DeckStack({
           <motion.div
             key={i}
             initial={false}
+            layoutId={i === 7 ? layoutId : undefined}
             animate={{
               rotate: i * 0.8 - 3 + (isHovered && !isActuallyDisabled ? (i - 3) * 1.5 : 0),
               x: i * 0.5 - 2 + (isHovered && !isActuallyDisabled ? (i - 3) * 4 : 0),

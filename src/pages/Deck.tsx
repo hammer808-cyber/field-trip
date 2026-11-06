@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { MOCK_TRIPS, FIELD_TYPES } from '../constants';
 import { Card } from '../components/UI';
@@ -610,6 +610,18 @@ export default function DeckPage() {
     }, 1000);
   };
 
+  // Put the card back on the deck: only a freshly drawn card (not yet an
+  // active mission) can be returned. A resumed active mission stays put —
+  // the sync effect above would re-expand it anyway.
+  const canPutBack = !!drawnTrip && !activeTrip;
+  const handlePutBack = () => {
+    if (!canPutBack) return;
+    setIsDrawn(false);
+    setDrawnTrip(null);
+    setHasRevealedInActiveSession(false);
+    setAnimationStep('idle');
+  };
+
   const deckLockState = getPackLockState(activePack);
   const deckDiagnosticsPanel = (isAdmin || import.meta.env.DEV) ? (
     <DeckDiagnosticsPanel
@@ -1081,6 +1093,13 @@ export default function DeckPage() {
               status={missionPanelStatus}
               className={cn(demoteMissionBrowsing && isDrawn && 'ring-4 ring-[var(--skin-secondary)] ring-offset-2')}
             >
+        {/* The sticker sheet: the deck and the mission both live on the same
+            cream graph-paper page (StickerBook's recipe), so the flip and the
+            expand read as one card on one sheet. */}
+        <LayoutGroup>
+        <div className="relative overflow-hidden border-4 border-on-surface bg-[#F5E9C9] shadow-[10px_10px_0px_black]">
+          <div className="absolute inset-0 opacity-40 pointer-events-none bg-[linear-gradient(rgba(62,109,157,0.18)_1px,transparent_1px),linear-gradient(90deg,rgba(62,109,157,0.18)_1px,transparent_1px)] bg-[size:22px_22px]" aria-hidden="true" />
+          <div className="relative p-4 sm:p-6">
         <AnimatePresence mode="wait">
           {!isDrawn ? (
             <motion.div 
@@ -1189,6 +1208,7 @@ export default function DeckPage() {
                       activePack={activePack}
                       poolEmpty={isExhausted && !activeTrip}
                       isWaitingForReview={isWaitingForReview}
+                      layoutId="mission-draw-card"
                       statusLabel={
                         animationStep === 'drawing' ? "RELEASING..." : 
                         animationStep === 'flipping' ? "DECODING..." : 
@@ -1252,7 +1272,33 @@ export default function DeckPage() {
               transition={{ delay: 0.1 }}
               className="w-full"
             >
-               <div className="relative group">
+               {/* The deck you drew from stays on the sheet with the mission —
+                  tap it to put a freshly drawn card back. */}
+               <div className="mb-4 flex items-center gap-3">
+                 <button
+                   type="button"
+                   onClick={handlePutBack}
+                   disabled={!canPutBack}
+                   aria-label={canPutBack ? 'Put this card back on the deck' : `Drawn from ${activeDeckDisplayName}`}
+                   className={cn('relative h-16 w-12 shrink-0', canPutBack && 'cursor-pointer')}
+                 >
+                   <div className="absolute inset-0 rotate-[-4deg] rounded-[4px] border-2 border-on-surface bg-white shadow-[2px_2px_0px_black]" />
+                   <div className="absolute inset-0 rotate-[2deg] rounded-[4px] border-2 border-on-surface bg-white shadow-[2px_2px_0px_black]" />
+                   <div className="absolute inset-0 overflow-hidden rounded-[4px] border-2 border-on-surface shadow-[3px_3px_0px_black]">
+                     <DeckArtwork pack={activePack} />
+                   </div>
+                 </button>
+                 <div className="min-w-0">
+                   <p className="font-mono text-[9px] font-black uppercase tracking-[0.2em] text-on-surface/50">Drawn from</p>
+                   <p className="truncate font-display text-lg font-black uppercase italic leading-tight">{activeDeckDisplayName}</p>
+                   <p className="text-[11px] font-bold text-on-surface/60">{canPutBack ? 'Tap the deck to put this card back.' : 'Finish this mission to draw again.'}</p>
+                 </div>
+               </div>
+               <motion.div
+                 layoutId="mission-draw-card"
+                 transition={{ layout: { delay: 0.45, duration: 0.55, ease: [0.22, 1, 0.36, 1] } }}
+                 className="relative group"
+               >
                   {/* The Card Reveal Animation Wrapper */}
                   <motion.div
                     initial={animationStep === 'settling' ? { y: 0, scale: 1, rotateY: 0 } : { y: -200, scale: 0.8, rotateY: 180 }}
@@ -1280,7 +1326,7 @@ export default function DeckPage() {
                        SIGNAL_LOCKED
                     </div>
                   </div>
-               </div>
+               </motion.div>
                
               <div className="mt-7 space-y-4">
                 <button
@@ -1347,6 +1393,9 @@ export default function DeckPage() {
             </motion.div>
           )}
         </AnimatePresence>
+          </div>
+        </div>
+        </LayoutGroup>
             </MissionActionPanel>
           </main>
 
