@@ -45,14 +45,15 @@ test('route guards use canonical progress backed by the shared Starter selector'
   assert.match(starterGateSource, /canAccessFeature\(canonicalProgress, featureKey, \{ isAdmin \}\)/);
 });
 
-test('primary nav has exactly five canonical destinations and no Crew tab', () => {
+test('primary nav has six canonical destinations including Crews', () => {
   assert.match(bottomNavSource, /label: 'BASECAMP', path: '\/basecamp'/);
   assert.match(bottomNavSource, /label: 'MISSIONS', path: '\/missions'/);
   assert.match(bottomNavSource, /label: 'DEX', path: '\/dex'/);
+  assert.match(bottomNavSource, /label: 'CREWS', path: '\/crew'/);
   assert.match(bottomNavSource, /label: 'VOTING', path: '\/voting'/);
   assert.match(bottomNavSource, /label: 'BIG BOARD', path: '\/big-board'/);
-  assert.match(bottomNavSource, /grid-cols-5/);
-  assert.doesNotMatch(bottomNavSource, /label: 'CREW'/);
+  assert.match(bottomNavSource, /grid-cols-6/);
+  assert.doesNotMatch(bottomNavSource, /grid-cols-5/);
 });
 
 test('Basecamp owns settings, admin, and pre-Starter Crew entry points', () => {

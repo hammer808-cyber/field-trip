@@ -8,7 +8,6 @@ import {
   FileText, 
   Settings, 
   AlertTriangle, 
-  Lock, 
   Sparkles, 
   MessageSquare,
   ShieldCheck,
@@ -32,7 +31,6 @@ import {
   getCrew,
   getCrewLore,
   getCurrentCrewMembership,
-  getLatestDispatch,
   getCrewMembers,
   getIncomingCrewInvites,
   getOutgoingCrewJoinRequests,
@@ -48,7 +46,7 @@ import {
   addCrewLoreNote,
 } from '../services/crewService';
 import { getWeeklySummary } from '../services/summaryService';
-import { Crew, CrewLore, CrewDispatch, CrewInvite, CrewJoinRequest, CrewMembershipState, CrewMode, CrewPrivacy, CrewRosterState } from '../types/crew';
+import { Crew, CrewLore, CrewInvite, CrewJoinRequest, CrewMembershipState, CrewMode, CrewPrivacy, CrewRosterState } from '../types/crew';
 import { CrewArtifactsGallery } from '../components/CrewArtifactsGallery';
 import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
 import { ZineWorkspace } from '../components/ZineWorkspace';
@@ -61,12 +59,13 @@ export default function CrewPage() {
   const { user, profile, crewArtifacts, activeSeason, currentWeekNumber } = useApp();
   const [searchParams] = useSearchParams();
   const requestedTab = searchParams.get('tab');
-  const initialTab = requestedTab === 'lore' ? 'memories' : ['stats', 'dispatch'].includes(requestedTab || '') ? 'home' : (requestedTab as any) || 'home';
-  const [activeTab, setActiveTab ] = useState<'home' | 'proofs' | 'voting' | 'memories' | 'zine' | 'lore' | 'members' | 'stats' | 'dispatch' | 'settings'>(initialTab);
+  // 'dispatch' has no tab and no writer yet (season wrap-up is a later
+  // feature), so a dispatch deep link lands on home instead of a blank tab.
+  const initialTab = requestedTab === 'lore' ? 'memories' : ['dispatch'].includes(requestedTab || '') ? 'home' : (requestedTab as any) || 'home';
+  const [activeTab, setActiveTab ] = useState<'home' | 'proofs' | 'voting' | 'memories' | 'zine' | 'lore' | 'members' | 'stats' | 'settings'>(initialTab);
   const [crew, setCrew] = useState<Crew | null>(null);
   const [membershipState, setMembershipState] = useState<CrewMembershipState | null>(null);
   const [lore, setLore] = useState<CrewLore | null>(null);
-  const [dispatch, setDispatch] = useState<CrewDispatch | null>(null);
   const [weeklySummary, setWeeklySummary] = useState<any>(null);
   const [rosterState, setRosterState] = useState<CrewRosterState | null>(null);
   const [incomingInvites, setIncomingInvites] = useState<CrewInvite[]>([]);
@@ -108,7 +107,6 @@ export default function CrewPage() {
         if (!resolvedCrewId) {
           setCrew(null);
           setLore(null);
-          setDispatch(null);
           setLoading(false);
           return;
         }
@@ -117,8 +115,6 @@ export default function CrewPage() {
           setCrew(c);
           const l = await getCrewLore(resolvedCrewId);
           setLore(l);
-          const d = await getLatestDispatch(resolvedCrewId);
-          setDispatch(d);
           
           if (activeSeason?.id) {
              const summary = await getWeeklySummary(activeSeason.id, currentWeekNumber);
@@ -220,7 +216,6 @@ export default function CrewPage() {
       setMembershipState({ crew: null, membership: null, zine: null, cooldownUntil: result.cooldownUntil });
       setCrew(null);
       setLore(null);
-      setDispatch(null);
       setActiveTab('home');
     } catch (err: any) {
       setCrewActionError(err?.message || 'Could not leave Crew.');
@@ -452,6 +447,7 @@ export default function CrewPage() {
     { id: 'voting', label: 'Crew Voting', icon: Vote },
     { id: 'memories', label: 'Crew Memories', icon: History },
     { id: 'zine', label: 'Crew Zine', icon: BookOpen },
+    { id: 'stats', label: 'Stats', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -834,99 +830,6 @@ export default function CrewPage() {
                   </div>
                 ))}
              </div>
-             
-             {/* Score Journey Placeholder */}
-             <div className="bg-white border-8 border-on-surface p-12 shadow-[16px_16px_0px_black] relative overflow-hidden h-80 flex items-center justify-center">
-                <div className="absolute inset-0 opacity-5 flex flex-col justify-around pointer-events-none">
-                  {[...Array(10)].map((_, i) => <div key={i} className="h-0.5 w-full bg-on-surface" />)}
-                  <div className="absolute inset-0 flex justify-around">
-                     {[...Array(10)].map((_, i) => <div key={i} className="w-0.5 h-full bg-on-surface" />)}
-                  </div>
-                </div>
-                <div className="text-center space-y-6 relative z-10">
-                   <div className="w-20 h-20 bg-on-surface text-brand-lime border-4 border-on-surface flex items-center justify-center mx-auto shadow-[8px_8px_0px_black] rotate-12">
-                     <BarChart3 className="w-10 h-10" />
-                   </div>
-                   <div className="space-y-4">
-                     <p className="font-display text-3xl uppercase tracking-tighter italic font-black text-on-surface">Statistical_Visualization_Locked</p>
-                     <p className="font-display text-lg italic opacity-40 uppercase font-black tracking-widest">Collective analytics require more seasonal data points.</p>
-                   </div>
-                </div>
-             </div>
-          </div>
-        )}
-
-        {activeTab === 'dispatch' && (
-          <div className="space-y-12 animate-in fade-in slide-in-from-bottom-6 duration-500">
-            {!dispatch ? (
-              <div className="flex flex-col items-center justify-center p-20 text-center space-y-8 bg-paper border-8 border-dashed border-on-surface/20 shadow-[16px_16px_0px_var(--color-on-surface)] opacity-40">
-                <Lock className="w-24 h-24 text-on-surface" />
-                <div className="space-y-4">
-                   <h2 className="font-display text-5xl uppercase tracking-tighter italic font-black">Dispatch_Locked</h2>
-                   <p className="font-display text-xl italic opacity-60 uppercase font-black tracking-widest leading-none">Intelligence sealed until season wrap-up methods manifest.</p>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white border-8 border-on-surface p-16 space-y-16 shadow-[24px_24px_0px_black] relative overflow-hidden">
-                 <div className="absolute top-12 right-12 opacity-40 scale-125 z-20">
-                   {/* Badge Sticker */}
-                   <div className="w-40 h-40 bg-brand-orange text-white border-8 border-on-surface flex items-center justify-center rotate-12 font-black text-center text-xs uppercase tracking-widest shadow-[12px_12px_0px_black]">
-                     CERTIFIED<br/>SEASON_1<br/>VETERAN
-                   </div>
-                 </div>
-
-                 <div className="absolute -left-20 -top-20 w-64 h-64 bg-brand-lime opacity-10 rounded-full blur-3xl pointer-events-none" />
-
-                 <header className="space-y-6 border-b-8 border-on-surface pb-12 relative z-10">
-                    <div className="w-fit bg-on-surface text-brand-lime px-4 py-1 border-2 border-on-surface font-black text-[11px] uppercase tracking-[0.4em] italic mb-4">
-                      OFFICIAL_FIELD_DISPATCH // SEASON_01
-                    </div>
-                    <h2 className="font-display text-huge uppercase tracking-tighter leading-none italic font-black text-on-surface">{crew.name}</h2>
-                    <div className="flex justify-between items-end">
-                      <div className="space-y-2">
-                        <p className="font-display text-3xl font-black uppercase text-on-surface leading-none">FINAL_RANK: #{dispatch.finalRank}</p>
-                        <p className="font-display text-xl font-black uppercase text-brand-orange leading-none">SCORE: {dispatch.finalScore}XP</p>
-                      </div>
-                      <div className="w-40 h-0.5 bg-on-surface/20" />
-                    </div>
-                 </header>
-
-                 <div className="space-y-12 relative z-10">
-                    <p className="font-display text-4xl italic font-black text-on-surface leading-tight uppercase tracking-tight">"{dispatch.summary.recapParagraph}"</p>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                       <div className="space-y-8">
-                          <h4 className="font-display text-3xl italic font-black uppercase bg-on-surface text-white px-4 py-1 w-fit -rotate-2">Crew_Awards</h4>
-                          <ul className="space-y-6">
-                             {dispatch.summary.awards.map(a => (
-                               <li key={a} className="flex items-center gap-4 group">
-                                 <div className="w-10 h-10 border-4 border-on-surface bg-brand-lime flex items-center justify-center font-black group-hover:rotate-12 transition-transform">★</div>
-                                 <span className="font-display text-2xl uppercase tracking-tighter font-black text-on-surface">{a}</span>
-                               </li>
-                             ))}
-                          </ul>
-                       </div>
-                       <div className="space-y-8">
-                          <h4 className="font-display text-3xl italic font-black uppercase bg-on-surface text-white px-4 py-1 w-fit rotate-2">Best_Evidence</h4>
-                          <div className="aspect-square bg-white border-8 border-on-surface shadow-[16px_16px_0px_var(--color-brand-orange)] flex items-center justify-center overflow-hidden rotate-2 group hover:rotate-0 transition-transform">
-                             {/* Preview of best entry placeholder */}
-                             <div className="text-center space-y-2 opacity-20">
-                               <MessageSquare className="w-16 h-16 mx-auto" />
-                               <p className="font-display text-xs font-black uppercase tracking-[0.2em]">IMAGE_DECRYPTING...</p>
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-                 </div>
-
-                 <footer className="pt-12 border-t-8 border-on-surface/10 flex flex-col md:flex-row justify-between items-center gap-8 relative z-10">
-                    <p className="font-display text-xs font-black uppercase tracking-[0.3em] text-on-surface/40 text-center md:text-left">
-                      Protocol_End_of_Seasonal_Record.<br/>Base_Operations_Remain_Active.
-                    </p>
-                    <button className="bureau-btn-huge bg-on-surface text-white hover:bg-brand-orange transition-colors px-12 py-4">EXPORT_IDENTITY_ASSET</button>
-                 </footer>
-              </div>
-            )}
           </div>
         )}
 
