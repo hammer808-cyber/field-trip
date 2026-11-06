@@ -50,7 +50,12 @@ export function MissionResultCard({
   const { scoring, ftBonus = 0, ftText = '', tokenAwarded, totalTokens } = scoringData;
   const isApproved = reviewStatus === 'approved';
   const isNeedsMoreProof = reviewStatus === 'needs_more_proof';
-  const totalXP = isApproved ? (scoring?.totalPoints || 0) + ftBonus : 0;
+  // The receipt shows at submit, not only at approval: while pending it
+  // is the estimate (same math, same lines), and the final total replaces
+  // it once a human reviews.
+  const hasEstimate = (scoring?.totalPoints || 0) > 0;
+  const showReceipt = isApproved || (reviewStatus === 'pending_review' && hasEstimate);
+  const totalXP = (scoring?.totalPoints || 0) + ftBonus;
   const starter = getStarterProgress(canonicalProgress);
   const dexUnlocked = canAccessFeature(canonicalProgress, 'memories', { isAdmin });
   const currentMissionId = canonicalizeId(trip.id);
@@ -116,15 +121,18 @@ export function MissionResultCard({
             
             <motion.div variants={itemVariants} className="text-right shrink-0 flex flex-col items-end">
               <span className="text-[10px] font-mono font-black uppercase tracking-widest text-[#FFFDF8]/40 mb-1">
-                {isApproved ? getDisplayLabel('XP_YIELD') : 'REVIEW STATUS'}
+                {isApproved ? getDisplayLabel('XP_YIELD') : showReceipt ? 'Estimated XP' : 'REVIEW STATUS'}
               </span>
               <div className="flex flex-col items-end relative">
-                {isApproved ? (
+                {showReceipt ? (
                   <span className="font-display text-5xl sm:text-6xl font-black text-brand-orange tracking-tighter leading-none italic">+{totalXP}</span>
                 ) : (
                   <span className="max-w-32 text-right font-display text-lg font-black uppercase italic leading-none text-brand-orange">
                     {isNeedsMoreProof ? 'Needs more' : 'Pending Review'}
                   </span>
+                )}
+                {!isApproved && showReceipt && (
+                  <span className="mt-1 font-mono text-[9px] font-black uppercase tracking-widest text-[#FFFDF8]/50">Estimate — final at review</span>
                 )}
                 {isApproved && tokenAwarded && (
                   <div className="absolute -bottom-4 right-0 bg-brand-lime text-on-surface px-2 py-0.5 border-2 border-on-surface shadow-[3px_3px_0px_black] rotate-[-4deg] z-20">
@@ -260,8 +268,8 @@ export function MissionResultCard({
           </motion.div>
         )}
 
-        {/* 5. Math Wizard Breakdown */}
-        {isApproved && showMathWizard && scoring && (
+        {/* 5. Math Wizard Breakdown — the receipt, estimate while pending */}
+        {showReceipt && showMathWizard && scoring && (
           <motion.div 
             variants={itemVariants}
             className="bg-on-surface text-white p-6 rounded-[1.5rem] border-b-8 border-brand-orange relative font-mono overflow-hidden"
@@ -285,9 +293,14 @@ export function MissionResultCard({
                 </div>
               )}
               <div className="flex justify-between items-center pt-4 border-t-2 border-brand-orange/40 text-[11px] font-black text-brand-orange mt-2">
-                <span>FINAL_YIELD</span>
+                <span>{isApproved ? 'FINAL_YIELD' : 'ESTIMATED_YIELD'}</span>
                 <span className="text-2xl italic tracking-tighter">{totalXP} XP</span>
               </div>
+              {!isApproved && (
+                <p className="mt-3 text-[9px] font-bold normal-case tracking-normal text-white/50">
+                  Estimate — the final total is confirmed when a human reviews your proof.
+                </p>
+              )}
             </div>
           </motion.div>
         )}

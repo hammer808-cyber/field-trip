@@ -38,7 +38,9 @@ import { LAUNCH_MISSION, LAUNCH_MISSION_ID } from '../data/specialMissions';
 
 import { resolveMissionById } from '../logic/missionResolver';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
-import { calculateMissionScore, resolveParticipationSignals } from '../logic/missionScoring';
+import { buildScoreBreakdownEvents, calculateMissionScore, MIN_VOICE_NOTE_SECONDS, resolveParticipationSignals, toScoringSnapshot } from '../logic/missionScoring';
+import { PointsMeter } from '../components/PointsMeter';
+import { uploadBase64Audio } from '../services/storageService';
 import { revokeTemporaryPreviewUrls } from '../logic/polaroidDevelopment';
 
 export default function CapturePage() {
@@ -724,22 +726,46 @@ export default function CapturePage() {
   const missionProgress = (profile?.tripProgress?.[currentTrip?.id] || {}) as any;
   const fPref = { frankieMode };
 
+  const voiceNoteReady = !!fcData.voiceNote && fcData.voiceNote.durationSec >= MIN_VOICE_NOTE_SECONDS;
   const isPhotoFulfilled = localPhotoCaptured || !!missionProgress.photo;
-  const isNoteFulfilled = fcData.note.trim().length >= 10 || !!missionProgress.field_note;
+  const isNoteFulfilled = fcData.note.trim().length >= 10 || voiceNoteReady || !!missionProgress.field_note;
   const isLocationFulfilled = localLocationChecked || !!missionProgress.location;
 
   const evidenceRequirements = [
     { key: 'photo', label: getFrankieEvidenceLabel(currentTrip, 'photo', fPref), fulfilled: isPhotoFulfilled, required: (currentTrip?.proofType || currentTrip?.requiredProof || []).includes('photo') },
     { key: 'field_note', label: getFrankieEvidenceLabel(currentTrip, 'field_note', fPref), fulfilled: isNoteFulfilled, required: (currentTrip?.proofType || currentTrip?.requiredProof || []).includes('note') },
+    { key: 'audio', label: getFrankieEvidenceLabel(currentTrip, 'audio', fPref), fulfilled: voiceNoteReady, required: (currentTrip?.proofType || currentTrip?.requiredProof || []).includes('audio') },
     { key: 'location', label: getFrankieEvidenceLabel(currentTrip, 'location', fPref), fulfilled: isLocationFulfilled, required: (currentTrip?.proofRequirements?.requireLocation || currentTrip?.proofNeeded?.toLowerCase().includes('location') || (currentTrip?.tags || []).includes('location') || (currentTrip?.proofType || []).includes('location')) },
   ].filter(req => req.required);
 
   // --- POINT SELECTION SYSTEM GATING ---
   // (isStarterTrainingActive moved higher up)
 
+  // A voice note never blocks a submit — like the field note, it is a
+  // way to earn the note layer, not a gate.
   const isRequiredProofCompleted = evidenceRequirements
-    .filter(r => r.key !== 'field_note')
+    .filter(r => r.key !== 'field_note' && r.key !== 'audio')
     .every(r => r.fulfilled);
+
+  // The live meter: the same scorer as the pending estimate and the final
+  // approval, recomputed from the live signals as each step completes.
+  const liveScore = React.useMemo(() => {
+    const base = missionAttempt?.maxScoreBeforeHint ?? currentTrip?.baseXP ?? currentTrip?.basePoints ?? 100;
+    return calculateMissionScore({
+      baseMaxScore: base,
+      reviewerBaseScore: base,
+      hintUsed: missionAttempt?.hintUsed === true,
+      hintPenaltyPercent: missionAttempt?.hintPenaltyPercent,
+      retryMultiplier: isRetry ? 0.5 : 1,
+      participation: resolveParticipationSignals({
+        aiAnalysisResult,
+        fieldNoteRaw: fcData.note,
+        voiceNotePresent: voiceNoteReady,
+        locationVerified: isLocationFulfilled,
+      }),
+      eligibleBonuses: [],
+    });
+  }, [missionAttempt, currentTrip, aiAnalysisResult, fcData.note, voiceNoteReady, isLocationFulfilled, isRetry]);
 
   // Frankie Mode: a field note never locks a level or a submit — the photo is the proof.
   const isFieldNoteEntered = fcData.note.trim().length >= 10 || isPlain;
@@ -971,11 +997,31 @@ export default function CapturePage() {
     }
 
     submitLockRef.current = true;
-    
+
+    // A recorded voice note uploads first, so the layer it earns is only
+    // claimed when the audio actually survived. A failed upload submits
+    // without it — the note layer is simply not earned this time.
+    let voiceNoteUpload: { url: string; path: string } | null = null;
+    const voiceNoteReadyAtSubmit = !!fcData.voiceNote && fcData.voiceNote.durationSec >= MIN_VOICE_NOTE_SECONDS;
+    if (voiceNoteReadyAtSubmit && fcData.voiceNote) {
+      try {
+        const extension = (fcData.voiceNote.mimeType || '').includes('mp4') ? 'mp4' : 'webm';
+        voiceNoteUpload = await uploadBase64Audio(
+          user.uid,
+          `voice-${currentTrip.id}-${Date.now()}.${extension}`,
+          fcData.voiceNote.dataUrl,
+          fcData.voiceNote.mimeType || 'audio/webm',
+        );
+      } catch (voiceErr) {
+        console.error('[Capture] Voice note upload failed, submitting without it:', voiceErr);
+      }
+    }
+    const voiceNotePresent = voiceNoteUpload !== null;
+
     // Pending points are a display estimate only. Final XP is calculated after
     // human approval from the protected mission-attempt snapshot.
     const isFirstTime = !completedChallengeIds.has(currentTrip.id);
-    const awardedXP = calculateMissionScore({
+    const awardedScore = calculateMissionScore({
       baseMaxScore: scoringAttempt.maxScoreBeforeHint,
       reviewerBaseScore: scoringAttempt.maxScoreBeforeHint,
       hintUsed: scoringAttempt.hintUsed,
@@ -984,10 +1030,12 @@ export default function CapturePage() {
       participation: resolveParticipationSignals({
         aiAnalysisResult,
         fieldNoteRaw: fcData.note,
+        voiceNotePresent,
         locationVerified: isLocationFulfilled,
       }),
       eligibleBonuses: [],
-    }).finalScore;
+    });
+    const awardedXP = awardedScore.finalScore;
     
     const awardedTokenCount = isFirstTime ? 1 : 0;
 
@@ -1017,7 +1065,11 @@ export default function CapturePage() {
       syncStatus: 'pending' as 'pending' | 'synced' | 'sync_failed',
       reviewStatus: 'pending_review',
       scoringData: {
-        scoring: { totalPoints: awardedXP },
+        scoring: {
+          totalPoints: awardedXP,
+          scoreEvents: buildScoreBreakdownEvents(awardedScore, currentTrip.id),
+          missionScoring: toScoringSnapshot(awardedScore),
+        },
         ftBonus: 0,
         ftText: 'Uplink Pending...',
         tokenAwarded: isFirstTime,
@@ -1082,6 +1134,10 @@ export default function CapturePage() {
           fieldNote: fcData.note || 'A successful field trip entry.',
           fieldNoteRaw: fcData.note,
           locationVerified: isLocationFulfilled,
+          voiceNoteUrl: voiceNoteUpload?.url ?? null,
+          voiceNoteStoragePath: voiceNoteUpload?.path ?? null,
+          voiceNoteDurationSec: voiceNotePresent ? (fcData.voiceNote?.durationSec ?? null) : null,
+          voiceNotePresent,
           findingType,
           selectedCategory: selectedLevel,
           selectedLevel: selectedLevel,
@@ -1269,6 +1325,12 @@ export default function CapturePage() {
                 <p className="text-xs font-serif italic text-on-surface leading-relaxed">
                   "{repairFeedback}"
                 </p>
+              </div>
+            )}
+
+            {currentTrip && ['brief', 'capture', 'developing_polaroid', 'detecting', 'previewing_polaroid', 'noting', 'reviewing'].includes(fcState) && (
+              <div className="mb-6">
+                <PointsMeter score={liveScore} />
               </div>
             )}
 

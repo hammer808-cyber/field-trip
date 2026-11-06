@@ -107,3 +107,16 @@ test('live award rule: the max is the card\'s own point value', () => {
     'starter cards should all carry baseXP 100',
   );
 });
+
+test('Two-Step Floor is the voice-note card: photo plus audio proof', () => {
+  const card = CARDS.find((entry) => String(entry.id) === 'texas-07');
+  assert.ok(card, 'texas-07 should exist');
+  assert.ok(
+    (card.proofType as unknown as string[]).includes('photo'),
+    'texas-07 still requires a photo',
+  );
+  assert.ok(
+    (card.proofType as unknown as string[]).includes('audio'),
+    'texas-07 should accept a voice note as audio proof',
+  );
+});

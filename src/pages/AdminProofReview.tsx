@@ -781,6 +781,7 @@ function SwipeView({ entry, onAction, busy }: any) {
         fieldNoteRaw: (entry as any).fieldNoteRaw,
         fieldNote: (entry as any).fieldNote,
         note: (entry as any).note,
+        voiceNotePresent: (entry as any).voiceNotePresent === true,
         locationVerified: (entry as any).locationVerified ?? (entry as any).participation?.locationVerified,
         latitude: (entry as any).latitude,
         longitude: (entry as any).longitude,
@@ -819,6 +820,14 @@ function SwipeView({ entry, onAction, busy }: any) {
 
 	          {/* Details & Controls */}
 	          <div className="space-y-8 pt-4">
+             {(entry as any).voiceNoteUrl && (
+               <div className="rounded-xl border-2 border-on-surface bg-white p-4">
+                 <p className="font-mono text-[9px] font-black uppercase tracking-widest opacity-45">
+                   Voice note ({(entry as any).voiceNoteDurationSec ?? '?'}s)
+                 </p>
+                 <audio controls src={(entry as any).voiceNoteUrl} className="mt-2 w-full" />
+               </div>
+             )}
              {!entryResolved && (
                <div className="rounded-2xl border-2 border-red-400 bg-red-50 p-5 font-mono text-[10px] uppercase text-red-700 shadow-[4px_4px_0px_rgba(0,0,0,0.35)]">
                  <div className="flex items-center gap-2 font-black">

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  buildScoreBreakdownEvents,
   calculateMissionScore,
   calculateParticipationLayers,
   getHintAdjustedMaximum,
@@ -164,18 +165,21 @@ test('each participation layer pays 25 percent of the card base', () => {
     fieldNote: 25,
     location: 25,
     total: 75,
+    fieldNoteViaVoice: false,
   });
   assert.deepEqual(calculateParticipationLayers(200, { photoSubjectVerified: true }), {
     photoSubject: 50,
     fieldNote: 0,
     location: 0,
     total: 50,
+    fieldNoteViaVoice: false,
   });
   assert.deepEqual(calculateParticipationLayers(100, {}), {
     photoSubject: 0,
     fieldNote: 0,
     location: 0,
     total: 0,
+    fieldNoteViaVoice: false,
   });
 });
 
@@ -233,7 +237,7 @@ test('missing signals earn nothing', () => {
 test('participation signals resolve from raw submission evidence', () => {
   assert.deepEqual(
     resolveParticipationSignals({ aiAnalysisResult: { detectedSubject: true }, fieldNoteRaw: 'This is a real field note.', latitude: 33.7, longitude: -118.2 }),
-    { photoSubjectVerified: true, fieldNotePresent: true, locationVerified: true },
+    { photoSubjectVerified: true, fieldNotePresent: true, fieldNoteViaVoice: false, locationVerified: true },
   );
   // A short note earns nothing.
   assert.equal(resolveParticipationSignals({ fieldNoteRaw: 'short' }).fieldNotePresent, false);
@@ -242,6 +246,51 @@ test('participation signals resolve from raw submission evidence', () => {
   // No AI result and no coordinates: nothing earned.
   assert.deepEqual(
     resolveParticipationSignals({}),
-    { photoSubjectVerified: false, fieldNotePresent: false, locationVerified: false },
+    { photoSubjectVerified: false, fieldNotePresent: false, fieldNoteViaVoice: false, locationVerified: false },
+  );
+});
+
+test('a voice note earns the note layer, spoken instead of written', () => {
+  const signals = resolveParticipationSignals({ voiceNotePresent: true });
+  assert.equal(signals.fieldNotePresent, true);
+  assert.equal(signals.fieldNoteViaVoice, true);
+  const score = calculateMissionScore({
+    baseMaxScore: 125,
+    reviewerBaseScore: 125,
+    participation: signals,
+  });
+  assert.equal(score.participationLayers.fieldNote, 31);
+  assert.equal(score.participationLayers.fieldNoteViaVoice, true);
+  assert.equal(score.finalScore, 156);
+});
+
+test('a written note and a voice note do not stack — one note layer only', () => {
+  const score = calculateMissionScore({
+    baseMaxScore: 100,
+    reviewerBaseScore: 100,
+    participation: resolveParticipationSignals({
+      fieldNoteRaw: 'This is a real written field note.',
+      voiceNotePresent: true,
+    }),
+  });
+  assert.equal(score.participationLayers.fieldNote, 25);
+  assert.equal(score.participationLayers.fieldNoteViaVoice, false);
+  assert.equal(score.participationLayers.total, 25);
+});
+
+test('the receipt lines sum exactly to the final score', () => {
+  const score = calculateMissionScore({
+    baseMaxScore: 125,
+    reviewerBaseScore: 125,
+    hintUsed: true,
+    participation: { photoSubjectVerified: true, fieldNotePresent: true, fieldNoteViaVoice: true, locationVerified: true },
+    eligibleBonuses: [bonus('afternoon', 1.5)],
+  });
+  const events = buildScoreBreakdownEvents(score, 'texas-07');
+  const sum = events.reduce((total, event) => total + event.points, 0);
+  assert.equal(sum, score.finalScore);
+  assert.equal(
+    events.find((event) => event.type === 'field_note_bonus')?.description,
+    'Voice Note (+25%)',
   );
 });

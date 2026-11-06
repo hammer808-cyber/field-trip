@@ -20,6 +20,8 @@ export interface PlainCardCopy {
   plainDescription: string;
   plainDirections: string;
   plainFieldNotePrompt: string;
+  /** Optional voice-note prompt, for cards whose proofType includes 'audio'. */
+  plainVoiceNotePrompt?: string;
 }
 
 export const PLAIN_CARD_COPY: Record<string, PlainCardCopy> = {
@@ -562,6 +564,7 @@ export const PLAIN_CARD_COPY: Record<string, PlainCardCopy> = {
     plainDescription: 'Take a photo of a dance floor, a honky-tonk, or a live music stage.',
     plainDirections: 'Find a dance floor or a honky-tonk.\nTake one clear photo of it.\nTap Send.',
     plainFieldNotePrompt: 'In a few words: was anyone dancing?',
+    plainVoiceNotePrompt: 'Say it instead: what song is playing?',
   },
   'texas-08': {
     plainTitle: 'A Longhorn',

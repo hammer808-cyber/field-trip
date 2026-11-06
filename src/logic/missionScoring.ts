@@ -189,6 +189,8 @@ export const PARTICIPATION_LAYER_RATE = 0.25;
 export interface ParticipationSignals {
   photoSubjectVerified?: boolean | null;
   fieldNotePresent?: boolean | null;
+  /** True when the note layer was earned by a voice note, not writing. */
+  fieldNoteViaVoice?: boolean | null;
   locationVerified?: boolean | null;
 }
 
@@ -197,6 +199,8 @@ export interface ParticipationLayers {
   fieldNote: number;
   location: number;
   total: number;
+  /** True when the note layer came from a voice note. */
+  fieldNoteViaVoice: boolean;
 }
 
 export function calculateParticipationLayers(
@@ -207,7 +211,13 @@ export function calculateParticipationLayers(
   const photoSubject = signals?.photoSubjectVerified === true ? layerValue : 0;
   const fieldNote = signals?.fieldNotePresent === true ? layerValue : 0;
   const location = signals?.locationVerified === true ? layerValue : 0;
-  return { photoSubject, fieldNote, location, total: photoSubject + fieldNote + location };
+  return {
+    photoSubject,
+    fieldNote,
+    location,
+    total: photoSubject + fieldNote + location,
+    fieldNoteViaVoice: fieldNote > 0 && signals?.fieldNoteViaVoice === true,
+  };
 }
 
 /**
@@ -218,6 +228,8 @@ export function calculateParticipationLayers(
  */
 export const DEFAULT_FIELD_NOTE_TEXT = 'A successful field trip entry.';
 
+export const MIN_VOICE_NOTE_SECONDS = 5;
+
 export function resolveParticipationSignals(input: {
   photoSubjectVerified?: boolean | null;
   aiAnalysisResult?: { detectedSubject?: boolean | null } | null;
@@ -225,23 +237,71 @@ export function resolveParticipationSignals(input: {
   fieldNoteRaw?: string | null;
   fieldNote?: string | null;
   note?: string | null;
+  /** A recorded voice note (5+ seconds) earns the note layer, like writing. */
+  voiceNotePresent?: boolean | null;
   locationVerified?: boolean | null;
   latitude?: number | null;
   longitude?: number | null;
 } | null | undefined): ParticipationSignals {
   const rawNote = input?.fieldNoteRaw ?? input?.fieldNote ?? input?.note ?? '';
   const noteText = rawNote.trim();
+  const writtenNotePresent = noteText.length >= 10 && noteText !== DEFAULT_FIELD_NOTE_TEXT;
+  const voiceNotePresent = input?.voiceNotePresent === true;
   return {
     photoSubjectVerified:
       input?.photoSubjectVerified ??
       input?.aiAnalysisResult?.detectedSubject ??
       input?.proofCheckResult?.detectedSubject ??
       false,
-    fieldNotePresent: noteText.length >= 10 && noteText !== DEFAULT_FIELD_NOTE_TEXT,
+    fieldNotePresent: writtenNotePresent || voiceNotePresent,
+    fieldNoteViaVoice: voiceNotePresent && !writtenNotePresent,
     locationVerified:
       input?.locationVerified ??
       (input?.latitude != null && input?.longitude != null),
   };
+}
+
+/**
+ * The receipt lines for a scoring result: base, hint, retry, each earned
+ * layer, and the multiplier. They sum exactly to finalScore, so the player
+ * and the admin see the same math. Used by the live meter's receipt, the
+ * pending estimate, and the final approval.
+ */
+export interface ScoreBreakdownEvent {
+  type: string;
+  points: number;
+  tripId?: string;
+  description: string;
+}
+
+export function buildScoreBreakdownEvents(
+  result: ScoreCalculationResult,
+  tripId?: string,
+): ScoreBreakdownEvent[] {
+  const events: ScoreBreakdownEvent[] = [
+    { type: 'trip_approved', points: result.baseMaxScore, tripId, description: 'Mission Uplink Base' },
+  ];
+  if (result.hintPenaltyPoints > 0) {
+    events.push({ type: 'admin_adjustment', points: -result.hintPenaltyPoints, tripId, description: 'Hint Used (-15%)' });
+  }
+  const retryLoss = result.reviewerBaseScore - result.reviewerScoreAfterRetry;
+  if (retryLoss > 0) {
+    events.push({ type: 'admin_adjustment', points: -retryLoss, tripId, description: 'Retry (x0.5)' });
+  }
+  const layers = result.participationLayers;
+  if (layers.photoSubject > 0) {
+    events.push({ type: 'quality_bonus', points: layers.photoSubject, tripId, description: 'Photo Subject Match (+25%)' });
+  }
+  if (layers.fieldNote > 0) {
+    events.push({ type: 'field_note_bonus', points: layers.fieldNote, tripId, description: layers.fieldNoteViaVoice ? 'Voice Note (+25%)' : 'Field Note (+25%)' });
+  }
+  if (layers.location > 0) {
+    events.push({ type: 'quality_bonus', points: layers.location, tripId, description: 'Location Captured (+25%)' });
+  }
+  if (result.bonusPoints > 0) {
+    events.push({ type: 'weekly_bonus_booster', points: result.bonusPoints, tripId, description: `[${result.appliedBonusLabel} ${result.appliedMultiplier}x] Multiplier` });
+  }
+  return events;
 }
 
 export function getHintAdjustedMaximum(

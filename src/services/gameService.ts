@@ -30,7 +30,7 @@ import { getServerTime as getSyncedTime, getServerDate } from './timeService';
 import { markCanonicalSubmissionPending } from './proofLifecycleService';
 import { countsTowardMissionRepeatGuard } from '../logic/entryLogic';
 import { getMissionSubmissionContext } from '../logic/missionSubmission';
-import { calculateMissionScore, getMissionBaseMaxScore, resolveParticipationSignals, toScoringSnapshot } from '../logic/missionScoring';
+import { buildScoreBreakdownEvents, calculateMissionScore, getMissionBaseMaxScore, resolveParticipationSignals, toScoringSnapshot } from '../logic/missionScoring';
 
 export async function submitTripEntry(
   userId: string,
@@ -225,6 +225,7 @@ export async function submitTripEntry(
         fieldNoteRaw: (entryData as any).fieldNoteRaw,
         fieldNote: (entryData as any).fieldNote,
         note: (entryData as any).note,
+        voiceNotePresent: (entryData as any).voiceNotePresent === true,
         locationVerified: (entryData as any).locationVerified ?? (entryData as any).participation?.locationVerified,
         latitude: (entryData as any).latitude,
         longitude: (entryData as any).longitude,
@@ -233,32 +234,9 @@ export async function submitTripEntry(
     });
     // Display-only breakdown for the Math Wizard: the events sum exactly
     // to finalScore, so the player can see every layer they earned.
-    const estimatedScoreEvents: Array<{ type: string; points: number; tripId: string; description: string }> = [
-      { type: 'trip_approved', points: baseMaxScore, tripId: trip.id, description: 'Mission Uplink Base' },
-    ];
-    if (estimatedMissionScore.hintPenaltyPoints > 0) {
-      estimatedScoreEvents.push({ type: 'admin_adjustment', points: -estimatedMissionScore.hintPenaltyPoints, tripId: trip.id, description: 'Hint Used (-15%)' });
-    }
-    const retryLoss = estimatedMissionScore.reviewerBaseScore - estimatedMissionScore.reviewerScoreAfterRetry;
-    if (retryLoss > 0) {
-      estimatedScoreEvents.push({ type: 'admin_adjustment', points: -retryLoss, tripId: trip.id, description: 'Retry (x0.5)' });
-    }
-    const estimatedLayers = estimatedMissionScore.participationLayers;
-    if (estimatedLayers.photoSubject > 0) {
-      estimatedScoreEvents.push({ type: 'quality_bonus', points: estimatedLayers.photoSubject, tripId: trip.id, description: 'Photo Subject Match (+25%)' });
-    }
-    if (estimatedLayers.fieldNote > 0) {
-      estimatedScoreEvents.push({ type: 'field_note_bonus', points: estimatedLayers.fieldNote, tripId: trip.id, description: 'Field Note (+25%)' });
-    }
-    if (estimatedLayers.location > 0) {
-      estimatedScoreEvents.push({ type: 'quality_bonus', points: estimatedLayers.location, tripId: trip.id, description: 'Location Captured (+25%)' });
-    }
-    if (estimatedMissionScore.bonusPoints > 0) {
-      estimatedScoreEvents.push({ type: 'weekly_bonus_booster', points: estimatedMissionScore.bonusPoints, tripId: trip.id, description: `[${estimatedMissionScore.appliedBonusLabel} ${estimatedMissionScore.appliedMultiplier}x] Multiplier` });
-    }
     const estimatedScoring = {
       totalPoints: estimatedMissionScore.finalScore,
-      scoreEvents: estimatedScoreEvents,
+      scoreEvents: buildScoreBreakdownEvents(estimatedMissionScore, trip.id),
       missionScoring: toScoringSnapshot(estimatedMissionScore),
     };
 
