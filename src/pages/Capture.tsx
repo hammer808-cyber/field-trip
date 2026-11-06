@@ -39,6 +39,7 @@ import { LAUNCH_MISSION, LAUNCH_MISSION_ID } from '../data/specialMissions';
 import { resolveMissionById } from '../logic/missionResolver';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 import { buildScoreBreakdownEvents, calculateMissionScore, MIN_VOICE_NOTE_SECONDS, resolveParticipationSignals, toScoringSnapshot } from '../logic/missionScoring';
+import { getLocationTagLabel, matchesLocationTag, pickCoords } from '../logic/locationTags';
 import { PointsMeter } from '../components/PointsMeter';
 import { uploadBase64Audio } from '../services/storageService';
 import { revokeTemporaryPreviewUrls } from '../logic/polaroidDevelopment';
@@ -731,11 +732,31 @@ export default function CapturePage() {
   const isNoteFulfilled = fcData.note.trim().length >= 10 || voiceNoteReady || !!missionProgress.field_note;
   const isLocationFulfilled = localLocationChecked || !!missionProgress.location;
 
+  // --- LOCATION TAG (tags earn the points) ---
+  // The evidence row above is the submit gate and keeps its old meaning
+  // (the location step was done) — the tag never blocks a submit. What
+  // the tag decides is the +25% location LAYER: when the mission carries
+  // a locationTag, the layer pays only when the photo's GPS matches it
+  // (Texas deck: inside Texas). Untouched cards keep the old rule.
+  // Coords come from the photo itself (live-camera GPS or EXIF), falling
+  // back to the trip progress location when there is no photo yet.
+  const locationTag = (currentTrip as any)?.locationTag ?? null;
+  const submissionCoords = pickCoords(
+    captureData?.metadata,
+    (missionProgress as any)?.location,
+  );
+  const isLocationLayerEarned = locationTag
+    ? (submissionCoords ? matchesLocationTag(submissionCoords, locationTag) : false)
+    : isLocationFulfilled;
+  const locationRowLabel = locationTag
+    ? `${getFrankieEvidenceLabel(currentTrip, 'location', fPref)} — ${getLocationTagLabel(locationTag)}`
+    : getFrankieEvidenceLabel(currentTrip, 'location', fPref);
+
   const evidenceRequirements = [
     { key: 'photo', label: getFrankieEvidenceLabel(currentTrip, 'photo', fPref), fulfilled: isPhotoFulfilled, required: (currentTrip?.proofType || currentTrip?.requiredProof || []).includes('photo') },
     { key: 'field_note', label: getFrankieEvidenceLabel(currentTrip, 'field_note', fPref), fulfilled: isNoteFulfilled, required: (currentTrip?.proofType || currentTrip?.requiredProof || []).includes('note') },
     { key: 'audio', label: getFrankieEvidenceLabel(currentTrip, 'audio', fPref), fulfilled: voiceNoteReady, required: (currentTrip?.proofType || currentTrip?.requiredProof || []).includes('audio') },
-    { key: 'location', label: getFrankieEvidenceLabel(currentTrip, 'location', fPref), fulfilled: isLocationFulfilled, required: (currentTrip?.proofRequirements?.requireLocation || currentTrip?.proofNeeded?.toLowerCase().includes('location') || (currentTrip?.tags || []).includes('location') || (currentTrip?.proofType || []).includes('location')) },
+    { key: 'location', label: locationRowLabel, fulfilled: isLocationFulfilled, required: (currentTrip?.proofRequirements?.requireLocation || currentTrip?.proofNeeded?.toLowerCase().includes('location') || (currentTrip?.tags || []).includes('location') || (currentTrip?.proofType || []).includes('location')) },
   ].filter(req => req.required);
 
   // --- POINT SELECTION SYSTEM GATING ---
@@ -761,11 +782,11 @@ export default function CapturePage() {
         aiAnalysisResult,
         fieldNoteRaw: fcData.note,
         voiceNotePresent: voiceNoteReady,
-        locationVerified: isLocationFulfilled,
+        locationVerified: isLocationLayerEarned,
       }),
       eligibleBonuses: [],
     });
-  }, [missionAttempt, currentTrip, aiAnalysisResult, fcData.note, voiceNoteReady, isLocationFulfilled, isRetry]);
+  }, [missionAttempt, currentTrip, aiAnalysisResult, fcData.note, voiceNoteReady, isLocationFulfilled, isLocationLayerEarned, captureData, isRetry]);
 
   // Frankie Mode: a field note never locks a level or a submit — the photo is the proof.
   const isFieldNoteEntered = fcData.note.trim().length >= 10 || isPlain;
@@ -1031,7 +1052,7 @@ export default function CapturePage() {
         aiAnalysisResult,
         fieldNoteRaw: fcData.note,
         voiceNotePresent,
-        locationVerified: isLocationFulfilled,
+        locationVerified: isLocationLayerEarned,
       }),
       eligibleBonuses: [],
     });
@@ -1133,7 +1154,7 @@ export default function CapturePage() {
           filteredImageUrl: filteredUrl,
           fieldNote: fcData.note || 'A successful field trip entry.',
           fieldNoteRaw: fcData.note,
-          locationVerified: isLocationFulfilled,
+          locationVerified: isLocationLayerEarned,
           voiceNoteUrl: voiceNoteUpload?.url ?? null,
           voiceNoteStoragePath: voiceNoteUpload?.path ?? null,
           voiceNoteDurationSec: voiceNotePresent ? (fcData.voiceNote?.durationSec ?? null) : null,

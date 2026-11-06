@@ -38,6 +38,7 @@ const HEADER = [
   'Plain description (Frankie Mode)',
   'Plain voice-note prompt (Frankie Mode)',
   'Example photo',
+  'Location tag',
 ];
 
 const abc: string[][] = JSON.parse(readFileSync(process.argv[2], 'utf8'));
@@ -46,6 +47,14 @@ const byId = new Map(ALL_CHALLENGE_CARDS.map((card) => [String(card.id), card]))
 const yesNo = (value: unknown) => (value === true ? 'Yes' : '');
 const joinList = (value: unknown) =>
   Array.isArray(value) ? value.map(String).join(', ') : '';
+const locationTagText = (tag: unknown) => {
+  if (!tag || typeof tag !== 'object') return '';
+  const t = tag as Record<string, unknown>;
+  if (t.kind === 'state') return t.state === 'TX' ? 'Texas (state)' : String(t.state);
+  if (t.kind === 'place')
+    return `Place: ${String(t.label)} (${t.latitude}, ${t.longitude}, ${t.radiusMeters}m)`;
+  return '';
+};
 
 const rows = abc.map(([deckName, deckCode, cardId]) => {
   const card = byId.get(cardId);
@@ -76,6 +85,7 @@ const rows = abc.map(([deckName, deckCode, cardId]) => {
     plain?.plainDescription || '',
     plain?.plainVoiceNotePrompt || '',
     String((card as any).image || ''),
+    locationTagText((card as any).locationTag),
   ];
 });
 

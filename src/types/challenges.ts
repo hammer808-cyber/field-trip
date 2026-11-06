@@ -1,4 +1,5 @@
 import { FieldTypeId } from '../constants';
+import type { LocationTag } from '../logic/locationTags';
 
 /**
  * The 'Lane' defines the structural track this challenge belongs to.
@@ -73,6 +74,15 @@ export interface TripCard {
     description: string;
     bonusXp: number;
   };
+
+  /**
+   * Optional location tag. The deck stays open everywhere and the card
+   * can always be played, but the +25% location layer only pays when
+   * the submission's GPS matches the tag (see src/logic/locationTags.ts).
+   * Cards without one keep the old behavior: any captured location
+   * earns the layer.
+   */
+  locationTag?: LocationTag;
 
   // --- ARTIFACTS & PROOF ---
   /** The primary photo/note evidence types required */

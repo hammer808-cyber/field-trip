@@ -9,6 +9,9 @@ const MOCK_TIME = new Date().toISOString();
  * the state. No card needs one specific place — a taco truck in Houston, a
  * bluebonnet patch off I-35, a Whataburger cup in El Paso all count.
  * Mostly easy on purpose: this is the "generically easy" deck.
+ * Location tag: every card carries { kind: 'state', state: 'TX' } — the
+ * deck is open everywhere, but the +25% location layer only pays when the
+ * submission's GPS is inside Texas (see src/logic/locationTags.ts).
  */
 export const TEXAS_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
   {
@@ -24,6 +27,7 @@ export const TEXAS_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     difficulty: "easy",
     baseXP: 100,
     tags: ["texas", "sky", "golden-hour", "nature", "iconic"],
+    locationTag: { kind: 'state', state: 'TX' },
     proofRequirements: {
       requiredSubjects: ["sky", "clouds", "sunset", "sunrise", "horizon"],
       minConfidence: 0.4,
@@ -48,6 +52,7 @@ export const TEXAS_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     difficulty: "easy",
     baseXP: 100,
     tags: ["texas", "tacos", "food-truck", "snack", "street-food"],
+    locationTag: { kind: 'state', state: 'TX' },
     proofRequirements: {
       requiredSubjects: ["taco", "food truck", "trailer", "food", "sign"],
       minConfidence: 0.4,
@@ -72,6 +77,7 @@ export const TEXAS_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     difficulty: "easy",
     baseXP: 100,
     tags: ["texas", "boots", "cowboy", "iconic", "street"],
+    locationTag: { kind: 'state', state: 'TX' },
     proofRequirements: {
       requiredSubjects: ["boots", "cowboy boots", "footwear", "store", "mural"],
       minConfidence: 0.4,
@@ -96,6 +102,7 @@ export const TEXAS_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     difficulty: "easy",
     baseXP: 100,
     tags: ["texas", "bluebonnet", "wildflowers", "nature", "spring"],
+    locationTag: { kind: 'state', state: 'TX' },
     proofRequirements: {
       requiredSubjects: ["bluebonnet", "flowers", "wildflowers", "field", "bloom"],
       minConfidence: 0.4,
@@ -120,6 +127,7 @@ export const TEXAS_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     difficulty: "easy",
     baseXP: 100,
     tags: ["texas", "sign", "slang", "yall", "street"],
+    locationTag: { kind: 'state', state: 'TX' },
     proofRequirements: {
       requiredSubjects: ["sign", "text", "y'all", "menu", "bumper sticker"],
       minConfidence: 0.4,
@@ -144,6 +152,7 @@ export const TEXAS_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     difficulty: "easy",
     baseXP: 100,
     tags: ["texas", "bbq", "brisket", "smoke", "food"],
+    locationTag: { kind: 'state', state: 'TX' },
     proofRequirements: {
       requiredSubjects: ["smoke", "bbq", "barbecue", "pit", "sign"],
       minConfidence: 0.4,
@@ -168,6 +177,7 @@ export const TEXAS_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     difficulty: "medium",
     baseXP: 125,
     tags: ["texas", "dance", "honky-tonk", "music", "nightlife"],
+    locationTag: { kind: 'state', state: 'TX' },
     proofRequirements: {
       requiredSubjects: ["dance floor", "honky-tonk", "stage", "music", "sign"],
       minConfidence: 0.4,
@@ -192,6 +202,7 @@ export const TEXAS_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     difficulty: "medium",
     baseXP: 125,
     tags: ["texas", "longhorn", "animal", "iconic", "statue"],
+    locationTag: { kind: 'state', state: 'TX' },
     proofRequirements: {
       requiredSubjects: ["longhorn", "bull", "horns", "statue", "mural"],
       minConfidence: 0.4,
@@ -216,6 +227,7 @@ export const TEXAS_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     difficulty: "easy",
     baseXP: 100,
     tags: ["texas", "whataburger", "fast-food", "snack", "iconic"],
+    locationTag: { kind: 'state', state: 'TX' },
     proofRequirements: {
       requiredSubjects: ["whataburger", "cup", "sign", "fast food", "orange"],
       minConfidence: 0.4,
@@ -240,6 +252,7 @@ export const TEXAS_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     difficulty: "easy",
     baseXP: 100,
     tags: ["texas", "flag", "lone-star", "iconic", "street"],
+    locationTag: { kind: 'state', state: 'TX' },
     proofRequirements: {
       requiredSubjects: ["flag", "texas flag", "lone star", "pole", "star"],
       minConfidence: 0.4,
@@ -264,6 +277,7 @@ export const TEXAS_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     difficulty: "medium",
     baseXP: 125,
     tags: ["texas", "water", "swimming", "river", "nature"],
+    locationTag: { kind: 'state', state: 'TX' },
     proofRequirements: {
       requiredSubjects: ["river", "lake", "swimming hole", "water", "dock"],
       minConfidence: 0.4,
@@ -288,6 +302,7 @@ export const TEXAS_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     difficulty: "hard",
     baseXP: 150,
     tags: ["texas", "football", "stadium", "night", "lights"],
+    locationTag: { kind: 'state', state: 'TX' },
     proofRequirements: {
       requiredSubjects: ["stadium", "lights", "football field", "night", "bleachers"],
       minConfidence: 0.4,
@@ -312,6 +327,7 @@ export const TEXAS_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     difficulty: "hard",
     baseXP: 150,
     tags: ["texas", "desert", "landscape", "west-texas", "nature"],
+    locationTag: { kind: 'state', state: 'TX' },
     proofRequirements: {
       requiredSubjects: ["desert", "hills", "horizon", "landscape", "cactus"],
       minConfidence: 0.4,
@@ -336,6 +352,7 @@ export const TEXAS_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     difficulty: "easy",
     baseXP: 100,
     tags: ["texas", "kolache", "bakery", "snack", "food"],
+    locationTag: { kind: 'state', state: 'TX' },
     proofRequirements: {
       requiredSubjects: ["kolache", "bakery", "pastry", "donut", "box"],
       minConfidence: 0.4,
@@ -360,6 +377,7 @@ export const TEXAS_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     difficulty: "easy",
     baseXP: 100,
     tags: ["texas", "slogan", "sign", "iconic", "street"],
+    locationTag: { kind: 'state', state: 'TX' },
     proofRequirements: {
       requiredSubjects: ["sign", "slogan", "shirt", "bumper sticker", "mural"],
       minConfidence: 0.4,
