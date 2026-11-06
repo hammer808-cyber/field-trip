@@ -40,8 +40,8 @@ export interface ProofRubricScoring {
   rubricVersion: 'v1';
   normalizedRubricScore: number;
   rawRubricScore: number;
-  maxUiPotentialXp: 100 | 225;
-  maxAdminAwardableXp: 100 | 225;
+  maxUiPotentialXp: number;
+  maxAdminAwardableXp: number;
   reservedPotentialXp: 0;
   awardedXp: number;
   hiddenBonusXpAwarded: 0;
@@ -57,6 +57,19 @@ export interface ProofScoringMissionLike {
   tripId?: string | null;
   isStarter?: boolean | null;
   countsTowardStarter?: boolean | null;
+  baseXP?: number | null;
+  basePoints?: number | null;
+}
+
+/**
+ * The card's own point value is the scoring ceiling. A card with no
+ * usable baseXP/basePoints falls back to 100 (the starter value), so a
+ * malformed card can never zero out or explode an award.
+ */
+export function getCardBasePoints(mission: ProofScoringMissionLike | null | undefined): number {
+  const raw = mission?.baseXP ?? mission?.basePoints;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : 100;
 }
 
 export const PROOF_RUBRIC_VERSION = 'v1' as const;
@@ -198,8 +211,10 @@ export function getProofRubricScoring(
   mission: ProofScoringMissionLike | null | undefined
 ): ProofRubricScoring {
   const scoringMode: ProofScoringMode = isStarterScoringMission(mission) ? 'starter' : 'standard';
-  const maxUiPotentialXp = scoringMode === 'starter' ? 100 : 225;
-  const maxAdminAwardableXp = scoringMode === 'starter' ? 100 : 225;
+  // The ceiling is the card's own point value — not a flat rate. Starters
+  // carry baseXP 100, so they are unchanged by this.
+  const maxUiPotentialXp = getCardBasePoints(mission);
+  const maxAdminAwardableXp = getCardBasePoints(mission);
   const reservedPotentialXp = 0;
   const awardedXp = Math.round((score.weightedScore / 100) * maxAdminAwardableXp);
   const finalAwardedXp = Math.min(Math.max(0, awardedXp), maxAdminAwardableXp);

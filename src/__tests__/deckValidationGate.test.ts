@@ -88,21 +88,22 @@ test('card-face points stay on the sane scale (multiples of 25, 100–250)', () 
   }
 });
 
-test('live award rule is documented: starter 100, everything else 225', () => {
+test('live award rule: the max is the card\'s own point value', () => {
   // The live award path (missionScoring.getMissionBaseMaxScore, used by
-  // both the pending estimate and the final approval in gameService)
-  // awards a FLAT max by starter-vs-standard — it does not read the
-  // card's baseXP. Card-face baseXP is display-only until that rule is
-  // deliberately changed. This test pins the rule so a change is a
-  // conscious decision, not an accident.
+  // the server-owned attempt, the pending estimate, and the final
+  // approval) awards from the card's baseXP — never a flat rate.
+  // Starters carry baseXP 100, so they are unchanged by the rule.
   for (const card of CARDS) {
-    const expected = isStarterScoringMission(card as any) ? 100 : 225;
     assert.equal(
       getMissionBaseMaxScore(card as any),
-      expected,
-      `${String(card.id)}: live max should be ${expected}`,
+      Number(card.baseXP),
+      `${String(card.id)}: live max should be the card's baseXP ${Number(card.baseXP)}`,
     );
   }
   const starters = CARDS.filter(card => isStarterScoringMission(card as any));
   assert.equal(starters.length, 3, `expected 3 starter cards, got ${starters.length}`);
+  assert.ok(
+    starters.every(card => Number(card.baseXP) === 100),
+    'starter cards should all carry baseXP 100',
+  );
 });

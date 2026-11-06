@@ -1,5 +1,5 @@
 import type { ProofScoringMissionLike } from './proofRubric';
-import { isStarterScoringMission } from './proofRubric';
+import { getCardBasePoints, isStarterScoringMission } from './proofRubric';
 
 export const MISSION_SCORING_VERSION = 'mission-scoring.v1' as const;
 export const DEFAULT_HINT_PENALTY_PERCENT = 15;
@@ -68,6 +68,7 @@ export interface ScoringSnapshot {
   retryMultiplier: number;
   reviewerScoreAfterRetry: number;
   perkPoints: number;
+  participationLayers: ParticipationLayers;
   preBonusScore: number;
   eligibleBonusIds: string[];
   appliedBonusId: string | null;
@@ -173,8 +174,74 @@ export function normalizeMissionScoringConfig(value: unknown): MissionScoringCon
   };
 }
 
+/**
+ * The scoring ceiling is the card's own point value — never a flat rate.
+ * Starters carry baseXP 100, so they are unchanged. A card with no usable
+ * baseXP/basePoints falls back to 100 via getCardBasePoints.
+ */
 export function getMissionBaseMaxScore(mission: ProofScoringMissionLike | null | undefined): number {
-  return isStarterScoringMission(mission) ? 100 : 225;
+  return getCardBasePoints(mission);
+}
+
+/** Each earned participation layer pays 25% of the card's base value. */
+export const PARTICIPATION_LAYER_RATE = 0.25;
+
+export interface ParticipationSignals {
+  photoSubjectVerified?: boolean | null;
+  fieldNotePresent?: boolean | null;
+  locationVerified?: boolean | null;
+}
+
+export interface ParticipationLayers {
+  photoSubject: number;
+  fieldNote: number;
+  location: number;
+  total: number;
+}
+
+export function calculateParticipationLayers(
+  baseMaxScore: number,
+  signals: ParticipationSignals | null | undefined,
+): ParticipationLayers {
+  const layerValue = Math.round(Math.max(0, baseMaxScore) * PARTICIPATION_LAYER_RATE);
+  const photoSubject = signals?.photoSubjectVerified === true ? layerValue : 0;
+  const fieldNote = signals?.fieldNotePresent === true ? layerValue : 0;
+  const location = signals?.locationVerified === true ? layerValue : 0;
+  return { photoSubject, fieldNote, location, total: photoSubject + fieldNote + location };
+}
+
+/**
+ * One place that turns raw submission evidence into the three layer
+ * signals. Call sites pass whatever they have; missing evidence reads
+ * as "not earned". The default text the client stamps on empty field
+ * notes never counts as a note.
+ */
+export const DEFAULT_FIELD_NOTE_TEXT = 'A successful field trip entry.';
+
+export function resolveParticipationSignals(input: {
+  photoSubjectVerified?: boolean | null;
+  aiAnalysisResult?: { detectedSubject?: boolean | null } | null;
+  proofCheckResult?: { detectedSubject?: boolean | null } | null;
+  fieldNoteRaw?: string | null;
+  fieldNote?: string | null;
+  note?: string | null;
+  locationVerified?: boolean | null;
+  latitude?: number | null;
+  longitude?: number | null;
+} | null | undefined): ParticipationSignals {
+  const rawNote = input?.fieldNoteRaw ?? input?.fieldNote ?? input?.note ?? '';
+  const noteText = rawNote.trim();
+  return {
+    photoSubjectVerified:
+      input?.photoSubjectVerified ??
+      input?.aiAnalysisResult?.detectedSubject ??
+      input?.proofCheckResult?.detectedSubject ??
+      false,
+    fieldNotePresent: noteText.length >= 10 && noteText !== DEFAULT_FIELD_NOTE_TEXT,
+    locationVerified:
+      input?.locationVerified ??
+      (input?.latitude != null && input?.longitude != null),
+  };
 }
 
 export function getHintAdjustedMaximum(
@@ -224,6 +291,21 @@ export function chooseHighestEligibleBonus(bonuses: readonly BonusEligibility[])
     })[0] || null;
 }
 
+/**
+ * The one live scorer (pending estimate and final approval share it).
+ *
+ * Layered model — more participation, more points:
+ *   base ............ the card's own point value (baseXP)
+ *   hint ............ -15% of base when a hint was used
+ *   retry ........... x0.5 on the reviewer score for a retry
+ *   participation ... +25% of base per earned layer: the right thing in
+ *                     the photo (AI subject match), a real field note
+ *                     (10+ chars), a captured location. Layers are not
+ *                     hint-penalized or retry-halved: you keep what you
+ *                     earned by participating in this submission.
+ *   multipliers ..... afternoon 1.5x / Lucky Receipt 1.25x / catalyst,
+ *                     highest eligible only, applied to base + layers.
+ */
 export function calculateMissionScore(input: {
   baseMaxScore: number;
   reviewerBaseScore: number;
@@ -231,6 +313,7 @@ export function calculateMissionScore(input: {
   hintPenaltyPercent?: number;
   retryMultiplier?: number;
   perkPoints?: number;
+  participation?: ParticipationSignals | null;
   eligibleBonuses?: readonly BonusEligibility[];
 }): ScoreCalculationResult {
   const baseMaxScore = Math.max(0, Math.round(finiteNumber(input.baseMaxScore, 0)));
@@ -247,7 +330,8 @@ export function calculateMissionScore(input: {
   const retryMultiplier = Math.min(1, Math.max(0, finiteNumber(input.retryMultiplier, 1)));
   const reviewerScoreAfterRetry = Math.round(reviewerBaseScore * retryMultiplier);
   const perkPoints = Math.max(0, Math.round(finiteNumber(input.perkPoints, 0)));
-  const preBonusScore = reviewerScoreAfterRetry + perkPoints;
+  const participationLayers = calculateParticipationLayers(baseMaxScore, input.participation);
+  const preBonusScore = reviewerScoreAfterRetry + participationLayers.total + perkPoints;
   const eligibleBonuses = [...(input.eligibleBonuses || [])].filter(bonus => bonus.eligible);
   const appliedBonus = chooseHighestEligibleBonus(eligibleBonuses);
   const appliedMultiplier = appliedBonus ? validMultiplier(appliedBonus.multiplier) : 1;
@@ -265,6 +349,7 @@ export function calculateMissionScore(input: {
     retryMultiplier,
     reviewerScoreAfterRetry,
     perkPoints,
+    participationLayers,
     preBonusScore,
     eligibleBonusIds: eligibleBonuses.map(bonus => bonus.id),
     appliedBonusId: appliedBonus?.id || null,

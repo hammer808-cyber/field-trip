@@ -4,6 +4,14 @@ import { getWeeklyBonusForWeek } from '../data/weeklyBonuses';
 import { calculateWeeklyBonusReward, getActiveWeeklyBonus } from '../services/weeklyBonusService';
 import { WeeklyCatalyst, evaluateProofForCatalyst } from '../services/weeklyCatalystService';
 
+/**
+ * SUPERSEDED — do not wire this back in as a second scorer.
+ * The layered model this function sketched (photo / field-note bonuses,
+ * catalyst and weekly multipliers) now lives in the one live scorer,
+ * missionScoring.calculateMissionScore, which both the pending estimate
+ * and the final approval share. This function is kept only as a
+ * reference for the bonus event types; it has no callers.
+ */
 export function calculateSubmissionPoints(
   entry: Entry,
   challenge: TripCard,

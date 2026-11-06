@@ -38,7 +38,7 @@ import { LAUNCH_MISSION, LAUNCH_MISSION_ID } from '../data/specialMissions';
 
 import { resolveMissionById } from '../logic/missionResolver';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
-import { calculateMissionScore } from '../logic/missionScoring';
+import { calculateMissionScore, resolveParticipationSignals } from '../logic/missionScoring';
 import { revokeTemporaryPreviewUrls } from '../logic/polaroidDevelopment';
 
 export default function CapturePage() {
@@ -981,6 +981,11 @@ export default function CapturePage() {
       hintUsed: scoringAttempt.hintUsed,
       hintPenaltyPercent: scoringAttempt.hintPenaltyPercent,
       retryMultiplier: isRetry ? 0.5 : 1,
+      participation: resolveParticipationSignals({
+        aiAnalysisResult,
+        fieldNoteRaw: fcData.note,
+        locationVerified: isLocationFulfilled,
+      }),
       eligibleBonuses: [],
     }).finalScore;
     
@@ -1075,6 +1080,8 @@ export default function CapturePage() {
           originalImageUrl: originalUrl,
           filteredImageUrl: filteredUrl,
           fieldNote: fcData.note || 'A successful field trip entry.',
+          fieldNoteRaw: fcData.note,
+          locationVerified: isLocationFulfilled,
           findingType,
           selectedCategory: selectedLevel,
           selectedLevel: selectedLevel,

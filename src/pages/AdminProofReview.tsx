@@ -40,6 +40,7 @@ import {
 import {
   calculateMissionScore,
   DEFAULT_HINT_PENALTY_PERCENT,
+  resolveParticipationSignals,
   toScoringSnapshot,
   type ScoreCalculationResult,
   type ScoringSnapshot,
@@ -714,6 +715,9 @@ function RubricCard({
           <div><dt className="opacity-45">Hint adjustment</dt><dd className="mt-1 text-sm font-black">-{missionScoring.hintPenaltyPoints} XP</dd></div>
           <div><dt className="opacity-45">Reviewer maximum</dt><dd className="mt-1 text-sm font-black">{missionScoring.adjustedMaxScore} XP</dd></div>
           <div><dt className="opacity-45">Reviewer award</dt><dd className="mt-1 text-sm font-black">{missionScoring.reviewerBaseScore} XP</dd></div>
+          <div><dt className="opacity-45">Photo subject layer</dt><dd className="mt-1 text-sm font-black">+{missionScoring.participationLayers.photoSubject} XP</dd></div>
+          <div><dt className="opacity-45">Field note layer</dt><dd className="mt-1 text-sm font-black">+{missionScoring.participationLayers.fieldNote} XP</dd></div>
+          <div><dt className="opacity-45">Location layer</dt><dd className="mt-1 text-sm font-black">+{missionScoring.participationLayers.location} XP</dd></div>
           <div><dt className="opacity-45">Eligible bonus</dt><dd className="mt-1 text-sm font-black">{missionScoring.appliedBonus?.label || 'None'}</dd></div>
           <div><dt className="opacity-45">Multiplier</dt><dd className="mt-1 text-sm font-black">{missionScoring.appliedMultiplier}×</dd></div>
           <div><dt className="opacity-45">Final awarded score</dt><dd className="mt-1 text-sm font-black text-brand-orange">{missionScoring.finalScore} XP</dd></div>
@@ -770,6 +774,17 @@ function SwipeView({ entry, onAction, busy }: any) {
       ),
       retryMultiplier: entry.isRetry === true ? Number(entry.retryPointMultiplier ?? 0.5) : 1,
       perkPoints: 0,
+      participation: resolveParticipationSignals({
+        photoSubjectVerified: (entry as any).participation?.photoSubjectVerified,
+        aiAnalysisResult: (entry as any).aiAnalysisResult,
+        proofCheckResult: (entry as any).proofCheckResult,
+        fieldNoteRaw: (entry as any).fieldNoteRaw,
+        fieldNote: (entry as any).fieldNote,
+        note: (entry as any).note,
+        locationVerified: (entry as any).locationVerified ?? (entry as any).participation?.locationVerified,
+        latitude: (entry as any).latitude,
+        longitude: (entry as any).longitude,
+      }),
       eligibleBonuses: Array.isArray(attempt.eligibleBonuses) ? attempt.eligibleBonuses : [],
     });
   }, [entry, scoring]);

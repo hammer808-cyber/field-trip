@@ -33,12 +33,12 @@ assert(perfectStarterScoring.maxAdminAwardableXp === 100, 'starter admin awardab
 assert(perfectStarterScoring.reservedPotentialXp === 0, 'starter missions should not reserve hidden XP');
 assert(perfectStarterScoring.totalXpAwarded === 100, 'perfect starter rubric should award 100 XP');
 
-const perfectStandardScoring = getProofRubricScoring(perfectScore, { deckId: 'heatwave-receipts', challengeId: 'heatwave-1' });
+const perfectStandardScoring = getProofRubricScoring(perfectScore, { deckId: 'heatwave-receipts', challengeId: 'heatwave-1', baseXP: 150 });
 assert(perfectStandardScoring.scoringMode === 'standard', 'non-starter mission should use standard scoring mode');
-assert(perfectStandardScoring.maxUiPotentialXp === 225, 'standard UI should show the real 225 XP base ceiling');
-assert(perfectStandardScoring.maxAdminAwardableXp === 225, 'standard admin awardable XP should cap at 225');
+assert(perfectStandardScoring.maxUiPotentialXp === 150, 'standard UI should show the card\'s own 150 XP ceiling');
+assert(perfectStandardScoring.maxAdminAwardableXp === 150, 'standard admin awardable XP should cap at the card\'s 150 XP');
 assert(perfectStandardScoring.reservedPotentialXp === 0, 'standard missions should not advertise hidden XP');
-assert(perfectStandardScoring.totalXpAwarded === 225, 'perfect standard rubric should award 225 XP');
+assert(perfectStandardScoring.totalXpAwarded === 150, 'perfect standard rubric should award the card\'s 150 XP');
 
 const mixedScore = calculateProofRubricScore({
   missionMatch: 4,
@@ -49,9 +49,9 @@ const mixedScore = calculateProofRubricScore({
 });
 assert(mixedScore.weightedScore === 71.25, `expected weighted score 71.25, got ${mixedScore.weightedScore}`);
 assert(mixedScore.recommendation === 'approve_with_judgment', 'mixed rubric should recommend admin judgment');
-const mixedStandardScoring = getProofRubricScoring(mixedScore, { deckId: 'socal-summer', challengeId: 'socal-7' });
-assert(mixedStandardScoring.totalXpAwarded === 160, `mixed standard rubric should award 160 XP, got ${mixedStandardScoring.totalXpAwarded}`);
-assert(mixedStandardScoring.maxUiPotentialXp === 225, 'mixed standard scoring should show the real base ceiling');
+const mixedStandardScoring = getProofRubricScoring(mixedScore, { deckId: 'socal-summer', challengeId: 'socal-7', baseXP: 125 });
+assert(mixedStandardScoring.totalXpAwarded === 89, `mixed standard rubric should award 89 XP (71.25% of the card's 125), got ${mixedStandardScoring.totalXpAwarded}`);
+assert(mixedStandardScoring.maxUiPotentialXp === 125, 'mixed standard scoring should show the card\'s 125 XP ceiling');
 assert(isStarterScoringMission({ challengeId: 'starter-3' }), 'starter-* challenge IDs should count as starter scoring');
 assert(!isStarterScoringMission({ deckId: 'heatwave-receipts', challengeId: 'heatwave-3' }), 'seasonal challenge IDs should not count as starter scoring');
 assert(getProofRubricRecommendationLabel('likely_insufficient') === 'Likely needs more proof or rejection', 'label should be human readable');
