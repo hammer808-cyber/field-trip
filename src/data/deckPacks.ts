@@ -3,6 +3,7 @@ import { HEATWAVE_CHALLENGE_BANK } from './heatwaveChallengeBank';
 import { SOCAL_SUMMER_CHALLENGE_BANK } from './socalSummerChallengeBank';
 import { JET_SETTER_CHALLENGE_BANK } from './jetSetterChallengeBank';
 import { ERRAND_DECK_CHALLENGE_BANK } from './errandDeckChallengeBank';
+import { TEXAS_CHALLENGE_BANK } from './texasChallengeBank';
 import { ChallengeCard } from '../types/challenges';
 import { HEATWAVE_SEASON_START_DATE, HEATWAVE_SEASON_END_DATE } from '../constants';
 
@@ -83,6 +84,51 @@ export const DECK_PACKS: DeckPack[] = [
       "Public Art",
       "Summer Snack",
       "Golden Hour Evidence"
+    ]
+  },
+  {
+    packId: 'texas-get-it-yall',
+    id: 'texas-get-it-yall',
+    title: "Get It, Y'all",
+    deckCode: 'FT-06',
+    artworkKey: 'texas-get-it-yall',
+    coverImage: '/assets/decks/texas-get-it-yall.jpg',
+    artPosition: 'center',
+    isEvergreen: true,
+    packName: "Get It, Y'all",
+    shortName: 'Texas',
+    description: 'A Texas field deck for big skies, taco trucks, bluebonnets, BBQ smoke, and Friday night lights. Unmistakably Texas, photographable anywhere in the state.',
+    theme: 'heat',
+    season: 'Evergreen',
+    missionIds: TEXAS_CHALLENGE_BANK.map(m => m.id as string),
+    unlockRule: 'starter-complete',
+    visibility: 'public',
+    requiredCompletedDeckIds: ['starter-signals'],
+    isActive: true,
+    fallbackIcon: 'Star',
+    sortOrder: 2,
+    difficultyRange: ['easy', 'medium', 'hard'],
+    tags: ['texas', 'regional', 'evergreen', 'crew-friendly'],
+    catalogSection: 'local-fieldtrips',
+
+    // Canonical properties
+    deckId: 'texas-get-it-yall',
+    deckSubtitle: 'A Texas Fieldtrip Deck',
+    status: 'active',
+    deckType: 'regional',
+    requiredUnlock: 'starter-complete',
+    requiredStarterApprovals: 3,
+    totalCards: 15,
+
+    defaultFindingTypes: [
+      "Texas Clue",
+      "Lone Star Signal",
+      "BBQ Evidence",
+      "Roadside Sign",
+      "Wildflower Clue",
+      "Night Lights",
+      "Water Evidence",
+      "Local Flavor"
     ]
   },
   {

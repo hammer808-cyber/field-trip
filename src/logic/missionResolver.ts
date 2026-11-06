@@ -3,6 +3,7 @@ import { SOCAL_SUMMER_CHALLENGE_BANK } from '../data/socalSummerChallengeBank';
 import { STARTER_MISSION_BANK } from '../data/starterMissionBank';
 import { ERRAND_DECK_CHALLENGE_BANK } from '../data/errandDeckChallengeBank';
 import { JET_SETTER_CHALLENGE_BANK } from '../data/jetSetterChallengeBank';
+import { TEXAS_CHALLENGE_BANK } from '../data/texasChallengeBank';
 import { LAUNCH_MISSION, LAUNCH_MISSION_ID } from '../data/specialMissions';
 import { TripCard } from '../types/challenges';
 
@@ -12,6 +13,7 @@ const MISSION_BANK: Partial<TripCard>[] = [
   ...SOCAL_SUMMER_CHALLENGE_BANK,
   ...ERRAND_DECK_CHALLENGE_BANK,
   ...JET_SETTER_CHALLENGE_BANK,
+  ...TEXAS_CHALLENGE_BANK,
 ];
 
 export function getBuiltInMissionCatalog(): Partial<TripCard>[] {
