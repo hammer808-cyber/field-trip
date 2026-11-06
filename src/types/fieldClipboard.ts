@@ -1,4 +1,5 @@
 import { TripCard as TripCardType } from './challenges';
+import type { VoiceNoteValue } from '../components/VoiceNoteRecorder';
 
 export type FieldClipboardState = 
   | 'brief'
@@ -21,4 +22,6 @@ export interface FieldClipboardData {
   stickerId?: string;
   isRetry?: boolean;
   isRepair?: boolean;
+  /** A recorded voice note (5+ seconds earns the note layer). */
+  voiceNote?: VoiceNoteValue | null;
 }

@@ -53,12 +53,60 @@ export async function compressImage(base64Str: string, maxWidth = 1000, quality 
   });
 }
 
+async function postToStorageProxy(
+  userId: string,
+  type: string,
+  filename: string,
+  base64Data: string,
+  contentType: string,
+  byteSize: number,
+): Promise<{ url: string; path: string }> {
+  const path = `${type}/${userId}/${filename}`;
+  try {
+    // Switch to server-side proxy to bypass client-side storage rules issues
+    const idToken = await auth.currentUser?.getIdToken();
+    if (!idToken) throw new Error('AUTH_REQUIRED: You must be signed in to upload evidence.');
+
+    const response = await fetch('/api/storage/upload', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${idToken}`
+      },
+      body: JSON.stringify({
+        userId,
+        type,
+        filename,
+        base64Data,
+        contentType,
+        metadata: {
+          'userId': userId,
+          'originalSize': base64Data.length.toString(),
+          'compressedSize': byteSize.toString()
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || response.statusText);
+    }
+
+    const data = await response.json();
+    return { url: data.url, path: data.path };
+  } catch (err: any) {
+    console.error(`[storageService] FATAL: Cloud storage upload failed (path: ${path}). Persistence requirement violated.`, err.message || err);
+    // Re-throw so the calling service (gameService/submissionService) can handle it or show error to user
+    throw err;
+  }
+}
+
 /**
  * Uploads a base64 image string to Firebase Storage with hard guardrails.
  */
 export async function uploadBase64Image(userId: string, type: string, filename: string, base64String: string): Promise<{ url: string; path: string }> {
   const config = getGlobalConfig();
-  
+
   if (!config.uploadsEnabled) {
     throw new Error('UPLOADS_DISABLED: The Bureau has temporarily restricted evidence uploads.');
   }
@@ -66,53 +114,39 @@ export async function uploadBase64Image(userId: string, type: string, filename: 
   return guardedCall(`upload_${userId}_${type.replace(/\//g, '_')}`, async () => {
     // 1. Compression and Resize
     const compressedBase64 = await compressImage(base64String);
-    
+
     // 2. Extract pure base64
     const base64Data = compressedBase64.includes(',') ? compressedBase64.split(',')[1] : compressedBase64;
-    
+
     // 3. Size check (max 5MB after compression)
     const byteSize = atob(base64Data).length;
     if (byteSize > 5 * 1024 * 1024) {
       throw new Error('FILE_TOO_LARGE: Evidence exceeds the 5MB transmission limit.');
     }
 
-    const path = `${type}/${userId}/${filename}`;
-    
-    try {
-      // Switch to server-side proxy to bypass client-side storage rules issues
-      const idToken = await auth.currentUser?.getIdToken();
-      if (!idToken) throw new Error('AUTH_REQUIRED: You must be signed in to upload evidence.');
-
-      const response = await fetch('/api/storage/upload', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
-        body: JSON.stringify({
-          userId,
-          type,
-          filename,
-          base64Data,
-          metadata: {
-            'userId': userId,
-            'originalSize': base64Data.length.toString(),
-            'compressedSize': byteSize.toString()
-          }
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || response.statusText);
-      }
-
-      const data = await response.json();
-      return { url: data.url, path: data.path };
-    } catch (err: any) {
-      console.error(`[storageService] FATAL: Cloud storage upload failed (path: ${path}). Persistence requirement violated.`, err.message || err);
-      // Re-throw so the calling service (gameService/submissionService) can handle it or show error to user
-      throw err;
-    }
+    return postToStorageProxy(userId, type, filename, base64Data, 'image/jpeg', byteSize);
   }, { cooldownMs: 1000 }); // 1s cooldown per user upload category
+}
+
+/**
+ * Uploads a recorded voice note (base64 audio) to Firebase Storage.
+ * No image compression — the audio goes up as-is, with its real content
+ * type, so the stored file plays back in an <audio> tag.
+ */
+export async function uploadBase64Audio(userId: string, filename: string, base64DataUrl: string, mimeType: string): Promise<{ url: string; path: string }> {
+  const config = getGlobalConfig();
+
+  if (!config.uploadsEnabled) {
+    throw new Error('UPLOADS_DISABLED: The Bureau has temporarily restricted evidence uploads.');
+  }
+
+  return guardedCall(`upload_${userId}_voiceNotes`, async () => {
+    const base64Data = base64DataUrl.includes(',') ? base64DataUrl.split(',')[1] : base64DataUrl;
+    const byteSize = atob(base64Data).length;
+    if (byteSize > 5 * 1024 * 1024) {
+      throw new Error('FILE_TOO_LARGE: Voice note exceeds the 5MB transmission limit.');
+    }
+
+    return postToStorageProxy(userId, 'voiceNotes', filename, base64Data, mimeType || 'audio/webm', byteSize);
+  }, { cooldownMs: 1000 });
 }

@@ -9,12 +9,20 @@ interface GatedFeaturePanelProps {
   featureName: GatedFeatureName;
   primaryHref?: string;
   primaryLabel?: string;
+  /**
+   * 'starter' is the usual lock (finish the starter to open it).
+   * 'coming_soon' is for unfinished work barred by a kill switch —
+   * it never mentions the starter, because the starter is not the
+   * reason the feature is closed.
+   */
+  reason?: 'starter' | 'coming_soon';
 }
 
 export function GatedFeaturePanel({
   featureName,
   primaryHref = '/missions',
   primaryLabel = 'Go do a mission',
+  reason = 'starter',
 }: GatedFeaturePanelProps) {
   const navigate = useNavigate();
   const { canonicalProgress } = useApp();
@@ -29,23 +37,31 @@ export function GatedFeaturePanel({
           <Lock className="h-10 w-10 stroke-[2.5]" aria-hidden="true" />
         </div>
         <p className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-on-surface/45">
-          Locked for now
+          {reason === 'coming_soon' ? 'Coming soon' : 'Locked for now'}
         </p>
         <h1 className="mt-2 font-display text-3xl font-black uppercase italic leading-none tracking-tight">
-          {featureName} is locked
+          {reason === 'coming_soon' ? `${featureName} is coming soon` : `${featureName} is locked`}
         </h1>
-        <p className="mx-auto mt-4 max-w-sm font-sans text-sm font-bold text-on-surface/80">
-          Finish 3 starter missions to open this.
-        </p>
-        <p className="mx-auto mt-2 font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/45">
-          {approved} of {required} approved
-        </p>
-        <div className="mx-auto mt-5 h-5 w-full max-w-xs overflow-hidden rounded-full border-2 border-on-surface bg-white shadow-[3px_3px_0px_black]">
-          <div
-            className="h-full bg-brand-lime"
-            style={{ width: `${Math.min(100, Math.max(0, (approved / required) * 100))}%` }}
-          />
-        </div>
+        {reason === 'coming_soon' ? (
+          <p className="mx-auto mt-4 max-w-sm font-sans text-sm font-bold text-on-surface/80">
+            {featureName} is still in the works. Check back soon.
+          </p>
+        ) : (
+          <>
+            <p className="mx-auto mt-4 max-w-sm font-sans text-sm font-bold text-on-surface/80">
+              Finish 3 starter missions to open this.
+            </p>
+            <p className="mx-auto mt-2 font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/45">
+              {approved} of {required} approved
+            </p>
+            <div className="mx-auto mt-5 h-5 w-full max-w-xs overflow-hidden rounded-full border-2 border-on-surface bg-white shadow-[3px_3px_0px_black]">
+              <div
+                className="h-full bg-brand-lime"
+                style={{ width: `${Math.min(100, Math.max(0, (approved / required) * 100))}%` }}
+              />
+            </div>
+          </>
+        )}
         <button
           type="button"
           onClick={() => navigate(primaryHref)}

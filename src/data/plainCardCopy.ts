@@ -13,13 +13,15 @@
  * - plainFieldNotePrompt: one short, simple prompt.
  *
  * Coverage is enforced by src/__tests__/frankieMode.test.ts — every card in
- * the five banks must have an entry here, and there must be no orphans.
+ * the six banks must have an entry here, and there must be no orphans.
  */
 export interface PlainCardCopy {
   plainTitle: string;
   plainDescription: string;
   plainDirections: string;
   plainFieldNotePrompt: string;
+  /** Optional voice-note prompt, for cards whose proofType includes 'audio'. */
+  plainVoiceNotePrompt?: string;
 }
 
 export const PLAIN_CARD_COPY: Record<string, PlainCardCopy> = {
@@ -520,5 +522,96 @@ export const PLAIN_CARD_COPY: Record<string, PlainCardCopy> = {
     plainDescription: 'Take a photo of anything from this errand that you want to remember later.',
     plainDirections: 'Find one thing you want to remember from this errand.\nTake one clear photo of it.\nTap Send.',
     plainFieldNotePrompt: 'In a few words: why do you want to remember this?',
+  },
+  'texas-01': {
+    plainTitle: 'A Big Texas Sky',
+    plainDescription: 'Take a photo of a wide open sky with almost nothing in the way.',
+    plainDirections: 'Find a wide open sky.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: where were you when you took it?',
+  },
+  'texas-02': {
+    plainTitle: 'Tacos From a Truck',
+    plainDescription: 'Take a photo of tacos, or the taco truck they came from.',
+    plainDirections: 'Find a taco truck or trailer.\nTake one clear photo of the tacos or the truck.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: what kind of tacos were they?',
+  },
+  'texas-03': {
+    plainTitle: 'A Pair of Boots',
+    plainDescription: 'Take a photo of a pair of cowboy boots.',
+    plainDirections: 'Find a pair of cowboy boots.\nTake one clear photo of them.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: whose boots are they?',
+  },
+  'texas-04': {
+    plainTitle: 'Blue Flowers',
+    plainDescription: 'Take a photo of a patch of bluebonnets or wildflowers.',
+    plainDirections: 'Find a patch of bluebonnets or wildflowers.\nTake one clear photo of them.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: where did you find them?',
+  },
+  'texas-05': {
+    plainTitle: 'A Sign That Says Y\'all',
+    plainDescription: 'Take a photo of a sign with the word y\'all on it.',
+    plainDirections: 'Find a sign with the word y\'all on it.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: what did the sign say?',
+  },
+  'texas-06': {
+    plainTitle: 'Smoke From a BBQ Pit',
+    plainDescription: 'Take a photo of smoke rising from a BBQ pit or a BBQ sign.',
+    plainDirections: 'Find smoke from a BBQ pit or a BBQ sign.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: could you smell it?',
+  },
+  'texas-07': {
+    plainTitle: 'A Dance Floor',
+    plainDescription: 'Take a photo of a dance floor, a honky-tonk, or a live music stage.',
+    plainDirections: 'Find a dance floor or a honky-tonk.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: was anyone dancing?',
+    plainVoiceNotePrompt: 'Say it instead: what song is playing?',
+  },
+  'texas-08': {
+    plainTitle: 'A Longhorn',
+    plainDescription: 'Take a photo of a longhorn, real, statue, or painted.',
+    plainDirections: 'Find a longhorn.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: was it real or a statue?',
+  },
+  'texas-09': {
+    plainTitle: 'A Whataburger Cup',
+    plainDescription: 'Take a photo of a Whataburger cup, bag, or sign.',
+    plainDirections: 'Find a Whataburger cup, bag, or sign.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: what did you order?',
+  },
+  'texas-10': {
+    plainTitle: 'A Texas Flag',
+    plainDescription: 'Take a photo of a Texas flag flying.',
+    plainDirections: 'Find a Texas flag flying.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: where was the flag?',
+  },
+  'texas-11': {
+    plainTitle: 'A Swimming Hole',
+    plainDescription: 'Take a photo of a river, lake, or place where people swim.',
+    plainDirections: 'Find a river or lake where people swim.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: would you swim there?',
+  },
+  'texas-12': {
+    plainTitle: 'Stadium Lights at Night',
+    plainDescription: 'Take a photo of stadium lights over a football field at night.',
+    plainDirections: 'Find a football stadium with the lights on.\nTake one clear photo of it at night.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: was there a game?',
+  },
+  'texas-13': {
+    plainTitle: 'A Wide Desert View',
+    plainDescription: 'Take a photo of a wide desert view with hills and a far horizon.',
+    plainDirections: 'Find a wide desert view.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: how far could you see?',
+  },
+  'texas-14': {
+    plainTitle: 'Kolaches From a Bakery',
+    plainDescription: 'Take a photo of kolaches or pie from a bakery.',
+    plainDirections: 'Find kolaches or pie at a bakery.\nTake one clear photo of them.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: what flavor did you get?',
+  },
+  'texas-15': {
+    plainTitle: 'The Texas Slogan',
+    plainDescription: 'Take a photo of the words Don\'t Mess With Texas on a sign, shirt, or sticker.',
+    plainDirections: 'Find the words Don\'t Mess With Texas.\nTake one clear photo of them.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: where did you see it?',
   },
 };

@@ -30,7 +30,7 @@ import { getServerTime as getSyncedTime, getServerDate } from './timeService';
 import { markCanonicalSubmissionPending } from './proofLifecycleService';
 import { countsTowardMissionRepeatGuard } from '../logic/entryLogic';
 import { getMissionSubmissionContext } from '../logic/missionSubmission';
-import { calculateMissionScore, getMissionBaseMaxScore, toScoringSnapshot } from '../logic/missionScoring';
+import { buildScoreBreakdownEvents, calculateMissionScore, getMissionBaseMaxScore, resolveParticipationSignals, toScoringSnapshot } from '../logic/missionScoring';
 
 export async function submitTripEntry(
   userId: string,
@@ -218,11 +218,25 @@ export async function submitTripEntry(
       hintUsed: hintWasUsed,
       retryMultiplier: entryData.isRetry === true ? Number(entryData.retryPointMultiplier ?? 0.5) : 1,
       perkPoints: 0,
+      participation: resolveParticipationSignals({
+        photoSubjectVerified: (entryData as any).participation?.photoSubjectVerified,
+        aiAnalysisResult: (entryData as any).aiAnalysisResult,
+        proofCheckResult: (entryData as any).proofCheckResult,
+        fieldNoteRaw: (entryData as any).fieldNoteRaw,
+        fieldNote: (entryData as any).fieldNote,
+        note: (entryData as any).note,
+        voiceNotePresent: (entryData as any).voiceNotePresent === true,
+        locationVerified: (entryData as any).locationVerified ?? (entryData as any).participation?.locationVerified,
+        latitude: (entryData as any).latitude,
+        longitude: (entryData as any).longitude,
+      }),
       eligibleBonuses: [],
     });
+    // Display-only breakdown for the Math Wizard: the events sum exactly
+    // to finalScore, so the player can see every layer they earned.
     const estimatedScoring = {
       totalPoints: estimatedMissionScore.finalScore,
-      scoreEvents: [],
+      scoreEvents: buildScoreBreakdownEvents(estimatedMissionScore, trip.id),
       missionScoring: toScoringSnapshot(estimatedMissionScore),
     };
 

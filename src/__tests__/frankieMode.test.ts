@@ -1,11 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { STARTER_MISSION_BANK } from '../data/starterMissionBank';
-import { SOCAL_SUMMER_CHALLENGE_BANK } from '../data/socalSummerChallengeBank';
-import { HEATWAVE_CHALLENGE_BANK } from '../data/heatwaveChallengeBank';
-import { JET_SETTER_CHALLENGE_BANK } from '../data/jetSetterChallengeBank';
-import { ERRAND_DECK_CHALLENGE_BANK } from '../data/errandDeckChallengeBank';
+import { ALL_CHALLENGE_CARDS } from '../data/allChallengeBanks';
 import { PLAIN_CARD_COPY } from '../data/plainCardCopy';
 import {
   getFrankieTitle,
@@ -15,19 +11,14 @@ import {
 } from '../logic/frankieModeLogic';
 import type { TripCard } from '../types/challenges';
 
-const ALL_BANKS = [
-  ...STARTER_MISSION_BANK,
-  ...SOCAL_SUMMER_CHALLENGE_BANK,
-  ...HEATWAVE_CHALLENGE_BANK,
-  ...JET_SETTER_CHALLENGE_BANK,
-  ...ERRAND_DECK_CHALLENGE_BANK,
-] as TripCard[];
+// Reads the canonical registry, so any future deck is covered automatically.
+const ALL_BANKS = [...ALL_CHALLENGE_CARDS] as TripCard[];
 
 const ON = { frankieMode: true };
 const OFF = { frankieMode: false };
 
 test('every playable card has a plain-language entry', () => {
-  assert.equal(ALL_BANKS.length, 83, `expected 83 playable cards, got ${ALL_BANKS.length}`);
+  assert.equal(ALL_BANKS.length, 98, `expected 98 playable cards, got ${ALL_BANKS.length}`);
   for (const card of ALL_BANKS) {
     const copy = PLAIN_CARD_COPY[card.id as string];
     assert.ok(copy, `missing plain copy for ${card.id} (${card.title})`);

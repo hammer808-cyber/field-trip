@@ -1,18 +1,8 @@
-import { HEATWAVE_CHALLENGE_BANK } from '../data/heatwaveChallengeBank';
-import { SOCAL_SUMMER_CHALLENGE_BANK } from '../data/socalSummerChallengeBank';
-import { STARTER_MISSION_BANK } from '../data/starterMissionBank';
-import { ERRAND_DECK_CHALLENGE_BANK } from '../data/errandDeckChallengeBank';
-import { JET_SETTER_CHALLENGE_BANK } from '../data/jetSetterChallengeBank';
+import { ALL_CHALLENGE_CARDS } from '../data/allChallengeBanks';
 import { LAUNCH_MISSION, LAUNCH_MISSION_ID } from '../data/specialMissions';
 import { TripCard } from '../types/challenges';
 
-const MISSION_BANK: Partial<TripCard>[] = [
-  ...STARTER_MISSION_BANK,
-  ...HEATWAVE_CHALLENGE_BANK,
-  ...SOCAL_SUMMER_CHALLENGE_BANK,
-  ...ERRAND_DECK_CHALLENGE_BANK,
-  ...JET_SETTER_CHALLENGE_BANK,
-];
+const MISSION_BANK: Partial<TripCard>[] = [...ALL_CHALLENGE_CARDS] as Partial<TripCard>[];
 
 export function getBuiltInMissionCatalog(): Partial<TripCard>[] {
   return MISSION_BANK.map(mission => ({ ...mission }));

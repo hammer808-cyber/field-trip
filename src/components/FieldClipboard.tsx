@@ -32,6 +32,9 @@ import { transitionMissionHintFlow } from '../logic/missionHintFlow';
 import { getMissionBaseMaxScore } from '../logic/missionScoring';
 import { useTheme } from '../context/ThemeContext';
 import { getFrankieFieldNotePrompt } from '../logic/frankieModeLogic';
+import { VoiceNoteRecorder } from './VoiceNoteRecorder';
+import { MIN_VOICE_NOTE_SECONDS } from '../logic/missionScoring';
+import { PLAIN_CARD_COPY } from '../data/plainCardCopy';
 
 /** One-tap note starters for Frankie Mode: tap one instead of typing. */
 const FRANKIE_NOTE_CHIPS = [
@@ -99,9 +102,16 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
   const displayNotePrompt = isFrankie
     ? getFrankieFieldNotePrompt(mission as any, { frankieMode: true })
     : fieldNotePrompt;
+  // A recorded voice note (5+ seconds) counts as the field note — same
+  // layer, spoken instead of written.
+  const voiceNoteSatisfied = (data.voiceNote?.durationSec ?? 0) >= MIN_VOICE_NOTE_SECONDS;
+  const supportsAudio = (mission.proofType || []).includes('audio');
+  const voiceNotePrompt =
+    PLAIN_CARD_COPY[mission.id]?.plainVoiceNotePrompt ||
+    'Say what you found — what song is playing, or what the moment sounds like.';
   // Frankie Mode: a note is welcome, never a wall. Tapping a chip counts,
   // typing counts, and skipping counts — the photo is the proof.
-  const noteSatisfied = isFrankie ? true : data.note.length >= 10;
+  const noteSatisfied = isFrankie ? true : data.note.length >= 10 || voiceNoteSatisfied;
 
   const [hintFlow, dispatchHintFlow] = useReducer(
     transitionMissionHintFlow,
@@ -496,6 +506,14 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                    )}
                 </div>
                 )}
+                {supportsAudio && (
+                  <VoiceNoteRecorder
+                    value={data.voiceNote ?? null}
+                    onChange={(voiceNote) => setData(prev => ({ ...prev, voiceNote }))}
+                    prompt={voiceNotePrompt}
+                    frankieMode={isFrankie}
+                  />
+                )}
               </div>
             </div>
 
@@ -509,7 +527,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                   : "bg-on-surface/5 text-on-surface/20 border-on-surface/10 cursor-not-allowed shadow-none"
               )}
             >
-              {isFrankie && data.note.trim().length === 0 ? 'SKIP — NO NOTE' : `SAVE NOTE ${!isFrankie && data.note.length < 10 ? `(${data.note.length}/10)` : ''}`}
+              {isFrankie && data.note.trim().length === 0 && !voiceNoteSatisfied ? 'SKIP — NO NOTE' : `SAVE NOTE ${!isFrankie && data.note.length < 10 && !voiceNoteSatisfied ? `(${data.note.length}/10)` : ''}`}
             </button>
             {!isFrankie && data.note.length < 10 && (
               <p className="text-center text-sm font-sans font-bold text-on-surface/70">

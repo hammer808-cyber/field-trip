@@ -61,7 +61,7 @@ export default function CollectionPage() {
       : initialTabParam === 'crew_memories'
         ? 'memories'
         : (initialTabParam as CollectionTab)
-  ) || 'collection';
+  ) || 'decks';
   const [activeTab, setActiveTab] = useState<CollectionTab>(initialTab);
   const [memoriesView, setMemoriesView] = useState<MemoriesView>(
     typeof window !== 'undefined' && window.location.pathname.includes('/community') ? 'community' : 'mine'
@@ -131,6 +131,8 @@ export default function CollectionPage() {
     } else if (path.includes('/dex/memories')) {
       setActiveTab('memories');
       setMemoriesView('mine');
+    } else if (path.includes('/dex/decks')) {
+      setActiveTab('decks');
     } else if (path.includes('/dex/zines')) {
       setActiveTab('zines');
     } else if (path.includes('/dex/stickers')) {
@@ -147,6 +149,7 @@ export default function CollectionPage() {
     }
 
     const tabPath: Partial<Record<CollectionTab, string>> = {
+      decks: '/dex/decks',
       collection: '/dex/collection',
       stickers: '/dex/stickers',
       zines: '/dex/zines',
@@ -259,6 +262,7 @@ export default function CollectionPage() {
         infoCardSubtext={`${totalUnlocked} of ${totalRewards} unlocked`}
         infoCardAccent="purple"
         tabs={[
+          { id: 'decks', label: 'Decks' },
           { id: 'collection', label: 'Collection' },
           { id: 'stickers', label: 'Stickers' },
           { id: 'zines', label: 'Zines' },
@@ -482,6 +486,16 @@ export default function CollectionPage() {
                        <div className="absolute top-0 right-0 p-2">
                           <FieldBadge variant="sticker" color="orange" size="xs" className="py-0.5 px-2">CURRENT</FieldBadge>
                        </div>
+                    )}
+
+                    {pack.coverImage && (
+                      <div className="-mx-6 -mt-6 aspect-[16/9] overflow-hidden border-b-[3px] border-on-surface">
+                        <img
+                          src={pack.coverImage}
+                          alt={`${pack.packName} cover art`}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
                     )}
 
                     <div className="flex justify-between items-center w-full">

@@ -4267,7 +4267,7 @@ async function startServer() {
     if (!storageAdmin) return res.status(500).json({ error: "STORAGE_ADMIN_NOT_READY" });
 
     try {
-      const { userId, type, filename, base64Data, metadata } = req.body;
+      const { userId, type, filename, base64Data, metadata, contentType } = req.body;
       const { uid } = req.user;
 
       if (!base64Data) {
@@ -4326,7 +4326,9 @@ async function startServer() {
           const file = bucket.file(storagePath);
           await file.save(buffer, {
             metadata: {
-              contentType: 'image/jpeg',
+              // Callers may pass their real content type (voice notes send
+              // audio/webm or audio/mp4); images default to image/jpeg.
+              contentType: contentType || 'image/jpeg',
               metadata: {
                 ...metadata,
                 firebaseStorageDownloadTokens: downloadToken,

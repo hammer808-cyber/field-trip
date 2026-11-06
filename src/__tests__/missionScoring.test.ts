@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  buildScoreBreakdownEvents,
   calculateMissionScore,
+  calculateParticipationLayers,
   getHintAdjustedMaximum,
+  getMissionBaseMaxScore,
   normalizeMissionScoringConfig,
+  resolveParticipationSignals,
   type BonusEligibility,
 } from '../logic/missionScoring';
 
@@ -143,4 +147,150 @@ test('scoring configuration accepts an intentional zero-percent hint policy', ()
   assert.equal(defaults.hintPenaltyPercent, 15);
   assert.equal(defaults.afternoonPowerHour.startHour, 12);
   assert.equal(defaults.afternoonPowerHour.endHourExclusive, 15);
+});
+
+test('the scoring ceiling is the card\'s own point value, never a flat rate', () => {
+  assert.equal(getMissionBaseMaxScore({ baseXP: 100 }), 100);
+  assert.equal(getMissionBaseMaxScore({ baseXP: 125 }), 125);
+  assert.equal(getMissionBaseMaxScore({ baseXP: 150 }), 150);
+  assert.equal(getMissionBaseMaxScore({ baseXP: 200 }), 200);
+  assert.equal(getMissionBaseMaxScore({ basePoints: 150 }), 150);
+  assert.equal(getMissionBaseMaxScore({}), 100);
+  assert.equal(getMissionBaseMaxScore(null), 100);
+});
+
+test('each participation layer pays 25 percent of the card base', () => {
+  assert.deepEqual(calculateParticipationLayers(100, { photoSubjectVerified: true, fieldNotePresent: true, locationVerified: true }), {
+    photoSubject: 25,
+    fieldNote: 25,
+    location: 25,
+    total: 75,
+    fieldNoteViaVoice: false,
+  });
+  assert.deepEqual(calculateParticipationLayers(200, { photoSubjectVerified: true }), {
+    photoSubject: 50,
+    fieldNote: 0,
+    location: 0,
+    total: 50,
+    fieldNoteViaVoice: false,
+  });
+  assert.deepEqual(calculateParticipationLayers(100, {}), {
+    photoSubject: 0,
+    fieldNote: 0,
+    location: 0,
+    total: 0,
+    fieldNoteViaVoice: false,
+  });
+});
+
+test('full participation on a 100-point card awards 175 with no multiplier', () => {
+  const score = calculateMissionScore({
+    baseMaxScore: 100,
+    reviewerBaseScore: 100,
+    participation: { photoSubjectVerified: true, fieldNotePresent: true, locationVerified: true },
+  });
+  assert.equal(score.participationLayers.total, 75);
+  assert.equal(score.preBonusScore, 175);
+  assert.equal(score.finalScore, 175);
+});
+
+test('layers survive a hint: the penalty only touches the base', () => {
+  const score = calculateMissionScore({
+    baseMaxScore: 100,
+    reviewerBaseScore: 85,
+    hintUsed: true,
+    participation: { photoSubjectVerified: true, fieldNotePresent: true, locationVerified: true },
+  });
+  assert.equal(score.hintPenaltyPoints, 15);
+  assert.equal(score.reviewerScoreAfterRetry, 85);
+  assert.equal(score.finalScore, 160);
+});
+
+test('a retry halves the reviewer score but never the layers', () => {
+  const score = calculateMissionScore({
+    baseMaxScore: 100,
+    reviewerBaseScore: 100,
+    retryMultiplier: 0.5,
+    participation: { photoSubjectVerified: true, fieldNotePresent: true, locationVerified: true },
+  });
+  assert.equal(score.reviewerScoreAfterRetry, 50);
+  assert.equal(score.finalScore, 125);
+});
+
+test('multipliers apply to base plus layers, not base alone', () => {
+  const score = calculateMissionScore({
+    baseMaxScore: 100,
+    reviewerBaseScore: 100,
+    participation: { photoSubjectVerified: true, fieldNotePresent: true, locationVerified: true },
+    eligibleBonuses: [bonus('afternoon', 1.5)],
+  });
+  assert.equal(score.preBonusScore, 175);
+  assert.equal(score.finalScore, 263);
+});
+
+test('missing signals earn nothing', () => {
+  const score = calculateMissionScore({ baseMaxScore: 150, reviewerBaseScore: 150 });
+  assert.equal(score.participationLayers.total, 0);
+  assert.equal(score.finalScore, 150);
+});
+
+test('participation signals resolve from raw submission evidence', () => {
+  assert.deepEqual(
+    resolveParticipationSignals({ aiAnalysisResult: { detectedSubject: true }, fieldNoteRaw: 'This is a real field note.', latitude: 33.7, longitude: -118.2 }),
+    { photoSubjectVerified: true, fieldNotePresent: true, fieldNoteViaVoice: false, locationVerified: true },
+  );
+  // A short note earns nothing.
+  assert.equal(resolveParticipationSignals({ fieldNoteRaw: 'short' }).fieldNotePresent, false);
+  // The default text stamped on empty notes never counts as a note.
+  assert.equal(resolveParticipationSignals({ fieldNote: 'A successful field trip entry.' }).fieldNotePresent, false);
+  // No AI result and no coordinates: nothing earned.
+  assert.deepEqual(
+    resolveParticipationSignals({}),
+    { photoSubjectVerified: false, fieldNotePresent: false, fieldNoteViaVoice: false, locationVerified: false },
+  );
+});
+
+test('a voice note earns the note layer, spoken instead of written', () => {
+  const signals = resolveParticipationSignals({ voiceNotePresent: true });
+  assert.equal(signals.fieldNotePresent, true);
+  assert.equal(signals.fieldNoteViaVoice, true);
+  const score = calculateMissionScore({
+    baseMaxScore: 125,
+    reviewerBaseScore: 125,
+    participation: signals,
+  });
+  assert.equal(score.participationLayers.fieldNote, 31);
+  assert.equal(score.participationLayers.fieldNoteViaVoice, true);
+  assert.equal(score.finalScore, 156);
+});
+
+test('a written note and a voice note do not stack — one note layer only', () => {
+  const score = calculateMissionScore({
+    baseMaxScore: 100,
+    reviewerBaseScore: 100,
+    participation: resolveParticipationSignals({
+      fieldNoteRaw: 'This is a real written field note.',
+      voiceNotePresent: true,
+    }),
+  });
+  assert.equal(score.participationLayers.fieldNote, 25);
+  assert.equal(score.participationLayers.fieldNoteViaVoice, false);
+  assert.equal(score.participationLayers.total, 25);
+});
+
+test('the receipt lines sum exactly to the final score', () => {
+  const score = calculateMissionScore({
+    baseMaxScore: 125,
+    reviewerBaseScore: 125,
+    hintUsed: true,
+    participation: { photoSubjectVerified: true, fieldNotePresent: true, fieldNoteViaVoice: true, locationVerified: true },
+    eligibleBonuses: [bonus('afternoon', 1.5)],
+  });
+  const events = buildScoreBreakdownEvents(score, 'texas-07');
+  const sum = events.reduce((total, event) => total + event.points, 0);
+  assert.equal(sum, score.finalScore);
+  assert.equal(
+    events.find((event) => event.type === 'field_note_bonus')?.description,
+    'Voice Note (+25%)',
+  );
 });

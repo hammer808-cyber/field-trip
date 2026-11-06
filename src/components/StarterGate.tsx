@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { canAccessFeature } from '../services/canonicalProgress';
+import { canAccessFeature, LOTERIA_ENABLED } from '../services/canonicalProgress';
 import { GatedFeaturePanel, type GatedFeatureName } from './GatedFeaturePanel';
 
 interface StarterGateProps {
@@ -23,6 +23,11 @@ export function StarterGate({ requiredFeature, children }: StarterGateProps) {
 
   if (isFeatureUnlocked || isAdmin) {
     return <>{children}</>;
+  }
+
+  // A barred feature is unfinished work, not a starter lock — say so.
+  if (requiredFeature === 'loteria' && !LOTERIA_ENABLED) {
+    return <GatedFeaturePanel featureName="Loteria" reason="coming_soon" />;
   }
 
   return <GatedFeaturePanel featureName={FEATURE_LABEL[requiredFeature]} />;

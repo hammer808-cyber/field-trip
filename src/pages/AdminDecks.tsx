@@ -3,17 +3,13 @@ import { AlertTriangle, CheckCircle, Eye, KeyRound, Layers, Lock, Plane, Plus, R
 import { AdminLayout, ModuleCard } from '../components/admin/AdminShared';
 import { Card } from '../components/UI';
 import { DECK_PACKS, getMissionsForPack } from '../data/deckPacks';
-import { HEATWAVE_CHALLENGE_BANK } from '../data/heatwaveChallengeBank';
-import { SOCAL_SUMMER_CHALLENGE_BANK } from '../data/socalSummerChallengeBank';
-import { STARTER_MISSION_BANK } from '../data/starterMissionBank';
-import { JET_SETTER_CHALLENGE_BANK } from '../data/jetSetterChallengeBank';
-import { ERRAND_DECK_CHALLENGE_BANK } from '../data/errandDeckChallengeBank';
+import { ALL_CHALLENGE_CARDS } from '../data/allChallengeBanks';
 import { publishDeckCards, PublishDeckCardsReport } from '../services/repairService';
 import { mergeDeckAccessConfigs, saveDeckAccessConfig, subscribeToDeckAccessConfigs } from '../services/deckAccessService';
 import { getDeckAccess } from '../logic/deckAccess';
 import { cn } from '../lib/utils';
 
-const MISSION_BANK = [...STARTER_MISSION_BANK, ...HEATWAVE_CHALLENGE_BANK, ...SOCAL_SUMMER_CHALLENGE_BANK, ...JET_SETTER_CHALLENGE_BANK, ...ERRAND_DECK_CHALLENGE_BANK] as any[];
+const MISSION_BANK = [...ALL_CHALLENGE_CARDS] as any[];
 
 export default function AdminDecks() {
   const [selectedDeckId, setSelectedDeckId] = useState('heatwave-receipts');

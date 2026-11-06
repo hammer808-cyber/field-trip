@@ -104,9 +104,9 @@ test('every Jet Setter card exposes the canonical mission and safety fields', ()
     assert.equal(card.deckSubtitle, JET_SETTER_DECK_SUBTITLE);
     assert.equal(card.season, JET_SETTER_SEASON);
     assert.equal(card.safetyNote, JET_SETTER_SAFETY_NOTE);
-    assert.equal(card.baseXp, 100);
-    assert.equal(card.bonusXp, 25);
     assert.equal(card.baseXP, 100);
+    assert.equal('baseXp' in card, false);
+    assert.equal('bonusXp' in card, false);
     assert.equal(card.isActive, true);
     assert.equal(card.active, true);
     assert.equal(card.status, 'approved');

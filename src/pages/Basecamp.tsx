@@ -189,7 +189,6 @@ export default function Basecamp() {
               links={viewModel.quickLinks}
               onOpen={navigate}
               extraActions={[
-                { id: 'loteria', label: 'Loteria Board', href: '/loteria', icon: 'loteria' },
                 { id: 'settings', label: 'Settings', href: '/settings', icon: 'settings' },
               ]}
             />

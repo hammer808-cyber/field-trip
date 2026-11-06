@@ -6,6 +6,7 @@ import { ERRAND_DECK_CHALLENGE_BANK } from '../data/errandDeckChallengeBank';
 import { HEATWAVE_CHALLENGE_BANK } from '../data/heatwaveChallengeBank';
 import { JET_SETTER_CHALLENGE_BANK } from '../data/jetSetterChallengeBank';
 import { SOCAL_SUMMER_CHALLENGE_BANK } from '../data/socalSummerChallengeBank';
+import { TEXAS_CHALLENGE_BANK } from '../data/texasChallengeBank';
 import { getDeckAccess } from '../logic/deckAccess';
 import { getEligibleDrawPool } from '../logic/deckLogic';
 import { getMissionSubmissionContext, normalizeDeckSubtitleForEntry } from '../logic/missionSubmission';
@@ -229,4 +230,39 @@ test('SoCal Summer remains isolated in its local deck mission bank', () => {
   assert.ok(SOCAL_SUMMER_CHALLENGE_BANK.length > 0);
   assert.ok(SOCAL_SUMMER_CHALLENGE_BANK.every(mission => mission.deckId === 'socal-summer'));
   assert.equal(getDeckProgress(progressFor([entry('socal-summer-01', 'socal-summer', 'approved')]), 'errand-deck').approvedCount, 0);
+});
+
+test('Get It, Y\'all registers as a 15-card Texas regional deck', () => {
+  const texasPack = getDeckPackById('texas-get-it-yall')!;
+  assert.ok(texasPack, 'texas deck pack missing from registry');
+  assert.equal(texasPack.missionIds.length, 15);
+  assert.equal(texasPack.totalCards, 15);
+  assert.equal(texasPack.deckType, 'regional');
+  assert.equal(texasPack.catalogSection, 'local-fieldtrips');
+  assert.equal(texasPack.requiredStarterApprovals, 3);
+  assert.ok(getDeckCatalogSections().find(s => s.id === 'local-fieldtrips')?.packs.some(pack => pack.packId === 'texas-get-it-yall'));
+});
+
+test('Get It, Y\'all remains isolated in its Texas deck mission bank', () => {
+  assert.equal(TEXAS_CHALLENGE_BANK.length, 15);
+  assert.ok(TEXAS_CHALLENGE_BANK.every(mission => mission.deckId === 'texas-get-it-yall'));
+  assert.ok(TEXAS_CHALLENGE_BANK.every(mission => mission.active && mission.status === 'approved'));
+  assert.equal(getDeckProgress(progressFor([entry('texas-01', 'texas-get-it-yall', 'approved')]), 'errand-deck').approvedCount, 0);
+  assert.equal(getDeckProgress(progressFor([entry('texas-01', 'texas-get-it-yall', 'approved')]), 'texas-get-it-yall').approvedCount, 1);
+});
+
+test('Get It, Y\'all stays locked until all three Starter Signals are approved', () => {
+  const texasPack = getDeckPackById('texas-get-it-yall')!;
+  // getDeckAccess reads completedDeckIds off the context, not entry progress.
+  assert.equal(getDeckAccess(texasPack, { userId: 'user-1', completedDeckIds: [] }).playable, false);
+  assert.equal(getDeckAccess(texasPack, { userId: 'user-1', completedDeckIds: ['starter-signals'] }).playable, true);
+});
+
+test('briefing data is complete for a drawn Texas card', () => {
+  const mission = resolveMissionById('texas-01');
+  assert.ok(mission);
+  assert.equal(mission?.deckId, 'texas-get-it-yall');
+  assert.ok(mission?.title);
+  assert.ok(mission?.mission);
+  assert.ok(mission?.description);
 });

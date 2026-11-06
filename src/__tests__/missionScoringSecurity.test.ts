@@ -41,10 +41,17 @@ test('capture and briefing no longer generate Optional Boost or receipt challeng
   assert.doesNotMatch(briefing, /maxScoreBeforeHint \* missionAttempt\.hintPenaltyPercent/);
 });
 
-test('pending submission UI does not present an estimate as approved XP', () => {
+test('pending submission UI shows an estimate only when labeled as one, never as approved XP', () => {
   assert.match(resultCard, /const isApproved = reviewStatus === 'approved'/);
-  assert.match(resultCard, /isApproved \? \(scoring\?\.totalPoints \|\| 0\) \+ ftBonus : 0/);
-  assert.match(resultCard, /isApproved && showMathWizard && scoring/);
+  // The old rule hid the estimate entirely (pending showed 0). The
+  // current rule shows the receipt at submit, but the estimate must
+  // always carry its label — the number never appears as approved XP.
+  assert.doesNotMatch(resultCard, /isApproved \? \(scoring\?\.totalPoints \|\| 0\) \+ ftBonus : 0/);
+  assert.match(resultCard, /showReceipt = isApproved \|\| \(reviewStatus === 'pending_review' && hasEstimate\)/);
+  assert.match(resultCard, /Estimated XP/);
+  assert.match(resultCard, /Estimate — final at review/);
+  assert.match(resultCard, /ESTIMATED_YIELD/);
+  assert.match(resultCard, /Estimate — the final total is confirmed when a human reviews your proof/);
   assert.match(resultCard, /PROOF_SENT|Proof sent/);
   assert.match(resultCard, /Pending Review/);
   assert.match(resultCard, /buildPostSubmitStarterGuidance/);

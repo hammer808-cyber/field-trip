@@ -8,6 +8,14 @@ import { UserProfile } from './userService';
 
 export type FeatureKey = 'starter' | 'crew' | 'memories' | 'voting' | 'tribunal' | 'heatwave-receipts' | 'socal-summer' | 'loteria';
 
+/**
+ * Loteria kill switch. The board is still in the works, so it stays
+ * barred for players: canAccessFeature returns false and the Basecamp
+ * links are hidden. Admins bypass the gate (StarterGate) so the board
+ * can still be previewed. Flip to true when Loteria ships.
+ */
+export const LOTERIA_ENABLED = false;
+
 export type CanonicalChallengeStatus =
   | 'available'
   | 'drawn'
@@ -291,6 +299,7 @@ export function canAccessFeature(
   if (featureKey === 'heatwave-receipts') return !!options.heatwaveUnlocked;
   if (featureKey === 'socal-summer') return options.socalUnlocked !== false;
   if (featureKey === 'crew') return options.featureEnabled !== false;
+  if (featureKey === 'loteria') return LOTERIA_ENABLED;
   return true;
 }
 

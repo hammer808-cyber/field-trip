@@ -11,6 +11,7 @@ type ErrandCardType = 'Signal' | 'Proof' | 'Crew' | 'Receipt' | 'Lore';
 interface ErrandCardDefinition {
   id: string;
   cardType: ErrandCardType;
+  difficulty?: 'easy' | 'medium' | 'hard';
   title: string;
   trevorLine: string;
   mission: string;
@@ -209,6 +210,7 @@ const CARD_DEFINITIONS: ErrandCardDefinition[] = [
   {
     id: 'errand-deck-14',
     cardType: 'Lore',
+    difficulty: 'easy',
     title: 'The Errand Fought Back',
     trevorLine: 'Some tasks do not go quietly.',
     mission: 'Capture proof that the errand became harder, stranger, longer, funnier, more expensive, or more dramatic than expected.',
@@ -223,6 +225,7 @@ const CARD_DEFINITIONS: ErrandCardDefinition[] = [
   {
     id: 'errand-deck-15',
     cardType: 'Lore',
+    difficulty: 'easy',
     title: 'Add It to the Errand Lore',
     trevorLine: 'Not all legends happen in forests. Some happen near a return counter.',
     mission: 'Capture anything from this errand that future-you or the group chat would want remembered.',
@@ -244,9 +247,13 @@ function getTripType(cardType: ErrandCardType): TripType {
 
 export const ERRAND_DECK_CHALLENGE_BANK: Partial<ChallengeCard>[] = CARD_DEFINITIONS.map(card => {
   const type = getTripType(card.cardType);
+  // baseXp / bonusXp are builder inputs only: they seed baseXP and the
+  // levels tiers below, and must not leak onto the built card — the live
+  // readers only ever used baseXP, so the twins were editable dead weight.
+  const { baseXp, bonusXp, ...definition } = card;
 
   return {
-    ...card,
+    ...definition,
     missionId: card.id,
     challengeId: card.id,
     deckId: ERRAND_DECK_ID,
@@ -260,10 +267,17 @@ export const ERRAND_DECK_CHALLENGE_BANK: Partial<ChallengeCard>[] = CARD_DEFINIT
     lane: 'core',
     description: card.mission,
     theAsk: card.mission,
-    difficulty: card.cardType === 'Lore' ? 'medium' : 'easy',
+    shortPrompt: card.mission,
+    proofRequirements: {
+      requiredSubjects: [...card.allowedProof],
+      minConfidence: 0.4,
+      requireLocation: true,
+      requireTimestamp: true,
+    },
+    difficulty: card.difficulty ?? (card.cardType === 'Lore' ? 'medium' : 'easy'),
     estimatedTimeMinutes: 10,
-    baseXP: card.baseXp,
-    basePoints: card.baseXp,
+    baseXP: baseXp,
+    basePoints: baseXp,
     proofType: ['photo'],
     requiredProof: ['photo'],
     active: true,
@@ -275,9 +289,9 @@ export const ERRAND_DECK_CHALLENGE_BANK: Partial<ChallengeCard>[] = CARD_DEFINIT
     createdAt: '2026-07-14T00:00:00.000Z',
     updatedAt: '2026-07-14T00:00:00.000Z',
     levels: {
-      Standard: { points: card.baseXp, description: card.proofRequired },
-      Advanced: { points: card.baseXp + card.bonusXp, description: card.bonusPrompt },
-      Certified: { points: card.baseXp + card.bonusXp * 2, description: 'Trevor stamp of approval.' },
+      Standard: { points: baseXp, description: card.proofRequired },
+      Advanced: { points: baseXp + bonusXp, description: card.bonusPrompt },
+      Certified: { points: baseXp + bonusXp * 2, description: 'Trevor stamp of approval.' },
     },
     safetyRules: [ERRAND_DECK_SAFETY_NOTE],
   };

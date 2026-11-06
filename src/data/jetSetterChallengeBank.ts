@@ -11,6 +11,7 @@ type JetSetterCardType = 'Signal' | 'Proof' | 'Crew' | 'Receipt' | 'Lore';
 interface JetSetterCardDefinition {
   id: string;
   cardType: JetSetterCardType;
+  difficulty?: 'easy' | 'medium' | 'hard';
   title: string;
   trevorLine: string;
   mission: string;
@@ -321,6 +322,7 @@ const CARD_DEFINITIONS: JetSetterCardDefinition[] = [
   {
     id: 'jet-setter-22',
     cardType: 'Lore',
+    difficulty: 'easy',
     title: 'The Itinerary Has Left the Chat',
     trevorLine: 'The plan was cute while it lasted.',
     mission: 'Capture proof that the vacation changed direction: detour, weather shift, unexpected snack, new stop, lazy day, wrong turn, group decision, or abandoned plan.',
@@ -335,6 +337,7 @@ const CARD_DEFINITIONS: JetSetterCardDefinition[] = [
   {
     id: 'jet-setter-23',
     cardType: 'Lore',
+    difficulty: 'easy',
     title: 'Beach Day Aftermath',
     trevorLine: 'The towels are damp, the snacks are gone, and the evidence is everywhere.',
     mission: 'Photograph what remains after a beach day, pool day, boat day, snack stop, hotel hangout, sunset walk, or vacation decision.',
@@ -349,6 +352,7 @@ const CARD_DEFINITIONS: JetSetterCardDefinition[] = [
   {
     id: 'jet-setter-24',
     cardType: 'Lore',
+    difficulty: 'easy',
     title: 'Postcard From the Plot',
     trevorLine: 'Wish you were here, unless you are the reason this got complicated.',
     mission: 'Capture one moment from the trip that feels like it belongs on a postcard, but with more personality.',
@@ -363,6 +367,7 @@ const CARD_DEFINITIONS: JetSetterCardDefinition[] = [
   {
     id: 'jet-setter-25',
     cardType: 'Lore',
+    difficulty: 'easy',
     title: 'Add It to the Vacation Lore',
     trevorLine: 'Some moments are too specific to explain and too good to abandon in the camera roll.',
     mission: 'Capture anything from the trip that future-you, the crew, or the group chat would want remembered.',
@@ -384,9 +389,13 @@ function getTripType(cardType: JetSetterCardType): TripType {
 
 export const JET_SETTER_CHALLENGE_BANK: Partial<ChallengeCard>[] = CARD_DEFINITIONS.map(card => {
   const type = getTripType(card.cardType);
+  // baseXp / bonusXp are builder inputs only: they seed baseXP and the
+  // levels tiers below, and must not leak onto the built card — the live
+  // readers only ever used baseXP, so the twins were editable dead weight.
+  const { baseXp, bonusXp, ...definition } = card;
 
   return {
-    ...card,
+    ...definition,
     missionId: card.id,
     challengeId: card.id,
     deckId: JET_SETTER_DECK_ID,
@@ -400,10 +409,17 @@ export const JET_SETTER_CHALLENGE_BANK: Partial<ChallengeCard>[] = CARD_DEFINITI
     lane: 'core',
     description: card.mission,
     theAsk: card.mission,
-    difficulty: card.cardType === 'Lore' ? 'medium' : 'easy',
+    shortPrompt: card.mission,
+    proofRequirements: {
+      requiredSubjects: [...card.allowedProof],
+      minConfidence: 0.4,
+      requireLocation: true,
+      requireTimestamp: true,
+    },
+    difficulty: card.difficulty ?? (card.cardType === 'Lore' ? 'medium' : 'easy'),
     estimatedTimeMinutes: 10,
-    baseXP: card.baseXp,
-    basePoints: card.baseXp,
+    baseXP: baseXp,
+    basePoints: baseXp,
     proofType: ['photo'],
     requiredProof: ['photo'],
     active: true,
@@ -415,9 +431,9 @@ export const JET_SETTER_CHALLENGE_BANK: Partial<ChallengeCard>[] = CARD_DEFINITI
     createdAt: '2026-07-14T00:00:00.000Z',
     updatedAt: '2026-07-14T00:00:00.000Z',
     levels: {
-      Standard: { points: card.baseXp, description: card.proofRequired },
-      Advanced: { points: card.baseXp + card.bonusXp, description: card.bonusPrompt },
-      Certified: { points: card.baseXp + card.bonusXp * 2, description: 'Trevor stamp of approval.' },
+      Standard: { points: baseXp, description: card.proofRequired },
+      Advanced: { points: baseXp + bonusXp, description: card.bonusPrompt },
+      Certified: { points: baseXp + bonusXp * 2, description: 'Trevor stamp of approval.' },
     },
     safetyRules: [JET_SETTER_SAFETY_NOTE],
   };

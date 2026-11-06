@@ -459,12 +459,6 @@ export function buildBasecampViewModel(input: BuildBasecampViewModelInput): Base
         href: '/profile?tab=logbook',
       },
       {
-        id: 'loteria',
-        label: 'Loteria',
-        description: 'Open the explorer board and pick a 3x3 field sheet.',
-        href: '/loteria',
-      },
-      {
         id: 'voting',
         label: 'Voting',
         description: input.userVotes.length > 0
