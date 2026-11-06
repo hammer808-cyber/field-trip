@@ -11,6 +11,7 @@ type ErrandCardType = 'Signal' | 'Proof' | 'Crew' | 'Receipt' | 'Lore';
 interface ErrandCardDefinition {
   id: string;
   cardType: ErrandCardType;
+  difficulty?: 'easy' | 'medium' | 'hard';
   title: string;
   trevorLine: string;
   mission: string;
@@ -209,6 +210,7 @@ const CARD_DEFINITIONS: ErrandCardDefinition[] = [
   {
     id: 'errand-deck-14',
     cardType: 'Lore',
+    difficulty: 'easy',
     title: 'The Errand Fought Back',
     trevorLine: 'Some tasks do not go quietly.',
     mission: 'Capture proof that the errand became harder, stranger, longer, funnier, more expensive, or more dramatic than expected.',
@@ -223,6 +225,7 @@ const CARD_DEFINITIONS: ErrandCardDefinition[] = [
   {
     id: 'errand-deck-15',
     cardType: 'Lore',
+    difficulty: 'easy',
     title: 'Add It to the Errand Lore',
     trevorLine: 'Not all legends happen in forests. Some happen near a return counter.',
     mission: 'Capture anything from this errand that future-you or the group chat would want remembered.',
@@ -271,7 +274,7 @@ export const ERRAND_DECK_CHALLENGE_BANK: Partial<ChallengeCard>[] = CARD_DEFINIT
       requireLocation: true,
       requireTimestamp: true,
     },
-    difficulty: card.cardType === 'Lore' ? 'medium' : 'easy',
+    difficulty: card.difficulty ?? (card.cardType === 'Lore' ? 'medium' : 'easy'),
     estimatedTimeMinutes: 10,
     baseXP: baseXp,
     basePoints: baseXp,

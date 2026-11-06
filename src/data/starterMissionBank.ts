@@ -99,7 +99,7 @@ export const STARTER_MISSION_BANK: Partial<ChallengeCard>[] = [
     category: "Field Challenge",
     type: "Field Challenge",
     lane: "onboarding",
-    difficulty: 'medium',
+    difficulty: 'easy',
     baseXP: 100,
     basePoints: 100,
     proofType: ["photo", "note"],

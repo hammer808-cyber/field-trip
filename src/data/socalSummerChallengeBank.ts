@@ -82,7 +82,7 @@ export const SOCAL_SUMMER_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     proofType: ["photo"],
     lane: "seasonal",
     difficulty: "medium",
-    baseXP: 150,
+    baseXP: 125,
     tags: ["socal", "art", "urban", "public-art"],
     proofRequirements: {
       requiredSubjects: ["mural", "art", "wall art", "painting", "sign"],
@@ -104,8 +104,8 @@ export const SOCAL_SUMMER_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     mission: "“Capture the golden hour sky.”",
     proofType: ["photo"],
     lane: "seasonal",
-    difficulty: "easy",
-    baseXP: 100,
+    difficulty: "medium",
+    baseXP: 125,
     tags: ["socal", "sunset", "sky", "summer"],
     proofRequirements: {
       requiredSubjects: ["sunset", "sky", "clouds", "sun", "color", "golden hour"],
@@ -220,7 +220,7 @@ export const SOCAL_SUMMER_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     proofType: ["photo"],
     lane: "seasonal",
     difficulty: "hard",
-    baseXP: 200,
+    baseXP: 150,
     tags: ["socal", "landmark", "iconic", "history"],
     proofRequirements: {
       requiredSubjects: ["building", "landmark", "sign", "monument", "lighthouse", "bridge"],
@@ -334,8 +334,8 @@ export const SOCAL_SUMMER_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     mission: "“Capture a picnic footprint.”",
     proofType: ["photo"],
     lane: "seasonal",
-    difficulty: "medium",
-    baseXP: 150,
+    difficulty: "easy",
+    baseXP: 100,
     tags: ["socal", "social", "rest", "park", "beach"],
     proofRequirements: {
       requiredSubjects: ["blanket", "towel", "grass", "sand", "picnic", "food", "group"],
