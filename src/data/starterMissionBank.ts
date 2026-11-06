@@ -34,6 +34,15 @@ export const STARTER_MISSION_BANK: Partial<ChallengeCard>[] = [
       Certified: { points: 150, description: "The Golden Angle." }
     },
     theAsk: "Capture a photo of any outdoor nature detail as your first signal.",
+    mission: "“Capture a photo of any outdoor nature detail as your first signal.”",
+    tags: ["starter", "onboarding", "nature", "first-signal"],
+    shortPrompt: "Capture a photo of any outdoor nature detail as your first signal.",
+    proofRequirements: {
+      requiredSubjects: ["flower", "blue sky", "tree", "nature", "outdoor"],
+      minConfidence: 0.4,
+      requireLocation: true,
+      requireTimestamp: true
+    },
     fieldNotePrompt: "Why does this nature spot belong in your collection?",
     safetyRules: ["Stay safe in the sun.", "Acknowledge the outdoors."]
   },
@@ -68,6 +77,15 @@ export const STARTER_MISSION_BANK: Partial<ChallengeCard>[] = [
       Certified: { points: 150, description: "The Presentation." }
     },
     theAsk: "Take a photo of the most summer-coded snack or cold drink within reach.",
+    mission: "“Take a photo of the most summer-coded snack or cold drink within reach.”",
+    tags: ["starter", "onboarding", "snack", "food"],
+    shortPrompt: "Take a photo of the most summer-coded snack or cold drink within reach.",
+    proofRequirements: {
+      requiredSubjects: ["snack", "cold drink", "food", "drink"],
+      minConfidence: 0.4,
+      requireLocation: true,
+      requireTimestamp: true
+    },
     fieldNotePrompt: "Your crew deserves to know what fueled the day.",
     safetyRules: ["Eat and drink safely."]
   },
@@ -102,6 +120,15 @@ export const STARTER_MISSION_BANK: Partial<ChallengeCard>[] = [
       Certified: { points: 150, description: "The Temperature Contrast." }
     },
     theAsk: "Take a photo of your survival oasis where you defeat the summer heat.",
+    mission: "“Take a photo of your survival oasis where you defeat the summer heat.”",
+    tags: ["starter", "onboarding", "oasis", "cooldown"],
+    shortPrompt: "Take a photo of your survival oasis where you defeat the summer heat.",
+    proofRequirements: {
+      requiredSubjects: ["air conditioning", "shady bench", "cool water", "shade", "park bench"],
+      minConfidence: 0.4,
+      requireLocation: true,
+      requireTimestamp: true
+    },
     fieldNotePrompt: "A historic record of how you survived the summer heatwave.",
     safetyRules: ["Be respectful in public spaces."]
   }
