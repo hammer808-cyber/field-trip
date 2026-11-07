@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { MOCK_TRIPS, FIELD_TYPES } from '../constants';
 import { Card } from '../components/UI';
 import { useTheme } from '../context/ThemeContext';
-import { CheckCircle2, MapPin, AlertTriangle, ShieldAlert, Timer, Zap, Camera, Sun, RotateCcw, Info, Users, Lock, HelpCircle, CheckCircle, X, Sparkles, ArrowRight, FileText, Trophy, ChevronDown, Layers, Book } from 'lucide-react';
+import { CheckCircle2, MapPin, AlertTriangle, ShieldAlert, Timer, Zap, Camera, Sun, RotateCcw, Info, Users, Lock, HelpCircle, CheckCircle, X, Sparkles, ArrowRight, FileText, Trophy, ChevronDown, Layers, Book, LayoutGrid } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { getFieldCheckLabel } from '../logic/fieldCheckLogic';
@@ -268,6 +268,16 @@ export default function DeckPage() {
 
   const [isDeckShelfExpanded, setIsDeckShelfExpanded] = useState(false);
   const [isFieldLogExpanded, setIsFieldLogExpanded] = useState(false);
+  // Face-up browse: the grid of this deck's cards lives behind a button
+  // next to the deck (an accommodation for players who want to see all
+  // options at once and pick, instead of only drawing blind).
+  const [showBrowse, setShowBrowse] = useState(false);
+  const browseSectionRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (showBrowse) {
+      browseSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [showBrowse]);
 
   const activeLogEntries = React.useMemo(() => entries.filter(entry => !isArchivedEntry(entry)), [entries]);
   const logbookCounts = React.useMemo(() => getProofLogbookCounts(entries), [entries]);
@@ -1239,6 +1249,20 @@ export default function DeckPage() {
                       )}
                     </button>
 
+                    {/* See-all-cards: for players who want every option at
+                        once — opens the grid of this deck's cards and
+                        missions below, instead of drawing blind. */}
+                    <button
+                      type="button"
+                      onClick={() => setShowBrowse((v) => !v)}
+                      aria-expanded={showBrowse}
+                      className="skin-button flex min-h-12 w-full cursor-pointer items-center justify-center gap-3 border-[3px] border-[var(--skin-border)] bg-[var(--skin-surface)] px-4 py-3 font-display text-lg font-black uppercase italic tracking-normal text-[var(--skin-text)] shadow-[var(--skin-button-shadow)] transition-all active:translate-y-1 active:shadow-none"
+                    >
+                      <LayoutGrid className="w-5 h-5" />
+                      <span>{showBrowse ? (frankieMode ? 'Hide the cards' : 'HIDE ALL CARDS') : (frankieMode ? 'See all cards' : 'SEE ALL CARDS')}</span>
+                      <ChevronDown className={cn('w-5 h-5 transition-transform', showBrowse && 'rotate-180')} />
+                    </button>
+
                   {(isDrawing || isStarterConfigurationBlocked || (isExhausted && !activeTrip) || isWaitingForReview) ? (
                     <p className="text-center text-sm font-sans font-bold text-on-surface/70 pt-1">
                       {isWaitingForReview
@@ -1424,10 +1448,13 @@ export default function DeckPage() {
         </div>
 
         {/* Face-up browse for the active deck: pick a card by looking at it,
-            instead of only drawing blind. Locked cards can be previewed. */}
-        <section aria-label={frankieMode ? 'See all cards in this deck' : 'Browse all missions in this deck'} className="mt-4 border-t-4 border-on-surface/10 pt-2">
-          <DeckLibrary allChallenges={browseChallenges as any} />
-        </section>
+            instead of only drawing blind. Locked cards can be previewed.
+            Behind the "See all cards" button next to the deck. */}
+        {showBrowse && (
+          <section ref={browseSectionRef} aria-label={frankieMode ? 'See all cards in this deck' : 'Browse all missions in this deck'} className="mt-4 border-t-4 border-on-surface/10 pt-2">
+            <DeckLibrary allChallenges={browseChallenges as any} />
+          </section>
+        )}
       </div>
 
 

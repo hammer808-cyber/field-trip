@@ -38,6 +38,9 @@ export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
   const { fc } = useTheme();
   const [selectedChallenge, setSelectedChallenge] = useState<TripCard | null>(null);
   const [filter, setFilter] = useState<'all' | 'eligible' | 'completed' | 'locked'>('all');
+  // Sort for the browse grid: deck order is the deck's own order; difficulty
+  // is the challenge level (easiest first); title is A-Z.
+  const [sort, setSort] = useState<'deck' | 'difficulty' | 'title'>('deck');
 
   const challengesWithStatus = useMemo(() => {
     return allChallenges.map(challenge => {
@@ -89,6 +92,21 @@ export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
     return challengesWithStatus;
   }, [challengesWithStatus, filter]);
 
+  const DIFFICULTY_RANK: Record<string, number> = { easy: 0, medium: 1, hard: 2 };
+  const sortedChallenges = useMemo(() => {
+    if (sort === 'difficulty') {
+      return [...filteredChallenges].sort(
+        (a, b) => (DIFFICULTY_RANK[a.difficulty] ?? 99) - (DIFFICULTY_RANK[b.difficulty] ?? 99),
+      );
+    }
+    if (sort === 'title') {
+      return [...filteredChallenges].sort((a, b) =>
+        getFrankieTitle(a, fPref).localeCompare(getFrankieTitle(b, fPref)),
+      );
+    }
+    return filteredChallenges;
+  }, [filteredChallenges, sort, frankieMode]);
+
   return (
     <div className="space-y-12">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-4">
@@ -112,13 +130,26 @@ export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
               {frankieMode ? ({ all: 'ALL', eligible: 'CAN DO', completed: 'DONE', locked: 'LOCKED' } as const)[f] : f.toUpperCase()}
             </button>
           ))}
+          <label className="flex shrink-0 items-center gap-2 px-2 font-display text-xs uppercase tracking-widest italic">
+            <span className="opacity-60">{frankieMode ? 'SORT' : 'Sort'}</span>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as 'deck' | 'difficulty' | 'title')}
+              aria-label={frankieMode ? 'Sort cards' : 'Sort by'}
+              className="border-2 border-on-surface/20 bg-white px-2 py-2 font-display text-xs uppercase tracking-widest italic"
+            >
+              <option value="deck">{frankieMode ? 'DECK ORDER' : 'Deck order'}</option>
+              <option value="difficulty">{frankieMode ? 'EASIEST FIRST' : 'Easiest first'}</option>
+              <option value="title">{frankieMode ? 'A TO Z' : 'Title A–Z'}</option>
+            </select>
+          </label>
         </div>
       </div>
 
       <div className="relative">
         <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6 pb-12 pt-4 px-4">
-          {filteredChallenges.length > 0 ? (
-            filteredChallenges.map((challenge, idx) => (
+          {sortedChallenges.length > 0 ? (
+            sortedChallenges.map((challenge, idx) => (
               <div key={challenge.id} className="min-w-0">
                 <MissionCardItem
                   challenge={challenge as any}
@@ -257,6 +288,9 @@ function MissionCardItem({ challenge, onClick, idx }: { challenge: TripCard & { 
           <h4 className="font-display text-xl uppercase tracking-tighter leading-none italic font-black line-clamp-2">{displayTitle}</h4>
           {frankieMode && (
             <p className="mt-2 text-sm font-sans font-semibold leading-snug text-white/90 line-clamp-2">{getFrankieDescription(challenge, fPref)}</p>
+          )}
+          {!frankieMode && (challenge.shortPrompt || (challenge as any).mission) && (
+            <p className="mt-2 text-sm font-sans font-semibold leading-snug text-white/90 line-clamp-2">{challenge.shortPrompt || (challenge as any).mission}</p>
           )}
         </div>
       </div>
