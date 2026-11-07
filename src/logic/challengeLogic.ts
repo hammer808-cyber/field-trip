@@ -87,7 +87,8 @@ export function applyFieldTypeModifier(challenge: TripCard, fieldTypeId: string 
     'mascota': ['hype', 'event', 'social', 'bold', 'group', 'celebration'],
     'elondra': ['aesthetic', 'drama', 'fashion', 'glam', 'mood', 'visual'],
     'theGobbler': ['exploration', 'strange', 'detour', 'liminal', 'unexpected'],
-    'bigfoot': ['observation', 'solo', 'nature', 'hidden', 'trail']
+    'bigfoot': ['observation', 'solo', 'nature', 'hidden', 'trail'],
+    'lostCamper': ['wandering', 'detour', 'lost', 'exploration', 'solo', 'unexpected']
   };
 
   const userPrefs = preferences[fieldTypeId] || [];

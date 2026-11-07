@@ -8,12 +8,13 @@ import { useTheme } from '../context/ThemeContext';
 import { FIELD_TYPES, MOCK_TRIPS } from '../constants';
 import { FieldBadge } from '../components/UI';
 import { cn } from '../lib/utils';
+import { uploadBase64Image } from '../services/storageService';
 import { Hibiscus, ChromeStar, GlossOverlay } from '../components/BajaBratzAssets';
 import { DiamondStar, Sparkle, SunFlare, GlossOverlay as DiamondGloss } from '../components/SkinAssets';
 import { getDisplayLabel } from '../utils/labelUtils';
 
 export default function FieldTypeResult() {
-  const { fieldType, user, updateProfile, queueReward, hasCompletedGuidedFirstEntry } = useApp();
+  const { fieldType, user, profile, updateProfile, queueReward, hasCompletedGuidedFirstEntry } = useApp();
   const { skin, frankieMode } = useTheme();
   const navigate = useNavigate();
 
@@ -42,6 +43,64 @@ export default function FieldTypeResult() {
   }, [fieldType, isGuidedReIntro, queueReward]);
 
   const [isNavigating, setIsNavigating] = React.useState(false);
+
+  // The character picture failed to load (e.g. The Gobbler, whose art does
+  // not exist yet) — show a styled placeholder instead of a broken frame.
+  const [imageFailed, setImageFailed] = React.useState(false);
+
+  // Profile photo step: offered once, right after the result and before
+  // FieldKit. It never blocks onboarding — Skip is always visible, and a
+  // failed upload only shows an error and leaves Skip available.
+  const [showPhotoStep, setShowPhotoStep] = React.useState(false);
+  const [photoPreview, setPhotoPreview] = React.useState<string | null>(null);
+  const [photoError, setPhotoError] = React.useState<string | null>(null);
+  const [isSavingPhoto, setIsSavingPhoto] = React.useState(false);
+  const photoStepRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (showPhotoStep) {
+      photoStepRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [showPhotoStep]);
+
+  const handlePhotoFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoError(null);
+    if (!file.type.startsWith('image/')) {
+      setPhotoError('That file is not a photo. Pick an image file, or skip for now.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setPhotoPreview(String(reader.result));
+    reader.onerror = () => setPhotoError('That photo could not be read. Try another one, or skip for now.');
+    reader.readAsDataURL(file);
+  };
+
+  const handleSavePhoto = async () => {
+    if (!photoPreview || !user || isSavingPhoto) return;
+    setIsSavingPhoto(true);
+    setPhotoError(null);
+    try {
+      const { url } = await uploadBase64Image(user.uid, 'profilePhotos', `profile-${Date.now()}.jpg`, photoPreview);
+      await updateProfile(user.uid, { photoURL: url });
+      await handleStartApp();
+    } catch (err) {
+      console.error('[FieldTypeResult] Profile photo upload failed:', err);
+      setPhotoError('That photo did not upload. You can skip this step and add one later in Settings.');
+      setIsSavingPhoto(false);
+    }
+  };
+
+  // The primary CTA opens the photo step first (unless a photo already
+  // exists); the step's Skip / Save buttons are what actually continue.
+  const handlePrimaryCta = () => {
+    if (profile?.photoURL) {
+      void handleStartApp();
+      return;
+    }
+    setShowPhotoStep(true);
+  };
 
   const handleStartApp = async () => {
     if (isNavigating) return;
@@ -175,17 +234,26 @@ export default function FieldTypeResult() {
               "w-full h-full border-2 border-on-surface overflow-hidden relative group",
               !isBaja && !isDiamond && !isHeat && "bg-black mt-4"
             )}>
-                <img 
-                  src={data.image} 
-                  alt={data.name} 
-                  className={cn(
-                    "w-full h-full object-cover transition-all duration-700 group-hover:scale-110",
-                    isBaja ? "rounded-[2rem]" : isDiamond ? "grayscale opacity-80" : isHeat ? "rounded-full" : "grayscale contrast-[1.2] brightness-110 sepia-[0.1] opacity-90 group-hover:grayscale-0 group-hover:sepia-0"
-                  )} 
-                  onError={(e) => {
-                    console.error(`[FieldTypeResult] Failed to load character results image for ${data.name}: ${data.image}`);
-                  }}
-                />
+                {imageFailed || !data.image ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-on-surface text-brand-lime">
+                    <span className="font-display text-7xl font-black italic leading-none">{data.name.charAt(0)}</span>
+                    <span className="font-mono text-[10px] font-black uppercase tracking-[0.3em]">{data.name}</span>
+                    <span className="font-mono text-[9px] uppercase tracking-widest text-white/50">Portrait incoming</span>
+                  </div>
+                ) : (
+                  <img
+                    src={data.image}
+                    alt={data.name}
+                    className={cn(
+                      "w-full h-full object-cover transition-all duration-700 group-hover:scale-110",
+                      isBaja ? "rounded-[2rem]" : isDiamond ? "grayscale opacity-80" : isHeat ? "rounded-full" : "grayscale contrast-[1.2] brightness-110 sepia-[0.1] opacity-90 group-hover:grayscale-0 group-hover:sepia-0"
+                    )}
+                    onError={() => {
+                      console.error(`[FieldTypeResult] Failed to load character results image for ${data.name}: ${data.image}`);
+                      setImageFailed(true);
+                    }}
+                  />
+                )}
                <div className="absolute inset-0 bg-brand-lime/10 mix-blend-overlay opacity-30 pointer-events-none" />
             </div>
 
@@ -386,19 +454,69 @@ export default function FieldTypeResult() {
           </div>
         </div>
 
-          {/* Unified Primary CTA Logic: Inline button is hidden on mobile if guided, or always hidden if re-intro */}
+          {/* Profile photo step: offered once after the result. Skip is
+              always visible and continues onboarding; a failed upload only
+              shows an error. The step never blocks. */}
+          {showPhotoStep ? (
+            <div ref={photoStepRef} className="w-full pt-10 pb-20 px-4">
+              <div className="bg-white border-2 border-on-surface shadow-[8px_8px_0px_black] p-6 space-y-5">
+                <div className="space-y-2 text-center">
+                  <h2 className="font-display text-3xl font-black uppercase italic tracking-tighter text-on-surface leading-none">Add your profile photo</h2>
+                  <p className="text-sm font-sans font-bold text-on-surface/60 leading-relaxed">
+                    This is the face other players see on your profile. You can skip this and add one later in Settings.
+                  </p>
+                </div>
+                <div className="flex justify-center">
+                  {photoPreview ? (
+                    <img src={photoPreview} alt="Your profile photo preview" className="w-28 h-28 rounded-full object-cover border-[3px] border-on-surface shadow-[4px_4px_0px_black]" />
+                  ) : (
+                    <div className="w-28 h-28 rounded-full border-[3px] border-dashed border-on-surface/30 flex items-center justify-center">
+                      <span className="font-display text-4xl font-black italic text-on-surface/30">{data.name.charAt(0)}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex justify-center">
+                  <label className="cursor-pointer border-2 border-on-surface bg-white px-5 py-3 font-display text-sm font-black uppercase italic text-on-surface shadow-[4px_4px_0px_black] active:translate-y-0.5 active:shadow-none">
+                    {photoPreview ? 'Pick a different photo' : 'Choose a photo'}
+                    <input type="file" accept="image/*" className="hidden" onChange={handlePhotoFile} />
+                  </label>
+                </div>
+                {photoError && (
+                  <p role="alert" className="text-center text-sm font-sans font-bold text-red-700">{photoError}</p>
+                )}
+                <div className="flex flex-col gap-3">
+                  <button
+                    type="button"
+                    onClick={handleSavePhoto}
+                    disabled={!photoPreview || isSavingPhoto || isNavigating}
+                    className="w-full py-4 bg-brand-orange text-white font-display font-black text-xl uppercase italic tracking-tight border-2 border-on-surface shadow-[6px_6px_0px_black] active:translate-y-0.5 active:shadow-none disabled:opacity-50"
+                  >
+                    {isSavingPhoto ? 'Saving photo...' : 'Save photo & continue'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleStartApp}
+                    disabled={isNavigating}
+                    className="w-full py-3 bg-white text-on-surface font-display font-black text-lg uppercase italic tracking-tight border-2 border-on-surface shadow-[4px_4px_0px_black] active:translate-y-0.5 active:shadow-none disabled:opacity-50"
+                  >
+                    Skip for now
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
           <div className={cn(
             "w-full pt-10 pb-20 px-4",
             isGuidedActive ? "md:block hidden" : "block"
           )}>
-            <button 
+            <button
               id="primary-mission-cta"
-              onClick={handleStartApp}
+              onClick={handlePrimaryCta}
               disabled={isNavigating}
               className={cn(
                 "w-full py-10 font-bold text-3xl sm:text-4xl transition-all active:translate-x-2 active:translate-y-2 active:shadow-none uppercase tracking-tight border-2 italic",
                 isNavigating && "opacity-80 grayscale pointer-events-none",
-                isBaja ? "bg-baja-pink text-white rounded-full font-display border-baja-pink" : 
+                isBaja ? "bg-baja-pink text-white rounded-full font-display border-baja-pink" :
                 isDiamond ? "bg-white text-black font-sans border-white" :
                 isHeat ? "bg-heat-pink text-white rounded-full font-display border-white" :
                 "bg-brand-orange text-white border-on-surface shadow-[16px_16px_0px_black] hover:bg-on-surface hover:text-brand-lime hover:shadow-[20px_20px_0px_var(--color-brand-orange)]"
@@ -407,6 +525,7 @@ export default function FieldTypeResult() {
               {isNavigating ? 'Opening mission...' : (isBaja ? 'START THE BEACH VACAY' : isDiamond ? 'INITIATE DEPLOYMENT' : isHeat ? 'TAKE THE PLUNGE' : (isGuidedActive ? 'Start my first mission' : 'Enter the Field'))}
             </button>
           </div>
+          )}
 
           {isGuidedActive && (
              <div className="flex flex-col items-center gap-4 md:pb-10">
@@ -417,11 +536,12 @@ export default function FieldTypeResult() {
           )}
       </div>
 
-      {/* Show sticky footer for guided entry on mobile only */}
-      {isGuidedActive && (
+      {/* Show sticky footer for guided entry on mobile only (hidden while
+          the photo step is open, so it never covers Skip). */}
+      {isGuidedActive && !showPhotoStep && (
         <div className="sticky bottom-0 left-0 w-full p-4 bg-white/90 backdrop-blur-xl border-t-2 border-on-surface z-[120] pb-[calc(1rem+env(safe-area-inset-bottom))] md:hidden">
-          <button 
-            onClick={handleStartApp}
+          <button
+            onClick={handlePrimaryCta}
             disabled={isNavigating}
             className={cn(
                "w-full h-16 bg-brand-orange text-white font-display font-black text-2xl uppercase tracking-widest shadow-[6px_6px_0px_black] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all italic rounded-xl",

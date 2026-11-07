@@ -42,5 +42,9 @@ export interface QuizScore {
   elondra: number;
   theGobbler: number;
   bigfoot: number;
+  // Type shape only: no quiz answer weights lostCamper (yet), so its
+  // score stays 0 and it is not in TIE_BREAKER_PRIORITY. It exists here
+  // so QuizScore covers every FieldTypeId.
+  lostCamper: number;
   unclassified: number;
 }

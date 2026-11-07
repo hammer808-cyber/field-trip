@@ -26,8 +26,7 @@ import { FrankieModeCard } from '../components/FrankieModeCard';
 import { BadgeCollection } from '../components/BadgeCollection';
 import { AvatarPreview } from '../components/AvatarPreview';
 import { FeaturedStickerShowcase } from '../components/stickers/FeaturedStickerShowcase';
-import { DEFAULT_AVATAR, AVATAR_MANIFEST } from '../constants/avatarAssets';
-import { AvatarData } from '../types/avatar';
+import { DEFAULT_AVATAR } from '../constants/avatarAssets';
 import { FIELD_TYPES } from '../constants';
 import { getDisplayLabel } from '../utils/labelUtils';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
@@ -40,6 +39,7 @@ import {
   getLevelProgress,
 } from '../logic/playerLevel';
 import { updateFeedPrivacy } from '../services/userService';
+import { uploadBase64Image } from '../services/storageService';
 import { FieldPageHero } from '../components/FieldPageHero';
 import { EmptyStatePanel } from '../components/FieldtripLoader';
 import { FieldButton, FieldSection, FieldStatusChip, PlayerPageBody, PlayerPageShell } from '../components/player';
@@ -75,9 +75,12 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<ProfileTab>('overview');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editName, setEditName] = useState('');
-  const [editAvatar, setEditAvatar] = useState<AvatarData>({ ...DEFAULT_AVATAR });
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isLoadingMoreLogbook, setIsLoadingMoreLogbook] = useState(false);
+  // Profile photo (Settings): a picked file previews locally until saved.
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [isSavingPhoto, setIsSavingPhoto] = useState(false);
 
   const loadMoreLogbookEntries = React.useCallback(async () => {
     if (isLoadingMoreLogbook || !hasMoreEntries) return;
@@ -192,6 +195,47 @@ export default function ProfilePage() {
     }
   };
 
+  const handlePhotoFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoError(null);
+    if (!file.type.startsWith('image/')) {
+      setPhotoError('That file is not a photo. Pick an image file.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setPhotoPreview(String(reader.result));
+    reader.onerror = () => setPhotoError('That photo could not be read. Try another one.');
+    reader.readAsDataURL(file);
+  };
+
+  const handleSavePhoto = async () => {
+    if (!photoPreview || !user || isSavingPhoto) return;
+    setIsSavingPhoto(true);
+    setPhotoError(null);
+    try {
+      const { url } = await uploadBase64Image(user.uid, 'profilePhotos', `profile-${Date.now()}.jpg`, photoPreview);
+      await updateProfile(profile?.id || '', { photoURL: url });
+      setPhotoPreview(null);
+    } catch (err) {
+      console.error('[ProfilePage] Profile photo upload failed:', err);
+      setPhotoError('That photo did not upload. Try again, or leave the built avatar in place.');
+    } finally {
+      setIsSavingPhoto(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    if (!profile?.photoURL) return;
+    setPhotoError(null);
+    try {
+      await updateProfile(profile?.id || '', { photoURL: '' });
+    } catch (err) {
+      console.error('[ProfilePage] Remove profile photo failed:', err);
+      setPhotoError('Could not remove the photo. Try again.');
+    }
+  };
+
   return (
     <PlayerPageShell department={activeTab === 'history' ? 'logbook' : activeTab === 'settings' ? 'settings' : 'profile'} className="skin-profile skin-logbook">
       <FieldPageHero
@@ -252,11 +296,19 @@ export default function ProfilePage() {
                   
                   <div className="flex flex-col sm:flex-row items-center gap-8 relative z-10">
                     <div className="relative group">
-                       <AvatarPreview 
-                        avatar={profile?.avatar || DEFAULT_AVATAR} 
-                        size="md" 
-                        className="w-24 h-24 rounded-[1.5rem] rotate-[-3.5deg] group-hover:rotate-0 transition-transform border-[3.5px] border-on-surface bg-white shadow-[6px_6px_0px_black]" 
-                      />
+                       {profile?.photoURL ? (
+                         <img
+                           src={profile.photoURL}
+                           alt={profile?.name || 'Your profile photo'}
+                           className="w-24 h-24 rounded-[1.5rem] rotate-[-3.5deg] group-hover:rotate-0 transition-transform border-[3.5px] border-on-surface bg-white shadow-[6px_6px_0px_black] object-cover"
+                         />
+                       ) : (
+                         <AvatarPreview
+                          avatar={profile?.avatar || DEFAULT_AVATAR}
+                          size="md"
+                          className="w-24 h-24 rounded-[1.5rem] rotate-[-3.5deg] group-hover:rotate-0 transition-transform border-[3.5px] border-on-surface bg-white shadow-[6px_6px_0px_black]"
+                        />
+                       )}
                       <div className="absolute -bottom-3 -right-3 w-10 h-10 bg-brand-lime border-[3px] border-on-surface rounded-full flex items-center justify-center shadow-[3px_3px_0px_black] rotate-12">
                          <ShieldCheck className="w-5 h-5 text-on-surface" />
                       </div>
@@ -274,11 +326,6 @@ export default function ProfilePage() {
                         <button 
                           onClick={() => {
                             setEditName(profile?.name || '');
-                            if (profile?.avatar) {
-                              setEditAvatar({ ...profile.avatar });
-                            } else {
-                              setEditAvatar({ ...DEFAULT_AVATAR });
-                            }
                             setIsEditModalOpen(true);
                           }}
                           className="flex min-h-11 items-center gap-2 border-2 border-on-surface bg-brand-orange px-4 py-2 font-display text-xs font-black uppercase italic text-white shadow-[4px_4px_0px_black] active:translate-y-0.5 active:shadow-none"
@@ -418,6 +465,51 @@ export default function ProfilePage() {
 
           {activeTab === 'settings' && (
             <div className="mx-auto max-w-2xl space-y-4">
+
+                  <div className="ft-settings-group space-y-4">
+                    <div className="space-y-1">
+                       <h2>Profile photo</h2>
+                       <p>The face other players see on your profile. Without one, the built avatar shows instead.</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      {photoPreview || profile?.photoURL ? (
+                        <img
+                          src={photoPreview || profile?.photoURL}
+                          alt="Your profile photo"
+                          className="w-20 h-20 rounded-full object-cover border-[3px] border-on-surface bg-white shadow-[4px_4px_0px_black] shrink-0"
+                        />
+                      ) : (
+                        <AvatarPreview
+                          avatar={profile?.avatar || DEFAULT_AVATAR}
+                          size="md"
+                          className="w-20 h-20 border-[3px] border-on-surface bg-white shadow-[4px_4px_0px_black] rounded-full shrink-0"
+                        />
+                      )}
+                      <div className="space-y-2">
+                        <label className="inline-block cursor-pointer border-2 border-on-surface bg-white px-4 py-2 font-display text-xs font-black uppercase italic text-on-surface shadow-[3px_3px_0px_black] active:translate-y-0.5 active:shadow-none">
+                          {photoPreview || profile?.photoURL ? 'Change photo' : 'Add a photo'}
+                          <input type="file" accept="image/*" className="hidden" onChange={handlePhotoFile} />
+                        </label>
+                        {profile?.photoURL && (
+                          <button
+                            type="button"
+                            onClick={handleRemovePhoto}
+                            className="block font-sans text-sm font-bold text-on-surface/60 hover:text-brand-orange"
+                          >
+                            Remove photo
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {photoError && (
+                      <p role="alert" className="text-sm font-sans font-bold text-red-700">{photoError}</p>
+                    )}
+                    {photoPreview && (
+                      <FieldButton className="w-full" onClick={handleSavePhoto}>
+                        {isSavingPhoto ? 'Saving photo...' : 'Save photo'}
+                      </FieldButton>
+                    )}
+                  </div>
 
                   <FrankieModeCard />
 
@@ -610,77 +702,6 @@ export default function ProfilePage() {
                 />
               </div>
 
-              {/* Avatar Customized Option Selection */}
-              <div className="space-y-4 text-left">
-                <label className="text-[10px] font-mono font-black text-on-surface/50 uppercase tracking-widest block font-bold">AVATAR PREFERENCE</label>
-
-                {/* Live Real-time Visualizer */}
-                <div className="flex items-center gap-4 p-4 bg-on-surface/5 border-2 border-dashed border-on-surface/15 rounded-2xl">
-                  <AvatarPreview 
-                    avatar={editAvatar} 
-                    size="md" 
-                    className="w-20 h-20 border-[3px] border-on-surface bg-white shadow-[4px_4px_0px_black] rounded-[1.2rem] shrink-0" 
-                    showBackground={true}
-                  />
-                  <div className="space-y-1 bg-transparent">
-                    <p className="font-display font-black uppercase text-[10px] tracking-wide text-on-surface">AURA COMPOSITION</p>
-                    <p className="font-mono text-[9px] text-on-surface/50 leading-relaxed uppercase">
-                      Base: {AVATAR_MANIFEST.bases.find(b => b.id === editAvatar.baseId)?.name || 'None'}<br/>
-                      Hair: {AVATAR_MANIFEST.hairs.find(h => h.id === editAvatar.hairId)?.name || 'None'}<br/>
-                      Outfit: {AVATAR_MANIFEST.outfits.find(o => o.id === editAvatar.outfitId)?.name || 'None'}<br/>
-                      Canvas: {AVATAR_MANIFEST.backgrounds.find(bg => bg.id === editAvatar.backgroundId)?.name || 'None'}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Subsections of Avatar Selection */}
-                <div className="space-y-5 max-h-[35vh] overflow-y-auto pr-1 no-scrollbar border-t-2 border-on-surface/5 pt-4">
-                  {[
-                    { key: 'backgroundId', label: 'Canvas Background', optionKey: 'backgrounds' },
-                    { key: 'baseId', label: 'Agent Base structure', optionKey: 'bases' },
-                    { key: 'hairId', label: 'Hair Style', optionKey: 'hairs' },
-                    { key: 'outfitId', label: 'Scout Uniform', optionKey: 'outfits' },
-                    { key: 'accessoryId', label: 'Lenses & Accoutrements', optionKey: 'accessories' },
-                    { key: 'badgeId', label: 'Echelon Badge', optionKey: 'badges' }
-                  ].map((category) => {
-                    const options = AVATAR_MANIFEST[category.optionKey as keyof typeof AVATAR_MANIFEST] as any[];
-                    return (
-                      <div key={category.key} className="space-y-2">
-                        <span className="text-[9px] font-mono font-black text-on-surface/40 uppercase tracking-widest block font-bold">{category.label}</span>
-                        <div className="grid grid-cols-2 gap-2">
-                          {options.map((opt) => {
-                            const isSelected = (editAvatar as any)[category.key] === opt.id;
-                            return (
-                              <button
-                                key={opt.id}
-                                type="button"
-                                onClick={() => {
-                                  setEditAvatar(prev => ({
-                                    ...prev,
-                                    [category.key]: opt.id
-                                  }));
-                                }}
-                                className={cn(
-                                  "p-2 text-[9px] font-mono font-bold uppercase transition-all rounded-lg border-2 text-left relative truncate",
-                                  isSelected
-                                    ? "bg-brand-lime hover:bg-brand-lime text-on-surface border-on-surface shadow-[2px_2px_0px_black] translate-y-[1px] translate-x-[1px]"
-                                    : "bg-white text-on-surface/60 hover:bg-stone-50 border-stone-200"
-                                )}
-                              >
-                                {opt.name}
-                                {isSelected && (
-                                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] bg-on-surface text-white px-1 py-0.2 rounded font-black">●</span>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
               {/* Actions */}
               <div className="flex gap-3 pt-4 border-t-4 border-dashed border-on-surface/10">
                 <button
@@ -701,8 +722,7 @@ export default function ProfilePage() {
                     setIsSavingProfile(true);
                     try {
                       await updateProfile(profile?.id || '', {
-                        name: editName.trim(),
-                        avatar: editAvatar
+                        name: editName.trim()
                       });
                       setIsEditModalOpen(false);
                     } catch (error) {

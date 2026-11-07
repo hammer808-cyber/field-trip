@@ -62,6 +62,17 @@ export const PERSONAS: Record<FieldTypeId, PersonaRequirement> = {
     image: 'https://images.unsplash.com/photo-1555685812-4b943f1cb0eb?auto=format&fit=crop&q=80&w=400',
     quote: '"The most important entries are the ones nobody ever sees."'
   },
+  // DRAFT copy for Lost Camper — Zach's red pen pending. Not his words.
+  lostCamper: {
+    id: 'lostCamper',
+    name: 'Lost Camper',
+    campRole: 'The Wayward Scout',
+    coreInstinct: 'Wander / Get Lost',
+    description: 'You take the wrong turn on purpose and call it a shortcut. The map is a suggestion, the trail is a rumor, and the best finds are always one detour past where you meant to go.',
+    vibe: 'Curious, Unbothered, Off-Course',
+    image: '/assets/characters/lostCamper/card.png',
+    quote: '"The map is a suggestion. The detour is the mission."'
+  },
   unclassified: {
     id: 'unclassified',
     name: 'Unclassified',

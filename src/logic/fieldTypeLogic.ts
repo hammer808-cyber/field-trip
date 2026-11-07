@@ -56,6 +56,7 @@ export function getScores(answers: Record<string, string>): QuizScore {
     elondra: 0,
     theGobbler: 0,
     bigfoot: 0,
+    lostCamper: 0,
     unclassified: 0
   };
 

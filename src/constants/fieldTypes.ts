@@ -1,4 +1,4 @@
-export type FieldTypeId = 'captainClipboard' | 'mallRat' | 'mascota' | 'elondra' | 'theGobbler' | 'bigfoot' | 'unclassified';
+export type FieldTypeId = 'captainClipboard' | 'mallRat' | 'mascota' | 'elondra' | 'theGobbler' | 'bigfoot' | 'lostCamper' | 'unclassified';
 
 export interface FieldType {
   id: FieldTypeId;
@@ -41,7 +41,6 @@ export const FIELD_TYPE_ALIASES: Record<string, FieldTypeId> = {
   'observe': 'mallRat',
   'explorer': 'bigfoot',
   'aloof': 'bigfoot', // Fallback
-  'lostCamper': 'bigfoot',
   'evidenceGoblin': 'theGobbler',
 };
 
@@ -208,6 +207,36 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
     howToPlay: 'Stay in the shadows. Document the things others are too busy talking to see.',
     narration: 'TREVOR: "I can barely see you on the satellite feed. Excellent work. Stay undetected."'
   },
+  // DRAFT copy for Lost Camper — Zach's red pen pending. Not his words.
+  // Lost Camper is its own explorer, not Bigfoot: the wanderer who takes
+  // the wrong turn on purpose, where Bigfoot hides and watches.
+  'lostCamper': {
+    id: 'lostCamper',
+    name: 'Lost Camper',
+    shortLabel: 'Wanderer',
+    campRole: 'The Wayward Scout',
+    coreInstinct: 'Wander / Get Lost',
+    description: 'You take the wrong turn on purpose and call it a shortcut. The map is a suggestion, the trail is a rumor, and the best finds are always one detour past where you meant to go.',
+    plainSummary: 'You wander off the path. You take the wrong turn and find the best stuff anyway.',
+    vibe: 'Curious, Unbothered, Off-Course',
+    perk: 'Wrong-Turn Bonus',
+    perkDesc: 'Earn +25 when your entry captures a detour, a wrong turn, an accidental find, getting lost, or something found off the planned route.',
+    blindSpot: 'No Map, No Problem',
+    blindSpotDesc: 'Planned, direct, or by-the-book entries do not trigger your Field Type Bonus unless something went sideways along the way.',
+    stamp: 'LOST_AND_FOUND',
+    badgeLabel: 'Wanderer',
+    emptyState: 'No trail yet. Wander somewhere.',
+    recommendedChallengeTags: ['exploration', 'wandering', 'solo', 'strange'],
+    image: '/assets/characters/lostCamper/results.png',
+    avatarPath: '/assets/characters/lostCamper/avatar.png',
+    resultImagePath: '/assets/characters/lostCamper/results.png',
+    cardImagePath: '/assets/characters/lostCamper/card.png',
+    fullImagePath: '/assets/characters/lostCamper/full.png',
+    fieldStrength: 'Serendipity Radar',
+    fieldRisk: 'Permanently Off-Course',
+    howToPlay: 'Take the wrong turn. The best finds are never on the planned route.',
+    narration: 'TREVOR: "Your GPS says you are nowhere. Your photos say otherwise. Keep wandering."'
+  },
   'unclassified': {
     id: 'unclassified' as any,
     name: 'Unclassified',
@@ -239,8 +268,8 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
 
 export function normalizePersonaKey(personaKey: string | null | undefined): FieldTypeId {
   if (!personaKey) return 'unclassified';
-  
-  if (personaKey === 'lostCamper') return 'bigfoot';
+
+  if (personaKey === 'lostCamper') return 'lostCamper';
   if (personaKey === 'evidenceGoblin') return 'theGobbler';
   if (personaKey === 'mallRat') return 'mallRat';
   if (personaKey === 'mascota') return 'mascota';
@@ -254,9 +283,8 @@ export function normalizePersonaKey(personaKey: string | null | undefined): Fiel
 
 export function normalizeFieldType(type: string | null | undefined): FieldTypeId {
   if (!type) return 'unclassified'; // Default fallback
-  
+
   // Safe legacy mapping layer
-  if (type === 'lostCamper') return 'bigfoot';
   if (type === 'evidenceGoblin') return 'theGobbler';
   
   if (FIELD_TYPES[type as FieldTypeId]) return type as FieldTypeId;
@@ -269,7 +297,7 @@ export function normalizeFieldType(type: string | null | undefined): FieldTypeId
   if (normalized.includes('mallrat')) return 'mallRat';
   if (normalized.includes('mascot')) return 'mascota';
   if (normalized.includes('elondra') || normalized.includes('queen')) return 'elondra';
-  if (normalized.includes('camper')) return 'bigfoot';
+  if (normalized.includes('camper')) return 'lostCamper';
   if (normalized.includes('gobbler') || normalized.includes('goblin')) return 'theGobbler';
   if (normalized.includes('bigfoot')) return 'bigfoot';
   
