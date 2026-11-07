@@ -89,9 +89,6 @@ export function validateQuizReachability() {
     mascota: false,
     theGobbler: false,
     bigfoot: false,
-    // Lost Camper has a type entry and art, but no quiz answer weights it
-    // yet, so it stays unreachable until quiz scoring is reworked.
-    lostCamper: false,
     unclassified: false
   };
 

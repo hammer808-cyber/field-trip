@@ -10,8 +10,6 @@ import {
   normalizeFieldType,
   normalizePersonaKey,
 } from '../constants/fieldTypes';
-import { QUIZ_QUESTIONS, TIE_BREAKER_PRIORITY } from '../data/personaQuiz';
-import { assignFieldType } from '../logic/fieldTypeLogic';
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (relativePath: string) =>
@@ -19,8 +17,8 @@ const read = (relativePath: string) =>
 
 // --- Part 3: explorer character pictures -------------------------------
 
-test('explorer art: captainClipboard, mascota and lostCamper files exist on disk', () => {
-  for (const typeId of ['captainClipboard', 'mascota', 'lostCamper'] as const) {
+test('explorer art: captainClipboard, mascota and theGobbler files exist on disk', () => {
+  for (const typeId of ['captainClipboard', 'mascota', 'theGobbler'] as const) {
     const type = FIELD_TYPES[typeId];
     assert.ok(type, `FIELD_TYPES is missing ${typeId}`);
     for (const key of ['image', 'avatarPath', 'resultImagePath', 'cardImagePath', 'fullImagePath'] as const) {
@@ -37,55 +35,19 @@ test('explorer art: captainClipboard, mascota and lostCamper files exist on disk
   }
 });
 
-test('Lost Camper is its own explorer type, not Bigfoot', () => {
-  const type = FIELD_TYPES.lostCamper;
-  assert.ok(type, 'FIELD_TYPES is missing lostCamper');
-  assert.equal(type.name, 'Lost Camper');
-  assert.notEqual(type.id, 'bigfoot');
-  // Same required shape as every other type, including the result-page
-  // plain lead the onboardingSimplify test sweeps over FIELD_TYPES.
-  for (const field of [
-    'shortLabel', 'campRole', 'coreInstinct', 'description', 'plainSummary',
-    'vibe', 'perk', 'perkDesc', 'blindSpot', 'blindSpotDesc', 'stamp',
-    'badgeLabel', 'emptyState', 'fieldStrength', 'fieldRisk', 'howToPlay', 'narration',
-  ] as const) {
-    assert.ok(type[field], `lostCamper is missing ${field}`);
-  }
-  assert.ok(type.plainSummary!.length <= 130, 'lostCamper plainSummary too long');
-  assert.notEqual(type.plainSummary, type.description, 'lostCamper plainSummary must not copy the description');
-  assert.ok(Array.isArray(type.recommendedChallengeTags) && type.recommendedChallengeTags.length > 0);
-
-  // The old alias is gone everywhere it redirected Lost Camper to Bigfoot.
-  assert.equal(FIELD_TYPE_ALIASES.lostCamper, undefined, 'lostCamper must not sit in FIELD_TYPE_ALIASES');
-  assert.equal(normalizePersonaKey('lostCamper'), 'lostCamper');
-  assert.equal(normalizeFieldType('lostCamper'), 'lostCamper');
-  assert.equal(normalizeFieldType('Lost Camper'), 'lostCamper');
-  assert.equal(normalizeFieldType('lostcamper'), 'lostCamper');
+test('Lost Camper is left out: legacy keys resolve to Bigfoot, no type entry', () => {
+  // Nov 6: Zach parked Lost Camper ("leave out lost camper for now").
+  // No FIELD_TYPES entry, no PERSONAS entry, no art; every legacy
+  // 'lostCamper' key still resolves to Bigfoot, as before commit 5a61429.
+  assert.equal((FIELD_TYPES as Record<string, unknown>).lostCamper, undefined);
+  assert.equal(FIELD_TYPE_ALIASES.lostCamper, 'bigfoot');
+  assert.equal(normalizePersonaKey('lostCamper'), 'bigfoot');
+  assert.equal(normalizeFieldType('lostCamper'), 'bigfoot');
+  assert.equal(normalizeFieldType('Lost Camper'), 'bigfoot');
+  assert.equal(normalizeFieldType('lostcamper'), 'bigfoot');
   // Bigfoot still normalizes to itself.
   assert.equal(normalizePersonaKey('bigfoot'), 'bigfoot');
   assert.equal(normalizeFieldType('bigfoot'), 'bigfoot');
-});
-
-test('Lost Camper is not yet reachable from the quiz (quiz work pending)', () => {
-  // No quiz answer weights lostCamper, and the scoring functions only
-  // consider TIE_BREAKER_PRIORITY. This test documents that known gap:
-  // the type exists (result page, art, bonus keywords) but no player can
-  // be classified as Lost Camper until quiz weights are reworked. If that
-  // work lands, update this test and TIE_BREAKER_PRIORITY together.
-  assert.ok(!(TIE_BREAKER_PRIORITY as string[]).includes('lostCamper'));
-  for (const question of QUIZ_QUESTIONS) {
-    for (const answer of question.answers) {
-      assert.equal(
-        (answer.personaWeights as Record<string, number | undefined>).lostCamper,
-        undefined,
-        `${answer.id} weights lostCamper — update the reachability test if that is intentional`,
-      );
-    }
-  }
-  const ids = QUIZ_QUESTIONS.map(q => q.answers.map(a => a.id));
-  for (const a of ids[0]) for (const b of ids[1]) for (const c of ids[2]) {
-    assert.notEqual(assignFieldType({ q1: a, q2: b, q3: c }), 'lostCamper');
-  }
 });
 
 // --- Part 3: result-page image fallback --------------------------------
