@@ -273,7 +273,7 @@ test('8. Normal active drawn mission is resume, not cleared', () => {
     isHeatwaveDeckUnlocked: true,
   }));
   assert.equal(snapshot.state, 'RESUME_ACTIVE_MISSION');
-  assert.match(snapshot.primaryActionLabel, /Resume Emotional Support Beverage/);
+  assert.equal(snapshot.primaryActionLabel, 'Resume mission');
   assert.notEqual(snapshot.title.toLowerCase().includes('cleared'), true);
 });
 

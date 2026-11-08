@@ -52,7 +52,6 @@ export interface BasecampNextActionModel {
   statusLabel: string;
   action: BasecampPrimaryAction;
   secondaryAction: BasecampPrimaryAction | null;
-  flavorMessage: string;
   urgency: PlayerGuidanceSnapshot['urgency'];
   guidanceState: PlayerGuidanceSnapshot['state'];
   mission: BasecampMissionSummaryModel | null;
@@ -284,7 +283,6 @@ function buildNextAction(
           missionId: guidance.secondaryAction.missionId,
         }
       : null,
-    flavorMessage: guidance.flavorMessage,
     urgency: guidance.urgency,
     guidanceState: guidance.state,
     mission,

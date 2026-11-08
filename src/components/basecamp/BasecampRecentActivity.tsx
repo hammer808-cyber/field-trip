@@ -18,14 +18,14 @@ export function BasecampRecentActivity({ items }: BasecampRecentActivityProps) {
       aria-labelledby="basecamp-activity-heading"
       className="skin-card border-[var(--skin-border-width)] border-[var(--skin-border)] bg-[var(--skin-surface)] p-5 shadow-[var(--skin-card-shadow)] sm:p-6"
     >
-      <p className="font-mono text-[8px] font-black uppercase tracking-[0.22em] text-[var(--skin-text-muted)]">Personal field record</p>
+      <p className="font-mono text-[8px] font-black uppercase tracking-[0.22em] text-[var(--skin-text-muted)]">Bulletin board</p>
       <h2 id="basecamp-activity-heading" className="mt-1 font-display text-2xl font-black uppercase italic tracking-normal text-[var(--skin-text)]">
-        Recent Activity
+        Updates
       </h2>
 
       {items.length === 0 ? (
         <div className="mt-5 border-t-2 border-[var(--skin-border)] pt-4">
-          <p className="text-sm font-bold text-[var(--skin-text)]">No recent personal activity yet.</p>
+          <p className="text-sm font-bold text-[var(--skin-text)]">No updates yet.</p>
           <p className="mt-1 text-xs leading-relaxed text-[var(--skin-text-muted)]">
             Submissions, approvals, badges, private observations, and your votes will appear here.
           </p>

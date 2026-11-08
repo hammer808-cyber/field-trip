@@ -25,10 +25,10 @@ export function BasecampMissionSummary({ mission, pack }: BasecampMissionSummary
         </div>
         <div>
           <p className="font-display text-xl font-black uppercase italic leading-none tracking-normal text-[var(--skin-text)]">
-            {mission?.title || pack?.packName || 'Missions'}
+            {pack?.packName || mission?.deckName || 'Missions'}
           </p>
           <p className="mt-2 text-xs leading-relaxed text-[var(--skin-text-muted)]">
-            {mission?.deckName || pack?.deckSubtitle || pack?.description || 'Open Missions to choose your next assignment.'}
+            {pack?.deckSubtitle || pack?.description || 'Open Missions to choose your next assignment.'}
           </p>
         </div>
         {mission?.rewardXp !== null && mission?.rewardXp !== undefined && (

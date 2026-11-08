@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { fileURLToPath } from 'node:url';
 import { BasecampAttentionPanel } from '../components/basecamp/BasecampAttentionPanel';
 import { BasecampCrewSummary } from '../components/basecamp/BasecampCrewSummary';
 import { BasecampNextActionPanel } from '../components/basecamp/BasecampNextActionPanel';
@@ -22,7 +25,6 @@ test('the primary panel presents one canonical action and local deck artwork', (
         statusLabel: 'Mission active',
         action: { label: 'Continue Mission', href: '/capture?id=heat-1', intent: 'navigate' },
         secondaryAction: null,
-        flavorMessage: 'FIELD SIGNAL ACTIVE',
         urgency: 'high',
         guidanceState: 'RESUME_ACTIVE_MISSION',
         deckId: 'heatwave-receipts',
@@ -45,6 +47,14 @@ test('the primary panel presents one canonical action and local deck artwork', (
   assert.match(html, /Continue Mission/i);
   assert.match(html, /\/assets\/decks\/heatwave-receipts\.jpg/i);
   assert.equal((html.match(/Continue Mission/g) || []).length, 1);
+  // Dedupe (Nov 8): the hero used to print the mission title four times
+  // (eyebrow, headline, CTA, card summary) and the signal line twice
+  // (description + flavor). The title appears exactly once now, the
+  // description once, and the duplicate flavor line is gone.
+  assert.equal((html.match(/Find the Coolest Shadow/g) || []).length, 1);
+  assert.equal((html.match(/Find and photograph a useful patch of shade\./g) || []).length, 1);
+  assert.doesNotMatch(html, /basecamp-flavor/);
+  assert.doesNotMatch(html, /Keep going:/i);
   assert.doesNotMatch(html, /COMMANDER_VOID|OPERATION VANGUARD|14,200|20,000/i);
 });
 
@@ -113,7 +123,7 @@ test('sidebar panels render honest progress, crew, activity, and empty states', 
   assert.doesNotMatch(crewHtml, /Crew rank|contribution/i);
 
   const activityHtml = renderToStaticMarkup(<BasecampRecentActivity items={[]} />);
-  assert.match(activityHtml, /No recent personal activity yet/i);
+  assert.match(activityHtml, /No updates yet\./i);
 });
 
 test('quick links retain canonical Missions, Logbook, and Voting destinations', () => {
@@ -131,4 +141,23 @@ test('quick links retain canonical Missions, Logbook, and Voting destinations', 
   assert.match(html, /Logbook/i);
   assert.match(html, /Voting/i);
   assert.doesNotMatch(html, /Viewfinder/i);
+});
+
+test('the bulletin board leads with Updates in the main column', () => {
+  const html = renderToStaticMarkup(<BasecampRecentActivity items={[]} />);
+  assert.match(html, /Bulletin board/i);
+  assert.match(html, /Updates/);
+  assert.match(html, /No updates yet\./);
+  assert.doesNotMatch(html, /Recent Activity/);
+  assert.doesNotMatch(html, /Personal field record/);
+
+  // Placement: Updates sits in the board's main column, under the hero,
+  // not buried in the sidebar.
+  const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+  const source = readFileSync(join(repoRoot, 'src/pages/Basecamp.tsx'), 'utf8');
+  const mainIdx = source.indexOf('main={(');
+  const activityIdx = source.indexOf('<BasecampRecentActivity');
+  const sidebarIdx = source.indexOf('sidebar={(');
+  assert.ok(mainIdx !== -1 && activityIdx !== -1 && sidebarIdx !== -1);
+  assert.ok(mainIdx < activityIdx && activityIdx < sidebarIdx);
 });

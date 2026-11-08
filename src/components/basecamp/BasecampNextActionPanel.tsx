@@ -47,7 +47,6 @@ export function BasecampNextActionPanel({ model, pack, onAction, onSecondaryActi
             <p className="max-w-xl text-sm font-bold leading-snug text-[var(--skin-text)] sm:text-base">
               {model.description}
             </p>
-            <p className="basecamp-flavor">{model.flavorMessage}</p>
           </div>
 
           <div className="flex flex-col items-stretch gap-3 sm:items-start">

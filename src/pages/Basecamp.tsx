@@ -169,6 +169,9 @@ export default function Basecamp() {
                 if (viewModel.attention.item) void runAction(viewModel.attention.item.action);
               }}
             />
+            <div className={viewModel.nextAction.urgency === 'critical' || viewModel.nextAction.urgency === 'high' ? 'basecamp-secondary-quiet' : ''}>
+              <BasecampRecentActivity items={viewModel.recentActivity} />
+            </div>
           </>
         )}
         sidebar={(
@@ -178,9 +181,6 @@ export default function Basecamp() {
               model={viewModel.crew}
               onOpenCrew={() => navigate(viewModel.crew.acceptedCount === 0 && !viewModel.crew.crewId ? '/crew#find-players' : '/crew')}
             />
-            <div className={viewModel.nextAction.urgency === 'critical' || viewModel.nextAction.urgency === 'high' ? 'basecamp-secondary-quiet' : ''}>
-              <BasecampRecentActivity items={viewModel.recentActivity} />
-            </div>
           </div>
         )}
         quickLinks={(

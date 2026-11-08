@@ -530,9 +530,9 @@ const COPY: Record<PlayerGuidanceState, {
     navigationTarget: 'missions',
     primary: (missionTitle) => ({
       title: missionTitle,
-      shortMessage: `Keep going: ${missionTitle}`,
+      shortMessage: 'Your mission is waiting.',
       flavorMessage: 'FIELD SIGNAL ACTIVE',
-      actionLabel: `Resume ${missionTitle}`,
+      actionLabel: 'Resume mission',
       secondary: null,
     }),
     destination: ({ mission }) => {
