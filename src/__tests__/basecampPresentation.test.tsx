@@ -161,3 +161,27 @@ test('the bulletin board leads with Updates in the main column', () => {
   assert.ok(mainIdx !== -1 && activityIdx !== -1 && sidebarIdx !== -1);
   assert.ok(mainIdx < activityIdx && activityIdx < sidebarIdx);
 });
+
+test('progress and crew panels share the board paper treatment, not the dark gloss', () => {
+  const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+  const read = (rel: string) => readFileSync(join(repoRoot, rel), 'utf8');
+  const progress = read('src/components/basecamp/BasecampProgressPanel.tsx');
+  const crew = read('src/components/basecamp/BasecampCrewSummary.tsx');
+  const css = read('src/pages/Basecamp.css');
+
+  // No dark-panel leftovers in either component: no white-on-dark text,
+  // no gloss sweep, no glow blob — and both are pinned like the hero.
+  for (const source of [progress, crew]) {
+    assert.doesNotMatch(source, /text-white/);
+    assert.match(source, /basecamp-tape/);
+  }
+  assert.doesNotMatch(progress, /basecamp-shine/);
+  assert.doesNotMatch(crew, /basecamp-crew-glow/);
+
+  // The shared panel rule is built from skin tokens, and the old dark
+  // gradients are gone from the stylesheet entirely.
+  assert.match(css, /\.skin-basecamp \.basecamp-progress, \.skin-basecamp \.basecamp-crew \{[^}]*var\(--skin-surface\)/);
+  assert.match(css, /\.skin-basecamp \.basecamp-progress, \.skin-basecamp \.basecamp-crew \{[^}]*var\(--skin-card-shadow\)/);
+  assert.doesNotMatch(css, /basecamp-shine|basecamp-crew-glow/);
+  assert.doesNotMatch(css, /#080b13|#d91586|#342052/);
+});

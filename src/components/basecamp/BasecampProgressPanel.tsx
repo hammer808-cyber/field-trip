@@ -11,16 +11,16 @@ export function BasecampProgressPanel({ model, onOpenProfile }: BasecampProgress
   return (
     <section
       aria-labelledby="basecamp-progress-heading"
-      className="basecamp-progress relative overflow-hidden text-white"
+      className="basecamp-progress relative"
     >
-      <div className="basecamp-shine" aria-hidden="true" />
+      <span className="basecamp-tape basecamp-tape--left" aria-hidden="true" />
       <div className="relative flex items-start justify-between gap-4 p-5 sm:p-6">
         <div>
           <p className="font-mono text-[8px] font-black uppercase tracking-[0.22em] text-[var(--skin-secondary)]">How you&apos;re doing</p>
           <h2 id="basecamp-progress-heading" className="mt-1 font-display text-3xl font-black uppercase italic tracking-normal">
             Your Progress
           </h2>
-          <p className="basecamp-progress-headline mt-2 text-white/90">
+          <p className="basecamp-progress-headline mt-2 text-[var(--skin-text)]">
             Level {model.level} · {model.levelTitle}
           </p>
         </div>
@@ -52,7 +52,7 @@ export function BasecampProgressPanel({ model, onOpenProfile }: BasecampProgress
           >
             <div className="h-full motion-reduce:transition-none" style={{ width: `${model.levelProgressPercent}%` }} />
           </div>
-          <p className="mt-2 font-mono text-[8px] font-bold uppercase tracking-wider text-[var(--skin-surface)]/70">
+          <p className="mt-2 font-mono text-[8px] font-bold uppercase tracking-wider text-[var(--skin-text-muted)]">
             {model.xpToNextLevel.toLocaleString()} XP to level {model.nextLevel}
           </p>
           </div>
@@ -66,10 +66,10 @@ export function BasecampProgressPanel({ model, onOpenProfile }: BasecampProgress
             <p className="mt-2 font-display text-2xl font-black uppercase italic tracking-normal">
               {model.starterApprovedCount}/{model.starterRequiredCount}
             </p>
-            <p className="text-[10px] text-[var(--skin-surface)]/65">
+            <p className="text-[10px] text-[var(--skin-text-muted)]">
               {model.starterApprovedCount >= model.starterRequiredCount ? 'unlocked' : 'working toward unlock'}
             </p>
-            <div className="mt-2 h-2 overflow-hidden border border-[var(--skin-surface)] bg-[var(--skin-surface)]/15" role="progressbar" aria-label="Starter Signals progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(model.starterPercent)}>
+            <div className="mt-2 h-2 overflow-hidden border border-[var(--skin-border)] bg-[var(--skin-surface)]" role="progressbar" aria-label="Starter Signals progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(model.starterPercent)}>
               <div className="h-full bg-[var(--skin-secondary)]" style={{ width: `${model.starterPercent}%` }} />
             </div>
           </div>
@@ -80,10 +80,10 @@ export function BasecampProgressPanel({ model, onOpenProfile }: BasecampProgress
             <p className="mt-2 font-display text-2xl font-black uppercase italic tracking-normal">
               {model.activeDeckApprovedCount}/{model.activeDeckTotalCount}
             </p>
-            <p className="text-[10px] text-[var(--skin-surface)]/65">
+            <p className="text-[10px] text-[var(--skin-text-muted)]">
               approved{model.activeDeckPendingCount > 0 ? ` · ${model.activeDeckPendingCount} pending` : ''}
             </p>
-            <div className="mt-2 h-2 overflow-hidden border border-[var(--skin-surface)] bg-[var(--skin-surface)]/15" role="progressbar" aria-label={`${model.activeDeckName} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(model.activeDeckPercent)}>
+            <div className="mt-2 h-2 overflow-hidden border border-[var(--skin-border)] bg-[var(--skin-surface)]" role="progressbar" aria-label={`${model.activeDeckName} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(model.activeDeckPercent)}>
               <div className="h-full bg-[var(--skin-accent)]" style={{ width: `${model.activeDeckPercent}%` }} />
             </div>
           </div>

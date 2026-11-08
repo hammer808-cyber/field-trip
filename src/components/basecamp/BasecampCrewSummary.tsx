@@ -11,9 +11,9 @@ export function BasecampCrewSummary({ model, onOpenCrew }: BasecampCrewSummaryPr
   return (
     <section
       aria-labelledby="basecamp-crew-heading"
-      className={`basecamp-crew relative overflow-hidden p-5 text-white sm:p-6 ${model.hasCrew ? '' : 'basecamp-crew--quiet'}`}
+      className={`basecamp-crew relative p-5 sm:p-6 ${model.hasCrew ? '' : 'basecamp-crew--quiet'}`}
     >
-      <div className="basecamp-crew-glow" aria-hidden="true" />
+      <span className="basecamp-tape basecamp-tape--left" aria-hidden="true" />
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="font-mono text-[8px] font-black uppercase tracking-[0.22em] text-[var(--skin-text-muted)]">My Crew</p>
@@ -35,8 +35,8 @@ export function BasecampCrewSummary({ model, onOpenCrew }: BasecampCrewSummaryPr
         </div>
       )}
 
-      <div className="relative mt-5 border-t border-white/25 pt-4">
-        <p className="text-sm leading-relaxed text-white/80">
+      <div className="relative mt-5 border-t border-[var(--skin-border-muted)] pt-4">
+        <p className="text-sm leading-relaxed">
           {empty
             ? 'Fieldtrip starts solo. Add people you actually want to play with.'
             : model.acceptedCount > 0
@@ -44,12 +44,12 @@ export function BasecampCrewSummary({ model, onOpenCrew }: BasecampCrewSummaryPr
               : 'Open Crew for members, invites, and shared memories.'}
         </p>
         {model.incomingCount > 0 && (
-          <p className="mt-3 font-mono text-[8px] font-black uppercase tracking-widest text-[#dfff45]">
+          <p className="mt-3 inline-block bg-[var(--skin-secondary)] px-2 py-1 font-mono text-[8px] font-black uppercase tracking-widest text-[var(--skin-on-secondary)]">
             {model.incomingCount} Crew request{model.incomingCount === 1 ? '' : 's'}
           </p>
         )}
         {model.roleLabel && (
-          <p className="mt-3 font-mono text-[8px] font-black uppercase tracking-widest text-[#dfff45]">
+          <p className="mt-3 inline-block bg-[var(--skin-secondary)] px-2 py-1 font-mono text-[8px] font-black uppercase tracking-widest text-[var(--skin-on-secondary)]">
             Current role: {model.roleLabel}
           </p>
         )}
