@@ -1,6 +1,7 @@
 import { auth } from '../lib/firebase';
 import { guardedCall } from './guardedService';
 import { getGlobalConfig } from './configService';
+import { timeoutSignal } from '../lib/api';
 
 /**
  * Compresses and resizes a base64 image using a canvas.
@@ -73,6 +74,11 @@ async function postToStorageProxy(
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${idToken}`
       },
+      // A stalled upload must fail instead of hanging forever: Capture
+      // shows TRANSMITTING while this is in flight, and a promise that
+      // never settles leaves isUploading true so every later submit tap
+      // silently no-ops. 60s gives a multi-MB photo room on mobile data.
+      signal: timeoutSignal(60000),
       body: JSON.stringify({
         userId,
         type,
@@ -95,6 +101,13 @@ async function postToStorageProxy(
     const data = await response.json();
     return { url: data.url, path: data.path };
   } catch (err: any) {
+    // A timeout aborts the fetch: say so plainly so the caller (Capture's
+    // "Proof did not save" alert) tells the user to retry instead of
+    // showing a bare AbortError.
+    if (err?.name === 'AbortError') {
+      console.error(`[storageService] Upload timed out after 60s (path: ${path}).`);
+      throw new Error('UPLOAD_TIMEOUT: The photo upload timed out. Check your connection and try again.');
+    }
     console.error(`[storageService] FATAL: Cloud storage upload failed (path: ${path}). Persistence requirement violated.`, err.message || err);
     // Re-throw so the calling service (gameService/submissionService) can handle it or show error to user
     throw err;
