@@ -311,7 +311,7 @@ html[data-skin="clubhouse-wall"] body::after {
   content: "CLUBHOUSE CAM / LIVE RECEIPT";
   position: absolute;
   left: 12px;
-  bottom: 96px;
+  bottom: 140px;
   z-index: 39;
   padding: 4px 8px 3px;
   color: var(--skin-text);

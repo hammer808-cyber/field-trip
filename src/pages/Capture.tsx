@@ -425,7 +425,7 @@ export default function CapturePage() {
   // Reset scroll on step changes
   useEffect(() => {
     // Only reset if we're moving to a distinct new content phase
-    if (fcState === 'noting' || fcState === 'reviewing' || fcState === 'submitting' || fcState === 'needs_more_proof') {
+    if (fcState === 'reviewing' || fcState === 'submitting' || fcState === 'needs_more_proof') {
       const resetScroll = () => {
         window.scrollTo({ top: 0, behavior: 'instant' as any });
         document.documentElement.scrollTop = 0;
@@ -956,15 +956,6 @@ export default function CapturePage() {
     }
   }, [currentTrip?.id, currentTrip?.proofNeeded, currentTrip?.tags, currentTrip?.proofRequirements]);
 
-  useEffect(() => {
-    if (fcState === 'detecting') {
-      const timer2 = setTimeout(() => setFcState('reviewing'), 3000);
-      return () => {
-        clearTimeout(timer2);
-      };
-    }
-  }, [fcState]);
-
   const handleCaptureClick = () => {
     if (isUploading) return;
     setIsUploading(true);
@@ -1290,7 +1281,7 @@ export default function CapturePage() {
 
 
   // Show recovery if mission is missing and we aren't in a success/pending state
-  if (!currentTrip && !completeRecord && !loading && fcState !== 'result' && submissionStatus !== 'submitted' && fcState !== 'submitting' && fcState !== 'detecting' && fcState !== 'needs_more_proof') {
+  if (!currentTrip && !completeRecord && !loading && fcState !== 'result' && submissionStatus !== 'submitted' && fcState !== 'submitting' && fcState !== 'needs_more_proof') {
     console.error('[Capture] Mission Recovery Triggered:', { tripIdParam, activeTripId: activeTrip?.id });
     return (
       <RecoveryScreen 
@@ -1349,7 +1340,7 @@ export default function CapturePage() {
               </div>
             )}
 
-            {currentTrip && ['brief', 'capture', 'developing_polaroid', 'detecting', 'previewing_polaroid', 'noting', 'reviewing'].includes(fcState) && (
+            {currentTrip && ['brief', 'capture', 'developing_polaroid', 'reviewing'].includes(fcState) && (
               <div className="mb-6">
                 <PointsMeter score={liveScore} />
               </div>
@@ -1397,7 +1388,7 @@ export default function CapturePage() {
                     </div>
                   )}
 
-                  <div id="viewfinder-area" className="relative w-full h-[min(78dvh,760px)] min-h-[520px] overflow-hidden group transition-all border-4 border-on-surface bg-black rounded-xl sm:h-[min(80dvh,820px)]">
+                  <div id="viewfinder-area" className="relative w-full h-[min(82dvh,860px)] min-h-[560px] overflow-hidden border-4 border-on-surface bg-black rounded-xl">
                       <Suspense fallback={
                         <div className="absolute inset-0 flex items-center justify-center bg-black">
                           <Loader2 className="w-10 h-10 text-brand-orange animate-spin" />

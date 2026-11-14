@@ -1,13 +1,10 @@
 import { TripCard as TripCardType } from './challenges';
 import type { VoiceNoteValue } from '../components/VoiceNoteRecorder';
 
-export type FieldClipboardState = 
+export type FieldClipboardState =
   | 'brief'
   | 'capture'
-  | 'previewing_polaroid'
   | 'developing_polaroid'
-  | 'detecting'
-  | 'noting'
   | 'reviewing'
   | 'submitting'
   | 'pending'

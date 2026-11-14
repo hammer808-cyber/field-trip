@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import React, { useRef, useEffect, useState, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { Camera, RefreshCw, Zap, Target, Image as ImageIcon, CheckCircle2, AlertCircle, Loader2, Sparkles, Filter, SwitchCamera, ZoomIn, ZoomOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, safeToDate } from '../lib/utils';
@@ -221,6 +221,12 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
   const [selectedFilter, setSelectedFilter] = useState<ViewfinderFilterId>('original');
   const [showFilters, setShowFilters] = useState(false);
   const [showZoomControls, setShowZoomControls] = useState(false);
+  // Retro film counter: one frame per snap this session, like a 24-exposure roll.
+  const [frameCount, setFrameCount] = useState(1);
+  const todayStamp = useMemo(
+    () => new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }).toUpperCase().replace(/,/g, ''),
+    [],
+  );
   
   const [readouts, setReadouts] = useState({
     iso: 100,
@@ -446,6 +452,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
 
     if (context) {
       captureInFlightRef.current = true;
+      setFrameCount(prev => prev + 1);
       setIsProcessing(true);
       const track = streamRef.current?.getVideoTracks()[0];
       const flashStrategy = getCameraFlashStrategy({
@@ -711,6 +718,10 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
              <div className="opacity-60">SHTR_{readouts.shutter}</div>
           </div>
           <div className="max-w-[200px] truncate bg-white/10 px-2">MISSION: {challenge.title.toUpperCase()}</div>
+          <div className="flex gap-4 opacity-80">
+             <div>EXP_{String(frameCount).padStart(2, '0')}/24</div>
+             <div>{todayStamp}</div>
+          </div>
         </div>
 
         <div className="absolute top-16 right-4 font-mono text-[8px] text-white/60 uppercase tracking-widest text-right z-40">
@@ -768,7 +779,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
               initial={{ y: 16, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 16, opacity: 0 }}
-              className="skin-viewfinder-panel absolute bottom-[7.25rem] left-4 right-4 z-50 rounded-2xl border border-white/15 bg-black/70 p-3 text-white shadow-lg backdrop-blur-md sm:left-auto sm:right-5 sm:w-[220px]"
+              className="skin-viewfinder-panel absolute bottom-40 left-4 right-4 z-50 rounded-2xl border border-white/15 bg-black/70 p-3 text-white shadow-lg backdrop-blur-md sm:left-auto sm:right-5 sm:w-[220px]"
             >
             <div className="mb-2 flex items-center justify-between font-mono text-[8px] uppercase tracking-widest">
               <span className="text-white/60">Zoom</span>
@@ -817,19 +828,16 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
           )}
         </AnimatePresence>
 
-        {/* Brackets */}
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-12">
-          <div className="relative w-full h-full">
-            {/* Inner corner brackets simplified to maintain high clarity of viewfinder */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-25">
-               <div className="w-px h-8 bg-brand-orange/60" />
-               <div className="h-px w-8 bg-brand-orange/60" />
-            </div>
-          </div>
+        {/* Retro corner marks: frame the live feed like a film viewfinder. */}
+        <div className="pointer-events-none absolute inset-x-4 top-4 bottom-36 z-10" aria-hidden="true">
+          <span className="absolute left-0 top-0 h-7 w-7 border-l-[3px] border-t-[3px] border-brand-orange" />
+          <span className="absolute right-0 top-0 h-7 w-7 border-r-[3px] border-t-[3px] border-brand-orange" />
+          <span className="absolute bottom-0 left-0 h-7 w-7 border-b-[3px] border-l-[3px] border-brand-orange" />
+          <span className="absolute bottom-0 right-0 h-7 w-7 border-b-[3px] border-r-[3px] border-brand-orange" />
         </div>
 
-        {/* Bottom Controls */}
-        <div className="absolute bottom-0 inset-x-0 z-50 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2 bg-gradient-to-t from-black via-black/85 to-transparent px-5 pb-5 pt-10 sm:px-8 sm:pb-6">
+        {/* Bottom Controls: compact floating row over the feed — no black slab. */}
+        <div className="absolute bottom-4 inset-x-0 z-50 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2 px-4 sm:px-5">
           <div className="flex items-end gap-2 justify-self-start">
             {/* Upload Button - Secondary */}
             <div className="relative">
@@ -968,7 +976,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
-              className="skin-viewfinder-panel absolute bottom-32 inset-x-8 bg-black/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 z-40"
+              className="skin-viewfinder-panel absolute bottom-40 inset-x-8 bg-black/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 z-40"
             >
               <div className="flex items-center justify-between mb-4">
                 <span className="font-mono text-[10px] text-brand-orange uppercase tracking-tighter">Viewfinder Grader // V.0.4</span>

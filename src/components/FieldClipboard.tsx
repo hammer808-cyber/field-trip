@@ -9,9 +9,6 @@ import {
   ArrowRight, 
   AlertCircle, 
   Loader2, 
-  CheckCircle2,
-  Compass,
-  Trophy,
   ShieldCheck,
   Info,
   RefreshCw,
@@ -159,21 +156,6 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
       setIsSubmitting(false);
     }
   };
-
-  // Render helpers
-  const renderStepHeader = (title: string, icon: React.ReactNode, badge?: string) => (
-    <div className="flex items-center justify-between pb-2 border-b-2 border-on-surface/5 mb-4">
-      <div className="flex items-center gap-2">
-        {icon}
-        <span className="font-mono text-[10px] font-black uppercase tracking-widest text-brand-orange">{title}</span>
-      </div>
-      {badge && (
-        <div className="bg-brand-lime text-on-surface text-[9px] font-mono px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] font-bold">
-          {badge}
-        </div>
-      )}
-    </div>
-  );
 
   return (
     <div className="w-full max-w-md mx-auto space-y-6 px-4 pb-32">
@@ -399,14 +381,14 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
             exit={{ opacity: 0, y: -15 }}
             className="w-full"
           >
-            <div className="bg-white border-4 border-on-surface p-2 rounded-2xl shadow-[12px_12px_0px_white] overflow-hidden">
+            <div className="overflow-hidden rounded-xl border-4 border-on-surface shadow-[8px_8px_0px_black]">
                {children}
             </div>
           </motion.div>
         )}
 
         {/* STEP 3: CAPTURED RECEIPT DEVELOPMENT */}
-        {(state === 'previewing_polaroid' || state === 'developing_polaroid') && (
+        {(state === 'developing_polaroid') && (
           <DevelopingPolaroid 
             imageUrl={data.photoUrl || ''}
             missionTitle={mission.title}
@@ -416,128 +398,6 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
             selectedStickerId={data.stickerId}
             onStickerSelect={(stickerId) => setData(previous => ({ ...previous, stickerId }))}
           />
-        )}
-
-        {/* STEP 4: DETECTING */}
-        {state === 'detecting' && (
-          <motion.div 
-            key="detecting"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="bg-[#0E1B15] border-4 border-on-surface p-8 rounded-2xl shadow-[12px_12px_0px_black] space-y-8"
-          >
-            <div className="flex flex-col items-center gap-6">
-              <div className="w-24 h-24 rounded-full border-8 border-on-surface bg-amber-500 animate-pulse shadow-[0_0_20px_var(--color-brand-orange)] flex items-center justify-center">
-                <Compass className="w-12 h-12 text-on-surface animate-spin" />
-              </div>
-              <div className="text-center space-y-2">
-                <h2 className="text-emerald-400 font-display text-3xl font-black uppercase italic tracking-tighter">Scanning...</h2>
-                <div className="font-mono text-[10px] text-emerald-600 bg-emerald-900/20 px-3 py-1 rounded-full uppercase tracking-widest">Optical Alignment active</div>
-              </div>
-            </div>
-
-            <div className="bg-[#05110B] border-2 border-emerald-900/30 rounded-xl p-6 font-mono text-[10px] text-emerald-400 space-y-2 leading-relaxed text-left">
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
-                <span className="opacity-50">INITIATING_HEURISTIC_SWEEP</span>
-              </div>
-              <div className="pl-3.5 opacity-80">
-                {">"} ANALYZING_VISUAL_CONTEXT...<br />
-                {">"} RUNNING_AI_EVIDENCE_MODEL_2.0...<br />
-                {">"} COMPARING_AGAINST_TARGET_BLUEPRINT...
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* STEP 4: NOTING */}
-        {state === 'noting' && (
-          <motion.div 
-            key="noting"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="space-y-6"
-          >
-            <div className="bg-white border-4 border-on-surface p-6 rounded-2xl shadow-[12px_12px_0px_black] text-left space-y-4">
-              {renderStepHeader('Field Documentation', <FileText size={18} />)}
-              
-              <div className="space-y-4">
-                <p className="font-serif italic text-lg leading-snug text-on-surface/60">
-                   {displayNotePrompt}
-                </p>
-                {isFrankie && (
-                  <div className="space-y-2">
-                    <p className="text-sm font-sans font-bold text-on-surface/70">Tap one, or write your own. You can also skip.</p>
-                    <div className="flex flex-wrap gap-2">
-                      {FRANKIE_NOTE_CHIPS.map(chip => (
-                        <button
-                          key={chip}
-                          type="button"
-                          onClick={() => setData(prev => ({ ...prev, note: chip }))}
-                          className={cn(
-                            "min-h-11 px-4 py-2 border-2 border-on-surface rounded-full font-sans text-sm font-bold transition-all",
-                            data.note === chip ? "bg-brand-lime text-on-surface" : "bg-white text-on-surface hover:bg-brand-lime/30"
-                          )}
-                        >
-                          {chip}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <textarea
-                  autoFocus={!isFrankie}
-                  className="w-full bg-[#FAF9F6] border-4 border-on-surface p-6 rounded-xl font-serif text-xl italic shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] focus:ring-4 focus:ring-brand-cyan/20 outline-none transition-all"
-                  rows={4}
-                  placeholder={isFrankie ? displayNotePrompt : `${fieldNotePrompt} (Min 10 characters)`}
-                  value={data.note}
-                  onChange={(e) => setData(prev => ({ ...prev, note: e.target.value }))}
-                />
-                {!isFrankie && (
-                <div className="flex justify-between items-center px-1">
-                   <div className="text-[10px] font-mono font-black uppercase text-on-surface/30 tracking-widest">
-                     {data.note.length} / 10 CHARS
-                   </div>
-                   {data.note.length >= 10 && (
-                     <div className="text-brand-lime font-display font-black text-xs uppercase italic flex items-center gap-1.5">
-                        <CheckCircle2 size={14} />
-                        VALID_DOCUMENTATION
-                     </div>
-                   )}
-                </div>
-                )}
-                {supportsAudio && (
-                  <VoiceNoteRecorder
-                    value={data.voiceNote ?? null}
-                    onChange={(voiceNote) => setData(prev => ({ ...prev, voiceNote }))}
-                    prompt={voiceNotePrompt}
-                    frankieMode={isFrankie}
-                  />
-                )}
-              </div>
-            </div>
-
-            <button
-              disabled={!noteSatisfied}
-              onClick={() => goToState('reviewing')}
-              className={cn(
-                "w-full py-6 border-4 border-on-surface rounded-2xl font-display text-4xl font-black uppercase italic tracking-widest shadow-[10px_10px_0px_black] active:translate-y-2 active:shadow-none transition-all",
-                noteSatisfied
-                  ? "bg-brand-lime text-on-surface hover:scale-[1.02]"
-                  : "bg-on-surface/5 text-on-surface/20 border-on-surface/10 cursor-not-allowed shadow-none"
-              )}
-            >
-              {isFrankie && data.note.trim().length === 0 && !voiceNoteSatisfied ? 'SKIP — NO NOTE' : `SAVE NOTE ${!isFrankie && data.note.length < 10 && !voiceNoteSatisfied ? `(${data.note.length}/10)` : ''}`}
-            </button>
-            {!isFrankie && data.note.length < 10 && (
-              <p className="text-center text-sm font-sans font-bold text-on-surface/70">
-                Add a short note before continuing.
-                <span className="block mt-1 font-mono text-[10px] uppercase tracking-widest text-on-surface/45">
-                  {data.note.length} / 10 characters
-                </span>
-              </p>
-            )}
-          </motion.div>
         )}
 
         {/* STEP 5: REVIEWING (The main evidence gathering screen) */}
@@ -603,6 +463,26 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               <p className="font-serif text-sm italic leading-snug text-on-surface/60">
                 {displayNotePrompt}
               </p>
+              {isFrankie && (
+                <div className="space-y-2">
+                  <p className="text-sm font-sans font-bold text-on-surface/70">Tap one, or write your own. You can also skip.</p>
+                  <div className="flex flex-wrap gap-2">
+                    {FRANKIE_NOTE_CHIPS.map(chip => (
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() => setData(prev => ({ ...prev, note: chip }))}
+                        className={cn(
+                          "min-h-11 px-4 py-2 border-2 border-on-surface rounded-full font-sans text-sm font-bold transition-all",
+                          data.note === chip ? "bg-brand-lime text-on-surface" : "bg-white text-on-surface hover:bg-brand-lime/30"
+                        )}
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <textarea 
                 className="w-full bg-[#FAF9F6] border-2 border-on-surface/10 p-4 rounded-xl font-serif text-base italic outline-none focus:border-brand-orange transition-all h-24"
@@ -610,6 +490,14 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                 value={data.note}
                 onChange={(e) => setData(prev => ({ ...prev, note: e.target.value }))}
               />
+              {supportsAudio && (
+                <VoiceNoteRecorder
+                  value={data.voiceNote ?? null}
+                  onChange={(voiceNote) => setData(prev => ({ ...prev, voiceNote }))}
+                  prompt={voiceNotePrompt}
+                  frankieMode={isFrankie}
+                />
+              )}
             </div>
 
             {/* EVIDENCE METER */}
@@ -687,11 +575,11 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
             </div>
             <div className="w-full max-w-xs space-y-2">
                <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: '100%' }}
-                    transition={{ duration: 3 }}
-                    className="h-full bg-brand-cyan"
+                  <motion.div
+                    initial={{ x: '-110%' }}
+                    animate={{ x: '220%' }}
+                    transition={{ repeat: Infinity, duration: 1.1, ease: 'easeInOut' }}
+                    className="h-full w-1/3 bg-brand-cyan"
                   />
                </div>
                <div className="flex justify-between font-mono text-[8px] opacity-30">
@@ -728,7 +616,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                 RETAKE PHOTO
               </button>
               <button
-                onClick={() => goToState('noting')}
+                onClick={() => goToState('reviewing')}
                 className="w-full bg-white text-on-surface py-4 border-4 border-on-surface rounded-2xl font-display text-2xl font-black uppercase italic tracking-widest shadow-[6px_6px_0px_black] active:translate-y-1 active:shadow-none transition-all"
               >
                 EDIT FIELD LOGS
