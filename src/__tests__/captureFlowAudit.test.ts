@@ -61,3 +61,22 @@ test('capture flow audit: the submitting bar tracks the real upload', () => {
   assert.doesNotMatch(clipboard, /animate=\{\{ width: '100%' \}\}/);
   assert.match(clipboard, /repeat: Infinity/);
 });
+
+test('capture flow audit: the feed actually fills its frame', () => {
+  // Regression: the first black-bar fix only removed the gradient slab. The
+  // feed still ended two-thirds down the frame because the global
+  // containment rule in index.css (img, video { height: auto }) is
+  // unlayered and beats Tailwind v4's layered h-full, so the video rendered
+  // at its intrinsic aspect instead of filling the stage.
+  const camera = read('src/components/ViewfinderCamera.tsx');
+  assert.match(camera, /height: '100%'/);
+  const css = read('src/index.css');
+  assert.match(css, /\.skin-viewfinder video \{\n\s*height: 100%;\n\}/);
+  // The containment rule itself stays — image layout elsewhere depends on
+  // it, and deleting it is not the fix.
+  assert.match(css, /img, video, canvas, svg \{\n\s*max-width: 100%;\n\s*height: auto;\n\}/);
+  // The same bug hit the review polaroid image (same h-full class, same
+  // global rule), so it fills its square frame the same way.
+  const clipboard = read('src/components/FieldClipboard.tsx');
+  assert.match(clipboard, /alt="Captured Proof" className="w-full h-full object-cover" style=\{\{ height: '100%', width: '100%' \}\}/);
+});

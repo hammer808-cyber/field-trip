@@ -682,7 +682,14 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
           style={{
             filter: FILTER_CSS[selectedFilter],
             transform: videoTransform,
-            transformOrigin: 'center center'
+            transformOrigin: 'center center',
+            // The global containment rule in index.css sets height:auto on all
+            // video elements. It is unlayered, so it beats Tailwind v4's
+            // layered h-full and the feed rendered at its intrinsic aspect
+            // instead of filling the frame (the black bar). Inline height
+            // wins over both.
+            height: '100%',
+            width: '100%',
           }}
           onTouchStart={(event) => {
             const distance = getPinchDistance(event.touches);

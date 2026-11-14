@@ -845,6 +845,17 @@ img, video, canvas, svg {
   height: auto;
 }
 
+/* Full-bleed viewfinder feed: the containment rule above is unlayered, so
+   it beats Tailwind v4's layered h-full and the camera rendered at its
+   intrinsic aspect instead of filling its frame (the black bar under the
+   feed). This scoped, unlayered rule outranks it by specificity, and the
+   video also carries an inline height as belt and braces. Do not "fix" the
+   black bar by deleting the containment rule — image layout elsewhere
+   depends on it. */
+.skin-viewfinder video {
+  height: 100%;
+}
+
 .scroll-x-auto {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;

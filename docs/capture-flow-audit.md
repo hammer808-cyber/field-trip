@@ -51,6 +51,28 @@ roughly the bottom quarter of the camera is near-opaque black so the buttons
 read. On a phone that slab reads as a dead black bar under the feed, and the
 fixed-height island leaves the camera feeling boxed in instead of full-bleed.
 
+**Correction (Nov 14, 15:07 — Zach's screenshot after the first fix): the
+slab was only half the story.** The first fix removed the slab and floated
+the controls, but the feed still ended about two-thirds down the frame with
+solid black below it. The real cause: the video element never filled its
+frame at all. `src/index.css` carries a global containment rule,
+`img, video, canvas, svg { max-width: 100%; height: auto; }`, written as
+plain unlayered CSS. Tailwind v4 puts its utilities in `@layer utilities`,
+and unlayered author CSS beats layered CSS regardless of specificity — so
+`height: auto` beat the video's `h-full` class. The video rendered at its
+intrinsic aspect (the phone's rear camera, portrait ~3:4), which at the
+frame's width is much shorter than the frame, and the frame's `bg-black`
+showed through below it. `object-cover` could not help: it crops content
+inside the element's box, and the box itself was short.
+
+Fix: the viewfinder video carries an inline `height: 100%` (inline style
+beats the unlayered rule), plus a scoped unlayered rule in `index.css`,
+`.skin-viewfinder video { height: 100%; }`, which outranks the containment
+rule by specificity. Do not "fix" this by deleting the containment rule —
+image layout elsewhere in the app depends on it. The same bug also hit
+the review polaroid `<img>` (same `h-full` class, same global rule), so
+it got the same inline height.
+
 ### F2. Dead states in the state machine
 
 `FieldClipboardState` carries three states nothing can reach:
@@ -104,7 +126,9 @@ corner marks, no frame counter, no date stamp.
 | 4 | Delete dead states `previewing_polaroid`, `detecting`, `noting` from the type, screens, and timer effect | done Nov 14 |
 | 5 | One note editor: move the Frankie chips + voice-note recorder into `reviewing`; repair "EDIT FIELD LOGS" goes to `reviewing` | done Nov 14 |
 | 6 | Submitting bar becomes indeterminate (pulses while the real upload runs) | done Nov 14 |
-| 7 | Verify live: the new bundle serves on Render and the camera shows no black bar in Zach's session | shipped, unconfirmed — needs his try |
+| 7 | Verify live: the new bundle serves on Render and the camera shows no black bar in Zach's session | **failed** — his Nov 14 15:07 screenshot shows the bar still there (see F1 correction) |
+| 8 | Real root cause: the video never filled its frame — global unlayered `height: auto` beats Tailwind v4's layered `h-full`. Inline `height: 100%` on the viewfinder video + scoped `.skin-viewfinder video { height: 100%; }` in index.css; same inline height on the review polaroid img | done Nov 14 |
+| 9 | Verify live again: the new bundle serves on Render and the feed fills the frame in Zach's session | shipped, unconfirmed — needs his try |
 
 ## What was deliberately kept
 
