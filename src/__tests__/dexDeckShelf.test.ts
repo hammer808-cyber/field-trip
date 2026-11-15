@@ -65,19 +65,19 @@ test('DEX deck choice survives auth loading: the Missions guard waits for the se
   assert.match(guardBlock, /if \(authLoading\) return;/);
 });
 
-test('Stickers are limited until the sticker flow works: no Stickers tab, no sticker sections', () => {
+test('Stickers tab is live: Stickers tab exists and /dex/stickers renders StickerMachine', () => {
   const source = read('src/pages/Collection.tsx');
 
   const tabsStart = source.indexOf('tabs={[');
   const tabsEnd = source.indexOf(']}', tabsStart);
   const tabsBlock = source.slice(tabsStart, tabsEnd);
-  assert.doesNotMatch(tabsBlock, /id: 'stickers'/);
+  assert.match(tabsBlock, /id: 'stickers'/);
 
-  // The sticker surfaces are out of the UI (components stay on disk for the later pass).
-  assert.doesNotMatch(source, /<StickerMachine \/>/);
+  // The sticker collection UI is mounted in the DEX.
+  assert.match(source, /<StickerMachine \/>/);
   assert.doesNotMatch(source, /<StickerBook \/>/);
 
-  // Sticker deep links land on the shelf instead.
-  assert.match(source, /tabParam === 'stickers'\) \{\s*\n\s*\/\/ Stickers are limited/);
-  assert.match(source, /path\.includes\('\/dex\/stickers'\)\) \{\s*\n\s*\/\/ Stickers are limited/);
+  // Sticker deep links land on the Stickers tab instead of the shelf.
+  assert.match(source, /tabParam === 'stickers'\) \{\s*\n\s*setActiveTab\('stickers'\)/);
+  assert.match(source, /path\.includes\('\/dex\/stickers'\)\) \{\s*\n\s*setActiveTab\('stickers'\)/);
 });

@@ -7,6 +7,7 @@ import {
   type RulesTestEnvironment
 } from '@firebase/rules-unit-testing';
 import {
+  arrayUnion,
   deleteDoc,
   doc,
   getDoc,
@@ -102,4 +103,45 @@ test('owners cannot mark a seen sticker unseen or delete unlock history', async 
   await assertSucceeds(updateDoc(stickerRef, { seen: true }));
   await assertFails(updateDoc(stickerRef, { seen: false }));
   await assertFails(deleteDoc(stickerRef));
+});
+
+// STAGE 0 (Nov 15, 2026) — legacy-spoof rejection case.
+// Audit finding (docs/sticker-system-audit.md §3.2): the legacy users/{uid}
+// sticker fields (unlockedRewards.stickers, earnedStickers,
+// discoveryEvents, stickerUnlockHistory) are NOT in the rules' protected
+// sets, so an owner can self-grant any legacy-visible sticker today.
+// This test is SKIPPED until Stage 2 closes the hole in firestore.rules:
+// as written it asserts the fixed behavior, so it FAILS against the
+// current rules. Un-skip it as part of Stage 2 and expect it to pass.
+// It is emulator-only like the rest of this file; it was not run in
+// Stage 0 (no Firestore emulator in that session).
+test('owners cannot self-grant legacy sticker fields on their own profile', { skip: true }, async () => {
+  await testEnv.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'users', 'owner'), {
+      unlockedRewards: { stickers: [], badges: [], skins: ['classic'] },
+      earnedStickers: [],
+      discoveryEvents: {},
+      stickerUnlockHistory: []
+    });
+  });
+
+  const db = authedDb('owner');
+  const userRef = doc(db, 'users', 'owner');
+  await assertFails(updateDoc(userRef, {
+    'unlockedRewards.stickers': arrayUnion('bigfoot_night_silhouette')
+  }));
+  await assertFails(updateDoc(userRef, {
+    earnedStickers: arrayUnion({
+      id: 'bigfoot_night_silhouette',
+      title: 'Night Silhouette',
+      description: 'Self-granted',
+      trigger: 'dex_open',
+      earnedAt: new Date().toISOString(),
+      source: 'console',
+      seen: false
+    })
+  }));
+  await assertFails(updateDoc(userRef, {
+    'discoveryEvents.dex_open': true
+  }));
 });

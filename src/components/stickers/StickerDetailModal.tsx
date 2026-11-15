@@ -50,6 +50,10 @@ export function StickerDetailModal({
   const isUnlocked = Boolean(unlock);
   const isFeatured = unlock?.equipped === true;
   const featureLimitReached = !isFeatured && featuredCount >= maxFeatured;
+  const earnedDate = unlock?.unlockedAt?.toDate?.() ?? null;
+  const earnedDateLabel = earnedDate
+    ? earnedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+    : null;
 
   return createPortal(
     <div
@@ -124,6 +128,11 @@ export function StickerDetailModal({
             <p className="mt-2 font-mono text-[10px] font-bold uppercase opacity-55">
               {STICKER_ARCHETYPE_LABELS[sticker.archetype]}
             </p>
+            {isUnlocked && earnedDateLabel && (
+              <p className="mt-1 font-mono text-[10px] font-bold uppercase opacity-55">
+                Earned {earnedDateLabel}
+              </p>
+            )}
           </div>
 
           <div className="border-y py-4" style={{ borderColor: 'color-mix(in srgb, var(--skin-border) 20%, transparent)' }}>

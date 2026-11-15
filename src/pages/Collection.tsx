@@ -28,6 +28,7 @@ import { CommunityProofsFeed } from '../components/CommunityProofsFeed';
 import { getDeckProgress, getStarterProgress } from '../services/canonicalProgress';
 import { ZineWorkspace } from '../components/ZineWorkspace';
 import { GatedFeaturePanel } from '../components/GatedFeaturePanel';
+import { StickerMachine } from '../components/stickers/StickerMachine';
 import { EmptyStatePanel } from '../components/FieldtripLoader';
 import { FieldButton, FieldSection, FieldStatusChip, PlayerPageBody, PlayerPageShell } from '../components/player';
 
@@ -59,7 +60,7 @@ export default function CollectionPage() {
       : initialTabParam === 'crew_memories'
         ? 'memories'
         : initialTabParam === 'stickers'
-          ? 'decks'
+          ? 'stickers'
           : (initialTabParam as CollectionTab)
   ) || 'decks';
   const [activeTab, setActiveTab] = useState<CollectionTab>(initialTab);
@@ -119,8 +120,7 @@ export default function CollectionPage() {
       setActiveTab('memories');
       setMemoriesView('mine');
     } else if (tabParam === 'stickers') {
-      // Stickers are limited until the sticker flow works: land on the shelf.
-      setActiveTab('decks');
+      setActiveTab('stickers');
     } else if (tab) {
       setActiveTab(tab);
     }
@@ -139,8 +139,7 @@ export default function CollectionPage() {
     } else if (path.includes('/dex/zines')) {
       setActiveTab('zines');
     } else if (path.includes('/dex/stickers')) {
-      // Stickers are limited until the sticker flow works: land on the shelf.
-      setActiveTab('decks');
+      setActiveTab('stickers');
     } else if (path.includes('/dex/collection')) {
       setActiveTab('collection');
     }
@@ -268,6 +267,7 @@ export default function CollectionPage() {
         tabs={[
           { id: 'decks', label: 'Decks' },
           { id: 'collection', label: 'Collection' },
+          { id: 'stickers', label: 'Stickers' },
           { id: 'zines', label: 'Zines' },
           { id: 'memories', label: 'Memories' }
         ]}
@@ -295,6 +295,18 @@ export default function CollectionPage() {
                   ))}
                 </div>
               </FieldSection>
+            </motion.div>
+          )}
+
+          {activeTab === 'stickers' && (
+            <motion.div
+              key="stickers-tab"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              className="space-y-10"
+            >
+              <StickerMachine />
             </motion.div>
           )}
 
