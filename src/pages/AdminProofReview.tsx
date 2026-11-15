@@ -46,6 +46,15 @@ import {
   type ScoringSnapshot,
 } from '../logic/missionScoring';
 import {
+  aiConfidencePercent,
+  extractAiAnalysis,
+  extractAiTrust,
+  suggestAiRubric,
+  suggestedActionForAiSuggestion,
+  type AiSuggestedRubric,
+  type AiSuggestionResult,
+} from '../logic/aiSuggestion';
+import {
   approveSubmission,
   grantStarterSignalsBypass,
   rejectSubmission,
@@ -131,7 +140,7 @@ export default function AdminProofReview() {
   const handleAction = async (
     id: string,
     action: 'approve' | 'reject' | 'request_info',
-    review?: { notes: string; rubric: ProofRubricScore; scoring: AdminReviewScoring; adminOverrideUsed: boolean; adminOverrideReason: string | null }
+    review?: { notes: string; rubric: ProofRubricScore; scoring: AdminReviewScoring; suggestedRubric?: AiSuggestedRubric | null; suggestedRubricApplied?: boolean; adminOverrideUsed: boolean; adminOverrideReason: string | null }
   ) => {
     if (!id) {
       alert('Missing source entry. This review record must be repaired or archived before it can be actioned.');
@@ -149,7 +158,9 @@ export default function AdminProofReview() {
         adminOverrideUsed: review.adminOverrideUsed,
         adminOverrideReason: review.adminOverrideReason,
       },
-      scoring: review.scoring
+      scoring: review.scoring,
+      suggestedRubric: review.suggestedRubric ?? null,
+      suggestedRubricApplied: review.suggestedRubricApplied === true
     };
     try {
       const record = reviews.find(item => String(item.entryId || '') === id || String(item.id || '') === id);
@@ -581,16 +592,24 @@ function createReviewPayload(
   notes: string,
   score: ProofRubricScore,
   scoring: ProofRubricScoring,
-  missionScoring: ScoreCalculationResult
+  missionScoring: ScoreCalculationResult,
+  aiSuggestion?: { available: AiSuggestedRubric | null; applied: AiSuggestedRubric | null }
 ) {
-  const suggestedAction = suggestedActionForRubric(score);
+  // When the admin applied the AI suggestion, the action is measured against
+  // the suggestion's recommendation band (both non-approval bands mean
+  // "don't approve yet"). Otherwise the existing rubric-band check applies.
+  const suggestedAction = aiSuggestion?.applied
+    ? suggestedActionForAiSuggestion(aiSuggestion.applied.recommendation)
+    : suggestedActionForRubric(score);
   const adminOverrideUsed = !!suggestedAction && suggestedAction !== action;
   return {
     notes,
     rubric: score,
     scoring: { ...scoring, missionScoring: toScoringSnapshot(missionScoring) },
+    suggestedRubric: aiSuggestion?.available ?? null,
+    suggestedRubricApplied: aiSuggestion?.applied != null,
     adminOverrideUsed,
-    adminOverrideReason: adminOverrideUsed ? (notes.trim() || `Admin chose ${action} despite rubric recommendation.`) : null,
+    adminOverrideReason: adminOverrideUsed ? (notes.trim() || `Admin chose ${action} despite ${aiSuggestion?.applied ? 'the AI suggestion' : 'the rubric recommendation'}.`) : null,
   };
 }
 
@@ -601,6 +620,7 @@ function RubricCard({
   scoring,
   missionScoring,
   recommendationLabel,
+  suggestionMarks,
 }: {
   ratings: ProofRubricRatings;
   onChange: (key: keyof ProofRubricRatings, value: number) => void;
@@ -608,6 +628,8 @@ function RubricCard({
   scoring: ProofRubricScoring;
   missionScoring: ScoreCalculationResult;
   recommendationLabel: string;
+  /** Per-category AI suggestion state: 'suggested' (filled by the AI button) or 'adjusted' (admin changed it after). */
+  suggestionMarks?: Partial<Record<keyof ProofRubricRatings, 'suggested' | 'adjusted'>>;
 }) {
   const contextLabel = getProofRubricScoringContextLabel(scoring);
   return (
@@ -654,6 +676,12 @@ function RubricCard({
               </div>
               <p className="text-[9px] font-mono font-black uppercase text-brand-orange">
                 Weight {category.weight}% · {ratings[category.id]}/4
+                {suggestionMarks?.[category.id] === 'suggested' && (
+                  <span className="ml-2 rounded-full bg-brand-lime px-2 py-0.5 text-on-surface">AI suggested</span>
+                )}
+                {suggestionMarks?.[category.id] === 'adjusted' && (
+                  <span className="ml-2 rounded-full bg-brand-orange px-2 py-0.5 text-white">Adjusted from AI</span>
+                )}
               </p>
             </div>
             <div className="mt-3 grid grid-cols-5 gap-1.5">
@@ -738,6 +766,34 @@ function RubricCard({
   );
 }
 
+/** The client preview pipeline (rubric → awarded XP → hint/retry → layers → multiplier), shared by the live receipt and the AI-suggestion preview. */
+function computePreviewMissionScoring(entry: any, scoring: ProofRubricScoring): ScoreCalculationResult {
+  const attempt = entry.missionAttempt || {};
+  return calculateMissionScore({
+    baseMaxScore: scoring.maxAdminAwardableXp,
+    reviewerBaseScore: scoring.awardedXp,
+    hintUsed: attempt.hintUsed === true || entry.hintUsed === true,
+    hintPenaltyPercent: Number(
+      attempt.hintPenaltyPercent ?? (entry.hintUsed ? DEFAULT_HINT_PENALTY_PERCENT : 0),
+    ),
+    retryMultiplier: entry.isRetry === true ? Number(entry.retryPointMultiplier ?? 0.5) : 1,
+    perkPoints: 0,
+    participation: resolveParticipationSignals({
+      photoSubjectVerified: (entry as any).participation?.photoSubjectVerified,
+      aiAnalysisResult: (entry as any).aiAnalysisResult,
+      proofCheckResult: (entry as any).proofCheckResult,
+      fieldNoteRaw: (entry as any).fieldNoteRaw,
+      fieldNote: (entry as any).fieldNote,
+      note: (entry as any).note,
+      voiceNotePresent: (entry as any).voiceNotePresent === true,
+      locationVerified: (entry as any).locationVerified ?? (entry as any).participation?.locationVerified,
+      latitude: (entry as any).latitude,
+      longitude: (entry as any).longitude,
+    }),
+    eligibleBonuses: Array.isArray(attempt.eligibleBonuses) ? attempt.eligibleBonuses : [],
+  });
+}
+
 function SwipeView({ entry, onAction, busy }: any) {
   const existingRubric = entry.rubric || {};
   const [ratings, setRatings] = React.useState<ProofRubricRatings>(() => ({
@@ -749,6 +805,14 @@ function SwipeView({ entry, onAction, busy }: any) {
   }));
   const [reviewNote, setReviewNote] = React.useState(entry.reviewNotes || entry.adminNotes || '');
 
+  // AI suggestion (Option A): computed from the entry's stored Gemini
+  // analysis. Applying it fills the four mappable ratings and drafts the
+  // note; Fieldtrip Energy stays manual. Changing a filled rating marks
+  // that category "adjusted".
+  const aiSuggestion = React.useMemo(() => suggestAiRubric(entry), [entry]);
+  const [appliedSuggestion, setAppliedSuggestion] = React.useState<AiSuggestedRubric | null>(null);
+  const [adjustedCategories, setAdjustedCategories] = React.useState<Set<keyof ProofRubricRatings>>(new Set());
+
   React.useEffect(() => {
     const rubric = entry.rubric || {};
     setRatings({
@@ -759,41 +823,81 @@ function SwipeView({ entry, onAction, busy }: any) {
       fieldtripEnergy: Number.isFinite(rubric.fieldtripEnergy) ? rubric.fieldtripEnergy : DEFAULT_PROOF_RUBRIC_RATINGS.fieldtripEnergy,
     });
     setReviewNote(entry.reviewNotes || entry.adminNotes || '');
+    setAppliedSuggestion(null);
+    setAdjustedCategories(new Set());
   }, [entry.id, entry.entryId, entry.rubric, entry.reviewNotes, entry.adminNotes]);
 
   const score = React.useMemo(() => calculateProofRubricScore(ratings), [ratings]);
   const scoring = React.useMemo(() => getProofRubricScoring(score, entry), [score, entry]);
-  const missionScoring = React.useMemo(() => {
-    const attempt = entry.missionAttempt || {};
-    return calculateMissionScore({
-      baseMaxScore: scoring.maxAdminAwardableXp,
-      reviewerBaseScore: scoring.awardedXp,
-      hintUsed: attempt.hintUsed === true || entry.hintUsed === true,
-      hintPenaltyPercent: Number(
-        attempt.hintPenaltyPercent ?? (entry.hintUsed ? DEFAULT_HINT_PENALTY_PERCENT : 0),
-      ),
-      retryMultiplier: entry.isRetry === true ? Number(entry.retryPointMultiplier ?? 0.5) : 1,
-      perkPoints: 0,
-      participation: resolveParticipationSignals({
-        photoSubjectVerified: (entry as any).participation?.photoSubjectVerified,
-        aiAnalysisResult: (entry as any).aiAnalysisResult,
-        proofCheckResult: (entry as any).proofCheckResult,
-        fieldNoteRaw: (entry as any).fieldNoteRaw,
-        fieldNote: (entry as any).fieldNote,
-        note: (entry as any).note,
-        voiceNotePresent: (entry as any).voiceNotePresent === true,
-        locationVerified: (entry as any).locationVerified ?? (entry as any).participation?.locationVerified,
-        latitude: (entry as any).latitude,
-        longitude: (entry as any).longitude,
-      }),
-      eligibleBonuses: Array.isArray(attempt.eligibleBonuses) ? attempt.eligibleBonuses : [],
-    });
-  }, [entry, scoring]);
+  const missionScoring = React.useMemo(() => computePreviewMissionScoring(entry, scoring), [entry, scoring]);
   const recommendationLabel = getProofRubricRecommendationLabel(score.recommendation);
+
+  // What the suggestion would pay if approved as-is (energy at its current
+  // manual value). Runs the same preview pipeline as the live receipt.
+  const suggestedScore = React.useMemo(() => {
+    if (!aiSuggestion.available) return null;
+    return calculateProofRubricScore({
+      ...aiSuggestion.suggestion.ratings,
+      fieldtripEnergy: ratings.fieldtripEnergy,
+    });
+  }, [aiSuggestion, ratings.fieldtripEnergy]);
+  const suggestedScoring = React.useMemo(
+    () => (suggestedScore ? getProofRubricScoring(suggestedScore, entry) : null),
+    [suggestedScore, entry],
+  );
+  const suggestedMissionScoring = React.useMemo(
+    () => (suggestedScoring ? computePreviewMissionScoring(entry, suggestedScoring) : null),
+    [entry, suggestedScoring],
+  );
+
+  const applyAiSuggestion = () => {
+    if (!aiSuggestion.available) return;
+    const suggestion = aiSuggestion.suggestion;
+    setRatings(prev => ({
+      ...prev,
+      missionMatch: suggestion.ratings.missionMatch,
+      proofClarity: suggestion.ratings.proofClarity,
+      authenticity: suggestion.ratings.authenticity,
+      fieldNoteQuality: suggestion.ratings.fieldNoteQuality,
+    }));
+    setAppliedSuggestion(suggestion);
+    setAdjustedCategories(new Set());
+    setReviewNote(suggestion.summary);
+  };
+
+  const handleRatingChange = (key: keyof ProofRubricRatings, value: number) => {
+    setRatings(prev => ({ ...prev, [key]: value }));
+    setAdjustedCategories(prev => {
+      const next = new Set(prev);
+      if (
+        appliedSuggestion &&
+        key in appliedSuggestion.ratings &&
+        value !== appliedSuggestion.ratings[key as keyof typeof appliedSuggestion.ratings]
+      ) {
+        next.add(key);
+      } else {
+        next.delete(key);
+      }
+      return next;
+    });
+  };
+
+  const suggestionMarks = React.useMemo(() => {
+    if (!appliedSuggestion) return undefined;
+    const marks: Partial<Record<keyof ProofRubricRatings, 'suggested' | 'adjusted'>> = {};
+    (Object.keys(appliedSuggestion.ratings) as Array<keyof typeof appliedSuggestion.ratings>).forEach(key => {
+      marks[key] = adjustedCategories.has(key) ? 'adjusted' : 'suggested';
+    });
+    return marks;
+  }, [appliedSuggestion, adjustedCategories]);
+
   const entryResolved = entry.canonicalEntryResolved !== false && !!entry.entryId;
   const handleDecision = (action: 'approve' | 'reject' | 'request_info') => {
     if (!entryResolved) return;
-    onAction(action, createReviewPayload(action, reviewNote, score, scoring, missionScoring));
+    onAction(action, createReviewPayload(action, reviewNote, score, scoring, missionScoring, {
+      available: aiSuggestion.available ? aiSuggestion.suggestion : null,
+      applied: appliedSuggestion,
+    }));
   };
 
   return (
@@ -879,13 +983,23 @@ function SwipeView({ entry, onAction, busy }: any) {
                 </p>
              </div>
 
+             <AiSuggestionCard
+               entry={entry}
+               suggestion={aiSuggestion}
+               suggestedFinalXp={suggestedMissionScoring?.finalScore ?? null}
+               suggestedWeighted={suggestedScore?.weightedScore ?? null}
+               applied={appliedSuggestion != null}
+               onApply={applyAiSuggestion}
+             />
+
              <RubricCard
                ratings={ratings}
-               onChange={(key, value) => setRatings(prev => ({ ...prev, [key]: value }))}
+               onChange={handleRatingChange}
                score={score}
                scoring={scoring}
                missionScoring={missionScoring}
                recommendationLabel={recommendationLabel}
+               suggestionMarks={suggestionMarks}
              />
 
              <div className="bg-white border-2 border-on-surface p-5 rounded-2xl shadow-[5px_5px_0px_black] space-y-3">
@@ -930,8 +1044,118 @@ function SwipeView({ entry, onAction, busy }: any) {
        <footer className="pt-8 border-t-2 border-on-surface/10 flex flex-wrap gap-8 text-[9px] font-mono font-black uppercase opacity-40">
           <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-on-surface rounded-full" /> UID: {entry.userId}</div>
           <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-on-surface rounded-full" /> Submitted: {entry.createdAt?.toDate ? format(entry.createdAt.toDate(), 'MM/dd HH:mm') : entry.submittedAt?.toDate ? format(entry.submittedAt.toDate(), 'MM/dd HH:mm') : 'Unknown'}</div>
-          <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-on-surface rounded-full" /> Confidence: {(entry.aiScore || 100)}%</div>
+          <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-on-surface rounded-full" /> Confidence: {(() => { const pct = aiConfidencePercent(entry); return pct == null ? '—' : `${pct}%`; })()}</div>
        </footer>
+    </div>
+  );
+}
+
+/**
+ * The AI read block (Option A): what Gemini already concluded about this
+ * submission, plus a one-tap button that pre-fills the rubric from it.
+ * The suggestion never submits anything — Approve / Request info / Reject
+ * still require the admin's tap. Fieldtrip Energy is never suggested.
+ */
+function AiSuggestionCard({
+  entry,
+  suggestion,
+  suggestedFinalXp,
+  suggestedWeighted,
+  applied,
+  onApply,
+}: {
+  entry: any;
+  suggestion: AiSuggestionResult;
+  suggestedFinalXp: number | null;
+  suggestedWeighted: number | null;
+  applied: boolean;
+  onApply: () => void;
+}) {
+  const analysis = extractAiAnalysis(entry);
+  const trust = extractAiTrust(entry);
+  const confidencePct = aiConfidencePercent(entry);
+  const matchScore = suggestion.available
+    ? suggestion.suggestion.source.missionMatchScore
+    : (analysis?.missionMatchScore ?? entry?.verification?.missionMatchScore ?? null);
+  const duplicate = trust.duplicateWarning ? String(trust.duplicateWarning).replace(/_/g, ' ') : 'none';
+  const detectedItems = analysis?.detectedItems ?? [];
+  const missingItems = analysis?.missingItems ?? [];
+
+  return (
+    <div className="bg-white border-2 border-on-surface p-5 rounded-2xl shadow-[5px_5px_0px_black] space-y-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h4 className="text-sm font-display font-black uppercase italic tracking-tight">AI Read</h4>
+          <p className="mt-1 text-[9px] font-mono font-black uppercase opacity-40">
+            {suggestion.available
+              ? `Gemini verdict · ${suggestion.suggestion.source.modelUsed || 'unknown model'}`
+              : 'Gemini verdict'}
+          </p>
+        </div>
+      </div>
+
+      {!suggestion.available ? (
+        <div className="rounded-xl border-2 border-brand-orange/40 bg-brand-orange/5 p-4">
+          <p className="font-mono text-xs font-black uppercase">AI didn&apos;t look at this one — review manually.</p>
+          <p className="mt-1 font-mono text-[10px] uppercase opacity-60">{suggestion.reason}</p>
+        </div>
+      ) : (
+        <>
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 font-mono text-[9px] uppercase sm:grid-cols-3">
+            <div><dt className="opacity-45">Subject detected</dt><dd className="mt-1 text-sm font-black">{analysis?.detectedSubject === true ? 'Yes' : analysis?.detectedSubject === false ? 'No' : '—'}</dd></div>
+            <div><dt className="opacity-45">Confidence</dt><dd className="mt-1 text-sm font-black">{confidencePct == null ? '—' : `${confidencePct}%`}</dd></div>
+            <div><dt className="opacity-45">Mission match</dt><dd className="mt-1 text-sm font-black">{matchScore == null ? '—' : `${Math.round(matchScore)}/100`}</dd></div>
+            <div><dt className="opacity-45">Trust / Risk</dt><dd className="mt-1 text-sm font-black">{trust.proofTrustScore == null && trust.aiRiskScore == null ? '—' : `${trust.proofTrustScore ?? '—'} / ${trust.aiRiskScore ?? '—'}`}</dd></div>
+            <div><dt className="opacity-45">Duplicate</dt><dd className="mt-1 text-sm font-black">{duplicate}</dd></div>
+            <div><dt className="opacity-45">Items found</dt><dd className="mt-1 text-sm font-black normal-case">{detectedItems.length > 0 ? detectedItems.join(', ') : 'none listed'}</dd></div>
+            {missingItems.length > 0 && (
+              <div className="col-span-2 sm:col-span-3"><dt className="opacity-45">Items missing</dt><dd className="mt-1 text-sm font-black normal-case">{missingItems.join(', ')}</dd></div>
+            )}
+          </dl>
+
+          {suggestion.suggestion.flagged && (
+            <div className="rounded-xl border-2 border-[#FFDD00] bg-[#FFDD00]/15 p-3">
+              <p className="font-mono text-[10px] font-black uppercase">Flagged — check closely before approving</p>
+              {suggestion.suggestion.flagReasons.map(reason => (
+                <p key={reason} className="mt-1 font-mono text-[10px] uppercase opacity-70">· {reason}</p>
+              ))}
+            </div>
+          )}
+
+          <div className="rounded-xl border border-on-surface/15 bg-[#FAF8F5] p-4">
+            <p className="font-mono text-[10px] font-black uppercase">
+              Suggested: Mission Match {suggestion.suggestion.ratings.missionMatch} · Clarity {suggestion.suggestion.ratings.proofClarity} · Trust {suggestion.suggestion.ratings.authenticity} · Note {suggestion.suggestion.ratings.fieldNoteQuality}
+            </p>
+            <p className="mt-1 font-mono text-[10px] uppercase opacity-60">
+              {suggestedWeighted != null ? `Suggested ${suggestedWeighted}/100` : 'Suggested score'}
+              {suggestedFinalXp != null ? ` → ${suggestedFinalXp} XP if approved as-is` : ''}
+              {' '}· Fieldtrip Energy stays manual.
+            </p>
+            <div className="mt-2 space-y-1">
+              {(Object.keys(suggestion.suggestion.reasons) as Array<keyof typeof suggestion.suggestion.reasons>).map(key => (
+                <p key={key} className="font-mono text-[9px] uppercase opacity-60">· {suggestion.suggestion.reasons[key]}</p>
+              ))}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onApply}
+            disabled={applied}
+            className={cn(
+              "w-full py-3 border-2 border-on-surface rounded-xl font-display text-base font-black uppercase italic tracking-tight transition-all",
+              applied
+                ? "bg-brand-lime text-on-surface opacity-70"
+                : "bg-white text-on-surface shadow-[4px_4px_0px_black] hover:shadow-[2px_2px_0px_black] active:translate-y-0.5"
+            )}
+          >
+            {applied ? 'AI suggestion applied' : 'Use AI suggestion'}
+          </button>
+          <p className="font-mono text-[9px] uppercase opacity-45">
+            Fills the four ratings above and drafts the admin note. You can change any rating — changed ones are marked Adjusted from AI. Nothing is submitted until you tap Approve, Req Info, or Reject.
+          </p>
+        </>
+      )}
     </div>
   );
 }
@@ -989,7 +1213,7 @@ function QueueView({
                        )}
 	                   </td>
                    <td className="py-4 px-6 font-black text-brand-orange">
-                     {e.aiScore || 'N/A'}%
+                     {(() => { const pct = aiConfidencePercent(e); return pct == null ? 'N/A' : `${pct}%`; })()}
                    </td>
 	                   <td className="py-4 px-6">
 	                     <div className="flex items-center justify-center gap-2">

@@ -298,6 +298,11 @@ export async function submitTripEntry(
 
       // Points
       estimatedPoints: estimatedScoring.totalPoints,
+      // The card's own point value is the scoring ceiling: persist it so the
+      // admin preview and the server award resolve the real ceiling instead
+      // of the 100 XP fallback. Old entries without it resolve from the card
+      // bank server-side.
+      baseXP: trip.baseXP ?? (trip as any).basePoints ?? null,
       awardedXP: 0,
       awardedPoints: 0,            // Legacy
       pointsAwarded: 0,            // Legacy

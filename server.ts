@@ -139,6 +139,7 @@ import {
   getMissionBaseMaxScore,
   getMissionHint,
   normalizeMissionScoringConfig,
+  resolveParticipationSignals,
   toScoringSnapshot,
   type BonusEligibility,
   type MissionScoringConfig,
@@ -8256,6 +8257,19 @@ async function startServer() {
     };
   }
 
+  // The ceiling is the card's own point value. New entries carry baseXP from
+  // submit; old entries that lack it resolve from the card bank so a 150-base
+  // card is not reviewed against the 100 XP starter fallback. A malformed
+  // card still falls back to 100 via getCardBasePoints.
+  function resolveEntryScoringMission(entry: any, challengeId: string) {
+    const stored = Number(entry?.baseXP ?? entry?.basePoints);
+    if (Number.isFinite(stored) && stored > 0) return entry;
+    const card = resolveMissionById(challengeId);
+    const banked = Number(card?.baseXP ?? (card as any)?.basePoints);
+    if (Number.isFinite(banked) && banked > 0) return { ...entry, baseXP: Math.round(banked) };
+    return entry;
+  }
+
   function getValidatedMissionBonuses(attempt: any, rotation: any): BonusEligibility[] {
     if (!attempt || !Array.isArray(attempt.eligibleBonuses)) return [];
     const startedAt = attempt.startedAt?.toDate?.();
@@ -8305,6 +8319,13 @@ async function startServer() {
       if (!rubric) {
         return res.status(400).json({ error: "PROOF_RUBRIC_REQUIRED" });
       }
+      // The AI suggestion is an audit record of what the admin saw, never an
+      // input to the award: the award is computed from the rubric the admin
+      // submitted plus participation resolved server-side from stored signals.
+      const suggestedRubric = metadata?.suggestedRubric && typeof metadata.suggestedRubric === 'object'
+        ? metadata.suggestedRubric
+        : null;
+      const suggestedRubricApplied = metadata?.suggestedRubricApplied === true;
       const nextStatus = action === "approve" ? "approved" : action === "request_info" ? "needs_more_proof" : "rejected";
 
       console.info("[AdminProofReview] Server action resolved", {
@@ -8344,12 +8365,30 @@ async function startServer() {
           : null;
         const rotationSnap = rotationRef ? await transaction.get(rotationRef) : null;
         const rotation = rotationSnap?.exists ? rotationSnap.data() || {} : null;
-        const rubricScoring = getProofRubricScoring(rubric, entry);
+        const rubricScoring = getProofRubricScoring(rubric, resolveEntryScoringMission(entry, challengeId));
         const hintUsed = validAttempt ? validAttempt.hintUsed === true : entry.hintUsed === true;
         const hintPenaltyPercent = validAttempt
           ? Number(validAttempt.hintPenaltyPercent || 0)
           : hintUsed ? DEFAULT_HINT_PENALTY_PERCENT : 0;
         const eligibleBonuses = validAttempt ? getValidatedMissionBonuses(validAttempt, rotation) : [];
+        // The participation layers are resolved from the entry's STORED
+        // signals, mirroring the admin preview: photo from the stored AI
+        // analysis, note from the stored field note, location from the stored
+        // location fields. (Location/voice fields are dropped at submit, so
+        // the location layer resolves false for current entries until that
+        // submit path is fixed — the layer is not invented here.)
+        const participation = resolveParticipationSignals({
+          photoSubjectVerified: entry.participation?.photoSubjectVerified,
+          aiAnalysisResult: entry.aiAnalysisResult,
+          proofCheckResult: entry.proofCheckResult,
+          fieldNoteRaw: entry.fieldNoteRaw,
+          fieldNote: entry.fieldNote,
+          note: entry.note,
+          voiceNotePresent: entry.voiceNotePresent === true,
+          locationVerified: entry.locationVerified ?? entry.participation?.locationVerified,
+          latitude: entry.latitude,
+          longitude: entry.longitude,
+        });
         const calculatedMissionScore = calculateMissionScore({
           baseMaxScore: rubricScoring.maxAdminAwardableXp,
           reviewerBaseScore: rubricScoring.awardedXp,
@@ -8357,6 +8396,7 @@ async function startServer() {
           hintPenaltyPercent,
           retryMultiplier: entry.isRetry === true ? Number(entry.retryPointMultiplier ?? 0.5) : 1,
           perkPoints: 0,
+          participation,
           eligibleBonuses,
         });
         const calculatedAt = Timestamp.now();
@@ -8506,6 +8546,8 @@ async function startServer() {
             rubric,
             scoring: action === 'approve' ? canonicalScoring : null,
             scoringSnapshot: action === 'approve' ? scoringSnapshot : null,
+            suggestedRubric,
+            suggestedRubricApplied,
             missionAttemptId: attemptId || null,
             hintUsed: scoringSnapshot.hintUsed,
             updatedAt: now
@@ -8525,6 +8567,8 @@ async function startServer() {
           pointsAwarded,
           awardReason,
           scoringSnapshot,
+          suggestedRubric,
+          suggestedRubricApplied,
           missionAttemptId: attemptId || null,
           missionAttemptValidated: !!validAttempt,
           aliases: resolution.aliases,

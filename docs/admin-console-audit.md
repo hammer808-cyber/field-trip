@@ -1,0 +1,150 @@
+# Fieldtrip Admin Console Audit + AI-Suggested Score Design
+
+Date: Nov 15, 2026 · Repo: `~/workspace/field-trip`, branch `main` @ `7f652de` · Code read only; nothing changed, nothing run against production.
+
+**Status (Nov 15, 2026): Option A + the Q1/Q2 server fixes shipped** — the AI-suggested rubric (`src/logic/aiSuggestion.ts`, "Use AI suggestion" on the review card), the participation layers on approval, and the card-bank ceiling fallback. See the commit message for the file list. Q3 (location/voice fields dropped at submit) is still open, so the location layer resolves false for current entries.
+
+Zach's screenshot is `/admin/proofs` (Proof Review Console), not `/admin` (the board). The yellow "Live System Access Initiated" banner is the shared `AdminLayout` header on every admin page (`src/components/admin/AdminShared.tsx:222-252`).
+
+## 1. Inventory
+
+### Entry gating — who counts as admin
+
+`isAdmin` is true if any of: dev override `overrides.isAdmin`, `profile.role === 'admin'`, an `admins/{uid}` doc exists, hardcoded UID `vX7K0XGkXRM2yPzhidv79Q59GqC2`, or email `hammer808@gmail.com` (`src/context/AppContext.tsx:726-731`, `src/context/AppContext.tsx:1123`). Non-admins hitting `/admin*` are redirected (`src/App.tsx:224`). Firestore rules enforce the same set server-side (`firestore.rules:40-54`): admins may update/delete any `entries`/`proofReviews` doc and list everything; `adminLogs` and `moderationAudit` are append-only (create+read, no update/delete, `firestore.rules:875-895`).
+
+### Routes
+
+| Route | Page | What it does (one line) | Reads / writes | State |
+|---|---|---|---|---|
+| `/admin` | `AdminBoard.tsx` (387 lines) | Hub of 10 module cards + footer monitor | Reads `entries` (root only), `users` (limit 500) | **Live, but most numbers are hardcoded** (see §2.7) |
+| `/admin/proofs` | `AdminProofReview.tsx` (1020 lines) | The review queue: swipe card or table, rubric scoring, approve / request-info / reject | Reads `entries` + `proofReviews` via collectionGroup; writes via `POST /api/admin/proof-review/action` | **Live — the page in the screenshot** |
+| `/admin/users` | `AdminUsers.tsx` (52 lines) | Agent search / profile + progress control | Reads `users` | Live, thin |
+| `/admin/decks` | `AdminDecks.tsx` (423 lines) | Deck packs, mission banks, seasonal unlocks | Reads/writes deck config | Live |
+| `/admin/challenges` | `AdminChallenges.tsx` (679 lines) | Card editor + brand-fit check (`validateChallengeBrandFit`) | Reads/writes challenge bank | Live |
+| `/admin/repair` | `AdminRepair.tsx` (673 lines) | Repair Bay: bulk sync, starter patch, crew-memory backfill, progression repair, beta hard reset — all dry-run / live-write | Writes `entries`, `proofReviews`, `users`, progression ledger | Live, gated by dry-run + confirm phrase |
+| `/admin/archive` | `AdminArchive.tsx` (220 lines) | Audit / Archival Center / logs tabs; seasonal purge is a dead button (`alert("Seasonal purge protocol requires Tier 3 authorization.")`) | Reads `entries` | Live except purge |
+| `/admin/diagnostics` | `AdminDiagnostics.tsx` (248 lines) | DB / AppCheck / Gateway / Compute health + ghost-archive cleanup | Reads diagnostics collections | Live |
+| `/admin/settings` | `AdminSettings.tsx` (413 lines) | Feature flags (e.g. tribunal toggle writes `appConfig`) | Reads/writes `appConfig` | Live |
+| `/admin/skins` | `AdminSkins.tsx` (658 lines) | Skin token registry editor | Reads/writes skin config | Live |
+| `/admin/moderation` | `AdminModeration.tsx` (1242 lines) | Field checks, sus reports, tribunal diagnostics + repair, weekly-voting diagnostics, community-feed diagnostics | Reads/writes `fieldChecks`, `tribunalCases`, `moderationAudit` | Live |
+| `/admin/leaderboard` | `AdminLeaderboard.tsx` (246 lines) | Weekly summaries; admin can edit a `weeklySummaries` doc | Reads/writes `weeklySummaries` | Live |
+| `/admin/qa` | `AdminQALenses.tsx` (254 lines) | QA lenses (view the app as a persona / state) | Read-only | Live |
+| `/admin/dev-tools`, `/admin/ops` | `AdminDevTools.tsx` (992 lines) | Guided-launch resets, starter-deck reset for all users, profile reset | Writes `users` (destructive, `confirm()`-gated) | Live — sharpest knives in the console |
+| (none) | `AdminArchiveSubmissions.tsx` | AI usage-log viewer (`aiUsageLogs`) + `appConfig/global` reader | Reads `aiUsageLogs`, `appConfig` | Live, no route found in `App.tsx` — reachable only by import |
+| (none) | `AdminReviewPanel.tsx` | Legacy direct-write approve/reject panel (uses `adminService.ts`) | Direct Firestore writes | **Dead — imported nowhere** |
+
+### The "direct database writes" banner
+
+The banner itself is decorative text in `AdminLayout`. What it describes is real: most admin tools write to Firestore **directly from the browser** via the client SDK (repair bay, dev-tools resets, settings toggles), authorized only by the Firestore `isAdmin()` rule — there is no server round-trip or second confirmation for most of them. The review queue is the exception: approve/reject/request-info go through the server endpoint `POST /api/admin/proof-review/action` (`server.ts:8284`), which re-checks admin status (`requireAdminUser`, `server.ts:8142`) and runs the award in a transaction.
+
+### Audit trail — exists, but split
+
+- Review actions: server writes one `adminLogs` doc per action with reviewer, entry, points, award reason, and the full scoring snapshot (`server.ts:8516-8533`). Client-side admin actions use `logAdminAction` → `adminLogs` (`src/services/moderationService.ts:202-221`), but it **swallows failures** (`catch` only logs to console) and is not called by the repair-bay tools or dev-tools resets — those have no per-action log entry. There is no single "who did what" view in the console.
+
+## 2. Queue diagnosis — why it "doesn't really work that well"
+
+How a submission gets in: the live submit path (`src/pages/Capture.tsx:982` → `addEntry` → `src/context/AppContext.tsx:2245` → `submitTripEntry`, `src/services/gameService.ts:35`) writes an `entries` doc with `status: 'pending_review'` plus a linked `proofReviews/review_{entryId}` doc. The queue (`subscribeToAdminPendingReviews`, `src/services/submissionService.ts:780`) runs **three** unfiltered collectionGroup listeners (entries, entries-again-for-diagnostics, proofReviews, each `limit(500)`, no `orderBy`), normalizes every status variant to one of four canonical statuses (`normalizeEntryStatus`, `src/logic/entryLogic.ts:7-71` — note: **any unknown status, including `draft`/`uploading`/`submission_failed`, defaults to `pending_review`**), merges entries + proofReviews by entryId, and sorts newest-first in memory.
+
+Ranked problems:
+
+### Q1 — HIGH: the server drops the participation layers on approval, so the admin's shown score is not what the player gets
+`server.ts:8353-8362` calls `calculateMissionScore` with **no `participation` field**. There are zero occurrences of the word `participation` anywhere in `server.ts`. `calculateParticipationLayers` then sees `undefined` signals and returns all three layers as 0 (`src/logic/missionScoring.ts:218-234`). Meanwhile the admin preview in `AdminProofReview.tsx:770-797` computes the same score **with** layers via `resolveParticipationSignals`, and the player's pre-submit estimate does too (`src/services/gameService.ts:230-253`). Net effect: the "Final awarded score" on the review card includes up to +75% of base in layers; the points actually awarded exclude all of it. The Nov 5–6 scoring rework's headline feature silently does not pay out. Fix is a few lines: pass `participation` (resolved from the entry's stored AI/note/location signals) in the server call — but see Q3, the signals are partly missing from the entry.
+
+### Q2 — HIGH: the points ceiling is flattened to 100 XP for every card
+`getProofRubricScoring` takes its ceiling from `getCardBasePoints(entry)` = `entry.baseXP ?? entry.basePoints ?? 100` (`src/logic/proofRubric.ts:67-74`). The live submit path never writes `baseXP` or `basePoints` onto the entry (`src/services/gameService.ts:275-358`; the only points field stored is `xpValue`, and only in the dead `createSubmission` path, `src/services/submissionService.ts:480`). Texas cards carry **only** `baseXP` (`src/data/texasChallengeBank.ts:28` — no `basePoints` anywhere in the file). So a Texas hard card (150 base) is reviewed and awarded against a 100 XP ceiling in both the UI ("Base Maximum: 100 XP") and the server award. Fix: persist `baseXP` on the entry at submit, or resolve the ceiling from the card bank server-side.
+
+### Q3 — HIGH: location and voice-note layers can never be earned in the admin preview
+`AppContext.addEntry` builds the object passed to `submitEntryLogic` and **drops** `locationVerified`, `latitude`, `longitude`, `voiceNote*`, and `fieldNoteRaw` — none appear in the call at `src/context/AppContext.tsx:2285-2333`, even though Capture passes all of them (`src/pages/Capture.tsx:1127-1190`). `gameService` therefore stores `latitude: null, longitude: null` (`src/services/gameService.ts:321-322`). The admin preview's layer resolution (`AdminProofReview.tsx:779-792`) reads `entry.locationVerified ?? (lat != null && lng != null)` → always false, and `voiceNotePresent === true` → always false. The player earned those layers at capture (Capture's own estimate counts them); the reviewer can never see or award them.
+
+### Q4 — HIGH: the AI score the admin sees is fake; the real AI verdict is never shown
+`aiScore` is **written nowhere** in the codebase. The only reads are `AdminProofReview.tsx:933` (`entry.aiScore || 100` in the card footer — so it always reads "Confidence: 100%") and `:992` (`e.aiScore || 'N/A'` in the table — always "N/A"). The real analysis is stored and ignored: `entry.aiAnalysisResult` / `entry.proofCheckResult` (full Gemini object: `detectedSubject`, `confidence`, `missionMatchScore`, `detectedItems`, `missingItems`) and the `proofReviews` doc's `confidenceScore` + `verification.{missionMatchScore, proofTrustScore, aiRiskScore, riskReasons, duplicateWarning}` (`src/services/gameService.ts:470-505`). No part of the review card renders any of it. The admin is scoring blind while the AI verdict sits one field away.
+
+### Q5 — HIGH: when Gemini is off, the server fabricates a passing grade
+`server.ts:7732-7770`: if `GEMINI_API_KEY` is missing/empty/placeholder, `/api/analyze-proof` returns a **hardcoded positive result** — `detectedSubject: true, confidence: 0.96, missionMatchScore: 98, modelUsed: "fallback_simulated_flash"` — and persists it as a real scan (`proofs` doc + `aiUsageLogs`). That makes the photo-subject layer free and the admin's (currently invisible) confidence 96% for every photo. The client-side fallback is the opposite: network failure returns `detectedSubject: false, confidence: 0` (`src/services/geminiService.ts:72-96`). Whether the key is actually set on Render cannot be determined from code (see §5).
+
+### Q6 — MEDIUM: orphan proofReviews never render, so queue items can exist but be unactionable
+`mergeReviewQueueRecords` (`src/services/submissionService.ts:277-292`) only keeps a `proofReview` when a matching `entries` doc exists; otherwise it is silently dropped from the rendered list. The diagnostics panel flags exactly these as "Reviewable not rendered" (`submissionService.ts:847-853`), and unresolved *entries* render with a red "Missing source entry" card — but orphan *reviews* have no card at all. If any of the current 5 queued items is an orphan, it is visible in the count but not in the list, which reads as "the queue doesn't work."
+
+### Q7 — MEDIUM: newest-first + a 500-doc cap buries old items
+`sortNewestFirst` (`src/services/submissionService.ts:157-161`) puts the newest submission at `reviews[0]`, which is exactly what swipe view shows (`AdminProofReview.tsx:337-341`). The oldest pending item is always last, and the three collectionGroup queries each cap at 500 docs with **no `orderBy`** (`submissionService.ts:868-880`) — past 500 docs, which items survive the cap is up to Firestore, not recency. There is no pagination, no "oldest first" toggle, and no age indicator on a card.
+
+### Q8 — MEDIUM: the header stats are partly fabricated
+- "Review Velocity 2.4 p/h" is a hardcoded initial state, never updated (`AdminProofReview.tsx:72-75`).
+- "Current Queue" only updates while the pending tab is active (`AdminProofReview.tsx:96-102`); switching tabs leaves a stale number.
+- AdminBoard hardcodes `totalMissions: 42`, `systemErrors: 0`, "STABILITY 100%", "ACTIVE: 32 / DRAFT: 8", "DATABASE_UPTIME 99.998%", "STORAGE_PAYLOAD 4.2GB", "3_OPS_IN_THE_LOOP" (`AdminBoard.tsx:74-76, 166-168, 188-190, 380-400`), and the banner's "LATENCY 42ms_STABLE / DEX_LOAD 88%_CAPACITY" is hardcoded (`AdminShared.tsx:243-248`). The board's pending count also uses a different source than the console: root `entries` only, raw statuses `['pending_review','submitted_pending_review','needs_more_proof']` (`AdminBoard.tsx:44-53`) vs. the console's merged, normalized collectionGroup count — the two numbers can disagree legitimately.
+
+### Q9 — MEDIUM: the rubric gate never fires, and the defaults silently decide the award
+`handleAction` requires a rubric (`AdminProofReview.tsx:134-138`), but `SwipeView` always computes one from ratings that default to all-2s (`DEFAULT_PROOF_RUBRIC_RATINGS`, `src/logic/proofRubric.ts:136-142`). All-2s = weighted 50 → recommendation "Needs closer review" (`proofRubric.ts:144-150`), yet APPROVE is one tap away and `createReviewPayload` records no override because the suggestion mapper returns `null` for that band (`AdminProofReview.tsx:628-634`). A default-approve therefore awards 50% of base with no explicit judgment recorded, and ratings reset per entry — there is no memory, no "same as last" shortcut, and no keyboard flow. This is the friction Zach feels: five categories × five buttons per item, every item, with the default doing quiet damage if he just taps approve.
+
+### Q10 — LOW: the search box is dead
+The "SEARCH_BY_AGENT_ID..." input has no `value` or `onChange` (`AdminProofReview.tsx:302-307`); typing in it does nothing.
+
+### Q11 — LOW: no player notification on a decision
+The server action updates the entry and the user doc (removes the challenge from pending lists, adds it to `needsMoreProofChallengeIds` / `rejectedMissionIds`, `server.ts:8480-8493`) but sends no notification. The player finds out by opening the app. The approve path also fires a zine-archive sync with a retry flag (`server.ts:8555-8571`).
+
+### What the tests cover vs. what they don't
+- `src/__tests__/adminReviewQueue.test.ts` (5 tests, source-level): status normalization, canonical-entryId requirement, server delegation, repair-report shape. Passes; does not test ordering, the 500 cap, orphan rendering, or the server's score math.
+- `src/__tests__/missionScoring.test.ts` + `missionScoringRules.integration.test.ts` + `missionScoringSecurity.test.ts`: the pure calculator (layers pay 25%, hint/retry/multiplier rules, "ceiling is the card's own point value"). **None of them test the server call site** — the calculator is correct; the caller omits the input.
+- `src/__tests__/proofRubric.test.ts` (assertion script, not `node:test`): rubric math and starter-mode detection only.
+- `src/__tests__/dataIntegrityAudit.test.ts`: ledger/projection repair idempotency, dry-run write-free guarantee. Covers repair safety, not queue correctness.
+- `src/__tests__/tribunalSecurity.test.ts` (8 tests): tribunal votes are deterministic, immutable, server-backed, recommendation-only; Firestore rules block direct tribunal writes. The tribunal is healthy and unrelated to the queue.
+
+## 3. Dirty data + repair tool
+
+The Nov 5 counts (22 missing required fields, 16 missing image references, 17 missing links, 5 bad statuses) map exactly onto the live diagnostics rows in `AdminProofReview.tsx` (`missingRequiredFieldsCount`, `missingImageReferenceCount`, `missingLinkageCount`, `invalidStatusCount` — computed in `submissionService.ts:828-846`). **Current counts are not verifiable from code** — they live in production Firestore; open `/admin/proofs` and expand "Admin Proof Queue Diagnostics" to read them now.
+
+The repair tool is `runCanonicalProofQueueRepair` → `repairCanonicalProofQueue(dryRun)` (`src/services/submissionService.ts:981`, `src/services/proofLifecycleService.ts:268-344`). What it does: full scan of root `entries` + `proofReviews`, normalizes each entry's status and mirrors it across `status`/`reviewStatus`/`submissionStatus`/`proofStatus`, backfills `entryId`/`submissionVersion`/photo mirrors, reports ambiguous records (failed validation) and orphan proofReviews. Dry-run mode writes nothing. It is **runnable now** — it uses the client Firestore SDK, and the rules allow admins to update entries/proofReviews; the Nov 6 credential fix (Render `GOOGLE_APPLICATION_CREDENTIALS`) is irrelevant to it because it never touches the server. Two limits: (1) it scans **root collections only**, not subcollections — entries living under `users/{uid}/entries` (if any) are never repaired, while the queue reads them via collectionGroup; (2) it fixes status/field mirrors only — it does **not** backfill `baseXP`, `aiScore`, location, or voice-note fields, so it cannot fix Q2/Q3/Q4. The companion `slotOrphanProofReviews` (`submissionService.ts:334`) creates canonical entries for orphan reviews. The wider Repair Bay (`AdminRepair.tsx`, `repairService.ts`) covers user mission state, stranded starters, crew memories, progression ledger, and a beta hard reset — all dry-run-first. I did not run any of these.
+
+## 4. AI-suggested score design
+
+### What the admin types today
+Per item: five rubric ratings (Mission Match 40%, Proof Clarity 25%, Authenticity/Trust 20%, Field Note Quality 10%, Fieldtrip Energy 5%), each 0–4, plus a free-text note (defaults to a canned line per action). The rubric yields a weighted 0–100, a recommendation band, and `awardedXp = round(weighted% × card base)`; the server then applies hint (−15%), retry (×0.5), and the single highest multiplier. Approve / request-info / reject are the only actions. There is no per-layer override input — layers are computed, not typed.
+
+### What Gemini already returns (and where it sits)
+Per submission, `evaluateProof` (`src/services/proofService.ts:123-320`) produces: `confidenceScore` (0–100, starts at 100 and is docked for missing requirements / low AI confidence / subject-detection failure), `aiAnalysisResult` (`detectedSubject`, `confidence` 0–1, `missionMatchScore` 0–100, `detectedItems[]`, `missingItems[]`, `displayTitle`/`displayDetail`, `reason`), plus `proofTrustScore` / `aiRiskScore` (0–100) with `riskReasons[]`, `duplicateWarning` (exact/near), and `receiptChallengeResult`. The per-card bar it is judged against is `proofRequirements` (`proofRequirements` collection: `minConfidence` 0.4, `requireLocation`, `objectKeywords`, `requiresObjectDetection`). The Gemini prompt is fixed text (`server.ts:7784-7800`): identity check, trust score, items found, strict-but-fair, with `detected` / `not_detected` / `manual_review_required` statuses. **None of this surfaces in the review UI today** (see Q4) — the only AI-derived thing the admin sees is the (fake) footer confidence.
+
+### Proposed suggestion
+Compute, per queued item, a **suggested rubric + suggested total XP** from signals that already exist:
+
+| Rubric category | Suggested from (bands) |
+|---|---|
+| Mission Match (40%) | `missionMatchScore`: ≥90→4, ≥75→3, ≥50→2, ≥25→1, else 0 |
+| Proof Clarity (25%) | `confidence`: ≥0.85→4, ≥0.7→3, ≥0.5→2, ≥0.3→1, else 0 |
+| Authenticity / Trust (20%) | `proofTrustScore` / `aiRiskScore` / `duplicateWarning`: exact duplicate→0, near→1, risk ≥60→1, trust ≥80→4, ≥60→3, else 2 |
+| Field Note Quality (10%) | Note length + stamped-text check: ≥100 chars→3, 50–99→2, 10–49→2, <10 or default stamped text→0; voice note ≥5s→2 |
+| Fieldtrip Energy (5%) | **No AI signal exists — leave manual** (default 2, admin sets) |
+
+Suggested total XP runs the suggestion through the existing pipeline: rubric → `awardedXp` → hint/retry → participation layers → multiplier, rendered as the same receipt the card already shows ("Base Maximum", per-layer lines, multiplier, final). Each suggested rating shows a one-line reason ("AI saw the subject at 0.91 confidence"). Interaction: a single **"Use AI suggestion"** button fills the five ratings and the note draft; the admin can change any rating (that category flips to "adjusted"); **Approve** / **Request info** / **Reject** still require the admin's tap. If the admin's action contradicts the suggestion's recommendation band, the existing `adminOverrideUsed` / `adminOverrideReason` fields record it (`AdminProofReview.tsx:628-634`, `server.ts:8241-8260`). The entry and the `adminLogs` record store both the suggested rubric and the awarded rubric.
+
+Guardrails (non-negotiable):
+- A suggestion is never an auto-approval. Nothing is submitted without the admin's tap.
+- No suggestion when the analysis is untrustworthy: `modelUsed` is `fallback_simulated_flash` or `error_fallback`, `confidence` is 0 with `missingItems: ["NETWORK_COMM_FAILURE"]`, or the entry has no `aiAnalysisResult` at all. Those cards show "AI didn't look at this one — review manually" and the rubric stays blank-default.
+- Low-confidence items (suggested weighted < 60, or `duplicateWarning` set, or `aiRiskScore` ≥ 60) are flagged, not pre-filled with an approve-leaning suggestion.
+- Admin override always wins and is recorded; the suggestion is stored next to the award so a later audit can compare them.
+
+### Option A — Minimal: surface what Gemini already computes (recommended)
+- Client-only change in `AdminProofReview.tsx` (+ a small mapping module next to `proofRubric.ts`): an "AI read" block on the review card (subject detected y/n, confidence, mission-match score, items found/missing, duplicate + trust flags) and a "Use AI suggestion" button that pre-fills the four mappable rubric categories from the bands above.
+- No server change, no prompt change, no new Gemini calls, no new cost. The suggestion reuses the stored analysis, so it works on the existing queue immediately.
+- Tradeoff: the suggested **final XP will overstate the real award until Q1 (layers) and Q2 (100 ceiling) are fixed** — the suggestion runs the client calculator, the server runs its own. Ship A together with the two small server fixes (pass `participation` in `server.ts:8353`; persist/resolve `baseXP`), or ship A rubric-only (no final-XP promise) and fix the server separately. Also inherits Q5: if the key is missing on Render, the suggestion will cheerfully pre-fill 4s from the simulated 96% pass — the guardrail above (refuse to suggest on `fallback_simulated_flash`) is load-bearing.
+- Needs: ~1 mapping function + UI block + source-level tests in the repo's existing style. No Zach decision needed except the band thresholds (defaults above are a starting point).
+
+### Option B — Fuller: a scoring pass at review time
+- Everything in A, plus: (1) the server fixes from Q1/Q2/Q3 (pass participation, resolve the real base ceiling, stop dropping location/voice fields at submit); (2) the suggestion is computed server-side from the canonical entry + attempt so the suggested total is exactly what approval will pay; (3) optionally, a fresh review-time Gemini call with a second prompt that rates the field note and photo clarity directly (note quality and clarity have no stored AI signal today).
+- Tradeoff: the suggested number is finally true, and the note/clarity ratings stop being guesses — but it touches the money path (needs tests + a dry-run comparison against the current award path), costs one Gemini scan per reviewed item, and needs a small backfill for old entries that lack `baseXP`. Roughly 3–5× the work of A.
+- Needs: server endpoint (or reuse `/api/admin/proof-review/action` with a `preview` mode), prompt addition, backfill script, tests.
+
+**Recommendation: ship Option A together with the Q1 + Q2 server fixes.** That removes the typing burden this week and makes the number the admin sees the number the player gets. Option B only if Zach wants review-time re-analysis or AI note grading after living with A.
+
+## 5. Open questions for Zach
+1. Is `GEMINI_API_KEY` actually set on Render? If not, every AI verdict in the queue right now is the simulated 96% pass (Q5) — check Render env vars, or look at any `proofs` doc's `aiModelUsed` field.
+2. What do the live diagnostics say right now? Open `/admin/proofs`, expand "Admin Proof Queue Diagnostics", and read the four counts (missing required fields / missing image / missing linkage / invalid status) — those are the current versions of the Nov 5 numbers (22/16/17/5).
+3. Of the 5 items in the queue, are they all real submissions, or is one an orphan that never renders (Q6)? The diagnostics panel lists "Reviewable not rendered" IDs.
+4. For the suggestion: pre-fill the rubric (Option A), or only suggest the final XP number and keep the five ratings manual?
+5. Should low-confidence items be blocked from one-tap approve, or just flagged? And should the AI suggestion ever be allowed to pre-fill a 4/4 "Nailed it" on Mission Match, or cap suggestions at 3?
+6. Do you want the oldest pending item first instead of newest-first (Q7), and is a 500-item queue cap acceptable or should the queue paginate?
+
+## 6. What I could not verify from code alone
+- Live queue contents and current diagnostics counts (production Firestore, not read).
+- Whether `GEMINI_API_KEY` is set on Render, and what real Gemini output looks like in production.
+- Whether any admin besides Zach uses the console, and which of the 14 admin routes he actually opens.
+- Whether the `proofRequirements` collection has a doc for every card (the `minConfidence` 0.4 bar is per-card; missing docs mean `evaluateProof` runs with `requirement = null` and skips the policy checks, `proofService.ts:234-275`).

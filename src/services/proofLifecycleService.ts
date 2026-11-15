@@ -16,6 +16,7 @@ import { db, auth } from '../lib/firebase';
 import { Entry } from '../types/game';
 import { normalizeEntryStatus } from '../logic/entryLogic';
 import { getProofRubricScoring, type ProofRubricScoring } from '../logic/proofRubric';
+import type { AiSuggestedRubric } from '../logic/aiSuggestion';
 import { authenticatedFetch } from '../lib/api';
 
 export type CanonicalProofStatus = 'draft' | 'uploading' | 'pending_review' | 'approved' | 'needs_more_proof' | 'rejected' | 'submission_failed' | 'upload_incomplete';
@@ -52,6 +53,10 @@ export interface ProofReviewRubricInput {
 export interface ProofTransitionReviewMetadata {
   rubric?: ProofReviewRubricInput;
   scoring?: ProofRubricScoring;
+  /** The AI-suggested rubric the review card offered (null when no trustworthy analysis was stored). */
+  suggestedRubric?: AiSuggestedRubric | null;
+  /** True when the admin applied the suggestion before acting. */
+  suggestedRubricApplied?: boolean;
 }
 
 export interface QueueRepairEntryChange {
