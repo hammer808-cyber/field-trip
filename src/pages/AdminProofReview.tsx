@@ -29,9 +29,11 @@ import { cn } from '../lib/utils';
 import {
   calculateProofRubricScore,
   DEFAULT_PROOF_RUBRIC_RATINGS,
+  getExplicitRatedCategories,
   getProofRubricScoring,
   getProofRubricScoringContextLabel,
   getProofRubricRecommendationLabel,
+  isRubricFullyRated,
   PROOF_RUBRIC_CATEGORIES,
   type ProofRubricScoring,
   type ProofRubricRatings,
@@ -647,10 +649,17 @@ function defaultReviewNote(action: 'approve' | 'reject' | 'request_info') {
   return 'Rejected from Admin Proof Review.';
 }
 
-function suggestedActionForRubric(score: ProofRubricScore): 'approve' | 'request_info' | 'reject' | null {
+/**
+ * The action the rubric leans toward. Every non-approval band means "don't
+ * approve yet" — including 'needs_closer_review'. Returning null for that
+ * band used to swallow the override (Q9): approving a 50-point default
+ * rubric recorded no judgment at all. Aligned with
+ * suggestedActionForAiSuggestion, which maps both non-approval bands to
+ * request_info.
+ */
+function suggestedActionForRubric(score: ProofRubricScore): 'approve' | 'request_info' {
   if (score.recommendation === 'strong_approval_candidate' || score.recommendation === 'approve_with_judgment') return 'approve';
-  if (score.recommendation === 'likely_insufficient') return 'request_info';
-  return null;
+  return 'request_info';
 }
 
 function createReviewPayload(
@@ -681,6 +690,7 @@ function createReviewPayload(
 
 function RubricCard({
   ratings,
+  ratedCategories,
   onChange,
   score,
   scoring,
@@ -689,6 +699,8 @@ function RubricCard({
   suggestionMarks,
 }: {
   ratings: ProofRubricRatings;
+  /** Q9: categories carrying an explicit judgment. Unrated categories show no selected button and "—/4" — the all-2s defaults are display placeholders, not ratings. */
+  ratedCategories?: ReadonlySet<keyof ProofRubricRatings>;
   onChange: (key: keyof ProofRubricRatings, value: number) => void;
   score: ProofRubricScore;
   scoring: ProofRubricScoring;
@@ -698,6 +710,8 @@ function RubricCard({
   suggestionMarks?: Partial<Record<keyof ProofRubricRatings, 'suggested' | 'adjusted'>>;
 }) {
   const contextLabel = getProofRubricScoringContextLabel(scoring);
+  const ratedCount = ratedCategories == null ? PROOF_RUBRIC_CATEGORIES.length : PROOF_RUBRIC_CATEGORIES.filter(category => ratedCategories.has(category.id)).length;
+  const allRated = ratedCount === PROOF_RUBRIC_CATEGORIES.length;
   return (
     <div className="bg-white border-2 border-on-surface p-5 rounded-2xl shadow-[5px_5px_0px_black] space-y-5">
       <div className="flex items-start justify-between gap-4">
@@ -706,6 +720,11 @@ function RubricCard({
           <p className="mt-1 text-[9px] font-mono font-black uppercase opacity-40">
             Score the receipt. The final call is still yours.
           </p>
+          {ratedCategories != null && !allRated && (
+            <p className="mt-2 font-mono text-[10px] font-black uppercase text-brand-orange">
+              {ratedCount} of 5 rated — approve unlocks when all five are rated.
+            </p>
+          )}
         </div>
         <div className="text-right">
           <p className="text-[9px] font-mono font-black uppercase opacity-40">Weighted</p>
@@ -741,7 +760,10 @@ function RubricCard({
                 <p className="text-[9px] font-mono uppercase opacity-45">{category.description}</p>
               </div>
               <p className="text-[9px] font-mono font-black uppercase text-brand-orange">
-                Weight {category.weight}% · {ratings[category.id]}/4
+                Weight {category.weight}% · {ratedCategories != null && !ratedCategories.has(category.id) ? '—' : ratings[category.id]}/4
+                {ratedCategories != null && !ratedCategories.has(category.id) && (
+                  <span className="ml-2 rounded-full bg-on-surface/10 px-2 py-0.5 text-on-surface/60">Not rated</span>
+                )}
                 {suggestionMarks?.[category.id] === 'suggested' && (
                   <span className="ml-2 rounded-full bg-brand-lime px-2 py-0.5 text-on-surface">AI suggested</span>
                 )}
@@ -752,7 +774,7 @@ function RubricCard({
             </div>
             <div className="mt-3 grid grid-cols-5 gap-1.5">
               {category.ratings.map(rating => {
-                const selected = ratings[category.id] === rating.value;
+                const selected = (ratedCategories == null || ratedCategories.has(category.id)) && ratings[category.id] === rating.value;
                 return (
                   <button
                     type="button"
@@ -871,7 +893,16 @@ function SwipeView({ entry, onAction, busy }: any) {
   }));
   const [reviewNote, setReviewNote] = React.useState(entry.reviewNotes || entry.adminNotes || '');
 
-  // AI suggestion (Option A): computed from the entry's stored Gemini
+  // Explicit judgments (Q9): which categories a human has actually rated.
+  // The numeric ratings below start at the all-2s display defaults so the
+  // live score updates as the admin rates, but the 2s are NOT judgments —
+  // Approve stays disabled until all five categories are explicit. A stored
+  // rubric counts as explicit: it was set by a prior human review. Applying
+  // the AI suggestion marks the four mapped categories explicit, and
+  // Fieldtrip Energy's current value counts as accepted with it.
+  const [ratedCategories, setRatedCategories] = React.useState<Set<keyof ProofRubricRatings>>(
+    () => getExplicitRatedCategories(existingRubric),
+  );
   // analysis. Applying it fills the four mappable ratings and drafts the
   // note; Fieldtrip Energy stays manual. Changing a filled rating marks
   // that category "adjusted".
@@ -889,6 +920,7 @@ function SwipeView({ entry, onAction, busy }: any) {
       fieldtripEnergy: Number.isFinite(rubric.fieldtripEnergy) ? rubric.fieldtripEnergy : DEFAULT_PROOF_RUBRIC_RATINGS.fieldtripEnergy,
     });
     setReviewNote(entry.reviewNotes || entry.adminNotes || '');
+    setRatedCategories(getExplicitRatedCategories(rubric));
     setAppliedSuggestion(null);
     setAdjustedCategories(new Set());
   }, [entry.id, entry.entryId, entry.rubric, entry.reviewNotes, entry.adminNotes]);
@@ -928,11 +960,26 @@ function SwipeView({ entry, onAction, busy }: any) {
     }));
     setAppliedSuggestion(suggestion);
     setAdjustedCategories(new Set());
+    // Applying the suggestion is an explicit judgment for the four mapped
+    // categories. Fieldtrip Energy has no AI signal, but applying the
+    // suggestion accepts its current value (default 2) — the admin still
+    // sees it and can change it before approving.
+    setRatedCategories(prev => {
+      const next = new Set(prev);
+      (Object.keys(suggestion.ratings) as Array<keyof typeof suggestion.ratings>).forEach(key => next.add(key));
+      next.add('fieldtripEnergy');
+      return next;
+    });
     setReviewNote(suggestion.summary);
   };
 
   const handleRatingChange = (key: keyof ProofRubricRatings, value: number) => {
     setRatings(prev => ({ ...prev, [key]: value }));
+    setRatedCategories(prev => {
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
     setAdjustedCategories(prev => {
       const next = new Set(prev);
       if (
@@ -958,8 +1005,14 @@ function SwipeView({ entry, onAction, busy }: any) {
   }, [appliedSuggestion, adjustedCategories]);
 
   const entryResolved = entry.canonicalEntryResolved !== false && !!entry.entryId;
+  // Q9: Approve unlocks only when every category carries an explicit
+  // judgment (rated by hand, or filled + accepted via the AI suggestion).
+  // Reject and Request info are never gated on the rubric — no award is at
+  // stake there.
+  const allRated = React.useMemo(() => isRubricFullyRated(ratedCategories), [ratedCategories]);
   const handleDecision = (action: 'approve' | 'reject' | 'request_info') => {
     if (!entryResolved) return;
+    if (action === 'approve' && !allRated) return;
     onAction(action, createReviewPayload(action, reviewNote, score, scoring, missionScoring, {
       available: aiSuggestion.available ? aiSuggestion.suggestion : null,
       applied: appliedSuggestion,
@@ -1060,6 +1113,7 @@ function SwipeView({ entry, onAction, busy }: any) {
 
              <RubricCard
                ratings={ratings}
+               ratedCategories={ratedCategories}
                onChange={handleRatingChange}
                score={score}
                scoring={scoring}
@@ -1082,8 +1136,8 @@ function SwipeView({ entry, onAction, busy }: any) {
              <div className="grid grid-cols-2 gap-4">
 	                <button 
 	                  onClick={() => handleDecision('approve')}
-	                  disabled={busy || !entryResolved}
-                  className="col-span-2 py-6 bg-brand-lime text-on-surface border-4 border-on-surface shadow-[8px_8px_0px_black] flex flex-col items-center justify-center gap-2 group hover:shadow-[4px_4px_0px_black] active:translate-y-1 transition-all"
+	                  disabled={busy || !entryResolved || !allRated}
+                  className="col-span-2 py-6 bg-brand-lime text-on-surface border-4 border-on-surface shadow-[8px_8px_0px_black] flex flex-col items-center justify-center gap-2 group hover:shadow-[4px_4px_0px_black] active:translate-y-1 transition-all disabled:opacity-40 disabled:shadow-none"
                 >
                    <Check className="w-8 h-8 group-hover:scale-125 transition-transform" />
                    <span className="font-display text-xl font-black uppercase italic tracking-tighter">{busy ? 'WORKING...' : 'APPROVE_PROTOCOL'}</span>
@@ -1103,6 +1157,11 @@ function SwipeView({ entry, onAction, busy }: any) {
                    <X className="w-4 h-4" /> REJECT
                 </button>
              </div>
+             {entryResolved && !allRated && (
+               <p className="rounded-xl border-2 border-brand-orange/40 bg-brand-orange/5 p-3 font-mono text-[10px] font-black uppercase text-on-surface/70">
+                 Rate all 5 categories — or apply the AI suggestion — to unlock Approve. Reject and Req Info don&apos;t need a rubric.
+               </p>
+             )}
           </div>
        </div>
 

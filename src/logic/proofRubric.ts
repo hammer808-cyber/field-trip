@@ -150,6 +150,34 @@ export const DEFAULT_PROOF_RUBRIC_RATINGS: ProofRubricRatings = {
   fieldtripEnergy: 2,
 };
 
+/**
+ * Which categories carry an explicit human judgment (Q9). A rating counts
+ * as explicit when a finite numeric value is stored for it — set by the
+ * admin tapping a rating button, filled by the AI-suggestion button, or
+ * carried by a stored rubric from a prior human review. The all-2s
+ * DEFAULT_PROOF_RUBRIC_RATINGS are display placeholders, not judgments:
+ * they never appear in this set on their own. An approval requires all
+ * five categories to be explicit.
+ */
+export function getExplicitRatedCategories(
+  rubric: Partial<Record<ProofRubricCategoryId, unknown>> | null | undefined,
+): Set<ProofRubricCategoryId> {
+  const rated = new Set<ProofRubricCategoryId>();
+  if (!rubric || typeof rubric !== 'object') return rated;
+  for (const category of PROOF_RUBRIC_CATEGORIES) {
+    // Strict finite-number check (no Number() coercion): null coerces to 0
+    // and must not count as a judgment. Matches the SwipeView init, which
+    // falls back to the display default unless Number.isFinite holds.
+    const raw = (rubric as Record<string, unknown>)[category.id];
+    if (typeof raw === 'number' && Number.isFinite(raw)) rated.add(category.id);
+  }
+  return rated;
+}
+
+export function isRubricFullyRated(rated: ReadonlySet<ProofRubricCategoryId>): boolean {
+  return PROOF_RUBRIC_CATEGORIES.every(category => rated.has(category.id));
+}
+
 export function getProofRubricRecommendation(weightedScore: number): ProofRubricRecommendation {
   if (weightedScore >= 80) return 'strong_approval_candidate';
   if (weightedScore >= 60) return 'approve_with_judgment';
