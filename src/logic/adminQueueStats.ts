@@ -151,3 +151,36 @@ export function queueDepthLabel(pendingCount: number): 'Clear' | 'Congested' | '
 export function visibleQueueItems<T>(items: T[], visibleCount: number): T[] {
   return items.slice(0, Math.max(0, visibleCount));
 }
+
+/**
+ * Search filter for the proof-review queue (Q10). Case-insensitive
+ * substring match against the fields an admin actually searches by:
+ * agent/user ID first (the box's placeholder intent), then display name,
+ * mission/card title, and entry ID. A blank query returns the input
+ * unchanged — clearing the box restores the full list. The filter runs on
+ * the merged queue records BEFORE paging, so the swipe view and the table
+ * view (which both render from the same filtered list) always agree.
+ */
+export function filterQueueRecordsBySearch<T extends Record<string, any>>(
+  items: T[],
+  query: string,
+): T[] {
+  const needle = String(query || '').trim().toLowerCase();
+  if (!needle) return items;
+  return items.filter((record) => {
+    const haystacks = [
+      record.userId,
+      record.uid,
+      record.displayName,
+      record.userName,
+      record.missionTitle,
+      record.challengeTitle,
+      record.tripTitle,
+      record.entryId,
+      record.id,
+    ];
+    return haystacks.some(
+      (value) => typeof value === 'string' && value.toLowerCase().includes(needle),
+    );
+  });
+}

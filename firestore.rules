@@ -347,6 +347,13 @@ service cloud.firestore {
       match /legalConsents/{consentId} {
         allow read, write: if isSignedIn() && (uId == request.auth.uid || isAdmin());
       }
+      // Q11: proof-review decision notifications. The server writes these
+      // via the Admin SDK (which bypasses rules); clients only read their
+      // own. No client write — there is no mark-as-read UI yet, and the
+      // read flag is server-set for now.
+      match /notifications/{notificationId} {
+        allow read: if isSignedIn() && (uId == request.auth.uid || isAdmin());
+      }
       match /stickers/{stickerId} {
         function isKnownStickerId() {
           return stickerId in [

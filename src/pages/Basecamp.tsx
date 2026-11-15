@@ -40,6 +40,7 @@ export default function Basecamp() {
     trips,
     user,
     userVotes,
+    notifications,
     crewGraph,
   } = useApp();
   const navigate = useNavigate();
@@ -55,6 +56,7 @@ export default function Basecamp() {
     badgeProgress,
     observations,
     userVotes,
+    notifications,
     currentDate,
     isHeatwaveDeckUnlocked,
     isVotingOpen: isVotingWindowOpen(currentWeekNumber),
@@ -77,6 +79,7 @@ export default function Basecamp() {
     profile,
     trips,
     userVotes,
+    notifications,
     crewGraph,
   ]);
 

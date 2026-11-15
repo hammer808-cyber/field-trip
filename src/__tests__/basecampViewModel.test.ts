@@ -4,6 +4,7 @@ import { Timestamp } from 'firebase/firestore';
 import type { TripCard } from '../types/challenges';
 import type { Entry, Vote } from '../types/game';
 import type { Observation } from '../types/observations';
+import type { PlayerNotification } from '../logic/playerNotifications';
 import type { UserProfile } from '../services/userService';
 import { buildCanonicalProgress } from '../services/canonicalProgress';
 import {
@@ -132,6 +133,7 @@ function input(overrides: Partial<BuildBasecampViewModelInput> = {}): BuildBasec
     badgeProgress: overrides.badgeProgress || [],
     observations: overrides.observations || [],
     userVotes: overrides.userVotes || [],
+    notifications: overrides.notifications || [],
     currentDate: overrides.currentDate || NOW,
     isHeatwaveDeckUnlocked: overrides.isHeatwaveDeckUnlocked ?? false,
     isVotingOpen: overrides.isVotingOpen ?? false,
@@ -349,4 +351,68 @@ test('a published challenge definition status of approved does not mark a drawn 
   assert.doesNotMatch(model.nextAction.title, /cleared/i);
   assert.doesNotMatch(model.nextAction.action.label, /cleared/i);
   assert.equal(model.quickLinks[0].description, model.nextAction.action.label);
+});
+
+function notification(overrides: Partial<PlayerNotification> = {}): PlayerNotification {
+  return {
+    id: 'notif-1',
+    type: 'proof_review_decision',
+    decision: 'approve',
+    status: 'approved',
+    entryId: 'entry-1',
+    reviewId: 'review-1',
+    challengeId: 'heat-1',
+    missionTitle: 'Find the Coolest Shadow',
+    awardedXp: 75,
+    adminNote: '',
+    reviewerId: 'admin-1',
+    read: false,
+    createdAt: new Date('2026-07-16T17:00:00.000Z').getTime(),
+    ...overrides,
+  };
+}
+
+test('Q11: a decision notification shows in Updates with the awarded XP', () => {
+  const model = buildBasecampViewModel(input({
+    entries: [entry({ status: 'approved' })],
+    notifications: [notification()],
+  }));
+  const rows = model.recentActivity.filter(item => item.id.startsWith('notification-'));
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].kind, 'proof');
+  assert.equal(rows[0].title, 'Proof approved');
+  assert.equal(rows[0].detail, 'Find the Coolest Shadow · +75 XP');
+});
+
+test('Q11: a decision shows once — the generic entry row is suppressed for the same entry', () => {
+  const model = buildBasecampViewModel(input({
+    entries: [entry({ status: 'approved' })],
+    notifications: [notification()],
+  }));
+  assert.equal(model.recentActivity.filter(item => item.kind === 'proof').length, 1);
+  assert.ok(!model.recentActivity.some(item => item.id === 'entry-entry-1'));
+});
+
+test('Q11: an entry without a notification still shows its generic row', () => {
+  const model = buildBasecampViewModel(input({
+    entries: [entry({ status: 'approved' })],
+    notifications: [notification({ entryId: 'some-other-entry' })],
+  }));
+  assert.ok(model.recentActivity.some(item => item.id === 'entry-entry-1'));
+  assert.equal(model.recentActivity.filter(item => item.id.startsWith('notification-')).length, 1);
+});
+
+test('Q11: a rejection notification in Updates carries the admin note', () => {
+  const model = buildBasecampViewModel(input({
+    entries: [entry({ status: 'rejected' })],
+    notifications: [notification({
+      decision: 'reject',
+      status: 'rejected',
+      adminNote: 'Photo shows the wrong street.',
+    })],
+  }));
+  const rows = model.recentActivity.filter(item => item.id.startsWith('notification-'));
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].title, 'Proof review closed');
+  assert.equal(rows[0].detail, 'Find the Coolest Shadow · Photo shows the wrong street.');
 });

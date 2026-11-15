@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Shield, 
   Zap, 
@@ -72,6 +72,7 @@ import { subscribeToAdminLogs } from '../services/moderationService';
 import {
   computeReviewVelocity,
   entryTimestampMillis,
+  filterQueueRecordsBySearch,
   formatWaitAge,
   queueDepthLabel,
   visibleQueueItems,
@@ -93,6 +94,7 @@ export default function AdminProofReview() {
   // localStorage.
   const [sortDirection, setSortDirection] = useState<QueueSortDirection>('oldest');
   const [visibleCount, setVisibleCount] = useState(QUEUE_PAGE_SIZE);
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedQueueEntryId, setSelectedQueueEntryId] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<AdminReviewQueueDiagnostics | null>(null);
   const [queryError, setQueryError] = useState<string | null>(null);
@@ -266,7 +268,16 @@ export default function AdminProofReview() {
     }
   };
 
-  const selectedQueueEntry = reviews.find(record => getActionId(record) === selectedQueueEntryId || record.id === selectedQueueEntryId) || reviews[0];
+  // Search (Q10) filters the merged queue records BEFORE paging, so the
+  // swipe view and the table view always render the same list. Clearing
+  // the box returns the input unchanged, restoring the full list.
+  const filteredReviews = useMemo(
+    () => filterQueueRecordsBySearch(reviews, searchQuery),
+    [reviews, searchQuery],
+  );
+  const hasActiveSearch = searchQuery.trim().length > 0;
+
+  const selectedQueueEntry = filteredReviews.find(record => getActionId(record) === selectedQueueEntryId || record.id === selectedQueueEntryId) || filteredReviews[0];
   const hasQueueIntegrityWarning = !!diagnostics && diagnostics.reviewableButNotRendered.length > 0;
   const hasPermissionOrQueryFailure = !!queryError || !!diagnostics?.errors.length;
   // Unified queue numbers (same as the admin board, on every tab): the
@@ -274,7 +285,7 @@ export default function AdminProofReview() {
   // per-tab rendered length, which goes stale off the pending tab.
   const pendingCount = diagnostics?.pendingReviewCount ?? 0;
   const queueDepth = queueDepthLabel(pendingCount);
-  const visibleReviews = visibleQueueItems(reviews, visibleCount);
+  const visibleReviews = visibleQueueItems(filteredReviews, visibleCount);
 
   const handleFilterChange = (next: typeof filter) => {
     setFilter(next);
@@ -283,6 +294,11 @@ export default function AdminProofReview() {
 
   const handleSortChange = (next: QueueSortDirection) => {
     setSortDirection(next);
+    setVisibleCount(QUEUE_PAGE_SIZE);
+  };
+
+  const handleSearchChange = (next: string) => {
+    setSearchQuery(next);
     setVisibleCount(QUEUE_PAGE_SIZE);
   };
 
@@ -373,6 +389,8 @@ export default function AdminProofReview() {
                  <input 
                    type="text" 
                    placeholder="SEARCH_BY_AGENT_ID..." 
+                   value={searchQuery}
+                   onChange={(event) => handleSearchChange(event.target.value)}
                    className="pl-9 pr-4 py-2.5 bg-on-surface/5 border border-on-surface/10 rounded-xl font-mono text-[10px] uppercase w-full md:w-48 placeholder:opacity-30 outline-none focus:border-brand-orange transition-all"
                  />
               </div>
@@ -386,7 +404,7 @@ export default function AdminProofReview() {
                 <RefreshCw className="w-10 h-10 animate-spin text-brand-orange opacity-20" />
                 <p className="font-mono text-[10px] uppercase font-black tracking-widest opacity-30">Connecting to proof feed...</p>
              </div>
-           ) : reviews.length === 0 ? (
+           ) : filteredReviews.length === 0 ? (
              <div className={cn(
                 "min-h-64 flex flex-col items-center justify-center space-y-4 bg-white border-2 border-dashed rounded-3xl p-8 text-center",
                 hasPermissionOrQueryFailure || hasQueueIntegrityWarning ? "border-red-300 bg-red-50" : "border-on-surface/10"
@@ -397,7 +415,9 @@ export default function AdminProofReview() {
                     ? 'Could not load review queue. See diagnostics above.'
                     : hasQueueIntegrityWarning
                       ? 'Queue may be incomplete. Diagnostics found reviewable records that are not rendering.'
-                      : 'No proof is waiting for review.'}
+                      : hasActiveSearch
+                        ? `No records match "${searchQuery.trim()}". Clear the search to see the full queue.`
+                        : 'No proof is waiting for review.'}
                 </p>
                 {hasQueueIntegrityWarning && (
                   <p className="font-mono text-[10px] text-red-700 max-w-xl">
@@ -407,17 +427,17 @@ export default function AdminProofReview() {
              </div>
 	           ) : viewMode === 'swipe' ? (
 	              <SwipeView 
-	                entry={reviews[0]} 
-	                busy={actionBusyId === getActionId(reviews[0])}
-	                onAction={(action: any, review: any) => handleAction(getActionId(reviews[0]), action, review)}
+	                entry={filteredReviews[0]} 
+	                busy={actionBusyId === getActionId(filteredReviews[0])}
+	                onAction={(action: any, review: any) => handleAction(getActionId(filteredReviews[0]), action, review)}
 	              />
 	           ) : (
               <div className="space-y-8">
                 <QueueView
                   entries={visibleReviews}
-                  total={reviews.length}
+                  total={filteredReviews.length}
                   visibleCount={visibleReviews.length}
-                  onLoadMore={() => setVisibleCount(prev => Math.min(reviews.length, prev + QUEUE_PAGE_SIZE))}
+                  onLoadMore={() => setVisibleCount(prev => Math.min(filteredReviews.length, prev + QUEUE_PAGE_SIZE))}
                   selectedId={selectedQueueEntryId}
                   onSelect={(entry: any) => setSelectedQueueEntryId(getActionId(entry) || entry.id)}
                 />

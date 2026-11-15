@@ -13,6 +13,10 @@ import {
 import { getLevelProgress } from './playerLevel';
 import { isArchivedEntry, normalizeEntryStatus } from './entryLogic';
 import {
+  proofReviewDecisionCopy,
+  type PlayerNotification,
+} from './playerNotifications';
+import {
   isUnseenStarterUnlock,
   resolvePlayerGuidance,
   resolvePlayerMissionLifecycle,
@@ -139,6 +143,10 @@ export interface BuildBasecampViewModelInput {
   badgeProgress: readonly UserBadgeProgress[];
   observations: readonly Observation[];
   userVotes: readonly Vote[];
+  /** Server-written proof-review decision notifications (Q11). Shown in
+   * the Updates feed in place of the generic entry item for the same
+   * entry, so a decision appears once, with its XP and admin note. */
+  notifications: readonly PlayerNotification[];
   currentDate: Date;
   isHeatwaveDeckUnlocked: boolean;
   isVotingOpen: boolean;
@@ -339,7 +347,29 @@ function buildCrew(
 }
 
 function buildRecentActivity(input: BuildBasecampViewModelInput): BasecampActivityItem[] {
+  // Decision notifications (Q11) are the authoritative row for a decided
+  // entry: they carry the awarded XP and the admin note, which the generic
+  // entry item cannot. The generic item is suppressed for the same entry
+  // so a decision shows once, not twice, in the 5-row feed.
+  const notifiedEntryIds = new Set(
+    (input.notifications || []).map(notification => notification.entryId).filter(Boolean),
+  );
+  const notificationItems = (input.notifications || []).flatMap<BasecampActivityItem>(notification => {
+    const timestamp = Number(notification.createdAt || 0);
+    if (!timestamp) return [];
+    const copy = proofReviewDecisionCopy(notification);
+    return [{
+      id: `notification-${notification.id}`,
+      kind: 'proof',
+      title: copy.title,
+      detail: copy.detail,
+      timestamp,
+      timeLabel: formatActivityTime(timestamp, input.currentDate),
+    }];
+  });
+
   const entryItems = getActiveEntries(input.entries).flatMap<BasecampActivityItem>(entry => {
+    if (notifiedEntryIds.has(entry.entryId || entry.id)) return [];
     const timestamp = getEntryTimestamp(entry);
     if (!timestamp) return [];
     const status = normalizeEntryStatus(entry.status);
@@ -399,7 +429,7 @@ function buildRecentActivity(input: BuildBasecampViewModelInput): BasecampActivi
     }];
   });
 
-  return [...entryItems, ...badgeItems, ...observationItems, ...voteItems]
+  return [...entryItems, ...notificationItems, ...badgeItems, ...observationItems, ...voteItems]
     .sort((left, right) => right.timestamp - left.timestamp)
     .slice(0, 5);
 }

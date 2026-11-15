@@ -89,6 +89,8 @@ import { BADGE_DEFINITIONS, UserBadgeProgress } from '../types/badges';
 import { evaluateEntryForArtifacts, subscribeToCrewArtifacts } from '../services/artifactService';
 import { CrewArtifact } from '../types/artifacts';
 
+import { subscribeToPlayerNotifications } from '../services/playerNotificationService';
+import type { PlayerNotification } from '../logic/playerNotifications';
 import { subscribeToObservations, generateObservation, dismissObservation } from '../services/observationService';
 import { Observation } from '../types/observations';
 import { getProofRequirement } from '../services/proofService';
@@ -213,6 +215,9 @@ interface AppContextType {
   badgeProgress: UserBadgeProgress[];
   crewArtifacts: CrewArtifact[];
   observations: Observation[];
+  /** Server-written proof-review decision notifications (Q11), newest
+   * first. Feeds the Basecamp "Updates" panel. */
+  notifications: PlayerNotification[];
   lastReview: ProofReview | null;
   clearReview: () => void;
   isLocked: boolean;
@@ -329,6 +334,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [badgeProgress, setBadgeProgress] = useState<UserBadgeProgress[]>([]);
   const [crewArtifacts, setCrewArtifacts] = useState<CrewArtifact[]>([]);
   const [observations, setObservations] = useState<Observation[]>([]);
+  const [notifications, setNotifications] = useState<PlayerNotification[]>([]);
   const [lastReview, setLastReview] = useState<ProofReview | null>(null);
   const [gameConfig, setGameConfig] = useState<AppConfig | null>(null);
   const [globalConfig, setGlobalConfig] = useState<GlobalConfig>(getGlobalConfig());
@@ -1445,6 +1451,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
     return subscribeToObservations(user.uid, (data) => {
       setObservations(data);
+    });
+  }, [user]);
+
+  // Sync player decision notifications (Q11)
+  useEffect(() => {
+    if (!user) {
+      setNotifications([]);
+      return;
+    }
+    return subscribeToPlayerNotifications(user.uid, (data) => {
+      setNotifications(data);
     });
   }, [user]);
 
@@ -2736,6 +2753,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       badgeProgress,
       crewArtifacts,
       observations,
+      notifications,
       lastReview,
       clearReview,
       isLocked,

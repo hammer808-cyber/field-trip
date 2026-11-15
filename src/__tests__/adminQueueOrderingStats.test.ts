@@ -89,13 +89,15 @@ test('Q7: the queue queries order by createdAt so the 500 window is the oldest 5
   // The merge defaults to oldest-first.
   assert.match(service, /function mergeReviewQueueRecords\(entries: Entry\[\], reviews: Entry\[\], direction: QueueSortDirection = 'oldest'\)/);
   // The page exposes the toggle and Load more, and the swipe view starts
-  // on the first item of the chosen order (reviews[0] of the sorted list).
+  // on the first item of the chosen order (filteredReviews[0] of the
+  // sorted list — the Q10 search filters before paging, so both views
+  // render from the same filtered list).
   const page = read('src/pages/AdminProofReview.tsx');
   assert.match(page, /Oldest first/);
   assert.match(page, /Newest first/);
   assert.match(page, /Load more/);
   assert.match(page, /Showing \{visibleCount\} of \{total\}/);
-  assert.match(page, /entry=\{reviews\[0\]\}/);
+  assert.match(page, /entry=\{filteredReviews\[0\]\}/);
   // Age indicator on the review card and in the table.
   assert.match(page, /Waiting: \{formatWaitAge\(entryTimestampMillis\(entry\)\)\}/);
   assert.match(page, /formatWaitAge\(entryTimestampMillis\(e\)\)/);

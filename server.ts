@@ -8577,6 +8577,35 @@ async function startServer() {
           createdAt: now
         });
 
+        // Q11: tell the player. The notification is written here, in the
+        // same transaction as the award, so it is recorded with the
+        // decision and survives the admin closing the browser. Decisions
+        // only — dry-run/repair actions, rubric edits, and queue views
+        // never reach this handler. Delivery is in-app only (Basecamp
+        // "Updates" reads users/{uid}/notifications); there is no
+        // push/email infra in this app, so none is built here.
+        // Shape: users/{uid}/notifications/{id} = { type:
+        // 'proof_review_decision', decision, status, entryId, reviewId,
+        // challengeId, missionTitle, awardedXp (final XP for approve, 0
+        // otherwise), adminNote, reviewerId, read: false, createdAt }.
+        // The client read is src/services/playerNotificationService.ts.
+        if (ownerId) {
+          transaction.set(dbAdmin!.collection('users').doc(ownerId).collection('notifications').doc(), {
+            type: 'proof_review_decision',
+            decision: action,
+            status: nextStatus,
+            entryId: resolution.entryId,
+            reviewId: resolution.reviewId,
+            challengeId: challengeId || null,
+            missionTitle: String(entry.missionTitle || entry.tripTitle || entry.challengeTitle || challengeId || 'Field proof'),
+            awardedXp: action === 'approve' ? Number(baseUpdate.awardedXP || 0) : 0,
+            adminNote: notes || '',
+            reviewerId,
+            read: false,
+            createdAt: now,
+          });
+        }
+
         return {
           success: true,
           status: nextStatus,
