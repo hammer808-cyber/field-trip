@@ -66,9 +66,16 @@ test('canonical queue repair reports have a stable dry-run and live-repair shape
     dryRun: true,
     scannedEntries: 0,
     scannedProofReviews: 0,
+    scannedRootEntries: 0,
+    scannedRootProofReviews: 0,
+    scannedSubcollectionEntries: 0,
+    scannedSubcollectionProofReviews: 0,
+    scannedEntriesWithoutCreatedAt: 0,
+    scannedProofReviewsWithoutCreatedAt: 0,
     repairedEntries: [],
     ambiguousRecords: [],
     orphanProofReviews: [],
+    flaggedProofReviews: [],
   });
 
   const liveReport = createQueueRepairReport(false);
@@ -76,9 +83,16 @@ test('canonical queue repair reports have a stable dry-run and live-repair shape
   assert.deepEqual(Object.keys(liveReport).sort(), [
     'ambiguousRecords',
     'dryRun',
+    'flaggedProofReviews',
     'orphanProofReviews',
     'repairedEntries',
     'scannedEntries',
+    'scannedEntriesWithoutCreatedAt',
     'scannedProofReviews',
+    'scannedProofReviewsWithoutCreatedAt',
+    'scannedRootEntries',
+    'scannedRootProofReviews',
+    'scannedSubcollectionEntries',
+    'scannedSubcollectionProofReviews',
   ]);
 });

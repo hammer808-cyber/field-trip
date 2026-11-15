@@ -26,6 +26,7 @@ import {
   getCanonicalImageUrl,
   getCanonicalStoragePath,
   getCanonicalUserId,
+  getDiagnosticsMissingFields,
   isKnownProofStatusValue,
   normalizeProofStatus,
   normalizeCanonicalSubmission,
@@ -96,6 +97,12 @@ export interface AdminReviewQueueDiagnostics {
     reason: string;
   }>;
   reviewableButNotRendered: string[];
+  /**
+   * Full count behind reviewableButNotRendered, which is capped at
+   * REVIEWABLE_NOT_RENDERED_LIMIT for display. The panel renders the ids;
+   * a future panel line can show "25 of N" from this field.
+   */
+  reviewableButNotRenderedTotal: number;
   errors: Array<{ source: 'entries' | 'proofReviews' | 'collectionGroup'; message: string; code?: string }>;
   updatedAt: string;
 }
@@ -157,6 +164,7 @@ function createEmptyDiagnostics(
     excluded: [],
     unresolvedCanonicalEntries: [],
     reviewableButNotRendered: [],
+    reviewableButNotRenderedTotal: 0,
     errors: [],
     updatedAt: new Date().toISOString()
   };
@@ -320,6 +328,39 @@ function mergeReviewQueueRecords(entries: Entry[], reviews: Entry[], direction: 
   // Oldest first by default: the item that has waited longest is reviewed
   // first. The page can flip this with the sort toggle.
   return sortReviewQueue(Array.from(byEntryId.values()), direction);
+}
+
+/** Display cap for the "Reviewable not rendered" id list; the full count
+ * travels in reviewableButNotRenderedTotal. */
+export const REVIEWABLE_NOT_RENDERED_LIMIT = 25;
+
+/**
+ * Reviewable records the merge dropped, from the NORMALIZED records —
+ * never the raw stored fields. A rendered record whose stored entryId
+ * field is a legacy placeholder ('TBD') resolves to its real doc id and
+ * is not flagged; a genuinely unrendered orphan keeps its attempted id
+ * (aliases[0], which may itself be a placeholder — that is the honest
+ * id to show, and the repair reports it as an orphan). Ids are deduped
+ * in first-seen order; the total is uncapped.
+ */
+export function computeReviewableButNotRendered(
+  normalizedEntries: Entry[],
+  normalizedReviews: Entry[],
+  merged: Entry[],
+  statusFilter: 'pending_review' | 'approved' | 'rejected' | 'needs_more_proof'
+): { ids: string[]; total: number } {
+  const renderedIds = new Set(merged.map(item => String((item as any).entryId || item.id)));
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const record of [...normalizedEntries, ...normalizedReviews]) {
+    const status = (record as any).status;
+    const entryId = String((record as any).entryId || (record as any).id || '');
+    if (status === statusFilter && entryId && !renderedIds.has(entryId) && !seen.has(entryId)) {
+      seen.add(entryId);
+      ids.push(entryId);
+    }
+  }
+  return { ids: ids.slice(0, REVIEWABLE_NOT_RENDERED_LIMIT), total: seen.size };
 }
 
 // Log message only in development
@@ -821,7 +862,6 @@ export function subscribeToAdminPendingReviews(
     const latestEntries = rawEntriesForQueue.map(entry => normalizeReviewQueueRecord(entry.id, entry, 'entry', rootEntryIndex));
     const latestReviews = rawReviewsForQueue.map(review => normalizeReviewQueueRecord(review.id, review, 'proofReview', rootEntryIndex));
     const merged = mergeReviewQueueRecords(latestEntries, latestReviews, sortDirection);
-    const renderedIds = new Set(merged.map(item => String((item as any).entryId || item.id)));
     const diagnostics = createEmptyDiagnostics(statusFilter);
     diagnostics.entriesTotalBeforeFiltering = monitorEntriesCount || rawEntriesCount;
     diagnostics.proofReviewsTotalBeforeFiltering = rawReviewsCount;
@@ -858,7 +898,6 @@ export function subscribeToAdminPendingReviews(
     [...monitorEntriesForDiagnostics, ...rawReviewsForDiagnostics].forEach(record => {
       if (record?.archived === true) return;
       const rawStatus = (record as any).status || (record as any).reviewStatus || (record as any).submissionStatus || (record as any).proofStatus;
-      const status = normalizeProofStatus(rawStatus);
       const rawStatusText = String(rawStatus || '').toLowerCase().trim();
       if (rawStatusText === 'submission_failed' || rawStatusText === 'upload_incomplete' || rawStatusText === 'uploading' || rawStatusText === 'draft') {
         diagnostics.failedOrIncompleteCount += 1;
@@ -888,14 +927,21 @@ export function subscribeToAdminPendingReviews(
           });
         }
       }
-      if (!rawStatus || (!getCanonicalImageUrl(record) && !getCanonicalStoragePath(record)) || !getCanonicalUserId(record) || !getCanonicalChallengeId(record) || !(record as any).deckId) {
+      // One definition shared with the repair (getDiagnosticsMissingFields):
+      // the count and the repair's flagged list can never drift apart.
+      if (getDiagnosticsMissingFields(record).length > 0) {
         diagnostics.missingRequiredFieldsCount += 1;
       }
-      const entryId = String((record as any).entryId || (record as any).id || '');
-      if (status === statusFilter && entryId && !renderedIds.has(entryId)) {
-        diagnostics.reviewableButNotRendered.push(entryId);
-      }
     });
+    // "Reviewable not rendered" comes from the NORMALIZED records (below),
+    // not the raw fields: a rendered record whose stored entryId field is
+    // a legacy placeholder ('TBD') resolves to its real doc id and must not
+    // be flagged, while a genuinely unrendered orphan keeps its attempted
+    // id. The old inline check used the raw field and showed a literal
+    // "TBD" for a record that was actually rendering.
+    const reviewable = computeReviewableButNotRendered(latestEntries, latestReviews, merged, statusFilter);
+    diagnostics.reviewableButNotRendered = reviewable.ids;
+    diagnostics.reviewableButNotRenderedTotal = reviewable.total;
     console.log("[AdminQueue] merged documents returned", merged.length);
     console.log("[AdminQueue] diagnostics", diagnostics);
     onDiagnostics?.(diagnostics);
