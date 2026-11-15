@@ -2326,6 +2326,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         findingType: (entryData as any).findingType || null,
         aiAnalysisResult: (entryData as any).aiAnalysisResult || null,
         proofCheckResult: (entryData as any).proofCheckResult || null,
+        // Location + voice-note proof signals (Q3): Capture computes the
+        // tag-aware location verdict and the >=5s voice-note flag — pass
+        // them through instead of dropping them, so the stored entry
+        // carries what the admin preview and the server award resolve the
+        // layers from. A tag mismatch never blocks the submit; it only
+        // means the layer doesn't pay.
+        locationVerified: entryData.locationVerified ?? null,
+        latitude: entryData.latitude ?? null,
+        longitude: entryData.longitude ?? null,
+        fieldNoteRaw: entryData.fieldNoteRaw ?? null,
+        voiceNoteUrl: entryData.voiceNoteUrl ?? null,
+        voiceNoteStoragePath: entryData.voiceNoteStoragePath ?? null,
+        voiceNoteDurationSec: entryData.voiceNoteDurationSec ?? null,
+        voiceNotePresent: entryData.voiceNotePresent === true,
         stickerIds: (entryData as any).stickerIds || [],
         attachedStickerIds: (entryData as any).attachedStickerIds || [],
       },

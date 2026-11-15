@@ -77,6 +77,14 @@ export async function submitTripEntry(
     filterIntensity?: number;
     latitude?: number | null;
     longitude?: number | null;
+    // Location + voice-note proof signals (Q3): forwarded from Capture via
+    // AppContext.addEntry. locationVerified is Capture's tag-aware verdict.
+    locationVerified?: boolean | null;
+    fieldNoteRaw?: string | null;
+    voiceNoteUrl?: string | null;
+    voiceNoteStoragePath?: string | null;
+    voiceNoteDurationSec?: number | null;
+    voiceNotePresent?: boolean | null;
     reviewStatus?: ReviewStatus;
     userAvatar?: any;
     hintUsed?: boolean;
@@ -329,6 +337,18 @@ export async function submitTripEntry(
       fileLastModifiedAt: entryData.fileLastModifiedAt,
       latitude: entryData.latitude !== undefined ? entryData.latitude : null,
       longitude: entryData.longitude !== undefined ? entryData.longitude : null,
+      // Location + voice-note proof signals (Q3): stored so the admin
+      // preview and the server award resolve the participation layers from
+      // the entry. locationVerified is Capture's tag-aware verdict (null
+      // when no verdict was computed, in which case the resolver's lat/lng
+      // fallback still applies as before). voiceNotePresent already means
+      // Capture recorded AND uploaded a >=5s clip.
+      locationVerified: entryData.locationVerified ?? null,
+      fieldNoteRaw: entryData.fieldNoteRaw ?? null,
+      voiceNoteUrl: entryData.voiceNoteUrl ?? null,
+      voiceNoteStoragePath: entryData.voiceNoteStoragePath ?? null,
+      voiceNoteDurationSec: entryData.voiceNoteDurationSec ?? null,
+      voiceNotePresent: entryData.voiceNotePresent === true,
       metadataStatus: entryData.metadataStatus,
       captureTrustLevel: entryData.captureTrustLevel,
       filterUsed: entryData.filterUsed,

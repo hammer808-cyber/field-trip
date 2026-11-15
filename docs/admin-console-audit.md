@@ -2,7 +2,7 @@
 
 Date: Nov 15, 2026 · Repo: `~/workspace/field-trip`, branch `main` @ `7f652de` · Code read only; nothing changed, nothing run against production.
 
-**Status (Nov 15, 2026): Option A + the Q1/Q2 server fixes shipped** — the AI-suggested rubric (`src/logic/aiSuggestion.ts`, "Use AI suggestion" on the review card), the participation layers on approval, and the card-bank ceiling fallback. See the commit message for the file list. Q3 (location/voice fields dropped at submit) is still open, so the location layer resolves false for current entries.
+**Status (Nov 15, 2026): Option A + the Q1/Q2 server fixes shipped** — the AI-suggested rubric (`src/logic/aiSuggestion.ts`, "Use AI suggestion" on the review card), the participation layers on approval, and the card-bank ceiling fallback. Q3 (location/voice fields dropped at submit) shipped too — `AppContext.addEntry` now forwards `locationVerified` (Capture's tag-aware verdict), `latitude`/`longitude`, `fieldNoteRaw`, and the voice-note fields, and `gameService` stores them on the entry, so the location layer can pay for new submissions. See the commit messages for the file lists.
 
 Zach's screenshot is `/admin/proofs` (Proof Review Console), not `/admin` (the board). The yellow "Live System Access Initiated" banner is the shared `AdminLayout` header on every admin page (`src/components/admin/AdminShared.tsx:222-252`).
 

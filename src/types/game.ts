@@ -427,6 +427,20 @@ export interface Entry {
   proofCheckResult?: any;
   metadataStatus?: string;
   captureTrustLevel?: string;
+  // Location + voice-note proof signals, stored at submit so the admin
+  // preview and the server award can resolve the participation layers.
+  // locationVerified carries Capture's TAG-AWARE verdict
+  // (matchesLocationTag when the card has a locationTag); raw coordinates
+  // alone never earn the layer. voiceNotePresent means Capture recorded
+  // AND uploaded a >=5s clip.
+  locationVerified?: boolean | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  fieldNoteRaw?: string | null;
+  voiceNoteUrl?: string | null;
+  voiceNoteStoragePath?: string | null;
+  voiceNoteDurationSec?: number | null;
+  voiceNotePresent?: boolean | null;
   adminNotes?: string;
   imagePurged?: boolean;
   rejectedAt?: any;

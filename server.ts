@@ -8374,9 +8374,10 @@ async function startServer() {
         // The participation layers are resolved from the entry's STORED
         // signals, mirroring the admin preview: photo from the stored AI
         // analysis, note from the stored field note, location from the stored
-        // location fields. (Location/voice fields are dropped at submit, so
-        // the location layer resolves false for current entries until that
-        // submit path is fixed — the layer is not invented here.)
+        // location fields. (New submissions carry Capture's tag-aware
+        // location verdict and the voice-note flag since the Q3 submit fix;
+        // entries submitted before it still resolve the location layer
+        // false — the layer is not invented here.)
         const participation = resolveParticipationSignals({
           photoSubjectVerified: entry.participation?.photoSubjectVerified,
           aiAnalysisResult: entry.aiAnalysisResult,
