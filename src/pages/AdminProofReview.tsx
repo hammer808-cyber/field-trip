@@ -66,6 +66,17 @@ import {
   StarterBypassReport,
   OrphanSlotReport
 } from '../services/submissionService';
+import { subscribeToAdminLogs } from '../services/moderationService';
+import {
+  computeReviewVelocity,
+  entryTimestampMillis,
+  formatWaitAge,
+  queueDepthLabel,
+  visibleQueueItems,
+  QUEUE_PAGE_SIZE,
+  REVIEW_VELOCITY_LOG_LIMIT,
+  type QueueSortDirection,
+} from '../logic/adminQueueStats';
 import type { QueueRepairReport } from '../services/proofLifecycleService';
 
 type AdminReviewScoring = ProofRubricScoring & { missionScoring: ScoringSnapshot };
@@ -75,9 +86,17 @@ export default function AdminProofReview() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'pending_review' | 'approved' | 'rejected' | 'needs_more_proof'>('pending_review');
   const [viewMode, setViewMode] = useState<'swipe' | 'queue'>('swipe');
+  // Oldest first by default: the item that has waited longest is reviewed
+  // first. Plain component state — this page keeps no view prefs in
+  // localStorage.
+  const [sortDirection, setSortDirection] = useState<QueueSortDirection>('oldest');
+  const [visibleCount, setVisibleCount] = useState(QUEUE_PAGE_SIZE);
   const [selectedQueueEntryId, setSelectedQueueEntryId] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<AdminReviewQueueDiagnostics | null>(null);
   const [queryError, setQueryError] = useState<string | null>(null);
+  // Review velocity is computed from adminLogs (proof-review decisions in
+  // the last 24h), never hardcoded. '—' until the first snapshot lands.
+  const [velocity, setVelocity] = useState('—');
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
   const [repairingQueue, setRepairingQueue] = useState(false);
   const [repairReport, setRepairReport] = useState<QueueRepairReport | null>(null);
@@ -85,11 +104,6 @@ export default function AdminProofReview() {
   const [starterBypassReport, setStarterBypassReport] = useState<StarterBypassReport | null>(null);
   const [slottingOrphans, setSlottingOrphans] = useState(false);
   const [orphanSlotReport, setOrphanSlotReport] = useState<OrphanSlotReport | null>(null);
-  const [stats, setStats] = useState({
-    pending: 0,
-    velocity: '2.4 p/h',
-    queueDepth: 'Normal'
-  });
 
   const { isAdmin } = useTheme();
   const { profile } = useApp();
@@ -107,24 +121,31 @@ export default function AdminProofReview() {
     const unsub = subscribeToAdminPendingReviews(filter, (entries) => {
       setReviews(entries);
       setQueryError(null);
-      if (filter === 'pending_review') {
-        setStats(prev => ({
-          ...prev,
-          pending: entries.length,
-          queueDepth: entries.length > 50 ? 'Critical' : entries.length > 20 ? 'Congested' : 'Clear'
-        }));
-      }
       setLoading(false);
     }, (error: any) => {
       console.error('[AdminProofReview] Reviews subscription denied:', error);
       setQueryError(error?.message || String(error));
       setLoading(false);
-    }, setDiagnostics);
+    }, setDiagnostics, { sortDirection });
 
     return () => {
       unsub();
     };
-  }, [isAdminAuthorized, filter]);
+  }, [isAdminAuthorized, filter, sortDirection]);
+
+  // Review velocity: proof-review decisions per hour over the last 24h,
+  // counted from adminLogs. Refreshes live as new decision logs arrive.
+  useEffect(() => {
+    if (!isAdminAuthorized) return;
+    const unsub = subscribeToAdminLogs(REVIEW_VELOCITY_LOG_LIMIT, (logs) => {
+      setVelocity(computeReviewVelocity(logs, {
+        limitReached: logs.length >= REVIEW_VELOCITY_LOG_LIMIT,
+      }).display);
+    });
+    return () => {
+      unsub();
+    };
+  }, [isAdminAuthorized]);
 
   useEffect(() => {
     if (reviews.length === 0) {
@@ -246,6 +267,22 @@ export default function AdminProofReview() {
   const selectedQueueEntry = reviews.find(record => getActionId(record) === selectedQueueEntryId || record.id === selectedQueueEntryId) || reviews[0];
   const hasQueueIntegrityWarning = !!diagnostics && diagnostics.reviewableButNotRendered.length > 0;
   const hasPermissionOrQueryFailure = !!queryError || !!diagnostics?.errors.length;
+  // Unified queue numbers (same as the admin board, on every tab): the
+  // merged reviewable pending count from diagnostics — never the
+  // per-tab rendered length, which goes stale off the pending tab.
+  const pendingCount = diagnostics?.pendingReviewCount ?? 0;
+  const queueDepth = queueDepthLabel(pendingCount);
+  const visibleReviews = visibleQueueItems(reviews, visibleCount);
+
+  const handleFilterChange = (next: typeof filter) => {
+    setFilter(next);
+    setVisibleCount(QUEUE_PAGE_SIZE);
+  };
+
+  const handleSortChange = (next: QueueSortDirection) => {
+    setSortDirection(next);
+    setVisibleCount(QUEUE_PAGE_SIZE);
+  };
 
   return (
     <AdminLayout 
@@ -253,12 +290,19 @@ export default function AdminProofReview() {
     >
       <div className="space-y-8">
         
-        {/* Review Monitors (Stats) */}
+        {/* Review Monitors (Stats) — every value is computed live:
+            pending + depth from the merged diagnostics count (same number
+            the board shows), velocity from adminLogs decisions. */}
         <section className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-           <MonitorCard title="Current Queue" value={stats.pending} icon={Shield} />
-           <MonitorCard title="Review Velocity" value={stats.velocity} icon={Zap} />
-           <MonitorCard title="System Depth" value={stats.queueDepth} status={stats.queueDepth === 'Clear' ? 'green' : 'yellow'} icon={Activity} />
+           <MonitorCard title="Current Queue" value={pendingCount} icon={Shield} />
+           <MonitorCard title="Review Velocity" value={velocity} icon={Zap} />
+           <MonitorCard title="System Depth" value={queueDepth} status={queueDepth === 'Clear' ? 'green' : 'yellow'} icon={Activity} />
         </section>
+        {diagnostics?.windowCapped && (
+          <p className="font-mono text-[10px] font-black uppercase tracking-widest text-brand-orange">
+            Queue window: oldest 500 records loaded — resolve items to bring newer ones into view.
+          </p>
+        )}
 
         <QueueDiagnosticsPanel
           diagnostics={diagnostics}
@@ -280,7 +324,7 @@ export default function AdminProofReview() {
               {(['pending_review', 'approved', 'rejected', 'needs_more_proof'] as const).map((f) => (
                 <button
                   key={f}
-                  onClick={() => setFilter(f)}
+                  onClick={() => handleFilterChange(f)}
                   className={cn(
                     "flex-1 px-4 py-2 rounded-lg font-mono text-[10px] font-black uppercase tracking-widest transition-all",
                     filter === f ? "bg-white shadow-sm text-brand-orange" : "text-on-surface/40 hover:text-on-surface"
@@ -292,6 +336,22 @@ export default function AdminProofReview() {
            </div>
 
            <div className="flex items-center gap-4 w-full md:w-auto">
+              <div className="flex bg-on-surface/5 p-1 rounded-xl" role="group" aria-label="Queue order">
+                 <button
+                  type="button"
+                  onClick={() => handleSortChange('oldest')}
+                  className={cn("px-3 py-2 rounded-lg font-mono text-[10px] font-black uppercase tracking-widest transition-all", sortDirection === 'oldest' ? "bg-white shadow-sm text-brand-orange" : "text-on-surface/40 hover:text-on-surface")}
+                 >
+                   Oldest first
+                 </button>
+                 <button
+                  type="button"
+                  onClick={() => handleSortChange('newest')}
+                  className={cn("px-3 py-2 rounded-lg font-mono text-[10px] font-black uppercase tracking-widest transition-all", sortDirection === 'newest' ? "bg-white shadow-sm text-brand-orange" : "text-on-surface/40 hover:text-on-surface")}
+                 >
+                   Newest first
+                 </button>
+              </div>
               <div className="flex bg-on-surface p-1 rounded-lg">
                  <button 
                   onClick={() => setViewMode('swipe')}
@@ -352,7 +412,10 @@ export default function AdminProofReview() {
 	           ) : (
               <div className="space-y-8">
                 <QueueView
-                  entries={reviews}
+                  entries={visibleReviews}
+                  total={reviews.length}
+                  visibleCount={visibleReviews.length}
+                  onLoadMore={() => setVisibleCount(prev => Math.min(reviews.length, prev + QUEUE_PAGE_SIZE))}
                   selectedId={selectedQueueEntryId}
                   onSelect={(entry: any) => setSelectedQueueEntryId(getActionId(entry) || entry.id)}
                 />
@@ -435,6 +498,9 @@ function QueueDiagnosticsPanel({
           <DiagnosticRow label="Entries before filtering" value={String(diagnostics?.entriesTotalBeforeFiltering ?? 0)} />
           <DiagnosticRow label="ProofReviews before filtering" value={String(diagnostics?.proofReviewsTotalBeforeFiltering ?? 0)} />
           <DiagnosticRow label="Merged records after filtering" value={String(diagnostics?.mergedTotalAfterFiltering ?? 0)} />
+          <DiagnosticRow label="Pending (reviewable, all tabs)" value={String(diagnostics?.pendingReviewCount ?? 0)} />
+          <DiagnosticRow label="Oldest pending waiting" value={diagnostics?.oldestPendingAtMs ? formatWaitAge(diagnostics.oldestPendingAtMs) : '—'} />
+          <DiagnosticRow label="Queue window" value={diagnostics?.windowCapped ? 'oldest 500 loaded — resolve items to bring newer ones into view' : 'all records loaded'} danger={!!diagnostics?.windowCapped} />
           <DiagnosticRow label="Records per status" value={statusRows} />
           <DiagnosticRow label="Failed/incomplete" value={String(diagnostics?.failedOrIncompleteCount ?? 0)} danger={(diagnostics?.failedOrIncompleteCount ?? 0) > 0} />
           <DiagnosticRow label="Missing required fields" value={String(diagnostics?.missingRequiredFieldsCount ?? 0)} danger={(diagnostics?.missingRequiredFieldsCount ?? 0) > 0} />
@@ -1044,6 +1110,7 @@ function SwipeView({ entry, onAction, busy }: any) {
        <footer className="pt-8 border-t-2 border-on-surface/10 flex flex-wrap gap-8 text-[9px] font-mono font-black uppercase opacity-40">
           <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-on-surface rounded-full" /> UID: {entry.userId}</div>
           <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-on-surface rounded-full" /> Submitted: {entry.createdAt?.toDate ? format(entry.createdAt.toDate(), 'MM/dd HH:mm') : entry.submittedAt?.toDate ? format(entry.submittedAt.toDate(), 'MM/dd HH:mm') : 'Unknown'}</div>
+          <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-brand-orange rounded-full" /> Waiting: {formatWaitAge(entryTimestampMillis(entry))}</div>
           <div className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-on-surface rounded-full" /> Confidence: {(() => { const pct = aiConfidencePercent(entry); return pct == null ? '—' : `${pct}%`; })()}</div>
        </footer>
     </div>
@@ -1162,19 +1229,29 @@ function AiSuggestionCard({
 
 function QueueView({
   entries,
+  total,
+  visibleCount,
+  onLoadMore,
   selectedId,
   onSelect
 }: {
   entries: any[];
+  /** Total rows in the ordered queue (all pages). */
+  total: number;
+  /** Rows currently shown. */
+  visibleCount: number;
+  onLoadMore: () => void;
   selectedId: string | null;
   onSelect: (entry: any) => void;
 }) {
   return (
+    <div className="space-y-4">
     <div className="overflow-x-auto border-2 border-on-surface shadow-[8px_8px_0px_black] rounded-[2.5rem] bg-white">
        <table className="w-full text-left border-collapse">
           <thead>
              <tr className="bg-[#FAF8F5] border-b-2 border-on-surface text-[10px] font-mono font-black uppercase text-on-surface/50">
                 <th className="py-4 px-6">Timestamp</th>
+                <th className="py-4 px-6">Waiting</th>
                 <th className="py-4 px-6">Agent</th>
                 <th className="py-4 px-6">Mission</th>
                 <th className="py-4 px-6">AI_Score</th>
@@ -1197,6 +1274,9 @@ function QueueView({
                     >
                    <td className="py-4 px-6 opacity-40 whitespace-nowrap">
                      {e.createdAt?.toDate ? format(e.createdAt.toDate(), 'MM/dd HH:mm') : e.submittedAt?.toDate ? format(e.submittedAt.toDate(), 'MM/dd HH:mm') : '---'}
+                   </td>
+                   <td className="py-4 px-6 font-black text-brand-orange whitespace-nowrap">
+                     {formatWaitAge(entryTimestampMillis(e))}
                    </td>
                    <td className="py-4 px-6 font-black text-on-surface">
                      {e.displayName || 'Anon'}
@@ -1239,6 +1319,21 @@ function QueueView({
                 })}
           </tbody>
        </table>
+    </div>
+    <div className="flex flex-wrap items-center justify-between gap-3 px-2">
+      <p className="font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/50">
+        Showing {visibleCount} of {total} {total === 1 ? 'record' : 'records'}
+      </p>
+      {visibleCount < total && (
+        <button
+          type="button"
+          onClick={onLoadMore}
+          className="px-4 py-2 rounded-xl border-2 border-on-surface bg-white font-mono text-[10px] font-black uppercase tracking-widest shadow-[3px_3px_0px_black] hover:shadow-[1px_1px_0px_black] active:translate-y-0.5"
+        >
+          Load more ({Math.min(total - visibleCount, QUEUE_PAGE_SIZE)} more)
+        </button>
+      )}
+    </div>
     </div>
   );
 }

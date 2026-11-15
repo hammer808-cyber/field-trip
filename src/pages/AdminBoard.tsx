@@ -14,25 +14,31 @@ import {
   LayoutGrid
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, onSnapshot, where, limit, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, limit } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import { AdminLayout, ModuleCard, StatusLight } from '../components/admin/AdminShared';
-import { normalizeEntryStatus } from '../logic/entryLogic';
+import { subscribeToAdminPendingReviews } from '../services/submissionService';
+import { DECK_PACKS } from '../data/deckPacks';
+import { ALL_CHALLENGE_CARDS } from '../data/allChallengeBanks';
+import { formatWaitAge } from '../logic/adminQueueStats';
 
 export default function AdminBoard() {
   const { profile, loading: appLoading } = useApp();
   const { isAdmin } = useTheme();
   const navigate = useNavigate();
 
-  // Dashboard Stats
+  // Dashboard Stats — every number is computed from live data. The pending
+  // count and oldest-waiting age come from the same merged queue
+  // diagnostics the review console uses, so the board and the console can
+  // never disagree. lastSyncAt is the diagnostics snapshot time (the last
+  // successful queue read).
   const [counts, setCounts] = useState({
     pending: 0,
     activeUsers: 0,
-    totalMissions: 0,
-    storageWaiting: 0,
-    systemErrors: 0
+    oldestPendingMs: null as number | null,
+    lastSyncAt: null as string | null,
   });
   const [loading, setLoading] = useState(true);
 
@@ -42,15 +48,25 @@ export default function AdminBoard() {
   useEffect(() => {
     if (!isAdminAuthorized) return;
 
-    // 1. Pending Reviews Count
-    const unsubPending = onSnapshot(query(
-      collection(db, 'entries'),
-      where('status', 'in', ['pending_review', 'submitted_pending_review', 'needs_more_proof'])
-    ), (snap) => {
-      setCounts(prev => ({ ...prev, pending: snap.size }));
-    }, (err) => {
-      console.error('[AdminBoard] Pending reviews query denied:', err);
-    });
+    // 1. Pending Reviews Count — the same merged, normalized queue count
+    // the review console shows (see submissionService diagnostics). The
+    // board used to count root `entries` only with raw statuses, which
+    // disagreed with the console's merged count; that query is gone.
+    const unsubPending = subscribeToAdminPendingReviews(
+      'pending_review',
+      () => {},
+      (err) => {
+        console.error('[AdminBoard] Pending reviews query denied:', err);
+      },
+      (diagnostics) => {
+        setCounts(prev => ({
+          ...prev,
+          pending: diagnostics.pendingReviewCount,
+          oldestPendingMs: diagnostics.oldestPendingAtMs,
+          lastSyncAt: diagnostics.updatedAt,
+        }));
+      }
+    );
 
     // 2. Active Users Count (Recent)
     const unsubUsers = onSnapshot(query(
@@ -61,10 +77,6 @@ export default function AdminBoard() {
     }, (err) => {
       console.error('[AdminBoard] Users query denied:', err);
     });
-
-    // 3. System Health (Check for recent errors or stranded users)
-    // For now, we use a mock indicator or check a specific diagnostics collection
-    setCounts(prev => ({ ...prev, totalMissions: 42, systemErrors: 0 }));
 
     setLoading(false);
 
@@ -129,8 +141,8 @@ export default function AdminBoard() {
                 <span className="font-display text-2xl font-black italic">{counts.pending}</span>
              </div>
              <div className="flex-1 p-3 bg-brand-lime/10 border border-brand-lime/20 rounded-lg flex flex-col items-center justify-center">
-                <span className="font-mono text-[8px] font-black opacity-30 uppercase">STABILITY</span>
-                <span className="font-display text-2xl font-black italic">100%</span>
+                <span className="font-mono text-[8px] font-black opacity-30 uppercase">OLDEST_WAITING</span>
+                <span className="font-display text-2xl font-black italic">{counts.oldestPendingMs ? formatWaitAge(counts.oldestPendingMs) : '—'}</span>
              </div>
           </div>
         </ModuleCard>
@@ -150,11 +162,8 @@ export default function AdminBoard() {
         >
           <div className="space-y-2">
              <div className="flex justify-between items-center px-1">
-                <span className="font-mono text-[9px] font-bold opacity-40 uppercase">ACTIVE_AGENTS</span>
+                <span className="font-mono text-[9px] font-bold opacity-40 uppercase">TOTAL_AGENTS</span>
                 <span className="font-mono text-[11px] font-black">{counts.activeUsers}</span>
-             </div>
-             <div className="h-1 bg-on-surface/5 rounded-full overflow-hidden">
-                <div className="h-full bg-brand-cyan w-[75%]" />
              </div>
           </div>
         </ModuleCard>
@@ -175,11 +184,11 @@ export default function AdminBoard() {
           <div className="grid grid-cols-2 gap-3">
              <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-brand-lime" />
-                <span className="font-mono text-[8px] font-black uppercase opacity-60">ACTIVE: 32</span>
+                <span className="font-mono text-[8px] font-black uppercase opacity-60">DECKS: {DECK_PACKS.length}</span>
              </div>
              <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-on-surface/20" />
-                <span className="font-mono text-[8px] font-black uppercase opacity-60">DRAFT: 8</span>
+                <span className="font-mono text-[8px] font-black uppercase opacity-60">CARDS: {ALL_CHALLENGE_CARDS.length}</span>
              </div>
           </div>
         </ModuleCard>
@@ -195,7 +204,6 @@ export default function AdminBoard() {
             label: "Archive Center",
             onClick: () => navigate('/admin/archive')
           }}
-          lastActivity="Next Auto-Purge: 3d"
         >
           <div className="p-3 bg-brand-orange/5 border border-brand-orange/10 rounded-lg flex items-center justify-between">
              <div className="flex items-center gap-2">
@@ -211,8 +219,8 @@ export default function AdminBoard() {
           title="System Repair Bay"
           description="Corrective actions, global resets, and manual recovery protocols."
           icon={Terminal}
-          status={counts.systemErrors > 0 ? 'red' : 'blue'}
-          statusLabel={counts.systemErrors > 0 ? 'FAILURE_DETECTED' : 'STANDBY'}
+          status="blue"
+          statusLabel="STANDBY"
           primaryAction={{
             label: "Execute Protocols",
             onClick: () => navigate('/admin/repair'),
@@ -237,7 +245,6 @@ export default function AdminBoard() {
             label: "Config Settings",
             onClick: () => navigate('/admin/settings')
           }}
-          lastActivity="Last Patch: V1.2.4"
         >
           <div className="space-y-1.5 opacity-60">
              <div className="flex justify-between font-mono text-[8px] font-bold uppercase">
@@ -262,13 +269,7 @@ export default function AdminBoard() {
             label: "Run Diagnostics",
             onClick: () => navigate('/admin/diagnostics')
           }}
-          lastActivity="Feed: 0ms Latency"
         >
-          <div className="flex items-end gap-1 h-8 opacity-20">
-             {[0.4, 0.7, 0.5, 0.9, 0.3, 0.8, 0.6].map((h, i) => (
-               <div key={i} className="flex-1 bg-on-surface rounded-t-sm" style={{ height: `${h * 100}%` }} />
-             ))}
-          </div>
         </ModuleCard>
 
         {/* Module 8: Weekly Voting */}
@@ -353,34 +354,25 @@ export default function AdminBoard() {
 
       </div>
 
-      {/* Control Deck Footer Monitor */}
+      {/* Control Deck Footer Monitor — only real signals: the last
+          successful queue read. The old uptime/storage/ops figures were
+          hardcoded and are gone. */}
       <footer className="mt-16 bg-white border-4 border-on-surface p-6 shadow-[12px_12px_0px_black] flex flex-col sm:flex-row items-center justify-between gap-6">
          <div className="flex items-center gap-6">
             <div className="flex items-center gap-3">
                <Activity className="w-5 h-5 text-brand-lime" />
                <div className="space-y-0.5">
-                  <span className="block font-mono text-[8px] font-black opacity-30 uppercase tracking-[0.2em]">DATABASE_UPTIME</span>
-                  <span className="block font-mono text-[10px] font-black uppercase italic">99.998%_ACCURACY</span>
-               </div>
-            </div>
-            <div className="h-10 w-[2px] bg-on-surface/10 hidden sm:block" />
-            <div className="flex items-center gap-3">
-               <Database className="w-5 h-5 text-brand-orange" />
-               <div className="space-y-0.5">
-                  <span className="block font-mono text-[8px] font-black opacity-30 uppercase tracking-[0.2em]">STORAGE_PAYLOAD</span>
-                  <span className="block font-mono text-[10px] font-black uppercase italic">4.2GB_DEPLOYED</span>
+                  <span className="block font-mono text-[8px] font-black opacity-30 uppercase tracking-[0.2em]">LAST_SYNC</span>
+                  <span className="block font-mono text-[10px] font-black uppercase italic">
+                    {counts.lastSyncAt ? new Date(counts.lastSyncAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}
+                  </span>
                </div>
             </div>
          </div>
 
-         <div className="flex items-center gap-4 bg-on-surface/5 px-4 py-2 rounded-full border border-on-surface/10">
-            <div className="flex -space-x-2">
-               {[1, 2, 3].map(i => (
-                 <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-on-surface/20 flex items-center justify-center font-mono text-[8px] font-black">OP</div>
-               ))}
-            </div>
-            <span className="font-mono text-[9px] font-black uppercase opacity-60">3_OPS_IN_THE_LOOP</span>
-         </div>
+         <span className="font-mono text-[9px] font-black uppercase opacity-60">
+           {counts.pending > 0 ? `${counts.pending} PENDING REVIEW` : 'QUEUE CLEAR'}
+         </span>
       </footer>
     </AdminLayout>
   );

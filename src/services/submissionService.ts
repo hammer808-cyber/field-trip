@@ -37,6 +37,11 @@ import {
 } from './proofLifecycleService';
 import { getMissionSubmissionContext, normalizeDeckSubtitleForEntry } from '../logic/missionSubmission';
 import {
+  entryTimestampMillis,
+  sortReviewQueue,
+  type QueueSortDirection,
+} from '../logic/adminQueueStats';
+import {
   runStickerAwardNonBlocking,
   STICKER_EVENT_AWARD_IDS,
   unlockStickerForUser,
@@ -62,6 +67,24 @@ export interface AdminReviewQueueDiagnostics {
   unresolvedCanonicalEntryCount: number;
   invalidStatusCount: number;
   statusCounts: Record<'pending_review' | 'approved' | 'rejected' | 'needs_more_proof', number>;
+  /**
+   * Merged, reviewable pending count — the single number the review console
+   * and the admin board both show as "Current Queue" / "PENDING". Computed
+   * from the unfiltered merge (all statuses), so it is the same on every
+   * tab and never the double-counted raw statusCounts below. Orphan
+   * proofReviews (no matching entry) are not reviewable and are excluded.
+   */
+  pendingReviewCount: number;
+  /** Oldest waiting pending item (ms since epoch), or null when the queue
+   * is empty or no pending item carries a usable timestamp. */
+  oldestPendingAtMs: number | null;
+  /**
+   * True when a listener snapshot hit the 500-doc window: the loaded set is
+   * deterministically the OLDEST 500 (see the orderBy below), so anything
+   * past the window is newer and enters it as older items are resolved —
+   * but it is not loaded yet. The queue header says so when this is true.
+   */
+  windowCapped: boolean;
   excluded: Array<{ id: string; source: 'entry' | 'proofReview'; status: string; normalizedStatus: string; reason: string }>;
   unresolvedCanonicalEntries: Array<{
     reviewId: string;
@@ -128,26 +151,15 @@ function createEmptyDiagnostics(
       rejected: 0,
       needs_more_proof: 0
     },
+    pendingReviewCount: 0,
+    oldestPendingAtMs: null,
+    windowCapped: false,
     excluded: [],
     unresolvedCanonicalEntries: [],
     reviewableButNotRendered: [],
     errors: [],
     updatedAt: new Date().toISOString()
   };
-}
-
-function timestampMillis(value: any): number {
-  if (!value) return 0;
-  if (typeof value.toMillis === 'function') return value.toMillis();
-  if (typeof value.toDate === 'function') return value.toDate().getTime();
-  const parsed = new Date(value).getTime();
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function sortNewestFirst<T extends Record<string, any>>(items: T[]): T[] {
-  return [...items].sort(
-    (a, b) => timestampMillis(b.createdAt || b.submittedAt || b.updatedAt) - timestampMillis(a.createdAt || a.submittedAt || a.updatedAt)
-  );
 }
 
 function cleanId(value: any): string {
@@ -290,7 +302,7 @@ function normalizeReviewQueueRecord(
   } as Entry;
 }
 
-function mergeReviewQueueRecords(entries: Entry[], reviews: Entry[]): Entry[] {
+function mergeReviewQueueRecords(entries: Entry[], reviews: Entry[], direction: QueueSortDirection = 'oldest'): Entry[] {
   const byEntryId = new Map<string, Entry>();
 
   entries.forEach(entry => {
@@ -305,7 +317,9 @@ function mergeReviewQueueRecords(entries: Entry[], reviews: Entry[]): Entry[] {
     }
   });
 
-  return sortNewestFirst(Array.from(byEntryId.values()));
+  // Oldest first by default: the item that has waited longest is reviewed
+  // first. The page can flip this with the sort toggle.
+  return sortReviewQueue(Array.from(byEntryId.values()), direction);
 }
 
 // Log message only in development
@@ -781,8 +795,10 @@ export function subscribeToAdminPendingReviews(
   statusFilter: 'pending_review' | 'approved' | 'rejected' | 'needs_more_proof',
   callback: (submissions: Entry[]) => void,
   onError?: (err: any) => void,
-  onDiagnostics?: (diagnostics: AdminReviewQueueDiagnostics) => void
+  onDiagnostics?: (diagnostics: AdminReviewQueueDiagnostics) => void,
+  options?: { sortDirection?: QueueSortDirection }
 ) {
+  const sortDirection: QueueSortDirection = options?.sortDirection ?? 'oldest';
   logDev(`Subscribing to canonical administrative proof queue for filtered status: ${statusFilter}`);
   console.log("[AdminQueue] canonical collection-group query started", { statusFilter, projectId: firebaseConfig.projectId });
 
@@ -804,7 +820,7 @@ export function subscribeToAdminPendingReviews(
     const rootEntryIndex = buildRootEntryIndex(monitorEntriesForDiagnostics);
     const latestEntries = rawEntriesForQueue.map(entry => normalizeReviewQueueRecord(entry.id, entry, 'entry', rootEntryIndex));
     const latestReviews = rawReviewsForQueue.map(review => normalizeReviewQueueRecord(review.id, review, 'proofReview', rootEntryIndex));
-    const merged = mergeReviewQueueRecords(latestEntries, latestReviews);
+    const merged = mergeReviewQueueRecords(latestEntries, latestReviews, sortDirection);
     const renderedIds = new Set(merged.map(item => String((item as any).entryId || item.id)));
     const diagnostics = createEmptyDiagnostics(statusFilter);
     diagnostics.entriesTotalBeforeFiltering = monitorEntriesCount || rawEntriesCount;
@@ -812,12 +828,38 @@ export function subscribeToAdminPendingReviews(
     diagnostics.mergedTotalAfterFiltering = merged.length;
     diagnostics.errors = [...errors];
     diagnostics.excluded = Array.from(excluded.values()).slice(0, 80);
+    // Unified queue numbers: merge the UNFILTERED sets once and count
+    // reviewable pending items from that merge. This is the "Current
+    // Queue" number the console and the board both show, on every tab.
+    // Archived records are excluded (they are not reviewable); orphan
+    // proofReviews (no matching entry) are dropped by the merge itself.
+    const mergedAll = mergeReviewQueueRecords(
+      monitorEntriesForDiagnostics
+        .filter((record: any) => record?.archived !== true)
+        .map((record: any) => normalizeReviewQueueRecord(String(record.id || ''), record, 'entry', rootEntryIndex)),
+      rawReviewsForDiagnostics
+        .filter((record: any) => record?.archived !== true)
+        .map((record: any) => normalizeReviewQueueRecord(String(record.id || ''), record, 'proofReview', rootEntryIndex)),
+      sortDirection
+    );
+    const pendingMerged = mergedAll.filter(item => (item as any).status === 'pending_review');
+    diagnostics.pendingReviewCount = pendingMerged.length;
+    const knownPendingTimes = pendingMerged
+      .map(item => entryTimestampMillis(item))
+      .filter(ms => ms > 0);
+    diagnostics.oldestPendingAtMs = knownPendingTimes.length > 0 ? Math.min(...knownPendingTimes) : null;
+    // "Records per status" counts reviewable merged records, not raw docs:
+    // an entry and its linked proofReview are one record, not two.
+    mergedAll.forEach(item => {
+      const mergedStatus = (item as any).status as keyof typeof diagnostics.statusCounts;
+      if (mergedStatus in diagnostics.statusCounts) diagnostics.statusCounts[mergedStatus] += 1;
+    });
+    diagnostics.windowCapped = rawEntriesCount >= 500 || monitorEntriesCount >= 500 || rawReviewsCount >= 500;
     [...monitorEntriesForDiagnostics, ...rawReviewsForDiagnostics].forEach(record => {
       if (record?.archived === true) return;
       const rawStatus = (record as any).status || (record as any).reviewStatus || (record as any).submissionStatus || (record as any).proofStatus;
       const status = normalizeProofStatus(rawStatus);
       const rawStatusText = String(rawStatus || '').toLowerCase().trim();
-      diagnostics.statusCounts[status] += 1;
       if (rawStatusText === 'submission_failed' || rawStatusText === 'upload_incomplete' || rawStatusText === 'uploading' || rawStatusText === 'draft') {
         diagnostics.failedOrIncompleteCount += 1;
       }
@@ -863,18 +905,38 @@ export function subscribeToAdminPendingReviews(
   // Do not filter the admin queue by raw Firestore status. Older/mobile
   // submission paths have used variants such as pendingReview or
   // submitted_pending_review; the queue must use the canonical normalizer.
+  //
+  // Ordering + window (Q7): the three queries order by createdAt ascending
+  // with a 500-doc window, so the loaded set is deterministically the
+  // OLDEST 500 records — never an arbitrary Firestore subset. A single-field
+  // collectionGroup orderBy uses Firestore's automatic single-field index,
+  // so no composite index is needed; if the query ever fails with
+  // failed-precondition, the error handlers below surface it in the UI
+  // (query error banner + diagnostics errors) instead of failing silently.
+  // One Firestore semantic to know: orderBy excludes documents that lack
+  // the ordered field. Every known entry/review writer sets createdAt
+  // (gameService submitTripEntry, createSubmission, createAdminReview), so
+  // in practice nothing is excluded; a legacy doc without createdAt would
+  // not appear in the queue and is a repair-tool job (its root-collection
+  // scan has no orderBy). The rendered list paginates client-side over
+  // this window (Load more, 25/page); the diagnostics counts below come
+  // from the separate monitor scan, never from the paged view — that split
+  // is what keeps diagnostics correct while the list pages.
   const entryQuery = query(
     collectionGroup(db, ENTRIES_COLLECTION),
+    orderBy('createdAt', 'asc'),
     limit(500)
   );
 
   const monitorEntryQuery = query(
     collectionGroup(db, ENTRIES_COLLECTION),
+    orderBy('createdAt', 'asc'),
     limit(500)
   );
 
   const reviewQuery = query(
     collectionGroup(db, REVIEWS_COLLECTION),
+    orderBy('createdAt', 'asc'),
     limit(500)
   );
 

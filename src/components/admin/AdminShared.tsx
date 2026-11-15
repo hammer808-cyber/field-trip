@@ -150,18 +150,44 @@ export const ModuleCard = ({
 /**
  * AdminLayout Component
  */
-export const AdminLayout = ({ 
-  children, 
+export const AdminLayout = ({
+  children,
   title = "Bureau_Control_Center",
   description,
   breadcrumbs = []
-}: { 
+}: {
   children: React.ReactNode;
   title?: string;
   description?: string;
   breadcrumbs?: { label: string; path?: string }[];
 }) => {
   const navigate = useNavigate();
+
+  // Real round-trip latency to the server, measured once per mount (each
+  // admin page mounts its own AdminLayout, so it re-measures on
+  // navigation). '—' until the first measurement lands, and '—' again if
+  // the probe fails — never a hardcoded number. The old capacity figure
+  // had no real source and is gone.
+  const [latency, setLatency] = React.useState('—');
+  React.useEffect(() => {
+    let cancelled = false;
+    const started = performance.now();
+    fetch('/api/health', { signal: AbortSignal.timeout(5000) })
+      .then((response) => {
+        if (cancelled) return;
+        if (!response.ok) throw new Error(`health ${response.status}`);
+        setLatency(`${Math.max(1, Math.round(performance.now() - started))}ms`);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.warn('[AdminLayout] Latency probe failed:', err?.message || String(err));
+          setLatency('—');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#F0EFED] p-6 sm:p-10 pb-32">
@@ -239,11 +265,7 @@ export const AdminLayout = ({
            <div className="hidden sm:flex gap-4">
               <div className="flex flex-col items-end">
                  <span className="font-mono text-[8px] font-black opacity-30 uppercase">LATENCY</span>
-                 <span className="font-mono text-[9px] font-black uppercase">42ms_STABLE</span>
-              </div>
-              <div className="flex flex-col items-end">
-                 <span className="font-mono text-[8px] font-black opacity-30 uppercase">DEX_LOAD</span>
-                 <span className="font-mono text-[9px] font-black uppercase tracking-tighter">88%_CAPACITY</span>
+                 <span className="font-mono text-[9px] font-black uppercase">{latency === '—' ? '—' : `${latency}_LIVE`}</span>
               </div>
            </div>
         </div>
