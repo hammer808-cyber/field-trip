@@ -6,6 +6,8 @@ export enum RewardIntensity {
 
 export type RewardType = 'badge' | 'sticker' | 'aura' | 'persona' | 'rank' | 'milestone' | 'artifact' | 'progress' | 'action';
 
+export type RewardRarity = 'common' | 'rare' | 'legendary';
+
 export interface RewardQueueItem {
   id: string;
   type: RewardType;
@@ -14,7 +16,9 @@ export interface RewardQueueItem {
   description?: string;
   rewardText?: string;
   iconName?: string; // Lucide icon name
-  rarity?: 'common' | 'uncommon' | 'rare' | 'bureau-secret';
+  /** Sticker artwork to display instead of the Lucide icon (Stage 5). Falls back to iconName when absent or the image fails to load. */
+  imageUrl?: string;
+  rarity?: RewardRarity;
   redirectPath?: string;
   persistentKey?: string;
   metadata?: any;

@@ -59,6 +59,22 @@ export const RewardFeedback: React.FC = () => {
   );
 };
 
+/**
+ * Stage 5: renders sticker artwork when an imageUrl is present, with a
+ * Lucide-icon fallback when the art is absent or fails to load, so a
+ * missing file can never break the celebration. Exported for tests.
+ */
+export function RewardArtwork({ imageUrl, alt, imgClassName, fallback }: {
+  imageUrl?: string;
+  alt: string;
+  imgClassName: string;
+  fallback: React.ReactNode;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (!imageUrl || failed) return <>{fallback}</>;
+  return <img src={imageUrl} alt={alt} className={imgClassName} onError={() => setFailed(true)} />;
+}
+
 interface MajorRevealProps {
   reward: RewardQueueItem;
   onDismiss: () => void;
@@ -118,7 +134,12 @@ const MajorReveal: React.FC<MajorRevealProps> = ({ reward, onDismiss, skinConfig
                 "bg-brand-lime text-on-surface rotate-3"
               )}
             >
-              <IconComponent className="w-16 h-16 stroke-[2.5]" />
+              <RewardArtwork
+                imageUrl={reward.imageUrl}
+                alt={reward.rewardText || reward.title}
+                imgClassName="h-28 w-28 object-contain"
+                fallback={<IconComponent className="w-16 h-16 stroke-[2.5]" />}
+              />
             </motion.div>
           </div>
 
@@ -131,6 +152,14 @@ const MajorReveal: React.FC<MajorRevealProps> = ({ reward, onDismiss, skinConfig
               )}>
                 {reward.title}
               </h2>
+              {reward.rarity && (
+                <span className={cn(
+                  "mt-2 inline-block border-2 border-on-surface px-3 py-1 text-[10px] font-mono font-black uppercase tracking-[0.25em]",
+                  reward.rarity === 'legendary' ? "bg-brand-orange text-white" : "bg-white text-on-surface"
+                )}>
+                  {reward.rarity}
+                </span>
+              )}
             </div>
             {reward.description && (
               <p className="text-sm font-serif italic font-bold opacity-60 px-6 leading-relaxed">
@@ -154,7 +183,7 @@ const MajorReveal: React.FC<MajorRevealProps> = ({ reward, onDismiss, skinConfig
             <div className="space-y-4 pt-2">
               <button
                 onClick={() => {
-                  window.location.href = '/dex/collection';
+                  window.location.href = reward.redirectPath ?? '/dex/collection';
                   onDismiss();
                 }}
                 className={cn(
@@ -249,7 +278,12 @@ const RewardToast: React.FC<RewardToastProps> = ({ reward, onDismiss, skinConfig
         "flex-shrink-0 text-brand-orange flex items-center justify-center",
         isMedium ? "w-10 h-10 bg-on-surface/5 rounded-lg border-2 border-on-surface/10" : "text-brand-lime"
       )}>
-        <IconComponent size={isMedium ? 20 : 16} strokeWidth={3} />
+        <RewardArtwork
+          imageUrl={reward.imageUrl}
+          alt={reward.title}
+          imgClassName={isMedium ? "h-10 w-10 object-contain" : "h-6 w-6 object-contain"}
+          fallback={<IconComponent size={isMedium ? 20 : 16} strokeWidth={3} />}
+        />
       </div>
 
       <div className="flex-grow min-w-0 flex flex-col items-start text-left">

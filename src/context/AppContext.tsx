@@ -79,6 +79,16 @@ import {
   runStickerAwardNonBlocking,
 } from '../services/stickerService';
 import { evaluateStickerTriggers } from '../logic/stickerEvaluator';
+import { getStickerById, COLLECTION_META } from '../data/stickers';
+import {
+  celebrationIntensityForRarity,
+  celebrationPersistentKey,
+  filterNewStickerDocs,
+  normalizeLegacyRarity,
+  sessionLimitKey,
+  unseenLegendaryCatchUpDocs,
+  type WatcherStickerDoc,
+} from '../logic/stickerCelebration';
 import { castVote, getVotesForUser } from '../services/voteService';
 import { StarterCompletionState } from '../utils/starterHelper';
 
@@ -1152,6 +1162,82 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user]);
 
+  // Sticker celebrations (Stage 5): watch the canonical stickers
+  // subcollection and celebrate fresh awards. One watcher covers every
+  // award source — client evaluator awards, server-side weekly winners,
+  // and admin grants — with no per-call-site wiring.
+  //
+  // Baseline at attach: already-owned stickers never celebrate, so the
+  // first load after this ships does not fire a burst for the backlog.
+  // Legendary-only catch-up: owned legendaries that are still unseen
+  // celebrate on next open (they were usually awarded server-side while
+  // the player was away); unseen common/rare stickers just show as
+  // "New" in the Dex. Celebrations never touch `seen` — the Dex "New"
+  // badge owns that — and the persistentKey makes each celebration
+  // once per device, so reloads and listener re-attaches never re-fire.
+  useEffect(() => {
+    if (!user) return;
+    const uid = user.uid;
+    let baseline: Set<string> | null = null;
+
+    const celebrateCanonicalSticker = (doc: WatcherStickerDoc) => {
+      const sticker = getStickerById(doc.stickerId);
+      if (!sticker) return;
+      queueReward({
+        type: 'sticker',
+        intensity: celebrationIntensityForRarity(sticker.rarity),
+        title: sticker.name,
+        description: sticker.unlockReason,
+        rewardText: COLLECTION_META[sticker.collection].label,
+        imageUrl: sticker.imageUrl,
+        rarity: sticker.rarity,
+        redirectPath: sticker.rarity === 'legendary' ? '/dex/stickers' : undefined,
+        persistentKey: celebrationPersistentKey(uid, doc.stickerId),
+        metadata: { stickerId: doc.stickerId },
+      });
+    };
+
+    const toWatcherDoc = (docId: string, data: any): WatcherStickerDoc => {
+      const unlockedAt = data.unlockedAt;
+      return {
+        stickerId: typeof data.stickerId === 'string' ? data.stickerId : docId,
+        seen: data.seen === true,
+        unlockedAtMs:
+          unlockedAt && typeof unlockedAt.toMillis === 'function'
+            ? unlockedAt.toMillis()
+            : null,
+      };
+    };
+
+    const unsubscribe = onSnapshot(
+      collection(db, 'users', uid, 'stickers'),
+      (snapshot) => {
+        const docs = snapshot.docs.map((d) => toWatcherDoc(d.id, d.data()));
+        if (baseline === null) {
+          baseline = new Set(docs.map((d) => d.stickerId));
+          for (const doc of unseenLegendaryCatchUpDocs(
+            docs,
+            (id) => getStickerById(id)?.rarity,
+          )) {
+            celebrateCanonicalSticker(doc);
+          }
+          return;
+        }
+        for (const doc of filterNewStickerDocs(baseline, docs)) {
+          baseline.add(doc.stickerId);
+          celebrateCanonicalSticker(doc);
+        }
+      },
+      (err) => {
+        console.warn('[AppContext] Sticker celebration sync failed:', err.message);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [user]);
+
   // Sync entries (Subscription for real-time updates)
   useEffect(() => {
     if (!user) {
@@ -1501,7 +1587,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           description: isFirstBadge ? badge.description : undefined,
           rewardText: badge.unlockReward,
           iconName: badge.icon,
-          rarity: badge.rarity
+          rarity: normalizeLegacyRarity(badge.rarity)
         });
         markBadgeAsSeen(badge.id).catch(err => console.warn("markBadgeAsSeen failed:", err));
       }
@@ -1796,15 +1882,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // Register field pulse action (increment action count)
         registerPulseAction('unlock_sticker', sticker.id);
         
-        // 1. Queue Sticker Reward
+        // 1. Queue Sticker Reward (Stage 5: intensity by rarity, so only
+        // legendary legacy stickers get the full-screen modal; the rest
+        // get a toast. The persistentKey makes the celebration once per
+        // device — dismissing it records it, so it never re-fires.)
         queueReward({
           type: 'sticker',
-          intensity: RewardIntensity.MAJOR_REVEAL,
+          intensity: celebrationIntensityForRarity(sticker.rarity),
           title: "Sticker discovered!",
           description: sticker.description,
           rewardText: sticker.name,
           iconName: sticker.iconName,
-          rarity: sticker.rarity as any,
+          rarity: normalizeLegacyRarity(sticker.rarity),
+          persistentKey: celebrationPersistentKey(user.uid, sticker.id),
           metadata: { stickerId: sticker.id }
         });
 
@@ -2586,13 +2676,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     
-    // Check session limits for MAJOR_REVEAL
+    // Check session limits for MAJOR_REVEAL. Keyed by reward type plus
+    // the sticker id when the reward is a sticker (Stage 5), so two
+    // distinct legendaries in one session each get their modal, while a
+    // repeated queue of the same sticker still downgrades to a toast.
     if (item.intensity === RewardIntensity.MAJOR_REVEAL) {
-      if (sessionSeenRewards.has(item.type)) {
+      const limitKey = sessionLimitKey(item.type, item.metadata?.stickerId);
+      if (sessionSeenRewards.has(limitKey)) {
         // Downgrade to MEDIUM if already seen in session
         item.intensity = RewardIntensity.MEDIUM_REWARD;
       } else {
-        setSessionSeenRewards(prev => new Set(prev).add(item.type));
+        setSessionSeenRewards(prev => new Set(prev).add(limitKey));
       }
     }
     
