@@ -23,7 +23,7 @@ import {
   type PlayerGuidanceSnapshot,
 } from './playerGuidance';
 
-export type BasecampActionIntent = 'navigate' | 'retry-proof';
+export type BasecampActionIntent = 'navigate' | 'retry-proof' | 'draw-starter';
 
 export interface BasecampPrimaryAction {
   label: string;
@@ -471,13 +471,17 @@ export function buildBasecampViewModel(input: BuildBasecampViewModelInput): Base
     crew: buildCrew(input.profile, input.entries, input.crewGraph),
     recentActivity: buildRecentActivity(input),
     guidance,
+    // Missions stays out of the quick links until the Starter set is done:
+    // the draw lives on Basecamp and the Missions page is locked before then.
     quickLinks: [
-      {
-        id: 'missions',
-        label: 'Missions',
-        description: guidance.primaryActionLabel,
-        href: guidance.navigationTarget === 'missions' ? guidance.primaryActionDestination : '/missions',
-      },
+      ...(starter.starterComplete
+        ? [{
+            id: 'missions' as const,
+            label: 'Missions',
+            description: guidance.primaryActionLabel,
+            href: guidance.navigationTarget === 'missions' ? guidance.primaryActionDestination : '/missions',
+          }]
+        : []),
       {
         id: 'logbook',
         label: 'Logbook',

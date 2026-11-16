@@ -176,8 +176,9 @@ test('2. Starter with no missions submitted asks the player to draw', () => {
   }));
   assert.equal(snapshot.state, 'DRAW_STARTER_MISSION');
   assert.equal(snapshot.primaryActionLabel, 'Draw a Mission');
-  assert.match(snapshot.primaryActionDestination, /starter-signals/);
-  assert.equal(snapshot.navigationTarget, 'missions');
+  assert.equal(snapshot.primaryActionIntent, 'draw-starter');
+  assert.equal(snapshot.primaryActionDestination, '/basecamp');
+  assert.equal(snapshot.navigationTarget, 'basecamp');
 });
 
 test('3. Starter 1/3 pending with next mission available stays on draw-next', () => {
@@ -194,6 +195,9 @@ test('3. Starter 1/3 pending with next mission available stays on draw-next', ()
   }));
   assert.equal(snapshot.state, 'DRAW_NEXT_STARTER');
   assert.equal(snapshot.primaryActionLabel, 'Draw Next Mission');
+  assert.equal(snapshot.primaryActionIntent, 'draw-starter');
+  assert.equal(snapshot.primaryActionDestination, '/basecamp');
+  assert.equal(snapshot.navigationTarget, 'basecamp');
   assert.equal(snapshot.secondaryAction?.label, 'View Proof Status');
   assert.ok(snapshot.priority > GUIDANCE_PRIORITY.WAITING_FOR_STARTER_REVIEW);
 });
@@ -433,7 +437,7 @@ test('priority collision: pending starter with another available outranks vote',
     voteAvailable: true,
   }));
   assert.equal(snapshot.state, 'DRAW_NEXT_STARTER');
-  assert.notEqual(snapshot.navigationTarget, 'voting');
+  assert.equal(snapshot.navigationTarget, 'basecamp');
 });
 
 test('superseded rejected proof does not stay primary after retry pending', () => {

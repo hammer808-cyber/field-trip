@@ -29,6 +29,7 @@ export default function Basecamp() {
     currentDate,
     currentWeekNumber,
     drawnMissionCards,
+    drawTrip,
     entries,
     fieldType,
     isAdmin,
@@ -38,12 +39,18 @@ export default function Basecamp() {
     profile,
     retryMissionSubmission,
     trips,
+    unlockDiscoverySticker,
     user,
     userVotes,
     notifications,
     crewGraph,
   } = useApp();
   const navigate = useNavigate();
+
+  // Starter draws happen here on Basecamp — the Missions page is locked
+  // until the three Starter missions are approved.
+  const [isDrawingStarter, setIsDrawingStarter] = React.useState(false);
+  const [starterDrawError, setStarterDrawError] = React.useState<string | null>(null);
 
   const viewModel = React.useMemo(() => buildBasecampViewModel({
     canonicalProgress,
@@ -100,6 +107,29 @@ export default function Basecamp() {
   }, [canonicalProgress, profile?.id, user?.uid, viewModel]);
 
   const runAction = React.useCallback(async (action: BasecampPrimaryAction) => {
+    if (action.intent === 'draw-starter') {
+      if (isDrawingStarter) return;
+      setIsDrawingStarter(true);
+      setStarterDrawError(null);
+      try {
+        const trip = await drawTrip(undefined, 'starter-signals');
+        if (!trip) {
+          setStarterDrawError('No Starter mission left to draw.');
+          return;
+        }
+        // Fire-and-forget like the Deck draw: a sticker failure must not
+        // report the draw itself as failed.
+        unlockDiscoverySticker('mission_draw', 'basecamp').catch(err =>
+          console.warn('[Basecamp] mission_draw sticker failed:', err),
+        );
+      } catch (error) {
+        console.warn('[Basecamp] Starter draw failed:', error);
+        setStarterDrawError('Draw failed. Try again.');
+      } finally {
+        setIsDrawingStarter(false);
+      }
+      return;
+    }
     if (
       viewModel.guidance.state === 'STARTER_COMPLETE'
       && (profile?.id || user?.uid)
@@ -119,6 +149,9 @@ export default function Basecamp() {
     }
     navigate(action.href);
   }, [
+    drawTrip,
+    unlockDiscoverySticker,
+    isDrawingStarter,
     navigate,
     retryMissionSubmission,
     viewModel.guidance.state,
@@ -161,6 +194,8 @@ export default function Basecamp() {
             <BasecampNextActionPanel
               model={viewModel.nextAction}
               pack={activePack}
+              isDrawing={isDrawingStarter}
+              drawError={starterDrawError}
               onAction={() => void runAction(viewModel.nextAction.action)}
               onSecondaryAction={viewModel.nextAction.secondaryAction
                 ? () => void runAction(viewModel.nextAction.secondaryAction!)

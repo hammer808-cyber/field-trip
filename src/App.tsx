@@ -21,7 +21,7 @@ import { LAUNCH_MISSION_ID, isLaunchMissionEligible } from './data/specialMissio
 import { firebaseError, getFirebaseInitError } from './lib/firebase';
 import { TrevorGuide } from './components/TrevorGuide';
 import { StarterGate } from './components/StarterGate';
-import { resolveOnboardingDestination } from './logic/onboardingFlow';
+import { resolveOnboardingDestination, shouldRedirectPreStarterToBasecamp } from './logic/onboardingFlow';
 
 const FirebaseConfigError = ({ error }: { error: string }) => (
   <div className="min-h-screen flex items-center justify-center bg-paper p-6 text-on-surface font-mono">
@@ -347,6 +347,24 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   // Allow all pages used in the tour: Deck, Capture, Profile, Big Board, and Field Type.
   const isAllowedOnboardingPage = isDeckPage || isCapturePage || isProfilePage || isBigBoardPage || isFieldTypePage || isBasecampPage || isCrewPage || isCollectionPage || isMemoriesPage || isVotingPage || isLoteriaPage;
   if (user && hasConfirmedLegal && fieldClassificationComplete && hasSeenFieldTypeResults && !onboardingCompleted && !isAllowedOnboardingPage && !isBypassingGuards) {
+    return <Navigate to="/basecamp" replace />;
+  }
+
+  // Step 3.5: Pre-Starter lock — the Missions/Deck pages open only once the
+  // three Starter missions are approved. The Starter draw lives on Basecamp,
+  // so sending a pre-Starter player back there never strands them.
+  if (
+    user
+    && hasConfirmedLegal
+    && fieldClassificationComplete
+    && hasSeenFieldTypeResults
+    && !isBypassingGuards
+    && shouldRedirectPreStarterToBasecamp({
+      pathname: location.pathname,
+      starterComplete: !!onboardingCompleted,
+      isAdmin,
+    })
+  ) {
     return <Navigate to="/basecamp" replace />;
   }
 

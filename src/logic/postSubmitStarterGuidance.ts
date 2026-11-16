@@ -158,7 +158,7 @@ export function buildPostSubmitStarterGuidance(input: GuidanceInput): PostSubmit
     statusLine: isApprovedStatus(reviewStatus)
       ? 'Your proof was approved.'
       : reviewStatus === 'needs_more_proof'
-        ? 'Your proof needs a bit more. Try again from Missions.'
+        ? 'Your proof needs a bit more. Try again from Basecamp.'
         : 'Your proof is waiting for review.',
     primaryHref: '/basecamp',
     primaryLabel: 'Back to Basecamp',

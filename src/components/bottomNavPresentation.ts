@@ -4,6 +4,18 @@
  * into the Phase 4 CURRENT / NEXT / LOCKED / NORMAL visual contract.
  */
 
+/**
+ * Missions opens only once the three Starter missions are approved.
+ * Before then the Starter draw lives on Basecamp, so the Missions tab
+ * shows LOCKED the same way Dex, Voting and Big Board do.
+ */
+export function resolveMissionsNavLocked(input: {
+  starterComplete: boolean;
+  isAdmin: boolean;
+}): boolean {
+  return !input.isAdmin && !input.starterComplete;
+}
+
 export type BottomNavVisualState = 'current' | 'attention' | 'locked' | 'normal';
 
 export interface DexNavPresentation {

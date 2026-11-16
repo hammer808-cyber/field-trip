@@ -79,7 +79,7 @@ export type PlayerGuidanceUrgency = 'critical' | 'high' | 'normal' | 'low';
 
 export type PlayerGuidanceNavTarget = 'missions' | 'voting' | 'dex' | 'basecamp' | null;
 
-export type PlayerGuidanceActionIntent = 'navigate' | 'retry-proof';
+export type PlayerGuidanceActionIntent = 'navigate' | 'retry-proof' | 'draw-starter';
 
 export interface PlayerGuidanceAction {
   label: string;
@@ -353,6 +353,11 @@ function packIdFromGuidanceDestination(guidance: PlayerGuidanceSnapshot): string
  * must not draw from an exhausted starter-signals pack. After the unlock is
  * acknowledged, DRAW_MISSION must still follow the destination pack so a leftover
  * starter-signals selection cannot produce a dead draw.
+ *
+ * Starter draws happen on Basecamp (intent 'draw-starter', destination
+ * '/basecamp'), so DRAW_STARTER_MISSION / DRAW_NEXT_STARTER never reach the
+ * draw-current branch below — the fallthrough navigate to Basecamp is the
+ * correct strip action for them.
  */
 export function resolveMissionsGuidancePrimaryAction(
   guidance: PlayerGuidanceSnapshot,
@@ -547,7 +552,7 @@ const COPY: Record<PlayerGuidanceState, {
   },
   DRAW_STARTER_MISSION: {
     urgency: 'high',
-    navigationTarget: 'missions',
+    navigationTarget: 'basecamp',
     primary: () => ({
       title: 'Draw your first mission',
       shortMessage: 'Starter Missions are ready.',
@@ -555,11 +560,11 @@ const COPY: Record<PlayerGuidanceState, {
       actionLabel: 'Draw a Mission',
       secondary: null,
     }),
-    destination: () => ({ href: '/missions?pack=starter-signals', intent: 'navigate' }),
+    destination: () => ({ href: '/basecamp', intent: 'draw-starter' }),
   },
   DRAW_NEXT_STARTER: {
     urgency: 'high',
-    navigationTarget: 'missions',
+    navigationTarget: 'basecamp',
     primary: (_missionTitle, starterLabel) => ({
       title: 'Draw next Starter mission',
       shortMessage: starterLabel ? `Starter ${starterLabel}. Draw the next one.` : 'Draw your next Starter mission.',
@@ -567,7 +572,7 @@ const COPY: Record<PlayerGuidanceState, {
       actionLabel: 'Draw Next Mission',
       secondary: { label: 'View Proof Status', destination: '/profile?tab=logbook', intent: 'navigate' },
     }),
-    destination: () => ({ href: '/missions?pack=starter-signals', intent: 'navigate' }),
+    destination: () => ({ href: '/basecamp', intent: 'draw-starter' }),
   },
   WAITING_FOR_STARTER_REVIEW: {
     urgency: 'high',

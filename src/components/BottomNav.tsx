@@ -4,9 +4,9 @@ import { Trophy, Home, Target, LayoutGrid, Lock, Users, Vote, type LucideIcon } 
 import { cn } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
-import { canAccessFeature } from '../services/canonicalProgress';
+import { canAccessFeature, getStarterProgress } from '../services/canonicalProgress';
 import { usePlayerGuidance } from '../hooks/usePlayerGuidance';
-import { resolveDexNavPresentation } from './bottomNavPresentation';
+import { resolveDexNavPresentation, resolveMissionsNavLocked } from './bottomNavPresentation';
 import './BottomNav.css';
 
 export function BottomNav() {
@@ -48,6 +48,10 @@ export function BottomNav() {
   const dexUnlocked = canAccessFeature(canonicalProgress, 'memories', { isAdmin });
   const votingUnlocked = canAccessFeature(canonicalProgress, 'voting', { isAdmin });
   const crewUnlocked = canAccessFeature(canonicalProgress, 'crew', { isAdmin });
+  const missionsLocked = resolveMissionsNavLocked({
+    starterComplete: getStarterProgress(canonicalProgress).starterComplete,
+    isAdmin,
+  });
   // DEV-only preview so CURRENT vs NEXT Dex can be live-checked without changing guidance.
   const debugAttention = import.meta.env.DEV
     ? (new URLSearchParams(location.search).get('ftNavAttention')
@@ -77,7 +81,7 @@ export function BottomNav() {
     locked?: boolean;
   }> = [
     { icon: Home, label: 'BASECAMP', path: '/basecamp' },
-    { icon: Target, label: 'MISSIONS', path: '/missions' },
+    { icon: Target, label: 'MISSIONS', path: '/missions', locked: missionsLocked },
     { icon: LayoutGrid, label: 'DEX', path: '/dex', locked: !dexUnlocked },
     { icon: Users, label: 'CREWS', path: '/crew', locked: !crewUnlocked },
     { icon: Vote, label: 'VOTING', path: '/voting', locked: !votingUnlocked },
