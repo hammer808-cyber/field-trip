@@ -284,6 +284,28 @@ service cloud.firestore {
         let isEditingSkinOwnership =
           data.get('unlockedRewards', {}).get('skins', ['classic']) !=
           existing.get('unlockedRewards', {}).get('skins', ['classic']);
+
+        // STAGE 2 (Nov 15, 2026) — legacy sticker spoof hole (audit §3.2).
+        // The legacy users/{uid} sticker fields are client-writable today,
+        // so any owner can self-grant stickers from the browser console.
+        // The canonical store is the users/{uid}/stickers subcollection
+        // (whitelisted below); the legacy fields may only change via
+        // server/admin writes, which bypass rules. NOTE: this also blocks
+        // the client-side discoveryService.awardDiscoverySticker writes —
+        // legacy awards must move server-side (or to the canonical
+        // subcollection) before this ships, or they will fail silently.
+        // affectedKeys() is top-level only, so unlockedRewards.stickers
+        // is compared as a map subfield, mirroring the skins check above.
+        // completedDiscoveryGroups is included: it is the fifth field in
+        // the audit §3.2 unprotected list and its only client writer is
+        // the same discoveryService call.
+        let isEditingLegacyStickers =
+          data.diff(existing).affectedKeys().hasAny([
+            'earnedStickers', 'discoveryEvents', 'stickerUnlockHistory',
+            'completedDiscoveryGroups'
+          ]) ||
+          data.get('unlockedRewards', {}).get('stickers', []) !=
+          existing.get('unlockedRewards', {}).get('stickers', []);
         
         // Special Case: fieldType. We protect it from UPDATES, but allow INITIAL SETTING if currently null.
         // This lets the onboarding quiz work while preventing users from changing it later to farm rewards.
@@ -292,7 +314,7 @@ service cloud.firestore {
 
         let isFieldTypeUpdate = data.diff(existing).affectedKeys().hasAny(['fieldType', 'fieldTypeName', 'fieldClassificationComplete']);
 
-        return (isEditingProtected || isEditingSkinOwnership || (isFieldTypeUpdate && !isInitialFieldTypeSet));
+        return (isEditingProtected || isEditingSkinOwnership || isEditingLegacyStickers || (isFieldTypeUpdate && !isInitialFieldTypeSet));
       }
 
       function isProgressionProtected(data, existing) {
@@ -308,6 +330,18 @@ service cloud.firestore {
       function hasSafeInitialSkinState(data) {
         return data.get('equippedSkinId', 'classic') == 'classic' &&
                data.get('unlockedRewards', {}).get('skins', ['classic']).hasOnly(['classic']);
+      }
+
+      function hasSafeInitialLegacyStickerState(data) {
+        // STAGE 2 (Nov 15, 2026): a self-create must not pre-populate the
+        // legacy sticker fields — otherwise the spoof hole stays open via
+        // profile creation. The legitimate client create path
+        // (userService.ts) already creates these empty.
+        return data.get('unlockedRewards', {}).get('stickers', []).size() == 0 &&
+               data.get('earnedStickers', []).size() == 0 &&
+               data.get('discoveryEvents', {}).keys().size() == 0 &&
+               data.get('stickerUnlockHistory', []).size() == 0 &&
+               data.get('completedDiscoveryGroups', []).size() == 0;
       }
 
       function hasSafeInitialProgressionState(data) {
@@ -332,7 +366,7 @@ service cloud.firestore {
       allow get: if isSignedIn() && (uId == request.auth.uid || isAdmin());
       allow list: if isAdmin();
       allow create: if isSignedIn() && hasSafeInitialProgressionState(incoming()) && (
-        isAdmin() || (uId == request.auth.uid && hasSafeInitialSkinState(incoming()))
+        isAdmin() || (uId == request.auth.uid && hasSafeInitialSkinState(incoming()) && hasSafeInitialLegacyStickerState(incoming()))
       );
       allow update: if isSignedIn() && (uId == request.auth.uid || isAdmin()) && (
         !isProgressionProtected(incoming(), existing()) &&
