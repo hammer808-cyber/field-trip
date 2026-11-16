@@ -4,6 +4,7 @@ import { ChevronRight, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
+import { resolveOnboardingDestination } from '../logic/onboardingFlow';
 import { cn } from '../lib/utils';
 import { Sparkle } from '../components/SkinAssets';
 
@@ -44,7 +45,7 @@ type AuthMode = 'welcome' | 'access_code' | 'signup' | 'signin';
 
 export default function WelcomePage() {
   const { skin } = useTheme();
-  const { user, fieldClassificationComplete, loading, onboardingCompleted } = useApp();
+  const { user, fieldClassificationComplete, loading, onboardingCompleted, hasConfirmedLegal, hasSeenFieldTypeResults, starterApprovedCount, activeSubmissionStatus } = useApp();
   const [authMode, setAuthMode] = useState<AuthMode>('welcome');
   const [accessCode, setAccessCode] = useState('');
   const [showHowItWorks, setShowHowItWorks] = useState(false);
@@ -69,9 +70,16 @@ export default function WelcomePage() {
   // Redirect if already logged in and everything is good
   useEffect(() => {
     if (user && fieldClassificationComplete && onboardingCompleted) {
-      navigate('/missions');
+      navigate(resolveOnboardingDestination({
+        hasConfirmedLegal,
+        fieldClassificationComplete,
+        hasSeenFieldTypeResults,
+        onboardingCompleted,
+        starterApprovedCount,
+        activeSubmissionStatus,
+      }));
     }
-  }, [user, fieldClassificationComplete, onboardingCompleted, navigate]);
+  }, [user, fieldClassificationComplete, onboardingCompleted, hasConfirmedLegal, hasSeenFieldTypeResults, starterApprovedCount, activeSubmissionStatus, navigate]);
 
   const handleStart = () => {
     setAuthMode('access_code');

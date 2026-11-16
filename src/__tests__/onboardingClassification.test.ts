@@ -117,7 +117,7 @@ test('onboarding destinations preserve new, returning, and completed user behavi
     ...baseState,
     fieldClassificationComplete: true,
     hasSeenFieldTypeResults: true
-  }), '/missions');
+  }), '/basecamp');
   assert.equal(resolveOnboardingDestination({
     ...baseState,
     fieldClassificationComplete: true,

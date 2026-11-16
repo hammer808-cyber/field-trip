@@ -47,6 +47,7 @@ export function BottomNav() {
   const isHeat = skin.id === 'heatwave';
   const dexUnlocked = canAccessFeature(canonicalProgress, 'memories', { isAdmin });
   const votingUnlocked = canAccessFeature(canonicalProgress, 'voting', { isAdmin });
+  const crewUnlocked = canAccessFeature(canonicalProgress, 'crew', { isAdmin });
   // DEV-only preview so CURRENT vs NEXT Dex can be live-checked without changing guidance.
   const debugAttention = import.meta.env.DEV
     ? (new URLSearchParams(location.search).get('ftNavAttention')
@@ -78,7 +79,7 @@ export function BottomNav() {
     { icon: Home, label: 'BASECAMP', path: '/basecamp' },
     { icon: Target, label: 'MISSIONS', path: '/missions' },
     { icon: LayoutGrid, label: 'DEX', path: '/dex', locked: !dexUnlocked },
-    { icon: Users, label: 'CREWS', path: '/crew' },
+    { icon: Users, label: 'CREWS', path: '/crew', locked: !crewUnlocked },
     { icon: Vote, label: 'VOTING', path: '/voting', locked: !votingUnlocked },
     { icon: Trophy, label: 'BIG BOARD', path: '/big-board' }
   ];

@@ -118,8 +118,8 @@ export default function FieldTypeResult() {
         });
       }
       
-      console.log('[FieldTypeResult] Routing to /deck...');
-      navigate('/missions');
+      console.log('[FieldTypeResult] Routing to /basecamp...');
+      navigate('/basecamp');
     } catch (err) {
       console.error('[FieldTypeResult] Navigation failed:', err);
       setIsNavigating(false);

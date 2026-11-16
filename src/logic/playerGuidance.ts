@@ -398,8 +398,10 @@ function clampNavigationTarget(
   target: PlayerGuidanceNavTarget,
   snapshot: CanonicalProgressSnapshot,
 ): PlayerGuidanceNavTarget {
-  if (target === 'voting' && !canAccessFeature(snapshot, 'voting')) return 'missions';
-  if (target === 'dex' && !canAccessFeature(snapshot, 'memories')) return 'missions';
+  // A locked feature falls back to Basecamp, the pre-starter home — never to
+  // Missions, which is only where a specific next action (draw / capture) lives.
+  if (target === 'voting' && !canAccessFeature(snapshot, 'voting')) return 'basecamp';
+  if (target === 'dex' && !canAccessFeature(snapshot, 'memories')) return 'basecamp';
   return target;
 }
 

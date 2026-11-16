@@ -12,6 +12,6 @@ export function resolveOnboardingDestination(state: OnboardingDestinationState):
   if (!state.fieldClassificationComplete) return '/classification';
   if (!state.hasSeenFieldTypeResults) return '/field-type';
   if (state.activeSubmissionStatus === 'needs_more_proof') return '/missions';
-  if (!state.onboardingCompleted || state.starterApprovedCount < 3) return '/missions';
+  if (!state.onboardingCompleted || state.starterApprovedCount < 3) return '/basecamp';
   return '/basecamp';
 }

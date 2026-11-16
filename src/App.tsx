@@ -347,7 +347,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   // Allow all pages used in the tour: Deck, Capture, Profile, Big Board, and Field Type.
   const isAllowedOnboardingPage = isDeckPage || isCapturePage || isProfilePage || isBigBoardPage || isFieldTypePage || isBasecampPage || isCrewPage || isCollectionPage || isMemoriesPage || isVotingPage || isLoteriaPage;
   if (user && hasConfirmedLegal && fieldClassificationComplete && hasSeenFieldTypeResults && !onboardingCompleted && !isAllowedOnboardingPage && !isBypassingGuards) {
-    return <Navigate to="/missions" replace />;
+    return <Navigate to="/basecamp" replace />;
   }
 
   // Step 4: Tribunal / Voting Guard
@@ -582,7 +582,7 @@ export default function App() {
                     <Route path="/settings" element={<Navigate to="/profile?tab=settings" replace />} />
                     <Route path="/field-id" element={<FieldIdentity />} />
                     <Route path="/classification" element={<Classification />} />
-                    <Route path="/crew" element={<Crew />} />
+                    <Route path="/crew" element={<StarterGate requiredFeature="crew"><Crew /></StarterGate>} />
                     <Route path="/crews" element={<Navigate to="/crew" replace />} />
                     <Route path="/crew/invite/:token" element={<CrewInvite />} />
                     <Route path="/players/:username" element={<PlayerPublicProfile />} />

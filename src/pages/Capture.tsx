@@ -85,6 +85,11 @@ export default function CapturePage() {
     mustCompleteStarterMission
   } = useApp();
 
+  // Pre-starter, Basecamp is home: stray navigation and fallbacks return
+  // there instead of Missions. Once the starter is done, Missions is home.
+  const backHomePath = isOnboardingComplete ? '/missions' : '/basecamp';
+  const backHomeLabel = isOnboardingComplete ? 'Back to Missions' : 'Back to Basecamp';
+
   const cameraRef = useRef<ViewfinderCameraHandle>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { skin, frankieMode, fc } = useTheme();
@@ -211,7 +216,7 @@ export default function CapturePage() {
             Fieldtrip couldn't finish loading this mission. Check your connection and try again.
           </p>
           <div className="grid grid-cols-2 gap-4">
-            <ActionButton label="Back to Missions" onClick={() => navigate('/missions')} />
+            <ActionButton label={backHomeLabel} onClick={() => navigate(backHomePath)} />
             <ActionButton label="Try again" onClick={() => window.location.reload()} variant="primary" />
           </div>
         </div>
@@ -228,9 +233,11 @@ export default function CapturePage() {
              <h1 className="text-xl font-black uppercase tracking-tighter">Mission not found</h1>
            </div>
            <p className="text-sm leading-relaxed font-sans font-bold text-on-surface/70">
-             This mission isn't available. Head back to Missions and draw another.
+             {isOnboardingComplete
+               ? "This mission isn't available. Head back to Missions and draw another."
+               : "This mission isn't available. Head back to Basecamp to pick your next step."}
            </p>
-           <ActionButton label="Back to Missions" onClick={() => navigate('/missions')} variant="primary" className="w-full" />
+           <ActionButton label={backHomeLabel} onClick={() => navigate(backHomePath)} variant="primary" className="w-full" />
          </div>
        </div>
     );
@@ -308,11 +315,11 @@ export default function CapturePage() {
 
     // If it's already in a final/pending state and NOT specifically requested for resubmission
     if ((isCompleted || isPending) && !isNeedsMore && fcState !== 'result' && submissionStatus !== 'submitted') {
-       console.log(`[Capture Guard] Mission ${lowerId} already submitted/approved. Redirecting back to Deck.`);
+       console.log(`[Capture Guard] Mission ${lowerId} already submitted/approved. Redirecting back to ${backHomePath}.`);
        // Use replace: true to prevent back-button loops
-       navigate('/missions', { replace: true });
+       navigate(backHomePath, { replace: true });
     }
-  }, [tripIdParam, completedChallengeIds, submittedPendingChallengeIds, needsMoreProofChallengeIds, user, navigate, fcState, submissionStatus]);
+  }, [tripIdParam, completedChallengeIds, submittedPendingChallengeIds, needsMoreProofChallengeIds, user, navigate, fcState, submissionStatus, backHomePath]);
 
   // Gating properties needed early
   const isLaunchMission = !!(currentTrip?.id && currentTrip.id.toLowerCase() === LAUNCH_MISSION_ID.toLowerCase());
@@ -327,12 +334,15 @@ export default function CapturePage() {
   const isUnavailable = !!(currentTrip && (completedChallengeIds.has(currentTrip.id.toLowerCase()) || submittedPendingChallengeIds.has(currentTrip.id.toLowerCase())));
 
   // Page load triggers
+  // Camera stickers are held until the starter is done (option D): pre-starter
+  // the Dex is locked, so awarding them here would point at a lock screen.
+  // They fire on first camera use after the starter completes instead.
   useEffect(() => {
-    if (fcState === 'capture') {
+    if (fcState === 'capture' && isOnboardingComplete) {
       unlockDiscoverySticker('capture_start', 'capture');
       unlockDiscoverySticker('camera_ready', 'capture');
     }
-  }, [fcState, unlockDiscoverySticker]);
+  }, [fcState, unlockDiscoverySticker, isOnboardingComplete]);
 
   // STRICTION: Detect if this mission is ALREADY submitted via entries context
   // This solves the "dead end" where a refresh or navigation back shows the review screen again
@@ -415,12 +425,12 @@ export default function CapturePage() {
       const timer = setTimeout(() => {
         // Only redirect if still true after 0.5s (proactive recovery)
         if ((!currentTrip && !completeRecord && (fcState as string) !== 'result') || (isUnavailable && !completeRecord && (fcState as string) !== 'result' && submissionStatus !== 'submitted')) {
-          navigate('/missions');
+          navigate(backHomePath);
         }
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [currentTrip, completeRecord, fcState, completedChallengeIds, submittedPendingChallengeIds, navigate, submissionStatus, isUnavailable]);
+  }, [currentTrip, completeRecord, fcState, completedChallengeIds, submittedPendingChallengeIds, navigate, submissionStatus, isUnavailable, backHomePath]);
 
   // Reset scroll on step changes
   useEffect(() => {
@@ -1051,7 +1061,12 @@ export default function CapturePage() {
     
     const awardedTokenCount = isFirstTime ? 1 : 0;
 
-    unlockDiscoverySticker('camera_ready', 'capture').catch(e => console.warn('Sticker award failed:', e));
+    // Camera Ready is held until the starter is done (see the capture-state
+    // effect above): pre-starter the Dex is locked, so this award would
+    // point the sticker modal at a lock screen.
+    if (isOnboardingComplete) {
+      unlockDiscoverySticker('camera_ready', 'capture').catch(e => console.warn('Sticker award failed:', e));
+    }
     if ((fcData.note || '').trim().length > 0) {
       unlockDiscoverySticker('first_field_note', 'capture').catch(e => console.warn('Sticker award failed:', e));
     }
