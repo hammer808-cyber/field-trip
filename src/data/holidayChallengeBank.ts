@@ -5,12 +5,12 @@ const MOCK_TIME = new Date().toISOString();
 /**
  * Gobble & Glow — a holiday seasonal deck.
  *
- * The rule for this deck: Thanksgiving and winter holidays mixed in one
- * deck, photographable anywhere. No card needs one specific place — a
- * Friendsgiving table, a block's overboard light display, frost on a
- * windshield all count. Mostly easy on purpose: this is the seasonal
- * fun deck. Seasonal gate: Nov 1, 2026 – Jan 11, 2027 (see DECK_PACKS
- * startsAt/endsAt, enforced by src/logic/deckAccess.ts).
+ * The rule for this deck: 4 specifically Thanksgiving, 4 specifically
+ * the winter holidays, and 7 fall/winter seasonal — activities and
+ * things you only see at this time of year. Photographable anywhere.
+ * Mostly easy on purpose: this is the seasonal fun deck. Seasonal
+ * gate: Nov 1, 2026 – Jan 11, 2027 (see DECK_PACKS startsAt/endsAt,
+ * enforced by src/logic/deckAccess.ts).
  * No locationTag: the location layer pays on any captured GPS, the way
  * the Heatwave deck works.
  */
@@ -110,17 +110,17 @@ export const HOLIDAY_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
   {
     id: "holiday-05",
     deckId: "gobble-and-glow",
-    title: "The Kids' Table",
-    shortPrompt: "Find the kids' table.",
-    description: "The folding table, the card table, the end of the counter where the kids got parked. Paper plates encouraged.",
-    mission: "“Photograph the kids' table — or what passes for one.”",
+    title: "Leaf Pile Jump",
+    shortPrompt: "Find a pile of leaves.",
+    description: "A raked pile, a drift against a fence, a whole yard gone gold. Jump in if you want — the photo counts either way.",
+    mission: "“Photograph a pile of fallen leaves.”",
     proofType: ["photo"],
     lane: "seasonal",
     difficulty: "easy",
     baseXP: 100,
-    tags: ["kids", "table", "family", "thanksgiving", "funny"],
+    tags: ["leaves", "fall", "yard", "nature", "autumn"],
     proofRequirements: {
-      requiredSubjects: ["table", "kids", "plates", "chairs", "family"],
+      requiredSubjects: ["leaves", "pile", "fall", "rake", "autumn"],
       minConfidence: 0.4,
       requireLocation: true,
       requireTimestamp: true
@@ -133,17 +133,17 @@ export const HOLIDAY_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
   {
     id: "holiday-06",
     deckId: "gobble-and-glow",
-    title: "Cranberry Sauce, Both Kinds",
-    shortPrompt: "Catch the cranberry debate.",
-    description: "The can-shaped jelly with the ridges still on it, or the real thing in a bowl. Pick a side, photograph it.",
-    mission: "“Photograph cranberry sauce — canned rings or homemade, either counts.”",
+    title: "First Fire",
+    shortPrompt: "Catch the first fire of the season.",
+    description: "Fireplace, fire pit, chiminea — the first fire after months of quiet. Smoke from a chimney counts.",
+    mission: "“Photograph a fire burning — fireplace, fire pit, or chimney smoke.”",
     proofType: ["photo"],
     lane: "seasonal",
     difficulty: "easy",
     baseXP: 100,
-    tags: ["cranberry", "food", "thanksgiving", "debate", "funny"],
+    tags: ["fire", "fireplace", "winter", "cozy", "fall"],
     proofRequirements: {
-      requiredSubjects: ["cranberry", "sauce", "can", "bowl", "thanksgiving"],
+      requiredSubjects: ["fire", "fireplace", "flames", "chimney", "smoke"],
       minConfidence: 0.4,
       requireLocation: true,
       requireTimestamp: true
@@ -225,17 +225,17 @@ export const HOLIDAY_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
   {
     id: "holiday-10",
     deckId: "gobble-and-glow",
-    title: "Second Helping",
-    shortPrompt: "Prove the clean-plate club.",
-    description: "The empty plate. The scraped-clean serving dish. The pot with nothing left but the spoon.",
-    mission: "“Photograph a clean plate after a holiday meal.”",
+    title: "Early Dark",
+    shortPrompt: "Catch the sun going down early.",
+    description: "It's 4 in the afternoon and the sun is already setting. Photograph the sunset while there's still daylight left on the clock.",
+    mission: "“Photograph the sun setting while it is still afternoon.”",
     proofType: ["photo"],
     lane: "seasonal",
-    difficulty: "easy",
-    baseXP: 100,
-    tags: ["food", "meal", "thanksgiving", "funny", "feast"],
+    difficulty: "medium",
+    baseXP: 125,
+    tags: ["sunset", "dark", "winter", "evening", "light"],
     proofRequirements: {
-      requiredSubjects: ["plate", "empty", "food", "meal", "clean"],
+      requiredSubjects: ["sunset", "sky", "evening", "dark", "horizon"],
       minConfidence: 0.4,
       requireLocation: true,
       requireTimestamp: true
@@ -277,8 +277,8 @@ export const HOLIDAY_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     mission: "“Photograph Thanksgiving and winter decor in the same frame.”",
     proofType: ["photo"],
     lane: "seasonal",
-    difficulty: "medium",
-    baseXP: 125,
+    difficulty: "hard",
+    baseXP: 150,
     tags: ["mashup", "holidays", "table", "decorations", "family"],
     proofRequirements: {
       requiredSubjects: ["table", "decorations", "turkey", "tree", "menorah"],
@@ -294,17 +294,17 @@ export const HOLIDAY_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
   {
     id: "holiday-13",
     deckId: "gobble-and-glow",
-    title: "The Cook's Apron",
-    shortPrompt: "Catch the cook mid-chaos.",
-    description: "Flour on hands, apron on, three things on the stove. The cook doesn't have to pose.",
-    mission: "“Photograph the cook — flour, apron, and all.”",
+    title: "Hot Drink Hands",
+    shortPrompt: "Warm hands around a hot drink.",
+    description: "Cocoa, cider, coffee — steam in the cold air, hands wrapped around the mug. The drink has to be steaming.",
+    mission: "“Photograph hands holding a steaming hot drink.”",
     proofType: ["photo"],
     lane: "seasonal",
-    difficulty: "medium",
-    baseXP: 125,
-    tags: ["cooking", "kitchen", "family", "thanksgiving", "chaos"],
+    difficulty: "easy",
+    baseXP: 100,
+    tags: ["drink", "cocoa", "winter", "cold", "cozy"],
     proofRequirements: {
-      requiredSubjects: ["cook", "apron", "flour", "kitchen", "cooking"],
+      requiredSubjects: ["mug", "steam", "drink", "hands", "cocoa"],
       minConfidence: 0.4,
       requireLocation: true,
       requireTimestamp: true
@@ -317,17 +317,17 @@ export const HOLIDAY_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
   {
     id: "holiday-14",
     deckId: "gobble-and-glow",
-    title: "The Full Spread",
-    shortPrompt: "Get every dish in one frame.",
-    description: "Not one plate: the whole table, every dish, nothing cropped out. Stand on a chair if you have to.",
-    mission: "“Photograph the entire holiday meal — every dish — in one frame.”",
+    title: "Pumpkin Aftermath",
+    shortPrompt: "Find the pumpkin after Halloween.",
+    description: "The jack-o'-lantern still on the porch in November, caving in on itself. The last pumpkin standing wins.",
+    mission: "“Photograph a Halloween pumpkin still out after Halloween.”",
     proofType: ["photo"],
     lane: "seasonal",
-    difficulty: "hard",
-    baseXP: 150,
-    tags: ["feast", "table", "food", "thanksgiving", "hard"],
+    difficulty: "medium",
+    baseXP: 125,
+    tags: ["pumpkin", "halloween", "fall", "porch", "funny"],
     proofRequirements: {
-      requiredSubjects: ["feast", "table", "dishes", "food", "spread"],
+      requiredSubjects: ["pumpkin", "jack-o-lantern", "porch", "fall", "halloween"],
       minConfidence: 0.4,
       requireLocation: true,
       requireTimestamp: true

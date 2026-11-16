@@ -89,6 +89,15 @@ test('holiday deck mixes 10 easy / 3 medium / 2 hard with matching XP', () => {
   assert.deepEqual(counts, { easy: 10, medium: 3, hard: 2 });
 });
 
+test('exactly four holiday cards are specifically Thanksgiving', () => {
+  // Zach's call (Nov 16): 4 Thanksgiving, 4 winter holidays, 7 fall/winter
+  // seasonal. The thanksgiving tag marks the four.
+  const thanksgiving = HOLIDAY_CHALLENGE_BANK.filter(card =>
+    (card.tags || []).includes('thanksgiving'),
+  ).map(card => String(card.id));
+  assert.deepEqual(thanksgiving, ['holiday-01', 'holiday-02', 'holiday-03', 'holiday-04']);
+});
+
 test('holiday season constant spans 11 weeks, Nov 1 2026 – Jan 11 2027', () => {
   assert.equal(HOLIDAY_SEASON.id, 'gobble-and-glow');
   assert.equal(HOLIDAY_SEASON.title, 'GOBBLE_AND_GLOW');
