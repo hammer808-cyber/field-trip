@@ -53,7 +53,7 @@ import { FieldButton, PlayerPageBody, PlayerPageShell } from '../components/play
 import { GatedFeaturePanel } from '../components/GatedFeaturePanel';
 
 export default function VotingHubPage() {
-  const { user, currentWeekNumber, activeSeason, isVotingWindowOpen, unlockDiscoverySticker, isTribunalUnlocked, canonicalProgress } = useApp();
+  const { user, currentWeekNumber, activeSeason, isVotingWindowOpen, isTribunalUnlocked, canonicalProgress } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const activeTab = (searchParams.get('tab') as VotingTab) || 'vote';
@@ -86,12 +86,6 @@ export default function VotingHubPage() {
     }, 10000);
     return () => clearInterval(interval);
   }, [activeSeason?.id]);
-
-  useEffect(() => {
-    if (activeTab === 'tribunal') {
-      unlockDiscoverySticker('tribunal_view', 'voting');
-    }
-  }, [activeTab]);
 
   useEffect(() => {
     const loadTribunalData = async () => {

@@ -129,6 +129,7 @@ import {
 } from "./src/logic/zineStickerPlacements";
 import type { ZineEdition, ZineLayoutId, ZinePage, ZineStatus } from "./src/types/zine";
 import { awardTrustedXpInTransaction, buildLedgerBackedProgressionRepairPlan, getLevelUpAcknowledgementError, isTrustedProofXpEligible } from "./src/server/playerProgression";
+import { createAdminStickerAwardStore, createStickerAwardHandler } from "./src/server/stickerAwards";
 import { buildScoreRepairMutationTrace, projectScoreLedgerRange } from "./src/logic/scoringLedger";
 import { getBuiltInMissionCatalog, resolveMissionById } from "./src/logic/missionResolver";
 import {
@@ -5819,6 +5820,12 @@ async function startServer() {
       res.status(500).json({ error: "PLAYER_PROFILE_FAILED", message: error.message || String(error) });
     }
   });
+
+  // Legacy (discovery) sticker awards, server-side (Option A). The client
+  // used to write the legacy sticker fields directly; the Admin SDK store
+  // below is the only writer once the held rules branch ships. The uid
+  // always comes from the authenticated token, never the body.
+  app.post("/api/stickers/award", authRateLimiter, authenticate, createStickerAwardHandler(() => (dbAdmin ? createAdminStickerAwardStore(dbAdmin) : null)));
 
   app.get("/api/social/crew", authRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });

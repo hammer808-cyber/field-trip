@@ -72,7 +72,7 @@ import { subscribeToChallenges } from '../services/challengeService';
 import { processLoreForEntry } from '../services/crewService';
 import { subscribeToActiveSignal } from '../services/fieldSignalService';
 import { FieldSignal } from '../types/signals';
-import { awardDiscoverySticker } from '../services/discoveryService';
+import { authenticatedFetch } from '../lib/api';
 import { DISCOVERY_STICKERS, DiscoverySticker } from '../constants/discoveryStickers';
 import {
   hasEarnedSticker,
@@ -1775,9 +1775,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     pendingUnlocksRef.current.add(discoveryKey);
 
     try {
-      const result = await awardDiscoverySticker(user.uid, profile, discoveryKey, sourcePage);
-      
-      if (result) {
+      // Legacy sticker awards are server-side (Option A): the client no
+      // longer writes the legacy sticker fields directly. The endpoint
+      // enforces the allowlist, the starter gate, and idempotency, and
+      // returns the same { sticker, completedGroups } shape the modal uses.
+      // held (409), already-unlocked, unknown-key, and failed requests all
+      // resolve to null here — no modal, no crash; callers already .catch.
+      const response = await authenticatedFetch('/api/stickers/award', {
+        method: 'POST',
+        body: JSON.stringify({ discoveryKey, sourcePage }),
+      });
+      const result = await response.json().catch(() => null);
+
+      if (response.ok && result && result.awarded === true && result.sticker) {
         const { sticker, completedGroups } = result;
         
         // Register field pulse action (increment action count)
@@ -1797,7 +1807,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         // 2. Queue Group Completion Rewards
         if (completedGroups && completedGroups.length > 0) {
-          completedGroups.forEach(group => {
+          (completedGroups as Array<{ name: string; completionCopy: string; xpReward: number }>).forEach(group => {
             queueReward({
               type: 'milestone',
               intensity: RewardIntensity.MAJOR_REVEAL,
