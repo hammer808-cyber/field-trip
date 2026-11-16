@@ -4,6 +4,7 @@ import { SOCAL_SUMMER_CHALLENGE_BANK } from './socalSummerChallengeBank';
 import { JET_SETTER_CHALLENGE_BANK } from './jetSetterChallengeBank';
 import { ERRAND_DECK_CHALLENGE_BANK } from './errandDeckChallengeBank';
 import { TEXAS_CHALLENGE_BANK } from './texasChallengeBank';
+import { HOLIDAY_CHALLENGE_BANK } from './holidayChallengeBank';
 import type { ChallengeCard } from '../types/challenges';
 
 /**
@@ -23,6 +24,7 @@ export const ALL_CHALLENGE_BANKS: Partial<ChallengeCard>[][] = [
   JET_SETTER_CHALLENGE_BANK,
   ERRAND_DECK_CHALLENGE_BANK,
   TEXAS_CHALLENGE_BANK,
+  HOLIDAY_CHALLENGE_BANK,
 ];
 
 export const ALL_CHALLENGE_CARDS: Partial<ChallengeCard>[] =

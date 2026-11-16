@@ -58,6 +58,9 @@ export type Challenge = TripCard;
 export const HEATWAVE_SEASON_START_DATE = '2026-06-06T00:00:00Z'; // Launch date
 export const HEATWAVE_SEASON_END_DATE = '2026-09-06T23:59:59Z';
 
+export const HOLIDAY_SEASON_START_DATE = '2026-11-01T00:00:00Z'; // Gobble & Glow opens
+export const HOLIDAY_SEASON_END_DATE = '2027-01-11T23:59:59Z';
+
 export const HEATWAVE_SEASON: Season = {
   id: 'heatwave-receipts',
   title: 'HEATWAVE_RECEIPTS',
@@ -71,6 +74,25 @@ export const HEATWAVE_SEASON: Season = {
     fieldChallengeId: `ss26_w${i + 1}_field`,
     evidenceChallengeId: `ss26_w${i + 1}_evidence`,
     crewChallengeId: `ss26_w${i + 1}_crew`,
+    chaosCardIds: [`chaos-${i + 1}`],
+    sabotageCardIds: [`sabotage-${~~(i/3) + 1}`]
+  })),
+  createdAt: Timestamp.now()
+};
+
+export const HOLIDAY_SEASON: Season = {
+  id: 'gobble-and-glow',
+  title: 'GOBBLE_AND_GLOW',
+  description: 'Gobble & Glow: A Holiday Fieldtrip Deck',
+  status: 'active',
+  startDate: Timestamp.fromDate(new Date(HOLIDAY_SEASON_START_DATE)),
+  endDate: Timestamp.fromDate(new Date(HOLIDAY_SEASON_END_DATE)),
+  weeks: Array.from({ length: 11 }).map((_, i) => ({
+    number: i + 1,
+    startDate: Timestamp.fromDate(new Date(new Date(HOLIDAY_SEASON_START_DATE).getTime() + i * 7 * 24 * 60 * 60 * 1000)),
+    fieldChallengeId: `hg26_w${i + 1}_field`,
+    evidenceChallengeId: `hg26_w${i + 1}_evidence`,
+    crewChallengeId: `hg26_w${i + 1}_crew`,
     chaosCardIds: [`chaos-${i + 1}`],
     sabotageCardIds: [`sabotage-${~~(i/3) + 1}`]
   })),

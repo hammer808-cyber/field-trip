@@ -13,6 +13,7 @@ import { db } from '../lib/firebase';
 import { Season, AppConfig } from '../types/game';
 import { HEATWAVE_SEASON } from '../constants';
 import { deployHeatwave2026Manifest } from './adminGameService';
+import { deployHoliday2026Manifest } from './adminGameService';
 
 export async function getAppConfig(): Promise<AppConfig | null> {
   const docRef = doc(db, 'appConfig', 'game');
@@ -24,6 +25,13 @@ export async function getAppConfig(): Promise<AppConfig | null> {
 export async function initializeDefaultSeason(): Promise<void> {
   // Use the high-fidelity admin deployment if possible
   await deployHeatwave2026Manifest();
+}
+
+export async function initializeHolidaySeason(): Promise<void> {
+  // Gobble & Glow: the holiday season. Creates seasons/gobble-and-glow
+  // and points appConfig.activeSeasonId at it, the same way the Heatwave
+  // deploy does. Run from the Gobble_And_Glow_2026 card in Admin Dev Tools.
+  await deployHoliday2026Manifest();
 }
 
 export function subscribeToAppConfig(callback: (config: AppConfig) => void) {

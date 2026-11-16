@@ -4,8 +4,9 @@ import { SOCAL_SUMMER_CHALLENGE_BANK } from './socalSummerChallengeBank';
 import { JET_SETTER_CHALLENGE_BANK } from './jetSetterChallengeBank';
 import { ERRAND_DECK_CHALLENGE_BANK } from './errandDeckChallengeBank';
 import { TEXAS_CHALLENGE_BANK } from './texasChallengeBank';
+import { HOLIDAY_CHALLENGE_BANK } from './holidayChallengeBank';
 import { ChallengeCard } from '../types/challenges';
-import { HEATWAVE_SEASON_START_DATE, HEATWAVE_SEASON_END_DATE } from '../constants';
+import { HEATWAVE_SEASON_START_DATE, HEATWAVE_SEASON_END_DATE, HOLIDAY_SEASON_START_DATE, HOLIDAY_SEASON_END_DATE } from '../constants';
 
 export const DECK_PACKS: DeckPack[] = [
   {
@@ -174,6 +175,52 @@ export const DECK_PACKS: DeckPack[] = [
       "Shade Receipt",
       "Neon Clue",
       "Outdoor Chaos"
+    ]
+  },
+  {
+    packId: 'gobble-and-glow',
+    id: 'gobble-and-glow',
+    title: 'Gobble & Glow',
+    deckCode: 'FT-07',
+    artworkKey: 'gobble-and-glow',
+    coverImage: '/assets/decks/gobble-and-glow.jpg',
+    isSeasonal: true,
+    packName: 'Gobble & Glow',
+    shortName: 'Holidays',
+    description: 'Thanksgiving and winter holidays in one deck. Long tables, pie evidence, ugly sweaters, light hunts, and three generations in one frame.',
+    theme: 'heat',
+    season: 'Holidays 2026',
+    missionIds: HOLIDAY_CHALLENGE_BANK.map(m => m.id as string),
+    unlockRule: 'seasonal',
+    startsAt: HOLIDAY_SEASON_START_DATE,
+    endsAt: HOLIDAY_SEASON_END_DATE,
+    visibility: 'public',
+    requiredCompletedDeckIds: ['starter-signals'],
+    isActive: true,
+    fallbackIcon: 'Snowflake',
+    sortOrder: 2,
+    difficultyRange: ['easy', 'medium', 'hard'],
+    tags: ['holiday', 'thanksgiving', 'winter', 'seasonal', 'crew-friendly'],
+    catalogSection: 'featured-seasonal',
+
+    // Canonical properties
+    deckId: 'gobble-and-glow',
+    deckSubtitle: 'A Holiday Fieldtrip Deck',
+    status: 'active',
+    deckType: 'seasonal',
+    requiredUnlock: 'starter-complete',
+    requiredStarterApprovals: 3,
+    totalCards: 15,
+
+    defaultFindingTypes: [
+      "Feast Clue",
+      "Holiday Signal",
+      "Table Evidence",
+      "Light Display",
+      "Family Portrait",
+      "Winter Clue",
+      "Gift Evidence",
+      "Gratitude Note"
     ]
   },
   {

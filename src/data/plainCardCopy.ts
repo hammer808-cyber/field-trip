@@ -13,7 +13,7 @@
  * - plainFieldNotePrompt: one short, simple prompt.
  *
  * Coverage is enforced by src/__tests__/frankieMode.test.ts — every card in
- * the six banks must have an entry here, and there must be no orphans.
+ * the seven banks must have an entry here, and there must be no orphans.
  */
 export interface PlainCardCopy {
   plainTitle: string;
@@ -613,5 +613,95 @@ export const PLAIN_CARD_COPY: Record<string, PlainCardCopy> = {
     plainDescription: 'Take a photo of the words Don\'t Mess With Texas on a sign, shirt, or sticker.',
     plainDirections: 'Find the words Don\'t Mess With Texas.\nTake one clear photo of them.\nTap Send.',
     plainFieldNotePrompt: 'In a few words: where did you see it?',
+  },
+  'holiday-01': {
+    plainTitle: 'A Full Holiday Table',
+    plainDescription: 'Take a photo of a holiday table set with plates for a crowd.',
+    plainDirections: 'Find a holiday table set for a crowd.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: how many people is it set for?',
+  },
+  'holiday-02': {
+    plainTitle: 'A Pie',
+    plainDescription: 'Take a photo of a pie, whole or in slices.',
+    plainDirections: 'Find a pie.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: what kind of pie is it?',
+  },
+  'holiday-03': {
+    plainTitle: 'A Thank-You Note',
+    plainDescription: 'Take a photo of a handwritten thank-you note or list.',
+    plainDirections: 'Find a handwritten thank-you note or list.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: who is it for?',
+  },
+  'holiday-04': {
+    plainTitle: 'A Plate of Leftovers',
+    plainDescription: 'Take a photo of a plate stacked high with leftovers.',
+    plainDirections: 'Make a plate of leftovers.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: what is on the plate?',
+  },
+  'holiday-05': {
+    plainTitle: "The Kids' Table",
+    plainDescription: "Take a photo of the kids' table at a holiday meal.",
+    plainDirections: "Find the kids' table.\nTake one clear photo of it.\nTap Send.",
+    plainFieldNotePrompt: 'In a few words: who is sitting there?',
+  },
+  'holiday-06': {
+    plainTitle: 'Cranberry Sauce',
+    plainDescription: 'Take a photo of cranberry sauce in a can shape or a bowl.',
+    plainDirections: 'Find the cranberry sauce.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: canned or homemade?',
+  },
+  'holiday-07': {
+    plainTitle: 'A Holiday Sweater',
+    plainDescription: 'Take a photo of someone wearing a holiday sweater.',
+    plainDirections: 'Find someone in a holiday sweater.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: what is on the sweater?',
+  },
+  'holiday-08': {
+    plainTitle: 'A House With Lights',
+    plainDescription: 'Take a photo of a house covered in holiday lights.',
+    plainDirections: 'Find a house covered in holiday lights.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: how many lights, more or less?',
+  },
+  'holiday-09': {
+    plainTitle: 'Frost on a Window',
+    plainDescription: 'Take a photo of frost on a window, a car, or the grass.',
+    plainDirections: 'Find frost on a window, a car, or the grass.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: where was the frost?',
+  },
+  'holiday-10': {
+    plainTitle: 'A Clean Plate',
+    plainDescription: 'Take a photo of a clean, empty plate after a holiday meal.',
+    plainDirections: 'Finish a holiday meal.\nTake one clear photo of the empty plate.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: what was on it?',
+  },
+  'holiday-11': {
+    plainTitle: 'Torn Wrapping Paper',
+    plainDescription: 'Take a photo of torn wrapping paper and ribbon after gifts.',
+    plainDirections: 'Find torn wrapping paper after gifts are opened.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: what was inside?',
+  },
+  'holiday-12': {
+    plainTitle: 'Two Holidays Together',
+    plainDescription: 'Take a photo of Thanksgiving and winter decorations in one place.',
+    plainDirections: 'Find Thanksgiving and winter decorations together.\nTake one clear photo of them.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: which two holidays do you see?',
+  },
+  'holiday-13': {
+    plainTitle: 'The Cook Cooking',
+    plainDescription: 'Take a photo of the cook at work in the kitchen.',
+    plainDirections: 'Find the cook at work in the kitchen.\nTake one clear photo of them.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: what are they making?',
+  },
+  'holiday-14': {
+    plainTitle: 'The Whole Meal',
+    plainDescription: 'Take a photo of the full holiday meal with every dish in one picture.',
+    plainDirections: 'Step back until every dish fits in one picture.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: how many dishes are there?',
+  },
+  'holiday-15': {
+    plainTitle: 'Three Generations Together',
+    plainDescription: 'Take a photo of three generations of one family together.',
+    plainDirections: 'Gather three generations of one family.\nTake one clear photo of them.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: who is in the photo?',
   },
 };

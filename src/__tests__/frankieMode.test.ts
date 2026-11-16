@@ -18,7 +18,7 @@ const ON = { frankieMode: true };
 const OFF = { frankieMode: false };
 
 test('every playable card has a plain-language entry', () => {
-  assert.equal(ALL_BANKS.length, 98, `expected 98 playable cards, got ${ALL_BANKS.length}`);
+  assert.equal(ALL_BANKS.length, 113, `expected 113 playable cards, got ${ALL_BANKS.length}`);
   for (const card of ALL_BANKS) {
     const copy = PLAIN_CARD_COPY[card.id as string];
     assert.ok(copy, `missing plain copy for ${card.id} (${card.title})`);

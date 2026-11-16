@@ -196,6 +196,115 @@ export async function deployHeatwave2026Manifest() {
   };
 }
 
+export async function deployHoliday2026Manifest() {
+  const { HOLIDAY_CHALLENGE_BANK } = await import('../data/holidayChallengeBank');
+  const { validateChallengeBrandFit } = await import('./brandService');
+  const { saveChallenge } = await import('./challengeService');
+  const { Timestamp } = await import('firebase/firestore');
+  
+  console.log(`[Admin] Deploying Gobble & Glow Bank and Manifest...`);
+
+  // 1. Deploy templates to the bank
+  const approvedBankIds: string[] = [];
+  for (const template of HOLIDAY_CHALLENGE_BANK) {
+    const brandCheck = validateChallengeBrandFit(template);
+    const finalChallenge: any = {
+      ...template,
+      brandFit: brandCheck.status,
+      status: brandCheck.status === 'approved' ? 'approved' : 'draft',
+      updatedAt: new Date().toISOString()
+    };
+    await saveChallenge(finalChallenge);
+    if (finalChallenge.status === 'approved') {
+      approvedBankIds.push(finalChallenge.id);
+    }
+  }
+
+  // 2. Schedule 11 weeks using the bank (Nov 1, 2026 – Jan 11, 2027)
+  const seasonId = 'gobble-and-glow';
+  const seasonRef = doc(db, 'seasons', seasonId);
+  
+  const seasonData: Season = {
+    id: seasonId,
+    title: 'GOBBLE_AND_GLOW',
+    description: 'Gobble & Glow: A Holiday Fieldtrip Deck',
+    status: 'active',
+    startDate: Timestamp.fromDate(new Date('2026-11-01')),
+    endDate: Timestamp.fromDate(new Date('2027-01-11')),
+    weeks: Array.from({ length: 11 }).map((_, i) => {
+      const week = i + 1;
+      const fieldId = `hg26_w${week}_field`;
+      const evidenceId = `hg26_w${week}_evidence`;
+      const crewId = `hg26_w${week}_crew`;
+      
+      return {
+        number: week,
+        startDate: Timestamp.fromDate(new Date(new Date('2026-11-01').getTime() + i * 7 * 24 * 60 * 60 * 1000)),
+        fieldChallengeId: fieldId,
+        evidenceChallengeId: evidenceId,
+        crewChallengeId: crewId,
+        chaosCardIds: [`chaos-${week}`],
+        sabotageCardIds: [`sabotage-${~~(i/3) + 1}`]
+      };
+    }),
+    createdAt: Timestamp.now()
+  };
+
+  // 3. Mapping logic
+  const fieldTemplates = HOLIDAY_CHALLENGE_BANK.filter(t => t.type === 'Field Challenge');
+  const evidenceTemplates = HOLIDAY_CHALLENGE_BANK.filter(t => t.type === 'Evidence Challenge');
+  const crewTemplates = HOLIDAY_CHALLENGE_BANK.filter(t => t.type === 'Crew Challenge');
+  const finalTemplate = HOLIDAY_CHALLENGE_BANK.find(t => t.type === 'Final');
+
+  for (let i = 0; i < 11; i++) {
+    const week = i + 1;
+    
+    // Pick templates
+    let fieldT = fieldTemplates[i % fieldTemplates.length];
+    // Special case: Week 11 get the Final template in the field slot
+    if (week === 11 && finalTemplate) {
+      fieldT = finalTemplate;
+    }
+
+    const evidenceT = evidenceTemplates[i % evidenceTemplates.length];
+    const crewT = crewTemplates[i % crewTemplates.length];
+
+    const defaultData = {
+      image: "https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?q=80&w=800",
+      proofNeeded: "Photo evidence or field note.",
+      crewModeBehavior: "Flexible collaboration.",
+      mode: "flexible" as any,
+      requiredProof: ["photo"] as any,
+      seasonAvailability: ["gobble-and-glow"],
+      accessibilityNote: "Standard pedestrian access.",
+      safetyRules: ["Stay aware of surroundings."]
+    };
+
+    const weekMissions = [
+      { ...defaultData, ...fieldT, id: `hg26_w${week}_field`, weekNumber: week, status: 'scheduled' as any },
+      { ...defaultData, ...evidenceT, id: `hg26_w${week}_evidence`, weekNumber: week, status: 'scheduled' as any },
+      { ...defaultData, ...crewT, id: `hg26_w${week}_crew`, weekNumber: week, status: 'scheduled' as any, mode: 'crew' }
+    ];
+
+    for (const m of weekMissions) {
+      await saveChallenge(m as any);
+    }
+  }
+
+  await setDoc(seasonRef, seasonData, { merge: true });
+  await setGlobalActiveSeason(seasonId);
+
+  if (auth.currentUser) {
+    await logAdminAction(auth.currentUser.uid, seasonId, 'season', 'bulk_deploy_manifest', { seasonTitle: seasonData.title });
+  }
+  
+  return {
+    weeks: 11,
+    templates: HOLIDAY_CHALLENGE_BANK.length,
+    seasonId
+  };
+}
+
 export async function updateChallengeStatus(challengeId: string, status: TripStatus) {
   const challengeRef = doc(db, 'challenges', challengeId);
   await updateDoc(challengeRef, { 

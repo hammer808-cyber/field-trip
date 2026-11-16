@@ -24,7 +24,7 @@ import {
   Check
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { initializeDefaultSeason } from '../services/seasonService';
+import { initializeDefaultSeason, initializeHolidaySeason } from '../services/seasonService';
 import { logAdminAction, subscribeToAdminLogs } from '../services/moderationService';
 import { resetMyMissionState } from '../services/adminResetService';
 import { 
@@ -440,6 +440,36 @@ export default function AdminDevTools() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+          <div className="p-6 border border-brand-orange/20 bg-brand-orange/5 space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-black uppercase text-brand-orange">Gobble_And_Glow_2026</p>
+                <p className="text-[9px] opacity-60">Status: {activeSeason?.id === 'gobble-and-glow' ? activeSeason.status : 'NOT_ACTIVE'}</p>
+                <p className="text-[9px] opacity-60">Config: {gameConfig?.activeSeasonId || 'MISSING'}</p>
+              </div>
+              <button
+                onClick={async () => {
+                  setInitLoading(true);
+                  try {
+                    await initializeHolidaySeason();
+                    if (user) {
+                      await logAdminAction(user.uid, 'game', 'season', 'force_initialize_holiday_season');
+                    }
+                    alert('Season Protocol Engaged.');
+                  } catch (err) {
+                    alert('Handshake Failed: ' + (err as any).message);
+                  } finally {
+                    setInitLoading(false);
+                  }
+                }}
+                disabled={initLoading}
+                className="flex items-center gap-2 px-6 py-3 bg-brand-orange text-white text-[10px] font-black uppercase tracking-widest hover:bg-brand-orange/80 transition-all shadow-[4px_4px_0px_black] disabled:opacity-50"
+              >
+                <Sparkles size={14} className={cn(initLoading && "animate-spin")} />
+                {activeSeason?.id === 'gobble-and-glow' ? 'Force Re-Initialize' : 'Engage Holiday Season'}
+              </button>
             </div>
           </div>
         </div>
