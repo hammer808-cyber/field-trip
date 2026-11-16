@@ -1067,7 +1067,10 @@ export default function CapturePage() {
     if (isOnboardingComplete) {
       unlockDiscoverySticker('camera_ready', 'capture').catch(e => console.warn('Sticker award failed:', e));
     }
-    if ((fcData.note || '').trim().length > 0) {
+    // Held until the starter is done, like Camera Ready above: pre-starter
+    // the Dex is locked, so this award would point the sticker modal at a
+    // lock screen. Fires on the first noted submission after completion.
+    if (isOnboardingComplete && (fcData.note || '').trim().length > 0) {
       unlockDiscoverySticker('first_field_note', 'capture').catch(e => console.warn('Sticker award failed:', e));
     }
 
@@ -1222,7 +1225,12 @@ export default function CapturePage() {
         
         if (!bypassReview && result.review && (result.review.status === 'needs_more_proof' || result.review.status === 'rejected')) {
           if (result.review.status === 'needs_more_proof') {
-            unlockDiscoverySticker('proof_returned', 'capture').catch(e => console.warn('Sticker award failed:', e));
+            // Held until the starter is done, like Camera Ready: pre-starter
+            // the Dex is locked, so this award would point the sticker modal
+            // at a lock screen.
+            if (isOnboardingComplete) {
+              unlockDiscoverySticker('proof_returned', 'capture').catch(e => console.warn('Sticker award failed:', e));
+            }
           }
           setFcState('needs_more_proof');
           setIsUploading(false);
