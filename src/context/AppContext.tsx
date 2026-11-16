@@ -733,7 +733,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     : (profile?.role === 'admin' || 
        isAdminFromCollection ||
        user?.uid === 'vX7K0XGkXRM2yPzhidv79Q59GqC2' ||
-       (user?.email === 'hammer808@gmail.com' && (user?.emailVerified || user?.emailVerified === null)));
+       // Email match alone: requiring a verified email locked the admin out
+       // of his own app (unverified email + no admins/{uid} doc + fresh
+       // profile with no role). Email verification is an account-security
+       // concern, not an admin credential.
+       user?.email === 'hammer808@gmail.com');
 
   const mustCompleteStarterMission = React.useMemo(() => {
     if (!profile || !user) return false;
