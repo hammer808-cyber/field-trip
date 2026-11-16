@@ -44,9 +44,8 @@ import {
 } from '../logic/adminQueueStats';
 import {
   runStickerAwardNonBlocking,
-  STICKER_EVENT_AWARD_IDS,
-  unlockStickerForUser,
 } from './stickerService';
+import { evaluateStickerTriggers } from '../logic/stickerEvaluator';
 
 // COLLECTION NAMES
 const ENTRIES_COLLECTION = 'entries';
@@ -761,14 +760,28 @@ async function submitAdminProofReviewAction(
   }
   if (action === 'approve' && payload?.userId) {
     // Approval is already committed; sticker failure must not roll back proof status or XP.
-    runStickerAwardNonBlocking('admin_proof_first_approval', () =>
-      unlockStickerForUser(
-        String(payload.userId),
-        STICKER_EVENT_AWARD_IDS.firstApproval,
-        `proof_approval:${payload.entryId || submissionId}`,
-        'first_approval'
-      )
-    );
+    // The server payload carries no mission id or field type, so read the entry
+    // doc for them; a failed read still evaluates first_approval (default variant).
+    // No snapshot is available here, so count/milestone rules are skipped for
+    // this call — they re-check on the player's next AppContext approval.
+    runStickerAwardNonBlocking('admin_proof_first_approval', async () => {
+      const entryData = await getDoc(doc(db, ENTRIES_COLLECTION, String(payload.entryId || submissionId)))
+        .then(snap => (snap.exists() ? snap.data() : null))
+        .catch(() => null);
+      return evaluateStickerTriggers({
+        event: {
+          type: 'first_approval',
+          entry: entryData ? {
+            missionId: (entryData as any).missionId,
+            challengeId: (entryData as any).challengeId,
+            tripId: (entryData as any).tripId
+          } : null,
+          source: `proof_approval:${payload.entryId || submissionId}`
+        },
+        userId: String(payload.userId),
+        fieldType: (entryData as any)?.fieldType ?? null
+      });
+    });
   }
   return payload;
 }

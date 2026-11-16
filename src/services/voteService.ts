@@ -15,9 +15,8 @@ import { getAppConfig, getActiveSeason } from './seasonService';
 import { authenticatedFetch } from '../lib/api';
 import {
   runStickerAwardNonBlocking,
-  STICKER_EVENT_AWARD_IDS,
-  unlockStickerForUser,
 } from './stickerService';
+import { evaluateStickerTriggers } from '../logic/stickerEvaluator';
 
 const VOTES_COLLECTION = 'votes';
 
@@ -41,13 +40,12 @@ export const castVote = async (userId: string, entryId: string, weekNumber: numb
     }
 
     // A successful server-authoritative vote unlocks participation without delaying the ballot UI.
+    // weekly_vote_cast has a single sticker, so no field type is needed here.
     runStickerAwardNonBlocking('weekly_vote_cast', () =>
-      unlockStickerForUser(
-        userId,
-        STICKER_EVENT_AWARD_IDS.weeklyVoteCast,
-        `weekly_vote:${seasonId}:${weekNumber}:${category}`,
-        'weekly_vote_cast'
-      )
+      evaluateStickerTriggers({
+        event: { type: 'weekly_vote_cast', source: `weekly_vote:${seasonId}:${weekNumber}:${category}` },
+        userId
+      })
     );
   } catch (error: any) {
     console.error('Vote failed:', error.message);

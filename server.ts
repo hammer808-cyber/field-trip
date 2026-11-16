@@ -130,6 +130,7 @@ import {
 import type { ZineEdition, ZineLayoutId, ZinePage, ZineStatus } from "./src/types/zine";
 import { awardTrustedXpInTransaction, buildLedgerBackedProgressionRepairPlan, getLevelUpAcknowledgementError, isTrustedProofXpEligible } from "./src/server/playerProgression";
 import { createAdminStickerAwardStore, createStickerAwardHandler } from "./src/server/stickerAwards";
+import { awardWeeklyWinnerStickers, createAdminCanonicalStickerAwardStore, type WeeklyWinnerInput } from "./src/server/canonicalStickerAwards";
 import { buildScoreRepairMutationTrace, projectScoreLedgerRange } from "./src/logic/scoringLedger";
 import { getBuiltInMissionCatalog, resolveMissionById } from "./src/logic/missionResolver";
 import {
@@ -1573,6 +1574,7 @@ async function startServer() {
           : await cycleRef.collection('ballots').get();
         const finalized: any[] = [];
         const awardRequests: Array<Parameters<typeof awardWeeklyPointsOnce>[0]> = [];
+        const stickerWinners: WeeklyWinnerInput[] = [];
         let batch = dbAdmin!.batch();
         let writes = 0;
         const flush = async () => {
@@ -1598,6 +1600,11 @@ async function startServer() {
                 points: 25,
                 entryId: existingWinner.entryId || existingWinner.proofId,
                 description: `Weekly award: ${ballot.scope} ${cycleId}`,
+              });
+              stickerWinners.push({
+                userId: existingWinner.userId,
+                entryId: existingWinner.entryId || existingWinner.proofId,
+                scope: ballot.scope
               });
             }
             finalized.push({ ballotId, alreadyFinalized: true });
@@ -1700,6 +1707,11 @@ async function startServer() {
               entryId: winner.entryId,
               description: `Weekly award: ${ballot.scope} ${cycleId}`,
             });
+            stickerWinners.push({
+              userId: winner.userId,
+              entryId: winner.entryId,
+              scope: ballot.scope
+            });
           }
 
           finalized.push({ ballotId, validVotes: validVotes.length, rejectedVotes: rejectedVotes.length, winner: winner?.entryId || null });
@@ -1717,15 +1729,36 @@ async function startServer() {
         for (const awardRequest of awardRequests) {
           awards.push(await awardWeeklyPointsOnce(awardRequest));
         }
+        const stickerAwards = await awardWeeklyWinnerStickers(
+          createAdminCanonicalStickerAwardStore(dbAdmin!),
+          { cycleId, winners: stickerWinners }
+        );
         await writeAdminAudit(req.user.uid, cycleId, 'weeklyVotingCycle', 'finalize_weekly_cycle_results', { seasonId, finalized, reason });
-        return res.json({ success: true, cycleId, finalized, awards: awards.map(award => ({ awarded: award.awarded, duplicate: award.duplicate, ledgerEventId: award.ledgerEventId })) });
+        return res.json({ success: true, cycleId, finalized, awards: awards.map(award => ({ awarded: award.awarded, duplicate: award.duplicate, ledgerEventId: award.ledgerEventId })), stickerAwards });
       }
 
       const summaryId = getWeeklyBallotId(seasonId, weekNumber);
       const summaryRef = dbAdmin!.collection('weeklySummaries').doc(summaryId);
       const summarySnap = await summaryRef.get();
       if (summarySnap.exists && summarySnap.data()?.isLocked && summarySnap.data()?.voteWinners) {
-        return res.json({ success: true, alreadyFinalized: true, voteWinners: summarySnap.data()?.voteWinners });
+        // Already finalized: XP awards are not re-pushed, but the sticker
+        // step runs anyway (idempotent) so a week finalized before Stage 3
+        // ships still gets its stickers on a later re-finalize.
+        const lockedWinners = (summarySnap.data()?.voteWinners || {}) as Record<string, any>;
+        const stickerAwards = await awardWeeklyWinnerStickers(
+          createAdminCanonicalStickerAwardStore(dbAdmin!),
+          {
+            cycleId: summaryId,
+            winners: Object.entries(lockedWinners)
+              .map(([category, winner]) => ({
+                userId: winner?.userId,
+                entryId: winner?.entryId,
+                scope: category
+              }))
+              .filter(winner => winner.userId)
+          }
+        );
+        return res.json({ success: true, alreadyFinalized: true, voteWinners: summarySnap.data()?.voteWinners, stickerAwards });
       }
 
       const votesSnap = await dbAdmin!.collection('votes')
@@ -1815,9 +1848,20 @@ async function startServer() {
       for (const awardRequest of awardRequests) {
         awards.push(await awardWeeklyPointsOnce(awardRequest));
       }
+      const stickerAwards = await awardWeeklyWinnerStickers(
+        createAdminCanonicalStickerAwardStore(dbAdmin!),
+        {
+          cycleId: summaryId,
+          winners: Object.entries(voteWinners).map(([category, winner]) => ({
+            userId: winner.userId,
+            entryId: winner.entryId,
+            scope: category
+          }))
+        }
+      );
 
       await writeAdminAudit(req.user.uid, summaryId, 'weeklyVoting', 'finalize_week', { seasonId, weekNumber, categories: Object.keys(voteWinners).length, reason });
-      res.json({ success: true, summaryId, voteWinners, awards: awards.map(award => ({ awarded: award.awarded, duplicate: award.duplicate, ledgerEventId: award.ledgerEventId })) });
+      res.json({ success: true, summaryId, voteWinners, awards: awards.map(award => ({ awarded: award.awarded, duplicate: award.duplicate, ledgerEventId: award.ledgerEventId })), stickerAwards });
     } catch (error: any) {
       if (String(error?.message || error).includes('ALREADY_EXISTS')) {
         return res.status(409).json({ error: "FINALIZE_RETRY_NEEDED", message: "A score event was created by another finalize request. Retry to read the finalized state." });

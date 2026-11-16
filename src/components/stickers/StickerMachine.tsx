@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Gift, RefreshCw, Sparkles, Star } from 'lucide-react';
-import { getAllStickers, type StickerDefinition } from '../../data/stickers';
+import {
+  COLLECTION_META,
+  COLLECTION_SHELF_ORDER,
+  getAllStickers,
+  getStickersByCollection,
+  type StickerCollection,
+  type StickerDefinition
+} from '../../data/stickers';
 import { useApp } from '../../context/AppContext';
 import {
   getUserUnlockedStickers,
@@ -10,13 +17,21 @@ import {
   type UserUnlockedSticker
 } from '../../services/stickerService';
 import { StickerDetailModal } from './StickerDetailModal';
-import { StickerFilterTabs, type StickerFilter } from './StickerFilterTabs';
-import { filterStickersByArchetype, StickerGrid } from './StickerGrid';
+import {
+  STICKER_ARCHETYPE_LABELS,
+  StickerCollectionTabs,
+  StickerFilterTabs,
+  type StickerCollectionFilter,
+  type StickerCollectionProgress,
+  type StickerFilter
+} from './StickerFilterTabs';
+import { filterStickersByArchetype, StickerCollectionSection } from './StickerGrid';
 
 const ALL_STICKERS = getAllStickers();
 
 export function StickerMachine() {
   const { user } = useApp();
+  const [activeCollection, setActiveCollection] = useState<StickerCollectionFilter>('all');
   const [activeFilter, setActiveFilter] = useState<StickerFilter>('all');
   const [unlocks, setUnlocks] = useState<UserUnlockedSticker[]>([]);
   const [selectedSticker, setSelectedSticker] = useState<StickerDefinition | null>(null);
@@ -44,10 +59,50 @@ export function StickerMachine() {
     () => new Map(unlocks.map(unlock => [unlock.stickerId, unlock])),
     [unlocks]
   );
-  const visibleStickers = useMemo(
-    () => filterStickersByArchetype(ALL_STICKERS, activeFilter),
-    [activeFilter]
-  );
+
+  /** Live earned/total per collection, from the same unlocks map — no new reads. */
+  const collectionCounts = useMemo(() => {
+    const counts = {} as Record<StickerCollectionFilter, StickerCollectionProgress>;
+    counts.all = { earned: unlocks.length, total: ALL_STICKERS.length };
+    for (const collection of COLLECTION_SHELF_ORDER) {
+      const inCollection = getStickersByCollection(collection);
+      counts[collection] = {
+        earned: inCollection.filter(sticker => unlocksById.has(sticker.id)).length,
+        total: inCollection.length
+      };
+    }
+    return counts;
+  }, [unlocks, unlocksById]);
+
+  /** Shelves to render: all collections in shelf order, or just the selected one. */
+  const shelves = useMemo(() => {
+    const collections: readonly StickerCollection[] = activeCollection === 'all'
+      ? COLLECTION_SHELF_ORDER
+      : [activeCollection];
+    return collections.map(collection => {
+      const inCollection = getStickersByCollection(collection);
+      return {
+        collection,
+        stickers: filterStickersByArchetype(inCollection, activeFilter),
+        earnedCount: collectionCounts[collection].earned,
+        totalCount: inCollection.length
+      };
+    });
+  }, [activeCollection, activeFilter, collectionCounts]);
+
+  /**
+   * In the All view, a shelf with stickers that are all hidden by the
+   * archetype filter is omitted; an empty collection (Chaos / Limited
+   * Edition) always renders with its empty state. In a single-collection
+   * view the shelf always renders, with a filtered-empty message when the
+   * archetype chip hides everything.
+   */
+  const visibleShelves = useMemo(() => {
+    if (activeCollection !== 'all') return shelves;
+    return shelves.filter(shelf => shelf.stickers.length > 0 || shelf.totalCount === 0);
+  }, [activeCollection, shelves]);
+
+  const visibleStickerCount = visibleShelves.reduce((sum, shelf) => sum + shelf.stickers.length, 0);
   const featuredUnlocks = unlocks.filter(unlock => unlock.equipped);
   const selectedUnlock = selectedSticker ? unlocksById.get(selectedSticker.id) : undefined;
   const unseenCount = unlocks.filter(unlock => !unlock.seen).length;
@@ -172,22 +227,41 @@ export function StickerMachine() {
         </div>
       </header>
 
+      <StickerCollectionTabs
+        activeFilter={activeCollection}
+        counts={collectionCounts}
+        onChange={setActiveCollection}
+      />
+
       <StickerFilterTabs activeFilter={activeFilter} onChange={setActiveFilter} />
 
       <div className="flex items-center justify-between gap-3">
         <p className="font-mono text-[9px] font-black uppercase opacity-55">
-          Showing {visibleStickers.length} stickers
+          Showing {visibleStickerCount} stickers
         </p>
         <p className="font-mono text-[9px] font-black uppercase opacity-55">
           Tap one for details
         </p>
       </div>
 
-      <StickerGrid
-        stickers={visibleStickers}
-        unlocksById={unlocksById}
-        onOpenSticker={openSticker}
-      />
+      <div className="space-y-8">
+        {visibleShelves.map(shelf => (
+          <StickerCollectionSection
+            key={shelf.collection}
+            collection={shelf.collection}
+            stickers={shelf.stickers}
+            earnedCount={shelf.earnedCount}
+            totalCount={shelf.totalCount}
+            unlocksById={unlocksById}
+            onOpenSticker={openSticker}
+            emptyMessage={shelf.totalCount === 0
+              ? undefined
+              : activeFilter === 'all'
+                ? undefined
+                : `No ${STICKER_ARCHETYPE_LABELS[activeFilter]} stickers in ${COLLECTION_META[shelf.collection].label}.`}
+          />
+        ))}
+      </div>
 
       <StickerDetailModal
         sticker={selectedSticker}

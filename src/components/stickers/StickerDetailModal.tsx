@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { LockKeyhole, Sparkles, Star, X } from 'lucide-react';
-import type { StickerDefinition } from '../../data/stickers';
+import { COLLECTION_META, type StickerDefinition } from '../../data/stickers';
 import type { UserUnlockedSticker } from '../../services/stickerService';
 import { cn } from '../../lib/utils';
 import { STICKER_ARCHETYPE_LABELS } from './StickerFilterTabs';
@@ -113,6 +113,9 @@ export function StickerDetailModal({
               <span className="border border-current px-2 py-1 font-mono text-[9px] font-black uppercase">
                 {sticker.rarity}
               </span>
+              <span className="border border-current px-2 py-1 font-mono text-[9px] font-black uppercase">
+                {COLLECTION_META[sticker.collection].label}
+              </span>
               <span className="font-mono text-[9px] font-black uppercase opacity-55">
                 {isUnlocked ? 'Unlocked' : 'Locked'}
               </span>
@@ -126,7 +129,7 @@ export function StickerDetailModal({
               {sticker.name}
             </h2>
             <p className="mt-2 font-mono text-[10px] font-bold uppercase opacity-55">
-              {STICKER_ARCHETYPE_LABELS[sticker.archetype]}
+              {sticker.archetype ? STICKER_ARCHETYPE_LABELS[sticker.archetype] : 'Cross-pack'}
             </p>
             {isUnlocked && earnedDateLabel && (
               <p className="mt-1 font-mono text-[10px] font-bold uppercase opacity-55">

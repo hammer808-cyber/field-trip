@@ -77,9 +77,8 @@ import { DISCOVERY_STICKERS, DiscoverySticker } from '../constants/discoveryStic
 import {
   hasEarnedSticker,
   runStickerAwardNonBlocking,
-  STICKER_EVENT_AWARD_IDS,
-  unlockStickerForUser,
 } from '../services/stickerService';
+import { evaluateStickerTriggers } from '../logic/stickerEvaluator';
 import { castVote, getVotesForUser } from '../services/voteService';
 import { StarterCompletionState } from '../utils/starterHelper';
 
@@ -2379,22 +2378,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setLastReview(review);
 
     // Sticker unlocks run after canonical submission succeeds and never block proof handling.
+    // The evaluator archetype-matches the award (Stage 3): the player's own
+    // variant when one exists, else the trigger's default.
     runStickerAwardNonBlocking('proof_first_submission', () =>
-      unlockStickerForUser(
-        user.uid,
-        STICKER_EVENT_AWARD_IDS.firstSubmission,
-        `proof_submission:${entryId}`,
-        'first_submission'
-      )
+      evaluateStickerTriggers({
+        event: { type: 'first_submission', source: `proof_submission:${entryId}` },
+        userId: user.uid,
+        fieldType: profile.fieldType
+      })
     );
     if (entryData.fieldNote?.trim()) {
       runStickerAwardNonBlocking('proof_field_note', () =>
-        unlockStickerForUser(
-          user.uid,
-          STICKER_EVENT_AWARD_IDS.fieldNoteAdded,
-          `proof_submission:${entryId}`,
-          'field_note_added'
-        )
+        evaluateStickerTriggers({
+          event: { type: 'field_note_added', source: `proof_submission:${entryId}` },
+          userId: user.uid,
+          fieldType: profile.fieldType
+        })
       );
     }
     const hasPhotoProof = Boolean(
@@ -2405,22 +2404,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
     if (hasPhotoProof) {
       runStickerAwardNonBlocking('proof_photo_added', () =>
-        unlockStickerForUser(
-          user.uid,
-          STICKER_EVENT_AWARD_IDS.photoProofAdded,
-          `proof_submission:${entryId}`,
-          'photo_proof_added'
-        )
+        evaluateStickerTriggers({
+          event: { type: 'photo_proof_added', source: `proof_submission:${entryId}` },
+          userId: user.uid,
+          fieldType: profile.fieldType
+        })
       );
     }
     if (status === 'approved') {
+      // Immediate approval runs the full approval bundle: first_approval +
+      // challenge_approved + count/milestone re-check, from the snapshot.
       runStickerAwardNonBlocking('proof_first_approval', () =>
-        unlockStickerForUser(
-          user.uid,
-          STICKER_EVENT_AWARD_IDS.firstApproval,
-          `proof_approval:${entryId}`,
-          'first_approval'
-        )
+        evaluateStickerTriggers({
+          event: {
+            type: 'first_approval',
+            entry: {
+              missionId: (entryData as any).missionId,
+              challengeId: (entryData as any).challengeId,
+              tripId: entryData.tripId ?? currentTrip.id
+            },
+            source: `proof_approval:${entryId}`
+          },
+          userId: user.uid,
+          snapshot: canonicalProgress,
+          fieldType: profile.fieldType
+        })
       );
     }
 

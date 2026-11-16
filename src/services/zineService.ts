@@ -4,20 +4,17 @@ import type { ZineEdition, ZineLayoutId, ZineProofSnapshot, ZineStickerPlacement
 import { getZinePageStickerPlacements } from '../logic/zineStickerPlacements';
 import {
   runStickerAwardNonBlocking,
-  STICKER_EVENT_AWARD_IDS,
-  unlockStickerForUser,
 } from './stickerService';
+import { evaluateStickerTriggers } from '../logic/stickerEvaluator';
 
 function awardCurrentUserZineSticker(source: string): void {
   const userId = auth.currentUser?.uid;
   if (!userId) return;
   runStickerAwardNonBlocking('zine_page_added', () =>
-    unlockStickerForUser(
-      userId,
-      STICKER_EVENT_AWARD_IDS.zinePageAdded,
-      source,
-      'zine_page_added'
-    )
+    evaluateStickerTriggers({
+      event: { type: 'zine_page_added', source },
+      userId
+    })
   );
 }
 

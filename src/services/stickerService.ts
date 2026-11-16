@@ -134,6 +134,7 @@ const STICKER_AWARD_TRIGGERS: readonly StickerAwardTrigger[] = [
   'zine_page_added',
   'archetype_milestone',
   'season_milestone',
+  'mission_count_milestone',
   'admin_grant'
 ];
 

@@ -37,9 +37,8 @@ import { getCatalystForWeek, evaluateProofForCatalyst, awardCatalystRewardsIfEli
 import { calculateAverageHash, calculateHammingDistance } from '../utils/hashUtils';
 import {
   runStickerAwardNonBlocking,
-  STICKER_EVENT_AWARD_IDS,
-  unlockStickerForUser,
 } from './stickerService';
+import { evaluateStickerTriggers } from '../logic/stickerEvaluator';
 
 const REQUIREMENTS_COLLECTION = 'proofRequirements';
 const REVIEWS_COLLECTION = 'proofReviews';
@@ -626,14 +625,28 @@ export async function adminOverrideReview(
   }
   if (newStatus === 'approved' && payload?.userId) {
     // Legacy admin review surfaces share the same non-blocking canonical sticker award.
-    runStickerAwardNonBlocking('admin_override_first_approval', () =>
-      unlockStickerForUser(
-        String(payload.userId),
-        STICKER_EVENT_AWARD_IDS.firstApproval,
-        `proof_approval:${payload.entryId || entryId}`,
-        'first_approval'
-      )
-    );
+    // The server payload carries no mission id or field type, so read the entry
+    // doc for them; a failed read still evaluates first_approval (default variant).
+    // No snapshot is available here, so count/milestone rules are skipped for
+    // this call — they re-check on the player's next AppContext approval.
+    runStickerAwardNonBlocking('admin_override_first_approval', async () => {
+      const entryData = await getDoc(doc(db, 'entries', String(payload.entryId || entryId)))
+        .then(snap => (snap.exists() ? snap.data() : null))
+        .catch(() => null);
+      return evaluateStickerTriggers({
+        event: {
+          type: 'first_approval',
+          entry: entryData ? {
+            missionId: (entryData as any).missionId,
+            challengeId: (entryData as any).challengeId,
+            tripId: (entryData as any).tripId
+          } : null,
+          source: `proof_approval:${payload.entryId || entryId}`
+        },
+        userId: String(payload.userId),
+        fieldType: (entryData as any)?.fieldType ?? null
+      });
+    });
   }
   return payload;
 }

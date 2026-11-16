@@ -80,7 +80,7 @@ export function StickerCard({ sticker, unlock, onOpen }: StickerCardProps) {
             {sticker.name}
           </p>
           <p className="mt-1 truncate font-mono text-[8px] font-bold uppercase opacity-55">
-            {STICKER_ARCHETYPE_LABELS[sticker.archetype]}
+            {sticker.archetype ? STICKER_ARCHETYPE_LABELS[sticker.archetype] : 'Cross-pack'}
           </p>
         </div>
         <div className="flex items-center justify-between gap-2 font-mono text-[8px] font-black uppercase">
