@@ -131,6 +131,7 @@ import type { ZineEdition, ZineLayoutId, ZinePage, ZineStatus } from "./src/type
 import { awardTrustedXpInTransaction, buildLedgerBackedProgressionRepairPlan, getLevelUpAcknowledgementError, isTrustedProofXpEligible } from "./src/server/playerProgression";
 import { createAdminStickerAwardStore, createStickerAwardHandler } from "./src/server/stickerAwards";
 import { awardWeeklyWinnerStickers, createAdminCanonicalStickerAwardStore, type WeeklyWinnerInput } from "./src/server/canonicalStickerAwards";
+import { createAdminStickerGrantStore, createStickerGrantHandler } from "./src/server/stickerGrants";
 import { buildScoreRepairMutationTrace, projectScoreLedgerRange } from "./src/logic/scoringLedger";
 import { getBuiltInMissionCatalog, resolveMissionById } from "./src/logic/missionResolver";
 import {
@@ -8769,6 +8770,12 @@ async function startServer() {
       res.status(error.status || 500).json({ error: error.message || "GRANT_STARTER_BYPASS_FAILED" });
     }
   });
+
+  // --- STAGE 4: ADMIN STICKER GRANTS ---
+  // POST /api/admin/stickers/grant — admin-only grant of a canonical sticker
+  // to any player, with a required reason. Grant-only, no revoke; the grant
+  // bypasses the starter gate by design (see src/server/stickerGrants.ts).
+  app.post("/api/admin/stickers/grant", adminRateLimiter, authenticate, createStickerGrantHandler(() => (dbAdmin ? createAdminStickerGrantStore(dbAdmin) : null), { requireAdminUser, writeAdminAudit }));
 
   app.post("/api/admin/slot-orphan-proof-reviews", adminRateLimiter, authRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
