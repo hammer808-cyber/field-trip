@@ -121,7 +121,7 @@ export default function MissionBriefingPage() {
              <div className="bg-white border-2 border-on-surface/10 p-4 rounded-2xl flex flex-col items-center gap-2 text-center">
                 <Bookmark className="w-5 h-5 text-brand-orange" />
                 <span className="text-[10px] font-mono font-black uppercase opacity-40">Reward</span>
-                <span className="text-xs font-bold uppercase">{mission.basePoints || 250} XP</span>
+                <span className="text-xs font-bold uppercase">{mission.baseXP || mission.basePoints || 100} XP</span>
              </div>
           </div>
         </div>
