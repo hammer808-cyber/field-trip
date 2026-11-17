@@ -24,7 +24,14 @@ export async function extractImageMetadata(file: File): Promise<ImageMetadata> {
     const reader = new FileReader();
     reader.onload = (e) => {
       const arrayBuffer = e.target?.result as ArrayBuffer;
-      const exifData = EXIF.readFromBinaryFile(arrayBuffer);
+      let exifData: any = undefined;
+      try {
+        // A malformed JPEG can throw here; without the catch the promise
+        // never settles and the camera spins forever (Nov 16, 2026).
+        exifData = EXIF.readFromBinaryFile(arrayBuffer);
+      } catch {
+        exifData = undefined;
+      }
       
       const dateTimeOriginal = exifData?.DateTimeOriginal || exifData?.CreateDate || exifData?.ModifyDate;
       const createDate = exifData?.CreateDate;

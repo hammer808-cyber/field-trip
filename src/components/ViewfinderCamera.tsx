@@ -65,6 +65,18 @@ function stopMediaStream(targetStream: MediaStream | null) {
   targetStream?.getTracks().forEach(track => track.stop());
 }
 
+/**
+ * Watchdog for photo processing (Nov 16, 2026). The upload/capture chain
+ * has steps with no timeout of their own — the sign-in token refresh and
+ * the file read — and a stall in either one left the screen on
+ * "Processing Signal..." forever, with the controls dead and no error.
+ * Each handler races its chain against this bound; on timeout the error
+ * screen shows and the player can retry. 45s gives a full server
+ * evaluation cycle headroom (5s App Check race + 20s request timeout)
+ * plus the local steps.
+ */
+const PROCESSING_TIMEOUT_MS = 45000;
+
 function clampZoom(value: number, state: ZoomState) {
   const min = Number.isFinite(state.min) ? state.min : 1;
   const max = Number.isFinite(state.max) ? state.max : min;
@@ -218,6 +230,11 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
   const [isInitializing, setIsInitializing] = useState(true);
   const [isFlashing, setIsFlashing] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  // Bumps when the player dismisses the error screen: the camera-init
+  // effect re-runs, so DISMISS & RETRY CAMERA actually restarts the
+  // camera. (Nov 16, 2026: a failed upload stops the stream first, so
+  // dismissing the error used to show a dead camera with no way back.)
+  const [cameraRestartNonce, setCameraRestartNonce] = useState(0);
   const [selectedFilter, setSelectedFilter] = useState<ViewfinderFilterId>('original');
   const [showFilters, setShowFilters] = useState(false);
   const [showZoomControls, setShowZoomControls] = useState(false);
@@ -367,7 +384,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
         }
       }
     };
-  }, [facingMode]);
+  }, [facingMode, cameraRestartNonce]);
 
   const toggleCamera = () => {
     if (isInitializing || isProcessing || !streamRef.current) return;
@@ -454,6 +471,17 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
       captureInFlightRef.current = true;
       setFrameCount(prev => prev + 1);
       setIsProcessing(true);
+      // Watchdog: if the chain below stalls, stop the spinner and show
+      // the error screen instead of "Processing Signal..." forever.
+      // Cleared in the finally; a late completion must not fire
+      // onCapture after the timeout error already showed.
+      let timedOut = false;
+      const processingTimeoutId = window.setTimeout(() => {
+        timedOut = true;
+        setError('CAPTURE_TIMEOUT: The photo took too long to process. Nothing was sent. Try again.');
+        setIsProcessing(false);
+        captureInFlightRef.current = false;
+      }, PROCESSING_TIMEOUT_MS);
       const track = streamRef.current?.getVideoTracks()[0];
       const flashStrategy = getCameraFlashStrategy({
         enabled: flashEnabled,
@@ -536,7 +564,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
           console.warn("Server evaluation failed, using local fallback:", serverErr);
         }
 
-        onCapture({
+        if (!timedOut) onCapture({
           originalImageUrl,
           filteredImageUrl,
           metadata,
@@ -546,8 +574,11 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
           message: evalResult.message || 'Approved locally.'
         });
       } catch (err: any) {
-        setError(err.message || "Failed to process capture.");
+        // A late throw after the timeout already showed must not
+        // overwrite the timeout error.
+        if (!timedOut) setError(err.message || "Failed to process capture.");
       } finally {
+        window.clearTimeout(processingTimeoutId);
         if (torchActivated) await setCameraTorch(track, false);
         setIsFlashing(false);
         setIsProcessing(false);
@@ -563,13 +594,26 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
     stopMediaStream(streamRef.current);
     streamRef.current = null;
     setIsProcessing(true);
+    // Watchdog: see PROCESSING_TIMEOUT_MS. The upload chain's file read
+    // and token refresh have no timeout of their own; a stall in either
+    // left the screen on "Processing Signal..." forever (Nov 16, 2026).
+    let timedOut = false;
+    const processingTimeoutId = window.setTimeout(() => {
+      timedOut = true;
+      setError('UPLOAD_TIMEOUT: The photo took too long to process. Nothing was sent. Try again.');
+      setIsProcessing(false);
+    }, PROCESSING_TIMEOUT_MS);
     try {
       const metadata = await extractImageMetadata(file);
       const fullMetadata = { ...metadata, source: 'cameraRoll' as const };
       
-      const originalImageUrl = await new Promise<string>((resolve) => {
+      const originalImageUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => resolve(e.target?.result as string);
+        // Without this, a failed read never settles and only the
+        // watchdog saves the screen — with a generic timeout error
+        // instead of the real one.
+        reader.onerror = () => reject(new Error('Failed to read the photo file.'));
         reader.readAsDataURL(file);
       });
 
@@ -586,7 +630,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
 
       const filteredImageUrl = await applyFilterToImageUrl(originalImageUrl, selectedFilter);
 
-      onCapture({
+      if (!timedOut) onCapture({
         originalImageUrl,
         filteredImageUrl,
         metadata: fullMetadata,
@@ -596,10 +640,11 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
         message: evalResult.message || 'Approved upload locally.'
       });
     } catch (err: any) {
-      setError(err.message || "Failed to process upload.");
+      if (!timedOut) setError(err.message || "Failed to process upload.");
       // Reset input
       if (fileInputRef.current) fileInputRef.current.value = '';
     } finally {
+      window.clearTimeout(processingTimeoutId);
       setIsProcessing(false);
     }
   };
@@ -648,7 +693,12 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
           </button>
 
           <button 
-            onClick={() => setError(null)}
+            onClick={() => {
+              setError(null);
+              // The stream is stopped before an upload, so dismissing the
+              // error alone used to show a dead camera. Restart it.
+              setCameraRestartNonce((n) => n + 1);
+            }}
             className="w-full py-3 bg-white/10 border border-white/20 font-mono text-[10px] text-white uppercase tracking-widest hover:bg-white/20 transition-colors"
           >
             DISMISS & RETRY CAMERA

@@ -33,7 +33,16 @@ export async function authenticatedFetch(url: string, options: AuthenticatedFetc
   // 1. Add Firebase Auth Token if user is signed in
   const user = auth.currentUser;
   if (user) {
-    const idToken = await user.getIdToken();
+    // Nov 16, 2026: getIdToken() has no timeout of its own, so a stalled
+    // token refresh hung the whole call past the request timeout — the
+    // timeout below only covers fetch. Fail fast; callers fall back or
+    // show their own error instead of spinning forever.
+    const idToken = await Promise.race([
+      user.getIdToken(),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('AUTH_TOKEN_TIMEOUT')), 10000),
+      ),
+    ]);
     headers.set('Authorization', `Bearer ${idToken}`);
   }
 
