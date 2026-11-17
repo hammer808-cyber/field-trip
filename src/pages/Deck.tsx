@@ -1051,6 +1051,13 @@ export default function DeckPage() {
                 {savedForLaterNotice}
               </div>
             )}
+            {/* No banner while a mission is drawn and waiting (Nov 17,
+                2026): in the RESUME_ACTIVE_MISSION state the strip repeats
+                the mission name, the waiting state, and the resume action
+                that the mission card below already carries. Every other
+                state still shows it — including the critical repair/retry
+                states, where the strip is the recovery guidance. */}
+            {guidance.state !== 'RESUME_ACTIVE_MISSION' && (
             <MissionsGuidanceStrip
               guidance={guidance}
               onPrimary={() => {
@@ -1082,6 +1089,7 @@ export default function DeckPage() {
                 ? () => navigate(guidance.secondaryAction!.destination)
                 : undefined}
             />
+            )}
             {/* When a mission is drawn, the deck folds into the mission
                 panel header as one tappable line (Nov 16, 2026) — the big
                 deck panel only shows as the draw surface when nothing is
