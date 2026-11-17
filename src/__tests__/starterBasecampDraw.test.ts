@@ -4,6 +4,7 @@ import { resolveMissionsNavLocked } from '../components/bottomNavPresentation';
 import {
   resolveOnboardingDestination,
   shouldRedirectPreStarterToBasecamp,
+  isAllowedPreStarterPage,
   type OnboardingDestinationState,
 } from '../logic/onboardingFlow';
 import {
@@ -16,6 +17,24 @@ test('Missions nav is locked until the Starter set is done', () => {
   assert.equal(resolveMissionsNavLocked({ starterComplete: false, isAdmin: false }), true);
   assert.equal(resolveMissionsNavLocked({ starterComplete: true, isAdmin: false }), false);
   assert.equal(resolveMissionsNavLocked({ starterComplete: false, isAdmin: true }), false);
+});
+
+test('the mission briefing stays reachable before the Starter is done', () => {
+  // Nov 16, 2026: RESUME MISSION for a drawn Starter goes to
+  // /mission-briefing, and the Step 3 guard bounced it straight back to
+  // Basecamp because the briefing wasn't on the allowlist — the tap
+  // looked dead. The briefing is the resume path, so it stays open.
+  assert.equal(isAllowedPreStarterPage('/mission-briefing'), true);
+  assert.equal(isAllowedPreStarterPage('/capture?id=starter-3'), true);
+  assert.equal(isAllowedPreStarterPage('/basecamp'), true);
+  assert.equal(isAllowedPreStarterPage('/missions'), true);
+  assert.equal(isAllowedPreStarterPage('/deck'), true);
+  assert.equal(isAllowedPreStarterPage('/profile'), true);
+  assert.equal(isAllowedPreStarterPage('/field-type'), true);
+  assert.equal(isAllowedPreStarterPage('/dex/stickers'), true);
+  assert.equal(isAllowedPreStarterPage('/settings'), false);
+  assert.equal(isAllowedPreStarterPage('/admin'), false);
+  assert.equal(isAllowedPreStarterPage('/proofs'), false);
 });
 
 test('pre-Starter players are sent back to Basecamp from Missions and Deck', () => {

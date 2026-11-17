@@ -21,7 +21,7 @@ import { LAUNCH_MISSION_ID, isLaunchMissionEligible } from './data/specialMissio
 import { firebaseError, getFirebaseInitError } from './lib/firebase';
 import { TrevorGuide } from './components/TrevorGuide';
 import { StarterGate } from './components/StarterGate';
-import { resolveOnboardingDestination, shouldRedirectPreStarterToBasecamp } from './logic/onboardingFlow';
+import { resolveOnboardingDestination, shouldRedirectPreStarterToBasecamp, isAllowedPreStarterPage } from './logic/onboardingFlow';
 
 const FirebaseConfigError = ({ error }: { error: string }) => (
   <div className="min-h-screen flex items-center justify-center bg-paper p-6 text-on-surface font-mono">
@@ -293,16 +293,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   // Onboarding Routing Logic
   const isClassificationPage = location.pathname === '/classification' || location.pathname === '/onboarding';
   const isFieldTypePage = location.pathname === '/field-type' || location.pathname === '/persona';
-  const isDeckPage = location.pathname === '/deck' || location.pathname.startsWith('/missions');
   const isCapturePage = location.pathname.startsWith('/capture');
-  const isProfilePage = location.pathname === '/profile';
-  const isBigBoardPage = location.pathname === '/big-board';
-  const isBasecampPage = location.pathname === '/basecamp';
-  const isCrewPage = location.pathname.startsWith('/crew');
-  const isCollectionPage = location.pathname.startsWith('/collection') || location.pathname.startsWith('/dex');
-  const isMemoriesPage = location.pathname.startsWith('/memories') || location.pathname.startsWith('/dex/memories');
-  const isVotingPage = location.pathname.startsWith('/voting');
-  const isLoteriaPage = location.pathname.startsWith('/loteria');
 
   // Centralized login/returning destination selector
   const correctDestination = resolveOnboardingDestination({
@@ -344,8 +335,9 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   // Step 3: Resume guided onboarding or mission at correct saved step.
-  // Allow all pages used in the tour: Deck, Capture, Profile, Big Board, and Field Type.
-  const isAllowedOnboardingPage = isDeckPage || isCapturePage || isProfilePage || isBigBoardPage || isFieldTypePage || isBasecampPage || isCrewPage || isCollectionPage || isMemoriesPage || isVotingPage || isLoteriaPage;
+  // Reachable pages are the pre-Starter allowlist in onboardingFlow.ts
+  // (isAllowedPreStarterPage) — everything else bounces to /basecamp.
+  const isAllowedOnboardingPage = isAllowedPreStarterPage(location.pathname);
   if (user && hasConfirmedLegal && fieldClassificationComplete && hasSeenFieldTypeResults && !onboardingCompleted && !isAllowedOnboardingPage && !isBypassingGuards) {
     return <Navigate to="/basecamp" replace />;
   }

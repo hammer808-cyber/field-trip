@@ -18,6 +18,7 @@ const votingBallotPageSource = readFileSync('src/pages/VotingBallotPage.tsx', 'u
 const pageLoaderSource = readFileSync('src/components/PageLoader.tsx', 'utf8');
 const fieldtripLoaderSource = readFileSync('src/components/FieldtripLoader.tsx', 'utf8');
 const crewMemoriesFeedSource = readFileSync('src/components/CrewMemoriesFeed.tsx', 'utf8');
+const onboardingFlowSource = readFileSync('src/logic/onboardingFlow.ts', 'utf8');
 
 test('stable IA routes exist and legacy routes redirect safely', () => {
   assert.match(appSource, /<Route path="\/missions" element=\{<Deck \/>}/);
@@ -90,7 +91,14 @@ test('Voting routes remain reachable from the primary nav', () => {
 });
 
 test('Starter-locked destinations stay reachable and explain the lock instead of silently redirecting', () => {
-  assert.match(appSource, /isVotingPage \|\| isLoteriaPage/);
+  // The pre-Starter allowlist lives in onboardingFlow.ts
+  // (isAllowedPreStarterPage) and App.tsx Step 3 calls it; voting,
+  // loteria, and the mission briefing must all be on it so a locked
+  // destination explains itself instead of bouncing to Basecamp.
+  assert.match(appSource, /isAllowedPreStarterPage\(location\.pathname\)/);
+  assert.match(onboardingFlowSource, /path\.startsWith\('\/voting'\)/);
+  assert.match(onboardingFlowSource, /path\.startsWith\('\/loteria'\)/);
+  assert.match(onboardingFlowSource, /path === '\/mission-briefing'/);
   assert.match(appSource, /requiredFeature="loteria"/);
   assert.match(starterGateSource, /GatedFeaturePanel/);
 });

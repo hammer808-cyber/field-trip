@@ -35,3 +35,30 @@ export function shouldRedirectPreStarterToBasecamp(input: {
   const path = input.pathname || '';
   return path === '/deck' || path.startsWith('/missions');
 }
+
+/**
+ * Step 3 (App.tsx): while onboarding isn't complete, only these pages stay
+ * reachable — everything else bounces to /basecamp. The mission briefing
+ * is on the list because a drawn mission resumes through it: without it,
+ * RESUME MISSION navigates to /mission-briefing and the guard sends the
+ * player straight back to Basecamp, so the tap looks dead (Nov 16, 2026).
+ * Keep this in sync with the route list it mirrors.
+ */
+export function isAllowedPreStarterPage(pathname: string): boolean {
+  const path = pathname || '';
+  return path === '/deck'
+    || path.startsWith('/missions')
+    || path.startsWith('/capture')
+    || path === '/profile'
+    || path === '/big-board'
+    || path === '/field-type'
+    || path === '/persona'
+    || path === '/basecamp'
+    || path.startsWith('/crew')
+    || path.startsWith('/collection')
+    || path.startsWith('/dex')
+    || path.startsWith('/memories')
+    || path.startsWith('/voting')
+    || path.startsWith('/loteria')
+    || path === '/mission-briefing';
+}
