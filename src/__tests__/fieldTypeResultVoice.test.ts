@@ -55,6 +55,13 @@ test('result page CTA says what happens next', () => {
   // the page says so now, on both the inline button and the sticky footer.
   assert.match(page, /Next: add a photo if you want, then your first mission on Basecamp\./);
   assert.match(page, /Photo first if you want it, then your first mission\./);
+  // The non-guided button gets the same honesty when the photo step
+  // will actually appear.
+  assert.match(page, /Next: add a photo if you want one, then Basecamp\./);
+  // The caption only shows when there is no photo saved — with one, the
+  // button goes straight to Basecamp and the line would be wrong.
+  assert.match(page, /isGuidedActive && !profile\?\.photoURL && \(/);
+  assert.match(page, /!isGuidedActive && !profile\?\.photoURL && \(/);
   // The navigating label used to promise a mission while routing to
   // Basecamp.
   assert.match(page, /Opening Basecamp\.\.\./);

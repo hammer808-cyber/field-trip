@@ -353,7 +353,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [blockedIds, setBlockedIds] = useState<string[]>([]);
   const [crewGraph, setCrewGraph] = useState<CrewGraphSnapshot>(() => emptyCrewGraph());
   const [rewardQueue, setRewardQueue] = useState<RewardQueueItem[]>([]);
-  const [sessionSeenRewards, setSessionSeenRewards] = useState<Set<string>>(new Set());
+  // Session-seen reward keys live in a ref, not state. queueReward must
+  // keep a stable identity — the results page queues its reveal from an
+  // effect that depends on it — and a state read would go stale inside
+  // useCallback([]), while a state dep would change identity on every
+  // queue and re-fire that effect. A ref read stays fresh and never
+  // re-renders. (Nov 16, 2026: the state version looped the persona
+  // reveal into 800+ duplicate toasts on /field-type.)
+  const sessionSeenRewardsRef = React.useRef<Set<string>>(new Set());
   const [pendingEntries, setPendingEntries] = useState<Entry[]>([]);
   const [drawnMissionCards, setDrawnMissionCards] = useState<DrawnMissionCard[]>([]);
   const [memories, setMemories] = useState<MemoryEntry[]>([]);
@@ -2668,7 +2675,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const queueReward = (reward: Omit<RewardQueueItem, 'id'>) => {
+  // Stable on purpose: effects depend on this (the persona reveal), so a
+  // fresh identity every render would re-fire them and flood the queue.
+  const queueReward = React.useCallback((reward: Omit<RewardQueueItem, 'id'>) => {
     const id = Math.random().toString(36).substring(7);
     const item = { ...reward, id };
 
@@ -2682,16 +2691,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // repeated queue of the same sticker still downgrades to a toast.
     if (item.intensity === RewardIntensity.MAJOR_REVEAL) {
       const limitKey = sessionLimitKey(item.type, item.metadata?.stickerId);
-      if (sessionSeenRewards.has(limitKey)) {
+      if (sessionSeenRewardsRef.current.has(limitKey)) {
         // Downgrade to MEDIUM if already seen in session
         item.intensity = RewardIntensity.MEDIUM_REWARD;
       } else {
-        setSessionSeenRewards(prev => new Set(prev).add(limitKey));
+        sessionSeenRewardsRef.current.add(limitKey);
       }
     }
     
     setRewardQueue(prev => [...prev, item]);
-  };
+  }, []);
 
   const dismissReward = (id: string) => {
     setRewardQueue(prev => {

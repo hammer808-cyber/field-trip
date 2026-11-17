@@ -531,10 +531,20 @@ export default function FieldTypeResult() {
           </div>
           )}
 
-          {isGuidedActive && (
+          {/* The caption names the next step only when the photo step will
+              actually appear — with a photo saved, the button goes
+              straight to Basecamp and the line would be wrong. */}
+          {isGuidedActive && !profile?.photoURL && (
              <div className="flex flex-col items-center gap-4 md:pb-10">
                 <p className="text-[10px] font-mono font-black uppercase text-on-surface/30 tracking-widest italic">
                   Next: add a photo if you want, then your first mission on Basecamp.
+                </p>
+             </div>
+          )}
+          {!isGuidedActive && !profile?.photoURL && (
+             <div className="flex flex-col items-center gap-4 md:pb-10">
+                <p className="text-[10px] font-mono font-black uppercase text-on-surface/30 tracking-widest italic">
+                  Next: add a photo if you want one, then Basecamp.
                 </p>
              </div>
           )}
@@ -554,9 +564,11 @@ export default function FieldTypeResult() {
           >
             {isNavigating ? 'Opening Basecamp...' : 'Start my first mission'}
           </button>
-          <p className="mt-2 text-center text-[10px] font-mono font-black uppercase text-on-surface/40 tracking-widest italic">
-            Photo first if you want it, then your first mission.
-          </p>
+          {!profile?.photoURL && (
+            <p className="mt-2 text-center text-[10px] font-mono font-black uppercase text-on-surface/40 tracking-widest italic">
+              Photo first if you want it, then your first mission.
+            </p>
+          )}
         </div>
       )}
     </div>

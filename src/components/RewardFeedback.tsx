@@ -145,7 +145,7 @@ const MajorReveal: React.FC<MajorRevealProps> = ({ reward, onDismiss, skinConfig
 
           <div className="space-y-4">
             <div className="flex flex-col items-center gap-2">
-              <span className="text-[10px] font-mono font-black text-brand-orange uppercase tracking-[0.4em] mb-1">DATA_STREAM_CONFIRMED</span>
+              <span className="text-[10px] font-mono font-black text-brand-orange uppercase tracking-[0.4em] mb-1">Trevor confirms it</span>
               <h2 className={cn(
                 "font-display text-4xl uppercase tracking-tighter leading-[0.9] font-black italic",
                 isBaja ? "text-baja-pink" : isDiamond ? "text-white" : "text-on-surface"
@@ -174,7 +174,7 @@ const MajorReveal: React.FC<MajorRevealProps> = ({ reward, onDismiss, skinConfig
               isBaja ? "bg-baja-sand" : "bg-white relative overflow-hidden group"
             )}>
               <div className="absolute top-0 right-0 w-full h-full bg-brand-orange/5 translate-x-full group-hover:translate-x-0 transition-transform duration-500" />
-              <p className="text-[10px] font-mono font-black uppercase text-on-surface/40 mb-2 mt-[-4px] tracking-widest relative z-10">{reward.type === 'sticker' ? 'CHAPTER_DECAL_RESTORED' : 'BUREAU_CREDIT_UNLOCKED'}</p>
+              <p className="text-[10px] font-mono font-black uppercase text-on-surface/40 mb-2 mt-[-4px] tracking-widest relative z-10">{reward.type === 'sticker' ? 'Sticker secured' : 'You earned this'}</p>
               <p className="font-display text-4xl font-black uppercase italic tracking-tighter text-brand-orange relative z-10 animate-pulse">{reward.rewardText}</p>
             </div>
           )}
@@ -217,7 +217,7 @@ const MajorReveal: React.FC<MajorRevealProps> = ({ reward, onDismiss, skinConfig
                 "bg-on-surface text-white shadow-[10px_10px_0px_var(--color-brand-magenta)] hover:bg-brand-magenta active:shadow-none translate-y-0 active:translate-y-2"
               )}
             >
-              {reward.type === 'milestone' && reward.rewardText ? reward.rewardText : "Acknowledge Receipt"}
+              {reward.type === 'milestone' && reward.rewardText ? reward.rewardText : "Got it"}
             </button>
           )}
         </div>
@@ -292,7 +292,7 @@ const RewardToast: React.FC<RewardToastProps> = ({ reward, onDismiss, skinConfig
             "text-[8px] font-mono font-black uppercase tracking-[0.2em] leading-none opacity-40",
             !isMedium && "text-brand-lime opacity-100"
           )}>
-            {reward.type}_UPDATE
+            Trevor noticed
           </p>
         </div>
         <h4 className={cn(
