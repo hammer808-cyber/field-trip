@@ -142,6 +142,7 @@ function DiamondDecor() {
 
 import { FieldPageHero } from '../components/FieldPageHero';
 import { ActiveDeckPanel } from '../components/missions/ActiveDeckPanel';
+import { ExpandableDeckLine } from '../components/missions/ExpandableDeckLine';
 import { DeckShelfPanel, type DeckShelfSection } from '../components/missions/DeckShelfPanel';
 import { MissionActionPanel } from '../components/missions/MissionActionPanel';
 import { MissionLogbookPanel, type MissionLogbookItem } from '../components/missions/MissionLogbookPanel';
@@ -1081,6 +1082,11 @@ export default function DeckPage() {
                 ? () => navigate(guidance.secondaryAction!.destination)
                 : undefined}
             />
+            {/* When a mission is drawn, the deck folds into the mission
+                panel header as one tappable line (Nov 16, 2026) — the big
+                deck panel only shows as the draw surface when nothing is
+                drawn yet. */}
+            {!isDrawn && (
             <div className={cn(demoteMissionBrowsing && 'opacity-55')}>
             <ActiveDeckPanel
               pack={activePack}
@@ -1096,11 +1102,25 @@ export default function DeckPage() {
               coverActionLabel={`Draw a mission from ${activeDeckDisplayName}`}
             />
             </div>
+            )}
 
             <MissionActionPanel
               eyebrow={isDrawn ? 'Current assignment' : 'Mission draw'}
               title={missionPanelTitle}
               status={missionPanelStatus}
+              deckLine={isDrawn ? (
+                <ExpandableDeckLine
+                  pack={activePack}
+                  displayName={activeDeckDisplayName}
+                  approvedCount={approvedDeckChallengesCount}
+                  pendingCount={pendingDeckChallengesCount}
+                  totalCount={totalDeckChallenges}
+                  approvedPercent={deckProgressPercent}
+                  pendingPercent={deckPendingPercent}
+                  locked={deckLockState.locked}
+                  lockReason={deckLockState.reason}
+                />
+              ) : undefined}
               className={cn(demoteMissionBrowsing && isDrawn && 'ring-4 ring-[var(--skin-secondary)] ring-offset-2')}
             >
         {/* The sticker sheet: the deck and the mission both live on the same
