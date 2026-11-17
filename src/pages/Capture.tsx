@@ -1363,7 +1363,12 @@ export default function CapturePage() {
               </div>
             )}
 
-            {currentTrip && ['brief', 'capture', 'developing_polaroid', 'reviewing'].includes(fcState) && (
+            {/* The meter lives only on the reviewing screen — where the
+                note is written right before submitting — not on the
+                brief, camera, or developing screens. (Nov 16, 2026: it
+                sat above the mission poster on the brief screen, showing
+                points for layers the player had not earned yet.) */}
+            {currentTrip && fcState === 'reviewing' && (
               <div className="mb-6">
                 <PointsMeter score={liveScore} />
               </div>
