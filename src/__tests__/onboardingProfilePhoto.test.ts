@@ -74,8 +74,10 @@ test('FieldTypeResult: the profile photo step is skippable and never blocks onbo
   assert.match(source, /if \(profile\?\.photoURL\) \{\s*void handleStartApp\(\);/);
   assert.match(source, /setShowPhotoStep\(true\);/);
   // Skip is always rendered in the step and continues onboarding directly.
-  assert.match(source, /Skip for now/);
-  assert.match(source, /onClick=\{handleStartApp\}[^>]*>\s*Skip for now/s);
+  // Its label names the destination (Nov 16, 2026: "Skip for now" hid
+  // where the button goes).
+  assert.match(source, /Skip — go to Basecamp/);
+  assert.match(source, /onClick=\{handleStartApp\}[^>]*>\s*Skip — go to Basecamp/s);
   // A failed upload shows an error and leaves Skip available.
   assert.match(source, /That photo did not upload\. You can skip this step and add one later in Settings\./);
   assert.match(source, /role="alert"/);

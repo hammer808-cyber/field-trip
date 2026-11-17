@@ -28,7 +28,7 @@ const ACTION_LABELS: Record<string, string> = {
   ADMIN_ACTION_LOG: "Admin Action Log",
   INCOMING_QUEUE: "Incoming Queue",
   CONFESSION_SELF: "Confession Self",
-  PERSONA_IDENTIFIED: "Persona Identified",
+  PERSONA_IDENTIFIED: "That's you",
   BABE_VERIFIED: "Babe Verified",
   PRISM_UNLOCKED: "Prism Unlocked",
   SPLASH_READY: "Splash Ready",

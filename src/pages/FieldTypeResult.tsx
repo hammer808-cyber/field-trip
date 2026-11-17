@@ -135,6 +135,10 @@ export default function FieldTypeResult() {
   const data = FIELD_TYPES[activeType];
   const firstTrip = MOCK_TRIPS.find(t => t.id === data.firstTripId);
 
+  // Trevor's read on the player, without the "TREVOR:" log prefix — the
+  // page speaks in his voice now, so the label does the introducing.
+  const trevorLine = data.narration.replace(/^TREVOR:\s*/, '').replace(/^"|"$/g, '');
+
   return (
     <div className={cn(
       "page-scroll p-6 flex flex-col items-center space-y-12 relative",
@@ -224,9 +228,8 @@ export default function FieldTypeResult() {
             {(isBaja || isDiamond) && <GlossOverlay opacity={isDiamond ? 0.3 : 0.4} />}
             
             {!isBaja && !isDiamond && !isHeat && (
-              <div className="absolute top-0 left-0 w-full bg-on-surface text-brand-lime px-6 py-2 flex justify-between items-center z-10 italic">
+              <div className="absolute top-0 left-0 w-full bg-on-surface text-brand-lime px-6 py-2 flex justify-center items-center z-10 italic">
                 <span className="text-[10px] font-black tracking-[0.2em] uppercase">Your Explorer Type</span>
-                <span className="text-[9px] font-mono opacity-60">REF_704_B</span>
               </div>
             )}
 
@@ -261,7 +264,7 @@ export default function FieldTypeResult() {
               <>
                 <div className="absolute bottom-6 left-6 right-6 flex flex-col items-center">
                    <div className="w-full h-[2px] bg-brand-lime shadow-[0_0_8px_var(--color-brand-lime)]" />
-                   <p className="text-[10px] font-black uppercase tracking-[0.4em] mt-3 text-on-surface italic">Locked in</p>
+                   <p className="text-[10px] font-black uppercase tracking-[0.4em] mt-3 text-on-surface italic">That’s you</p>
                 </div>
                 {/* Decorative bits */}
                 <div className="absolute bottom-10 right-4 flex flex-col gap-1.5">
@@ -275,7 +278,7 @@ export default function FieldTypeResult() {
           </motion.div>
           {!isBaja && !isDiamond && !isHeat && (
             <div className="absolute -top-6 -right-10 rotate-12 bg-brand-lime text-black px-6 py-3 border-2 border-on-surface font-display font-black text-sm uppercase shadow-[6px_6px_0px_black] z-20 italic">
-              CLASSIFIED
+              Trevor approved
             </div>
           )}
         </div>
@@ -285,7 +288,7 @@ export default function FieldTypeResult() {
             "micro-label uppercase tracking-widest font-bold opacity-50",
             isDiamond ? "text-white" : "text-on-surface"
           )}>
-            {isGuidedActive ? 'RE-ENTRY SEQUENCE INITIATED' : 'Identification Sequence Complete'}
+            {"Trevor's read on you"}
           </p>
           <div className="flex flex-col items-center">
              <h2 className={cn(
@@ -294,7 +297,7 @@ export default function FieldTypeResult() {
                isDiamond ? "text-6xl text-white font-sans font-bold tracking-[-0.05em]" :
                isHeat ? "text-6xl text-heat-pink font-display" :
                "text-7xl md:text-8xl text-on-surface font-display"
-             )}>{isGuidedActive ? 'YOU’RE BACK' : data.name}</h2>
+             )}>{data.name}</h2>
              <div className="h-2 w-full bg-brand-orange mt-4 max-w-[200px]" />
           </div>
           <div className="pt-6">
@@ -333,33 +336,41 @@ export default function FieldTypeResult() {
              )}
 
              <div className={cn(
-               "p-8 italic shadow-inner border-l-[12px] relative group",
+               "p-8 italic shadow-inner border-l-[12px] relative group space-y-4",
                isDiamond ? "bg-white/5 border-white/20" : "bg-paper-dark border-on-surface"
              )}>
                 <div className="absolute top-0 right-0 p-2 opacity-5">
                    <ChromeStar className="w-16 h-16" />
                 </div>
-               {isGuidedActive ? (
+               {/* Trevor leads the result now — his read on the player,
+                   then the plain line, then the flavor. The guided view
+                   used to hide all three and show only the how-to. */}
+               <div className="relative z-10">
+                 <p className="font-mono text-[10px] font-black uppercase tracking-[0.3em] text-brand-orange not-italic">Trevor says</p>
+                 <p className={cn("mt-2 text-2xl leading-tight font-medium", isDiamond ? "font-mono text-white/80" : "font-serif text-on-surface")}>
+                   {`“${trevorLine}”`}
+                 </p>
+               </div>
+               {data.plainSummary && (
+                 <p className={cn("text-xl sm:text-2xl leading-snug font-black relative z-10", isDiamond ? "font-sans text-white" : "font-sans text-on-surface")}>
+                   {data.plainSummary}
+                 </p>
+               )}
+               {!frankieMode && (
                  <p className={cn("text-2xl leading-tight font-medium relative z-10", isDiamond ? "font-mono text-white/80" : "font-serif text-on-surface")}>
+                   {`"${data.description}"`}
+                 </p>
+               )}
+               {isGuidedActive && (
+                 <p className={cn("text-base leading-relaxed font-bold relative z-10 border-t border-on-surface/10 pt-4", isDiamond ? "font-mono text-white/60" : "font-sans text-on-surface/70")}>
                    Take one photo. Add one short note. Submit it for review.
                  </p>
-               ) : (
-                 <>
-                   {data.plainSummary && (
-                     <p className={cn("text-xl sm:text-2xl leading-snug font-black relative z-10", isDiamond ? "font-sans text-white" : "font-sans text-on-surface")}>
-                       {data.plainSummary}
-                     </p>
-                   )}
-                   {!frankieMode && (
-                     <p className={cn("mt-3 text-2xl leading-tight font-medium relative z-10", isDiamond ? "font-mono text-white/80" : "font-serif text-on-surface")}>
-                       {`"${data.description}"`}
-                     </p>
-                   )}
-                 </>
                )}
              </div>
 
-             {isGuidedActive ? (
+             {/* Trevor's line now leads the quote block above, so the old
+                 lime narration box is gone — it would repeat him. */}
+             {isGuidedActive && (
                <div className="space-y-6 pt-4">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-on-surface rounded-full flex items-center justify-center shrink-0 shadow-[4px_4px_0px_var(--color-brand-lime)]">
@@ -380,13 +391,6 @@ export default function FieldTypeResult() {
                     <p className="text-base font-black uppercase tracking-tight italic text-on-surface">Add a note and submit.</p>
                   </div>
                </div>
-             ) : (
-               <div className="bg-brand-lime text-black p-8 border-2 border-on-surface shadow-[8px_8px_0px_black] relative rotate-1 group-hover/panel:rotate-0 transition-transform">
-                 <p className="text-sm font-bold leading-relaxed uppercase tracking-wider italic">
-                   {data.narration}
-                 </p>
-                 <div className="absolute -top-3 -left-3 w-6 h-6 bg-on-surface rotate-45" />
-               </div>
              )}
 
              <div className="space-y-12 pt-6">
@@ -400,7 +404,7 @@ export default function FieldTypeResult() {
                    </div>
                    <div className="space-y-3 text-right">
                       <div className="flex items-center gap-3 justify-end">
-                         <span className="text-[11px] font-bold uppercase text-on-surface/50 tracking-wider italic">Stamp</span>
+                         <span className="text-[11px] font-bold uppercase text-on-surface/50 tracking-wider italic">Your stamp</span>
                          <div className="w-6 h-1 bg-brand-lime" />
                       </div>
                       <p className="text-xl font-bold uppercase tracking-tight text-brand-orange italic leading-tight">{data.stamp}</p>
@@ -410,14 +414,14 @@ export default function FieldTypeResult() {
                 <div className="grid grid-cols-1 gap-8">
                    <div className="p-6 bg-white border-2 border-on-surface shadow-[10px_10px_0px_var(--color-brand-cyan)] relative overflow-hidden group/metrics">
                       <div className="absolute top-0 right-0 w-24 h-24 prism-bg opacity-5 -translate-y-10 translate-x-10 rotate-45" />
-                      <span className="text-[10px] font-black uppercase text-on-surface/40 tracking-[0.3em] italic mb-4 block">Field stats</span>
+                      <span className="text-[10px] font-black uppercase text-on-surface/40 tracking-[0.3em] italic mb-4 block">Your field report</span>
                       <div className="flex justify-between mt-4 gap-4">
                         <div className="flex-1 text-center py-4 bg-on-surface text-brand-lime shadow-[4px_4px_0px_black]">
-                           <p className="text-[9px] opacity-60 uppercase font-black tracking-widest">Strength_lvl</p>
+                           <p className="text-[9px] opacity-60 uppercase font-black tracking-widest">Superpower</p>
                            <p className="text-lg font-black uppercase italic">{data.fieldStrength}</p>
                         </div>
                         <div className="flex-1 text-center py-4 border-2 border-on-surface bg-white shadow-[4px_4px_0px_var(--color-brand-orange)]">
-                           <p className="text-[9px] opacity-40 uppercase font-black tracking-widest">Risk_Factor</p>
+                           <p className="text-[9px] opacity-40 uppercase font-black tracking-widest">Watch out for</p>
                            <p className="text-lg font-black uppercase text-brand-orange italic">{data.fieldRisk}</p>
                         </div>
                       </div>
@@ -426,7 +430,7 @@ export default function FieldTypeResult() {
 
                 {!isGuidedActive && (
                   <div className="p-8 border-2 border-on-surface bg-paper-dark relative shadow-inner">
-                    <div className="absolute -top-4 left-8 px-4 bg-on-surface text-brand-lime border-2 border-on-surface text-[11px] font-black uppercase italic shadow-[3px_3px_0px_black]">STRATEGY_DEBRIEF</div>
+                    <div className="absolute -top-4 left-8 px-4 bg-on-surface text-brand-lime border-2 border-on-surface text-[11px] font-black uppercase italic shadow-[3px_3px_0px_black]">Trevor’s field notes</div>
                     <p className={cn(
                       "text-lg leading-relaxed font-medium pt-4 italic",
                       isDiamond ? "text-white/60 font-mono" : "text-on-surface/90 font-serif"
@@ -437,7 +441,7 @@ export default function FieldTypeResult() {
                 <div className="pt-8 border-t-4 border-on-surface/10 space-y-4">
                    <div className="flex items-center gap-3">
                       <div className="w-10 h-[2px] bg-brand-orange" />
-                      <span className="text-[11px] font-black uppercase opacity-60 tracking-[0.4em] italic">Vibe tags</span>
+                      <span className="text-[11px] font-black uppercase opacity-60 tracking-[0.4em] italic">Your vibe</span>
                    </div>
                    <div className="flex flex-wrap gap-3">
                       {data.recommendedChallengeTags.map(tag => (
@@ -499,7 +503,7 @@ export default function FieldTypeResult() {
                     disabled={isNavigating}
                     className="w-full py-3 bg-white text-on-surface font-display font-black text-lg uppercase italic tracking-tight border-2 border-on-surface shadow-[4px_4px_0px_black] active:translate-y-0.5 active:shadow-none disabled:opacity-50"
                   >
-                    Skip for now
+                    Skip — go to Basecamp
                   </button>
                 </div>
               </div>
@@ -522,7 +526,7 @@ export default function FieldTypeResult() {
                 "bg-brand-orange text-white border-on-surface shadow-[16px_16px_0px_black] hover:bg-on-surface hover:text-brand-lime hover:shadow-[20px_20px_0px_var(--color-brand-orange)]"
               )}
             >
-              {isNavigating ? 'Opening mission...' : (isBaja ? 'START THE BEACH VACAY' : isDiamond ? 'INITIATE DEPLOYMENT' : isHeat ? 'TAKE THE PLUNGE' : (isGuidedActive ? 'Start my first mission' : 'Enter the Field'))}
+              {isNavigating ? 'Opening Basecamp...' : (isBaja ? 'START THE BEACH VACAY' : isDiamond ? 'INITIATE DEPLOYMENT' : isHeat ? 'TAKE THE PLUNGE' : (isGuidedActive ? 'Start my first mission' : 'Enter the Field'))}
             </button>
           </div>
           )}
@@ -530,7 +534,7 @@ export default function FieldTypeResult() {
           {isGuidedActive && (
              <div className="flex flex-col items-center gap-4 md:pb-10">
                 <p className="text-[10px] font-mono font-black uppercase text-on-surface/30 tracking-widest italic">
-                  This will open your first required starter mission.
+                  Next: add a photo if you want, then your first mission on Basecamp.
                 </p>
              </div>
           )}
@@ -548,8 +552,11 @@ export default function FieldTypeResult() {
                isNavigating && "opacity-80 grayscale pointer-events-none"
             )}
           >
-            {isNavigating ? 'Opening mission...' : 'Start my first mission'}
+            {isNavigating ? 'Opening Basecamp...' : 'Start my first mission'}
           </button>
+          <p className="mt-2 text-center text-[10px] font-mono font-black uppercase text-on-surface/40 tracking-widest italic">
+            Photo first if you want it, then your first mission.
+          </p>
         </div>
       )}
     </div>

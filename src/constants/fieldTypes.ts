@@ -70,7 +70,7 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
     fullImagePath: '/assets/characters/captainClipboard/full.png',
     fieldStrength: 'High Fidelity Documentation',
     fieldRisk: 'Analysis Paralysis',
-    howToPlay: 'Stick to the rules. Document the flow, not just the results.',
+    howToPlay: 'Write it all down. The list is half the mission, honestly.',
     narration: 'TREVOR: "Your filing speed is 12% above group average. Do not let the efficiency go to your head."'
   },
   'mallRat': {
@@ -97,7 +97,7 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
     fullImagePath: '/assets/characters/mallRat/full.png',
     fieldStrength: 'Urban Camouflage',
     fieldRisk: 'Distraction by Snacks',
-    howToPlay: 'Find the scene. If there is a food court nearby, you are winning.',
+    howToPlay: 'Find the scene first. If there is a food court nearby, you are already winning.',
     narration: 'TREVOR: "The smell of soft pretzels is not technically a field signal, but I will allow it for now."'
   },
   'mascota': {
@@ -124,7 +124,7 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
     fullImagePath: '/assets/characters/mascota/full.png',
     fieldStrength: 'Unshakeable Morale',
     fieldRisk: 'Over-the-top antics',
-    howToPlay: 'Be the main character. Every photo is a performance.',
+    howToPlay: 'Be the main character. Every photo is a performance, so perform it.',
     narration: 'TREVOR: "Your energy levels are alarming the local pigeons. Try to maintain a professional shimmer."'
   },
   'elondra': {
@@ -151,7 +151,7 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
     fullImagePath: '/assets/characters/elondra/full.png',
     fieldStrength: 'Narrative Authority',
     fieldRisk: 'Scathing Reviews',
-    howToPlay: 'Own the narrative. Make every entry feel like a headline.',
+    howToPlay: 'Own the story. Make every entry read like a headline.',
     narration: 'TREVOR: "The dramatic pauses in your report are technically unscripted. Continue with caution."'
   },
   'theGobbler': {
@@ -178,7 +178,7 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
     fullImagePath: '/assets/characters/theGobbler/full.png',
     fieldStrength: 'Chaotic Volition',
     fieldRisk: 'Hoarding Junk Data',
-    howToPlay: 'Consume everything. No detail is too small, no proof too strange.',
+    howToPlay: 'Grab everything. No detail is too small, no proof too weird.',
     narration: 'TREVOR: "Your download speed is impressive, but your digital digestion is absolutely terrifying."'
   },
   'bigfoot': {
@@ -205,7 +205,7 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
     fullImagePath: '/assets/characters/bigfoot/full.png',
     fieldStrength: 'Stealth Documentation',
     fieldRisk: 'Total Isolation',
-    howToPlay: 'Stay in the shadows. Document the things others are too busy talking to see.',
+    howToPlay: 'Stay in the shadows. You will spot the stuff everyone else walks right past.',
     narration: 'TREVOR: "I can barely see you on the satellite feed. Excellent work. Stay undetected."'
   },
   'unclassified': {
@@ -232,7 +232,7 @@ export const FIELD_TYPES: Record<FieldTypeId | 'unclassified', FieldType> = {
     fullImagePath: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?q=80&w=800',
     fieldStrength: 'Flexibility',
     fieldRisk: 'Lack of Identity',
-    howToPlay: 'Complete the classification quiz to unlock your field potential.',
+    howToPlay: 'Take the quiz and I will tell you who you are. It takes about a minute.',
     narration: 'TREVOR: "Your identity is still being processed. Please wait in the designated lounge area."'
   }
 };
