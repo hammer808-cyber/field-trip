@@ -7,6 +7,26 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (rel: string) => readFileSync(join(repoRoot, rel), 'utf8');
 
+test('capture flow audit: the poster shows the mission and both of its buttons work', () => {
+  const clipboard = read('src/components/FieldClipboard.tsx');
+  // Nov 16, 2026: the mission text hid behind the brief toggle and READY
+  // TO START was a div that did nothing, so the thing that looked most
+  // like the next step went nowhere. The short prompt now sits on the
+  // poster with no tap, the toggle is only for the full description, and
+  // READY TO START is a real button that scrolls to the camera action.
+  assert.match(clipboard, /mission\.shortPrompt \|\| mission\.shortDescription \|\| mission\.description/);
+  assert.match(clipboard, /What to do/);
+  assert.match(clipboard, /SEE FULL BRIEF/);
+  assert.match(clipboard, /HIDE BRIEF/);
+  assert.doesNotMatch(clipboard, /OPEN BRIEF/);
+  assert.match(clipboard, /cameraActionRef/);
+  assert.match(clipboard, /onClick=\{scrollToCamera\}/);
+  assert.match(clipboard, /scrollIntoView\(\{ behavior: 'smooth', block: 'center' \}\)/);
+  assert.match(clipboard, /ref=\{cameraActionRef\}/);
+  // The dead div is gone: READY TO START is a button, not a label.
+  assert.doesNotMatch(clipboard, /<div className="flex-1 px-4 py-2 flex items-center justify-center gap-2 text-\[#FF5A00\]/);
+});
+
 test('capture flow audit: dead states are gone from the state machine', () => {
   const types = read('src/types/fieldClipboard.ts');
   for (const dead of ['previewing_polaroid', 'detecting', 'noting']) {

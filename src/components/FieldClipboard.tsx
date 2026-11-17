@@ -1,4 +1,4 @@
-import React, { useReducer, useState } from 'react';
+import React, { useReducer, useRef, useState } from 'react';
 import { DevelopingPolaroid } from './DevelopingPolaroid';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -91,6 +91,15 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showBrief, setShowBrief] = useState(false);
+  const cameraActionRef = useRef<HTMLButtonElement>(null);
+  // READY TO START is a real button: it jumps to the camera action instead
+  // of looking like the next step while doing nothing (Nov 16, 2026).
+  const scrollToCamera = () => {
+    cameraActionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+  // The mission itself, visible on the poster with no tap: the short prompt
+  // is the one-line job; the full description stays behind SEE FULL BRIEF.
+  const missionPrompt = mission.shortPrompt || mission.shortDescription || mission.description || '';
   const imageUrl = getMissionImage(mission.id, mission.category || mission.type, mission.image);
   const cardType = inferMissionCardType(mission);
   const fieldNotePrompt = mission.fieldNotePrompt || 'Describe what you found and why it belongs in the field log.';
@@ -213,6 +222,15 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
           </div>
         </div>
 
+        {/* THE MISSION ITSELF, VISIBLE WITH NO TAP — the short prompt lives
+            here so nobody has to discover the brief toggle to know the job. */}
+        {missionPrompt && (
+          <div className="border-b-2 border-on-surface bg-white px-4 py-3 text-left relative z-30">
+            <p className="font-mono text-[8px] font-black uppercase tracking-[0.2em] text-brand-orange">What to do</p>
+            <p className="mt-1 font-sans text-sm font-bold leading-snug text-on-surface">{missionPrompt}</p>
+          </div>
+        )}
+
         {/* BOTTOM ACTION STRIP */}
         <div className="flex border-t-2 border-on-surface divide-x-2 divide-on-surface bg-white relative z-30">
           <button 
@@ -223,12 +241,18 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
             )}
           >
             <Info className={cn("w-3 h-3", showBrief ? "text-brand-cyan" : "text-on-surface/40")} />
-            <span>{showBrief ? 'CLOSE BRIEF' : 'OPEN BRIEF'}</span>
+            <span>{showBrief ? 'HIDE BRIEF' : 'SEE FULL BRIEF'}</span>
           </button>
-          <div className="flex-1 px-4 py-2 flex items-center justify-center gap-2 text-[#FF5A00] font-mono text-[9px] font-black uppercase tracking-wider">
-            <ArrowRight className="w-3 h-3 animate-pulse" />
-            <span>READY TO START</span>
-          </div>
+          {state === 'brief' && (
+            <button
+              type="button"
+              onClick={scrollToCamera}
+              className="flex-1 px-4 py-2 flex items-center justify-center gap-2 text-[#FF5A00] font-mono text-[9px] font-black uppercase tracking-wider transition-all hover:bg-[#FF5A00]/5"
+            >
+              <ArrowRight className="w-3 h-3 animate-pulse" />
+              <span>READY TO START</span>
+            </button>
+          )}
         </div>
 
         <AnimatePresence>
@@ -357,6 +381,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
 
 
             <button
+              ref={cameraActionRef}
               onClick={onStartCapture}
               disabled={!missionAttempt || isAttemptLoading}
               className="w-full py-4 bg-brand-orange text-white border-4 border-on-surface rounded-2xl font-display text-3xl font-black uppercase italic tracking-widest shadow-[8px_8px_0px_black] active:translate-y-2 active:shadow-none transition-all hover:bg-on-surface hover:text-brand-lime flex items-center justify-center gap-3 group disabled:opacity-50 disabled:cursor-wait"

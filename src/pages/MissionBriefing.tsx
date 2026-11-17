@@ -99,6 +99,7 @@ export default function MissionBriefingPage() {
           <div className="absolute -inset-4 bg-brand-cyan/5 rounded-[3rem] -rotate-1 -z-10" />
           <MissionCard 
             challenge={mission} 
+            onStart={handleStartMission}
             className="shadow-[16px_16px_0px_black] rounded-[2.5rem] border-4 border-on-surface"
           />
         </div>

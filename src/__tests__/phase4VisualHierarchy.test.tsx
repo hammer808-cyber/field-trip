@@ -133,6 +133,13 @@ test('nav markup wires Dex presentation into CURRENT / NEXT / LOCKED / NORMAL', 
   assert.match(bottomNav, /dexPresentation\.showNow/);
 });
 
+test('briefing card SNAP A PIC starts the same mission as DO THIS MISSION', () => {
+  // Nov 16, 2026: the MissionCard's SNAP A PIC button rendered on the
+  // briefing page with no onStart, so the big orange button did nothing
+  // while DO THIS MISSION below it worked. Both now start the mission.
+  assert.match(briefingSource, /onStart=\{handleStartMission\}/);
+});
+
 test('save-for-later notice points at Resume on Missions, not the deck shelf', () => {
   assert.match(SAVE_FOR_LATER_RECOVERY_NOTICE, /Tap Resume on Missions/);
   assert.match(SAVE_FOR_LATER_RECOVERY_HINT, /Tap Resume on Missions/);
