@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
-import { getRewardsByType, getRewardMetadata, RewardMetadata } from '../data/rewardRegistry';
+import { getRewardsByType } from '../data/rewardRegistry';
 import { 
-  ShieldCheck, 
   Lock, 
   ChevronLeft, 
   Sparkles, 
@@ -17,7 +16,6 @@ import {
 } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '../lib/utils';
-import { StickerDecal } from '../components/StickerDecals';
 import { FieldBadge } from '../components/UI';
 import { useTheme } from '../context/ThemeContext';
 import { getDeckCatalogSections, getDeckPackById, getDefaultDeckPack, getActiveDeckPacks, normalizeDeckPackId } from '../data/deckPacks';
@@ -30,9 +28,14 @@ import { ZineWorkspace } from '../components/ZineWorkspace';
 import { GatedFeaturePanel } from '../components/GatedFeaturePanel';
 import { StickerMachine } from '../components/stickers/StickerMachine';
 import { EmptyStatePanel } from '../components/FieldtripLoader';
-import { FieldButton, FieldSection, FieldStatusChip, PlayerPageBody, PlayerPageShell } from '../components/player';
+import { FieldButton, FieldStatusChip, PlayerPageBody, PlayerPageShell } from '../components/player';
 
-type CollectionTab = 'collection' | 'zines' | 'memories' | 'stickers' | 'badges' | 'decks' | 'missions' | 'crew_memories';
+type CollectionTab = 'zines' | 'memories' | 'stickers' | 'decks' | 'missions' | 'crew_memories';
+
+// Tabs that still exist on the DEX page. 'collection' and its 'badges'
+// twin were removed Nov 17, 2026 — the medals cabinet went with them,
+// and old links/params fall back to 'decks' instead of a blank page.
+const DEX_TABS: CollectionTab[] = ['decks', 'stickers', 'zines', 'memories', 'missions', 'crew_memories'];
 type MemoriesView = 'mine' | 'community';
 
 export default function CollectionPage() {
@@ -52,17 +55,18 @@ export default function CollectionPage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const initialTabParam = searchParams.get('tab');
-  const initialTab = (
+  const rawInitialTab = (
     initialTabParam === 'skins' ||
     initialTabParam === 'badges' ||
     initialTabParam === 'crew_home'
-      ? 'collection'
+      ? 'decks'
       : initialTabParam === 'crew_memories'
         ? 'memories'
         : initialTabParam === 'stickers'
           ? 'stickers'
           : (initialTabParam as CollectionTab)
   ) || 'decks';
+  const initialTab: CollectionTab = DEX_TABS.includes(rawInitialTab as CollectionTab) ? (rawInitialTab as CollectionTab) : 'decks';
   const [activeTab, setActiveTab] = useState<CollectionTab>(initialTab);
   const [memoriesView, setMemoriesView] = useState<MemoriesView>(
     typeof window !== 'undefined' && window.location.pathname.includes('/community') ? 'community' : 'mine'
@@ -115,14 +119,14 @@ export default function CollectionPage() {
     const tabParam = searchParams.get('tab');
     const tab = tabParam as CollectionTab | null;
     if (tabParam === 'skins' || tabParam === 'badges' || tabParam === 'crew_home') {
-      setActiveTab('collection');
+      setActiveTab('decks');
     } else if (tabParam === 'crew_memories') {
       setActiveTab('memories');
       setMemoriesView('mine');
     } else if (tabParam === 'stickers') {
       setActiveTab('stickers');
     } else if (tab) {
-      setActiveTab(tab);
+      setActiveTab(DEX_TABS.includes(tab) ? tab : 'decks');
     }
   }, [searchParams]);
 
@@ -140,8 +144,6 @@ export default function CollectionPage() {
       setActiveTab('zines');
     } else if (path.includes('/dex/stickers')) {
       setActiveTab('stickers');
-    } else if (path.includes('/dex/collection')) {
-      setActiveTab('collection');
     }
   }, [location.pathname]);
 
@@ -153,7 +155,6 @@ export default function CollectionPage() {
 
     const tabPath: Partial<Record<CollectionTab, string>> = {
       decks: '/dex/decks',
-      collection: '/dex/collection',
       stickers: '/dex/stickers',
       zines: '/dex/zines',
       memories: '/dex/memories'
@@ -168,8 +169,6 @@ export default function CollectionPage() {
   const badges = getRewardsByType('badge');
 
   const unlockedStickers = new Set(profile?.unlockedRewards?.stickers || []);
-  const earnedStickerRecords = ((profile as any)?.earnedStickers || []) as Array<{ id: string; seen?: boolean }>;
-  const unseenStickerIds = new Set(earnedStickerRecords.filter(record => record.seen === false).map(record => record.id));
   const unlockedBadges = new Set(profile?.unlockedRewards?.badges || []);
   const unlockedSkinsList = profile?.unlockedRewards?.skins || ['classic'];
   const unlockedSkins = new Set(unlockedSkinsList);
@@ -184,68 +183,6 @@ export default function CollectionPage() {
   const currentPackProgress = currentPack ? getDeckProgress(canonicalProgress, currentPack.packId) : null;
   const packMissionsCount = currentPackProgress?.totalCards || currentPack?.missionIds?.length || 10;
   const completedPackCount = currentPackProgress?.approvedCount || 0;
-
-  const RewardItem = ({ reward, isUnlocked }: { reward: RewardMetadata; isUnlocked: boolean }) => (
-    <motion.div 
-      layout
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      whileHover={isUnlocked ? { scale: 1.02, rotate: 1 } : {}}
-      onClick={() => !isUnlocked && unlockDiscoverySticker('locked_sticker_tap', 'dex')}
-      className={cn(
-        "relative p-4 flex flex-col items-center justify-between gap-3 aspect-[4/5] rounded-[2rem] border-[3px] transition-all cursor-pointer",
-        isUnlocked 
-          ? "bg-white border-on-surface shadow-[6px_6px_0px_black] hover:shadow-[10px_10px_0px_black]" 
-          : "bg-on-surface/[0.02] border-on-surface/10 opacity-40 border-dashed"
-      )}
-    >
-      <div className="flex-1 flex items-center justify-center w-full relative">
-        {isUnlocked && (
-          <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(0,0,0,0.02)_1px,transparent_1px)] bg-[size:10px_10px] pointer-events-none" />
-        )}
-        {reward.type === 'sticker' ? (
-          <div className="w-16 h-16 sm:w-20 sm:h-20 relative">
-            <StickerDecal 
-              id={reward.id} 
-              scale={1.2} 
-              animate={isUnlocked} 
-              className={cn("w-full h-full drop-shadow-[4px_4px_0px_rgba(0,0,0,0.1)]", !isUnlocked && "opacity-20 grayscale")}
-            />
-          </div>
-        ) : (
-          <div className={cn(
-            "w-12 h-12 rounded-2xl border-[2.5px] flex items-center justify-center shadow-[4px_4px_0px_black]",
-            isUnlocked ? "bg-brand-lime/15 border-on-surface text-on-surface" : "bg-on-surface/5 border-on-surface/10"
-          )}>
-             <ShieldCheck className={cn("w-6 h-6", isUnlocked ? "text-on-surface" : "text-on-surface/25")} />
-          </div>
-        )}
-      </div>
-      
-      <div className="text-center w-full space-y-1">
-        <p className={cn(
-          "text-[10px] font-black uppercase tracking-tight truncate px-1",
-          isUnlocked ? "text-on-surface" : "text-on-surface/40"
-        )}>
-          {reward.label}
-        </p>
-        <div className={cn(
-          "text-[8px] font-mono font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full w-fit mx-auto border-[1.5px]",
-          reward.rarity === 'legendary' ? 'bg-brand-orange text-white border-on-surface' : 'bg-on-surface/5 text-on-surface/45 border-on-surface/10'
-        )}>
-          {reward.rarity || 'common'}
-        </div>
-      </div>
-
-      {!isUnlocked && <Lock className="absolute top-4 right-4 w-3.5 h-3.5 text-on-surface/20" />}
-      {isUnlocked && <div className="absolute top-2 left-2 w-1.5 h-1.5 rounded-full bg-brand-cyan/40" />}
-      {isUnlocked && unseenStickerIds.has(reward.id) && (
-        <div className="absolute top-2 right-2 bg-brand-orange text-white border border-on-surface px-1.5 py-0.5 text-[7px] font-black uppercase">
-          New
-        </div>
-      )}
-    </motion.div>
-  );
 
   const LockedStarterPanel = (_props?: { label?: string }) => (
     <GatedFeaturePanel featureName="Dex" />
@@ -266,7 +203,6 @@ export default function CollectionPage() {
         infoCardAccent="purple"
         tabs={[
           { id: 'decks', label: 'Decks' },
-          { id: 'collection', label: 'Collection' },
           { id: 'stickers', label: 'Stickers' },
           { id: 'zines', label: 'Zines' },
           { id: 'memories', label: 'Memories' }
@@ -280,24 +216,6 @@ export default function CollectionPage() {
          <div className="absolute inset-0 bg-[radial-gradient(rgba(0,0,0,0.015)_1.5px,transparent_0)] bg-[size:16px_16px] pointer-events-none" />
          <div className="relative z-10">
         <AnimatePresence mode="wait">
-          {activeTab === 'collection' && (
-            <motion.div
-              key="collection-tab"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              className="space-y-10"
-            >
-              <FieldSection eyebrow="Cabinet" title="Medals" action={<span className="font-mono text-[10px] font-black uppercase text-on-surface/40">{badges.filter(r => unlockedBadges.has(r.id)).length} earned</span>}>
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
-                  {badges.map(r => (
-                    <RewardItem key={r.id} reward={r} isUnlocked={unlockedBadges.has(r.id)} />
-                  ))}
-                </div>
-              </FieldSection>
-            </motion.div>
-          )}
-
           {activeTab === 'stickers' && (
             <motion.div
               key="stickers-tab"
@@ -436,20 +354,6 @@ export default function CollectionPage() {
               exit={{ opacity: 0, y: -15 }}
             >
               {isStarterComplete || isAdmin ? <CrewMemoriesFeed /> : <LockedStarterPanel label="Crew Memories" />}
-            </motion.div>
-          )}
-
-          {activeTab === 'badges' && (
-            <motion.div 
-              key="badges-tab"
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -15 }}
-              className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4"
-            >
-              {badges.map(r => (
-                <RewardItem key={r.id} reward={r} isUnlocked={unlockedBadges.has(r.id)} />
-              ))}
             </motion.div>
           )}
 

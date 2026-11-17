@@ -28,8 +28,24 @@ test('missions banner: the hidden state is the one whose copy the card duplicate
   );
 });
 
-test('missions banner: dropping it does not strand the player — the poster still resumes', () => {
+test('missions banner: dropping it does not strand the player — resume lives in the Trevor guide', () => {
+  const view = read('src/components/TrevorGuideView.tsx');
+  // Nov 17, 2026, live-verified: the floating Resume pill opens the
+  // Trevor field guide dialog, whose button runs the guidance's primary
+  // action — that is the resume path once the banner is gone.
+  assert.match(view, /onClick=\{\(\) => onAction\(recommendation\.primaryAction\)\}/);
+  assert.match(view, /\{recommendation\.primaryAction\.label\}/);
+  const guidance = read('src/logic/playerGuidance.ts');
+  // In the drawn state that action is Resume mission → the briefing.
+  assert.match(
+    guidance,
+    /RESUME_ACTIVE_MISSION:[\s\S]{0,600}actionLabel: 'Resume mission'/,
+  );
+  assert.match(
+    guidance,
+    /if \(mission\?\.status === 'drawn'\) \{\s*return \{ href: briefingHref\(missionId\), intent: 'navigate', missionId \};/s,
+  );
+  // The poster card itself still carries a start action for the mission.
   const card = read('src/components/MissionDecodedCard.tsx');
-  assert.match(card, /getDisplayLabel\('RESUME_MISSION'\)/);
-  assert.match(card, /onStart\?\.?\(\)/);
+  assert.match(card, /getDisplayLabel\('DO_THIS_MISSION'\)/);
 });

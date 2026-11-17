@@ -66,12 +66,15 @@ test('Basecamp owns settings, admin, and pre-Starter Crew entry points', () => {
   assert.match(basecampSource, /\/crew/);
 });
 
-test('Dex exposes Collection, Zines, and Memories without Personas or Crew Home tabs', () => {
-  assert.match(collectionSource, /\{ id: 'collection', label: 'Collection' \}/);
+test('Dex exposes Decks, Stickers, Zines, and Memories without Collection, Personas, or Crew Home tabs', () => {
+  // Nov 17, 2026: the Collection tab (medals cabinet) was removed.
+  assert.match(collectionSource, /\{ id: 'decks', label: 'Decks' \}/);
+  assert.match(collectionSource, /\{ id: 'stickers', label: 'Stickers' \}/);
   assert.match(collectionSource, /\{ id: 'zines', label: 'Zines' \}/);
   assert.match(collectionSource, /\{ id: 'memories', label: 'Memories' \}/);
   assert.match(collectionSource, /Community Proofs/);
   assert.match(collectionSource, /CommunityProofsFeed/);
+  assert.doesNotMatch(collectionSource, /\{ id: 'collection', label: 'Collection' \}/);
   assert.doesNotMatch(collectionSource, /label: 'Personas'/);
   assert.doesNotMatch(collectionSource, /label: 'Crew Home'/);
 });

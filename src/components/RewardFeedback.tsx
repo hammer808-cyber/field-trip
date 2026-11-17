@@ -183,7 +183,7 @@ const MajorReveal: React.FC<MajorRevealProps> = ({ reward, onDismiss, skinConfig
             <div className="space-y-4 pt-2">
               <button
                 onClick={() => {
-                  window.location.href = reward.redirectPath ?? '/dex/collection';
+                  window.location.href = reward.redirectPath ?? '/dex';
                   onDismiss();
                 }}
                 className={cn(
