@@ -512,6 +512,11 @@ async function startServer() {
     legacyHeaders: false,
     message: { error: "TOO_MANY_AUTH_REQUESTS" },
   });
+  // NOTE (Nov 16, 2026): do NOT stack authRateLimiter on admin-only routes.
+  // Its 120-request bucket is shared with every user-facing call from the
+  // same IP, so ordinary app traffic could block admin actions — a
+  // proof-review approval hit the ceiling once and the tap just failed.
+  // Admin routes use adminRateLimiter (300/15min) alone.
 
   const authenticate = async (req: any, res: any, next: any) => {
     const authHeader = req.headers.authorization;
@@ -3285,7 +3290,7 @@ async function startServer() {
    * CANONICAL DATA MODEL AUDIT
    * Scans for legacy fields and inconsistencies.
    */
-  app.get("/api/admin/canonical-audit", adminRateLimiter, authRateLimiter, authenticate, async (req: any, res) => { 
+  app.get("/api/admin/canonical-audit", adminRateLimiter, authenticate, async (req: any, res) => { 
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
     
     // Check for admin role
@@ -3348,7 +3353,7 @@ async function startServer() {
    * CANONICAL MIGRATION TRIGGER
    * Batch migrates legacy points to XP.
    */
-  app.post("/api/admin/run-migration", adminRateLimiter, authRateLimiter, authenticate, async (req: any, res) => {
+  app.post("/api/admin/run-migration", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
     const { uid, email } = req.user;
     let isAdminUser = (email === 'hammer808@gmail.com') || (uid === 'vX7K0XGkXRM2yPzhidv79Q59GqC2') || (uid === 'oae0GwP7mpcUX7i93AeDGd22VNu2');
@@ -3560,7 +3565,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/admin/repair-starter-signals-config", adminRateLimiter, authRateLimiter, authenticate, async (req: any, res) => {
+  app.post("/api/admin/repair-starter-signals-config", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
     const isAdminUser = await checkIsAdmin(req.user);
     if (!isAdminUser) return res.status(403).json({ error: "ADMIN_ONLY" });
@@ -3950,7 +3955,7 @@ async function startServer() {
     return deleted;
   }
 
-  app.post("/api/admin/beta-hard-reset", adminRateLimiter, authRateLimiter, authenticate, async (req: any, res) => {
+  app.post("/api/admin/beta-hard-reset", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
 
     const isAdminUser = await checkIsAdmin(req.user);
@@ -8347,7 +8352,7 @@ async function startServer() {
     });
   }
 
-  app.post("/api/admin/proof-review/action", adminRateLimiter, authRateLimiter, authenticate, async (req: any, res) => {
+  app.post("/api/admin/proof-review/action", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
 
     const action = getBackendString(req.body?.action) as AdminProofReviewAction;
@@ -8701,7 +8706,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/admin/grant-starter-bypass", adminRateLimiter, authRateLimiter, authenticate, async (req: any, res) => {
+  app.post("/api/admin/grant-starter-bypass", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
 
     try {
@@ -8777,7 +8782,7 @@ async function startServer() {
   // bypasses the starter gate by design (see src/server/stickerGrants.ts).
   app.post("/api/admin/stickers/grant", adminRateLimiter, authenticate, createStickerGrantHandler(() => (dbAdmin ? createAdminStickerGrantStore(dbAdmin) : null), { requireAdminUser, writeAdminAudit }));
 
-  app.post("/api/admin/slot-orphan-proof-reviews", adminRateLimiter, authRateLimiter, authenticate, async (req: any, res) => {
+  app.post("/api/admin/slot-orphan-proof-reviews", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
     const adminDb = dbAdmin;
 
