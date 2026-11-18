@@ -743,6 +743,41 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     awardTrigger: 'admin_grant',
     unlockReason: 'Earned for your first Chaos achievement.',
     tags: ['first-offenses', 'achievement', 'chaos', 'trigger-pending']
+  },
+
+  // ---------------------------------------------------------------------------
+  // MILESTONE / CHAOS — batch 2 (Nov 18, 2026)
+  // ---------------------------------------------------------------------------
+  // The milestone ZIP (fieldtrip_milestone_stickers_26_64ju.zip) held five
+  // PNGs, but four of them name stickers that ALREADY exist from the FIRST
+  // OFFENSES batch (commit 27b43ba): Outside Person, Repeat Offender,
+  // Level Up, Certified Menace. The batch-2 files are different renders of
+  // the same art — higher resolution, with the sticker name baked in as a
+  // title banner (and edge slivers of neighbouring stickers where they
+  // were cropped from a sheet). They were NOT imported: existing assets
+  // and ownership records are preserved, and no duplicate display names
+  // were registered. Only the genuinely new sticker lands here. If Zach
+  // wants the batch-2 art to REPLACE the batch-1 art for those four, that
+  // is a deliberate swap to approve — see milestoneStickers.test.ts,
+  // which pins the batch-1 files in place.
+  {
+    id: 'chaos_on_a_roll',
+    name: 'On a Roll',
+    collection: 'chaos',
+    displayOrder: 1,
+    imageUrl: '/assets/stickers/chaos/on_a_roll.png',
+    // Rarity NOT supplied with the batch — no rarity or description was
+    // provided in or around the files (the PNGs carry no metadata).
+    // Defaulted to 'common' (the base rarity); needs Zach's call.
+    rarity: 'common',
+    // Trigger PENDING confirmation (Nov 18, 2026): "on a roll" implies a
+    // streak (consecutive missions), and no streak trigger exists — the
+    // closest event, mission_count_milestone, counts totals, not streaks.
+    // Do not wire a count threshold and call it a streak. Zach's call on
+    // what counts as a roll.
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for going on a roll — a streak of missions, one after another.',
+    tags: ['milestone', 'chaos', 'streak', 'trigger-pending']
   }
 ];
 

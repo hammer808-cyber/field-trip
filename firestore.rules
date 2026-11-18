@@ -398,6 +398,7 @@ service cloud.firestore {
             'captain_clipboard_flying_papers',
             'captain_clipboard_whistle_lanyard',
             'captain_clipboard_field_notes',
+            'chaos_on_a_roll',
             'mall_rat_shopping_bags',
             'mall_rat_receipt_curl',
             'mall_rat_sunglasses',
