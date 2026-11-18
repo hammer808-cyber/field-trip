@@ -40,6 +40,15 @@ import { FIELD_MATERIALS, FIELD_SHADOWS, FIELD_TYPOGRAPHY } from '../utils/style
 
 const DECK_CHOOSER_INTRO_ACK_KEY = 'fieldtrip_deck_chooser_intro_ack';
 
+// Bound on a draw attempt (Nov 18, 2026): the Firestore writes inside
+// drawTrip (profile update + mission-card save) can pend indefinitely when
+// long-polling stalls on a flaky connection, which stranded the deck on
+// "RELEASING..." with every retry blocked by handleDraw's guard. Past this,
+// the draw resets to idle so the player can tap Draw again; the optimistic
+// activeTrip update already applied, so the drawn mission still waits in
+// the small row above the deck.
+const DRAW_TRIP_TIMEOUT_MS = 15000;
+
 interface DeckMetricBadgeProps {
   type: 'challenges' | 'tokens';
   value: number;
@@ -551,12 +560,28 @@ export default function DeckPage() {
     try {
       // Logic for drawing a NEW card
       // In the new flow, drawTrip already saves to drawnMissionCards as 'drawn'
-      const trip = await drawTrip(undefined, FEATURE_FLAGS.ENABLE_DECK_PACK_DRAW_LOGIC ? drawPackId : undefined);
-      
+      // Bound the draw (Nov 18, 2026 — stuck draw): drawTrip awaits two
+      // Firestore writes that can pend indefinitely when long-polling stalls,
+      // which left the deck on "RELEASING..." forever with the guard above
+      // blocking every retry. The race caps the wait; on timeout the null
+      // branch below resets the panel to idle so the player can draw again.
+      let drawTimeoutId: ReturnType<typeof setTimeout> | undefined;
+      let drawTimedOut = false;
+      const trip = await Promise.race([
+        drawTrip(undefined, FEATURE_FLAGS.ENABLE_DECK_PACK_DRAW_LOGIC ? drawPackId : undefined),
+        new Promise<null>((resolve) => {
+          drawTimeoutId = setTimeout(() => {
+            drawTimedOut = true;
+            resolve(null);
+          }, DRAW_TRIP_TIMEOUT_MS);
+        }),
+      ]);
+      if (drawTimeoutId) clearTimeout(drawTimeoutId);
+
       // Sequence timing for slide-out/decode
       await new Promise(resolve => setTimeout(resolve, 350));
       setAnimationStep('flipping');
-      
+
       if (trip) {
         setDrawnTrip(trip);
         unlockDiscoverySticker('mission_draw', 'deck');
@@ -566,7 +591,9 @@ export default function DeckPage() {
         setIsDrawn(true);
         setHasRevealedInActiveSession(true);
       } else {
-        console.warn("[Deck] handleDraw: drawTrip returned null. Pool may be exhausted.");
+        console.warn(drawTimedOut
+          ? "[Deck] handleDraw: drawTrip timed out. Resetting so the player can draw again."
+          : "[Deck] handleDraw: drawTrip returned null. Pool may be exhausted.");
         
         setAnimationStep('idle');
         setShowAnimation(false);
