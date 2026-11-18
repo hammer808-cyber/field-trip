@@ -564,13 +564,13 @@ test('client: the client and server reason limits agree', () => {
   assert.equal(clientLimit, serverLimit);
 });
 
-test('client: grantable catalog is the canonical 52', () => {
-  assert.equal(getGrantableStickers().length, 52);
+test('client: grantable catalog is the canonical 63', () => {
+  assert.equal(getGrantableStickers().length, 63);
 });
 
 test('client: picker filter matches by name or id, case-insensitive; empty query returns all', () => {
   const all = getGrantableStickers();
-  assert.equal(filterGrantPickerStickers(all, '').length, 52);
+  assert.equal(filterGrantPickerStickers(all, '').length, 63);
   const byName = filterGrantPickerStickers(all, 'clipboard');
   assert.ok(byName.length > 0);
   assert.ok(byName.every((s) => s.name.toLowerCase().includes('clipboard') || s.id.includes('clipboard')));

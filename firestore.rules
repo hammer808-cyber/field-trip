@@ -442,7 +442,18 @@ service cloud.firestore {
             'first_offenses_outside_person',
             'first_offenses_repeat_offender',
             'first_offenses_level_up',
-            'first_offenses_certified_menace'
+            'first_offenses_certified_menace',
+            'side_quests_retail_therapy',
+            'side_quests_snack_attack',
+            'side_quests_detour',
+            'side_quests_night_owl',
+            'side_quests_hidden_gem',
+            'side_quests_good_company',
+            'side_quests_roadside_weird',
+            'side_quests_full_send',
+            'side_quests_after_hours',
+            'side_quests_plot_twist',
+            'side_quests_sasquatch_sighting'
           ];
         }
 

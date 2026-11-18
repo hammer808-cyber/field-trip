@@ -15,6 +15,7 @@ import { filterStickersByArchetype } from '../components/stickers/StickerGrid';
 const EXPECTED_COUNTS: Readonly<Record<StickerCollection, number>> = {
   explorer: 18,
   adventure: 8,
+  side_quests: 11,
   achievement: 21,
   social: 4,
   chaos: 1,
@@ -23,7 +24,7 @@ const EXPECTED_COUNTS: Readonly<Record<StickerCollection, number>> = {
 
 test('every sticker has exactly one valid collection and the counts match the Stage 3 mapping', () => {
   const stickers = getAllStickers();
-  assert.equal(stickers.length, 52);
+  assert.equal(stickers.length, 63);
   const validCollections = new Set<string>(COLLECTION_SHELF_ORDER);
   for (const sticker of stickers) {
     assert.ok(validCollections.has(sticker.collection), `${sticker.id} has an unknown collection`);
@@ -40,8 +41,8 @@ test('every sticker has exactly one valid collection and the counts match the St
 test('rarity is 3 levels: no uncommon remains', () => {
   const stickers = getAllStickers();
   assert.ok(stickers.every(sticker => ['common', 'rare', 'legendary'].includes(sticker.rarity)));
-  assert.equal(stickers.filter(sticker => sticker.rarity === 'common').length, 34);
-  assert.equal(stickers.filter(sticker => sticker.rarity === 'rare').length, 15);
+  assert.equal(stickers.filter(sticker => sticker.rarity === 'common').length, 41);
+  assert.equal(stickers.filter(sticker => sticker.rarity === 'rare').length, 19);
   assert.equal(stickers.filter(sticker => sticker.rarity === 'legendary').length, 3);
 });
 
@@ -63,10 +64,11 @@ test('every catalog imageUrl resolves to a real file under public/', () => {
   }
 });
 
-test('collection metadata covers all six collections in the approved shelf order', () => {
+test('collection metadata covers all seven collections in the approved shelf order', () => {
   assert.deepEqual([...COLLECTION_SHELF_ORDER], [
     'explorer',
     'adventure',
+    'side_quests',
     'achievement',
     'social',
     'chaos',
@@ -79,6 +81,7 @@ test('collection metadata covers all six collections in the approved shelf order
     assert.ok(meta.emptyState.length > 0, `${collection} needs empty-state copy`);
   }
   assert.equal(getStickersByCollection('chaos').length, 1, 'Chaos holds its first sticker: On a Roll (milestone batch, Nov 18, 2026)');
+  assert.equal(getStickersByCollection('side_quests').length, 11, 'Side Quests holds 11 of its 12 supplied stickers — 18_mall_rat is left out by Zach\'s call (Nov 18, 2026)');
   assert.equal(getStickersByCollection('limited_edition').length, 0);
 });
 

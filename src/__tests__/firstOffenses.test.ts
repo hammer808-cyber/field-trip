@@ -39,7 +39,7 @@ const FIRST_OFFENSES: ReadonlyArray<{
 
 test('first offenses: all nine are registered as cross-pack Achievement stickers', () => {
   const all = getAllStickers();
-  assert.equal(all.length, 52);
+  assert.equal(all.length, 63);
   const ids = new Set(all.map(sticker => sticker.id));
   assert.equal(ids.size, all.length, 'sticker ids must be unique');
 

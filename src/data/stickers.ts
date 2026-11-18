@@ -31,6 +31,7 @@ export type StickerAwardTrigger =
 
 export type StickerCollection =
   | 'adventure'
+  | 'side_quests'
   | 'achievement'
   | 'chaos'
   | 'social'
@@ -44,6 +45,7 @@ export type StickerCollection =
 export const COLLECTION_SHELF_ORDER: readonly StickerCollection[] = [
   'explorer',
   'adventure',
+  'side_quests',
   'achievement',
   'social',
   'chaos',
@@ -66,6 +68,11 @@ export const COLLECTION_META: Readonly<Record<StickerCollection, StickerCollecti
     label: 'Adventure',
     tagline: 'Firsts in the field.',
     emptyState: 'No Adventure stickers yet — submit your first proof.'
+  },
+  side_quests: {
+    label: 'Side Quests',
+    tagline: 'Detours, hidden gems, and roadside weirdness.',
+    emptyState: 'No Side Quests stickers yet — take the detour.'
   },
   achievement: {
     label: 'Achievement',
@@ -778,6 +785,153 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     awardTrigger: 'admin_grant',
     unlockReason: 'Earned for going on a roll — a streak of missions, one after another.',
     tags: ['milestone', 'chaos', 'streak', 'trigger-pending']
+  },
+
+  // ---------------------------------------------------------------------------
+  // SIDE QUESTS — new collection (Nov 18, 2026; Zach's call)
+  // ---------------------------------------------------------------------------
+  // The side-quests ZIP (fieldtrip_side_quests_12_transparent_png_44_9l2i.zip)
+  // held 12 PNGs numbered 13–24 — a SEPARATE set, not the 3 missing FIRST
+  // OFFENSES (those would be 10, 11, 12 and are still outstanding). 11 of
+  // the 12 land here under a new Side Quests collection (Zach's pick over
+  // mixing them into Adventure/Chaos/Social). 18_mall_rat is LEFT OUT by
+  // Zach's call: it collides three ways (Mall Rat is an Explorer persona,
+  // a 7-entry mall_rat_* series already exists, and the art is the
+  // Escalator Pose + Shopping Bags stickers combined). It is not in the
+  // registry, not in any folder, not in alternates/.
+  //
+  // All 11 are trigger-pending (admin_grant): no existing event fits a
+  // side quest — detours, hidden gems, roadside weirdness, after-hours.
+  // Zach's call on what earns each one. Rarity is Zach's call too:
+  // Hidden Gem, Full Send, Plot Twist, and Sasquatch Sighting are rare;
+  // the other seven are common.
+  //
+  // 21_full_send ships AS-IS with a non-transparent top-right corner (a
+  // flame touches the edge) — same class of edge artifact the batch-2
+  // swap carried. Do not crop or regenerate without Zach's call.
+  {
+    id: 'side_quests_retail_therapy',
+    name: 'Retail Therapy',
+    collection: 'side_quests',
+    displayOrder: 1,
+    imageUrl: '/assets/stickers/sideQuests/13_retail_therapy.png',
+    rarity: 'common',
+    // Trigger PENDING (Nov 18, 2026): no existing event fits a side
+    // quest. Registered as admin_grant so it is visible and grantable,
+    // never mis-awarded by a guessed event.
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for a little retail therapy on the road.',
+    tags: ['side-quests', 'shopping', 'raccoon', 'trigger-pending']
+  },
+  {
+    id: 'side_quests_snack_attack',
+    name: 'Snack Attack',
+    collection: 'side_quests',
+    displayOrder: 2,
+    imageUrl: '/assets/stickers/sideQuests/14_snack_attack.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned when a snack stop becomes the adventure.',
+    tags: ['side-quests', 'snack', 'skateboard', 'trigger-pending']
+  },
+  {
+    id: 'side_quests_detour',
+    name: 'Detour',
+    collection: 'side_quests',
+    displayOrder: 3,
+    imageUrl: '/assets/stickers/sideQuests/15_detour.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for taking the detour instead of the highway.',
+    tags: ['side-quests', 'detour', 'signpost', 'trigger-pending']
+  },
+  {
+    id: 'side_quests_night_owl',
+    name: 'Night Owl',
+    collection: 'side_quests',
+    displayOrder: 4,
+    imageUrl: '/assets/stickers/sideQuests/16_night_owl.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for staying out past dark.',
+    tags: ['side-quests', 'night', 'owl', 'moon', 'trigger-pending']
+  },
+  {
+    id: 'side_quests_hidden_gem',
+    name: 'Hidden Gem',
+    collection: 'side_quests',
+    displayOrder: 5,
+    imageUrl: '/assets/stickers/sideQuests/17_hidden_gem.png',
+    rarity: 'rare',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for finding a hidden gem off the main road.',
+    tags: ['side-quests', 'hidden-gem', 'geode', 'trigger-pending']
+  },
+  {
+    id: 'side_quests_good_company',
+    name: 'Good Company',
+    collection: 'side_quests',
+    displayOrder: 6,
+    imageUrl: '/assets/stickers/sideQuests/19_good_company.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for good company on the road.',
+    tags: ['side-quests', 'company', 'campfire', 'trigger-pending']
+  },
+  {
+    id: 'side_quests_roadside_weird',
+    name: 'Roadside Weird',
+    collection: 'side_quests',
+    displayOrder: 7,
+    imageUrl: '/assets/stickers/sideQuests/20_roadside_weird.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for stopping at the weird roadside thing.',
+    tags: ['side-quests', 'roadside', 'ufo', 'motel', 'trigger-pending']
+  },
+  {
+    id: 'side_quests_full_send',
+    name: 'Full Send',
+    collection: 'side_quests',
+    displayOrder: 8,
+    imageUrl: '/assets/stickers/sideQuests/21_full_send.png',
+    rarity: 'rare',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for going full send.',
+    tags: ['side-quests', 'full-send', 'cart', 'trigger-pending']
+  },
+  {
+    id: 'side_quests_after_hours',
+    name: 'After Hours',
+    collection: 'side_quests',
+    displayOrder: 9,
+    imageUrl: '/assets/stickers/sideQuests/22_after_hours.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for the after-hours adventure.',
+    tags: ['side-quests', 'after-hours', 'neon', 'night', 'trigger-pending']
+  },
+  {
+    id: 'side_quests_plot_twist',
+    name: 'Plot Twist',
+    collection: 'side_quests',
+    displayOrder: 10,
+    imageUrl: '/assets/stickers/sideQuests/23_plot_twist.png',
+    rarity: 'rare',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned when the plan takes a plot twist.',
+    tags: ['side-quests', 'plot-twist', 'map', 'ufo', 'trigger-pending']
+  },
+  {
+    id: 'side_quests_sasquatch_sighting',
+    name: 'Sasquatch Sighting',
+    collection: 'side_quests',
+    displayOrder: 11,
+    imageUrl: '/assets/stickers/sideQuests/24_sasquatch_sighting.png',
+    rarity: 'rare',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for spotting Sasquatch in the wild.',
+    tags: ['side-quests', 'sasquatch', 'bigfoot', 'skateboard', 'ufo', 'trigger-pending']
   }
 ];
 
