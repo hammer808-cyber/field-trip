@@ -138,7 +138,7 @@ function DiamondDecor() {
 }
 
 import { FieldPageHero } from '../components/FieldPageHero';
-import { ActiveDeckPanel } from '../components/missions/ActiveDeckPanel';
+import { DeckProgressMeter } from '../components/missions/DeckProgressMeter';
 import { MissionActionPanel } from '../components/missions/MissionActionPanel';
 import { MissionsGuidanceStrip, getMissionsStripRole } from '../components/missions/MissionsGuidanceStrip';
 import { SAVE_FOR_LATER_RECOVERY_NOTICE } from '../components/bottomNavPresentation';
@@ -926,6 +926,24 @@ export default function DeckPage() {
 
       <div className="relative z-10 mx-auto max-w-6xl px-4 pb-24 pt-5 sm:px-6 sm:pt-6">
 
+        {/* Deck progress lives in the header now (Nov 17, 2026, Zach's
+            call): the big deck card is gone for every deck, so the
+            approved/pending counts and the shaded bar sit here under the
+            hero instead. It shows always — drawn or not. */}
+        <div className="mb-6">
+          <p className="mb-2 font-mono text-[9px] font-black uppercase tracking-widest text-[var(--skin-text-muted)]">
+            {activeDeckDisplayName}
+          </p>
+          <DeckProgressMeter
+            approvedCount={approvedDeckChallengesCount}
+            pendingCount={pendingDeckChallengesCount}
+            totalCount={totalDeckChallenges}
+            approvedPercent={deckProgressPercent}
+            pendingPercent={deckPendingPercent}
+            compact
+          />
+        </div>
+
         {!frankieMode && (
           <div className="mb-6">
             <FrankieModeCard compact />
@@ -977,27 +995,6 @@ export default function DeckPage() {
                 : undefined}
             />
             )}
-            {/* The big deck panel is the draw surface only — it shows when
-                nothing is drawn yet. Once a mission is drawn, the page is
-                the mission header and the card (Nov 17, 2026). */}
-            {!isDrawn && (
-            <div className={cn(demoteMissionBrowsing && 'opacity-55')}>
-            <ActiveDeckPanel
-              pack={activePack}
-              displayName={activeDeckDisplayName}
-              approvedCount={approvedDeckChallengesCount}
-              pendingCount={pendingDeckChallengesCount}
-              totalCount={totalDeckChallenges}
-              approvedPercent={deckProgressPercent}
-              pendingPercent={deckPendingPercent}
-              locked={deckLockState.locked}
-              lockReason={deckLockState.reason}
-              onCoverAction={!demoteMissionBrowsing && !activeTrip && !drawnTrip && !deckLockState.locked ? () => handleDraw() : undefined}
-              coverActionLabel={`Draw a mission from ${activeDeckDisplayName}`}
-            />
-            </div>
-            )}
-
             <MissionActionPanel
               eyebrow={isDrawn ? 'Current assignment' : 'Mission draw'}
               title={missionPanelTitle}

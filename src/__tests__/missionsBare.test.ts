@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (rel: string) => readFileSync(join(repoRoot, rel), 'utf8');
 
-test('missions bare: no deck info on the Missions page', () => {
+test('missions bare: no deck card on the Missions page — progress lives in the header', () => {
   const deck = read('src/pages/Deck.tsx');
 
   // Nov 17, 2026: Missions is deck, draw, card — nothing else. The hero
@@ -25,8 +25,23 @@ test('missions bare: no deck info on the Missions page', () => {
   assert.doesNotMatch(deck, /ExpandableDeckLine/);
   assert.equal(existsSync(join(repoRoot, 'src/components/missions/ExpandableDeckLine.tsx')), false);
 
+  // Nov 17, 2026 (Zach's call, every deck): the big deck card is gone
+  // too — cover art, description, and the "signals remaining" footer.
+  // The component stays on disk, parked; Deck.tsx just stops rendering it.
+  assert.doesNotMatch(deck, /ActiveDeckPanel/);
+  assert.equal(existsSync(join(repoRoot, 'src/components/missions/ActiveDeckPanel.tsx')), true);
+
+  // The progress moved to the header: the deck name plus the counts and
+  // the shaded bar, under the hero, always visible.
+  assert.match(deck, /<DeckProgressMeter/);
+  assert.match(deck, /approvedCount=\{approvedDeckChallengesCount\}/);
+  assert.match(deck, /pendingCount=\{pendingDeckChallengesCount\}/);
+  assert.match(deck, /totalCount=\{totalDeckChallenges\}/);
+  assert.match(deck, /activeDeckDisplayName/);
+
   // The draw surface and the card are still there — that is the whole page.
-  assert.match(deck, /<ActiveDeckPanel/);
+  assert.match(deck, /<DeckStack/);
+  assert.match(deck, /onDraw=\{handleDraw\}/);
   assert.match(deck, /<MissionDecodedCard/);
   assert.match(deck, /layoutId="mission-draw-card"/);
 });
