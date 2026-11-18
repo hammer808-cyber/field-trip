@@ -60,6 +60,11 @@ export interface UserProfile {
   hasSeenDeckChooserIntro?: boolean;
   hasSeenFieldTypeResults?: boolean;
   hasCompletedGuidedFirstEntry?: boolean;
+  // Guided tour for the first starter mission only (Nov 18, 2026). Set when
+  // the player finishes or skips the tour; the tour never replays after it.
+  // (The older starterDeckTourSeen_v1 below is dead — declared, never read
+  // or written — and is deliberately NOT reused.)
+  hasSeenFirstMissionTour?: boolean;
   starterDeckTourSeen_v1?: boolean;
   fieldGuideAssistEnabled?: boolean;
   forcedLaunchMissionCompleted?: boolean;

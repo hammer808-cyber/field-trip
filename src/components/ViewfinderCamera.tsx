@@ -961,6 +961,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
           {/* Premium Sticker-style Capture Button - Playful, On-Brand Field Stamp */}
           <div className="relative justify-self-center">
             <button 
+              data-tour="snap-photo"
               onClick={handleCapture}
               disabled={isProcessing}
               className="group relative select-none cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-lime"

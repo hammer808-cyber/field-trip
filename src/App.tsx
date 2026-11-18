@@ -20,6 +20,7 @@ import { cn } from './lib/utils';
 import { LAUNCH_MISSION_ID, isLaunchMissionEligible } from './data/specialMissions';
 import { firebaseError, getFirebaseInitError } from './lib/firebase';
 import { TrevorGuide } from './components/TrevorGuide';
+import { GuidedTour } from './components/GuidedTour';
 import { StarterGate } from './components/StarterGate';
 import { resolveOnboardingDestination, shouldRedirectPreStarterToMissions, isAllowedPreStarterPage } from './logic/onboardingFlow';
 
@@ -491,6 +492,13 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         )}
         <LocalEmulatorBanner />
         <TrevorGuide />
+        {/* Guided tour for the first starter mission only (Zach's call,
+            Nov 17-18, 2026). App-level so it survives the /missions ->
+            /capture route change; it renders nothing unless the player is
+            pre-starter on their first mission. Trevor's pill stays mounted
+            underneath — the tour overlay (z-200) dims it, and the tour
+            hands the player back to it when done. */}
+        <GuidedTour />
         <GameWrapper>
           <Suspense fallback={<PageLoader />}>
             <main className={cn(

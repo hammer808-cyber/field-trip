@@ -382,6 +382,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
 
             <button
               ref={cameraActionRef}
+              data-tour="open-camera"
               onClick={onStartCapture}
               disabled={!missionAttempt || isAttemptLoading}
               className="w-full py-4 bg-brand-orange text-white border-4 border-on-surface rounded-2xl font-display text-3xl font-black uppercase italic tracking-widest shadow-[8px_8px_0px_black] active:translate-y-2 active:shadow-none transition-all hover:bg-on-surface hover:text-brand-lime flex items-center justify-center gap-3 group disabled:opacity-50 disabled:cursor-wait"
@@ -554,6 +555,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
 
             {/* SUBMIT BUTTON */}
             <button
+              data-tour="submit-proof"
               disabled={!canSubmit}
               onClick={handleFinalSubmit}
               className={cn(
