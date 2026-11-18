@@ -4,7 +4,7 @@ import { Timestamp } from 'firebase/firestore';
 import type { TripCard } from '../types/challenges';
 import type { Entry, Vote } from '../types/game';
 import type { Observation } from '../types/observations';
-import type { PlayerNotification } from '../logic/playerNotifications';
+import type { PlayerNotification, ProofReviewNotification, StickerAwardedNotification } from '../logic/playerNotifications';
 import type { UserProfile } from '../services/userService';
 import { buildCanonicalProgress } from '../services/canonicalProgress';
 import {
@@ -366,7 +366,7 @@ test('a published challenge definition status of approved does not mark a drawn 
   assert.equal(model.quickLinks[0].description, model.nextAction.action.label);
 });
 
-function notification(overrides: Partial<PlayerNotification> = {}): PlayerNotification {
+function notification(overrides: Partial<ProofReviewNotification> = {}): ProofReviewNotification {
   return {
     id: 'notif-1',
     type: 'proof_review_decision',
@@ -428,4 +428,65 @@ test('Q11: a rejection notification in Updates carries the admin note', () => {
   assert.equal(rows.length, 1);
   assert.equal(rows[0].title, 'Proof review closed');
   assert.equal(rows[0].detail, 'Find the Coolest Shadow · Photo shows the wrong street.');
+});
+
+function stickerNotification(overrides: Partial<StickerAwardedNotification> = {}): StickerAwardedNotification {
+  return {
+    id: 'notif-sticker-1',
+    type: 'sticker_awarded',
+    stickerId: 'first_offenses_fresh_meat',
+    stickerName: 'Fresh Meat',
+    stickerRarity: 'common',
+    discoveryKey: 'first_submission',
+    read: false,
+    createdAt: new Date('2026-07-16T17:30:00.000Z').getTime(),
+    ...overrides,
+  };
+}
+
+test('Notifications section lists decisions and sticker awards, newest-first', () => {
+  const model = buildBasecampViewModel(input({
+    entries: [entry({ status: 'approved' })],
+    notifications: [notification(), stickerNotification()],
+  }));
+  assert.equal(model.notifications.length, 2);
+  // Sticker (17:30) is newer than the decision (17:00).
+  assert.equal(model.notifications[0].kind, 'sticker');
+  assert.equal(model.notifications[0].title, 'Sticker unlocked');
+  assert.equal(model.notifications[0].detail, 'Fresh Meat · common');
+  assert.equal(model.notifications[0].href, '/dex/stickers');
+  assert.equal(model.notifications[0].unread, true);
+  assert.equal(model.notifications[1].kind, 'decision');
+  assert.equal(model.notifications[1].title, 'Proof approved');
+  assert.equal(model.notifications[1].href, '#basecamp-updates');
+  assert.equal(model.notifications[1].unread, true);
+});
+
+test('Notifications section has no 5-item cap, and read rows are not unread', () => {
+  const many = Array.from({ length: 6 }, (_, i) => notification({
+    id: `notif-${i}`,
+    entryId: `entry-${i}`,
+    createdAt: new Date(`2026-07-16T1${i}:00:00.000Z`).getTime(),
+    read: i === 0,
+  }));
+  const model = buildBasecampViewModel(input({
+    entries: [entry({ status: 'approved' })],
+    notifications: [...many, stickerNotification()],
+  }));
+  assert.equal(model.notifications.length, 7);
+  // Updates still caps at 5 — the section is the place to see the rest.
+  assert.ok(model.recentActivity.length <= 5);
+  const readRow = model.notifications.find(item => item.id === 'notification-notif-0');
+  assert.equal(readRow?.unread, false);
+});
+
+test('sticker awards do not enter the Updates feed', () => {
+  // Nov 17, 2026: stickers get their signal from the Notifications section,
+  // not the 5-row Updates feed — Updates stays decisions, entries, badges.
+  const model = buildBasecampViewModel(input({
+    entries: [],
+    notifications: [stickerNotification()],
+  }));
+  assert.equal(model.recentActivity.length, 0);
+  assert.equal(model.notifications.length, 1);
 });

@@ -29,6 +29,7 @@ import {
 import { cn } from '../lib/utils';
 import { LAUNCH_MISSION_ID } from '../data/specialMissions';
 import { getDisplayLabel } from '../utils/labelUtils';
+import { hasRealMissionProgress } from '../logic/playerGuidance';
 
 interface MissionDecodedCardProps {
   mission: TripType;
@@ -214,7 +215,7 @@ export function MissionDecodedCard({
                onClick={() => onStart?.()}
                className="bg-brand-orange text-white px-6 py-2.5 border-2 border-on-surface shadow-[4px_4px_0px_black] font-display text-base font-black uppercase italic tracking-wider active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all flex items-center gap-2 shrink-0 hover:bg-on-surface hover:text-brand-lime"
              >
-               <span>{Object.keys(progress).length >= 1 ? 'RESUME' : 'START'}</span>
+               <span>{hasRealMissionProgress(progress) ? 'RESUME' : 'START'}</span>
                <ArrowRight className="w-5 h-5 stroke-[2.5]" />
              </button>
            )}
@@ -326,7 +327,7 @@ export function MissionDecodedCard({
                   className="w-full field-cta field-cta--primary py-3 text-xl flex items-center justify-center gap-3 group"
                 >
                   <span className="relative z-10">
-                    {Object.keys(progress).length >= 1 ? getDisplayLabel('RESUME_MISSION') : getDisplayLabel('DO_THIS_MISSION')}
+                    {hasRealMissionProgress(progress) ? getDisplayLabel('RESUME_MISSION') : getDisplayLabel('DO_THIS_MISSION')}
                   </span>
                   <ArrowRight className="w-6 h-6 group-hover:translate-x-3 transition-transform duration-300" />
                 </button>

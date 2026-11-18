@@ -8663,6 +8663,21 @@ async function startServer() {
           });
         }
 
+        // Drawn-card status follows the decision (Nov 17, 2026): the DEX
+        // Missions list keys its Resume/Do-This-Mission button off the card
+        // status, which never updated on approve — so finished missions kept
+        // saying "Resume Mission". nextStatus already matches the drawn-card
+        // status union ('approved' | 'needs_more_proof' | 'rejected').
+        // Merge-set, not update: the card predates the draw tracker for
+        // some older entries, and the decision must not fail on that.
+        if (ownerId && challengeId) {
+          transaction.set(
+            dbAdmin!.collection('users').doc(ownerId).collection('drawnMissionCards').doc(challengeId),
+            { status: nextStatus, updatedAt: now },
+            { merge: true },
+          );
+        }
+
         return {
           success: true,
           status: nextStatus,

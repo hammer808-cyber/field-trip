@@ -1844,6 +1844,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         title: "⚡ FIELD PULSE AT 100%!",
         description: "Your consistency metric is fully synchronized. Keep the campfire crackling to maintain momentum! Trevor nods with silent, campy approval.",
         rewardText: "PROUD PULSATOR DECAL UNLOCKED",
+        // Nov 17, 2026: the decal finally has art. Without imageUrl the
+        // modal showed a plain lime square + Activity icon — the "weird
+        // little square" from the test profile. Art: a die-cut pulse-line
+        // + campfire sticker, public/assets/decals/proud-pulsator.png.
+        imageUrl: '/assets/decals/proud-pulsator.png',
         iconName: 'Activity',
       });
     }
@@ -2598,6 +2603,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         submittedPendingChallengeIds: updatedSubmittedPending
       };
     });
+
+    // Drawn-card status follows the proof (Nov 17, 2026): the DEX Missions
+    // list keys its Resume/Do-This-Mission button off the card status, which
+    // never updated on submit — so finished starters kept saying "Resume
+    // Mission". Submitted → pending_review (or approved on immediate
+    // approval); the server review action moves it to the decision. Fire
+    // and forget: a Firestore hiccup here must never fail the submit.
+    void handleUpdateMissionCardStatus(
+      currentTrip.id,
+      status === 'approved' ? 'approved' : 'pending_review',
+    ).catch(err => console.warn('[AppContext] Failed to mark mission card submitted:', err));
 
     // Register Field Pulse actions
     registerPulseAction('submit_proof', entryId).catch(err => console.warn("Pulse register failed (submit):", err));

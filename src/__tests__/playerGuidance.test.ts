@@ -7,6 +7,7 @@ import type { UserProfile } from '../services/userService';
 import { buildCanonicalProgress } from '../services/canonicalProgress';
 import {
   GUIDANCE_PRIORITY,
+  hasRealMissionProgress,
   isUnseenStarterUnlock,
   resolveMissionsGuidancePrimaryAction,
   resolvePlayerGuidance,
@@ -350,6 +351,22 @@ test('8d. Drawn mission with only a location auto-check says Do this mission', (
   assert.equal(snapshot.state, 'RESUME_ACTIVE_MISSION');
   assert.equal(snapshot.primaryActionLabel, 'Do this mission');
   assert.doesNotMatch(snapshot.primaryActionLabel, /Resume/i);
+});
+
+test('8e. hasRealMissionProgress: only a photo or a real field note counts', () => {
+  // Nov 17, 2026: the poster key-counted the progress record, so the
+  // valueless entries the app writes itself ({ field_note: false } on
+  // mount, { location: true } on arrival) read as "started". The poster
+  // and the guidance now share this one test.
+  assert.equal(hasRealMissionProgress(undefined), false);
+  assert.equal(hasRealMissionProgress(null), false);
+  assert.equal(hasRealMissionProgress({}), false);
+  assert.equal(hasRealMissionProgress({ field_note: false }), false);
+  assert.equal(hasRealMissionProgress({ location: true }), false);
+  assert.equal(hasRealMissionProgress({ field_note: false, location: true }), false);
+  assert.equal(hasRealMissionProgress({ photo: true }), true);
+  assert.equal(hasRealMissionProgress({ field_note: true }), true);
+  assert.equal(hasRealMissionProgress({ photo: true, field_note: true }), true);
 });
 
 test('9. Normal pending proof + missions still available continues play', () => {

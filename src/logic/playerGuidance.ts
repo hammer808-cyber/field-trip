@@ -171,6 +171,19 @@ const PLAYER_PROOF_STATUS_SET = new Set<string>(PLAYER_PROOF_STATUSES);
  * callers pass the profile's own map and an absent map means no evidence
  * was ever captured.
  */
+/**
+ * Real-progress test for ONE mission's tripProgress record (Nov 17, 2026,
+ * Zach's rule): only a captured photo or a real field note counts as
+ * progress. Valueless entries the app writes itself — `{ field_note: false }`
+ * from the note-sync effect, `{ location: true }` on arrival for
+ * location-required missions — are NOT progress. Key-counting the record
+ * (Object.keys(progress).length >= 1) misreads those as "started".
+ */
+export function hasRealMissionProgress(progress: Record<string, unknown> | null | undefined): boolean {
+  if (!progress) return false;
+  return progress.photo === true || progress.field_note === true;
+}
+
 export function missionHasProgress(
   tripProgress: Record<string, Record<string, unknown> | undefined> | null | undefined,
   missionId: string,
@@ -178,7 +191,7 @@ export function missionHasProgress(
   if (!tripProgress) return undefined;
   const progress = tripProgress[missionId];
   if (!progress) return false;
-  return progress.photo === true || progress.field_note === true;
+  return hasRealMissionProgress(progress);
 }
 const PLAYER_ACTIVE_DRAW_STATUS_SET = new Set<string>(PLAYER_ACTIVE_DRAW_STATUSES);
 

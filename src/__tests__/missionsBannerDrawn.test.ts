@@ -49,3 +49,39 @@ test('missions banner: dropping it does not strand the player — resume lives i
   const card = read('src/components/MissionDecodedCard.tsx');
   assert.match(card, /getDisplayLabel\('DO_THIS_MISSION'\)/);
 });
+
+test('missions banner: the poster keys RESUME off real progress, not key-counting', () => {
+  // Nov 17, 2026: the poster counted progress keys, so the valueless
+  // entries the app writes itself ({ field_note: false }, { location: true })
+  // read as "started". It now shares the guidance's real-progress test.
+  const card = read('src/components/MissionDecodedCard.tsx');
+  assert.match(card, /hasRealMissionProgress\(progress\)/);
+  assert.doesNotMatch(card, /Object\.keys\(progress\)\.length/);
+});
+
+test('missions banner: the details modal feeds the poster real progress, not a blank', () => {
+  // Nov 17, 2026: the modal blanked progress for a drawn trip ({}), so it
+  // always said START even when the trip already had a photo/note — while
+  // the poster beside it said RESUME. Both surfaces now get the same record.
+  const deck = read('src/pages/Deck.tsx');
+  assert.doesNotMatch(deck, /progress=\{drawnTrip \? \{\} : missionProgress\}/);
+  assert.match(deck, /progress=\{profile\?\.tripProgress\?\.?\[\(drawnTrip \|\| activeTrip\)\?\.id\]\}/);
+});
+
+test('missions banner: the start-stage poster gets real progress too, so its checklist can light', () => {
+  // Nov 17, 2026 (Long Table question): the start-stage poster passed NO
+  // progress prop, so its REQUIREMENTS CHECKLIST could never light a pill —
+  // even after a photo was taken, both pills stayed grey there, while the
+  // details modal beside it showed the real state. Same record, both sites.
+  const deck = read('src/pages/Deck.tsx');
+  assert.ok(deck.includes('progress={profile?.tripProgress?.[(drawnTrip || launchMission)?.id]}'));
+  const posterSites = [...deck.matchAll(/<MissionDecodedCard/g)].map((m) => m.index ?? 0);
+  assert.equal(posterSites.length, 2, 'Deck renders exactly two poster instances');
+  for (const at of posterSites) {
+    assert.match(
+      deck.slice(at, at + 500),
+      /progress=\{profile\?\.tripProgress\?/,
+      'every poster instance is fed real progress',
+    );
+  }
+});

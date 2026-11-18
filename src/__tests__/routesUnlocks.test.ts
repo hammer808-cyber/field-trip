@@ -35,7 +35,11 @@ test('stable IA routes exist and legacy routes redirect safely', () => {
 
 test('StarterGate uses the requested feature instead of a hardcoded crew check', () => {
   assert.match(starterGateSource, /requiredFeature, children/);
-  assert.match(starterGateSource, /const featureKey = requiredFeature === 'leaderboard' \? 'voting' : requiredFeature;/);
+  // Nov 17, 2026: the leaderboard has its own key. It used to borrow
+  // Voting's key, so parking Voting locked the Big Board for every
+  // non-admin even at 3/3 starters — the gate must never map it there.
+  assert.doesNotMatch(starterGateSource, /requiredFeature === 'leaderboard' \? 'voting'/);
+  assert.match(starterGateSource, /const featureKey: FeatureKey = requiredFeature;/);
   assert.match(starterGateSource, /canAccessFeature\(canonicalProgress, featureKey, \{ isAdmin \}\)/);
   assert.doesNotMatch(starterGateSource, /canAccessFeature\(canonicalProgress, 'crew', \{ isAdmin \}\)/);
 });

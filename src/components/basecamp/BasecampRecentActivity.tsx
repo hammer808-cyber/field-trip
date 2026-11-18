@@ -16,6 +16,7 @@ export function BasecampRecentActivity({ items }: BasecampRecentActivityProps) {
   return (
     <section
       aria-labelledby="basecamp-activity-heading"
+      id="basecamp-updates"
       className="skin-card border-[var(--skin-border-width)] border-[var(--skin-border)] bg-[var(--skin-surface)] p-5 shadow-[var(--skin-card-shadow)] sm:p-6"
     >
       <p className="font-mono text-[8px] font-black uppercase tracking-[0.22em] text-[var(--skin-text-muted)]">Bulletin board</p>

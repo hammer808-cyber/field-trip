@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { MemoryRouter } from 'react-router-dom';
 import { fileURLToPath } from 'node:url';
 import { BasecampAttentionPanel } from '../components/basecamp/BasecampAttentionPanel';
 import { BasecampCrewSummary } from '../components/basecamp/BasecampCrewSummary';
@@ -11,6 +12,7 @@ import { BasecampNextActionPanel } from '../components/basecamp/BasecampNextActi
 import { BasecampProgressPanel } from '../components/basecamp/BasecampProgressPanel';
 import { BasecampQuickLinks } from '../components/basecamp/BasecampQuickLinks';
 import { BasecampRecentActivity } from '../components/basecamp/BasecampRecentActivity';
+import { FieldPageHero } from '../components/FieldPageHero';
 import { getDeckPackById } from '../data/deckPacks';
 
 const noop = () => undefined;
@@ -184,4 +186,46 @@ test('progress and crew panels share the board paper treatment, not the dark glo
   assert.match(css, /\.skin-basecamp \.basecamp-progress, \.skin-basecamp \.basecamp-crew \{[^}]*var\(--skin-card-shadow\)/);
   assert.doesNotMatch(css, /basecamp-shine|basecamp-crew-glow/);
   assert.doesNotMatch(css, /#080b13|#d91586|#342052/);
+});
+
+test('the season countdown lives in the Basecamp header, once', () => {
+  // Nov 17, 2026: the countdown moved from the Active Deck row into the
+  // header — same fact once, not stacked. The hero renders it under the
+  // subtitle; without it, no season line renders.
+  const withSeason = renderToStaticMarkup(
+    <MemoryRouter>
+      <FieldPageHero
+        variant="editorial"
+        eyebrow="FIELD_START"
+        title="BASECAMP"
+        subtitle="What matters today."
+        seasonLine="GOBBLE AND GLOW ends in 53d 21h · Week 3"
+      />
+    </MemoryRouter>,
+  );
+  assert.match(withSeason, /What matters today\./);
+  assert.match(withSeason, /GOBBLE AND GLOW ends in 53d 21h · Week 3/);
+  assert.equal((withSeason.match(/GOBBLE AND GLOW ends in 53d 21h · Week 3/g) || []).length, 1);
+  const withoutSeason = renderToStaticMarkup(
+    <MemoryRouter>
+      <FieldPageHero variant="editorial" eyebrow="FIELD_START" title="BASECAMP" subtitle="What matters today." />
+    </MemoryRouter>,
+  );
+  assert.doesNotMatch(withoutSeason, /ends in \d+d \d+h/);
+});
+
+test('Basecamp passes its countdown to the header and the deck row no longer carries it', () => {
+  const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+  const read = (rel: string) => readFileSync(join(repoRoot, rel), 'utf8');
+  const basecamp = read('src/pages/Basecamp.tsx');
+  assert.match(basecamp, /seasonLine=\{headerSeasonLine \?\? undefined\}/);
+  assert.match(basecamp, /headerSeasonLine = seasonCountdown/);
+  // The row keeps deck name + approved/pending counts only — the countdown
+  // label and the Week suffix left with it.
+  const rowAt = basecamp.indexOf('Active deck row');
+  const row = basecamp.slice(rowAt, basecamp.indexOf('</button>', rowAt));
+  assert.doesNotMatch(row, /seasonCountdown/);
+  assert.doesNotMatch(row, /Week \{currentWeekNumber\}/);
+  assert.match(row, /activeDeckApprovedCount/);
+  assert.match(row, /Deck shelf →/);
 });

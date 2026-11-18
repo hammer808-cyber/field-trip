@@ -340,6 +340,20 @@ export function createAdminStickerAwardStore(db: Firestore): StickerAwardStore {
           awardedBy: 'server',
           verifiedBy,
         });
+        // Nov 17, 2026: a sticker award also writes a notification doc in
+        // this same transaction, so the award survives the toast — the new
+        // Basecamp Notifications section lists it, tappable to the Dex
+        // stickers tab. Same collection and read flag as the Q11 decision
+        // notifications; the client read maps type 'sticker_awarded'.
+        tx.set(db.collection('users').doc(uid).collection('notifications').doc(), {
+          type: 'sticker_awarded',
+          stickerId: sticker.id,
+          stickerName: sticker.name,
+          stickerRarity: sticker.rarity ?? null,
+          discoveryKey,
+          read: false,
+          createdAt: FieldValue.serverTimestamp(),
+        });
         return { applied: true } as const;
       });
     },

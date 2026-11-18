@@ -14,6 +14,7 @@ import { getLevelProgress } from './playerLevel';
 import { isArchivedEntry, normalizeEntryStatus } from './entryLogic';
 import {
   proofReviewDecisionCopy,
+  stickerAwardedCopy,
   type PlayerNotification,
 } from './playerNotifications';
 import {
@@ -122,12 +123,33 @@ export interface BasecampQuickLink {
   href: string;
 }
 
+export type BasecampNotificationKind = 'decision' | 'sticker';
+
+/**
+ * One row of the Basecamp Notifications section (Nov 17, 2026): the full
+ * notification list, newest-first, no 5-item cap — the subscription caps
+ * at 20. Decisions and sticker awards share the collection; rows are
+ * tappable to their destination (Dex stickers tab for sticker awards,
+ * the Updates panel for decisions).
+ */
+export interface BasecampNotificationItem {
+  id: string;
+  kind: BasecampNotificationKind;
+  title: string;
+  detail: string;
+  timeLabel: string;
+  timestamp: number;
+  unread: boolean;
+  href: string;
+}
+
 export interface BasecampViewModel {
   nextAction: BasecampNextActionModel;
   attention: BasecampProofAttentionModel;
   progress: BasecampProgressModel;
   crew: BasecampCrewModel;
   recentActivity: BasecampActivityItem[];
+  notifications: BasecampNotificationItem[];
   quickLinks: BasecampQuickLink[];
   guidance: PlayerGuidanceSnapshot;
 }
@@ -352,9 +374,14 @@ function buildRecentActivity(input: BuildBasecampViewModelInput): BasecampActivi
   // entry item cannot. The generic item is suppressed for the same entry
   // so a decision shows once, not twice, in the 5-row feed.
   const notifiedEntryIds = new Set(
-    (input.notifications || []).map(notification => notification.entryId).filter(Boolean),
+    (input.notifications || [])
+      .filter(notification => notification.type === 'proof_review_decision')
+      .map(notification => notification.entryId)
+      .filter(Boolean),
   );
-  const notificationItems = (input.notifications || []).flatMap<BasecampActivityItem>(notification => {
+  const notificationItems = (input.notifications || [])
+    .filter(notification => notification.type === 'proof_review_decision')
+    .flatMap<BasecampActivityItem>(notification => {
     const timestamp = Number(notification.createdAt || 0);
     if (!timestamp) return [];
     const copy = proofReviewDecisionCopy(notification);
@@ -434,6 +461,47 @@ function buildRecentActivity(input: BuildBasecampViewModelInput): BasecampActivi
     .slice(0, 5);
 }
 
+function buildNotifications(input: BuildBasecampViewModelInput): BasecampNotificationItem[] {
+  // The full notification list (Nov 17, 2026): every notification doc the
+  // subscription returns, newest-first, no 5-item cap — Updates shows the
+  // latest five mixed with entries and badges, this section is the place
+  // to see them all. Sticker awards only appear here (they never entered
+  // the Updates feed); decisions appear in both, so a decision is never
+  // lost when it scrolls out of the 5-row feed.
+  return (input.notifications || [])
+    .flatMap<BasecampNotificationItem>(notification => {
+      const timestamp = Number(notification.createdAt || 0);
+      if (!timestamp) return [];
+      const timeLabel = formatActivityTime(timestamp, input.currentDate);
+      const unread = notification.read !== true;
+      if (notification.type === 'sticker_awarded') {
+        const copy = stickerAwardedCopy(notification);
+        return [{
+          id: `notification-${notification.id}`,
+          kind: 'sticker' as const,
+          title: copy.title,
+          detail: copy.detail,
+          timestamp,
+          timeLabel,
+          unread,
+          href: '/dex/stickers',
+        }];
+      }
+      const copy = proofReviewDecisionCopy(notification);
+      return [{
+        id: `notification-${notification.id}`,
+        kind: 'decision' as const,
+        title: copy.title,
+        detail: copy.detail,
+        timestamp,
+        timeLabel,
+        unread,
+        href: '#basecamp-updates',
+      }];
+    })
+    .sort((left, right) => right.timestamp - left.timestamp);
+}
+
 export function buildBasecampViewModel(input: BuildBasecampViewModelInput): BasecampViewModel {
   const starter = getStarterProgress(input.canonicalProgress);
   const guidance = resolvePlayerGuidance({
@@ -471,6 +539,7 @@ export function buildBasecampViewModel(input: BuildBasecampViewModelInput): Base
     progress,
     crew: buildCrew(input.profile, input.entries, input.crewGraph),
     recentActivity: buildRecentActivity(input),
+    notifications: buildNotifications(input),
     guidance,
     // Missions is always in the quick links: the deck is the pre-Starter
     // home, and Basecamp is the locked room until the Starter set is done.

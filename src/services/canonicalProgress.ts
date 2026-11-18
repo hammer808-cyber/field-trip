@@ -6,7 +6,7 @@ import { Entry } from '../constants';
 import { TripCard } from '../types/challenges';
 import { UserProfile } from './userService';
 
-export type FeatureKey = 'starter' | 'crew' | 'memories' | 'voting' | 'tribunal' | 'heatwave-receipts' | 'socal-summer' | 'loteria' | 'zines';
+export type FeatureKey = 'starter' | 'crew' | 'memories' | 'voting' | 'tribunal' | 'heatwave-receipts' | 'socal-summer' | 'loteria' | 'zines' | 'leaderboard';
 
 /**
  * Loteria kill switch. The board is still in the works, so it stays

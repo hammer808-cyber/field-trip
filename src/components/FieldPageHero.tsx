@@ -14,6 +14,10 @@ export type FieldPageHeroProps = {
   eyebrow: string;
   title: string;
   subtitle?: string;
+  /** Optional season countdown line, rendered under the subtitle (Nov 17,
+   * 2026: Basecamp shows the active season's countdown here, and nowhere
+   * else — the same fact once, not stacked). */
+  seasonLine?: string;
   backLabel?: string;
   backTo?: string;
   onBack?: () => void;
@@ -36,6 +40,7 @@ export function FieldPageHero({
   eyebrow,
   title,
   subtitle,
+  seasonLine,
   backLabel,
   backTo,
   onBack,
@@ -132,6 +137,14 @@ export function FieldPageHero({
                   chrome ? 'border-brand-lime text-white/75' : 'border-[var(--skin-accent)] italic text-[var(--skin-text-muted)]',
                 )}>
                   {subtitle}
+                </p>
+              )}
+              {seasonLine && (
+                <p className={cn(
+                  'mt-2 font-mono text-[9px] font-black uppercase tracking-[0.22em]',
+                  chrome ? 'text-brand-lime' : 'text-[var(--skin-primary)]',
+                )}>
+                  {seasonLine}
                 </p>
               )}
             </div>
@@ -238,6 +251,11 @@ export function FieldPageHero({
                   </p>
                   <div className="absolute -bottom-1 left-0 w-full h-2 bg-brand-cyan/20 -rotate-1 z-0" />
                 </div>
+              )}
+              {seasonLine && (
+                <p className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-brand-orange">
+                  {seasonLine}
+                </p>
               )}
             </div>
           </div>

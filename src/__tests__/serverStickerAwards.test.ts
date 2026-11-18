@@ -7,6 +7,7 @@ import {
   SERVER_DISCOVERY_ALLOWLIST,
   STARTER_GATED_DISCOVERY_KEYS,
   awardDiscoveryStickerServer,
+  createAdminStickerAwardStore,
   createStickerAwardHandler,
   evaluateDiscoveryGroups,
   getDiscoveryStickerAwardId,
@@ -460,4 +461,69 @@ test('the client no longer writes legacy sticker fields directly', () => {
   assert.ok(appContext.includes("authenticatedFetch('/api/stickers/award'"), 'AppContext must call the endpoint');
   const votingHub = fs.readFileSync('src/pages/VotingHubPage.tsx', 'utf8');
   assert.ok(!votingHub.includes('tribunal_view'), 'dead tribunal_view call is removed');
+});
+
+// ---------------------------------------------------------------------------
+// Admin store: a sticker award also writes a notification doc
+// ---------------------------------------------------------------------------
+
+/** Minimal fake Firestore: just enough for createAdminStickerAwardStore.writeAward. */
+function fakeFirestore() {
+  const sets: Array<{ path: string; data: Record<string, unknown> }> = [];
+  const updates: Array<{ path: string; data: Record<string, unknown> }> = [];
+  class FakeRef {
+    constructor(public path: string) {}
+    collection(name: string) {
+      return { doc: (id?: string) => new FakeRef(`${this.path}/${name}/${id ?? 'auto-id'}`) };
+    }
+  }
+  const db = {
+    collection(name: string) {
+      return { doc: (id?: string) => new FakeRef(`${name}/${id ?? 'auto-id'}`) };
+    },
+    async runTransaction(fn: (tx: unknown) => Promise<unknown>) {
+      const tx = {
+        async get(ref: FakeRef) {
+          if (ref.path === `users/${UID}`) return { exists: true, data: () => baseUser() };
+          return { exists: false, data: () => undefined };
+        },
+        update(ref: FakeRef, data: Record<string, unknown>) { updates.push({ path: ref.path, data }); },
+        set(ref: FakeRef, data: Record<string, unknown>) { sets.push({ path: ref.path, data }); },
+      };
+      return fn(tx);
+    },
+  };
+  return { db: db as never, sets, updates };
+}
+
+test('the admin award store writes a sticker_awarded notification in the same transaction', async () => {
+  const sticker = resolveDiscoverySticker('camera_ready');
+  assert.ok(sticker, 'camera_ready must resolve to a discovery sticker');
+  const { db, sets } = fakeFirestore();
+  const store = createAdminStickerAwardStore(db);
+  const result = await store.writeAward({
+    uid: UID,
+    sticker,
+    discoveryKey: 'camera_ready',
+    sourcePage: '/missions',
+    completedGroups: [],
+    verifiedBy: 'server-state',
+  });
+  assert.deepEqual(result, { applied: true });
+  const awardId = getDiscoveryStickerAwardId(UID, sticker.id);
+  assert.equal(awardId, `${UID}:${sticker.id}`);
+  const ledger = sets.find((s) => s.path === `stickerAwards/${awardId}`);
+  assert.ok(ledger, 'ledger row must be written');
+  // Nov 17, 2026: the notification doc lands in the same transaction, after
+  // the ledger write, so the award survives the toast.
+  const note = sets.find((s) => s.path.startsWith(`users/${UID}/notifications/`));
+  assert.ok(note, 'a notification doc must be written under users/{uid}/notifications');
+  assert.ok(sets.indexOf(note) > sets.indexOf(ledger), 'notification is written after the ledger row');
+  assert.equal(note.data.type, 'sticker_awarded');
+  assert.equal(note.data.stickerId, sticker.id);
+  assert.equal(note.data.stickerName, sticker.name);
+  assert.equal(note.data.stickerRarity, sticker.rarity ?? null);
+  assert.equal(note.data.discoveryKey, 'camera_ready');
+  assert.equal(note.data.read, false);
+  assert.ok('createdAt' in note.data, 'notification carries a createdAt server timestamp');
 });

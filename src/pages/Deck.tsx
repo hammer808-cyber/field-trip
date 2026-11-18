@@ -778,8 +778,6 @@ export default function DeckPage() {
     return (t.tags || []).some(tag => fieldTypeData.recommendedChallengeTags.includes(tag));
   }).slice(0, 3) : [];
 
-  const missionProgress = recommendedTrip ? (profile?.tripProgress?.[recommendedTrip.id] || {}) as any : {};
-
   // Scroll to top on load
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -878,6 +876,7 @@ export default function DeckPage() {
                >
                   <MissionDecodedCard 
                     mission={drawnTrip || launchMission} 
+                    progress={profile?.tripProgress?.[(drawnTrip || launchMission)?.id]}
                     showActions={false}
                     className="shadow-[20px_20px_0px_black] rounded-[2rem] border-[4px] border-on-surface"
                   />
@@ -1329,7 +1328,11 @@ export default function DeckPage() {
         isOpen={isDetailsOpen}
         onClose={() => setIsDetailsOpen(false)}
         mission={drawnTrip || activeTrip}
-        progress={drawnTrip ? {} : missionProgress}
+        // Nov 17, 2026: the modal used to blank progress for a drawn trip
+        // ({}), so it always said START even when the trip already had a
+        // photo/note — while the poster beside it said RESUME. Feed the
+        // same record the poster gets.
+        progress={profile?.tripProgress?.[(drawnTrip || activeTrip)?.id]}
         isSubmitted={drawnTrip || activeTrip ? getChallengeStatus(canonicalProgress, (drawnTrip || activeTrip).id, activeTrip?.id || null) === 'pending_review' : false}
         isApproved={drawnTrip || activeTrip ? getChallengeStatus(canonicalProgress, (drawnTrip || activeTrip).id, activeTrip?.id || null) === 'approved' : false}
         onStart={() => {

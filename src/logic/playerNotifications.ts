@@ -30,7 +30,7 @@
 export type ProofReviewDecision = 'approve' | 'request_info' | 'reject';
 
 /** A proof-review decision notification, as read back on the client. */
-export interface PlayerNotification {
+export interface ProofReviewNotification {
   id: string;
   type: 'proof_review_decision';
   decision: ProofReviewDecision;
@@ -47,6 +47,27 @@ export interface PlayerNotification {
    * timestamp to millis; the server stores a server timestamp). */
   createdAt: number;
 }
+
+/**
+ * A sticker-award notification (Nov 17, 2026). Written server-side by
+ * POST /api/stickers/award in the same transaction as the award, so a
+ * sticker's signal is no longer only a toast that vanishes. Same
+ * collection (users/{uid}/notifications), same read flag, same client read.
+ */
+export interface StickerAwardedNotification {
+  id: string;
+  type: 'sticker_awarded';
+  stickerId: string;
+  stickerName: string;
+  stickerRarity: string | null;
+  discoveryKey: string;
+  read: boolean;
+  /** Milliseconds since epoch. */
+  createdAt: number;
+}
+
+/** Any player notification, as read back on the client. */
+export type PlayerNotification = ProofReviewNotification | StickerAwardedNotification;
 
 /**
  * The Updates-panel copy for one decision notification. The title matches
@@ -80,4 +101,22 @@ export function proofReviewDecisionCopy(notification: {
         detail: note ? `${title} · ${note}` : `${title} · The reviewer asked for more proof.`,
       };
   }
+}
+
+/**
+ * The Notifications-section copy for one sticker award. The title matches
+ * the toast the award already fires ("Sticker discovered!") in spirit but
+ * reads as a record, not a shout; the detail carries the sticker name and
+ * rarity so the row is useful after the toast is gone.
+ */
+export function stickerAwardedCopy(notification: {
+  stickerName: string;
+  stickerRarity: string | null;
+}): { title: string; detail: string } {
+  const name = String(notification.stickerName || 'Sticker').trim() || 'Sticker';
+  const rarity = String(notification.stickerRarity || '').trim();
+  return {
+    title: 'Sticker unlocked',
+    detail: rarity ? `${name} · ${rarity}` : name,
+  };
 }

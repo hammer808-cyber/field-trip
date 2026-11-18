@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { proofReviewDecisionCopy } from '../logic/playerNotifications';
+import { proofReviewDecisionCopy, stickerAwardedCopy } from '../logic/playerNotifications';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (rel: string) => readFileSync(join(repoRoot, rel), 'utf8');
@@ -53,6 +53,47 @@ test('Q11: missing admin notes fall back to plain copy, never an empty detail', 
     proofReviewDecisionCopy({ decision: 'request_info', missionTitle: 'X', awardedXp: 0, adminNote: '   ' }),
     { title: 'Proof needs another look', detail: 'X · The reviewer asked for more proof.' },
   );
+});
+
+test('sticker awards: the copy names the sticker and its rarity', () => {
+  // Nov 17, 2026: sticker awards write notification docs too, so the
+  // Notifications section can list them after the toast is gone.
+  assert.deepEqual(
+    stickerAwardedCopy({ stickerName: 'Fresh Meat', stickerRarity: 'common' }),
+    { title: 'Sticker unlocked', detail: 'Fresh Meat · common' },
+  );
+  assert.deepEqual(
+    stickerAwardedCopy({ stickerName: 'Victory Flag', stickerRarity: null }),
+    { title: 'Sticker unlocked', detail: 'Victory Flag' },
+  );
+});
+
+test('sticker awards: the server writes the notification in the award transaction', () => {
+  // Same-transaction write as the Q11 decision notification, but in the
+  // sticker award store — the award and its notification land together.
+  const store = read('src/server/stickerAwards.ts');
+  assert.match(store, /\.collection\('notifications'\)\.doc\(\)/);
+  for (const field of [
+    "type: 'sticker_awarded'",
+    'stickerId: sticker.id',
+    'stickerName: sticker.name',
+    'stickerRarity: sticker.rarity',
+    'discoveryKey',
+    'read: false',
+    'createdAt: FieldValue.serverTimestamp()',
+  ]) {
+    assert.ok(store.includes(field), `sticker notification must carry ${field}`);
+  }
+  const writeAt = store.indexOf(".collection('notifications')");
+  const ledgerAt = store.indexOf('tx.set(ledgerRef');
+  assert.ok(writeAt > ledgerAt, 'notification is written in the award transaction, with the ledger row');
+});
+
+test('sticker awards: the client read maps the sticker shape, not a decision', () => {
+  const service = read('src/services/playerNotificationService.ts');
+  assert.match(service, /data\.type === 'sticker_awarded'/);
+  assert.match(service, /stickerId: String\(data\.stickerId/);
+  assert.match(service, /stickerName: String\(data\.stickerName/);
 });
 
 test('Q11: the server writes the notification in the decision transaction', () => {

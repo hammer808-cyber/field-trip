@@ -5,6 +5,7 @@ import { BasecampAttentionPanel } from '../components/basecamp/BasecampAttention
 import { BasecampBoard } from '../components/basecamp/BasecampBoard';
 import { BasecampCrewSummary } from '../components/basecamp/BasecampCrewSummary';
 import { BasecampNextActionPanel } from '../components/basecamp/BasecampNextActionPanel';
+import { BasecampNotifications } from '../components/basecamp/BasecampNotifications';
 import { BasecampProgressPanel } from '../components/basecamp/BasecampProgressPanel';
 import { BasecampQuickLinks } from '../components/basecamp/BasecampQuickLinks';
 import { BasecampRecentActivity } from '../components/basecamp/BasecampRecentActivity';
@@ -15,6 +16,7 @@ import { FIELD_TYPES } from '../constants';
 import { getDeckPackById } from '../data/deckPacks';
 import {
   buildBasecampViewModel,
+  type BasecampNotificationItem,
   type BasecampPrimaryAction,
 } from '../logic/basecampViewModel';
 import { acknowledgeStarterUnlockSeen } from '../services/starterUnlockAck';
@@ -91,8 +93,15 @@ export default function Basecamp() {
   // The deck info lives here now (Nov 17, 2026): Missions is bare — deck,
   // draw, card — so Basecamp carries the active deck and the season
   // countdown, linking out to the shelf in DEX.
+  // The season countdown lives in the header now (Nov 17, 2026): the same
+  // fact shown once — it used to sit in the Active Deck row below.
   const seasonCountdown = activeSeason
     ? getSeasonCountdown(activeSeason, currentDate)
+    : null;
+  const headerSeasonLine = seasonCountdown
+    ? seasonCountdown.status === 'active'
+      ? `${seasonCountdown.label} · Week ${currentWeekNumber}`
+      : seasonCountdown.label
     : null;
 
   React.useEffect(() => {
@@ -139,6 +148,17 @@ export default function Basecamp() {
     canonicalProgress.starter.starterApprovedCount,
   ]);
 
+  // Notification rows open their destination (Nov 17, 2026): sticker awards
+  // go to the Dex stickers tab; decisions scroll to the Updates panel,
+  // which carries the same decision with its XP and admin note.
+  const openNotification = React.useCallback((item: BasecampNotificationItem) => {
+    if (item.href.startsWith('#')) {
+      document.getElementById(item.href.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    navigate(item.href);
+  }, [navigate]);
+
   return (
     <div className="skin-page skin-basecamp page-scroll min-h-screen bg-[var(--skin-background)] pb-32 text-[var(--skin-text)] [background-image:var(--skin-background-texture)]">
       <FieldPageHero
@@ -146,6 +166,7 @@ export default function Basecamp() {
         eyebrow="FIELD_START"
         title="BASECAMP"
         subtitle="What matters today."
+        seasonLine={headerSeasonLine ?? undefined}
         backgroundIcon={<Compass className="h-64 w-64" />}
         infoCardLabel="TOTAL_XP"
         infoCardValue={viewModel.progress.xp.toLocaleString()}
@@ -178,8 +199,9 @@ export default function Basecamp() {
                 : undefined}
             />
             {/* Active deck row (Nov 17, 2026): the deck info moved here from
-                Missions. One slim line — deck, progress, season countdown —
-                tapping it opens the shelf in DEX. */}
+                Missions. One slim line — deck, progress — tapping it opens
+                the shelf in DEX. The season countdown lives in the header
+                now, not here: the same fact once, not stacked. */}
             <button
               type="button"
               onClick={() => navigate('/dex')}
@@ -192,12 +214,6 @@ export default function Basecamp() {
                 {viewModel.progress.activeDeckApprovedCount}/{viewModel.progress.activeDeckTotalCount} approved
                 {viewModel.progress.activeDeckPendingCount > 0 && ` · ${viewModel.progress.activeDeckPendingCount} pending`}
               </span>
-              {seasonCountdown && (
-                <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-[var(--skin-primary)]">
-                  {seasonCountdown.label}
-                  {seasonCountdown.status === 'active' && ` · Week ${currentWeekNumber}`}
-                </span>
-              )}
               <span className="ml-auto font-mono text-[9px] font-black uppercase tracking-widest text-[var(--skin-text)]">Deck shelf →</span>
             </button>
             <BasecampAttentionPanel
@@ -208,6 +224,11 @@ export default function Basecamp() {
             />
             <div className={viewModel.nextAction.urgency === 'critical' || viewModel.nextAction.urgency === 'high' ? 'basecamp-secondary-quiet' : ''}>
               <BasecampRecentActivity items={viewModel.recentActivity} />
+            </div>
+            {/* Notifications (Nov 17, 2026): the full list, newest-first —
+                the place to see a notice after its toast is gone. */}
+            <div className={viewModel.nextAction.urgency === 'critical' || viewModel.nextAction.urgency === 'high' ? 'basecamp-secondary-quiet' : ''}>
+              <BasecampNotifications items={viewModel.notifications} onOpen={openNotification} />
             </div>
           </>
         )}

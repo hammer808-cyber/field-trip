@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { canAccessFeature, LOTERIA_ENABLED, VOTING_ENABLED, ZINES_ENABLED } from '../services/canonicalProgress';
+import { canAccessFeature, LOTERIA_ENABLED, VOTING_ENABLED, ZINES_ENABLED, type FeatureKey } from '../services/canonicalProgress';
 import { GatedFeaturePanel, type GatedFeatureName } from './GatedFeaturePanel';
 
 interface StarterGateProps {
@@ -19,7 +19,11 @@ const FEATURE_LABEL: Record<StarterGateProps['requiredFeature'], GatedFeatureNam
 
 export function StarterGate({ requiredFeature, children }: StarterGateProps) {
   const { isAdmin, canonicalProgress } = useApp();
-  const featureKey = requiredFeature === 'leaderboard' ? 'voting' : requiredFeature;
+  // The leaderboard has its own key (Nov 17, 2026): it used to borrow
+  // Voting's key, so parking Voting locked the Big Board for every
+  // non-admin even at 3/3 starters. canAccessFeature returns true for
+  // 'leaderboard' once the starter check passes — no kill switch.
+  const featureKey: FeatureKey = requiredFeature;
   const isFeatureUnlocked = canAccessFeature(canonicalProgress, featureKey, { isAdmin });
 
   if (isFeatureUnlocked || isAdmin) {

@@ -8,6 +8,7 @@ import { ALL_CHALLENGE_CARDS } from '../data/allChallengeBanks';
 import { HOLIDAY_CHALLENGE_BANK } from '../data/holidayChallengeBank';
 import { getDeckPackById } from '../data/deckPacks';
 import { getDeckAccess } from '../logic/deckAccess';
+import { validateChallengeBrandFit } from '../services/brandService';
 import {
   HOLIDAY_SEASON,
   HOLIDAY_SEASON_END_DATE,
@@ -104,6 +105,22 @@ test('holiday season constant spans 11 weeks, Nov 1 2026 – Jan 11 2027', () =>
   assert.equal(HOLIDAY_SEASON.weeks.length, 11);
   assert.equal(HOLIDAY_SEASON.weeks[0].fieldChallengeId, 'hg26_w1_field');
   assert.equal(HOLIDAY_SEASON.weeks[10].fieldChallengeId, 'hg26_w11_field');
+});
+
+test('all 15 holiday cards pass the brand check, so the deploy writes them approved', () => {
+  // Nov 17: the deploy wrote all 15 to Firestore as 'draft' because the
+  // brand check needs theAsk + levels.Advanced/Certified + proofNeeded +
+  // a brand-vibe keyword, and the bank had none of the three fields.
+  // A draft is undrawable, so the deck read "Deck Exhausted" at 0/15.
+  for (const card of HOLIDAY_CHALLENGE_BANK) {
+    assert.ok(card.theAsk && String(card.theAsk).trim().length > 0, `${card.id}: missing theAsk`);
+    assert.ok(card.proofNeeded && String(card.proofNeeded).trim().length > 0, `${card.id}: missing proofNeeded`);
+    assert.ok(card.levels?.Advanced?.description, `${card.id}: missing Advanced layer`);
+    assert.ok(card.levels?.Certified?.description, `${card.id}: missing Certified layer`);
+    assert.ok(card.levels?.Standard?.description, `${card.id}: missing Standard layer`);
+    const check = validateChallengeBrandFit(card);
+    assert.equal(check.status, 'approved', `${card.id}: brand check ${check.status} (${check.reason || 'no reason'})`);
+  }
 });
 
 test('holiday deck cover art exists on disk', () => {

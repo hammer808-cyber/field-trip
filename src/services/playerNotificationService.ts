@@ -14,6 +14,10 @@ import type { PlayerNotification, ProofReviewDecision } from '../logic/playerNot
  * users/{uid}/notifications when a review decision is made; this is the
  * client read that feeds the Basecamp "Updates" panel.
  *
+ * Sticker awards (Nov 17, 2026) write docs of type 'sticker_awarded' into
+ * the same collection, from POST /api/stickers/award; this read maps both
+ * shapes and feeds the Basecamp "Notifications" section too.
+ *
  * A plain single-field orderBy on the owner's subcollection — no composite
  * index needed. The rules allow the owner (or an admin) to read; clients
  * never write here (the server writes via the Admin SDK, which bypasses
@@ -52,6 +56,20 @@ export function subscribeToPlayerNotifications(
       callback(
         snapshot.docs.map((docSnap) => {
           const data = docSnap.data() || {};
+          // Sticker awards (Nov 17, 2026) share the collection with a
+          // different type — map them to their own shape, not a decision.
+          if (data.type === 'sticker_awarded') {
+            return {
+              id: docSnap.id,
+              type: 'sticker_awarded',
+              stickerId: String(data.stickerId || ''),
+              stickerName: String(data.stickerName || 'Sticker'),
+              stickerRarity: data.stickerRarity ? String(data.stickerRarity) : null,
+              discoveryKey: String(data.discoveryKey || ''),
+              read: data.read === true,
+              createdAt: toMillis(data.createdAt),
+            } as PlayerNotification;
+          }
           const decision = (['approve', 'request_info', 'reject'] as ProofReviewDecision[]).includes(
             data.decision,
           )
