@@ -170,7 +170,10 @@ test('an active mission is surfaced with a direct continuation action', () => {
   }));
   assert.equal(model.nextAction.mission?.id, 'heat-1');
   assert.equal(model.nextAction.mission?.status, 'active');
-  assert.match(model.nextAction.action.label, /Resume|Continue/i);
+  // Nov 17, 2026: no tripProgress was supplied, so the label is
+  // 'Do this mission' (unknown reads as no-progress). The action is still
+  // a direct continuation to capture.
+  assert.equal(model.nextAction.action.label, 'Do this mission');
   assert.match(model.nextAction.action.href, /capture\?id=heat-1/);
 });
 

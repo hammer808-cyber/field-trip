@@ -27,14 +27,14 @@ test('capture flow audit: the poster shows the mission and both of its buttons w
   assert.doesNotMatch(clipboard, /<div className="flex-1 px-4 py-2 flex items-center justify-center gap-2 text-\[#FF5A00\]/);
 });
 
-test('capture flow audit: the points meter lives only on the reviewing screen', () => {
+test('capture flow audit: no top points meter on the reviewing screen — the bottom EvidenceMeter is the only meter', () => {
+  // Nov 17, 2026 (Zach's call): the submit/reviewing page had two meters —
+  // PointsMeter at the top and EvidenceMeter at the bottom. The top one
+  // goes; the bottom one (in FieldClipboard) stays.
   const capture = read('src/pages/Capture.tsx');
-  // Nov 16, 2026: the meter sat above the mission poster on the brief
-  // screen, showing points for layers the player had not earned yet.
-  // It belongs where the note is written, right before submitting — and
-  // it updates live there, since liveScore depends on the note.
-  assert.match(capture, /currentTrip && fcState === 'reviewing' && \(\s*<div className="mb-6">\s*<PointsMeter score=\{liveScore\} \/>/);
-  assert.doesNotMatch(capture, /\['brief', 'capture', 'developing_polaroid', 'reviewing'\]\.includes\(fcState\)/);
+  assert.doesNotMatch(capture, /PointsMeter/);
+  const clipboard = read('src/components/FieldClipboard.tsx');
+  assert.match(clipboard, /<EvidenceMeter/);
 });
 
 test('capture flow audit: dead states are gone from the state machine', () => {

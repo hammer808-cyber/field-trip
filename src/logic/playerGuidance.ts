@@ -126,8 +126,11 @@ export interface ResolvePlayerGuidanceInput {
   trips: readonly TripCard[];
   // The profile's tripProgress map (evidence captured per mission). The
   // RESUME label depends on it: a mission with no progress must never say
-  // RESUME. Optional for callers that cannot see the profile — when it is
-  // absent the label falls back to the historical 'Resume mission'.
+  // RESUME. Both live callers pass the profile's own map, so an absent map
+  // means no evidence was ever captured — unknown reads as no-progress,
+  // never RESUME. (Nov 17, 2026: Zach's profile had no tripProgress field
+  // at all, so the old unknown→RESUME fallback showed RESUME MISSION for
+  // his untouched Park Oasis.)
   tripProgress?: Record<string, Record<string, unknown> | undefined> | null;
   legalComplete?: boolean;
   fieldClassificationComplete?: boolean;
@@ -160,8 +163,9 @@ const PLAYER_PROOF_STATUS_SET = new Set<string>(PLAYER_PROOF_STATUSES);
  * entry for it (photo, field note, location, ...). Drawing a card sets
  * activeTrip but writes no tripProgress, so a freshly drawn mission has
  * none — and must never be labelled RESUME. Returns undefined when no
- * tripProgress map was supplied (unknown), so callers fall back to the
- * historical label instead of guessing.
+ * tripProgress map was supplied (unknown); the resolver treats unknown as
+ * no-progress, because both live callers pass the profile's own map and an
+ * absent map means no evidence was ever captured.
  */
 export function missionHasProgress(
   tripProgress: Record<string, Record<string, unknown> | undefined> | null | undefined,
@@ -702,11 +706,15 @@ export function resolvePlayerGuidance(input: ResolvePlayerGuidanceInput): Player
     // The label follows the poster's rule: RESUME only when the mission
     // actually has progress (photo / note / location captured). A freshly
     // drawn mission has none, so it says "Do this mission" — never RESUME.
+    // Unknown counts as none: both callers pass the profile's own
+    // tripProgress map, so an absent map means no evidence was ever
+    // captured. (Nov 17, 2026: the old hasProgress === false check let the
+    // undefined case fall back to the hardcoded 'Resume mission'.)
     const hasProgress = missionHasProgress(input.tripProgress, mission.id);
     presented = present('RESUME_ACTIVE_MISSION', {
       mission,
       deckId: mission.deckId || undefined,
-      actionLabel: hasProgress === false ? 'Do this mission' : undefined,
+      actionLabel: hasProgress === true ? undefined : 'Do this mission',
     });
   } else if (!starter.starterComplete && starter.submittedUniqueCount === 0) {
     presented = present('DRAW_STARTER_MISSION', { mission, deckId: 'starter-signals' });

@@ -269,7 +269,11 @@ test('7. Starter complete with no active mission celebrates unlock', () => {
   assert.match(snapshot.primaryActionDestination, /heatwave-receipts/);
 });
 
-test('8. Normal active drawn mission is resume, not cleared', () => {
+test('8. Active drawn mission with no tripProgress map says Do this mission, never Resume', () => {
+  // Nov 17, 2026: Zach's profile had no tripProgress field at all, so
+  // missionHasProgress returned undefined and the old fallback showed
+  // RESUME MISSION for his untouched Park Oasis. Unknown now reads as
+  // no-progress: RESUME only when the mission actually has progress.
   const active = trip({ status: 'in-progress' });
   const snapshot = resolvePlayerGuidance(input({
     entries: starterApprovals(),
@@ -278,7 +282,8 @@ test('8. Normal active drawn mission is resume, not cleared', () => {
     isHeatwaveDeckUnlocked: true,
   }));
   assert.equal(snapshot.state, 'RESUME_ACTIVE_MISSION');
-  assert.equal(snapshot.primaryActionLabel, 'Resume mission');
+  assert.equal(snapshot.primaryActionLabel, 'Do this mission');
+  assert.doesNotMatch(snapshot.primaryActionLabel, /Resume/i);
   assert.notEqual(snapshot.title.toLowerCase().includes('cleared'), true);
 });
 
@@ -406,7 +411,10 @@ test('13. definition status approved + drawn mission + no entry is resume, not c
     isHeatwaveDeckUnlocked: true,
   }));
   assert.equal(snapshot.state, 'RESUME_ACTIVE_MISSION');
-  assert.match(snapshot.primaryActionLabel, /Resume|Continue|Beverage/i);
+  // Nov 17, 2026: no tripProgress was supplied, so the label is
+  // 'Do this mission' (unknown reads as no-progress). The state is still
+  // RESUME_ACTIVE_MISSION and the mission is not cleared.
+  assert.equal(snapshot.primaryActionLabel, 'Do this mission');
   assert.doesNotMatch(snapshot.title, /cleared/i);
   assert.doesNotMatch(snapshot.primaryActionLabel, /cleared/i);
   assert.doesNotMatch(snapshot.mission?.statusLabel || '', /approved|cleared/i);

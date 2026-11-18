@@ -150,7 +150,7 @@ test('save-for-later notice points at Do This Mission on Missions, not the deck 
   assert.doesNotMatch(deckShelfSource, /saved_for_later/);
 });
 
-test('saved_for_later guidance recovers via Missions Resume, not Dex/deck shelf', () => {
+test('saved_for_later guidance recovers via Missions, not Dex/deck shelf', () => {
   const missionTrip: TripCard = {
     id: 'starter-1',
     title: 'The Initial Signal',
@@ -243,7 +243,10 @@ test('saved_for_later guidance recovers via Missions Resume, not Dex/deck shelf'
   const guidance = resolvePlayerGuidance(input);
   assert.equal(guidance.state, 'RESUME_ACTIVE_MISSION');
   assert.equal(guidance.navigationTarget, 'missions');
-  assert.match(guidance.primaryActionLabel, /^Resume /);
+  // Nov 17, 2026: no tripProgress was supplied, so the label is
+  // 'Do this mission' (unknown reads as no-progress). The recovery still
+  // routes through Missions, not Dex.
+  assert.equal(guidance.primaryActionLabel, 'Do this mission');
   assert.match(guidance.primaryActionDestination, /mission-briefing\?id=starter-1/);
   assert.notEqual(guidance.navigationTarget, 'dex');
 });

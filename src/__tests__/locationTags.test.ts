@@ -111,10 +111,12 @@ test('Texas deck: all 15 cards carry the TX state tag', () => {
 
 test('Capture: the location LAYER is tag-aware, the submit gate is not', () => {
   const src = readFileSync(join(root, 'src/pages/Capture.tsx'), 'utf8');
-  // All three scoring uses (live meter, submit scoring, entry payload)
-  // feed the tag-aware value into locationVerified.
+  // Both remaining scoring uses (submit scoring, entry payload) feed the
+  // tag-aware value into locationVerified. (Nov 17, 2026: the live meter
+  // was the third use; Zach had it removed from the reviewing screen, so
+  // its liveScore computation went with it.)
   const layerUses = src.match(/locationVerified: isLocationLayerEarned,/g) ?? [];
-  assert.equal(layerUses.length, 3, `expected 3 tag-aware scoring uses, got ${layerUses.length}`);
+  assert.equal(layerUses.length, 2, `expected 2 tag-aware scoring uses, got ${layerUses.length}`);
   assert.ok(
     !/locationVerified: isLocationFulfilled/.test(src),
     'no scoring use may still pass the un-tagged isLocationFulfilled',

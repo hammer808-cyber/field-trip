@@ -40,7 +40,6 @@ import { resolveMissionById } from '../logic/missionResolver';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 import { buildScoreBreakdownEvents, calculateMissionScore, MIN_VOICE_NOTE_SECONDS, resolveParticipationSignals, toScoringSnapshot } from '../logic/missionScoring';
 import { getLocationTagLabel, matchesLocationTag, pickCoords } from '../logic/locationTags';
-import { PointsMeter } from '../components/PointsMeter';
 import { uploadBase64Audio } from '../services/storageService';
 import { revokeTemporaryPreviewUrls } from '../logic/polaroidDevelopment';
 
@@ -778,26 +777,6 @@ export default function CapturePage() {
     .filter(r => r.key !== 'field_note' && r.key !== 'audio')
     .every(r => r.fulfilled);
 
-  // The live meter: the same scorer as the pending estimate and the final
-  // approval, recomputed from the live signals as each step completes.
-  const liveScore = React.useMemo(() => {
-    const base = missionAttempt?.maxScoreBeforeHint ?? currentTrip?.baseXP ?? currentTrip?.basePoints ?? 100;
-    return calculateMissionScore({
-      baseMaxScore: base,
-      reviewerBaseScore: base,
-      hintUsed: missionAttempt?.hintUsed === true,
-      hintPenaltyPercent: missionAttempt?.hintPenaltyPercent,
-      retryMultiplier: isRetry ? 0.5 : 1,
-      participation: resolveParticipationSignals({
-        aiAnalysisResult,
-        fieldNoteRaw: fcData.note,
-        voiceNotePresent: voiceNoteReady,
-        locationVerified: isLocationLayerEarned,
-      }),
-      eligibleBonuses: [],
-    });
-  }, [missionAttempt, currentTrip, aiAnalysisResult, fcData.note, voiceNoteReady, isLocationFulfilled, isLocationLayerEarned, captureData, isRetry]);
-
   // Frankie Mode: a field note never locks a level or a submit — the photo is the proof.
   const isFieldNoteEntered = fcData.note.trim().length >= 10 || isPlain;
   const supportsBonusProof = !!currentTrip?.distanceBonus?.eligible;
@@ -1360,17 +1339,6 @@ export default function CapturePage() {
                 <p className="text-xs font-serif italic text-on-surface leading-relaxed">
                   "{repairFeedback}"
                 </p>
-              </div>
-            )}
-
-            {/* The meter lives only on the reviewing screen — where the
-                note is written right before submitting — not on the
-                brief, camera, or developing screens. (Nov 16, 2026: it
-                sat above the mission poster on the brief screen, showing
-                points for layers the player had not earned yet.) */}
-            {currentTrip && fcState === 'reviewing' && (
-              <div className="mb-6">
-                <PointsMeter score={liveScore} />
               </div>
             )}
 
