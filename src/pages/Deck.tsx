@@ -21,13 +21,12 @@ import { EntryCard } from '../components/EntryCard';
 import { DeckLibrary } from '../components/DeckLibrary';
 import { FrankieModeCard } from '../components/FrankieModeCard';
 import { DeckStack } from '../components/DeckStack';
-import { getDeckCatalogSections, getDefaultDeckPack, getDeckPackById, normalizeDeckPackId } from '../data/deckPacks';
+import { getDefaultDeckPack, getDeckPackById, normalizeDeckPackId } from '../data/deckPacks';
 import { getDeckCoverImage, BASE_DECK_PLACEHOLDER } from '../lib/deckUtils';
 import { getWeeklyBonusForWeek } from '../data/weeklyBonuses';
 import { StickerBackground } from '../components/StickerBackground';
 import { StickerDecal, StickerCorner, StickerScatter } from '../components/StickerDecals';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
-import { getEntryEarnedXp, getProofImageUrl, getProofLogbookCounts, toMillis } from '../logic/proofDistribution';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { StarterCompletionState } from '../utils/starterHelper';
 import { MARKER_STICKERS } from '../data/markers';
@@ -140,9 +139,7 @@ function DiamondDecor() {
 
 import { FieldPageHero } from '../components/FieldPageHero';
 import { ActiveDeckPanel } from '../components/missions/ActiveDeckPanel';
-import { DeckShelfPanel, type DeckShelfSection } from '../components/missions/DeckShelfPanel';
 import { MissionActionPanel } from '../components/missions/MissionActionPanel';
-import { MissionLogbookPanel, type MissionLogbookItem } from '../components/missions/MissionLogbookPanel';
 import { MissionsGuidanceStrip, getMissionsStripRole } from '../components/missions/MissionsGuidanceStrip';
 import { SAVE_FOR_LATER_RECOVERY_NOTICE } from '../components/bottomNavPresentation';
 import { usePlayerGuidance } from '../hooks/usePlayerGuidance';
@@ -264,8 +261,6 @@ export default function DeckPage() {
   const [drawnTrip, setDrawnTrip] = useState<any>(null);
   const [recentActivity, setRecentActivity] = useState<ScoreEvent[]>([]);
 
-  const [isDeckShelfExpanded, setIsDeckShelfExpanded] = useState(false);
-  const [isFieldLogExpanded, setIsFieldLogExpanded] = useState(false);
   // Face-up browse: the grid of this deck's cards lives behind a button
   // next to the deck (an accommodation for players who want to see all
   // options at once and pick, instead of only drawing blind).
@@ -278,39 +273,8 @@ export default function DeckPage() {
   }, [showBrowse]);
 
   const activeLogEntries = React.useMemo(() => entries.filter(entry => !isArchivedEntry(entry)), [entries]);
-  const logbookCounts = React.useMemo(() => getProofLogbookCounts(entries), [entries]);
 
-  const pendingSubmissions = activeLogEntries.filter(e => 
-    normalizeEntryStatus(e.status) === 'pending_review'
-  );
 
-  const needsMoreProofSubmissions = activeLogEntries.filter(e => 
-    normalizeEntryStatus(e.status) === 'needs_more_proof'
-  );
-
-  const rejectedMissions = activeLogEntries.filter(e => 
-    normalizeEntryStatus(e.status) === 'rejected'
-  );
-
-  const recentlyApprovedMissions = activeLogEntries.filter(e => 
-    normalizeEntryStatus(e.status) === 'approved'
-  );
-
-  const urgentCount = needsMoreProofSubmissions.length + rejectedMissions.length;
-  const hasUrgentItems = urgentCount > 0;
-
-  // Auto-expand and keep open if urgent items exist
-  useEffect(() => {
-    if (hasUrgentItems) {
-      setIsFieldLogExpanded(true);
-    }
-  }, [hasUrgentItems]);
-
-  const getPackProgress = (pack: any) => {
-    if (!pack) return { completed: 0, total: 0, percent: 0 };
-    const progress = getDeckProgress(canonicalProgress, pack.packId);
-    return { completed: progress.approvedCount, total: progress.totalCards, percent: progress.percent };
-  };
 
   const getPackLockState = (pack: any) => {
     if (!pack) return { locked: false, reason: "" };
@@ -827,61 +791,7 @@ export default function DeckPage() {
     return fullName.startsWith(shortName) ? fullName : `${shortName}: ${fullName}`;
   })();
 
-  const handleSelectDeck = (packId: string) => {
-    const pack = visibleDeckPacks.find(candidate => candidate.packId === packId);
-    if (!pack || pack.packId === activePackId || getPackLockState(pack).locked) return;
-    setActivePackId(pack.packId);
-    setDrawnTrip(null);
-    setIsDrawn(false);
-    setAnimationStep('idle');
-    setHasRevealedInActiveSession(false);
-  };
 
-  const deckShelfSections: DeckShelfSection[] = getDeckCatalogSections(visibleDeckPacks).map(section => ({
-    id: section.id,
-    label: section.label,
-    items: section.packs.map(pack => {
-      const progress = getPackProgress(pack);
-      const lockState = getPackLockState(pack);
-      return {
-        pack,
-        ...progress,
-        locked: lockState.locked,
-        lockReason: lockState.reason,
-        selected: pack.packId === activePackId,
-      };
-    }),
-  }));
-
-  const logbookItems: MissionLogbookItem[] = activeLogEntries.slice(0, 8).map(entry => {
-    const status = normalizeEntryStatus(entry.status);
-    const earnedXp = getEntryEarnedXp(entry);
-    const filedAt = toMillis(entry.createdAt || entry.submittedAt);
-    const missionId = entry.tripId || entry.challengeId || entry.missionId;
-    const isRetryable = status === 'needs_more_proof' || status === 'rejected';
-
-    const statusLabel = status === 'approved'
-      ? earnedXp > 0 ? `Verified (+${earnedXp} XP)` : 'Verified'
-      : status === 'needs_more_proof'
-        ? 'Needs proof'
-        : status === 'rejected'
-          ? 'Rejected'
-          : 'Pending review';
-
-    return {
-      id: entry.id,
-      title: entry.tripTitle || entry.missionTitle || entry.deckName || 'Untitled mission',
-      status,
-      statusLabel,
-      filedLabel: filedAt > 0 ? `Filed ${new Date(filedAt).toLocaleDateString()}` : 'Filed recently',
-      fieldNote: entry.fieldNote || entry.note || 'No field notes provided.',
-      imageUrl: getProofImageUrl(entry) || undefined,
-      adminNote: entry.adminNotes || (entry as any).adminNote || undefined,
-      onRetry: isRetryable && missionId
-        ? () => navigate(`/capture?id=${missionId}&isRetry=true&originalEntryId=${entry.id}`)
-        : undefined,
-    };
-  });
 
   const displayedMission = drawnTrip || activeTrip;
   const displayedMissionStatus = displayedMission
@@ -1022,8 +932,7 @@ export default function DeckPage() {
           </div>
         )}
 
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(340px,0.75fr)] lg:gap-8">
-          <main className="min-w-0 space-y-6">
+        <main className="min-w-0 space-y-6">
             {savedForLaterNotice && (
               <div className="mb-4 border-2 border-[var(--skin-border)] bg-[var(--skin-secondary)] px-4 py-3 font-sans text-sm font-bold text-[var(--skin-text)]" role="status">
                 {savedForLaterNotice}
@@ -1406,29 +1315,6 @@ export default function DeckPage() {
             </MissionActionPanel>
           </main>
 
-          <aside className={cn('min-w-0 space-y-6 lg:sticky lg:top-6', demoteMissionBrowsing && 'opacity-55')}>
-            <DeckShelfPanel
-              open={isDeckShelfExpanded}
-              onOpenChange={setIsDeckShelfExpanded}
-              activeDeckLabel={activePack?.shortName || activeDeckShortName}
-              sections={deckShelfSections}
-              onSelect={handleSelectDeck}
-            />
-
-            <MissionLogbookPanel
-              open={isFieldLogExpanded}
-              onOpenChange={setIsFieldLogExpanded}
-              counts={logbookCounts}
-              items={logbookItems}
-              onOpenFullLogbook={() => navigate('/profile?tab=logbook')}
-            />
-            {deckDiagnosticsPanel && (
-              <div className="opacity-50">
-                {deckDiagnosticsPanel}
-              </div>
-            )}
-          </aside>
-        </div>
 
         {/* Face-up browse for the active deck: pick a card by looking at it,
             instead of only drawing blind. Locked cards can be previewed.

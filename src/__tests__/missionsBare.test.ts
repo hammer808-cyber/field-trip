@@ -62,3 +62,33 @@ test('missions bare: Basecamp carries the active deck row', () => {
   assert.match(basecamp, /Deck shelf/);
   assert.match(basecamp, /navigate\('\/dex'\)/);
 });
+
+test('missions bare: no deck shelf or logbook sections on the Missions page', () => {
+  const deck = read('src/pages/Deck.tsx');
+
+  // Nov 17, 2026: the collapsed Deck Shelf and Logbook sections left
+  // Missions too. The shelf lives in DEX and the full logbook in Profile.
+  assert.doesNotMatch(deck, /DeckShelfPanel/);
+  assert.doesNotMatch(deck, /MissionLogbookPanel/);
+  assert.doesNotMatch(deck, /<aside/);
+  assert.doesNotMatch(deck, /deckShelfSections/);
+  assert.doesNotMatch(deck, /handleSelectDeck/);
+  assert.doesNotMatch(deck, /logbookItems/);
+  assert.doesNotMatch(deck, /logbookCounts/);
+  assert.doesNotMatch(deck, /lg:grid-cols-/);
+
+  // The page is a single column now: the mission panel is the page.
+  assert.match(deck, /<MissionActionPanel/);
+  assert.match(deck, /<MissionDecodedCard/);
+});
+
+test('missions bare: the shelf and logbook homes still exist', () => {
+  const profile = read('src/pages/Profile.tsx');
+  const collection = read('src/pages/Collection.tsx');
+
+  // Full logbook tab in Profile, deck shelf in DEX — Missions reaches the
+  // logbook through the guidance strip's "View Proof Status" action.
+  assert.match(profile, /logbook/);
+  assert.match(collection, /Decks/);
+  assert.match(read('src/logic/playerGuidance.ts'), /\/profile\?tab=logbook/);
+});

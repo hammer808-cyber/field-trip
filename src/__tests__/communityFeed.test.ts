@@ -21,8 +21,8 @@ const proofImageSource = readFileSync('src/components/ProofImage.tsx', 'utf8');
 const serverSource = readFileSync('server.ts', 'utf8');
 const adminModerationSource = readFileSync('src/pages/AdminModeration.tsx', 'utf8');
 const rulesSource = readFileSync('firestore.rules', 'utf8');
-const deckSource = readFileSync('src/pages/Deck.tsx', 'utf8');
 const missionLogbookSource = readFileSync('src/components/missions/MissionLogbookPanel.tsx', 'utf8');
+const logbookFlipbookSource = readFileSync('src/components/LogbookFlipbook.tsx', 'utf8');
 
 test('community feed accepts only approved public renderable entries', () => {
   const base = {
@@ -224,7 +224,10 @@ test('Community feed My Crew filter uses canonical crew eligibility helper', () 
 });
 
 test('Logbook header reports state counts instead of active logs label', () => {
-  assert.match(deckSource, /getProofLogbookCounts/);
+  // Nov 17, 2026: the counts moved with the logbook from Missions to the
+  // Profile logbook (LogbookFlipbook); the Missions page no longer computes
+  // them.
+  assert.match(logbookFlipbookSource, /getProofLogbookCounts/);
   assert.match(missionLogbookSource, /submitted/i);
   assert.match(missionLogbookSource, /verified/i);
   assert.match(missionLogbookSource, /pending/i);
