@@ -1,5 +1,4 @@
 import type { UserBadgeProgress } from '../types/badges';
-import { BADGE_DEFINITIONS } from '../types/badges';
 import type { TripCard } from '../types/challenges';
 import type { DrawnMissionCard, Entry, Vote } from '../types/game';
 import type { Observation } from '../types/observations';
@@ -107,17 +106,6 @@ export interface BasecampCrewModel {
   incomingCount: number;
 }
 
-export type BasecampActivityKind = 'proof' | 'badge' | 'observation' | 'vote';
-
-export interface BasecampActivityItem {
-  id: string;
-  kind: BasecampActivityKind;
-  title: string;
-  detail: string;
-  timeLabel: string;
-  timestamp: number;
-}
-
 export interface BasecampQuickLink {
   id: 'missions' | 'logbook' | 'loteria' | 'voting';
   label: string;
@@ -131,8 +119,8 @@ export type BasecampNotificationKind = 'decision' | 'sticker' | 'submission' | '
  * One row of the Basecamp Notifications section (Nov 17, 2026): the full
  * notification list, newest-first, no 5-item cap — the subscription caps
  * at 20. Notifications is the single home for every notification doc
- * (decisions, submissions, sticker awards, Power Hour); Updates no longer
- * renders notification rows. Rows are tappable to their destination (Dex
+ * (decisions, submissions, sticker awards, Power Hour); the Updates
+ * section was removed Nov 18, 2026. Rows are tappable to their destination (Dex
  * stickers tab for sticker awards, the Logbook for decisions and
  * submissions, Missions for a live Power Hour).
  */
@@ -152,7 +140,6 @@ export interface BasecampViewModel {
   attention: BasecampProofAttentionModel;
   progress: BasecampProgressModel;
   crew: BasecampCrewModel;
-  recentActivity: BasecampActivityItem[];
   notifications: BasecampNotificationItem[];
   quickLinks: BasecampQuickLink[];
   guidance: PlayerGuidanceSnapshot;
@@ -169,9 +156,8 @@ export interface BuildBasecampViewModelInput {
   badgeProgress: readonly UserBadgeProgress[];
   observations: readonly Observation[];
   userVotes: readonly Vote[];
-  /** Server-written proof-review decision notifications (Q11). Shown in
-   * the Updates feed in place of the generic entry item for the same
-   * entry, so a decision appears once, with its XP and admin note. */
+  /** Server-written proof-review decision notifications (Q11). Each
+   * decision renders once, in Notifications, with its XP and admin note. */
   notifications: readonly PlayerNotification[];
   currentDate: Date;
   isHeatwaveDeckUnlocked: boolean;
@@ -372,94 +358,12 @@ function buildCrew(
   };
 }
 
-function buildRecentActivity(input: BuildBasecampViewModelInput): BasecampActivityItem[] {
-  // Decision notifications (Q11) are the authoritative row for a decided
-  // entry: they carry the awarded XP and the admin note, which the generic
-  // entry item cannot. Since the Nov 17, 2026 Notifications split, that
-  // row lives ONLY in the Notifications section — Updates no longer renders
-  // notification items at all. The suppression below stays: a decided
-  // entry must not show as a generic entry row either, or the decision
-  // would still appear in Updates in disguise. Updates keeps pending
-  // submissions, badges, Trevor observations, and votes.
-  const notifiedEntryIds = new Set(
-    (input.notifications || [])
-      .filter(notification => notification.type === 'proof_review_decision')
-      .map(notification => notification.entryId)
-      .filter(Boolean),
-  );
-
-  const entryItems = getActiveEntries(input.entries).flatMap<BasecampActivityItem>(entry => {
-    if (notifiedEntryIds.has(entry.entryId || entry.id)) return [];
-    const timestamp = getEntryTimestamp(entry);
-    if (!timestamp) return [];
-    const status = normalizeEntryStatus(entry.status);
-    const copy = {
-      approved: ['Proof approved', 'This receipt now counts toward deck progress.'],
-      pending_review: ['Proof submitted', 'Your receipt is waiting for review.'],
-      needs_more_proof: ['Proof needs another look', 'Review the note before retrying this mission.'],
-      rejected: ['Proof review closed', 'A retry is available from your Logbook.'],
-    } as const;
-    return [{
-      id: `entry-${entry.entryId || entry.id}`,
-      kind: 'proof',
-      title: copy[status][0],
-      detail: entryTitle(entry),
-      timestamp,
-      timeLabel: formatActivityTime(timestamp, input.currentDate),
-    }];
-  });
-
-  const badgeItems = input.badgeProgress.flatMap<BasecampActivityItem>(progress => {
-    const timestamp = toMillis(progress.unlockedAt);
-    if (!progress.isUnlocked || !timestamp) return [];
-    const badge = BADGE_DEFINITIONS.find(definition => definition.id === progress.badgeId);
-    return [{
-      id: `badge-${progress.badgeId}`,
-      kind: 'badge',
-      title: 'Badge unlocked',
-      detail: badge?.title || progress.badgeId,
-      timestamp,
-      timeLabel: formatActivityTime(timestamp, input.currentDate),
-    }];
-  });
-
-  const observationItems = input.observations.flatMap<BasecampActivityItem>(observation => {
-    const timestamp = toMillis(observation.createdAt);
-    if (observation.isDismissed || !timestamp) return [];
-    return [{
-      id: `observation-${observation.id}`,
-      kind: 'observation',
-      title: 'Trevor left a field note',
-      detail: observation.observationText,
-      timestamp,
-      timeLabel: formatActivityTime(timestamp, input.currentDate),
-    }];
-  });
-
-  const voteItems = input.userVotes.flatMap<BasecampActivityItem>(vote => {
-    const timestamp = toMillis(vote.createdAt);
-    if (!timestamp) return [];
-    return [{
-      id: `vote-${vote.id}`,
-      kind: 'vote',
-      title: 'Weekly vote recorded',
-      detail: vote.category.replaceAll('_', ' '),
-      timestamp,
-      timeLabel: formatActivityTime(timestamp, input.currentDate),
-    }];
-  });
-
-  return [...entryItems, ...badgeItems, ...observationItems, ...voteItems]
-    .sort((left, right) => right.timestamp - left.timestamp)
-    .slice(0, 5);
-}
-
 function buildNotifications(input: BuildBasecampViewModelInput): BasecampNotificationItem[] {
   // The full notification list (Nov 17, 2026): every notification doc the
-  // subscription returns, newest-first, no 5-item cap — Updates shows the
-  // latest five mixed with entries and badges, this section is the single
-  // home for notifications. Decisions, submissions, sticker awards, and
-  // Power Hour announcements all land here; Updates renders none of them.
+  // subscription returns, newest-first, no 5-item cap — this section is the
+  // single home for notifications (the Updates section was removed
+  // Nov 18, 2026). Decisions, submissions, sticker awards, and Power Hour
+  // announcements all land here.
   return (input.notifications || [])
     .flatMap<BasecampNotificationItem>(notification => {
       const timestamp = Number(notification.createdAt || 0);
@@ -556,7 +460,6 @@ export function buildBasecampViewModel(input: BuildBasecampViewModelInput): Base
     attention,
     progress,
     crew: buildCrew(input.profile, input.entries, input.crewGraph),
-    recentActivity: buildRecentActivity(input),
     notifications: buildNotifications(input),
     guidance,
     // Missions is always in the quick links: the deck is the pre-Starter

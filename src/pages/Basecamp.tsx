@@ -8,7 +8,6 @@ import { BasecampNextActionPanel } from '../components/basecamp/BasecampNextActi
 import { BasecampNotifications } from '../components/basecamp/BasecampNotifications';
 import { BasecampProgressPanel } from '../components/basecamp/BasecampProgressPanel';
 import { BasecampQuickLinks } from '../components/basecamp/BasecampQuickLinks';
-import { BasecampRecentActivity } from '../components/basecamp/BasecampRecentActivity';
 import { FieldPageHero } from '../components/FieldPageHero';
 import { IOSHomeScreenPrompt } from '../components/profile/IOSHomeScreenPrompt';
 import { useApp } from '../context/AppContext';
@@ -113,7 +112,6 @@ export default function Basecamp() {
       starter: canonicalProgress.starter.label,
       activeMissionId: viewModel.nextAction.mission?.id || null,
       proofAttentionCount: viewModel.attention.actionableCount,
-      personalActivityCount: viewModel.recentActivity.length,
     });
   }, [canonicalProgress, profile?.id, user?.uid, viewModel]);
 
@@ -151,8 +149,8 @@ export default function Basecamp() {
   // Notification rows open their destination (Nov 17, 2026): sticker awards
   // go to the Dex stickers tab; decisions and submissions go to the
   // Logbook, where the entry lives; a live Power Hour goes to Missions.
-  // Since the Notifications split, decisions no longer scroll to Updates —
-  // Updates doesn't render them anymore.
+  // The Updates section was removed Nov 18, 2026 — Notifications is the
+  // only feed on Basecamp now.
   const openNotification = React.useCallback((item: BasecampNotificationItem) => {
     if (item.href.startsWith('#')) {
       document.getElementById(item.href.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -228,9 +226,6 @@ export default function Basecamp() {
                 if (viewModel.attention.item) void runAction(viewModel.attention.item.action);
               }}
             />
-            <div className={viewModel.nextAction.urgency === 'critical' || viewModel.nextAction.urgency === 'high' ? 'basecamp-secondary-quiet' : ''}>
-              <BasecampRecentActivity items={viewModel.recentActivity} />
-            </div>
             {/* Notifications (Nov 17, 2026): the full list, newest-first —
                 the place to see a notice after its toast is gone. */}
             <div className={viewModel.nextAction.urgency === 'critical' || viewModel.nextAction.urgency === 'high' ? 'basecamp-secondary-quiet' : ''}>

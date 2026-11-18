@@ -9,9 +9,9 @@ import { fileURLToPath } from 'node:url';
 import { BasecampAttentionPanel } from '../components/basecamp/BasecampAttentionPanel';
 import { BasecampCrewSummary } from '../components/basecamp/BasecampCrewSummary';
 import { BasecampNextActionPanel } from '../components/basecamp/BasecampNextActionPanel';
+import { BasecampNotifications } from '../components/basecamp/BasecampNotifications';
 import { BasecampProgressPanel } from '../components/basecamp/BasecampProgressPanel';
 import { BasecampQuickLinks } from '../components/basecamp/BasecampQuickLinks';
-import { BasecampRecentActivity } from '../components/basecamp/BasecampRecentActivity';
 import { FieldPageHero } from '../components/FieldPageHero';
 import { getDeckPackById } from '../data/deckPacks';
 
@@ -90,7 +90,7 @@ test('proof attention distinguishes an actionable retry from pending review', ()
   assert.match(pendingHtml, /You can keep playing while review is pending/i);
 });
 
-test('sidebar panels render honest progress, crew, activity, and empty states', () => {
+test('sidebar panels render honest progress, crew, and empty states', () => {
   const progressHtml = renderToStaticMarkup(
     <BasecampProgressPanel
       model={{
@@ -123,9 +123,6 @@ test('sidebar panels render honest progress, crew, activity, and empty states', 
   assert.match(crewHtml, /Find Players/i);
   assert.match(crewHtml, /Fieldtrip starts solo/i);
   assert.doesNotMatch(crewHtml, /Crew rank|contribution/i);
-
-  const activityHtml = renderToStaticMarkup(<BasecampRecentActivity items={[]} />);
-  assert.match(activityHtml, /No updates yet\./i);
 });
 
 test('quick links retain canonical Missions, Logbook, and Voting destinations', () => {
@@ -145,23 +142,25 @@ test('quick links retain canonical Missions, Logbook, and Voting destinations', 
   assert.doesNotMatch(html, /Viewfinder/i);
 });
 
-test('the bulletin board leads with Updates in the main column', () => {
-  const html = renderToStaticMarkup(<BasecampRecentActivity items={[]} />);
-  assert.match(html, /Bulletin board/i);
-  assert.match(html, /Updates/);
-  assert.match(html, /No updates yet\./);
-  assert.doesNotMatch(html, /Recent Activity/);
-  assert.doesNotMatch(html, /Personal field record/);
+test('the bulletin board no longer renders Updates — Notifications is the feed in the main column', () => {
+  const html = renderToStaticMarkup(
+    <BasecampNotifications items={[]} onOpen={noop} />,
+  );
+  assert.match(html, /Field notices/i);
+  assert.match(html, /Notifications/);
+  assert.match(html, /No notifications yet\./);
+  assert.doesNotMatch(html, /Updates/);
 
-  // Placement: Updates sits in the board's main column, under the hero,
-  // not buried in the sidebar.
+  // Placement: Notifications sits in the board's main column, under the hero,
+  // not buried in the sidebar — and Updates is gone from the page entirely.
   const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
   const source = readFileSync(join(repoRoot, 'src/pages/Basecamp.tsx'), 'utf8');
+  assert.doesNotMatch(source, /BasecampRecentActivity/);
   const mainIdx = source.indexOf('main={(');
-  const activityIdx = source.indexOf('<BasecampRecentActivity');
+  const notifIdx = source.indexOf('<BasecampNotifications');
   const sidebarIdx = source.indexOf('sidebar={(');
-  assert.ok(mainIdx !== -1 && activityIdx !== -1 && sidebarIdx !== -1);
-  assert.ok(mainIdx < activityIdx && activityIdx < sidebarIdx);
+  assert.ok(mainIdx !== -1 && notifIdx !== -1 && sidebarIdx !== -1);
+  assert.ok(mainIdx < notifIdx && notifIdx < sidebarIdx);
 });
 
 test('progress and crew panels share the board paper treatment, not the dark gloss', () => {

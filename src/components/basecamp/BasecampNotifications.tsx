@@ -17,8 +17,8 @@ const notificationIcons: Record<BasecampNotificationKind, typeof FileCheck2> = {
 /**
  * Notifications (Nov 17, 2026): the full notification list, newest-first,
  * no 5-item cap — the single home for every notification (decisions,
- * submissions, sticker awards, Power Hour). Updates no longer renders
- * notification rows. Rows are tappable to their destination (Dex stickers
+ * submissions, sticker awards, Power Hour); the Updates section was
+ * removed Nov 18, 2026. Rows are tappable to their destination (Dex stickers
  * tab for sticker awards, the Logbook for decisions and submissions,
  * Missions for a live Power Hour). Unread rows carry a lime dot; there is
  * no mark-as-read write yet — the client rules are read-only for these

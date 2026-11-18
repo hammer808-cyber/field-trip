@@ -137,7 +137,7 @@ test('Q11: the server writes the notification in the decision transaction', () =
   );
 });
 
-test('Q11: the player read path is wired from the service to Basecamp Updates', () => {
+test('Q11: the player read path is wired from the service to Basecamp Notifications', () => {
   const service = read('src/services/playerNotificationService.ts');
   assert.ok(service.includes("collection(db, 'users', userId, 'notifications')"));
   assert.ok(service.includes("orderBy('createdAt', 'desc')"));
@@ -150,9 +150,6 @@ test('Q11: the player read path is wired from the service to Basecamp Updates', 
   assert.equal((basecamp.match(/notifications,/g) || []).length, 3);  const viewModel = read('src/logic/basecampViewModel.ts');
   assert.ok(viewModel.includes('notifications: readonly PlayerNotification[]'));
   assert.ok(viewModel.includes('proofReviewDecisionCopy(notification)'));
-  // The notification replaces the generic entry row for the same entry —
-  // a decision shows once in the 5-row feed, with its XP and note.
-  assert.ok(viewModel.includes('notifiedEntryIds.has(entry.entryId || entry.id)'));
 });
 
 test('Q11: Firestore rules let the owner read their notifications, and nobody writes them from the client', () => {
@@ -166,7 +163,7 @@ test('Q11: Firestore rules let the owner read their notifications, and nobody wr
 
 test('Notifications split: a submission notification names the mission and the wait', () => {
   // Nov 17, 2026: submissions write their own doc now, so the pending row
-  // survives in Notifications even after Updates scrolls on.
+  // survives in Notifications.
   assert.deepEqual(
     proofSubmittedCopy({ missionTitle: 'Find the Coolest Shadow' }),
     { title: 'Proof submitted', detail: 'Find the Coolest Shadow · Waiting for review.' },
