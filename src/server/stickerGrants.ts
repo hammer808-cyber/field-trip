@@ -103,13 +103,17 @@ export interface StickerGrantStore {
   /**
    * Atomically (transaction): re-check the user exists and the sticker is
    * not already owned (sticker doc OR ledger row), then write the sticker
-   * doc and the ledger row. The transaction is the already-owned check —
-   * there is no separate pre-read, since no user state is consulted
-   * without an extra round trip.
+   * doc, the ledger row, and the `sticker_awarded` notification doc — the
+   * grant shows up in the player's Notifications section like any other
+   * sticker award (Nov 17, 2026, Notifications split). The transaction
+   * is the already-owned check — there is no separate pre-read, since no
+   * user state is consulted without an extra round trip.
    */
   writeGrant(input: {
     targetUid: string;
     stickerId: string;
+    stickerName: string;
+    stickerRarity: string | null;
     adminUid: string;
     reason: string;
   }): Promise<StickerGrantWriteResult>;
@@ -123,8 +127,15 @@ export function createAdminStickerGrantStore(db: Firestore): StickerGrantStore {
       return snap.exists ? { uid: snap.id } : null;
     },
 
-    async writeGrant(input: { targetUid: string; stickerId: string; adminUid: string; reason: string }) {
-      const { targetUid, stickerId, adminUid, reason } = input;
+    async writeGrant(input: {
+      targetUid: string;
+      stickerId: string;
+      stickerName: string;
+      stickerRarity: string | null;
+      adminUid: string;
+      reason: string;
+    }) {
+      const { targetUid, stickerId, stickerName, stickerRarity, adminUid, reason } = input;
       const userRef = db.collection('users').doc(targetUid);
       const stickerRef = userRef.collection('stickers').doc(stickerId);
       const ledgerRef = db.collection('stickerAwards').doc(getStickerGrantAwardId(targetUid, stickerId));
@@ -159,6 +170,19 @@ export function createAdminStickerGrantStore(db: Firestore): StickerGrantStore {
           awardedBy: 'admin',
           adminUid,
           reason
+        });
+        // Nov 17, 2026 (Notifications split): a granted sticker writes
+        // the same `sticker_awarded` notification doc as a server award,
+        // in this same transaction — an admin grant used to fire its toast
+        // and nothing else, so it never reached Notifications.
+        tx.set(db.collection('users').doc(targetUid).collection('notifications').doc(), {
+          type: 'sticker_awarded',
+          stickerId,
+          stickerName,
+          stickerRarity: stickerRarity ?? null,
+          discoveryKey: ADMIN_GRANT_TRIGGER,
+          read: false,
+          createdAt: FieldValue.serverTimestamp(),
         });
         return { applied: true } as const;
       });
@@ -213,6 +237,8 @@ export async function grantStickerServer(
   const written = await store.writeGrant({
     targetUid,
     stickerId,
+    stickerName: sticker.name,
+    stickerRarity: sticker.rarity ?? null,
     adminUid: input.adminUid,
     reason: reasonCheck.reason
   });

@@ -1,4 +1,4 @@
-import { FileCheck2, Sparkles } from 'lucide-react';
+import { FileCheck2, Send, Sparkles, Zap } from 'lucide-react';
 import type { BasecampNotificationItem, BasecampNotificationKind } from '../../logic/basecampViewModel';
 import { cn } from '../../lib/utils';
 
@@ -10,16 +10,19 @@ interface BasecampNotificationsProps {
 const notificationIcons: Record<BasecampNotificationKind, typeof FileCheck2> = {
   decision: FileCheck2,
   sticker: Sparkles,
+  submission: Send,
+  power_hour: Zap,
 };
 
 /**
  * Notifications (Nov 17, 2026): the full notification list, newest-first,
- * no 5-item cap — the place to see a notice after its toast is gone.
- * Decisions and sticker awards share the collection; rows are tappable to
- * their destination (Dex stickers tab for sticker awards, the Updates
- * panel for decisions). Unread rows carry a lime dot; there is no
- * mark-as-read write yet — the client rules are read-only for these docs,
- * so `read` stays server-set until a mark-as-read path is built.
+ * no 5-item cap — the single home for every notification (decisions,
+ * submissions, sticker awards, Power Hour). Updates no longer renders
+ * notification rows. Rows are tappable to their destination (Dex stickers
+ * tab for sticker awards, the Logbook for decisions and submissions,
+ * Missions for a live Power Hour). Unread rows carry a lime dot; there is
+ * no mark-as-read write yet — the client rules are read-only for these
+ * docs, so `read` stays server-set until a mark-as-read path is built.
  */
 export function BasecampNotifications({ items, onOpen }: BasecampNotificationsProps) {
   return (
@@ -36,7 +39,7 @@ export function BasecampNotifications({ items, onOpen }: BasecampNotificationsPr
         <div className="mt-5 border-t-2 border-[var(--skin-border)] pt-4">
           <p className="text-sm font-bold text-[var(--skin-text)]">No notifications yet.</p>
           <p className="mt-1 text-xs leading-relaxed text-[var(--skin-text-muted)]">
-            Proof decisions and sticker awards will show up here — tap one to open it.
+            Proof submissions and decisions, sticker awards, and Power Hour notices will show up here — tap one to open it.
           </p>
         </div>
       ) : (

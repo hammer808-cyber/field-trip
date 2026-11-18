@@ -4,7 +4,7 @@ import { Timestamp } from 'firebase/firestore';
 import type { TripCard } from '../types/challenges';
 import type { Entry, Vote } from '../types/game';
 import type { Observation } from '../types/observations';
-import type { PlayerNotification, ProofReviewNotification, StickerAwardedNotification } from '../logic/playerNotifications';
+import type { PlayerNotification, PowerHourLiveNotification, ProofReviewNotification, ProofSubmittedNotification, StickerAwardedNotification } from '../logic/playerNotifications';
 import type { UserProfile } from '../services/userService';
 import { buildCanonicalProgress } from '../services/canonicalProgress';
 import {
@@ -385,16 +385,21 @@ function notification(overrides: Partial<ProofReviewNotification> = {}): ProofRe
   };
 }
 
-test('Q11: a decision notification shows in Updates with the awarded XP', () => {
+test('Q11: a decided entry leaves Updates entirely — its row lives in Notifications', () => {
+  // Nov 17, 2026 (Notifications split): Updates no longer renders
+  // notification rows. The decision still shows once — in Notifications,
+  // tappable to the Logbook where the entry lives.
   const model = buildBasecampViewModel(input({
     entries: [entry({ status: 'approved' })],
     notifications: [notification()],
   }));
-  const rows = model.recentActivity.filter(item => item.id.startsWith('notification-'));
-  assert.equal(rows.length, 1);
-  assert.equal(rows[0].kind, 'proof');
-  assert.equal(rows[0].title, 'Proof approved');
-  assert.equal(rows[0].detail, 'Find the Coolest Shadow · +75 XP');
+  assert.equal(model.recentActivity.filter(item => item.id.startsWith('notification-')).length, 0);
+  assert.ok(!model.recentActivity.some(item => item.id === 'entry-entry-1'));
+  assert.equal(model.notifications.length, 1);
+  assert.equal(model.notifications[0].kind, 'decision');
+  assert.equal(model.notifications[0].title, 'Proof approved');
+  assert.equal(model.notifications[0].detail, 'Find the Coolest Shadow · +75 XP');
+  assert.equal(model.notifications[0].href, '/profile?tab=logbook');
 });
 
 test('Q11: a decision shows once — the generic entry row is suppressed for the same entry', () => {
@@ -402,7 +407,7 @@ test('Q11: a decision shows once — the generic entry row is suppressed for the
     entries: [entry({ status: 'approved' })],
     notifications: [notification()],
   }));
-  assert.equal(model.recentActivity.filter(item => item.kind === 'proof').length, 1);
+  assert.equal(model.recentActivity.filter(item => item.kind === 'proof').length, 0);
   assert.ok(!model.recentActivity.some(item => item.id === 'entry-entry-1'));
 });
 
@@ -412,10 +417,11 @@ test('Q11: an entry without a notification still shows its generic row', () => {
     notifications: [notification({ entryId: 'some-other-entry' })],
   }));
   assert.ok(model.recentActivity.some(item => item.id === 'entry-entry-1'));
-  assert.equal(model.recentActivity.filter(item => item.id.startsWith('notification-')).length, 1);
+  // The other entry's decision is not an Updates row anymore.
+  assert.equal(model.recentActivity.filter(item => item.id.startsWith('notification-')).length, 0);
 });
 
-test('Q11: a rejection notification in Updates carries the admin note', () => {
+test('Q11: a rejection notification in Notifications carries the admin note', () => {
   const model = buildBasecampViewModel(input({
     entries: [entry({ status: 'rejected' })],
     notifications: [notification({
@@ -424,10 +430,81 @@ test('Q11: a rejection notification in Updates carries the admin note', () => {
       adminNote: 'Photo shows the wrong street.',
     })],
   }));
-  const rows = model.recentActivity.filter(item => item.id.startsWith('notification-'));
+  const rows = model.notifications.filter(item => item.kind === 'decision');
   assert.equal(rows.length, 1);
   assert.equal(rows[0].title, 'Proof review closed');
   assert.equal(rows[0].detail, 'Find the Coolest Shadow · Photo shows the wrong street.');
+  assert.equal(rows[0].href, '/profile?tab=logbook');
+});
+
+test('Notifications split: a pending submission still shows in Updates', () => {
+  // Updates keeps pending submissions — only decided entries leave, and
+  // their decision row lives in Notifications.
+  const model = buildBasecampViewModel(input({
+    entries: [entry({ status: 'pending_review' })],
+    notifications: [],
+  }));
+  const rows = model.recentActivity.filter(item => item.id === 'entry-entry-1');
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].title, 'Proof submitted');
+  assert.equal(rows[0].detail, 'Field proof');
+});
+
+function submittedNotification(overrides: Partial<ProofSubmittedNotification> = {}): ProofSubmittedNotification {
+  return {
+    id: 'notif-submitted-1',
+    type: 'proof_submitted',
+    entryId: 'entry-1',
+    challengeId: 'heat-1',
+    missionTitle: 'Find the Coolest Shadow',
+    read: false,
+    createdAt: new Date('2026-07-16T15:30:00.000Z').getTime(),
+    ...overrides,
+  };
+}
+
+function powerHourNotification(overrides: Partial<PowerHourLiveNotification> = {}): PowerHourLiveNotification {
+  return {
+    id: 'notif-power-hour-1',
+    type: 'power_hour_live',
+    localDate: '2026-07-16',
+    timezone: 'America/Los_Angeles',
+    startHour: 12,
+    endHourExclusive: 15,
+    multiplier: 1.5,
+    read: false,
+    createdAt: new Date('2026-07-16T12:05:00.000Z').getTime(),
+    ...overrides,
+  };
+}
+
+test('Notifications split: submissions and Power Hour render in Notifications, never in Updates', () => {
+  const model = buildBasecampViewModel(input({
+    entries: [entry({ status: 'pending_review' })],
+    notifications: [submittedNotification(), powerHourNotification()],
+  }));
+  // Updates keeps the pending entry row only — no notification rows.
+  assert.equal(model.recentActivity.filter(item => item.id.startsWith('notification-')).length, 0);
+  assert.ok(model.recentActivity.some(item => item.id === 'entry-entry-1'));
+  // Notifications carries both new types, newest-first.
+  assert.equal(model.notifications.length, 2);
+  assert.equal(model.notifications[0].kind, 'submission');
+  assert.equal(model.notifications[0].title, 'Proof submitted');
+  assert.equal(model.notifications[0].detail, 'Find the Coolest Shadow · Waiting for review.');
+  assert.equal(model.notifications[0].href, '/profile?tab=logbook');
+  assert.equal(model.notifications[1].kind, 'power_hour');
+  assert.equal(model.notifications[1].title, 'Power Hour is live');
+  assert.equal(model.notifications[1].detail, 'Start a mission before 3:00 PM for 1.5x XP.');
+  assert.equal(model.notifications[1].href, '/missions');
+});
+
+test('Notifications split: a Power Hour approval notes the multiplier on the decision row', () => {
+  const model = buildBasecampViewModel(input({
+    entries: [entry({ status: 'approved' })],
+    notifications: [notification({ powerHour: true, powerHourMultiplier: 1.5 })],
+  }));
+  assert.equal(model.notifications.length, 1);
+  assert.equal(model.notifications[0].detail, 'Find the Coolest Shadow · +75 XP · Power Hour 1.5x');
 });
 
 function stickerNotification(overrides: Partial<StickerAwardedNotification> = {}): StickerAwardedNotification {
@@ -458,7 +535,7 @@ test('Notifications section lists decisions and sticker awards, newest-first', (
   assert.equal(model.notifications[0].unread, true);
   assert.equal(model.notifications[1].kind, 'decision');
   assert.equal(model.notifications[1].title, 'Proof approved');
-  assert.equal(model.notifications[1].href, '#basecamp-updates');
+  assert.equal(model.notifications[1].href, '/profile?tab=logbook');
   assert.equal(model.notifications[1].unread, true);
 });
 

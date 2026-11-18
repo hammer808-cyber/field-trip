@@ -28,7 +28,7 @@ export function BasecampRecentActivity({ items }: BasecampRecentActivityProps) {
         <div className="mt-5 border-t-2 border-[var(--skin-border)] pt-4">
           <p className="text-sm font-bold text-[var(--skin-text)]">No updates yet.</p>
           <p className="mt-1 text-xs leading-relaxed text-[var(--skin-text-muted)]">
-            Submissions, approvals, badges, private observations, and your votes will appear here.
+            Submissions, badges, private observations, and your votes will appear here. Proof decisions live in Notifications.
           </p>
         </div>
       ) : (

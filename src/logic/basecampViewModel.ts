@@ -13,7 +13,9 @@ import {
 import { getLevelProgress } from './playerLevel';
 import { isArchivedEntry, normalizeEntryStatus } from './entryLogic';
 import {
+  powerHourLiveCopy,
   proofReviewDecisionCopy,
+  proofSubmittedCopy,
   stickerAwardedCopy,
   type PlayerNotification,
 } from './playerNotifications';
@@ -123,14 +125,16 @@ export interface BasecampQuickLink {
   href: string;
 }
 
-export type BasecampNotificationKind = 'decision' | 'sticker';
+export type BasecampNotificationKind = 'decision' | 'sticker' | 'submission' | 'power_hour';
 
 /**
  * One row of the Basecamp Notifications section (Nov 17, 2026): the full
  * notification list, newest-first, no 5-item cap — the subscription caps
- * at 20. Decisions and sticker awards share the collection; rows are
- * tappable to their destination (Dex stickers tab for sticker awards,
- * the Updates panel for decisions).
+ * at 20. Notifications is the single home for every notification doc
+ * (decisions, submissions, sticker awards, Power Hour); Updates no longer
+ * renders notification rows. Rows are tappable to their destination (Dex
+ * stickers tab for sticker awards, the Logbook for decisions and
+ * submissions, Missions for a live Power Hour).
  */
 export interface BasecampNotificationItem {
   id: string;
@@ -371,29 +375,18 @@ function buildCrew(
 function buildRecentActivity(input: BuildBasecampViewModelInput): BasecampActivityItem[] {
   // Decision notifications (Q11) are the authoritative row for a decided
   // entry: they carry the awarded XP and the admin note, which the generic
-  // entry item cannot. The generic item is suppressed for the same entry
-  // so a decision shows once, not twice, in the 5-row feed.
+  // entry item cannot. Since the Nov 17, 2026 Notifications split, that
+  // row lives ONLY in the Notifications section — Updates no longer renders
+  // notification items at all. The suppression below stays: a decided
+  // entry must not show as a generic entry row either, or the decision
+  // would still appear in Updates in disguise. Updates keeps pending
+  // submissions, badges, Trevor observations, and votes.
   const notifiedEntryIds = new Set(
     (input.notifications || [])
       .filter(notification => notification.type === 'proof_review_decision')
       .map(notification => notification.entryId)
       .filter(Boolean),
   );
-  const notificationItems = (input.notifications || [])
-    .filter(notification => notification.type === 'proof_review_decision')
-    .flatMap<BasecampActivityItem>(notification => {
-    const timestamp = Number(notification.createdAt || 0);
-    if (!timestamp) return [];
-    const copy = proofReviewDecisionCopy(notification);
-    return [{
-      id: `notification-${notification.id}`,
-      kind: 'proof',
-      title: copy.title,
-      detail: copy.detail,
-      timestamp,
-      timeLabel: formatActivityTime(timestamp, input.currentDate),
-    }];
-  });
 
   const entryItems = getActiveEntries(input.entries).flatMap<BasecampActivityItem>(entry => {
     if (notifiedEntryIds.has(entry.entryId || entry.id)) return [];
@@ -456,7 +449,7 @@ function buildRecentActivity(input: BuildBasecampViewModelInput): BasecampActivi
     }];
   });
 
-  return [...entryItems, ...notificationItems, ...badgeItems, ...observationItems, ...voteItems]
+  return [...entryItems, ...badgeItems, ...observationItems, ...voteItems]
     .sort((left, right) => right.timestamp - left.timestamp)
     .slice(0, 5);
 }
@@ -464,10 +457,9 @@ function buildRecentActivity(input: BuildBasecampViewModelInput): BasecampActivi
 function buildNotifications(input: BuildBasecampViewModelInput): BasecampNotificationItem[] {
   // The full notification list (Nov 17, 2026): every notification doc the
   // subscription returns, newest-first, no 5-item cap — Updates shows the
-  // latest five mixed with entries and badges, this section is the place
-  // to see them all. Sticker awards only appear here (they never entered
-  // the Updates feed); decisions appear in both, so a decision is never
-  // lost when it scrolls out of the 5-row feed.
+  // latest five mixed with entries and badges, this section is the single
+  // home for notifications. Decisions, submissions, sticker awards, and
+  // Power Hour announcements all land here; Updates renders none of them.
   return (input.notifications || [])
     .flatMap<BasecampNotificationItem>(notification => {
       const timestamp = Number(notification.createdAt || 0);
@@ -487,6 +479,32 @@ function buildNotifications(input: BuildBasecampViewModelInput): BasecampNotific
           href: '/dex/stickers',
         }];
       }
+      if (notification.type === 'proof_submitted') {
+        const copy = proofSubmittedCopy(notification);
+        return [{
+          id: `notification-${notification.id}`,
+          kind: 'submission' as const,
+          title: copy.title,
+          detail: copy.detail,
+          timestamp,
+          timeLabel,
+          unread,
+          href: '/profile?tab=logbook',
+        }];
+      }
+      if (notification.type === 'power_hour_live') {
+        const copy = powerHourLiveCopy(notification);
+        return [{
+          id: `notification-${notification.id}`,
+          kind: 'power_hour' as const,
+          title: copy.title,
+          detail: copy.detail,
+          timestamp,
+          timeLabel,
+          unread,
+          href: '/missions',
+        }];
+      }
       const copy = proofReviewDecisionCopy(notification);
       return [{
         id: `notification-${notification.id}`,
@@ -496,7 +514,7 @@ function buildNotifications(input: BuildBasecampViewModelInput): BasecampNotific
         timestamp,
         timeLabel,
         unread,
-        href: '#basecamp-updates',
+        href: '/profile?tab=logbook',
       }];
     })
     .sort((left, right) => right.timestamp - left.timestamp);

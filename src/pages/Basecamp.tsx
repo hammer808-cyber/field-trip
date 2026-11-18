@@ -149,8 +149,10 @@ export default function Basecamp() {
   ]);
 
   // Notification rows open their destination (Nov 17, 2026): sticker awards
-  // go to the Dex stickers tab; decisions scroll to the Updates panel,
-  // which carries the same decision with its XP and admin note.
+  // go to the Dex stickers tab; decisions and submissions go to the
+  // Logbook, where the entry lives; a live Power Hour goes to Missions.
+  // Since the Notifications split, decisions no longer scroll to Updates —
+  // Updates doesn't render them anymore.
   const openNotification = React.useCallback((item: BasecampNotificationItem) => {
     if (item.href.startsWith('#')) {
       document.getElementById(item.href.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' });

@@ -18,6 +18,11 @@ import type { PlayerNotification, ProofReviewDecision } from '../logic/playerNot
  * the same collection, from POST /api/stickers/award; this read maps both
  * shapes and feeds the Basecamp "Notifications" section too.
  *
+ * Two more types joined in the Nov 17, 2026 Notifications split:
+ * 'proof_submitted' (POST /api/entries/:id/notify-submitted) and
+ * 'power_hour_live' (POST /api/notifications/power-hour-live). All four
+ * map here; anything unrecognized still falls back to the decision shape.
+ *
  * A plain single-field orderBy on the owner's subcollection — no composite
  * index needed. The rules allow the owner (or an admin) to read; clients
  * never write here (the server writes via the Admin SDK, which bypasses
@@ -70,6 +75,36 @@ export function subscribeToPlayerNotifications(
               createdAt: toMillis(data.createdAt),
             } as PlayerNotification;
           }
+          // A proof submission (Nov 17, 2026, Notifications split) —
+          // written by POST /api/entries/:id/notify-submitted after a
+          // successful submit, one doc per entry.
+          if (data.type === 'proof_submitted') {
+            return {
+              id: docSnap.id,
+              type: 'proof_submitted',
+              entryId: String(data.entryId || ''),
+              challengeId: data.challengeId ? String(data.challengeId) : null,
+              missionTitle: String(data.missionTitle || 'Field proof'),
+              read: data.read === true,
+              createdAt: toMillis(data.createdAt),
+            } as PlayerNotification;
+          }
+          // A Power Hour live announcement (Nov 17, 2026) — written by
+          // POST /api/notifications/power-hour-live when the app opens
+          // inside the window, one doc per day per timezone.
+          if (data.type === 'power_hour_live') {
+            return {
+              id: docSnap.id,
+              type: 'power_hour_live',
+              localDate: String(data.localDate || ''),
+              timezone: String(data.timezone || ''),
+              startHour: Number(data.startHour ?? 12),
+              endHourExclusive: Number(data.endHourExclusive ?? 15),
+              multiplier: Number(data.multiplier ?? 1.5),
+              read: data.read === true,
+              createdAt: toMillis(data.createdAt),
+            } as PlayerNotification;
+          }
           const decision = (['approve', 'request_info', 'reject'] as ProofReviewDecision[]).includes(
             data.decision,
           )
@@ -92,6 +127,9 @@ export function subscribeToPlayerNotifications(
             awardedXp: Number(data.awardedXp || 0),
             adminNote: String(data.adminNote || ''),
             reviewerId: String(data.reviewerId || ''),
+            powerHour: data.powerHour === true,
+            powerHourMultiplier:
+              typeof data.powerHourMultiplier === 'number' ? data.powerHourMultiplier : null,
             read: data.read === true,
             createdAt: toMillis(data.createdAt),
           } as PlayerNotification;

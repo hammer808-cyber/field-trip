@@ -132,6 +132,10 @@ import { awardTrustedXpInTransaction, buildLedgerBackedProgressionRepairPlan, ge
 import { createAdminStickerAwardStore, createStickerAwardHandler } from "./src/server/stickerAwards";
 import { awardWeeklyWinnerStickers, createAdminCanonicalStickerAwardStore, type WeeklyWinnerInput } from "./src/server/canonicalStickerAwards";
 import { createAdminStickerGrantStore, createStickerGrantHandler } from "./src/server/stickerGrants";
+import {
+  createNotifySubmittedHandler,
+  createPowerHourLiveHandler,
+} from "./src/server/notificationEndpoints";
 import { buildScoreRepairMutationTrace, projectScoreLedgerRange } from "./src/logic/scoringLedger";
 import { getBuiltInMissionCatalog, resolveMissionById } from "./src/logic/missionResolver";
 import {
@@ -148,6 +152,7 @@ import {
   type MissionScoringConfig,
 } from "./src/logic/missionScoring";
 import {
+  AFTERNOON_POWER_HOUR_ID,
   MISSION_BONUS_SEED_VERSION,
   buildAfternoonPowerHourEligibility,
   buildRandomMissionBonusEligibility,
@@ -5877,6 +5882,20 @@ async function startServer() {
   // always comes from the authenticated token, never the body.
   app.post("/api/stickers/award", authRateLimiter, authenticate, createStickerAwardHandler(() => (dbAdmin ? createAdminStickerAwardStore(dbAdmin) : null)));
 
+  // Player notification endpoints (Nov 17, 2026, Notifications split):
+  // a submission writes its own `proof_submitted` doc, and the app
+  // announces a live Afternoon Power Hour once a day. Both write into
+  // users/{uid}/notifications via the Admin SDK — the client rules are
+  // read-only there, so there is no client write path for these.
+  app.post("/api/entries/:id/notify-submitted", authRateLimiter, authenticate, createNotifySubmittedHandler({
+    getDb: () => dbAdmin,
+    getScoringConfig: getMissionScoringConfig,
+  }));
+  app.post("/api/notifications/power-hour-live", authRateLimiter, authenticate, createPowerHourLiveHandler({
+    getDb: () => dbAdmin,
+    getScoringConfig: getMissionScoringConfig,
+  }));
+
   app.get("/api/social/crew", authRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
     try {
@@ -8639,14 +8658,22 @@ async function startServer() {
         // decision and survives the admin closing the browser. Decisions
         // only — dry-run/repair actions, rubric edits, and queue views
         // never reach this handler. Delivery is in-app only (Basecamp
-        // "Updates" reads users/{uid}/notifications); there is no
+        // "Notifications" reads users/{uid}/notifications); there is no
         // push/email infra in this app, so none is built here.
         // Shape: users/{uid}/notifications/{id} = { type:
         // 'proof_review_decision', decision, status, entryId, reviewId,
         // challengeId, missionTitle, awardedXp (final XP for approve, 0
-        // otherwise), adminNote, reviewerId, read: false, createdAt }.
+        // otherwise), adminNote, reviewerId, powerHour (true when the
+        // approval applied the Afternoon Power Hour multiplier),
+        // powerHourMultiplier, read: false, createdAt }.
         // The client read is src/services/playerNotificationService.ts.
+        // Power Hour detection (Nov 17, 2026): the scoring snapshot
+        // records which bonus the multiplier came from — when it is the
+        // Afternoon Power Hour, the decision copy says so ("· Power Hour
+        // 1.5x"), so the player sees why the XP is higher.
         if (ownerId) {
+          const powerHourApplied =
+            action === 'approve' && scoringSnapshot.appliedBonusId === AFTERNOON_POWER_HOUR_ID;
           transaction.set(dbAdmin!.collection('users').doc(ownerId).collection('notifications').doc(), {
             type: 'proof_review_decision',
             decision: action,
@@ -8658,6 +8685,8 @@ async function startServer() {
             awardedXp: action === 'approve' ? Number(baseUpdate.awardedXP || 0) : 0,
             adminNote: notes || '',
             reviewerId,
+            powerHour: powerHourApplied,
+            powerHourMultiplier: powerHourApplied ? Number(scoringSnapshot.appliedMultiplier || 0) : null,
             read: false,
             createdAt: now,
           });

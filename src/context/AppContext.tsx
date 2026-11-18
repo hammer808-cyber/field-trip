@@ -100,6 +100,7 @@ import { CrewArtifact } from '../types/artifacts';
 
 import { subscribeToPlayerNotifications } from '../services/playerNotificationService';
 import type { PlayerNotification } from '../logic/playerNotifications';
+import { getLocalTimeSnapshot, isWithinAfternoonPowerHour } from '../logic/missionBonuses';
 import { subscribeToObservations, generateObservation, dismissObservation } from '../services/observationService';
 import { Observation } from '../types/observations';
 import { getProofRequirement } from '../services/proofService';
@@ -1561,6 +1562,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [user]);
 
+  // Power Hour live announcement (Nov 17, 2026, Notifications split):
+  // when the app opens inside the Afternoon Power Hour window (12:00–
+  // 15:00 local), tell the server once per day so a `power_hour_live`
+  // notification doc lands in the Notifications section. Two-layer dedup:
+  // localStorage skips repeat calls on this device, and the server writes
+  // a deterministic doc id, so a second device can't double it. The key
+  // is only marked after a successful response, so a failed call retries
+  // on the next open.
+  useEffect(() => {
+    if (!user) return;
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Los_Angeles';
+    const now = new Date();
+    if (!isWithinAfternoonPowerHour(now, timezone)) return;
+    const local = getLocalTimeSnapshot(now, timezone);
+    const seenKey = `power_hour_announced_${local.localDate}_${local.timezone}`;
+    if (localStorage.getItem(seenKey)) return;
+    authenticatedFetch('/api/notifications/power-hour-live', {
+      method: 'POST',
+      body: JSON.stringify({ localDate: local.localDate, timezone: local.timezone }),
+    })
+      .then((response) => {
+        if (response.ok) localStorage.setItem(seenKey, '1');
+      })
+      .catch((error) => console.warn('[AppContext] Power Hour announcement failed:', error));
+  }, [user]);
+
   // Sync / Detect New Badges for Rewards
   useEffect(() => {
     if (!profile || !badgeProgress.length) return;
@@ -2482,6 +2509,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const { entryId, status, review, scoring, ftBonus, ftText, newRewards } = result;
     setLastReview(review);
+
+    // Nov 17, 2026 (Notifications split): a submission writes a
+    // `proof_submitted` notification doc via the server — the client rules
+    // are read-only for notifications, so this is a server endpoint, not a
+    // Firestore write. Best-effort and non-blocking: it never blocks proof
+    // handling, and the server dedups by entry id.
+    if (status === 'pending_review') {
+      authenticatedFetch(`/api/entries/${encodeURIComponent(entryId)}/notify-submitted`, { method: 'POST' })
+        .catch((error) => console.warn('[AppContext] Submission notification failed:', error));
+    }
 
     // Sticker unlocks run after canonical submission succeeds and never block proof handling.
     // The evaluator archetype-matches the award (Stage 3): the player's own

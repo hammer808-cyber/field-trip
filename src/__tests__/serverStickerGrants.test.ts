@@ -38,6 +38,11 @@ class FakeStickerGrantStore implements StickerGrantStore {
     string,
     { userId: string; stickerId: string; awardedBy: string; adminUid: string; reason: string; eventId: string | null }
   > = {};
+  /** `${userId}:${stickerId}` -> notification doc (Nov 17, 2026). */
+  notifications: Record<
+    string,
+    { userId: string; stickerId: string; stickerName: string; stickerRarity: string | null }
+  > = {};
 
   seedUser(uid: string, points = 100): void {
     this.users[uid] = { uid, points };
@@ -67,6 +72,8 @@ class FakeStickerGrantStore implements StickerGrantStore {
   async writeGrant(input: {
     targetUid: string;
     stickerId: string;
+    stickerName: string;
+    stickerRarity: string | null;
     adminUid: string;
     reason: string;
   }): Promise<StickerGrantWriteResult> {
@@ -85,6 +92,12 @@ class FakeStickerGrantStore implements StickerGrantStore {
       adminUid: input.adminUid,
       reason: input.reason,
       eventId: null
+    };
+    this.notifications[`${input.targetUid}:${input.stickerId}`] = {
+      userId: input.targetUid,
+      stickerId: input.stickerId,
+      stickerName: input.stickerName,
+      stickerRarity: input.stickerRarity
     };
     return { applied: true };
   }
@@ -200,6 +213,52 @@ test('grant: success writes the sticker doc shape and the ledger row, awards no 
   // No XP: the grant awards only the sticker.
   assert.equal(store.users[PLAYER_UID].points, 100);
   assert.equal(Object.keys(store.ledger).length, 1);
+});
+
+test('grant: success also writes a sticker_awarded notification (Nov 17, 2026)', async () => {
+  // Notifications split: an admin grant used to fire its toast and nothing
+  // else, so it never reached the Notifications section. The name/rarity
+  // flow through the orchestrator from the registry sticker.
+  const store = makeStoreWithPlayer();
+  const result = await grantStickerServer(store, {
+    adminUid: ADMIN_UID,
+    targetUid: PLAYER_UID,
+    stickerId: STICKER_ID,
+    reason: 'repair'
+  });
+  assert.equal(result.ok, true);
+  if (!result.ok || !result.awarded) assert.fail('expected an awarded result');
+  const sticker = getStickerById(STICKER_ID)!;
+  assert.deepEqual(store.notifications[`${PLAYER_UID}:${STICKER_ID}`], {
+    userId: PLAYER_UID,
+    stickerId: STICKER_ID,
+    stickerName: sticker.name,
+    stickerRarity: sticker.rarity,
+  });
+});
+
+test('grant: the real adapter writes the notification in the grant transaction', () => {
+  // The fake above proves the plumbing; this pins the Admin SDK adapter
+  // itself — same transaction as the sticker doc + ledger row, same
+  // `sticker_awarded` shape as POST /api/stickers/award.
+  const source = readFileSync(
+    new URL('../server/stickerGrants.ts', import.meta.url),
+    'utf8',
+  );
+  const txAt = source.indexOf('return db.runTransaction');
+  assert.ok(txAt > -1, 'grant writes run in a transaction');
+  const txBlock = source.slice(txAt);
+  assert.ok(txBlock.includes(".collection('notifications').doc()"), 'notification doc written');
+  for (const field of [
+    "type: 'sticker_awarded'",
+    'stickerName,',
+    'stickerRarity: stickerRarity ?? null',
+    'discoveryKey: ADMIN_GRANT_TRIGGER',
+    'read: false',
+    'createdAt: FieldValue.serverTimestamp()',
+  ]) {
+    assert.ok(txBlock.includes(field), `grant notification must carry ${field}`);
+  }
 });
 
 test('grant: reason is trimmed before it is stored', async () => {

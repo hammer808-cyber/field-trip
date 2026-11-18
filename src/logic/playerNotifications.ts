@@ -17,13 +17,24 @@
  *     awardedXp,        // final XP for approve, 0 for the other decisions
  *     adminNote,        // the admin's note (may be empty)
  *     reviewerId,
+ *     powerHour,        // true when the approval applied the Afternoon
+ *                       // Power Hour multiplier (Nov 17, 2026)
+ *     powerHourMultiplier, // the applied multiplier, or null
  *     read: false,      // unread until the player opens it; no mark-as-read
  *                       // UI yet — the flag is stored for that follow-up.
  *     createdAt,        // server timestamp
  *   }
  *
  * No push notifications and no email: this app has no push/email infra,
- * so delivery is in-app only, via the Basecamp "Updates" panel.
+ * so delivery is in-app only, via the Basecamp "Notifications" section.
+ *
+ * Four doc types share the collection (Nov 17, 2026, Notifications split):
+ * proof_review_decision (review action), sticker_awarded (sticker award +
+ * admin grant), proof_submitted (POST /api/entries/:id/notify-submitted,
+ * called after a successful submit), and power_hour_live (POST
+ * /api/notifications/power-hour-live, announced when the app opens inside
+ * the Afternoon Power Hour window). Notifications is the single home for
+ * all of them; Updates no longer renders notification rows.
  */
 
 /** The three review decisions. All three notify; only the copy differs. */
@@ -42,6 +53,10 @@ export interface ProofReviewNotification {
   awardedXp: number;
   adminNote: string;
   reviewerId: string;
+  /** True when the approval applied the Afternoon Power Hour multiplier. */
+  powerHour?: boolean;
+  /** The applied Power Hour multiplier, or null when it did not apply. */
+  powerHourMultiplier?: number | null;
   read: boolean;
   /** Milliseconds since epoch (the subscription normalizes the Firestore
    * timestamp to millis; the server stores a server timestamp). */
@@ -66,8 +81,51 @@ export interface StickerAwardedNotification {
   createdAt: number;
 }
 
+/**
+ * A proof-submission notification (Nov 17, 2026, Notifications split).
+ * Written server-side by POST /api/entries/:id/notify-submitted, called
+ * after a successful submit — the client rules are read-only for these
+ * docs, so a submission notification needs a server endpoint. One doc per
+ * entry (deterministic id `proof_submitted_<entryId>`), so a resubmit
+ * refreshes the same row instead of doubling it.
+ */
+export interface ProofSubmittedNotification {
+  id: string;
+  type: 'proof_submitted';
+  entryId: string;
+  challengeId: string | null;
+  missionTitle: string;
+  read: boolean;
+  /** Milliseconds since epoch. */
+  createdAt: number;
+}
+
+/**
+ * An Afternoon Power Hour live announcement (Nov 17, 2026). Written
+ * server-side by POST /api/notifications/power-hour-live when the app
+ * opens inside the window (12:00–15:00 local). One doc per day per
+ * timezone (deterministic id `afternoon_power_hour_<localDate>_<tz>`),
+ * so the announcement is once a day even across devices.
+ */
+export interface PowerHourLiveNotification {
+  id: string;
+  type: 'power_hour_live';
+  localDate: string;
+  timezone: string;
+  startHour: number;
+  endHourExclusive: number;
+  multiplier: number;
+  read: boolean;
+  /** Milliseconds since epoch. */
+  createdAt: number;
+}
+
 /** Any player notification, as read back on the client. */
-export type PlayerNotification = ProofReviewNotification | StickerAwardedNotification;
+export type PlayerNotification =
+  | ProofReviewNotification
+  | StickerAwardedNotification
+  | ProofSubmittedNotification
+  | PowerHourLiveNotification;
 
 /**
  * The Updates-panel copy for one decision notification. The title matches
@@ -81,15 +139,22 @@ export function proofReviewDecisionCopy(notification: {
   missionTitle: string;
   awardedXp: number;
   adminNote: string;
+  powerHour?: boolean;
+  powerHourMultiplier?: number | null;
 }): { title: string; detail: string } {
   const title = notification.missionTitle || 'Field proof';
   const note = String(notification.adminNote || '').trim();
   switch (notification.decision) {
-    case 'approve':
+    case 'approve': {
+      const powerHourSuffix =
+        notification.powerHour === true
+          ? ` · Power Hour ${formatMultiplier(notification.powerHourMultiplier)}x`
+          : '';
       return {
         title: 'Proof approved',
-        detail: `${title} · +${Number(notification.awardedXp || 0)} XP`,
+        detail: `${title} · +${Number(notification.awardedXp || 0)} XP${powerHourSuffix}`,
       };
+    }
     case 'reject':
       return {
         title: 'Proof review closed',
@@ -118,5 +183,49 @@ export function stickerAwardedCopy(notification: {
   return {
     title: 'Sticker unlocked',
     detail: rarity ? `${name} · ${rarity}` : name,
+  };
+}
+
+/**
+ * The Notifications-section copy for one proof submission. Same language
+ * as the Updates feed's pending row ("Your receipt is waiting for
+ * review."), as a record: the submission now has a notification doc of
+ * its own, so it survives in Notifications even after Updates scrolls on.
+ */
+export function proofSubmittedCopy(notification: {
+  missionTitle: string;
+}): { title: string; detail: string } {
+  const title = String(notification.missionTitle || 'Field proof').trim() || 'Field proof';
+  return {
+    title: 'Proof submitted',
+    detail: `${title} · Waiting for review.`,
+  };
+}
+
+function formatHour(hour: number): string {
+  const normalized = ((Math.round(hour) % 24) + 24) % 24;
+  const suffix = normalized >= 12 ? 'PM' : 'AM';
+  const clockHour = normalized % 12 || 12;
+  return `${clockHour}:00 ${suffix}`;
+}
+
+function formatMultiplier(multiplier: number | null | undefined): string {
+  const value = Number(multiplier);
+  if (!Number.isFinite(value) || value <= 1) return '1.5';
+  return String(value);
+}
+
+/**
+ * The Notifications-section copy for a Power Hour live announcement. The
+ * window comes from the doc (config-driven), so the copy never hardcodes
+ * hours the server may have changed.
+ */
+export function powerHourLiveCopy(notification: {
+  endHourExclusive: number;
+  multiplier: number;
+}): { title: string; detail: string } {
+  return {
+    title: 'Power Hour is live',
+    detail: `Start a mission before ${formatHour(notification.endHourExclusive)} for ${formatMultiplier(notification.multiplier)}x XP.`,
   };
 }
