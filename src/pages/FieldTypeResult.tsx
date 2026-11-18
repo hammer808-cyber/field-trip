@@ -14,7 +14,7 @@ import { DiamondStar, Sparkle, SunFlare, GlossOverlay as DiamondGloss } from '..
 import { getDisplayLabel } from '../utils/labelUtils';
 
 export default function FieldTypeResult() {
-  const { fieldType, user, profile, updateProfile, queueReward, hasCompletedGuidedFirstEntry } = useApp();
+  const { fieldType, user, profile, updateProfile, queueReward, hasCompletedGuidedFirstEntry, starterState } = useApp();
   const { skin, frankieMode } = useTheme();
   const navigate = useNavigate();
 
@@ -118,8 +118,11 @@ export default function FieldTypeResult() {
         });
       }
       
-      console.log('[FieldTypeResult] Routing to /basecamp...');
-      navigate('/basecamp');
+      // Pre-starter players live on the deck now (Nov 17, 2026): Missions
+      // is home until the three starters are approved; Basecamp is locked.
+      const destination = starterState?.starterComplete ? '/basecamp' : '/missions';
+      console.log(`[FieldTypeResult] Routing to ${destination}...`);
+      navigate(destination);
     } catch (err) {
       console.error('[FieldTypeResult] Navigation failed:', err);
       setIsNavigating(false);
@@ -361,37 +364,15 @@ export default function FieldTypeResult() {
                    {`"${data.description}"`}
                  </p>
                )}
-               {isGuidedActive && (
-                 <p className={cn("text-base leading-relaxed font-bold relative z-10 border-t border-on-surface/10 pt-4", isDiamond ? "font-mono text-white/60" : "font-sans text-on-surface/70")}>
-                   Take one photo. Add one short note. Submit it for review.
-                 </p>
-               )}
+               {/* The guided how-to caption is gone (Nov 17, 2026): the
+                   result page is the persona, not instructions. */}
              </div>
 
              {/* Trevor's line now leads the quote block above, so the old
                  lime narration box is gone — it would repeat him. */}
-             {isGuidedActive && (
-               <div className="space-y-6 pt-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-on-surface rounded-full flex items-center justify-center shrink-0 shadow-[4px_4px_0px_var(--color-brand-lime)]">
-                      <span className="text-brand-lime font-black">01</span>
-                    </div>
-                    <p className="text-base font-black uppercase tracking-tight italic text-on-surface">Find the target in the real world.</p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-on-surface rounded-full flex items-center justify-center shrink-0 shadow-[4px_4px_0px_var(--color-brand-orange)]">
-                      <span className="text-brand-orange font-black">02</span>
-                    </div>
-                    <p className="text-base font-black uppercase tracking-tight italic text-on-surface">Take one photo as proof.</p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-on-surface rounded-full flex items-center justify-center shrink-0 shadow-[4px_4px_0px_var(--color-brand-cyan)]">
-                      <span className="text-brand-cyan font-black">03</span>
-                    </div>
-                    <p className="text-base font-black uppercase tracking-tight italic text-on-surface">Add a note and submit.</p>
-                  </div>
-               </div>
-             )}
+             {/* The guided 01/02/03 how-to steps are gone (Nov 17, 2026):
+                 the result page is the persona, not instructions. The
+                 mission flow itself teaches the steps. */}
 
              <div className="space-y-12 pt-6">
                 <div className="grid grid-cols-2 gap-8">
@@ -400,14 +381,17 @@ export default function FieldTypeResult() {
                          <div className="w-6 h-1 bg-brand-orange" />
                          <span className="text-[11px] font-bold uppercase text-on-surface/50 tracking-wider italic">Instinct</span>
                       </div>
-                      <p className="text-xl font-bold uppercase tracking-tight text-on-surface italic border-b-4 border-brand-lime pb-3 leading-tight">{data.coreInstinct}</p>
+                      <p className="text-xl font-bold uppercase tracking-tight text-on-surface italic border-b-4 border-brand-lime pb-3 leading-tight">{data.coreInstinct.replace(' / ', ' ')}</p>
                    </div>
                    <div className="space-y-3 text-right">
                       <div className="flex items-center gap-3 justify-end">
                          <span className="text-[11px] font-bold uppercase text-on-surface/50 tracking-wider italic">Your stamp</span>
                          <div className="w-6 h-1 bg-brand-lime" />
                       </div>
-                      <p className="text-xl font-bold uppercase tracking-tight text-brand-orange italic leading-tight">{data.stamp}</p>
+                      {/* The stamp renders as an actual stamp now (Nov 17,
+                          2026): one generic stamp style for every persona
+                          for now, with that persona's stamp text inside. */}
+                      <span className="inline-block -rotate-3 border-[3px] border-brand-orange bg-white px-3 py-2 text-lg font-black uppercase italic tracking-tight text-brand-orange shadow-[4px_4px_0px_black] outline outline-1 outline-brand-orange outline-offset-2 leading-tight">{data.stamp}</span>
                    </div>
                 </div>
 

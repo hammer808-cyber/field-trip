@@ -76,3 +76,28 @@ test('result page badge reads as Trevor, not a form', () => {
   const labels = read('src/utils/labelUtils.ts');
   assert.match(labels, /PERSONA_IDENTIFIED: "That's you"/);
 });
+
+test('result page is the persona, not instructions', () => {
+  const page = read('src/pages/FieldTypeResult.tsx');
+  // Nov 17, 2026: the guided how-to caption and the 01/02/03 steps were
+  // removed from the result page — the mission flow itself teaches them.
+  assert.doesNotMatch(page, /Take one photo\. Add one short note\. Submit it for review\./);
+  assert.doesNotMatch(page, /Find the target in the real world\./);
+  assert.doesNotMatch(page, /Take one photo as proof\./);
+  assert.doesNotMatch(page, /Add a note and submit\./);
+  // The instinct shows without the stray slash: "HYPE PERFORM", not
+  // "HYPE / PERFORM".
+  assert.match(page, /data\.coreInstinct\.replace\(' \/ ', ' '\)/);
+  // The stamp is an actual stamp visual now — one generic stamp style for
+  // every persona for now, with that persona's stamp text inside — not
+  // plain orange text.
+  assert.match(page, /-rotate-3 border-\[3px\] border-brand-orange/);
+  assert.match(page, /\{data\.stamp\}/);
+});
+
+test('result page CTA routes pre-starter players to the deck', () => {
+  const page = read('src/pages/FieldTypeResult.tsx');
+  // Nov 17, 2026: the deck is home until the three starters are approved;
+  // Basecamp is locked pre-starter.
+  assert.match(page, /starterState\?\.starterComplete \? '\/basecamp' : '\/missions'/);
+});
