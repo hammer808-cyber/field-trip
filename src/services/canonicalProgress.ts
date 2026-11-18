@@ -6,7 +6,7 @@ import { Entry } from '../constants';
 import { TripCard } from '../types/challenges';
 import { UserProfile } from './userService';
 
-export type FeatureKey = 'starter' | 'crew' | 'memories' | 'voting' | 'tribunal' | 'heatwave-receipts' | 'socal-summer' | 'loteria';
+export type FeatureKey = 'starter' | 'crew' | 'memories' | 'voting' | 'tribunal' | 'heatwave-receipts' | 'socal-summer' | 'loteria' | 'zines';
 
 /**
  * Loteria kill switch. The board is still in the works, so it stays
@@ -15,6 +15,22 @@ export type FeatureKey = 'starter' | 'crew' | 'memories' | 'voting' | 'tribunal'
  * can still be previewed. Flip to true when Loteria ships.
  */
 export const LOTERIA_ENABLED = false;
+
+/**
+ * Zines kill switch (Nov 17, 2026). The zine section is still being
+ * figured out, so it stays barred for players behind a "coming soon"
+ * panel. Admins bypass the gate (StarterGate) so it can still be
+ * worked on and previewed. Flip to true when Zines ships.
+ */
+export const ZINES_ENABLED = false;
+
+/**
+ * Voting kill switch (Nov 17, 2026). The voting section is still being
+ * figured out, so it stays barred for players behind a "coming soon"
+ * panel. Admins bypass the gate (StarterGate) so it can still be
+ * worked on and previewed. Flip to true when Voting ships.
+ */
+export const VOTING_ENABLED = false;
 
 export type CanonicalChallengeStatus =
   | 'available'
@@ -300,6 +316,8 @@ export function canAccessFeature(
   if (featureKey === 'socal-summer') return options.socalUnlocked !== false;
   if (featureKey === 'crew') return options.featureEnabled !== false;
   if (featureKey === 'loteria') return LOTERIA_ENABLED;
+  if (featureKey === 'zines') return ZINES_ENABLED;
+  if (featureKey === 'voting') return VOTING_ENABLED;
   return true;
 }
 

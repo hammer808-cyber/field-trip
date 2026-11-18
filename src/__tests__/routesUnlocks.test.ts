@@ -85,9 +85,9 @@ test('Voting routes remain reachable from the primary nav', () => {
   assert.match(appSource, /<Route path="weekly" element=\{<Navigate to="\/voting\?tab=vote" replace \/>}/);
   assert.match(appSource, /<Route path="tribunal" element=\{<Navigate to="\/voting\?tab=tribunal" replace \/>}/);
   assert.match(appSource, /<Route path="results" element=\{<Navigate to="\/voting\?tab=results" replace \/>}/);
-  assert.match(appSource, /<Route path="ballot" element=\{<VotingBallotPage \/>}/);
-  assert.match(appSource, /<Route path="council" element=\{<SnitchCouncilPage \/>}/);
-  assert.match(appSource, /<Route path="awards" element=\{<WeeklyAwardsPage \/>}/);
+  assert.match(appSource, /<Route path="ballot" element=\{<StarterGate requiredFeature="voting"><VotingBallotPage \/><\/StarterGate>}/);
+  assert.match(appSource, /<Route path="council" element=\{<StarterGate requiredFeature="voting"><SnitchCouncilPage \/><\/StarterGate>}/);
+  assert.match(appSource, /<Route path="awards" element=\{<StarterGate requiredFeature="voting"><WeeklyAwardsPage \/><\/StarterGate>}/);
   assert.match(bottomNavSource, /label: 'VOTING', path: '\/voting'/);
   assert.match(votingHubPageSource, /VotingLockedPanel/);
   assert.match(votingBallotPageSource, /GatedFeaturePanel/);

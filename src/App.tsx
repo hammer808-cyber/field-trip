@@ -615,9 +615,9 @@ export default function App() {
                       <Route path="weekly" element={<Navigate to="/voting?tab=vote" replace />} />
                       <Route path="tribunal" element={<Navigate to="/voting?tab=tribunal" replace />} />
                       <Route path="results" element={<Navigate to="/voting?tab=results" replace />} />
-                      <Route path="ballot" element={<VotingBallotPage />} />
-                      <Route path="council" element={<SnitchCouncilPage />} />
-                      <Route path="awards" element={<WeeklyAwardsPage />} />
+                      <Route path="ballot" element={<StarterGate requiredFeature="voting"><VotingBallotPage /></StarterGate>} />
+                      <Route path="council" element={<StarterGate requiredFeature="voting"><SnitchCouncilPage /></StarterGate>} />
+                      <Route path="awards" element={<StarterGate requiredFeature="voting"><WeeklyAwardsPage /></StarterGate>} />
                     </Route>
                     <Route path="/admin" element={<AdminBoard />} />
                     <Route path="/admin/proofs" element={<AdminProofReview />} />

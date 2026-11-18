@@ -25,9 +25,16 @@ test('Loteria is barred for players even after the starter', () => {
     'admins can still preview the board',
   );
   assert.equal(
-    canAccessFeature(starterCompleteSnapshot(), 'voting'),
+    canAccessFeature(starterCompleteSnapshot(), 'memories'),
     true,
     'barring Loteria should not lock other features',
+  );
+  // Nov 17, 2026: Voting is parked too (VOTING_ENABLED = false), so it
+  // no longer belongs in the "other features stay open" check.
+  assert.equal(
+    canAccessFeature(starterCompleteSnapshot(), 'voting'),
+    false,
+    'Voting is parked behind its own kill switch',
   );
 });
 

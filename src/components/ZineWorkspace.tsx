@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BookOpen, Check, ChevronDown, ChevronUp, FilePlus2, Loader2, Lock, Printer, RefreshCw, Sparkles, Star } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { StarterGate } from './StarterGate';
 import { cn } from '../lib/utils';
 import { ProofImage } from './ProofImage';
 import { ZineStickerLayer } from './zine/ZineStickerLayer';
@@ -43,7 +44,7 @@ interface ZineWorkspaceProps {
   showScopeSwitch?: boolean;
 }
 
-export function ZineWorkspace({ initialKind = 'personal', showScopeSwitch = true }: ZineWorkspaceProps) {
+function ZineWorkspaceInner({ initialKind = 'personal', showScopeSwitch = true }: ZineWorkspaceProps) {
   const { user } = useApp();
   const [kind, setKind] = useState<ZineKind>(initialKind);
   const [workspace, setWorkspace] = useState<any>(null);
@@ -317,5 +318,16 @@ function ZinePagePanel({ zine, page, candidates, unlockedStickers, canEdit, comp
         )}
       </div>
     </article>
+  );
+}
+
+// Nov 17, 2026: Zines is parked behind the kill switch until the section
+// is figured out. Players see the "coming soon" panel wherever the
+// workspace renders (DEX Zines tab, Crew zine tab); admins pass through.
+export function ZineWorkspace(props: ZineWorkspaceProps) {
+  return (
+    <StarterGate requiredFeature="zines">
+      <ZineWorkspaceInner {...props} />
+    </StarterGate>
   );
 }

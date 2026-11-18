@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getStarterProgress } from '../services/canonicalProgress';
 import { useApp } from '../context/AppContext';
 
-export type GatedFeatureName = 'Voting' | 'Dex' | 'Big Board' | 'Loteria' | 'Crew';
+export type GatedFeatureName = 'Voting' | 'Dex' | 'Big Board' | 'Loteria' | 'Crew' | 'Zines';
 
 interface GatedFeaturePanelProps {
   featureName: GatedFeatureName;
