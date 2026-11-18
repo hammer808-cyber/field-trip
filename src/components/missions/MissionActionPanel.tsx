@@ -8,6 +8,15 @@ interface MissionActionPanelProps {
   status: string;
   children: ReactNode;
   className?: string;
+  /**
+   * When provided, the lime status badge in the header is a real draw
+   * button (Nov 18, 2026, Zach's call: the big black draw button below
+   * the deck is gone, so the badge — which already reads "Draw a
+   * Mission" — does the drawing). Omit it and the badge stays a plain
+   * status display, e.g. while a mission is drawn.
+   */
+  onDraw?: () => void;
+  drawDisabled?: boolean;
 }
 
 export function MissionActionPanel({
@@ -16,6 +25,8 @@ export function MissionActionPanel({
   status,
   children,
   className,
+  onDraw,
+  drawDisabled,
 }: MissionActionPanelProps) {
   return (
     <section
@@ -37,9 +48,21 @@ export function MissionActionPanel({
             </h2>
           </div>
         </div>
-        <span className="border-2 border-[var(--skin-border)] bg-[var(--skin-secondary)] px-2.5 py-1 font-mono text-[8px] font-black uppercase tracking-widest text-[var(--skin-on-secondary)] shadow-[2px_2px_0_var(--skin-border)]" aria-live="polite">
-          {status}
-        </span>
+        {onDraw ? (
+          <button
+            type="button"
+            onClick={onDraw}
+            disabled={drawDisabled}
+            className="border-2 border-[var(--skin-border)] bg-[var(--skin-secondary)] px-2.5 py-1 font-mono text-[8px] font-black uppercase tracking-widest text-[var(--skin-on-secondary)] shadow-[2px_2px_0_var(--skin-border)] transition-all active:translate-y-0.5 active:shadow-none disabled:cursor-not-allowed disabled:opacity-60"
+            aria-live="polite"
+          >
+            {status}
+          </button>
+        ) : (
+          <span className="border-2 border-[var(--skin-border)] bg-[var(--skin-secondary)] px-2.5 py-1 font-mono text-[8px] font-black uppercase tracking-widest text-[var(--skin-on-secondary)] shadow-[2px_2px_0_var(--skin-border)]" aria-live="polite">
+            {status}
+          </span>
+        )}
       </header>
 
       <div className="relative overflow-hidden p-4 sm:p-6">

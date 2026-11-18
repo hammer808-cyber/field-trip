@@ -819,6 +819,12 @@ export default function DeckPage() {
       ? 'Deck access'
       : 'Draw your next mission';
 
+  // The lime header badge is a real draw button only in the normal draw
+  // branch (Nov 18, 2026): in the starter COMPLETE / REJECTED / NEEDS
+  // MORE PROOF / PENDING states the deck area shows a status panel
+  // instead of the deck, so there is nothing to draw there.
+  const isNormalDrawBranch = !(isStarter && (starterState.status === 'COMPLETE' || starterState.status === 'REJECTED_RETRY_AVAILABLE' || starterState.status === 'NEEDS_MORE_PROOF' || starterState.status === 'PENDING_REVIEW'));
+
   // Guided Starter Mission Mode for Launch
   if (mustCompleteStarterMission && !isAdmin) {
     const launchMission = trips.find(t => t.id.toLowerCase() === LAUNCH_MISSION_ID.toLowerCase()) || LAUNCH_MISSION;
@@ -1001,6 +1007,8 @@ export default function DeckPage() {
               eyebrow={isDrawn ? 'Current assignment' : 'Mission draw'}
               title={missionPanelTitle}
               status={missionPanelStatus}
+              onDraw={!isDrawn && isNormalDrawBranch ? () => handleDraw() : undefined}
+              drawDisabled={isDrawing || isStarterConfigurationBlocked || (isExhausted && !activeTrip) || isWaitingForReview}
               className={cn(demoteMissionBrowsing && isDrawn && 'ring-4 ring-[var(--skin-secondary)] ring-offset-2')}
             >
         {/* The sticker sheet: the deck and the mission both live on the same
@@ -1140,7 +1148,7 @@ export default function DeckPage() {
                       </div>
                     </div>
                   )}
-                  <div className="w-full max-w-[280px] sm:max-w-xs mx-auto">
+                  <div className="w-full max-w-[320px] sm:max-w-[22rem] mx-auto">
                     <DeckStack 
                       onDraw={() => handleDraw()}
                       isDrawing={isDrawing}
@@ -1159,27 +1167,12 @@ export default function DeckPage() {
                   </div>
 
                   <div className="w-full space-y-4">
-                    <button
-                      onClick={() => handleDraw()}
-                      disabled={isDrawing || isStarterConfigurationBlocked || (isExhausted && !activeTrip) || isWaitingForReview}
-                      className={cn(
-                        "skin-button flex min-h-14 w-full cursor-pointer items-center justify-center gap-3 border-[3px] border-[var(--skin-border)] bg-[var(--skin-text)] px-4 py-4 font-display text-2xl font-black uppercase italic tracking-normal text-[var(--skin-surface)] shadow-[var(--skin-button-shadow)] transition-all active:translate-y-1 active:shadow-none",
-                        (isDrawing || isStarterConfigurationBlocked || (isExhausted && !activeTrip) || isWaitingForReview) && "opacity-70 cursor-not-allowed grayscale"
-                      )}
-                    >
-                      {isDrawing ? (
-                        <>
-                          <RotateCcw className="w-6 h-6 animate-spin text-brand-orange" />
-                          <span>Decoding...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Zap className="w-6 h-6 fill-brand-lime text-brand-lime" />
-                          <span>{displayState.label}</span>
-                        </>
-                      )}
-                    </button>
-
+                  {/* The big black DRAW A MISSION button lived here (removed
+                      Nov 18, 2026, Zach's call): the deck itself is the
+                      draw affordance now, and the lime header badge draws
+                      too. The blocked/exhausted state still shows in the
+                      header badge, the status line below, and the deck's
+                      own prompt. */}
                     {/* See-all-cards: for players who want every option at
                         once — opens the grid of this deck's cards and
                         missions below, instead of drawing blind. */}

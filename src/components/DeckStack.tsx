@@ -65,14 +65,14 @@ export function DeckStack({
   };
 
   return (
-    <div id="deck-draw-area" className="relative h-[200px] sm:h-[320px] w-full flex items-center justify-center py-4 transform scale-90 sm:scale-100">
+    <div id="deck-draw-area" className="relative h-[240px] sm:h-[400px] w-full flex items-center justify-center py-4">
       {/* The Stack */}
       <div
            id="starter-deck"
            data-tour="deck-draw"
            data-onboarding="starter-deck"
            className={cn(
-             "relative w-32 h-44 sm:w-64 sm:h-80 group cursor-pointer select-none transition-all",
+             "relative w-36 h-48 sm:w-72 sm:h-[22rem] group cursor-pointer select-none transition-all",
              isActuallyDisabled ? "cursor-not-allowed grayscale opacity-40" : ""
            )}
            onClick={handleDraw}
@@ -197,7 +197,7 @@ export function DeckStack({
               }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.5, ease: "easeIn" }}
-              className="absolute inset-0 h-44 w-32 border-4 border-on-surface bg-[#1e1e1f] z-[200] pointer-events-none shadow-[12px_12px_0px_black]"
+              className="absolute inset-0 h-48 w-36 border-4 border-on-surface bg-[#1e1e1f] z-[200] pointer-events-none shadow-[12px_12px_0px_black]"
             >
                {/* Card Back is shown during the pull */}
                <div className="w-full h-full border-2 border-white/10" />
@@ -206,7 +206,7 @@ export function DeckStack({
         </AnimatePresence>
 
         {/* Prompt to Draw */}
-        <div className="absolute -bottom-20 left-0 right-0 text-center pointer-events-none">
+        <div className="absolute -bottom-12 left-0 right-0 text-center pointer-events-none">
             <motion.div
               animate={isHovered && !disabled ? { y: -5 } : { y: 0 }}
               className="space-y-2"
