@@ -42,6 +42,8 @@ import { buildScoreBreakdownEvents, calculateMissionScore, MIN_VOICE_NOTE_SECOND
 import { getLocationTagLabel, matchesLocationTag, pickCoords } from '../logic/locationTags';
 import { uploadBase64Audio } from '../services/storageService';
 import { revokeTemporaryPreviewUrls } from '../logic/polaroidDevelopment';
+import { bakeStickerIntoPhoto } from '../lib/photoUtils';
+import { DEFAULT_POLAROID_STICKER_PLACEMENT, resolvePolaroidSticker } from '../logic/polaroidSticker';
 
 export default function CapturePage() {
   const [params] = useSearchParams();
@@ -908,6 +910,7 @@ export default function CapturePage() {
       photoCaptured: false,
       photoUrl: undefined,
       stickerId: undefined,
+      stickerPlacement: undefined,
     }));
     setFcState('capture');
   }, [captureData?.filteredImageUrl, captureData?.originalImageUrl, fcData.photoUrl]);
@@ -1107,9 +1110,24 @@ export default function CapturePage() {
         console.log(`[ProofSubmit] upload started: ${filename}`);
         console.log(`[ProofSubmit] storagePath: ${storagePath}`);
         
+        // Bake the placed sticker into the filtered photo (Zach's call, Nov
+        // 18, 2026): the sticker becomes part of the uploaded image, so it
+        // shows up everywhere the photo does. The clean original is uploaded
+        // untouched below. On any bake failure the photo goes up as-is —
+        // a sticker must never block submit.
+        let filteredImageToUpload = captureData.filteredImageUrl;
+        const stickerToBake = fcData.stickerId ? resolvePolaroidSticker(fcData.stickerId) : undefined;
+        if (stickerToBake?.kind === 'image') {
+          filteredImageToUpload = await bakeStickerIntoPhoto(
+            captureData.filteredImageUrl,
+            stickerToBake.imageUrl,
+            fcData.stickerPlacement ?? DEFAULT_POLAROID_STICKER_PLACEMENT,
+          );
+        }
+
         const [origRes, filtRes] = await Promise.all([
           uploadBase64Image(user.uid, 'proofs/original', `orig_${proofId}.jpg`, captureData.originalImageUrl),
-          uploadBase64Image(user.uid, 'proofUploads', filename, captureData.filteredImageUrl)
+          uploadBase64Image(user.uid, 'proofUploads', filename, filteredImageToUpload)
         ]);
         
         const originalUrl = origRes.url;
@@ -1168,6 +1186,7 @@ export default function CapturePage() {
           missionAttemptId: scoringAttempt.attemptId,
           stickerIds: fcData.stickerId ? [fcData.stickerId] : [],
           attachedStickerIds: fcData.stickerId ? [fcData.stickerId] : [],
+          stickerPlacement: fcData.stickerPlacement ?? null,
           isRetry: isRetry,
           retryPointMultiplier: isRetry ? 0.5 : undefined,
           originalEntryId: originalEntryId || null,

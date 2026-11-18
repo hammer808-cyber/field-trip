@@ -1,5 +1,22 @@
 import EXIF from 'exif-js';
 import { ImageMetadata, MetadataStatus } from '../types/proof';
+import {
+  DEFAULT_POLAROID_STICKER_PLACEMENT,
+  mapSquarePlacementToSource,
+  POLAROID_STICKER_ROTATION_DEGREES,
+  stickerDrawHeight,
+  type PolaroidStickerPlacement,
+} from '../logic/polaroidSticker';
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`Could not load image: ${src}`));
+    img.src = src;
+  });
+}
 
 function convertDMSToDD(dms: any, ref: string): number | null {
   if (!dms || !Array.isArray(dms) || dms.length < 3) return null;
@@ -127,4 +144,43 @@ export async function applyFilterToImageUrl(imageUrl: string, filterId: string):
     img.onerror = () => resolve(imageUrl);
     img.src = imageUrl;
   });
+}
+
+/**
+ * Bake a sticker onto a photo (Zach's call, Nov 18, 2026). The placement is
+ * measured on the displayed square, so it is mapped through the object-cover
+ * center crop before drawing onto the full source image. On any failure the
+ * original photo is returned untouched — a sticker must never block submit.
+ */
+export async function bakeStickerIntoPhoto(
+  photoDataUrl: string,
+  stickerImageUrl: string,
+  placement: PolaroidStickerPlacement = DEFAULT_POLAROID_STICKER_PLACEMENT,
+): Promise<string> {
+  try {
+    const [photo, sticker] = await Promise.all([
+      loadImage(photoDataUrl),
+      loadImage(stickerImageUrl),
+    ]);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx || !photo.naturalWidth || !photo.naturalHeight) return photoDataUrl;
+    canvas.width = photo.naturalWidth;
+    canvas.height = photo.naturalHeight;
+    ctx.drawImage(photo, 0, 0);
+    const mapping = mapSquarePlacementToSource({
+      sourceWidth: photo.naturalWidth,
+      sourceHeight: photo.naturalHeight,
+      placement,
+    });
+    const height = stickerDrawHeight(mapping.width, sticker.naturalWidth, sticker.naturalHeight);
+    ctx.save();
+    ctx.translate(mapping.centerX, mapping.centerY);
+    ctx.rotate((POLAROID_STICKER_ROTATION_DEGREES * Math.PI) / 180);
+    ctx.drawImage(sticker, -mapping.width / 2, -height / 2, mapping.width, height);
+    ctx.restore();
+    return canvas.toDataURL('image/jpeg', 0.9);
+  } catch {
+    return photoDataUrl;
+  }
 }

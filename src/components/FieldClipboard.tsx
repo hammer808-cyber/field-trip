@@ -32,6 +32,7 @@ import { getFrankieFieldNotePrompt } from '../logic/frankieModeLogic';
 import { VoiceNoteRecorder } from './VoiceNoteRecorder';
 import { MIN_VOICE_NOTE_SECONDS } from '../logic/missionScoring';
 import { PLAIN_CARD_COPY } from '../data/plainCardCopy';
+import { DEFAULT_POLAROID_STICKER_PLACEMENT, resolvePolaroidSticker } from '../logic/polaroidSticker';
 
 /** One-tap note starters for Frankie Mode: tap one instead of typing. */
 const FRANKIE_NOTE_CHIPS = [
@@ -152,6 +153,12 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
     : (aiAnalysisResult?.status || 'idle');
 
   const canSubmit = data.photoCaptured && noteSatisfied && !isSubmitting && !isAiAnalyzing;
+
+  // The sticker placed on the developing Polaroid, shown again on the
+  // reviewing Polaroid so what-you-see is what-you-submit (it gets baked
+  // into the photo at submit).
+  const reviewingSticker = data.stickerId ? resolvePolaroidSticker(data.stickerId) : undefined;
+  const reviewingPlacement = data.stickerPlacement ?? DEFAULT_POLAROID_STICKER_PLACEMENT;
 
   const handleFinalSubmit = async () => {
     if (!canSubmit) return;
@@ -422,7 +429,15 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
             onRetake={onRetakeCapture}
             availableStickerIds={availableStickerIds}
             selectedStickerId={data.stickerId}
-            onStickerSelect={(stickerId) => setData(previous => ({ ...previous, stickerId }))}
+            onStickerSelect={(stickerId) => setData(previous => ({
+              ...previous,
+              stickerId,
+              stickerPlacement: stickerId
+                ? (previous.stickerPlacement ?? DEFAULT_POLAROID_STICKER_PLACEMENT)
+                : undefined,
+            }))}
+            stickerPlacement={data.stickerPlacement}
+            onStickerPlacementChange={(nextPlacement) => setData(previous => ({ ...previous, stickerPlacement: nextPlacement }))}
           />
         )}
 
@@ -445,6 +460,26 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                      <div className="w-full h-full flex flex-col items-center justify-center text-on-surface/20">
                        <Camera size={48} strokeWidth={1} />
                        <p className="font-display text-sm font-black uppercase mt-2">PHOTO_MISSING</p>
+                     </div>
+                   )}
+                   {reviewingSticker && data.photoUrl && (
+                     <div
+                       className="absolute z-10 pointer-events-none"
+                       style={{
+                         left: `${reviewingPlacement.x}%`,
+                         top: `${reviewingPlacement.y}%`,
+                         transform: 'translate(-50%, -50%) rotate(6deg)',
+                       }}
+                       aria-hidden="true"
+                     >
+                       {reviewingSticker.kind === 'image' ? (
+                         <img src={reviewingSticker.imageUrl} alt="" className="w-20 h-20 object-contain drop-shadow-[2px_2px_0px_rgba(0,0,0,0.55)]" draggable={false} />
+                       ) : (
+                         <div className="bg-white border-2 border-on-surface shadow-[3px_3px_0px_black] p-2 max-w-24 text-center">
+                           <span className="block text-2xl">{reviewingSticker.emoji}</span>
+                           <span className="block font-mono text-[6px] font-black uppercase leading-none mt-1">{reviewingSticker.name}</span>
+                         </div>
+                       )}
                      </div>
                    )}
                  </div>

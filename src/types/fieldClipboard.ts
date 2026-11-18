@@ -1,5 +1,6 @@
 import { TripCard as TripCardType } from './challenges';
 import type { VoiceNoteValue } from '../components/VoiceNoteRecorder';
+import type { PolaroidStickerPlacement } from '../logic/polaroidSticker';
 
 export type FieldClipboardState =
   | 'brief'
@@ -17,6 +18,8 @@ export interface FieldClipboardData {
   note: string;
   findingType?: string;
   stickerId?: string;
+  /** Where the sticker sits on the Polaroid, as percentages of the displayed square. */
+  stickerPlacement?: PolaroidStickerPlacement;
   isRetry?: boolean;
   isRepair?: boolean;
   /** A recorded voice note (5+ seconds earns the note layer). */
