@@ -8,8 +8,6 @@ interface MissionActionPanelProps {
   status: string;
   children: ReactNode;
   className?: string;
-  /** Optional deck line rendered in the header, under the title row. */
-  deckLine?: ReactNode;
 }
 
 export function MissionActionPanel({
@@ -18,7 +16,6 @@ export function MissionActionPanel({
   status,
   children,
   className,
-  deckLine,
 }: MissionActionPanelProps) {
   return (
     <section
@@ -44,11 +41,6 @@ export function MissionActionPanel({
           {status}
         </span>
       </header>
-      {deckLine && (
-        <div className="border-b-[3px] border-[var(--skin-border)] bg-[var(--skin-surface)] px-4 py-3 sm:px-5">
-          {deckLine}
-        </div>
-      )}
 
       <div className="relative overflow-hidden p-4 sm:p-6">
         <div className="absolute inset-0 pointer-events-none opacity-[var(--skin-texture-opacity)] [background-image:var(--skin-surface-texture)]" />

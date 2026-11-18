@@ -23,7 +23,6 @@ import { FrankieModeCard } from '../components/FrankieModeCard';
 import { DeckStack } from '../components/DeckStack';
 import { getDeckCatalogSections, getDefaultDeckPack, getDeckPackById, normalizeDeckPackId } from '../data/deckPacks';
 import { getDeckCoverImage, BASE_DECK_PLACEHOLDER } from '../lib/deckUtils';
-import { DeckArtwork } from '../components/DeckArtwork';
 import { getWeeklyBonusForWeek } from '../data/weeklyBonuses';
 import { StickerBackground } from '../components/StickerBackground';
 import { StickerDecal, StickerCorner, StickerScatter } from '../components/StickerDecals';
@@ -31,7 +30,6 @@ import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 import { getEntryEarnedXp, getProofImageUrl, getProofLogbookCounts, toMillis } from '../logic/proofDistribution';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { StarterCompletionState } from '../utils/starterHelper';
-import { getSeasonCountdown } from '../utils/seasonCountdown';
 import { MARKER_STICKERS } from '../data/markers';
 import { AvatarPreview } from '../components/AvatarPreview';
 import { subscribeToRecentScoreEvents } from '../services/activityService';
@@ -142,7 +140,6 @@ function DiamondDecor() {
 
 import { FieldPageHero } from '../components/FieldPageHero';
 import { ActiveDeckPanel } from '../components/missions/ActiveDeckPanel';
-import { ExpandableDeckLine } from '../components/missions/ExpandableDeckLine';
 import { DeckShelfPanel, type DeckShelfSection } from '../components/missions/DeckShelfPanel';
 import { MissionActionPanel } from '../components/missions/MissionActionPanel';
 import { MissionLogbookPanel, type MissionLogbookItem } from '../components/missions/MissionLogbookPanel';
@@ -824,11 +821,6 @@ export default function DeckPage() {
     window.scrollTo(0, 0);
   }, []);
 
-  // Use dynamic countdown
-  const countdown = activeSeason
-    ? getSeasonCountdown(activeSeason, currentDate)
-    : null;
-
   const activeDeckDisplayName = (() => {
     const shortName = (activePack?.shortName || activeDeckShortName).toUpperCase();
     const fullName = (activePack?.packName || activeDeckName).toUpperCase();
@@ -1019,24 +1011,10 @@ export default function DeckPage() {
         title="MISSIONS"
         subtitle="Draw a card. Take a photo. Bring back a receipt."
         backgroundIcon={<Layers className="w-64 h-64" />}
-        infoCardLabel={getDisplayLabel('ACTIVE_DECK')}
-        infoCardValue={activePack?.shortName || activeDeckShortName}
-        infoCardSubtext={deckLockState.locked ? "LOCKED" : "UNLOCKED"}
-        infoCardAccent="blue"
         variant="editorial"
       />
 
       <div className="relative z-10 mx-auto max-w-6xl px-4 pb-24 pt-5 sm:px-6 sm:pt-6">
-        <div className="mb-4 flex items-center justify-between gap-3 border-y border-[var(--skin-border-muted)] bg-[var(--skin-surface)]/70 px-3 py-1.5 font-mono text-[9px] font-black uppercase tracking-wider text-[var(--skin-text-muted)] opacity-70" aria-live="polite">
-          <span>{countdown?.label || 'Season timing is loading from game configuration'}</span>
-          <span className="shrink-0 text-[var(--skin-primary)]">
-            {countdown
-              ? countdown.status === 'active'
-                ? `Week ${currentWeekNumber}`
-                : countdown.status.replace('_', ' ')
-              : 'config pending'}
-          </span>
-        </div>
 
         {!frankieMode && (
           <div className="mb-6">
@@ -1090,10 +1068,9 @@ export default function DeckPage() {
                 : undefined}
             />
             )}
-            {/* When a mission is drawn, the deck folds into the mission
-                panel header as one tappable line (Nov 16, 2026) — the big
-                deck panel only shows as the draw surface when nothing is
-                drawn yet. */}
+            {/* The big deck panel is the draw surface only — it shows when
+                nothing is drawn yet. Once a mission is drawn, the page is
+                the mission header and the card (Nov 17, 2026). */}
             {!isDrawn && (
             <div className={cn(demoteMissionBrowsing && 'opacity-55')}>
             <ActiveDeckPanel
@@ -1116,19 +1093,6 @@ export default function DeckPage() {
               eyebrow={isDrawn ? 'Current assignment' : 'Mission draw'}
               title={missionPanelTitle}
               status={missionPanelStatus}
-              deckLine={isDrawn ? (
-                <ExpandableDeckLine
-                  pack={activePack}
-                  displayName={activeDeckDisplayName}
-                  approvedCount={approvedDeckChallengesCount}
-                  pendingCount={pendingDeckChallengesCount}
-                  totalCount={totalDeckChallenges}
-                  approvedPercent={deckProgressPercent}
-                  pendingPercent={deckPendingPercent}
-                  locked={deckLockState.locked}
-                  lockReason={deckLockState.reason}
-                />
-              ) : undefined}
               className={cn(demoteMissionBrowsing && isDrawn && 'ring-4 ring-[var(--skin-secondary)] ring-offset-2')}
             >
         {/* The sticker sheet: the deck and the mission both live on the same
@@ -1324,28 +1288,19 @@ export default function DeckPage() {
               transition={{ delay: 0.1 }}
               className="w-full"
             >
-               {/* The deck you drew from stays on the sheet with the mission —
-                  tap it to put a freshly drawn card back. */}
-               <div className="mb-4 flex items-center gap-3">
+               {/* Put-back lives here now (Nov 17, 2026): a freshly drawn
+                   card can go back on the deck, and nothing else — no deck
+                   name, no source line. The deck info lives on
+                   Basecamp. */}
+               {canPutBack && (
                  <button
                    type="button"
                    onClick={handlePutBack}
-                   disabled={!canPutBack}
-                   aria-label={canPutBack ? 'Put this card back on the deck' : `Drawn from ${activeDeckDisplayName}`}
-                   className={cn('relative h-16 w-12 shrink-0', canPutBack && 'cursor-pointer')}
+                   className="mb-4 font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/60 underline underline-offset-4 hover:text-on-surface"
                  >
-                   <div className="absolute inset-0 rotate-[-4deg] rounded-[4px] border-2 border-on-surface bg-white shadow-[2px_2px_0px_black]" />
-                   <div className="absolute inset-0 rotate-[2deg] rounded-[4px] border-2 border-on-surface bg-white shadow-[2px_2px_0px_black]" />
-                   <div className="absolute inset-0 overflow-hidden rounded-[4px] border-2 border-on-surface shadow-[3px_3px_0px_black]">
-                     <DeckArtwork pack={activePack} />
-                   </div>
+                   Put this card back on the deck
                  </button>
-                 <div className="min-w-0">
-                   <p className="font-mono text-[9px] font-black uppercase tracking-[0.2em] text-on-surface/50">Drawn from</p>
-                   <p className="truncate font-display text-lg font-black uppercase italic leading-tight">{activeDeckDisplayName}</p>
-                   <p className="text-[11px] font-bold text-on-surface/60">{canPutBack ? 'Tap the deck to put this card back.' : 'Finish this mission to draw again.'}</p>
-                 </div>
-               </div>
+               )}
                <motion.div
                  layoutId="mission-draw-card"
                  transition={{ layout: { delay: 0.45, duration: 0.55, ease: [0.22, 1, 0.36, 1] } }}

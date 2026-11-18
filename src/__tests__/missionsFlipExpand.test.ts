@@ -48,24 +48,22 @@ test('Flip then expand: the deck top card and the revealed mission card share on
   assert.match(deck, /rotateY: \{ duration: 0\.4, delay: 0\.1 \}/);
 });
 
-test('The deck stays on the sheet with a mission drawn: mini deck strip with put-back', () => {
+test('Put-back survives as a bare button: no deck strip with a mission drawn', () => {
   const source = read('src/pages/Deck.tsx');
 
-  // The revealed state shows where the card came from.
-  assert.match(source, /Drawn from/);
-  assert.match(source, /activeDeckDisplayName/);
+  // The deck strip is gone (Nov 17, 2026): no "Drawn from" line, no deck
+  // name, no mini deck art above the card. The deck info lives on Basecamp.
+  assert.doesNotMatch(source, /Drawn from/);
+  assert.doesNotMatch(source, /Finish this mission to draw again\./);
+  assert.doesNotMatch(source, /Tap the deck to put this card back\./);
+  assert.doesNotMatch(source, /<DeckArtwork pack=\{activePack\} \/>/);
 
   // Put-back exists and is gated to a freshly drawn card: a resumed active
-  // mission cannot be put back (the resume sync would re-expand it).
+  // mission cannot be put back (the resume sync would re-expand it). It
+  // renders only while a put-back is possible, as a plain text button.
   assert.match(source, /const canPutBack = !!drawnTrip && !activeTrip;/);
   assert.match(source, /const handlePutBack = \(\) => \{/);
+  assert.match(source, /\{canPutBack && \(/);
   assert.match(source, /onClick=\{handlePutBack\}/);
-  assert.match(source, /disabled=\{!canPutBack\}/);
-  assert.match(source, /Tap the deck to put this card back\./);
-  assert.match(source, /Finish this mission to draw again\./);
-
-  // The mini deck shows the pack art on top of the stack.
-  const stripStart = source.indexOf('The deck you drew from stays on the sheet');
-  const stripBlock = source.slice(stripStart, stripStart + 2200);
-  assert.match(stripBlock, /<DeckArtwork pack=\{activePack\} \/>/);
+  assert.match(source, /Put this card back on the deck/);
 });

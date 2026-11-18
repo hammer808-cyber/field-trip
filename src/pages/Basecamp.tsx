@@ -18,10 +18,12 @@ import {
   type BasecampPrimaryAction,
 } from '../logic/basecampViewModel';
 import { acknowledgeStarterUnlockSeen } from '../services/starterUnlockAck';
+import { getSeasonCountdown } from '../utils/seasonCountdown';
 import './Basecamp.css';
 
 export default function Basecamp() {
   const {
+    activeSeason,
     activeSubmissionStatus,
     activeTrip,
     badgeProgress,
@@ -92,6 +94,13 @@ export default function Basecamp() {
 
   const fieldTypeName = fieldType ? FIELD_TYPES[fieldType]?.name : null;
   const activePack = getDeckPackById(viewModel.nextAction.deckId);
+
+  // The deck info lives here now (Nov 17, 2026): Missions is bare — deck,
+  // draw, card — so Basecamp carries the active deck and the season
+  // countdown, linking out to the shelf in DEX.
+  const seasonCountdown = activeSeason
+    ? getSeasonCountdown(activeSeason, currentDate)
+    : null;
 
   React.useEffect(() => {
     if (!import.meta.env.DEV || !(profile?.id || user?.uid)) return;
@@ -201,6 +210,29 @@ export default function Basecamp() {
                 ? () => void runAction(viewModel.nextAction.secondaryAction!)
                 : undefined}
             />
+            {/* Active deck row (Nov 17, 2026): the deck info moved here from
+                Missions. One slim line — deck, progress, season countdown —
+                tapping it opens the shelf in DEX. */}
+            <button
+              type="button"
+              onClick={() => navigate('/dex')}
+              aria-label={`Active deck ${viewModel.progress.activeDeckName}. Open the deck shelf.`}
+              className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 border-2 border-[var(--skin-border)] bg-[var(--skin-surface)] px-4 py-3 text-left shadow-[4px_4px_0_var(--skin-border)] transition-all hover:shadow-[6px_6px_0_var(--skin-border)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+            >
+              <span className="font-mono text-[8px] font-black uppercase tracking-[0.22em] text-[var(--skin-text-muted)]">Active deck</span>
+              <span className="font-display text-base font-black uppercase italic leading-none tracking-normal text-[var(--skin-text)]">{viewModel.progress.activeDeckName}</span>
+              <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-[var(--skin-text-muted)]">
+                {viewModel.progress.activeDeckApprovedCount}/{viewModel.progress.activeDeckTotalCount} approved
+                {viewModel.progress.activeDeckPendingCount > 0 && ` · ${viewModel.progress.activeDeckPendingCount} pending`}
+              </span>
+              {seasonCountdown && (
+                <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-[var(--skin-primary)]">
+                  {seasonCountdown.label}
+                  {seasonCountdown.status === 'active' && ` · Week ${currentWeekNumber}`}
+                </span>
+              )}
+              <span className="ml-auto font-mono text-[9px] font-black uppercase tracking-widest text-[var(--skin-text)]">Deck shelf →</span>
+            </button>
             <BasecampAttentionPanel
               model={viewModel.attention}
               onAction={() => {

@@ -238,6 +238,13 @@ export function TrevorGuide() {
     dispatchPanelEvent('suppress');
   };
 
+  // The Missions page is bare — deck, draw, card — so Trevor's floating
+  // launcher stays out of the way there (Nov 17, 2026). The mission card
+  // itself carries the resume action, and the guidance strip covers the
+  // undrawn states. An already-open guide still renders.
+  const onMissionsPage = location.pathname === '/missions' || location.pathname === '/deck';
+  if (onMissionsPage && !panelState.isExpanded) return null;
+
   return (
     <TrevorGuideView
       recommendation={recommendation}
