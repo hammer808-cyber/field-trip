@@ -291,6 +291,119 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     tags: ['mall-rat', 'map', 'directory', 'starter-pack']
   },
 
+  // Mall Rat sticker pack (Nov 18, 2026; Zach's call: REPLACE 03 + 09,
+  // ADD the rest as new). The pack ZIP (mall_rat_stickers_01-10_transparent_45_5ubn.zip)
+  // held 10 PNGs in the batch-1 style: 6 brand-new scenes + 4 same-theme
+  // re-renders of existing concepts. 03_escalator_cruise and 09_mall_directory
+  // REPLACE the art on mall_rat_escalator_pose and mall_rat_mall_map (same ids,
+  // triggers, collections, orders — file bytes only; the old art is preserved
+  // in public/assets/stickers/mallRat/alternates/). The replacement fixes two
+  // assets that didn't match their names: escalator-pose.png was a human girl
+  // with pink hair, not the raccoon, and mall-map.png was a tiny receipt-like
+  // slip, not a map. The other 8 land below as new entries, all trigger-pending
+  // (admin_grant): no existing event fits them. Do NOT give new entries
+  // awardTrigger 'starter_pack' — unlockStarterPackForArchetype grants all
+  // starter_pack entries at quiz time with no backfill for existing players.
+  {
+    id: 'mall_rat_mascot',
+    name: 'Mall Rat Mascot',
+    archetype: 'mallRat',
+    collection: 'explorer',
+    displayOrder: 19,
+    imageUrl: '/assets/stickers/mallRat/01_mall_rat_mascot.png',
+    rarity: 'rare',
+    // Trigger PENDING (Nov 18, 2026): no existing event fits a mascot
+    // portrait. Registered as admin_grant so it is visible and grantable,
+    // never mis-awarded by a guessed event.
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for showing up as the Mall Rat, full mascot.',
+    tags: ['mall-rat', 'mascot', 'raccoon', 'trigger-pending']
+  },
+  {
+    id: 'mall_rat_bag_lounge',
+    name: 'Bag Lounge',
+    archetype: 'mallRat',
+    collection: 'explorer',
+    displayOrder: 20,
+    imageUrl: '/assets/stickers/mallRat/02_shopping_bag_lounge.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for lounging on the haul.',
+    tags: ['mall-rat', 'shopping', 'bags', 'lounge', 'trigger-pending']
+  },
+  {
+    id: 'mall_rat_food_court_feast',
+    name: 'Food Court Feast',
+    archetype: 'mallRat',
+    collection: 'adventure',
+    displayOrder: 9,
+    imageUrl: '/assets/stickers/mallRat/04_food_court_feast.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for feasting at the food court.',
+    tags: ['mall-rat', 'food-court', 'feast', 'pretzel', 'trigger-pending']
+  },
+  {
+    id: 'mall_rat_shopping_cart_haul',
+    name: 'Shopping Cart Haul',
+    archetype: 'mallRat',
+    collection: 'adventure',
+    displayOrder: 10,
+    imageUrl: '/assets/stickers/mallRat/05_shopping_cart_haul.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for filling the cart.',
+    tags: ['mall-rat', 'shopping', 'cart', 'haul', 'trigger-pending']
+  },
+  {
+    id: 'mall_rat_chunky_sneaker',
+    name: 'Chunky Sneaker',
+    archetype: 'mallRat',
+    collection: 'adventure',
+    displayOrder: 11,
+    imageUrl: '/assets/stickers/mallRat/06_chunky_sneaker.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for stepping out in the chunky sneakers.',
+    tags: ['mall-rat', 'sneaker', 'style', 'trigger-pending']
+  },
+  {
+    id: 'mall_rat_mirror_selfie',
+    name: 'Mirror Selfie',
+    archetype: 'mallRat',
+    collection: 'adventure',
+    displayOrder: 12,
+    imageUrl: '/assets/stickers/mallRat/07_mirror_selfie.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for the mirror selfie.',
+    tags: ['mall-rat', 'selfie', 'mirror', 'trigger-pending']
+  },
+  {
+    id: 'mall_rat_mall_arcade',
+    name: 'Mall Arcade',
+    archetype: 'mallRat',
+    collection: 'adventure',
+    displayOrder: 13,
+    imageUrl: '/assets/stickers/mallRat/08_mall_arcade.png',
+    rarity: 'rare',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for beating the claw machine.',
+    tags: ['mall-rat', 'arcade', 'claw-machine', 'trigger-pending']
+  },
+  {
+    id: 'mall_rat_pretzel_and_iced_coffee',
+    name: 'Pretzel and Iced Coffee',
+    archetype: 'mallRat',
+    collection: 'adventure',
+    displayOrder: 14,
+    imageUrl: '/assets/stickers/mallRat/10_pretzel_and_iced_coffee.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for the pretzel and iced coffee.',
+    tags: ['mall-rat', 'pretzel', 'iced-coffee', 'snack', 'trigger-pending']
+  },
+
   // Mascota
   {
     id: 'mascota_mascot_jump',
