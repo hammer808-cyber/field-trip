@@ -31,6 +31,9 @@ export type FieldPageHeroProps = {
   activeTab?: string;
   onTabChange?: (tabId: string) => void;
   variant?: "default" | "editorial";
+  /** Tighter hero padding, Basecamp-scoped (Nov 17, 2026): the hero is
+   *  shared by a dozen pages, so the trim is a prop, not a global change. */
+  compact?: boolean;
   department?: PlayerDepartment;
   tone?: "paper" | "chrome";
   className?: string;
@@ -54,6 +57,7 @@ export function FieldPageHero({
   activeTab,
   onTabChange,
   variant = "default",
+  compact = false,
   department,
   tone = "paper",
   className
@@ -101,7 +105,10 @@ export function FieldPageHero({
         )}
 
         <div className="relative mx-auto max-w-6xl">
-          <div className="flex min-h-[112px] flex-col justify-end gap-4 pb-5 sm:min-h-[132px] sm:flex-row sm:items-end sm:justify-between sm:gap-5 sm:pb-6">
+          <div className={cn(
+            'flex min-h-[112px] flex-col justify-end gap-4 sm:min-h-[132px] sm:flex-row sm:items-end sm:justify-between sm:gap-5',
+            compact ? 'pb-3 sm:pb-4' : 'pb-5 sm:pb-6',
+          )}>
             <div className="min-w-0">
               {backLabel && (
                 <button

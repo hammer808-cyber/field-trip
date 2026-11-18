@@ -229,3 +229,75 @@ test('Basecamp passes its countdown to the header and the deck row no longer car
   assert.match(row, /activeDeckApprovedCount/);
   assert.match(row, /Deck shelf →/);
 });
+
+test('the next-action panel hugs its content instead of forcing empty height', () => {
+  // Nov 17, 2026: the text column forced min-h-[310px] with
+  // justify-between on ~150px of content — ~160px of dead middle on the
+  // board. The mission summary's 220px floor did the same on mobile.
+  const html = renderToStaticMarkup(
+    <BasecampNextActionPanel
+      model={{
+        eyebrow: 'Current mission',
+        title: 'The Long Table',
+        description: 'Find a holiday table set for a crowd.',
+        statusLabel: 'Mission active',
+        action: { label: 'Do This Mission', href: '/capture?id=holiday-01', intent: 'navigate' },
+        secondaryAction: null,
+        urgency: 'normal',
+        guidanceState: 'RESUME_ACTIVE_MISSION',
+        deckId: 'gobble-and-glow',
+        mission: {
+          id: 'holiday-01',
+          title: 'The Long Table',
+          description: 'Find a holiday table set for a crowd.',
+          deckId: 'gobble-and-glow',
+          deckName: 'Gobble & Glow',
+          status: 'active',
+          statusLabel: 'Mission active',
+          rewardXp: 100,
+        },
+      }}
+      pack={getDeckPackById('gobble-and-glow')}
+      onAction={noop}
+    />,
+  );
+  assert.match(html, /The Long Table/);
+  assert.match(html, /Do This Mission/);
+  assert.doesNotMatch(html, /min-h-\[310px\]/);
+  assert.doesNotMatch(html, /min-h-\[220px\]/);
+  // The text column hugs its content — justify-start, not the old
+  // justify-between that spread ~150px of content across a 310px floor.
+  // (The header bar above it still legitimately uses justify-between.)
+  assert.match(html, /class="flex flex-col justify-start gap-6 p-5 sm:p-7 lg:p-8"/);
+  // Desktop keeps stretching the summary to the row height.
+  assert.match(html, /lg:min-h-full/);
+});
+
+test('the utility row renders for admins only', () => {
+  // Nov 17, 2026: the row held only the admin-only console button, but
+  // its div still took 12px of padding above the board for every player.
+  const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+  const basecamp = readFileSync(join(repoRoot, 'src/pages/Basecamp.tsx'), 'utf8');
+  const utilIdx = basecamp.indexOf('basecamp-utility');
+  assert.ok(utilIdx !== -1, 'utility row must still exist for admins');
+  const gateIdx = basecamp.lastIndexOf('{isAdmin && (', utilIdx);
+  assert.ok(gateIdx !== -1, 'utility row must be gated on isAdmin');
+  assert.ok(utilIdx - gateIdx < 200, 'the gate must wrap the utility div, not sit far above it');
+  assert.match(basecamp, /Admin Console/);
+});
+
+test('the hero trim is a Basecamp-scoped prop, not a global change', () => {
+  // Nov 17, 2026: FieldPageHero is shared by a dozen pages, so the
+  // Basecamp gap trim rides on an opt-in `compact` prop — every other
+  // page keeps the default padding.
+  const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+  const read = (rel: string) => readFileSync(join(repoRoot, rel), 'utf8');
+  const hero = read('src/components/FieldPageHero.tsx');
+  assert.match(hero, /compact\?: boolean/);
+  assert.match(hero, /compact \? 'pb-3 sm:pb-4' : 'pb-5 sm:pb-6'/);
+  const basecamp = read('src/pages/Basecamp.tsx');
+  assert.match(basecamp, /<FieldPageHero\s*\n\s*variant="editorial"\s*\n\s*compact/);
+  const board = read('src/components/basecamp/BasecampBoard.tsx');
+  assert.match(board, /py-3 sm:px-6 sm:py-4/);
+  assert.doesNotMatch(board, /py-6 sm:px-6 sm:py-8/);
+});

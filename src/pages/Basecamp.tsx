@@ -163,6 +163,7 @@ export default function Basecamp() {
     <div className="skin-page skin-basecamp page-scroll min-h-screen bg-[var(--skin-background)] pb-32 text-[var(--skin-text)] [background-image:var(--skin-background-texture)]">
       <FieldPageHero
         variant="editorial"
+        compact
         eyebrow="FIELD_START"
         title="BASECAMP"
         subtitle="What matters today."
@@ -174,8 +175,11 @@ export default function Basecamp() {
         infoCardAccent="lime"
       />
 
-      <div className={`basecamp-utility mx-auto w-full max-w-7xl px-4 pt-3 sm:px-6 lg:px-8 ${viewModel.nextAction.urgency === 'critical' || viewModel.nextAction.urgency === 'high' ? 'basecamp-secondary-quiet' : ''}`}>
-        {isAdmin && (
+      {/* Nov 17, 2026: the utility row holds only the admin-only console
+          button, so it renders for admins only — for everyone else it was
+          12px of empty padding above the board. */}
+      {isAdmin && (
+        <div className={`basecamp-utility mx-auto w-full max-w-7xl px-4 pt-3 sm:px-6 lg:px-8 ${viewModel.nextAction.urgency === 'critical' || viewModel.nextAction.urgency === 'high' ? 'basecamp-secondary-quiet' : ''}`}>
           <button
             type="button"
             onClick={() => navigate('/admin')}
@@ -184,8 +188,8 @@ export default function Basecamp() {
             <Shield size={14} aria-hidden="true" />
             Admin Console
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       <BasecampBoard
         main={(

@@ -139,3 +139,16 @@ test('Deck diagnostics exposes Starter completion sources and admin repair actio
   assert.match(deckDiagnosticsSource, /Preview Starter Completion Repair/);
   assert.match(deckDiagnosticsSource, /Repair Starter Completion/);
 });
+
+test('Big Board nav asks about the leaderboard, not Voting', () => {
+  // Nov 17, 2026: 7588357 gave the route gate its own 'leaderboard' key,
+  // but the nav still asked about 'voting' — parking Voting locked the
+  // Big Board tab for every non-admin at 3/3 starters, while the route
+  // itself was open.
+  assert.match(bottomNavSource, /const leaderboardUnlocked = canAccessFeature\(canonicalProgress, 'leaderboard', \{ isAdmin \}\);/);
+  assert.match(bottomNavSource, /itemPathname === '\/big-board' && !leaderboardUnlocked/);
+  assert.doesNotMatch(bottomNavSource, /itemPathname === '\/big-board' && !canAccessFeature\(canonicalProgress, 'voting'/);
+  // Voting's own lock is correct — it stays parked.
+  assert.match(bottomNavSource, /const votingUnlocked = canAccessFeature\(canonicalProgress, 'voting', \{ isAdmin \}\);/);
+  assert.match(bottomNavSource, /label: 'VOTING', path: '\/voting', locked: !votingUnlocked/);
+});

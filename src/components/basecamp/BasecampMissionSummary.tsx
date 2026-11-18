@@ -9,8 +9,12 @@ interface BasecampMissionSummaryProps {
 }
 
 export function BasecampMissionSummary({ mission, pack }: BasecampMissionSummaryProps) {
+  // Nov 17, 2026: no 220px floor on mobile — the summary's real content
+  // is ~150–180px (112px-wide 3:4 art beside a short text block), so the
+  // floor forced ~40px of dead height. lg:min-h-full still stretches it
+  // to the row on desktop.
   return (
-    <div className="grid min-h-[220px] grid-cols-[112px_minmax(0,1fr)] gap-4 border-t-2 border-[var(--skin-border)] bg-[var(--skin-surface-muted)] p-4 sm:grid-cols-[148px_minmax(0,1fr)] sm:gap-5 lg:min-h-full lg:grid-cols-1 lg:border-l-2 lg:border-t-0">
+    <div className="grid grid-cols-[112px_minmax(0,1fr)] gap-4 border-t-2 border-[var(--skin-border)] bg-[var(--skin-surface-muted)] p-4 sm:grid-cols-[148px_minmax(0,1fr)] sm:gap-5 lg:min-h-full lg:grid-cols-1 lg:border-l-2 lg:border-t-0">
       <div className="relative aspect-[3/4] w-full self-center overflow-hidden border-[3px] border-[var(--skin-border)] bg-[var(--skin-surface)] shadow-[5px_5px_0_var(--skin-border)] lg:mx-auto lg:max-w-[168px]">
         <DeckArtwork pack={pack} grayscale="" />
         <span className="absolute bottom-2 left-2 z-10 border-2 border-[var(--skin-border)] bg-[var(--skin-surface)] px-2 py-1 font-mono text-[7px] font-black uppercase tracking-widest text-[var(--skin-text)] shadow-[2px_2px_0_var(--skin-border)]">

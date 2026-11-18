@@ -47,6 +47,10 @@ export function BottomNav() {
   const isHeat = skin.id === 'heatwave';
   const dexUnlocked = canAccessFeature(canonicalProgress, 'memories', { isAdmin });
   const votingUnlocked = canAccessFeature(canonicalProgress, 'voting', { isAdmin });
+  // Nov 17, 2026: the Big Board has its own key — it used to ask about
+  // 'voting' here while the route gate asked about 'leaderboard', so
+  // parking Voting locked the board in the nav even at 3/3 starters.
+  const leaderboardUnlocked = canAccessFeature(canonicalProgress, 'leaderboard', { isAdmin });
   const crewUnlocked = canAccessFeature(canonicalProgress, 'crew', { isAdmin });
   const basecampLocked = resolveBasecampNavLocked({
     starterComplete: getStarterProgress(canonicalProgress).starterComplete,
@@ -115,7 +119,7 @@ export function BottomNav() {
       {navItems.map((item) => {
         const itemPathname = item.path.split('?')[0];
         const isActive = location.pathname === itemPathname || (itemPathname !== '/basecamp' && location.pathname.startsWith(`${itemPathname}/`));
-        const isLockedTab = !!item.locked || (itemPathname === '/big-board' && !canAccessFeature(canonicalProgress, 'voting', { isAdmin }));
+        const isLockedTab = !!item.locked || (itemPathname === '/big-board' && !leaderboardUnlocked);
         const isHighlightedDestination = attentionPath === itemPathname && !isActive && !isLockedTab;
         const dexPresentation = itemPathname === '/dex'
           ? resolveDexNavPresentation({

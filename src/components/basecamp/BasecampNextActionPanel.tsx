@@ -33,7 +33,9 @@ export function BasecampNextActionPanel({ model, pack, onAction, onSecondaryActi
       </div>
 
       <div className="basecamp-paper relative grid overflow-hidden lg:grid-cols-[minmax(0,1.45fr)_minmax(220px,0.55fr)]">
-        <div className="flex min-h-[310px] flex-col justify-between gap-8 p-5 sm:p-7 lg:p-8">
+        {/* Nov 17, 2026: no forced min-height — the old 310px floor left
+            ~160px of empty middle on a panel whose content is ~150px. */}
+        <div className="flex flex-col justify-start gap-6 p-5 sm:p-7 lg:p-8">
           <div className="space-y-4">
             <p className="font-mono text-[9px] font-black uppercase tracking-[0.24em] text-[var(--skin-primary)]">
               {model.eyebrow}
