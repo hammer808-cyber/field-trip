@@ -6,6 +6,8 @@ import { useApp } from '../context/AppContext';
 import { FIELD_TYPES } from '../constants';
 import { cn } from '../lib/utils';
 import { LEVEL_MILESTONE_REWARDS } from '../logic/playerLevel';
+import { evaluateStickerTriggers } from '../logic/stickerEvaluator';
+import { runStickerAwardNonBlocking } from '../services/stickerService';
 import {
   acknowledgeLevelUpEvent,
   subscribeToPendingLevelUpEvents,
@@ -30,6 +32,28 @@ export function PlayerLevelUpFeedback() {
     }
     return subscribeToPendingLevelUpEvents(user.uid, setEvents);
   }, [user]);
+
+  // FIRST OFFENSES — Level Up (Nov 17, 2026): a pending level-up event is
+  // the server-verified proof of a level increase, so observing one
+  // evaluates the level_up trigger. One evaluation per event id; the unlock
+  // transaction dedupes, so the sticker is awarded once. Players who already
+  // levelled up and acknowledged every event before this ships never observe
+  // one — admin grant covers them.
+  const evaluatedLevelUpEventsRef = React.useRef<Set<string>>(new Set());
+  React.useEffect(() => {
+    if (!user) return;
+    for (const levelUpEvent of events) {
+      if (evaluatedLevelUpEventsRef.current.has(levelUpEvent.id)) continue;
+      evaluatedLevelUpEventsRef.current.add(levelUpEvent.id);
+      runStickerAwardNonBlocking('level_up', () =>
+        evaluateStickerTriggers({
+          event: { type: 'level_up', source: `level_up:${levelUpEvent.id}` },
+          userId: user.uid,
+          fieldType: profile?.fieldType ?? null
+        })
+      );
+    }
+  }, [events, user, profile?.fieldType]);
 
   const event = events[0];
   const reducedMotion = profile?.preferences?.motionEnabled === false

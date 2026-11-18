@@ -26,6 +26,7 @@ export type StickerAwardTrigger =
   | 'archetype_milestone'
   | 'season_milestone'
   | 'mission_count_milestone'
+  | 'level_up'
   | 'admin_grant';
 
 export type StickerCollection =
@@ -625,6 +626,123 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     awardTrigger: 'starter_pack',
     unlockReason: 'Included in the Bigfoot starter pack.',
     tags: ['bigfoot', 'night', 'silhouette', 'starter-pack']
+  },
+
+  // FIRST OFFENSES — starter achievement series (Nov 17, 2026). Cross-pack:
+  // no archetype, so every player can earn them. 9 of 12 land here; the
+  // remaining 3 arrive separately — do not generate replacements. Series
+  // art: public/assets/stickers/achievement/ (original filenames kept).
+  {
+    id: 'first_offenses_fresh_meat',
+    name: 'Fresh Meat',
+    collection: 'achievement',
+    displayOrder: 13,
+    imageUrl: '/assets/stickers/achievement/01_fresh_meat.png',
+    rarity: 'common',
+    awardTrigger: 'first_submission',
+    unlockReason: 'Earned when you submit your first receipt.',
+    tags: ['first-offenses', 'achievement', 'first-submission', 'receipt']
+  },
+  {
+    id: 'first_offenses_scene_starter',
+    name: 'Scene Starter',
+    collection: 'achievement',
+    displayOrder: 14,
+    imageUrl: '/assets/stickers/achievement/02_scene_starter.png',
+    rarity: 'common',
+    // Trigger PENDING confirmation (Nov 17, 2026): "first mission started"
+    // has no canonical event yet — the draw is the likely trigger, but that
+    // is Zach's call. Registered as admin_grant so it is visible and
+    // grantable, never mis-awarded by a guessed event.
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned when you start your first mission.',
+    tags: ['first-offenses', 'achievement', 'first-mission', 'trigger-pending']
+  },
+  {
+    id: 'first_offenses_the_instigator',
+    name: 'The Instigator',
+    collection: 'achievement',
+    displayOrder: 15,
+    imageUrl: '/assets/stickers/achievement/03_the_instigator.png',
+    rarity: 'common',
+    // Trigger PENDING confirmation (Nov 17, 2026): "first qualifying
+    // mission or group action initiated" matches no existing event —
+    // crew_created and the mission draw are both candidates. Zach's call.
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned when you kick off your first mission or group action.',
+    tags: ['first-offenses', 'achievement', 'initiated', 'trigger-pending']
+  },
+  {
+    id: 'first_offenses_democracy_is_messy',
+    name: 'Democracy Is Messy',
+    collection: 'achievement',
+    displayOrder: 16,
+    imageUrl: '/assets/stickers/achievement/04_democracy_is_messy.png',
+    rarity: 'common',
+    awardTrigger: 'weekly_vote_cast',
+    unlockReason: 'Earned by casting your first weekly vote.',
+    tags: ['first-offenses', 'achievement', 'voting', 'weekly-vote']
+  },
+  {
+    id: 'first_offenses_accomplice',
+    name: 'Accomplice',
+    collection: 'achievement',
+    displayOrder: 17,
+    imageUrl: '/assets/stickers/achievement/05_accomplice.png',
+    rarity: 'common',
+    awardTrigger: 'crew_joined',
+    unlockReason: 'Earned when you join your first Fieldtrip crew.',
+    tags: ['first-offenses', 'achievement', 'crew', 'collaboration']
+  },
+  {
+    id: 'first_offenses_outside_person',
+    name: 'Outside Person',
+    collection: 'achievement',
+    displayOrder: 18,
+    imageUrl: '/assets/stickers/achievement/06_outside_person.png',
+    rarity: 'common',
+    // Trigger PENDING confirmation (Nov 17, 2026): "first location-based
+    // adventure completed" has no canonical event yet — the anticipated
+    // location_verified trigger is not built. Zach's call.
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned when you complete your first location-based adventure.',
+    tags: ['first-offenses', 'achievement', 'location', 'trigger-pending']
+  },
+  {
+    id: 'first_offenses_repeat_offender',
+    name: 'Repeat Offender',
+    collection: 'achievement',
+    displayOrder: 19,
+    imageUrl: '/assets/stickers/achievement/07_repeat_offender.png',
+    rarity: 'rare',
+    awardTrigger: 'mission_count_milestone',
+    unlockReason: 'Earned when your third proof is approved.',
+    tags: ['first-offenses', 'achievement', 'milestone', 'third-proof']
+  },
+  {
+    id: 'first_offenses_level_up',
+    name: 'Level Up',
+    collection: 'achievement',
+    displayOrder: 20,
+    imageUrl: '/assets/stickers/achievement/08_level_up.png',
+    rarity: 'common',
+    awardTrigger: 'level_up',
+    unlockReason: 'Earned when you reach a new level for the first time.',
+    tags: ['first-offenses', 'achievement', 'level', 'promotion']
+  },
+  {
+    id: 'first_offenses_certified_menace',
+    name: 'Certified Menace',
+    collection: 'achievement',
+    displayOrder: 21,
+    imageUrl: '/assets/stickers/achievement/09_certified_menace.png',
+    rarity: 'rare',
+    // Trigger PENDING confirmation (Nov 17, 2026): "first defined Chaos
+    // achievement" — no Chaos achievements are defined yet, so there is
+    // nothing to trigger on. Zach's call on what counts.
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for your first Chaos achievement.',
+    tags: ['first-offenses', 'achievement', 'chaos', 'trigger-pending']
   }
 ];
 

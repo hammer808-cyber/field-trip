@@ -135,6 +135,7 @@ const STICKER_AWARD_TRIGGERS: readonly StickerAwardTrigger[] = [
   'archetype_milestone',
   'season_milestone',
   'mission_count_milestone',
+  'level_up',
   'admin_grant'
 ];
 

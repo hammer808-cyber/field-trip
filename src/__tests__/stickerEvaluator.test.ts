@@ -124,19 +124,23 @@ test('first_approval with no field type falls back to the default', async () => 
 });
 
 test('event rules archetype-match across triggers', async () => {
-  const cases: Array<{ trigger: Parameters<typeof evaluateStickerTriggers>[0]['event']['type']; fieldType: string; expected: string }> = [
-    { trigger: 'first_submission', fieldType: 'lostCamper', expected: 'lost_camper_nervous_camper' },
-    { trigger: 'first_submission', fieldType: 'captainClipboard', expected: 'mall_rat_receipt_curl' },
-    { trigger: 'field_note_added', fieldType: 'bigfoot', expected: 'bigfoot_campfire_snack' },
-    { trigger: 'field_note_added', fieldType: 'mallRat', expected: 'captain_clipboard_pen_sparkle' },
-    { trigger: 'photo_proof_added', fieldType: 'mallRat', expected: 'mall_rat_food_court_tray' },
-    { trigger: 'photo_proof_added', fieldType: 'elondra', expected: 'mall_rat_food_court_tray' },
-    { trigger: 'weekly_vote_cast', fieldType: 'bigfoot', expected: 'mascota_foam_finger' },
-    { trigger: 'crew_created', fieldType: 'mallRat', expected: 'captain_clipboard_whistle_lanyard' },
-    { trigger: 'crew_joined', fieldType: 'lostCamper', expected: 'lost_camper_trail_sign' },
-    { trigger: 'crew_joined', fieldType: 'mallRat', expected: 'bigfoot_peace_sign' },
-    { trigger: 'zine_page_added', fieldType: 'elondra', expected: 'elondra_purse' },
-    { trigger: 'zine_page_added', fieldType: 'bigfoot', expected: 'captain_clipboard_flying_papers' }
+  // Cross-pack FIRST OFFENSES stickers ride along with the archetype
+  // variant (or the default) on their trigger: Fresh Meat on
+  // first_submission, Democracy Is Messy on weekly_vote_cast, Accomplice
+  // on crew_joined. Triggers with no cross-pack sticker are unchanged.
+  const cases: Array<{ trigger: Parameters<typeof evaluateStickerTriggers>[0]['event']['type']; fieldType: string; expected: string[] }> = [
+    { trigger: 'first_submission', fieldType: 'lostCamper', expected: ['lost_camper_nervous_camper', 'first_offenses_fresh_meat'] },
+    { trigger: 'first_submission', fieldType: 'captainClipboard', expected: ['mall_rat_receipt_curl', 'first_offenses_fresh_meat'] },
+    { trigger: 'field_note_added', fieldType: 'bigfoot', expected: ['bigfoot_campfire_snack'] },
+    { trigger: 'field_note_added', fieldType: 'mallRat', expected: ['captain_clipboard_pen_sparkle'] },
+    { trigger: 'photo_proof_added', fieldType: 'mallRat', expected: ['mall_rat_food_court_tray'] },
+    { trigger: 'photo_proof_added', fieldType: 'elondra', expected: ['mall_rat_food_court_tray'] },
+    { trigger: 'weekly_vote_cast', fieldType: 'bigfoot', expected: ['mascota_foam_finger', 'first_offenses_democracy_is_messy'] },
+    { trigger: 'crew_created', fieldType: 'mallRat', expected: ['captain_clipboard_whistle_lanyard'] },
+    { trigger: 'crew_joined', fieldType: 'lostCamper', expected: ['lost_camper_trail_sign', 'first_offenses_accomplice'] },
+    { trigger: 'crew_joined', fieldType: 'mallRat', expected: ['bigfoot_peace_sign', 'first_offenses_accomplice'] },
+    { trigger: 'zine_page_added', fieldType: 'elondra', expected: ['elondra_purse'] },
+    { trigger: 'zine_page_added', fieldType: 'bigfoot', expected: ['captain_clipboard_flying_papers'] }
   ];
   for (const { trigger, fieldType, expected } of cases) {
     const fake = makeFakeUnlock();
@@ -148,8 +152,8 @@ test('event rules archetype-match across triggers', async () => {
     });
     assert.deepEqual(
       callsForTrigger(fake.calls, trigger).flatMap((call) => call.stickerIds),
-      [expected],
-      `${trigger} for ${fieldType} should award ${expected}`
+      expected,
+      `${trigger} for ${fieldType} should award ${expected.join(', ')}`
     );
   }
 });
@@ -328,22 +332,70 @@ test('season_milestone awards nothing when no non-starter deck is complete', asy
   assert.equal(callsForTrigger(fake.calls, 'season_milestone').length, 0);
 });
 
-test('mission_count_milestone mechanism exists but awards nothing (no sticker carries it yet)', async () => {
-  for (const approvedCount of [5, 10]) {
-    const approved = Array.from({ length: approvedCount - 1 }, (_, index) => `mission-${index}`);
+test('mission_count_milestone awards Repeat Offender on the 3rd approval, and only there', async () => {
+  const atCount = async (approvedInSnapshot: string[], entryMissionId: string) => {
     const fake = makeFakeUnlock();
     await evaluateStickerTriggers({
       event: {
         type: 'first_approval',
-        entry: { tripId: `mission-${approvedCount - 1}` },
+        entry: { tripId: entryMissionId },
         source: 'proof_approval:e1'
       },
       userId: USER_ID,
-      snapshot: makeSnapshot({ approved }),
+      snapshot: makeSnapshot({ approved: approvedInSnapshot }),
       fieldType: 'mallRat',
       unlock: fake.unlock
     });
-    assert.equal(callsForTrigger(fake.calls, 'mission_count_milestone').length, 0);
+    return fake;
+  };
+
+  // Not on the 2nd or the 4th.
+  for (const count of [2, 4]) {
+    const approved = Array.from({ length: count - 1 }, (_, index) => `mission-${index}`);
+    const fake = await atCount(approved, `mission-${count - 1}`);
+    assert.equal(callsForTrigger(fake.calls, 'mission_count_milestone').length, 0, `no award at count ${count}`);
+  }
+
+  // On the 3rd: exactly Repeat Offender, awarded once.
+  const third = await atCount(['mission-a', 'mission-b'], 'mission-c');
+  const thirdCalls = callsForTrigger(third.calls, 'mission_count_milestone');
+  assert.equal(thirdCalls.length, 1);
+  assert.deepEqual(thirdCalls[0].stickerIds, ['first_offenses_repeat_offender']);
+
+  // Re-evaluation at 5/10 re-attempts the award; the transaction dedupes.
+  const fifth = await atCount(['mission-a', 'mission-b', 'mission-c', 'mission-d'], 'mission-e');
+  const fifthCalls = callsForTrigger(fifth.calls, 'mission_count_milestone');
+  assert.equal(fifthCalls.length, 1);
+  assert.deepEqual(fifthCalls[0].stickerIds, ['first_offenses_repeat_offender']);
+  const repeat = await evaluateStickerTriggers({
+    event: {
+      type: 'first_approval',
+      entry: { tripId: 'mission-e' },
+      source: 'proof_approval:e1'
+    },
+    userId: USER_ID,
+    snapshot: makeSnapshot({ approved: ['mission-a', 'mission-b', 'mission-c', 'mission-d'] }),
+    fieldType: 'mallRat',
+    unlock: fifth.unlock
+  });
+  assert.ok(
+    repeat.some((result) => result.stickerId === 'first_offenses_repeat_offender' && result.status === 'already_unlocked')
+  );
+});
+
+test('level_up awards the Level Up sticker on a level-up event, for any archetype', async () => {
+  for (const fieldType of ['elondra', 'mallRat', undefined] as const) {
+    const fake = makeFakeUnlock();
+    await evaluateStickerTriggers({
+      event: { type: 'level_up', source: 'level_up:event-1' },
+      userId: USER_ID,
+      ...(fieldType ? { fieldType } : {}),
+      unlock: fake.unlock
+    });
+    assert.deepEqual(
+      callsForTrigger(fake.calls, 'level_up').flatMap((call) => call.stickerIds),
+      ['first_offenses_level_up']
+    );
   }
 });
 

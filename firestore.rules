@@ -432,7 +432,16 @@ service cloud.firestore {
             'bigfoot_pine_trees',
             'bigfoot_peace_sign',
             'bigfoot_campfire_snack',
-            'bigfoot_night_silhouette'
+            'bigfoot_night_silhouette',
+            'first_offenses_fresh_meat',
+            'first_offenses_scene_starter',
+            'first_offenses_the_instigator',
+            'first_offenses_democracy_is_messy',
+            'first_offenses_accomplice',
+            'first_offenses_outside_person',
+            'first_offenses_repeat_offender',
+            'first_offenses_level_up',
+            'first_offenses_certified_menace'
           ];
         }
 
@@ -451,6 +460,8 @@ service cloud.firestore {
             'zine_page_added',
             'archetype_milestone',
             'season_milestone',
+            'mission_count_milestone',
+            'level_up',
             'admin_grant'
           ];
         }

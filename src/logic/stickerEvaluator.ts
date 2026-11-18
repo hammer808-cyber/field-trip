@@ -8,7 +8,8 @@
  * evaluator fixes that with one rule: for trigger T and player archetype A,
  * award the sticker(s) with `awardTrigger === T` and `archetype === A`,
  * falling back to the trigger's existing default when that archetype has no
- * variant.
+ * variant — plus every cross-pack sticker with `awardTrigger === T` (no
+ * archetype), which belongs to all players.
  *
  * Evaluation timing is unchanged: only after the trusted event, only for
  * triggers relevant to that event. The evaluator's only writer is the
@@ -58,11 +59,12 @@ export const STARTER_DECK_ID = 'starter-signals';
 export const ARCHETYPE_MILESTONE_THRESHOLD = 5;
 
 /**
- * `mission_count_milestone` thresholds (Stage 3, §4.2). No canonical sticker
- * carries this trigger yet, so the rule awards nothing — the mechanism is
- * built and unit-tested now so Stage 6 is a data binding.
+ * `mission_count_milestone` thresholds (Stage 3, §4.2). Repeat Offender
+ * (FIRST OFFENSES, Nov 17, 2026) fires at 3 approved proofs; 5 and 10 are
+ * reserved for later milestone stickers — re-evaluation at those counts
+ * re-attempts the award and the unlock transaction dedupes it.
  */
-export const MISSION_COUNT_MILESTONE_THRESHOLDS: readonly number[] = [5, 10];
+export const MISSION_COUNT_MILESTONE_THRESHOLDS: readonly number[] = [3, 5, 10];
 
 export type StickerRuleKind = 'event' | 'count' | 'set' | 'field' | 'window';
 
@@ -93,6 +95,7 @@ export const STICKER_RULES: Readonly<Record<StickerAwardTrigger, StickerRule>> =
   archetype_milestone: { kind: 'count', thresholds: [ARCHETYPE_MILESTONE_THRESHOLD] },
   season_milestone: { kind: 'set' },
   mission_count_milestone: { kind: 'count', thresholds: MISSION_COUNT_MILESTONE_THRESHOLDS },
+  level_up: { kind: 'event' },
   admin_grant: { kind: 'event' }
 };
 
@@ -166,6 +169,11 @@ function isStarterMissionId(missionId: string | null): boolean {
  * with neither a variant for this archetype nor a default stays unwinnable
  * for that archetype (e.g. `challenge_approved` has no captainClipboard /
  * mallRat / bigfoot variant).
+ *
+ * Cross-pack stickers (no archetype — e.g. FIRST OFFENSES) belong to every
+ * player, so they ride along with the archetype variant or the default
+ * instead of being swallowed by the archetype match. A trigger whose only
+ * stickers are cross-pack awards exactly those.
  */
 export function resolveEventStickers(
   trigger: StickerAwardTrigger,
@@ -173,17 +181,18 @@ export function resolveEventStickers(
 ): StickerDefinition[] {
   const candidates = getStickersByTrigger(trigger);
   if (candidates.length === 0) return [];
+  const crossPack = candidates.filter(sticker => !sticker.archetype);
   if (fieldArchetype) {
     const matches = candidates.filter(sticker => sticker.archetype === fieldArchetype);
-    if (matches.length > 0) return matches;
+    if (matches.length > 0) return [...matches, ...crossPack];
   }
   const defaultId = TRIGGER_DEFAULT_STICKER_IDS[trigger];
   if (defaultId) {
     const fallback = candidates.find(sticker => sticker.id === defaultId)
       ?? getStickerById(defaultId);
-    return fallback ? [fallback] : [];
+    return fallback ? [fallback, ...crossPack] : [...crossPack];
   }
-  return [];
+  return [...crossPack];
 }
 
 /**
@@ -294,8 +303,9 @@ export async function evaluateStickerTriggers(
           .filter(sticker => sticker.archetype === fieldArchetype)
         : [];
       addAward('archetype_milestone', milestoneStickers.map(s => s.id));
-      // Mission-count milestones: mechanism only, no sticker carries the
-      // trigger yet, so this awards nothing in Stage 3.
+      // Mission-count milestones: Repeat Offender at 3 approved proofs.
+      // Re-evaluation at 5/10 re-attempts the award; the unlock
+      // transaction dedupes it.
       addAward(
         'mission_count_milestone',
         evaluateCountRule('mission_count_milestone', approvedCount).map(s => s.id)

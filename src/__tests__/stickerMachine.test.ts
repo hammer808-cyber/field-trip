@@ -12,7 +12,7 @@ import { STICKER_FILTER_OPTIONS } from '../components/stickers/StickerFilterTabs
 
 test('Sticker Machine exposes all required filters and every registry sticker', () => {
   const stickers = getAllStickers();
-  assert.equal(stickers.length, 42);
+  assert.equal(stickers.length, 51);
   assert.deepEqual(
     STICKER_FILTER_OPTIONS.map(option => option.label),
     ['All', 'Captain Clipboard', 'Mall Rat', 'Mascota', 'Elondra', 'Lost Camper', 'Bigfoot']
@@ -20,13 +20,19 @@ test('Sticker Machine exposes all required filters and every registry sticker', 
   assert.equal(filterStickersByArchetype(stickers, 'all').length, stickers.length);
 });
 
-test('each Field Type filter returns only its seven registered stickers', () => {
+test('each Field Type filter returns its seven registered stickers plus the cross-pack set', () => {
   const stickers = getAllStickers();
+  const crossPack = stickers.filter(sticker => sticker.archetype === undefined);
   for (const option of STICKER_FILTER_OPTIONS) {
     if (option.id === 'all') continue;
     const filtered = filterStickersByArchetype(stickers, option.id);
-    assert.equal(filtered.length, 7, `${option.label} should have seven stickers`);
-    assert.ok(filtered.every(sticker => sticker.archetype === option.id));
+    assert.equal(filtered.length, 7 + crossPack.length, `${option.label} should have seven stickers plus the cross-pack set`);
+    assert.ok(filtered.every(sticker => sticker.archetype === option.id || sticker.archetype === undefined));
+    assert.equal(
+      filtered.filter(sticker => sticker.archetype === option.id).length,
+      7,
+      `${option.label} should have exactly seven archetype stickers`
+    );
   }
 });
 
