@@ -36,6 +36,10 @@ const TREVOR_DIALOGUE: Readonly<Record<TrevorMessageKey, readonly string[]>> = {
     '{missionTitle} is still open. Resume it.',
     'Finish {missionTitle} before drawing another.',
   ],
+  active_mission_not_started: [
+    '{missionTitle} is waiting. Start it.',
+    '{missionTitle} is in your hands. Go do it.',
+  ],
   voting_open: [
     'Your vote is ready.',
     'Weekly voting is open. Cast it now.',

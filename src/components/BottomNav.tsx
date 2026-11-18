@@ -6,7 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
 import { canAccessFeature, getStarterProgress } from '../services/canonicalProgress';
 import { usePlayerGuidance } from '../hooks/usePlayerGuidance';
-import { resolveDexNavPresentation, resolveMissionsNavLocked } from './bottomNavPresentation';
+import { resolveDexNavPresentation, resolveBasecampNavLocked } from './bottomNavPresentation';
 import './BottomNav.css';
 
 export function BottomNav() {
@@ -48,7 +48,7 @@ export function BottomNav() {
   const dexUnlocked = canAccessFeature(canonicalProgress, 'memories', { isAdmin });
   const votingUnlocked = canAccessFeature(canonicalProgress, 'voting', { isAdmin });
   const crewUnlocked = canAccessFeature(canonicalProgress, 'crew', { isAdmin });
-  const missionsLocked = resolveMissionsNavLocked({
+  const basecampLocked = resolveBasecampNavLocked({
     starterComplete: getStarterProgress(canonicalProgress).starterComplete,
     isAdmin,
   });
@@ -79,9 +79,11 @@ export function BottomNav() {
     path: string;
     special?: boolean;
     locked?: boolean;
+    /** Plain-language reason shown while the tab is locked. */
+    lockedReason?: string;
   }> = [
-    { icon: Home, label: 'BASECAMP', path: '/basecamp' },
-    { icon: Target, label: 'MISSIONS', path: '/missions', locked: missionsLocked },
+    { icon: Home, label: 'BASECAMP', path: '/basecamp', locked: basecampLocked, lockedReason: 'Finish the three starter missions to unlock Basecamp.' },
+    { icon: Target, label: 'MISSIONS', path: '/missions' },
     { icon: LayoutGrid, label: 'DEX', path: '/dex', locked: !dexUnlocked },
     { icon: Users, label: 'CREWS', path: '/crew', locked: !crewUnlocked },
     { icon: Vote, label: 'VOTING', path: '/voting', locked: !votingUnlocked },
@@ -215,7 +217,8 @@ export function BottomNav() {
             data-nav-locked={isLockedTab ? 'true' : 'false'}
             data-nav-state={navState}
             aria-current={isActive ? 'page' : undefined}
-            aria-label={isLockedTab ? `${item.label}, locked` : isHighlightedDestination ? `${item.label}, go here next` : isActive ? `${item.label}, you are here` : item.label}
+            aria-label={isLockedTab ? (item.lockedReason ? `${item.label}, locked. ${item.lockedReason}` : `${item.label}, locked`) : isHighlightedDestination ? `${item.label}, go here next` : isActive ? `${item.label}, you are here` : item.label}
+            title={isLockedTab && item.lockedReason ? item.lockedReason : undefined}
             data-nav-attention={isHighlightedDestination ? 'true' : 'false'}
             className={cn(
               "flex flex-col items-center justify-center flex-1 h-full py-1 relative select-none min-h-11",

@@ -149,6 +149,7 @@ function input(overrides: Partial<ResolvePlayerGuidanceInput> & { profile?: User
     activeSubmissionStatus: overrides.activeSubmissionStatus,
     drawnMissionCards: overrides.drawnMissionCards || [],
     trips,
+    tripProgress: overrides.tripProgress,
     legalComplete: overrides.legalComplete ?? true,
     fieldClassificationComplete: overrides.fieldClassificationComplete ?? true,
     hasSeenFieldTypeResults: overrides.hasSeenFieldTypeResults ?? true,
@@ -176,9 +177,9 @@ test('2. Starter with no missions submitted asks the player to draw', () => {
   }));
   assert.equal(snapshot.state, 'DRAW_STARTER_MISSION');
   assert.equal(snapshot.primaryActionLabel, 'Draw a Mission');
-  assert.equal(snapshot.primaryActionIntent, 'draw-starter');
-  assert.equal(snapshot.primaryActionDestination, '/basecamp');
-  assert.equal(snapshot.navigationTarget, 'basecamp');
+  assert.equal(snapshot.primaryActionIntent, 'navigate');
+  assert.equal(snapshot.primaryActionDestination, '/missions?pack=starter-signals');
+  assert.equal(snapshot.navigationTarget, 'missions');
 });
 
 test('3. Starter 1/3 pending with next mission available stays on draw-next', () => {
@@ -195,9 +196,9 @@ test('3. Starter 1/3 pending with next mission available stays on draw-next', ()
   }));
   assert.equal(snapshot.state, 'DRAW_NEXT_STARTER');
   assert.equal(snapshot.primaryActionLabel, 'Draw Next Mission');
-  assert.equal(snapshot.primaryActionIntent, 'draw-starter');
-  assert.equal(snapshot.primaryActionDestination, '/basecamp');
-  assert.equal(snapshot.navigationTarget, 'basecamp');
+  assert.equal(snapshot.primaryActionIntent, 'navigate');
+  assert.equal(snapshot.primaryActionDestination, '/missions?pack=starter-signals');
+  assert.equal(snapshot.navigationTarget, 'missions');
   assert.equal(snapshot.secondaryAction?.label, 'View Proof Status');
   assert.ok(snapshot.priority > GUIDANCE_PRIORITY.WAITING_FOR_STARTER_REVIEW);
 });
@@ -279,6 +280,37 @@ test('8. Normal active drawn mission is resume, not cleared', () => {
   assert.equal(snapshot.state, 'RESUME_ACTIVE_MISSION');
   assert.equal(snapshot.primaryActionLabel, 'Resume mission');
   assert.notEqual(snapshot.title.toLowerCase().includes('cleared'), true);
+});
+
+test('8a. Drawn mission with no progress says Do this mission, never Resume', () => {
+  // Nov 17, 2026: a fresh test profile landed on Basecamp showing a big
+  // RESUME MISSION button for a mission never done. Drawing a card sets
+  // activeTrip but writes no tripProgress, so the guidance label follows
+  // the poster's rule — RESUME only when the mission has progress.
+  const active = trip({ status: 'in-progress' });
+  const snapshot = resolvePlayerGuidance(input({
+    entries: starterApprovals(),
+    activeTrip: active,
+    trips: [active],
+    tripProgress: {},
+    isHeatwaveDeckUnlocked: true,
+  }));
+  assert.equal(snapshot.state, 'RESUME_ACTIVE_MISSION');
+  assert.equal(snapshot.primaryActionLabel, 'Do this mission');
+  assert.doesNotMatch(snapshot.primaryActionLabel, /Resume/i);
+});
+
+test('8b. Drawn mission with captured progress says Resume mission', () => {
+  const active = trip({ status: 'in-progress' });
+  const snapshot = resolvePlayerGuidance(input({
+    entries: starterApprovals(),
+    activeTrip: active,
+    trips: [active],
+    tripProgress: { 'heatwave-18': { photo: true } },
+    isHeatwaveDeckUnlocked: true,
+  }));
+  assert.equal(snapshot.state, 'RESUME_ACTIVE_MISSION');
+  assert.equal(snapshot.primaryActionLabel, 'Resume mission');
 });
 
 test('9. Normal pending proof + missions still available continues play', () => {
@@ -439,7 +471,7 @@ test('priority collision: pending starter with another available outranks vote',
     voteAvailable: true,
   }));
   assert.equal(snapshot.state, 'DRAW_NEXT_STARTER');
-  assert.equal(snapshot.navigationTarget, 'basecamp');
+  assert.equal(snapshot.navigationTarget, 'missions');
 });
 
 test('superseded rejected proof does not stay primary after retry pending', () => {

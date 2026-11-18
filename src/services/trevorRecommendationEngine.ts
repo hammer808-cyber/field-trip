@@ -32,6 +32,7 @@ export type TrevorMessageKey =
   | 'starter_incomplete'
   | 'starter_pending'
   | 'active_mission'
+  | 'active_mission_not_started'
   | 'voting_open'
   | 'starter_complete_unlock'
   | 'near_level'
@@ -171,7 +172,12 @@ export const TREVOR_RULES: readonly TrevorRule[] = [
         id: 'active_mission',
         priority: 850,
         category: 'mission',
-        messageKey: 'active_mission',
+        // A mission with no progress has never been started: Trevor says
+        // START, never RESUME — same rule as the poster and the guidance
+        // label. Unknown progress keeps the historical 'active_mission' copy.
+        messageKey: context.activeMission?.hasProgress === false
+          ? 'active_mission_not_started'
+          : 'active_mission',
         reason: 'resumable_active_mission',
         primaryAction: getResumeAction(context),
         secondaryAction: { id: 'open_logbook' },

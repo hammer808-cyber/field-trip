@@ -20,7 +20,7 @@ interface GatedFeaturePanelProps {
 
 export function GatedFeaturePanel({
   featureName,
-  primaryHref = '/basecamp',
+  primaryHref = '/missions',
   primaryLabel = 'Go do a mission',
   reason = 'starter',
 }: GatedFeaturePanelProps) {

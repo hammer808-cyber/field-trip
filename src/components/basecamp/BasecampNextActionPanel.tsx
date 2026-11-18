@@ -8,13 +8,9 @@ interface BasecampNextActionPanelProps {
   pack: DeckPack | null;
   onAction: () => void;
   onSecondaryAction?: () => void;
-  /** While a Starter draw is in flight the primary CTA is disabled. */
-  isDrawing?: boolean;
-  /** Shown under the CTA when an in-place Starter draw fails. */
-  drawError?: string | null;
 }
 
-export function BasecampNextActionPanel({ model, pack, onAction, onSecondaryAction, isDrawing = false, drawError = null }: BasecampNextActionPanelProps) {
+export function BasecampNextActionPanel({ model, pack, onAction, onSecondaryAction }: BasecampNextActionPanelProps) {
   const isUrgent = model.urgency === 'critical' || model.urgency === 'high';
   return (
     <section
@@ -60,19 +56,12 @@ export function BasecampNextActionPanel({ model, pack, onAction, onSecondaryActi
             <button
               type="button"
               onClick={onAction}
-              disabled={isDrawing}
-              aria-busy={isDrawing || undefined}
               data-basecamp-primary="true"
               className="basecamp-next-cta skin-button flex min-h-14 w-full items-center justify-center gap-3 border-[3px] border-[var(--skin-border)] bg-[var(--skin-primary)] px-4 py-4 font-display text-xl font-black uppercase italic tracking-normal text-[var(--skin-on-primary)] shadow-[var(--skin-button-shadow)] transition-transform focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)] active:translate-y-1 active:shadow-none disabled:opacity-60 sm:w-fit sm:min-w-[280px] sm:text-2xl"
             >
               {model.action.label}
               <ArrowRight size={24} strokeWidth={3} aria-hidden="true" />
             </button>
-            {drawError && (
-              <p role="alert" className="w-full font-mono text-[11px] font-bold uppercase tracking-widest text-[var(--skin-primary)] sm:w-fit">
-                {drawError}
-              </p>
-            )}
             {model.secondaryAction && onSecondaryAction && (
               <button
                 type="button"

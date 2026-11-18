@@ -21,7 +21,7 @@ import { LAUNCH_MISSION_ID, isLaunchMissionEligible } from './data/specialMissio
 import { firebaseError, getFirebaseInitError } from './lib/firebase';
 import { TrevorGuide } from './components/TrevorGuide';
 import { StarterGate } from './components/StarterGate';
-import { resolveOnboardingDestination, shouldRedirectPreStarterToBasecamp, isAllowedPreStarterPage } from './logic/onboardingFlow';
+import { resolveOnboardingDestination, shouldRedirectPreStarterToMissions, isAllowedPreStarterPage } from './logic/onboardingFlow';
 
 const FirebaseConfigError = ({ error }: { error: string }) => (
   <div className="min-h-screen flex items-center justify-center bg-paper p-6 text-on-surface font-mono">
@@ -336,28 +336,29 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Step 3: Resume guided onboarding or mission at correct saved step.
   // Reachable pages are the pre-Starter allowlist in onboardingFlow.ts
-  // (isAllowedPreStarterPage) — everything else bounces to /basecamp.
+  // (isAllowedPreStarterPage) — everything else bounces to /missions,
+  // the deck, which is the pre-Starter home.
   const isAllowedOnboardingPage = isAllowedPreStarterPage(location.pathname);
   if (user && hasConfirmedLegal && fieldClassificationComplete && hasSeenFieldTypeResults && !onboardingCompleted && !isAllowedOnboardingPage && !isBypassingGuards) {
-    return <Navigate to="/basecamp" replace />;
+    return <Navigate to="/missions" replace />;
   }
 
-  // Step 3.5: Pre-Starter lock — the Missions/Deck pages open only once the
-  // three Starter missions are approved. The Starter draw lives on Basecamp,
-  // so sending a pre-Starter player back there never strands them.
+  // Step 3.5: Pre-Starter lock — Basecamp stays locked until the three
+  // Starter missions are approved. The Starter draw lives on Missions,
+  // so sending a pre-Starter player to the deck never strands them.
   if (
     user
     && hasConfirmedLegal
     && fieldClassificationComplete
     && hasSeenFieldTypeResults
     && !isBypassingGuards
-    && shouldRedirectPreStarterToBasecamp({
+    && shouldRedirectPreStarterToMissions({
       pathname: location.pathname,
       starterComplete: !!onboardingCompleted,
       isAdmin,
     })
   ) {
-    return <Navigate to="/basecamp" replace />;
+    return <Navigate to="/missions" replace />;
   }
 
   // Step 4: Tribunal / Voting Guard

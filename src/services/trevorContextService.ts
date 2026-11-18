@@ -1,6 +1,7 @@
 import type { FieldTypeId } from '../constants/fieldTypes';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 import { getLevelProgress } from '../logic/playerLevel';
+import { missionHasProgress } from '../logic/playerGuidance';
 import type { DeckPack } from '../types/deckPacks';
 import type { DrawnMissionCard, Entry } from '../types/game';
 import type { MemoryEntry } from '../types/memories';
@@ -21,6 +22,14 @@ export interface TrevorActiveMission {
   title: string;
   status: string;
   deckId?: string;
+  /**
+   * Whether the mission actually has progress (photo / note / location in
+   * tripProgress) — the poster's rule. A freshly drawn mission has none,
+   * so its CTA says START, never RESUME. Optional: contexts built without
+   * tripProgress leave it unknown, and callers fall back to the
+   * historical Resume label instead of guessing.
+   */
+  hasProgress?: boolean;
 }
 
 export interface TrevorProofRepairTarget {
@@ -187,6 +196,7 @@ export function buildTrevorContext(input: TrevorContextInput): TrevorContext {
     activeTrip: input.activeTrip,
     activeSubmissionStatus: input.activeSubmissionStatus,
     drawnMissionCards: input.drawnMissionCards ?? [],
+    tripProgress: profile?.tripProgress,
     tripById,
   });
   const proofNeedingMoreEvidence = resolveProofRepairTarget(needsMoreProofEntries[0], tripById, 'needs_more_proof');
@@ -342,6 +352,7 @@ function resolveActiveMission(input: {
   activeTrip?: TripCard | null;
   activeSubmissionStatus?: string | null;
   drawnMissionCards: readonly DrawnMissionCard[];
+  tripProgress?: Record<string, Record<string, unknown> | undefined> | null;
   tripById: ReadonlyMap<string, TripCard>;
 }): TrevorActiveMission | undefined {
   const PLAYER_PROOF_STATUSES = new Set(['pending_review', 'needs_more_proof', 'rejected', 'approved']);
@@ -373,6 +384,7 @@ function resolveActiveMission(input: {
     title: input.activeTrip?.title || drawnCard?.missionTitle || mission?.title || 'Current mission',
     status,
     deckId: normalizeOptionalString(input.activeTrip?.deckId || drawnCard?.deckId || mission?.deckId),
+    hasProgress: missionHasProgress(input.tripProgress, missionId) === true,
   };
 }
 

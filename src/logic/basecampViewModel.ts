@@ -23,7 +23,7 @@ import {
   type PlayerGuidanceSnapshot,
 } from './playerGuidance';
 
-export type BasecampActionIntent = 'navigate' | 'retry-proof' | 'draw-starter';
+export type BasecampActionIntent = 'navigate' | 'retry-proof';
 
 export interface BasecampPrimaryAction {
   label: string;
@@ -448,6 +448,7 @@ export function buildBasecampViewModel(input: BuildBasecampViewModelInput): Base
     hasSeenFieldTypeResults: true,
     hasCompletedFieldKitOnboarding: true,
     isHeatwaveDeckUnlocked: input.isHeatwaveDeckUnlocked,
+    tripProgress: input.profile?.tripProgress,
     voteAvailable: input.isVotingOpen && input.userVotes.length === 0,
     hasUnseenStarterUnlock: isUnseenStarterUnlock({
       starterComplete: starter.starterComplete,
@@ -471,17 +472,15 @@ export function buildBasecampViewModel(input: BuildBasecampViewModelInput): Base
     crew: buildCrew(input.profile, input.entries, input.crewGraph),
     recentActivity: buildRecentActivity(input),
     guidance,
-    // Missions stays out of the quick links until the Starter set is done:
-    // the draw lives on Basecamp and the Missions page is locked before then.
+    // Missions is always in the quick links: the deck is the pre-Starter
+    // home, and Basecamp is the locked room until the Starter set is done.
     quickLinks: [
-      ...(starter.starterComplete
-        ? [{
-            id: 'missions' as const,
-            label: 'Missions',
-            description: guidance.primaryActionLabel,
-            href: guidance.navigationTarget === 'missions' ? guidance.primaryActionDestination : '/missions',
-          }]
-        : []),
+      {
+        id: 'missions' as const,
+        label: 'Missions',
+        description: guidance.primaryActionLabel,
+        href: guidance.navigationTarget === 'missions' ? guidance.primaryActionDestination : '/missions',
+      },
       {
         id: 'logbook',
         label: 'Logbook',

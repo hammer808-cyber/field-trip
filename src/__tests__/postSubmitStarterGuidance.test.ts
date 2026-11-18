@@ -25,7 +25,7 @@ function starterFixture(
   };
 }
 
-test('1/3 pending shows in-progress sent wording and back-to-Basecamp CTA', () => {
+test('1/3 pending shows in-progress sent wording and back-to-Missions CTA', () => {
   const guidance = buildPostSubmitStarterGuidance({
     starter: starterFixture({
       status: 'IN_PROGRESS',
@@ -40,8 +40,8 @@ test('1/3 pending shows in-progress sent wording and back-to-Basecamp CTA', () =
   assert.equal(guidance.status, 'IN_PROGRESS');
   assert.equal(guidance.progressLine, 'Starter proof 1 of 3 sent');
   assert.equal(guidance.statusLine, 'Your proof is waiting for review.');
-  assert.equal(guidance.primaryHref, '/basecamp');
-  assert.equal(guidance.primaryLabel, 'Back to Basecamp');
+  assert.equal(guidance.primaryHref, '/missions');
+  assert.equal(guidance.primaryLabel, 'Back to Missions');
   assert.doesNotMatch(guidance.progressLine || '', /complete/i);
 });
 
@@ -147,7 +147,7 @@ test('optimistic pending count fills lagging submitted count for in-progress onl
 
   assert.equal(guidance.status, 'IN_PROGRESS');
   assert.equal(guidance.progressLine, 'Starter proof 2 of 3 sent');
-  assert.equal(guidance.primaryLabel, 'Back to Basecamp');
+  assert.equal(guidance.primaryLabel, 'Back to Missions');
 });
 
 test('optimistic third pending becomes waiting-for-review without inventing complete', () => {

@@ -84,6 +84,39 @@ test('an active Starter mission is resumed before another draw', () => {
   assert.equal(recommendation?.primaryAction.route, '/mission-briefing?id=starter-2');
 });
 
+test('Trevor says Start, never Resume, for a mission with no progress', () => {
+  // Nov 17, 2026: the poster's rule — RESUME only when the mission actually
+  // has progress. A freshly drawn mission has none.
+  const recommendation = getTrevorRecommendation(context({
+    activeMission: {
+      id: 'heat-1',
+      title: 'Odd Sign',
+      status: 'active',
+      deckId: 'heatwave-receipts',
+      hasProgress: false,
+    },
+  }));
+  assert.equal(recommendation?.id, 'active_mission');
+  assert.equal(recommendation?.messageKey, 'active_mission_not_started');
+  assert.equal(recommendation?.primaryAction.label, 'Start Odd Sign');
+  assert.doesNotMatch(recommendation?.primaryAction.label || '', /Resume/i);
+});
+
+test('Trevor says Resume for a mission with captured progress', () => {
+  const recommendation = getTrevorRecommendation(context({
+    activeMission: {
+      id: 'heat-1',
+      title: 'Odd Sign',
+      status: 'active',
+      deckId: 'heatwave-receipts',
+      hasProgress: true,
+    },
+  }));
+  assert.equal(recommendation?.id, 'active_mission');
+  assert.equal(recommendation?.messageKey, 'active_mission');
+  assert.equal(recommendation?.primaryAction.label, 'Resume Odd Sign');
+});
+
 test('proof needing more evidence outranks every other recommendation', () => {
   const recommendation = getTrevorRecommendation(context({
     needsMoreProofCount: 1,

@@ -140,9 +140,9 @@ test('briefing card SNAP A PIC starts the same mission as DO THIS MISSION', () =
   assert.match(briefingSource, /onStart=\{handleStartMission\}/);
 });
 
-test('save-for-later notice points at Resume on Missions, not the deck shelf', () => {
-  assert.match(SAVE_FOR_LATER_RECOVERY_NOTICE, /Tap Resume on Missions/);
-  assert.match(SAVE_FOR_LATER_RECOVERY_HINT, /Tap Resume on Missions/);
+test('save-for-later notice points at Do This Mission on Missions, not the deck shelf', () => {
+  assert.match(SAVE_FOR_LATER_RECOVERY_NOTICE, /Tap Do This Mission on Missions/);
+  assert.match(SAVE_FOR_LATER_RECOVERY_HINT, /Tap Do This Mission on Missions/);
   assert.match(deckSource, /SAVE_FOR_LATER_RECOVERY_NOTICE/);
   assert.match(briefingSource, /SAVE_FOR_LATER_RECOVERY_HINT/);
   assert.doesNotMatch(deckSource, /Find it in the deck shelf/i);

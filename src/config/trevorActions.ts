@@ -71,7 +71,17 @@ export const TREVOR_ACTION_REGISTRY: Readonly<Record<TrevorActionId, TrevorActio
     safeFallback: 'open_logbook',
   },
   resume_active_mission: {
-    label: (_context, params) => params.missionTitle ? `Resume ${params.missionTitle}` : 'Resume Mission',
+    // The poster's rule: RESUME only when the mission actually has progress.
+    // A freshly drawn mission has none, so Trevor says START. When the
+    // progress is unknown (no tripProgress on the context) the label falls
+    // back to the historical Resume instead of guessing.
+    label: (context, params) => {
+      const title = params.missionTitle || 'Mission';
+      const matchesActive = !params.missionId || params.missionId === context.activeMission?.id;
+      return matchesActive && context.activeMission?.hasProgress === false
+        ? `Start ${title}`
+        : `Resume ${title}`;
+    },
     analyticsEventName: 'trevor_resume_active_mission',
     isAvailable: (context, params) => Boolean(params.missionId || context.activeMission?.id),
     buildRoute: (context, params) => {

@@ -145,8 +145,8 @@ export function buildPostSubmitStarterGuidance(input: GuidanceInput): PostSubmit
       statusLine: isApprovedStatus(reviewStatus)
         ? 'Your proof was approved.'
         : 'Your proof is waiting for review.',
-      primaryHref: '/basecamp',
-      primaryLabel: 'Back to Basecamp',
+      primaryHref: '/missions',
+      primaryLabel: 'Back to Missions',
       sentCount: 0,
       requiredCount,
     };
@@ -158,10 +158,10 @@ export function buildPostSubmitStarterGuidance(input: GuidanceInput): PostSubmit
     statusLine: isApprovedStatus(reviewStatus)
       ? 'Your proof was approved.'
       : reviewStatus === 'needs_more_proof'
-        ? 'Your proof needs a bit more. Try again from Basecamp.'
+        ? 'Your proof needs a bit more. Try again from Missions.'
         : 'Your proof is waiting for review.',
-    primaryHref: '/basecamp',
-    primaryLabel: 'Back to Basecamp',
+    primaryHref: '/missions',
+    primaryLabel: 'Back to Missions',
     sentCount: Math.max(sentCount, 1),
     requiredCount,
   };

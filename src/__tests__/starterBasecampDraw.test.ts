@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveMissionsNavLocked } from '../components/bottomNavPresentation';
+import { resolveBasecampNavLocked } from '../components/bottomNavPresentation';
 import {
   resolveOnboardingDestination,
-  shouldRedirectPreStarterToBasecamp,
+  shouldRedirectPreStarterToMissions,
   isAllowedPreStarterPage,
   type OnboardingDestinationState,
 } from '../logic/onboardingFlow';
@@ -13,10 +13,13 @@ import {
 } from '../logic/playerGuidance';
 import { buildPostSubmitStarterGuidance } from '../logic/postSubmitStarterGuidance';
 
-test('Missions nav is locked until the Starter set is done', () => {
-  assert.equal(resolveMissionsNavLocked({ starterComplete: false, isAdmin: false }), true);
-  assert.equal(resolveMissionsNavLocked({ starterComplete: true, isAdmin: false }), false);
-  assert.equal(resolveMissionsNavLocked({ starterComplete: false, isAdmin: true }), false);
+test('Basecamp nav is locked until the Starter set is done', () => {
+  // Nov 17, 2026: Zach reversed the Nov 16 call — the deck (Missions) is
+  // home pre-Starter and Basecamp is the locked room, not the other way
+  // around. Missions is open from the first tap; Basecamp unlocks at 3/3.
+  assert.equal(resolveBasecampNavLocked({ starterComplete: false, isAdmin: false }), true);
+  assert.equal(resolveBasecampNavLocked({ starterComplete: true, isAdmin: false }), false);
+  assert.equal(resolveBasecampNavLocked({ starterComplete: false, isAdmin: true }), false);
 });
 
 test('the mission briefing stays reachable before the Starter is done', () => {
@@ -37,19 +40,32 @@ test('the mission briefing stays reachable before the Starter is done', () => {
   assert.equal(isAllowedPreStarterPage('/proofs'), false);
 });
 
-test('pre-Starter players are sent back to Basecamp from Missions and Deck', () => {
+test('pre-Starter players are sent to Missions from Basecamp, and only from Basecamp', () => {
   const preStarter = { starterComplete: false, isAdmin: false };
-  assert.equal(shouldRedirectPreStarterToBasecamp({ ...preStarter, pathname: '/missions' }), true);
-  assert.equal(shouldRedirectPreStarterToBasecamp({ ...preStarter, pathname: '/missions?pack=starter-signals' }), true);
-  assert.equal(shouldRedirectPreStarterToBasecamp({ ...preStarter, pathname: '/deck' }), true);
-  assert.equal(shouldRedirectPreStarterToBasecamp({ ...preStarter, pathname: '/basecamp' }), false);
-  assert.equal(shouldRedirectPreStarterToBasecamp({ ...preStarter, pathname: '/capture' }), false);
-  assert.equal(shouldRedirectPreStarterToBasecamp({ ...preStarter, pathname: '/mission-briefing' }), false);
-  assert.equal(shouldRedirectPreStarterToBasecamp({ starterComplete: true, isAdmin: false, pathname: '/missions' }), false);
-  assert.equal(shouldRedirectPreStarterToBasecamp({ starterComplete: false, isAdmin: true, pathname: '/missions' }), false);
+  assert.equal(shouldRedirectPreStarterToMissions({ ...preStarter, pathname: '/basecamp' }), true);
+  assert.equal(shouldRedirectPreStarterToMissions({ ...preStarter, pathname: '/missions' }), false);
+  assert.equal(shouldRedirectPreStarterToMissions({ ...preStarter, pathname: '/missions?pack=starter-signals' }), false);
+  assert.equal(shouldRedirectPreStarterToMissions({ ...preStarter, pathname: '/deck' }), false);
+  assert.equal(shouldRedirectPreStarterToMissions({ ...preStarter, pathname: '/capture' }), false);
+  assert.equal(shouldRedirectPreStarterToMissions({ ...preStarter, pathname: '/mission-briefing' }), false);
+  assert.equal(shouldRedirectPreStarterToMissions({ starterComplete: true, isAdmin: false, pathname: '/basecamp' }), false);
+  assert.equal(shouldRedirectPreStarterToMissions({ starterComplete: false, isAdmin: true, pathname: '/basecamp' }), false);
 });
 
-test('a proof needing more work routes through Basecamp before the Starter is done', () => {
+test('pre-Starter players land on Missions, not Basecamp', () => {
+  const base: OnboardingDestinationState = {
+    hasConfirmedLegal: true,
+    fieldClassificationComplete: true,
+    hasSeenFieldTypeResults: true,
+    onboardingCompleted: false,
+    starterApprovedCount: 0,
+  };
+  assert.equal(resolveOnboardingDestination(base), '/missions');
+  assert.equal(resolveOnboardingDestination({ ...base, starterApprovedCount: 2 }), '/missions');
+  assert.equal(resolveOnboardingDestination({ ...base, onboardingCompleted: true, starterApprovedCount: 3 }), '/basecamp');
+});
+
+test('a proof needing more work routes to Missions before the Starter is done', () => {
   const base: OnboardingDestinationState = {
     hasConfirmedLegal: true,
     fieldClassificationComplete: true,
@@ -58,27 +74,27 @@ test('a proof needing more work routes through Basecamp before the Starter is do
     starterApprovedCount: 1,
     activeSubmissionStatus: 'needs_more_proof',
   };
-  assert.equal(resolveOnboardingDestination(base), '/basecamp');
+  assert.equal(resolveOnboardingDestination(base), '/missions');
   assert.equal(resolveOnboardingDestination({ ...base, onboardingCompleted: true }), '/missions');
 });
 
-test('the Deck strip never sends a Starter draw to Missions', () => {
+test('the Deck strip draws a Starter in place on Missions', () => {
   for (const state of ['DRAW_STARTER_MISSION', 'DRAW_NEXT_STARTER'] as const) {
     const snapshot = {
       state,
-      primaryActionDestination: '/basecamp',
-      primaryActionIntent: 'draw-starter',
+      primaryActionDestination: '/missions?pack=starter-signals',
+      primaryActionIntent: 'navigate',
       relevantMissionId: null,
       deckId: 'starter-signals',
     } as PlayerGuidanceSnapshot;
     assert.deepEqual(resolveMissionsGuidancePrimaryAction(snapshot), {
-      kind: 'navigate',
-      destination: '/basecamp',
+      kind: 'draw-current',
+      destination: '/missions?pack=starter-signals',
     });
   }
 });
 
-test('post-submit copy points a Starter retry at Basecamp, not Missions', () => {
+test('post-submit copy points a Starter retry at Missions, not Basecamp', () => {
   const guidance = buildPostSubmitStarterGuidance({
     starter: {
       status: 'IN_PROGRESS',
@@ -95,6 +111,8 @@ test('post-submit copy points a Starter retry at Basecamp, not Missions', () => 
     currentMissionId: 'starter-1',
     reviewStatus: 'needs_more_proof',
   });
-  assert.equal(guidance.primaryHref, '/basecamp');
-  assert.doesNotMatch(guidance.statusLine, /Missions/);
+  assert.equal(guidance.primaryHref, '/missions');
+  assert.equal(guidance.primaryLabel, 'Back to Missions');
+  assert.match(guidance.statusLine, /Missions/);
+  assert.doesNotMatch(guidance.statusLine, /Basecamp/);
 });

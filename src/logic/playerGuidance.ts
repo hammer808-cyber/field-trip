@@ -79,7 +79,7 @@ export type PlayerGuidanceUrgency = 'critical' | 'high' | 'normal' | 'low';
 
 export type PlayerGuidanceNavTarget = 'missions' | 'voting' | 'dex' | 'basecamp' | null;
 
-export type PlayerGuidanceActionIntent = 'navigate' | 'retry-proof' | 'draw-starter';
+export type PlayerGuidanceActionIntent = 'navigate' | 'retry-proof';
 
 export interface PlayerGuidanceAction {
   label: string;
@@ -124,6 +124,11 @@ export interface ResolvePlayerGuidanceInput {
   activeSubmissionStatus?: string | null;
   drawnMissionCards: readonly DrawnMissionCard[];
   trips: readonly TripCard[];
+  // The profile's tripProgress map (evidence captured per mission). The
+  // RESUME label depends on it: a mission with no progress must never say
+  // RESUME. Optional for callers that cannot see the profile — when it is
+  // absent the label falls back to the historical 'Resume mission'.
+  tripProgress?: Record<string, Record<string, unknown> | undefined> | null;
   legalComplete?: boolean;
   fieldClassificationComplete?: boolean;
   hasSeenFieldTypeResults?: boolean;
@@ -148,6 +153,25 @@ export const GUIDANCE_PRIORITY: Record<PlayerGuidanceState, number> = {
 };
 
 const PLAYER_PROOF_STATUS_SET = new Set<string>(PLAYER_PROOF_STATUSES);
+
+/**
+ * "Has progress" is the poster's rule, and guidance must match it: a mission
+ * counts as started only when the profile carries at least one tripProgress
+ * entry for it (photo, field note, location, ...). Drawing a card sets
+ * activeTrip but writes no tripProgress, so a freshly drawn mission has
+ * none — and must never be labelled RESUME. Returns undefined when no
+ * tripProgress map was supplied (unknown), so callers fall back to the
+ * historical label instead of guessing.
+ */
+export function missionHasProgress(
+  tripProgress: Record<string, Record<string, unknown> | undefined> | null | undefined,
+  missionId: string,
+): boolean | undefined {
+  if (!tripProgress) return undefined;
+  const progress = tripProgress[missionId];
+  if (!progress) return false;
+  return Object.keys(progress).length > 0;
+}
 const PLAYER_ACTIVE_DRAW_STATUS_SET = new Set<string>(PLAYER_ACTIVE_DRAW_STATUSES);
 
 const STATUS_LABELS: Record<PlayerMissionLifecycle['status'], string> = {
@@ -354,10 +378,9 @@ function packIdFromGuidanceDestination(guidance: PlayerGuidanceSnapshot): string
  * acknowledged, DRAW_MISSION must still follow the destination pack so a leftover
  * starter-signals selection cannot produce a dead draw.
  *
- * Starter draws happen on Basecamp (intent 'draw-starter', destination
- * '/basecamp'), so DRAW_STARTER_MISSION / DRAW_NEXT_STARTER never reach the
- * draw-current branch below — the fallthrough navigate to Basecamp is the
- * correct strip action for them.
+ * Starter draws happen on Missions (destination '/missions?pack=starter-signals'),
+ * so DRAW_STARTER_MISSION / DRAW_NEXT_STARTER reach the draw-current branch
+ * below and draw in place on the deck.
  */
 export function resolveMissionsGuidancePrimaryAction(
   guidance: PlayerGuidanceSnapshot,
@@ -403,7 +426,7 @@ function clampNavigationTarget(
   target: PlayerGuidanceNavTarget,
   snapshot: CanonicalProgressSnapshot,
 ): PlayerGuidanceNavTarget {
-  // A locked feature falls back to Basecamp, the pre-starter home — never to
+  // A locked feature falls back to Basecamp, the post-Starter home — never to
   // Missions, which is only where a specific next action (draw / capture) lives.
   if (target === 'voting' && !canAccessFeature(snapshot, 'voting')) return 'basecamp';
   if (target === 'dex' && !canAccessFeature(snapshot, 'memories')) return 'basecamp';
@@ -552,7 +575,7 @@ const COPY: Record<PlayerGuidanceState, {
   },
   DRAW_STARTER_MISSION: {
     urgency: 'high',
-    navigationTarget: 'basecamp',
+    navigationTarget: 'missions',
     primary: () => ({
       title: 'Draw your first mission',
       shortMessage: 'Starter Missions are ready.',
@@ -560,11 +583,11 @@ const COPY: Record<PlayerGuidanceState, {
       actionLabel: 'Draw a Mission',
       secondary: null,
     }),
-    destination: () => ({ href: '/basecamp', intent: 'draw-starter' }),
+    destination: () => ({ href: '/missions?pack=starter-signals', intent: 'navigate' }),
   },
   DRAW_NEXT_STARTER: {
     urgency: 'high',
-    navigationTarget: 'basecamp',
+    navigationTarget: 'missions',
     primary: (_missionTitle, starterLabel) => ({
       title: 'Draw next Starter mission',
       shortMessage: starterLabel ? `Starter ${starterLabel}. Draw the next one.` : 'Draw your next Starter mission.',
@@ -572,7 +595,7 @@ const COPY: Record<PlayerGuidanceState, {
       actionLabel: 'Draw Next Mission',
       secondary: { label: 'View Proof Status', destination: '/profile?tab=logbook', intent: 'navigate' },
     }),
-    destination: () => ({ href: '/basecamp', intent: 'draw-starter' }),
+    destination: () => ({ href: '/missions?pack=starter-signals', intent: 'navigate' }),
   },
   WAITING_FOR_STARTER_REVIEW: {
     urgency: 'high',
@@ -676,7 +699,15 @@ export function resolvePlayerGuidance(input: ResolvePlayerGuidanceInput): Player
     const target = rejected || (mission ? { entryId: '', missionId: mission.id, title: mission.title } : null);
     presented = present('RETRY_REJECTED_PROOF', { mission, repair: target, deckId: mission?.deckId || undefined });
   } else if (mission && (mission.status === 'drawn' || mission.status === 'active')) {
-    presented = present('RESUME_ACTIVE_MISSION', { mission, deckId: mission.deckId || undefined });
+    // The label follows the poster's rule: RESUME only when the mission
+    // actually has progress (photo / note / location captured). A freshly
+    // drawn mission has none, so it says "Do this mission" — never RESUME.
+    const hasProgress = missionHasProgress(input.tripProgress, mission.id);
+    presented = present('RESUME_ACTIVE_MISSION', {
+      mission,
+      deckId: mission.deckId || undefined,
+      actionLabel: hasProgress === false ? 'Do this mission' : undefined,
+    });
   } else if (!starter.starterComplete && starter.submittedUniqueCount === 0) {
     presented = present('DRAW_STARTER_MISSION', { mission, deckId: 'starter-signals' });
   } else if (!starter.starterComplete && starter.submittedUniqueCount < starter.starterRequiredCount) {

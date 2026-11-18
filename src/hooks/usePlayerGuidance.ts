@@ -40,6 +40,7 @@ export function usePlayerGuidance(): PlayerGuidanceSnapshot {
       hasSeenFieldTypeResults,
       hasCompletedFieldKitOnboarding,
       isHeatwaveDeckUnlocked,
+      tripProgress: profile?.tripProgress,
       voteAvailable: isVotingWindowOpen(currentWeekNumber) && (userVotes?.length ?? 0) === 0,
       hasUnseenStarterUnlock: isUnseenStarterUnlock({
         starterComplete: starter.starterComplete,
@@ -62,6 +63,7 @@ export function usePlayerGuidance(): PlayerGuidanceSnapshot {
     isHeatwaveDeckUnlocked,
     isVotingWindowOpen,
     profile?.trevorSettings?.lastSeenApprovedCount,
+    profile?.tripProgress,
     trips,
     userVotes,
   ]);

@@ -144,15 +144,16 @@ function input(overrides: Partial<BuildBasecampViewModelInput> = {}): BuildBasec
 test('a new player receives the canonical Starter Signals next action', () => {
   const model = buildBasecampViewModel(input({ profile: profile({ onboardingCompleted: false }) }));
   assert.equal(model.nextAction.guidanceState, 'DRAW_STARTER_MISSION');
-  assert.equal(model.nextAction.action.href, '/basecamp');
-  assert.equal(model.nextAction.action.intent, 'draw-starter');
+  assert.equal(model.nextAction.action.href, '/missions?pack=starter-signals');
+  assert.equal(model.nextAction.action.intent, 'navigate');
   assert.equal(model.progress.starterApprovedCount, 0);
   assert.equal(model.recentActivity.length, 0);
 });
 
-test('the Missions quick link stays hidden until the Starter set is done', () => {
+test('the Missions quick link is always present — the deck is home pre-Starter', () => {
   const preStarter = buildBasecampViewModel(input({ profile: profile({ onboardingCompleted: false }) }));
-  assert.equal(preStarter.quickLinks.some(link => link.id === 'missions'), false);
+  assert.equal(preStarter.quickLinks.some(link => link.id === 'missions'), true);
+  assert.equal(preStarter.quickLinks[0].id, 'missions');
   const postStarter = buildBasecampViewModel(input({ entries: starterApprovals() }));
   assert.equal(postStarter.quickLinks.some(link => link.id === 'missions'), true);
   assert.equal(postStarter.quickLinks[0].id, 'missions');

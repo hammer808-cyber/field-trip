@@ -5,11 +5,11 @@
  */
 
 /**
- * Missions opens only once the three Starter missions are approved.
- * Before then the Starter draw lives on Basecamp, so the Missions tab
- * shows LOCKED the same way Dex, Voting and Big Board do.
+ * Basecamp opens only once the three Starter missions are approved.
+ * Before then the deck (Missions) is home, so the Basecamp tab shows
+ * LOCKED the same way Dex, Voting and Big Board do. Admins bypass it.
  */
-export function resolveMissionsNavLocked(input: {
+export function resolveBasecampNavLocked(input: {
   starterComplete: boolean;
   isAdmin: boolean;
 }): boolean {
@@ -78,11 +78,12 @@ export function resolveDexNavPresentation(input: {
 
 /**
  * Player-facing recovery copy after Save for later.
- * Verified recovery surface: /missions guidance strip primary CTA "Resume {title}".
- * DeckShelfPanel does not list saved mission cards.
+ * Verified recovery surface: the Missions poster CTA for a saved card
+ * with no progress is "Do This Mission" — never "Resume", so the hint
+ * says the same thing the player will actually find there.
  */
 export const SAVE_FOR_LATER_RECOVERY_HINT =
-  'Tap Resume on Missions when you are ready.';
+  'Tap Do This Mission on Missions when you are ready.';
 
 export const SAVE_FOR_LATER_RECOVERY_NOTICE =
   `Saved for later. ${SAVE_FOR_LATER_RECOVERY_HINT}`;
