@@ -17,12 +17,16 @@ const read = (relativePath: string) =>
 
 // --- Part 3: explorer character pictures -------------------------------
 
-test('explorer art: captainClipboard, mascota and theGobbler files exist on disk', () => {
-  for (const typeId of ['captainClipboard', 'mascota', 'theGobbler'] as const) {
-    const type = FIELD_TYPES[typeId];
-    assert.ok(type, `FIELD_TYPES is missing ${typeId}`);
+test('explorer art: every character has all four files on disk as real PNGs', () => {
+  // Nov 17, 2026: Elondra's four files were present and big enough but
+  // corrupted (text-mode mojibake: first byte U+FFFD, not 0x89), so the
+  // result page silently showed "Portrait incoming". Existence + size
+  // is not enough — the PNG signature must be intact too.
+  const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+  for (const [typeId, type] of Object.entries(FIELD_TYPES)) {
+    if (typeId === 'unclassified') continue;
     for (const key of ['image', 'avatarPath', 'resultImagePath', 'cardImagePath', 'fullImagePath'] as const) {
-      const imagePath = type[key];
+      const imagePath = (type as unknown as Record<string, string>)[key];
       assert.match(
         imagePath,
         new RegExp(`^/assets/characters/${typeId}/(results|avatar|card|full)\\.png$`),
@@ -30,9 +34,26 @@ test('explorer art: captainClipboard, mascota and theGobbler files exist on disk
       );
       const onDisk = join(REPO_ROOT, 'public', imagePath.replace(/^\//, ''));
       assert.ok(existsSync(onDisk), `${typeId}.${key} missing on disk: ${onDisk}`);
-      assert.ok(readFileSync(onDisk).length > 20000, `${typeId}.${key} is suspiciously small`);
+      const bytes = readFileSync(onDisk);
+      assert.ok(bytes.length > 20000, `${typeId}.${key} is suspiciously small`);
+      assert.ok(
+        bytes.subarray(0, 4).equals(pngSignature),
+        `${typeId}.${key} is not a PNG (bad signature — likely corrupted): ${onDisk}`,
+      );
     }
   }
+});
+
+test('Profile: the Explorer portrait shows the player\'s character', () => {
+  const source = read('src/pages/Profile.tsx');
+  // The portrait is the character's full-body art in the Explorer Type
+  // card, with the result-page art as fallback.
+  assert.match(source, /fieldTypeData\.fullImagePath \|\| fieldTypeData\.resultImagePath/);
+  assert.match(source, /alt=\{`?\$\{fieldTypeData\.name\} portrait`?\}/);
+  // A failed load shows the initial-letter placeholder, never a broken frame.
+  assert.match(source, /const \[portraitFailed, setPortraitFailed\] = useState\(false\);/);
+  assert.match(source, /onError=\{\(\) => setPortraitFailed\(true\)\}/);
+  assert.match(source, /Portrait incoming/);
 });
 
 test('Lost Camper is left out: legacy keys resolve to Bigfoot, no type entry', () => {

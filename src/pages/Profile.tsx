@@ -73,6 +73,9 @@ export default function ProfilePage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [activeTab, setActiveTab] = useState<ProfileTab>('overview');
+  // The Explorer portrait failed to load — show the initial-letter
+  // placeholder instead of a broken frame (same pattern as the result page).
+  const [portraitFailed, setPortraitFailed] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editName, setEditName] = useState('');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -342,6 +345,27 @@ export default function ProfilePage() {
                         </button>
                       </div>
                     </div>
+
+                    {/* The Explorer portrait (Nov 17, 2026): the player's
+                        character lives on their Profile, not just the
+                        onboarding result page. */}
+                    {fieldTypeData && (
+                      <div className="relative shrink-0">
+                        {portraitFailed ? (
+                          <div className="w-24 h-36 rounded-[1.5rem] rotate-[3.5deg] border-[3.5px] border-on-surface bg-on-surface text-brand-lime shadow-[6px_6px_0px_black] flex flex-col items-center justify-center gap-1">
+                            <span className="font-display text-4xl font-black italic leading-none">{fieldTypeData.name.charAt(0)}</span>
+                            <span className="font-mono text-[8px] font-black uppercase tracking-[0.2em]">Portrait incoming</span>
+                          </div>
+                        ) : (
+                          <img
+                            src={fieldTypeData.fullImagePath || fieldTypeData.resultImagePath}
+                            alt={`${fieldTypeData.name} portrait`}
+                            onError={() => setPortraitFailed(true)}
+                            className="w-24 h-36 rounded-[1.5rem] rotate-[3.5deg] border-[3.5px] border-on-surface bg-white shadow-[6px_6px_0px_black] object-cover object-top"
+                          />
+                        )}
+                      </div>
+                    )}
                   </div>
                 </FieldCard>
               </FieldSection>
