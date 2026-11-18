@@ -23,11 +23,10 @@ export interface TrevorActiveMission {
   status: string;
   deckId?: string;
   /**
-   * Whether the mission actually has progress (photo / note / location in
-   * tripProgress) — the poster's rule. A freshly drawn mission has none,
-   * so its CTA says START, never RESUME. Optional: contexts built without
-   * tripProgress leave it unknown, and callers fall back to the
-   * historical Resume label instead of guessing.
+   * Whether the mission actually has progress (a captured photo or a real
+   * field note in tripProgress) — the poster's rule. A freshly drawn mission
+   * has none, so its CTA says START, never RESUME. Optional: contexts built
+   * without tripProgress leave it unknown, which reads as no progress.
    */
   hasProgress?: boolean;
 }

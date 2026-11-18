@@ -159,13 +159,17 @@ const PLAYER_PROOF_STATUS_SET = new Set<string>(PLAYER_PROOF_STATUSES);
 
 /**
  * "Has progress" is the poster's rule, and guidance must match it: a mission
- * counts as started only when the profile carries at least one tripProgress
- * entry for it (photo, field note, location, ...). Drawing a card sets
- * activeTrip but writes no tripProgress, so a freshly drawn mission has
- * none — and must never be labelled RESUME. Returns undefined when no
- * tripProgress map was supplied (unknown); the resolver treats unknown as
- * no-progress, because both live callers pass the profile's own map and an
- * absent map means no evidence was ever captured.
+ * counts as started only when the player actually captured evidence for it
+ * — a photo (`photo: true`) or a real field note (`field_note: true`).
+ * Count truthy evidence, not keys: the capture screen's own syncs write
+ * valueless entries — `{ field_note: false }` the moment it mounts with an
+ * empty note, and `{ location: true }` on arrival for location-required
+ * missions — and key-counting read both as progress (Nov 17, 2026: Basecamp
+ * said RESUME for an untouched Park Oasis). A location auto-check alone is
+ * not progress. Returns undefined when no tripProgress map was supplied
+ * (unknown); the resolver treats unknown as no-progress, because both live
+ * callers pass the profile's own map and an absent map means no evidence
+ * was ever captured.
  */
 export function missionHasProgress(
   tripProgress: Record<string, Record<string, unknown> | undefined> | null | undefined,
@@ -174,7 +178,7 @@ export function missionHasProgress(
   if (!tripProgress) return undefined;
   const progress = tripProgress[missionId];
   if (!progress) return false;
-  return Object.keys(progress).length > 0;
+  return progress.photo === true || progress.field_note === true;
 }
 const PLAYER_ACTIVE_DRAW_STATUS_SET = new Set<string>(PLAYER_ACTIVE_DRAW_STATUSES);
 
@@ -704,7 +708,8 @@ export function resolvePlayerGuidance(input: ResolvePlayerGuidanceInput): Player
     presented = present('RETRY_REJECTED_PROOF', { mission, repair: target, deckId: mission?.deckId || undefined });
   } else if (mission && (mission.status === 'drawn' || mission.status === 'active')) {
     // The label follows the poster's rule: RESUME only when the mission
-    // actually has progress (photo / note / location captured). A freshly
+    // actually has progress (a captured photo or a real field note — a
+    // location auto-check or an empty-note sync does not count). A freshly
     // drawn mission has none, so it says "Do this mission" — never RESUME.
     // Unknown counts as none: both callers pass the profile's own
     // tripProgress map, so an absent map means no evidence was ever

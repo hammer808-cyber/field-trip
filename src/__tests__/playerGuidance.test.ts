@@ -318,6 +318,40 @@ test('8b. Drawn mission with captured progress says Resume mission', () => {
   assert.equal(snapshot.primaryActionLabel, 'Resume mission');
 });
 
+test('8c. Drawn mission with only an empty-note sync says Do this mission', () => {
+  // Nov 17, 2026: the capture screen writes { field_note: false } the
+  // moment it mounts with an empty note. A valueless entry is not progress
+  // — key-counting read it as RESUME for an untouched Park Oasis.
+  const active = trip({ status: 'in-progress' });
+  const snapshot = resolvePlayerGuidance(input({
+    entries: starterApprovals(),
+    activeTrip: active,
+    trips: [active],
+    tripProgress: { 'heatwave-18': { field_note: false } },
+    isHeatwaveDeckUnlocked: true,
+  }));
+  assert.equal(snapshot.state, 'RESUME_ACTIVE_MISSION');
+  assert.equal(snapshot.primaryActionLabel, 'Do this mission');
+  assert.doesNotMatch(snapshot.primaryActionLabel, /Resume/i);
+});
+
+test('8d. Drawn mission with only a location auto-check says Do this mission', () => {
+  // Nov 17, 2026: the capture screen writes { location: true } on arrival
+  // for location-required missions (socal-09 requires location). Arriving
+  // is not progress — only a captured photo or a real field note counts.
+  const active = trip({ status: 'in-progress' });
+  const snapshot = resolvePlayerGuidance(input({
+    entries: starterApprovals(),
+    activeTrip: active,
+    trips: [active],
+    tripProgress: { 'heatwave-18': { location: true } },
+    isHeatwaveDeckUnlocked: true,
+  }));
+  assert.equal(snapshot.state, 'RESUME_ACTIVE_MISSION');
+  assert.equal(snapshot.primaryActionLabel, 'Do this mission');
+  assert.doesNotMatch(snapshot.primaryActionLabel, /Resume/i);
+});
+
 test('9. Normal pending proof + missions still available continues play', () => {
   const snapshot = resolvePlayerGuidance(input({
     entries: [

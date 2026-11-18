@@ -71,10 +71,11 @@ export const TREVOR_ACTION_REGISTRY: Readonly<Record<TrevorActionId, TrevorActio
     safeFallback: 'open_logbook',
   },
   resume_active_mission: {
-    // The poster's rule: RESUME only when the mission actually has progress.
-    // A freshly drawn mission has none, so Trevor says START. When the
-    // progress is unknown (no tripProgress on the context) the label falls
-    // back to the historical Resume instead of guessing.
+    // The poster's rule: RESUME only when the mission actually has progress
+    // (a captured photo or a real field note). A freshly drawn mission has
+    // none, so Trevor says START — and so does an unknown or valueless
+    // entry (no tripProgress on the context, an empty-note sync, or a
+    // location auto-check), which reads as no progress.
     label: (context, params) => {
       const title = params.missionTitle || 'Mission';
       const matchesActive = !params.missionId || params.missionId === context.activeMission?.id;
