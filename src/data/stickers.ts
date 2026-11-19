@@ -576,6 +576,144 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     tags: ['elondra', 'arrival', 'pose', 'season']
   },
 
+  // Elondra pack (Nov 18, 2026 — Zach's call: add all ten as new). Neon
+  // desert-glam object art, shipped as a ZIP with no metadata. All ten land
+  // as new entries (no replacements — the existing 7 all match their names,
+  // so there is no defect to fix; 05/09 sit alongside their same-theme
+  // counterparts as distinct stickers: loafers vs the stiletto pump,
+  // a full vanity kit vs the single compact). All trigger-pending
+  // (admin_grant): no existing event fits them. Do NOT give new entries
+  // awardTrigger 'starter_pack' — unlockStarterPackForArchetype grants all
+  // starter_pack entries at quiz time with no backfill for existing players.
+  // Files were 1.2–2.2 MB each (1254x1254, 01 portrait 1024x1536); shrunk
+  // to ~400px max dimension with PIL (LANCZOS, RGBA, transparency kept)
+  // before import — 01 stays portrait (267x400) and letterboxes on the
+  // square shelf. Originals live in the ZIP
+  // Elondra_10_Transparent_Stickers_65_4g50.zip, not in the repo.
+  {
+    id: 'elondra_neon_cactus_cooler',
+    name: 'Neon Cactus Cooler',
+    archetype: 'elondra',
+    collection: 'explorer',
+    displayOrder: 21,
+    imageUrl: '/assets/stickers/elondra/01_neon_cactus_cooler.png',
+    rarity: 'common',
+    // Trigger PENDING (Nov 18, 2026): no existing event fits a frozen
+    // drink. Registered as admin_grant so it is visible and grantable,
+    // never mis-awarded by a guessed event.
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for cooling off in style.',
+    tags: ['elondra', 'cactus', 'cooler', 'drink', 'trigger-pending']
+  },
+  {
+    id: 'elondra_starstruck_sunglasses',
+    name: 'Starstruck Sunglasses',
+    archetype: 'elondra',
+    collection: 'explorer',
+    displayOrder: 22,
+    imageUrl: '/assets/stickers/elondra/02_starstruck_sunglasses.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for seeing stars everywhere.',
+    tags: ['elondra', 'sunglasses', 'stars', 'glam', 'trigger-pending']
+  },
+  {
+    id: 'elondra_bedazzled_phone',
+    name: 'Bedazzled Phone',
+    archetype: 'elondra',
+    collection: 'explorer',
+    displayOrder: 23,
+    imageUrl: '/assets/stickers/elondra/03_bedazzled_phone.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for calling it in, bedazzled.',
+    tags: ['elondra', 'phone', 'rhinestone', 'glam', 'trigger-pending']
+  },
+  {
+    id: 'elondra_art_kit',
+    name: 'Art Kit',
+    archetype: 'elondra',
+    collection: 'explorer',
+    displayOrder: 24,
+    imageUrl: '/assets/stickers/elondra/04_art_kit.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for sketching the scene.',
+    tags: ['elondra', 'art', 'sketchbook', 'paint', 'trigger-pending']
+  },
+  {
+    id: 'elondra_platform_loafers',
+    name: 'Platform Loafers',
+    archetype: 'elondra',
+    collection: 'explorer',
+    displayOrder: 25,
+    imageUrl: '/assets/stickers/elondra/05_platform_loafers.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for walking tall on the platform.',
+    tags: ['elondra', 'loafers', 'shoes', 'platform', 'trigger-pending']
+  },
+  {
+    id: 'elondra_cosmic_charm_bracelet',
+    name: 'Cosmic Charm Bracelet',
+    archetype: 'elondra',
+    collection: 'explorer',
+    displayOrder: 26,
+    imageUrl: '/assets/stickers/elondra/06_cosmic_charm_bracelet.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for collecting the whole sky.',
+    tags: ['elondra', 'bracelet', 'charms', 'cosmic', 'trigger-pending']
+  },
+  {
+    id: 'elondra_center_stage_microphone',
+    name: 'Center Stage Microphone',
+    archetype: 'elondra',
+    collection: 'explorer',
+    displayOrder: 27,
+    imageUrl: '/assets/stickers/elondra/07_center_stage_microphone.png',
+    rarity: 'rare',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for taking center stage.',
+    tags: ['elondra', 'microphone', 'stage', 'theater', 'trigger-pending']
+  },
+  {
+    id: 'elondra_desert_alien_encounter',
+    name: 'Desert Alien Encounter',
+    archetype: 'elondra',
+    collection: 'adventure',
+    displayOrder: 15,
+    imageUrl: '/assets/stickers/elondra/08_desert_alien_encounter.png',
+    rarity: 'rare',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for a close encounter in the desert.',
+    tags: ['elondra', 'ufo', 'alien', 'desert', 'trigger-pending']
+  },
+  {
+    id: 'elondra_glamour_kit',
+    name: 'Glamour Kit',
+    archetype: 'elondra',
+    collection: 'explorer',
+    displayOrder: 28,
+    imageUrl: '/assets/stickers/elondra/09_glamour_kit.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for the full glamour treatment.',
+    tags: ['elondra', 'vanity', 'makeup', 'glam', 'trigger-pending']
+  },
+  {
+    id: 'elondra_cosmic_shopping_bags',
+    name: 'Cosmic Shopping Bags',
+    archetype: 'elondra',
+    collection: 'explorer',
+    displayOrder: 29,
+    imageUrl: '/assets/stickers/elondra/10_cosmic_shopping_bags.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for hauling the cosmos home.',
+    tags: ['elondra', 'shopping', 'bags', 'cosmic', 'trigger-pending']
+  },
+
   // Lost Camper
   {
     id: 'lost_camper_map',

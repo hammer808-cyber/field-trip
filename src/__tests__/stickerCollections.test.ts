@@ -13,8 +13,8 @@ import {
 import { filterStickersByArchetype } from '../components/stickers/StickerGrid';
 
 const EXPECTED_COUNTS: Readonly<Record<StickerCollection, number>> = {
-  explorer: 20,
-  adventure: 14,
+  explorer: 29,
+  adventure: 15,
   side_quests: 11,
   achievement: 21,
   social: 4,
@@ -24,7 +24,7 @@ const EXPECTED_COUNTS: Readonly<Record<StickerCollection, number>> = {
 
 test('every sticker has exactly one valid collection and the counts match the Stage 3 mapping', () => {
   const stickers = getAllStickers();
-  assert.equal(stickers.length, 71);
+  assert.equal(stickers.length, 81);
   const validCollections = new Set<string>(COLLECTION_SHELF_ORDER);
   for (const sticker of stickers) {
     assert.ok(validCollections.has(sticker.collection), `${sticker.id} has an unknown collection`);
@@ -41,8 +41,8 @@ test('every sticker has exactly one valid collection and the counts match the St
 test('rarity is 3 levels: no uncommon remains', () => {
   const stickers = getAllStickers();
   assert.ok(stickers.every(sticker => ['common', 'rare', 'legendary'].includes(sticker.rarity)));
-  assert.equal(stickers.filter(sticker => sticker.rarity === 'common').length, 47);
-  assert.equal(stickers.filter(sticker => sticker.rarity === 'rare').length, 21);
+  assert.equal(stickers.filter(sticker => sticker.rarity === 'common').length, 55);
+  assert.equal(stickers.filter(sticker => sticker.rarity === 'rare').length, 23);
   assert.equal(stickers.filter(sticker => sticker.rarity === 'legendary').length, 3);
 });
 
