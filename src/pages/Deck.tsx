@@ -1,3 +1,5 @@
+// Missions page locked per Zach, Nov 18, 2026 — no additions or changes
+// to this page until he says so.
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import { useApp } from '../context/AppContext';
@@ -994,10 +996,14 @@ export default function DeckPage() {
             {/* No banner while a mission is drawn and waiting (Nov 17,
                 2026): in the RESUME_ACTIVE_MISSION state the strip repeats
                 the mission name, the waiting state, and the resume action
-                that the mission card below already carries. Every other
-                state still shows it — including the critical repair/retry
-                states, where the strip is the recovery guidance. */}
-            {guidance.state !== 'RESUME_ACTIVE_MISSION' && (
+                that the mission card below already carries. No banner in
+                the DRAW_MISSION state either (Nov 18, 2026, Zach's call,
+                red-circled screenshot): the draw-another panel duplicated
+                the lime header draw button and the deck tap, so it is gone
+                from Missions. Every other state still shows it — including
+                the critical repair/retry states, where the strip is the
+                recovery guidance. */}
+            {guidance.state !== 'RESUME_ACTIVE_MISSION' && guidance.state !== 'DRAW_MISSION' && (
             <MissionsGuidanceStrip
               guidance={guidance}
               onPrimary={() => {
@@ -1175,7 +1181,7 @@ export default function DeckPage() {
                       </div>
                     </div>
                   )}
-                  <div className="w-full max-w-[320px] sm:max-w-[22rem] mx-auto">
+                  <div className="w-full max-w-[320px] sm:max-w-[27rem] mx-auto">
                     <DeckStack 
                       onDraw={() => handleDraw()}
                       isDrawing={isDrawing}

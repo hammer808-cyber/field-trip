@@ -65,14 +65,14 @@ export function DeckStack({
   };
 
   return (
-    <div id="deck-draw-area" className="relative h-[240px] sm:h-[400px] w-full flex items-center justify-center py-4">
+    <div id="deck-draw-area" className="relative h-[460px] sm:h-[680px] w-full flex items-center justify-center py-4">
       {/* The Stack */}
       <div
            id="starter-deck"
            data-tour="deck-draw"
            data-onboarding="starter-deck"
            className={cn(
-             "relative w-36 h-48 sm:w-72 sm:h-[22rem] group cursor-pointer select-none transition-all",
+             "relative w-60 h-80 sm:w-[27rem] sm:h-[33rem] group cursor-pointer select-none transition-all",
              isActuallyDisabled ? "cursor-not-allowed grayscale opacity-40" : ""
            )}
            onClick={handleDraw}
@@ -197,7 +197,7 @@ export function DeckStack({
               }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.5, ease: "easeIn" }}
-              className="absolute inset-0 h-48 w-36 border-4 border-on-surface bg-[#1e1e1f] z-[200] pointer-events-none shadow-[12px_12px_0px_black]"
+              className="absolute inset-0 h-80 w-60 sm:h-[33rem] sm:w-[27rem] border-4 border-on-surface bg-[#1e1e1f] z-[200] pointer-events-none shadow-[12px_12px_0px_black]"
             >
                {/* Card Back is shown during the pull */}
                <div className="w-full h-full border-2 border-white/10" />

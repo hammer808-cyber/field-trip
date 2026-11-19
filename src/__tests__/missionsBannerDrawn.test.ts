@@ -12,12 +12,35 @@ test('missions banner: no guidance banner while a mission is drawn and waiting',
   // Nov 17, 2026: in the drawn state the lime banner repeats the mission
   // name, the waiting state, and the resume action that the mission card
   // below already carries — so it is hidden in exactly that state.
-  assert.match(deck, /guidance\.state !== 'RESUME_ACTIVE_MISSION' && \(\s*<MissionsGuidanceStrip/s);
-  // The hidden state is the plain resume state, not the critical
+  // Nov 18, 2026 (Zach's call, red-circled screenshot): the DRAW_MISSION
+  // draw-another panel is hidden too — it duplicated the lime header draw
+  // button and the deck tap.
+  assert.match(deck, /guidance\.state !== 'RESUME_ACTIVE_MISSION' && guidance\.state !== 'DRAW_MISSION' && \(\s*<MissionsGuidanceStrip/s);
+  // The hidden states are the plain resume/draw states, not the critical
   // recovery states: repair/retry still show the banner, because there
   // the strip IS the recovery guidance.
   assert.doesNotMatch(deck, /guidance\.state !== 'REPAIR_PROOF'[^]*<MissionsGuidanceStrip/s);
+  assert.doesNotMatch(deck, /guidance\.state !== 'RETRY_REJECTED_PROOF'[^]*<MissionsGuidanceStrip/s);
   assert.doesNotMatch(deck, /!isDrawn && \(\s*<MissionsGuidanceStrip/s);
+});
+
+test('missions banner: the draw-another panel is gone, the draw paths remain', () => {
+  // Nov 18, 2026: the circled panel (Now / DRAW ANOTHER MISSION / Ready
+  // for another receipt. / View Proof Status / Draw Another Mission ->)
+  // was the MissionsGuidanceStrip in the DRAW_MISSION state. It no longer
+  // renders on Missions — but drawing still works three ways.
+  const deck = read('src/pages/Deck.tsx');
+  assert.doesNotMatch(deck, /guidance\.state !== 'RESUME_ACTIVE_MISSION' && \(\s*<MissionsGuidanceStrip/s);
+  // 1. The lime header badge is a real draw button.
+  assert.match(deck, /onDraw=\{!isDrawn && isNormalDrawBranch \? \(\) => handleDraw\(\) : undefined\}/);
+  // 2. The deck itself is tappable.
+  assert.match(deck, /<DeckStack[\s\S]*?onDraw=\{\(\) => handleDraw\(\)\}/);
+  // 3. The guidance data still resolves DRAW_MISSION (Basecamp's compact
+  // draw-another panel and Trevor both use it) — only the Missions-page
+  // strip is gone.
+  const guidance = read('src/logic/playerGuidance.ts');
+  assert.match(guidance, /DRAW_MISSION: \{/);
+  assert.match(guidance, /shortMessage: 'Ready for another receipt\.'/);
 });
 
 test('missions banner: the hidden state is the one whose copy the card duplicates', () => {

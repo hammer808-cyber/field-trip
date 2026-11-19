@@ -71,21 +71,28 @@ test('missions draw button: the waiting row and SEE ALL CARDS are intact', () =>
 
 test('missions draw button: the deck is enlarged', () => {
   // Nov 18, 2026 (Zach's call): the deck fills more of the screen.
-  // Mobile card 128x176 -> 144x192 (+12.5% wide), sm 256x320 -> 288x352
-  // (+12.5% wide); the old 0.9 shrink on mobile is gone, and the draw
-  // area grows to fit the taller card plus its prompt.
+  // First enlarge (d55f803): mobile card 128x176 -> 144x192, sm 256x320
+  // -> 288x352. Second enlarge (Nov 18, "a lot bigger"): mobile card
+  // 144x192 -> 240x320 (w-60 h-80, 1.67x), sm 288x352 -> 432x528
+  // (1.5x); the old 0.9 shrink on mobile is gone, and the draw area grows
+  // to fit the taller card plus its prompt.
   const stack = read('src/components/DeckStack.tsx');
   const deck = read('src/pages/Deck.tsx');
-  assert.match(stack, /relative w-36 h-48 sm:w-72 sm:h-\[22rem\] group cursor-pointer/);
-  assert.match(stack, /relative h-\[240px\] sm:h-\[400px\] w-full flex items-center justify-center py-4/);
+  assert.match(stack, /relative w-60 h-80 sm:w-\[27rem\] sm:h-\[33rem\] group cursor-pointer/);
+  assert.match(stack, /relative h-\[460px\] sm:h-\[680px\] w-full flex items-center justify-center py-4/);
   assert.doesNotMatch(stack, /scale-90/);
   // The draw-flight card matches the new mobile size.
-  assert.match(stack, /absolute inset-0 h-48 w-36 border-4/);
-  // The draw-area wrapper in Deck.tsx is wider too.
-  assert.match(deck, /w-full max-w-\[320px\] sm:max-w-\[22rem\] mx-auto/);
+  assert.match(stack, /absolute inset-0 h-80 w-60 sm:h-\[33rem\] sm:w-\[27rem\] border-4/);
+  // The draw-area wrapper in Deck.tsx is wider too (sm only — the mobile
+  // wrapper already fits the 240px card).
+  assert.match(deck, /w-full max-w-\[320px\] sm:max-w-\[27rem\] mx-auto/);
   // The prompt sits closer under the taller card so it lands in the gap
   // above SEE ALL CARDS instead of overlapping it now the black button
-  // that used to absorb it is gone.
+  // that used to absorb it is gone. Geometry (mobile, ~390px phone):
+  // card 320 tall, centered in the 460px area, bottom at 390px; prompt
+  // spans ~438-482px, overflowing the area by ~22px into the 24px
+  // space-y-6 gap — lands flush, no overlap. (sm: card 528 in a 680px
+  // area, bottom at 604px, prompt overflows ~16px into the same gap.)
   assert.match(stack, /absolute -bottom-12 left-0 right-0 text-center pointer-events-none/);
   assert.doesNotMatch(stack, /-bottom-20/);
 });
