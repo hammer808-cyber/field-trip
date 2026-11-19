@@ -25,26 +25,20 @@ test('missions draw reset: returning with an active mission opens on the deck, n
   assert.match(effect, /hasRevealedInActiveSession/);
 });
 
-test('missions draw reset: a waiting row holds the unfinished mission on the deck', () => {
-  // Nov 17, 2026: the unfinished mission is not stranded by the reset — it
-  // waits in a small row above the deck with the same start action as the
-  // poster's DO THIS MISSION button.
+test('missions draw reset: the waiting row is gone (Nov 19, Zach\'s call)', () => {
+  // Nov 19, 2026 (Zach's call, red-circled screenshot): the "Mission
+  // waiting" row above the deck is removed. A waiting mission has no
+  // entry point on Missions itself — it is reached from Basecamp's
+  // next-action panel (RESUME_ACTIVE_MISSION, "Resume mission", which
+  // takes the player straight to the briefing or capture), or a new draw
+  // silently replaces it. The draw-reset BEHAVIOR is unchanged:
+  // returning with an active mission still opens on the deck, never the
+  // poster.
   const deck = read('src/pages/Deck.tsx');
-  const rowAt = deck.indexOf('Mission waiting');
-  assert.ok(rowAt > 0, 'waiting row rendered');
-  const row = deck.slice(rowAt - 200, rowAt + 2500);
-  assert.match(row, /\{activeTrip && \(/);
-  assert.match(row, /\{displayedMission\?\.title\}/);
-  assert.match(row, /getDisplayLabel\('DO_THIS_MISSION'\)/);
-  assert.match(row, /await setActiveMissionCard\(missionId\)/);
-  assert.match(row, /navigate\(`\/capture\?id=\$\{missionId\}`\)/);
-  // Approved/pending missions open the poster for their status instead of
-  // entering capture — the same guard the poster button carries.
-  assert.match(row, /missionStatus === 'approved' \|\| missionStatus === 'pending_review'/);
-  // The row lives in the deck (not drawn) branch, above the deck stack.
-  const deckHeroAt = deck.indexOf('key="deck-hero"');
-  assert.ok(rowAt > deckHeroAt, 'waiting row is inside the deck-hero branch');
-  assert.ok(rowAt < deck.indexOf('<DeckStack', deckHeroAt), 'waiting row sits above the deck');
+  assert.doesNotMatch(deck, /Mission waiting/);
+  // The draw paths that remain: the lime header button and the deck tap.
+  assert.match(deck, /onDraw=\{!isDrawn && isNormalDrawBranch \? \(\) => handleDraw\(\) : undefined\}/);
+  assert.match(deck, /<DeckStack[\s\S]*?onDraw=\{\(\) => handleDraw\(\)\}/);
 });
 
 test('missions draw reset: "Draw a different one" is gone — the deck is the redraw', () => {

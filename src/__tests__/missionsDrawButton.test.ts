@@ -62,9 +62,12 @@ test('missions draw button: exhausted and pending states are still communicated'
   assert.match(deck, /missionPanelStatus = displayedMissionStatus === 'approved'/);
 });
 
-test('missions draw button: the waiting row and SEE ALL CARDS are intact', () => {
+test('missions draw button: SEE ALL CARDS is intact', () => {
+  // Nov 19, 2026: the "Mission waiting" row is gone (Zach's call), so the
+  // row assertion that lived here moves to missionsDrawReset.test.ts as a
+  // removal pin. SEE ALL CARDS itself is unchanged.
   const deck = read('src/pages/Deck.tsx');
-  assert.match(deck, /Mission waiting/);
+  assert.doesNotMatch(deck, /Mission waiting/);
   assert.match(deck, /SEE ALL CARDS/);
   assert.match(deck, /setShowBrowse\(\(v\) => !v\)/);
 });

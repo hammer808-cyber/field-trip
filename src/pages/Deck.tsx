@@ -1150,37 +1150,6 @@ export default function DeckPage() {
                 </div>
               ) : (
                 <>
-                  {/* Mission waiting (Nov 17, 2026 — Zach's call): Missions
-                      opens on the deck, so an unfinished mission waits here
-                      in a small row instead of the poster re-asserting
-                      itself on every return. Same start action as the
-                      poster's DO THIS MISSION button. */}
-                  {activeTrip && (
-                    <div className="w-full border-2 border-[var(--skin-border)] bg-[var(--skin-surface)] px-4 py-3 shadow-[4px_4px_0_var(--skin-border)]">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-mono text-[9px] font-black uppercase tracking-[0.25em] text-on-surface/50">Mission waiting</p>
-                          <p className="truncate font-display text-lg font-black uppercase italic tracking-tight text-on-surface">{displayedMission?.title}</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            const missionId = activeTrip.id;
-                            const missionStatus = getChallengeStatus(canonicalProgress, missionId, activeTrip?.id || null);
-                            if (missionStatus === 'approved' || missionStatus === 'pending_review') {
-                              setIsDrawn(true);
-                              return;
-                            }
-                            await setActiveMissionCard(missionId);
-                            navigate(`/capture?id=${missionId}`);
-                          }}
-                          className="shrink-0 border-[3px] border-[var(--skin-border)] bg-[var(--skin-primary)] px-3 py-2 font-display text-sm font-black uppercase italic tracking-normal text-[var(--skin-on-primary)] shadow-[var(--skin-button-shadow)] transition-all active:translate-y-1 active:shadow-none"
-                        >
-                          {getDisplayLabel('DO_THIS_MISSION')}
-                        </button>
-                      </div>
-                    </div>
-                  )}
                   <div className="w-full max-w-[320px] sm:max-w-[27rem] mx-auto">
                     <DeckStack 
                       onDraw={() => handleDraw()}
