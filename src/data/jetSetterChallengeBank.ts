@@ -404,6 +404,7 @@ export const JET_SETTER_CHALLENGE_BANK: Partial<ChallengeCard>[] = CARD_DEFINITI
     season: JET_SETTER_SEASON,
     safetyNote: JET_SETTER_SAFETY_NOTE,
     isActive: true,
+    image: `/assets/challenges/${card.id}.jpg`,
     category: type,
     type,
     lane: 'core',
