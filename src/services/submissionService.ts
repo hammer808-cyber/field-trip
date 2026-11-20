@@ -44,8 +44,9 @@ import {
 } from '../logic/adminQueueStats';
 import {
   runStickerAwardNonBlocking,
+  wasMissionSentBackForMoreProof,
 } from './stickerService';
-import { evaluateAdminApprovalStickers } from '../logic/stickerEvaluator';
+import { evaluateAdminApprovalStickers, getEntryMissionId } from '../logic/stickerEvaluator';
 
 // COLLECTION NAMES
 const ENTRIES_COLLECTION = 'entries';
@@ -776,6 +777,17 @@ async function submitAdminProofReviewAction(
       const profileData = await getDoc(doc(db, 'users', String(payload.userId)))
         .then(snap => (snap.exists() ? snap.data() : null))
         .catch(() => null);
+      // Earn-audit fix #3 (Plot Twist): was this mission sent back for
+      // more proof before this approval? Each submission is a new entry
+      // doc, so the history lives on the earlier proofReview.
+      const entryMissionId = entryData
+        ? getEntryMissionId({
+            missionId: (entryData as any).missionId,
+            challengeId: (entryData as any).challengeId,
+            tripId: (entryData as any).tripId
+          })
+        : null;
+      const wasRepair = await wasMissionSentBackForMoreProof(String(payload.userId), entryMissionId);
       return evaluateAdminApprovalStickers({
         userId: String(payload.userId),
         entry: entryData ? {
@@ -785,7 +797,8 @@ async function submitAdminProofReviewAction(
         } : null,
         source: `proof_approval:${payload.entryId || submissionId}`,
         fieldType: (entryData as any)?.fieldType ?? null,
-        profile: profileData as any
+        profile: profileData as any,
+        wasRepair
       });
     });
   }

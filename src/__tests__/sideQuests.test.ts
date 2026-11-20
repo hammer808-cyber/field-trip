@@ -38,6 +38,12 @@ const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0
  * side quest. Rarity is Zach's call: Hidden Gem, Full Send, Plot Twist,
  * and Sasquatch Sighting are rare; the other seven are common.
  *
+ * Earn-audit fix #3 (Nov 20, 2026): three of the eleven got real
+ * triggers — Retail Therapy (`first_approval` as Mall Rat), Good Company
+ * (`crew_joined`), Plot Twist (new `repair_approved`). The other eight
+ * stay admin_grant / trigger-pending; see
+ * docs/earn-audit-fix-3-trigger-definitions.md for the rest.
+ *
  * 21_full_send ships AS-IS with a non-transparent top-right corner (a
  * flame touches the edge) — do not crop or regenerate without Zach's call.
  */
@@ -48,18 +54,20 @@ const SIDE_QUESTS: ReadonlyArray<{
   rarity: 'common' | 'rare';
   displayOrder: number;
   md5: string;
+  trigger: 'admin_grant' | 'first_approval' | 'crew_joined' | 'repair_approved';
+  archetype: 'mallRat' | undefined;
 }> = [
-  { id: 'side_quests_retail_therapy', name: 'Retail Therapy', file: '13_retail_therapy.png', rarity: 'common', displayOrder: 1, md5: '69e8d3ea2b6f11f509c8ef6ee841dd70' },
-  { id: 'side_quests_snack_attack', name: 'Snack Attack', file: '14_snack_attack.png', rarity: 'common', displayOrder: 2, md5: 'a4cd2760d0f7119231b0d8207f784888' },
-  { id: 'side_quests_detour', name: 'Detour', file: '15_detour.png', rarity: 'common', displayOrder: 3, md5: 'e22c32d75baaa87b6fc6219e4eb320eb' },
-  { id: 'side_quests_night_owl', name: 'Night Owl', file: '16_night_owl.png', rarity: 'common', displayOrder: 4, md5: '97a23d1b13527199846dfa0e5ead0941' },
-  { id: 'side_quests_hidden_gem', name: 'Hidden Gem', file: '17_hidden_gem.png', rarity: 'rare', displayOrder: 5, md5: '5f6a87146473539d5c2e93af5e742025' },
-  { id: 'side_quests_good_company', name: 'Good Company', file: '19_good_company.png', rarity: 'common', displayOrder: 6, md5: '6f36d3d27041d19f1bac3ff989e6347b' },
-  { id: 'side_quests_roadside_weird', name: 'Roadside Weird', file: '20_roadside_weird.png', rarity: 'common', displayOrder: 7, md5: '0972967a5e36013044bb7b7799d57cef' },
-  { id: 'side_quests_full_send', name: 'Full Send', file: '21_full_send.png', rarity: 'rare', displayOrder: 8, md5: '5028ff483c99088d41b0711b08400b2a' },
-  { id: 'side_quests_after_hours', name: 'After Hours', file: '22_after_hours.png', rarity: 'common', displayOrder: 9, md5: '0fdf7a3a764cee0ca37d6825d4f8f110' },
-  { id: 'side_quests_plot_twist', name: 'Plot Twist', file: '23_plot_twist.png', rarity: 'rare', displayOrder: 10, md5: '75949fe28928dcb55c9ae3f2ea70892d' },
-  { id: 'side_quests_sasquatch_sighting', name: 'Sasquatch Sighting', file: '24_sasquatch_sighting.png', rarity: 'rare', displayOrder: 11, md5: '77372122306f0bb663e261a12a8754b0' }
+  { id: 'side_quests_retail_therapy', name: 'Retail Therapy', file: '13_retail_therapy.png', rarity: 'common', displayOrder: 1, md5: '69e8d3ea2b6f11f509c8ef6ee841dd70', trigger: 'first_approval', archetype: 'mallRat' },
+  { id: 'side_quests_snack_attack', name: 'Snack Attack', file: '14_snack_attack.png', rarity: 'common', displayOrder: 2, md5: 'a4cd2760d0f7119231b0d8207f784888', trigger: 'admin_grant', archetype: undefined },
+  { id: 'side_quests_detour', name: 'Detour', file: '15_detour.png', rarity: 'common', displayOrder: 3, md5: 'e22c32d75baaa87b6fc6219e4eb320eb', trigger: 'admin_grant', archetype: undefined },
+  { id: 'side_quests_night_owl', name: 'Night Owl', file: '16_night_owl.png', rarity: 'common', displayOrder: 4, md5: '97a23d1b13527199846dfa0e5ead0941', trigger: 'admin_grant', archetype: undefined },
+  { id: 'side_quests_hidden_gem', name: 'Hidden Gem', file: '17_hidden_gem.png', rarity: 'rare', displayOrder: 5, md5: '5f6a87146473539d5c2e93af5e742025', trigger: 'admin_grant', archetype: undefined },
+  { id: 'side_quests_good_company', name: 'Good Company', file: '19_good_company.png', rarity: 'common', displayOrder: 6, md5: '6f36d3d27041d19f1bac3ff989e6347b', trigger: 'crew_joined', archetype: undefined },
+  { id: 'side_quests_roadside_weird', name: 'Roadside Weird', file: '20_roadside_weird.png', rarity: 'common', displayOrder: 7, md5: '0972967a5e36013044bb7b7799d57cef', trigger: 'admin_grant', archetype: undefined },
+  { id: 'side_quests_full_send', name: 'Full Send', file: '21_full_send.png', rarity: 'rare', displayOrder: 8, md5: '5028ff483c99088d41b0711b08400b2a', trigger: 'admin_grant', archetype: undefined },
+  { id: 'side_quests_after_hours', name: 'After Hours', file: '22_after_hours.png', rarity: 'common', displayOrder: 9, md5: '0fdf7a3a764cee0ca37d6825d4f8f110', trigger: 'admin_grant', archetype: undefined },
+  { id: 'side_quests_plot_twist', name: 'Plot Twist', file: '23_plot_twist.png', rarity: 'rare', displayOrder: 10, md5: '75949fe28928dcb55c9ae3f2ea70892d', trigger: 'repair_approved', archetype: undefined },
+  { id: 'side_quests_sasquatch_sighting', name: 'Sasquatch Sighting', file: '24_sasquatch_sighting.png', rarity: 'rare', displayOrder: 11, md5: '77372122306f0bb663e261a12a8754b0', trigger: 'admin_grant', archetype: undefined }
 ];
 
 test('side quests: all eleven are registered as cross-pack Side Quests stickers', () => {
@@ -76,14 +84,18 @@ test('side quests: all eleven are registered as cross-pack Side Quests stickers'
     assert.ok(sticker, `${expected.id} is registered`);
     assert.equal(sticker.name, expected.name);
     assert.equal(sticker.collection, 'side_quests');
-    assert.equal(sticker.archetype, undefined, `${expected.id} is cross-pack (no archetype)`);
+    assert.equal(sticker.archetype, expected.archetype, `${expected.id} archetype`);
     assert.equal(sticker.rarity, expected.rarity);
     assert.equal(sticker.displayOrder, expected.displayOrder);
-    assert.equal(sticker.awardTrigger, 'admin_grant', `${expected.id} has no wired trigger — grantable only`);
+    assert.equal(sticker.awardTrigger, expected.trigger, `${expected.id} trigger`);
     assert.equal(sticker.imageUrl, `/assets/stickers/sideQuests/${expected.file}`);
     assert.ok(sticker.unlockReason.length > 0, `${expected.id} needs how-to-earn copy`);
     assert.ok(sticker.tags.includes('side-quests'));
-    assert.ok(sticker.tags.includes('trigger-pending'), `${expected.id} needs Zach to define what earns it`);
+    if (expected.trigger === 'admin_grant') {
+      assert.ok(sticker.tags.includes('trigger-pending'), `${expected.id} needs Zach to define what earns it`);
+    } else {
+      assert.ok(!sticker.tags.includes('trigger-pending'), `${expected.id} has a wired trigger — the pending tag must be gone`);
+    }
   }
 
   // Display order is unique inside Side Quests (1–11).

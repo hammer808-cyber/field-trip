@@ -27,6 +27,7 @@ export type StickerAwardTrigger =
   | 'season_milestone'
   | 'mission_count_milestone'
   | 'level_up'
+  | 'repair_approved'
   | 'admin_grant';
 
 export type StickerCollection =
@@ -1392,16 +1393,17 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
   {
     id: 'side_quests_retail_therapy',
     name: 'Retail Therapy',
+    archetype: 'mallRat',
     collection: 'side_quests',
     displayOrder: 1,
     imageUrl: '/assets/stickers/sideQuests/13_retail_therapy.png',
     rarity: 'common',
-    // Trigger PENDING (Nov 18, 2026): no existing event fits a side
-    // quest. Registered as admin_grant so it is visible and grantable,
-    // never mis-awarded by a guessed event.
-    awardTrigger: 'admin_grant',
-    unlockReason: 'Earned for a little retail therapy on the road.',
-    tags: ['side-quests', 'shopping', 'raccoon', 'trigger-pending']
+    // Earn-audit fix #3 (Nov 20, 2026): the Mall Rat first-approval
+    // variant. Mall Rat had none, so its first approval fell back to the
+    // Checkmark Seal default; now it earns Retail Therapy instead.
+    awardTrigger: 'first_approval',
+    unlockReason: 'Earned when your first proof is approved as the Mall Rat.',
+    tags: ['side-quests', 'shopping', 'raccoon']
   },
   {
     id: 'side_quests_snack_attack',
@@ -1454,9 +1456,11 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     displayOrder: 6,
     imageUrl: '/assets/stickers/sideQuests/19_good_company.png',
     rarity: 'common',
-    awardTrigger: 'admin_grant',
-    unlockReason: 'Earned for good company on the road.',
-    tags: ['side-quests', 'company', 'campfire', 'trigger-pending']
+    // Earn-audit fix #3 (Nov 20, 2026): crew_joined, alongside Accomplice.
+    // Cross-pack, so it rides along on every crew join.
+    awardTrigger: 'crew_joined',
+    unlockReason: 'Earned when you join a Fieldtrip crew.',
+    tags: ['side-quests', 'company', 'campfire']
   },
   {
     id: 'side_quests_roadside_weird',
@@ -1498,9 +1502,13 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     displayOrder: 10,
     imageUrl: '/assets/stickers/sideQuests/23_plot_twist.png',
     rarity: 'rare',
-    awardTrigger: 'admin_grant',
-    unlockReason: 'Earned when the plan takes a plot twist.',
-    tags: ['side-quests', 'plot-twist', 'map', 'ufo', 'trigger-pending']
+    // Earn-audit fix #3 (Nov 20, 2026): new `repair_approved` trigger.
+    // Fires when an approval is a repair — the mission was sent back for
+    // more proof and came back approved. See `wasMissionSentBackForMoreProof`
+    // in stickerService.ts and the `wasRepair` flag on the admin event.
+    awardTrigger: 'repair_approved',
+    unlockReason: 'Earned when a proof sent back for more evidence comes back and gets approved.',
+    tags: ['side-quests', 'plot-twist', 'map', 'ufo']
   },
   {
     id: 'side_quests_sasquatch_sighting',

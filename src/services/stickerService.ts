@@ -4,8 +4,11 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
+  query,
   runTransaction,
-  serverTimestamp
+  serverTimestamp,
+  where
 } from 'firebase/firestore';
 import {
   getStickerById as getRegistryStickerById,
@@ -14,6 +17,7 @@ import {
   type StickerAwardTrigger
 } from '../data/stickers';
 import { db } from '../lib/firebase';
+import { canonicalizeId } from './canonicalProgress';
 import { UserProfile } from './userService';
 
 export interface StickerRecord {
@@ -136,8 +140,52 @@ const STICKER_AWARD_TRIGGERS: readonly StickerAwardTrigger[] = [
   'season_milestone',
   'mission_count_milestone',
   'level_up',
+  'repair_approved',
   'admin_grant'
 ];
+
+/**
+ * Pure check (earn-audit fix #3): is this proof-review doc a
+ * needs-more-proof decision for this mission? Reviews carry the mission
+ * under `challengeId` or `missionId` (either may hold it — see the admin
+ * queue's `missionId: reviewData.missionId || reviewData.challengeId`).
+ */
+export function isNeedsMoreReviewForMission(
+  review: { status?: unknown; challengeId?: unknown; missionId?: unknown },
+  missionId: string | null
+): boolean {
+  if (!missionId) return false;
+  if (review?.status !== 'needs_more_proof') return false;
+  return canonicalizeId(review.challengeId ?? review.missionId) === canonicalizeId(missionId);
+}
+
+/**
+ * Repair detection (earn-audit fix #3, Plot Twist): was this mission sent
+ * back for more proof before this approval? Each submission is a NEW entry
+ * doc (`entry_<mission>_<user>_<timestamp>`), so the current entry never
+ * carries the history — the needs-more decision lives on the earlier
+ * proofReview for the same mission.
+ *
+ * Single equality filter (`userId`) on the last 50 reviews, filtered in
+ * code — no composite index needed. Best-effort by design: a failed read
+ * returns false and Plot Twist simply never fires for that approval (the
+ * admin-grant path still works). The call runs inside the non-blocking
+ * sticker callback, so it never holds up the review UI.
+ */
+export async function wasMissionSentBackForMoreProof(
+  userId: string,
+  missionId: string | null
+): Promise<boolean> {
+  if (!userId || !missionId) return false;
+  try {
+    const snap = await getDocs(
+      query(collection(db, 'proofReviews'), where('userId', '==', userId), limit(50))
+    );
+    return snap.docs.some(doc => isNeedsMoreReviewForMission(doc.data() as any, missionId));
+  } catch {
+    return false;
+  }
+}
 
 function isStickerAwardTrigger(value: unknown): value is StickerAwardTrigger {
   return typeof value === 'string' && STICKER_AWARD_TRIGGERS.includes(value as StickerAwardTrigger);

@@ -110,6 +110,14 @@ export const STICKER_RULES: Readonly<Record<StickerAwardTrigger, StickerRule>> =
   season_milestone: { kind: 'set' },
   mission_count_milestone: { kind: 'count', thresholds: MISSION_COUNT_MILESTONE_THRESHOLDS },
   level_up: { kind: 'event' },
+  /**
+   * Earn-audit fix #3 (Nov 20, 2026): fires when an approval is a repair —
+   * the mission was sent back for more proof and came back approved. The
+   * admin call sites set `wasRepair` on the event (see
+   * `wasMissionSentBackForMoreProof` in stickerService.ts); the bundle
+   * below awards it alongside the rest of the approval bundle.
+   */
+  repair_approved: { kind: 'event' },
   admin_grant: { kind: 'event' }
 };
 
@@ -145,6 +153,13 @@ export interface StickerEvent {
   type: StickerAwardTrigger;
   /** The entry the event is about, when the event has one. */
   entry?: StickerEventEntryLike | null;
+  /**
+   * True when this approval is a repair: the mission was sent back for
+   * more proof and came back approved (earn-audit fix #3). Only the
+   * admin approval paths set this; the bundle awards `repair_approved`
+   * on it. Defaults to false.
+   */
+  wasRepair?: boolean;
   /** Source string recorded on the unlock (1–200 chars). */
   source: string;
 }
@@ -311,6 +326,13 @@ export async function evaluateStickerTriggers(
     if (entryMissionId && !isStarterMissionId(entryMissionId)) {
       addAward('challenge_approved', resolveEventStickers('challenge_approved', fieldArchetype).map(s => s.id));
     }
+    // Repair approval (earn-audit fix #3): the mission was sent back for
+    // more proof and came back approved — Plot Twist. This needs no
+    // snapshot, so it runs even when the profile read failed and the rest
+    // of the bundle is skipped.
+    if (event.wasRepair) {
+      addAward('repair_approved', resolveEventStickers('repair_approved', fieldArchetype).map(s => s.id));
+    }
     if (snapshot) {
       const approvedCount = getEffectiveApprovedCount(snapshot, entryMissionId);
       // Archetype milestone: the archetype's own milestone sticker, if one
@@ -364,6 +386,14 @@ export interface AdminApprovalEvaluationInput {
    * behavior, kept as a degradation path).
    */
   profile?: BuildCanonicalProgressInput['profile'] | null;
+  /**
+   * True when this approval is a repair: the mission was sent back for
+   * more proof and came back approved (earn-audit fix #3, Plot Twist).
+   * The admin call sites compute it from the proof-review history (see
+   * `wasMissionSentBackForMoreProof` in stickerService.ts). Defaults to
+   * false — a failed or skipped check simply never awards Plot Twist.
+   */
+  wasRepair?: boolean;
   /** Test seam — defaults to `unlockStickersForUser`. */
   unlock?: StickerUnlockFn;
 }
@@ -389,6 +419,11 @@ export interface AdminApprovalEvaluationInput {
  * so a player already past 5 earns it on their next approval.
  * `mission_count_milestone` stays exact-match and re-attempts at each of
  * its thresholds (3, 5, 10).
+ *
+ * Earn-audit fix #3 (Nov 20, 2026): a repair approval — the mission was
+ * sent back for more proof and came back approved — also awards
+ * `repair_approved` (Plot Twist) via `input.wasRepair`. The repair check
+ * needs no snapshot, so it runs even when the profile read failed.
  */
 export async function evaluateAdminApprovalStickers(
   input: AdminApprovalEvaluationInput
@@ -400,6 +435,7 @@ export async function evaluateAdminApprovalStickers(
     event: {
       type: 'first_approval',
       entry: input.entry ?? null,
+      wasRepair: input.wasRepair ?? false,
       source: input.source
     },
     userId: input.userId,

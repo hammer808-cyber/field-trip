@@ -29,9 +29,12 @@ test('each Field Type filter returns its registered stickers plus the cross-pack
   // Clipboard grew from 7 to 17 with the Nov 19 Captain Clipboard pack
   // (Zach's call: ADD all ten as new, 02 + 03 rare). The Nov 20 milestone
   // variants (earn-audit fix #2b) add one archetype_milestone sticker to
-  // Mascota, Elondra, Captain Clipboard, and Lost Camper.
+  // Mascota, Elondra, Captain Clipboard, and Lost Camper. Earn-audit fix
+  // #3 (Nov 20, 2026) moves Retail Therapy from cross-pack to Mall Rat
+  // (the Mall Rat first-approval variant), so Mall Rat is 16 and the
+  // cross-pack set shrinks by one.
   const expectedArchetypeCounts: Readonly<Record<string, number>> = {
-    mallRat: 15,
+    mallRat: 16,
     captainClipboard: 18,
     mascota: 8,
     elondra: 18,

@@ -516,6 +516,7 @@ service cloud.firestore {
             'season_milestone',
             'mission_count_milestone',
             'level_up',
+            'repair_approved',
             'admin_grant'
           ];
         }
