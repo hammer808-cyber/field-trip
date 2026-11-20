@@ -10,6 +10,10 @@ export default function FieldKitOnboarding() {
   const [bootProgress, setBootProgress] = useState(0);
   const [isRequesting, setIsRequesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // P0-6: whether the permission request actually landed. 'granted' keeps
+  // the happy-path "set" copy; 'not-set' (denied, failed, timed out, or
+  // skipped) shows honest copy and offers a retry instead of claiming setup.
+  const [setupOutcome, setSetupOutcome] = useState<'granted' | 'not-set' | null>(null);
 
   // Booting animation
   React.useEffect(() => {
@@ -35,38 +39,62 @@ export default function FieldKitOnboarding() {
     try {
       // Trigger both permissions in parallel-ish sequence (awaiting each for UI clarity)
       // iOS requires user interaction for these prompts
-      await requestCamera();
-      await requestLocation();
-      
-      console.log('[FIELD_KIT_SETUP_COMPLETE] Permissions sequence resolved. Transitioning to finalizing...');
-      setStep('finalizing');
-      setTimeout(async () => {
-        try {
-          await completeFieldKitOnboarding();
-        } catch (err) {
-          console.warn("[FieldKit] Finalization failed in timeout:", err);
-        }
-      }, 1500);
+      const cameraOk = await requestCamera();
+      const locationOk = await requestLocation();
+
+      if (cameraOk && locationOk) {
+        console.log('[FIELD_KIT_SETUP_COMPLETE] Permissions sequence resolved. Transitioning to finalizing...');
+        setSetupOutcome('granted');
+        setStep('finalizing');
+        setTimeout(async () => {
+          try {
+            await completeFieldKitOnboarding();
+          } catch (err) {
+            console.warn("[FieldKit] Finalization failed in timeout:", err);
+          }
+        }, 1500);
+      } else {
+        // P0-6: one or both permissions were denied, failed, or timed out.
+        // Do not claim setup is done and do not auto-complete — show the
+        // honest copy and let the player retry or continue without.
+        console.log('[FIELD_KIT_SETUP_INCOMPLETE] Permissions not fully granted. Showing honest finalizing screen.');
+        setSetupOutcome('not-set');
+        setStep('finalizing');
+      }
     } catch (err) {
       console.error("[FIELDTRIP_ROUTE_GATE] Unexpected permission crash:", err);
-      // Even on crash, we want to try completing so they aren't stuck
-      try {
-        await completeFieldKitOnboarding();
-      } catch (finalErr) {
-        console.warn("[FieldKit] Final fallback completion failed:", finalErr);
-      }
+      // P0-6: even on crash, do not silently complete as if setup succeeded.
+      // Show the honest copy so the player can retry or continue knowingly.
+      setSetupOutcome('not-set');
+      setStep('finalizing');
     } finally {
       setIsRequesting(false);
     }
   };
 
-  const handleMaybeLater = async () => {
+  const handleMaybeLater = () => {
     console.log('[FIELD_KIT_SETUP_COMPLETE] User skipped permissions via Maybe Later.');
-    // Still count as ready for service, just without permissions
+    // P0-6: skipping is not setup. Show the honest finalizing screen
+    // instead of completing silently — the player continues from there.
+    setSetupOutcome('not-set');
+    setStep('finalizing');
+  };
+
+  // P0-6 re-request path: back to the permissions step so the player can tap
+  // Allow again (a fresh user gesture, which iOS requires for prompts).
+  const handleTryAgain = () => {
+    setSetupOutcome(null);
+    setStep('permissions');
+  };
+
+  // P0-6: the player knowingly continues without camera/location. The
+  // profile records the real permission state (cameraPermissionGranted /
+  // locationPermissionGranted come from the request results), not a claim.
+  const handleContinueWithoutPermissions = async () => {
     try {
       await completeFieldKitOnboarding();
     } catch (err) {
-      console.warn("[FieldKit] Skipped permissions completion failed:", err);
+      console.warn("[FieldKit] Continue-without-permissions completion failed:", err);
     }
   };
 
@@ -95,6 +123,10 @@ export default function FieldKitOnboarding() {
   }
 
   if (step === 'finalizing') {
+    // P0-6: the copy must match what actually happened. Only the granted
+    // path claims setup; the skip/failure path says so plainly and offers
+    // a retry or a knowing continue.
+    const granted = setupOutcome === 'granted';
     return (
       <div className="fixed inset-0 z-[200] flex items-center justify-center bg-paper p-4">
         <motion.div 
@@ -102,13 +134,37 @@ export default function FieldKitOnboarding() {
           animate={{ opacity: 1, scale: 1 }}
           className="w-full max-w-sm space-y-8 text-center"
         >
-          <div className="w-20 h-20 bg-brand-lime rounded-full mx-auto flex items-center justify-center shadow-[0_0_40px_rgba(190,242,100,0.4)]">
-            <ShieldCheck className="w-10 h-10 text-on-surface" />
+          <div className={cn(
+            "w-20 h-20 rounded-full mx-auto flex items-center justify-center",
+            granted
+              ? "bg-brand-lime shadow-[0_0_40px_rgba(190,242,100,0.4)]"
+              : "bg-brand-orange shadow-[0_0_40px_rgba(255,92,0,0.4)]"
+          )}>
+            {granted
+              ? <ShieldCheck className="w-10 h-10 text-on-surface" />
+              : <AlertCircle className="w-10 h-10 text-white" />}
           </div>
           <div className="space-y-2">
-            <h2 className="font-display text-4xl font-black uppercase tracking-tighter italic">You&apos;re ready</h2>
-            <p className="font-mono text-[10px] font-bold text-on-surface/40 uppercase tracking-widest">Camera + location set</p>
+            <h2 className="font-display text-4xl font-black uppercase tracking-tighter italic">{granted ? "You're ready" : 'Not quite ready'}</h2>
+            <p className="font-mono text-[10px] font-bold text-on-surface/40 uppercase tracking-widest">{granted ? 'Camera + location set' : 'Camera and location not set — you can turn them on later from Settings'}</p>
           </div>
+          {!granted && (
+            <div className="space-y-3 pt-2">
+              <button
+                onClick={handleTryAgain}
+                className="w-full py-4 bg-on-surface text-white font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 shadow-[6px_6px_0px_#bef264] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all"
+              >
+                Try again
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleContinueWithoutPermissions}
+                className="w-full py-3 text-on-surface/50 hover:text-on-surface font-mono text-[10px] font-bold uppercase tracking-widest transition-colors"
+              >
+                Continue without permissions
+              </button>
+            </div>
+          )}
         </motion.div>
       </div>
     );

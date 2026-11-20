@@ -31,6 +31,15 @@ export default function MissionSubmittedPage() {
   const primaryHref = showStarterGuidance ? starterGuidance.primaryHref : '/missions';
   const primaryLabel = showStarterGuidance ? starterGuidance.primaryLabel : 'Draw Next Mission →';
 
+  // P0-7: hide "Back to Basecamp" while Basecamp is locked. /basecamp is
+  // reachable exactly when the Starter set is complete or the player is an
+  // admin — the same condition as shouldRedirectPreStarterToMissions in
+  // onboardingFlow.ts. Hiding (rather than re-pointing at /missions) avoids
+  // two buttons to the same place: pre-Starter players already get a
+  // primary CTA to /missions above. Post-starter behaviour is unchanged.
+
+  const showBasecampButton = starter.starterComplete || isAdmin;
+
   return (
     <PlayerPageShell department="missions" className="skin-page skin-proof-status skin-success-state min-h-screen bg-[#FCF8F2] flex flex-col items-center justify-center p-6 relative overflow-hidden">
       <Confetti />
@@ -138,13 +147,15 @@ export default function MissionSubmittedPage() {
             </button>
           )}
 
-          <button
-            onClick={() => navigate('/basecamp')}
-            className="w-full py-4 bg-white text-on-surface border-[4px] border-on-surface shadow-[6px_6px_0px_black] hover:bg-on-surface/[0.02] hover:-translate-y-1 hover:shadow-[8px_8px_0px_black] active:translate-y-0.5 active:shadow-none transition-all font-display text-xl font-black uppercase italic tracking-wide flex items-center justify-center gap-3"
-          >
-            <Home className="w-5 h-5 stroke-[2.5]" />
-            <span>Back to Basecamp</span>
-          </button>
+          {showBasecampButton && (
+            <button
+              onClick={() => navigate('/basecamp')}
+              className="w-full py-4 bg-white text-on-surface border-[4px] border-on-surface shadow-[6px_6px_0px_black] hover:bg-on-surface/[0.02] hover:-translate-y-1 hover:shadow-[8px_8px_0px_black] active:translate-y-0.5 active:shadow-none transition-all font-display text-xl font-black uppercase italic tracking-wide flex items-center justify-center gap-3"
+            >
+              <Home className="w-5 h-5 stroke-[2.5]" />
+              <span>Back to Basecamp</span>
+            </button>
+          )}
         </div>
       </motion.div>
     </PlayerPageShell>
