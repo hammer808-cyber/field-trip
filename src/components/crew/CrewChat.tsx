@@ -3,36 +3,29 @@
  *
  * One channel per crew, realtime, newest at the bottom. @-mentions are
  * matched server-side against member usernames / first names and render
- * bold here. Messages newer than this device's last visit show as an
- * unread count on the Chat tab (reported up via `onUnreadChange`); opening
- * the chat marks it seen.
+ * bold here.
+ *
+ * Messages arrive as a prop: the Crew page owns the subscription (so the
+ * unread badge stays live on every tab, not just while this panel is
+ * open). Opening the chat marks it seen — the panel calls `onSeen` and the
+ * page clears the badge at once.
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { auth } from '../../lib/firebase';
 import { useApp } from '../../context/AppContext';
 import {
   deleteCrewChatMessage,
-  getCrewChatLastSeen,
   markCrewChatSeen,
   sendCrewChatMessage,
-  subscribeToCrewMessages,
 } from '../../services/crewChat';
-import { MAX_CREW_CHAT_LENGTH, todayLocalDay } from '../../logic/crewSocial';
+import { MAX_CREW_CHAT_LENGTH, crewChatMessageMillis, todayLocalDay } from '../../logic/crewSocial';
 import type { CrewChatMessage } from '../../types/crew';
 
 export interface ChatMember {
   userId: string;
   displayName: string;
   username?: string | null;
-}
-
-function messageMillis(createdAt: any): number {
-  if (!createdAt) return 0;
-  if (typeof createdAt.toMillis === 'function') return createdAt.toMillis();
-  if (typeof createdAt.seconds === 'number') return createdAt.seconds * 1000;
-  const parsed = Number(new Date(createdAt).getTime());
-  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function dayLabel(millis: number): string {
@@ -79,16 +72,19 @@ export function CrewChat({
   crewId,
   captainId = null,
   members = [],
-  onUnreadChange,
+  messages,
+  onSeen,
 }: {
   crewId: string;
   captainId?: string | null;
   members?: ChatMember[];
-  onUnreadChange?: (count: number) => void;
+  /** Messages, owned by the parent — it subscribes so the badge stays live on every tab. */
+  messages: CrewChatMessage[];
+  /** Called whenever the open chat is marked seen, so the parent clears the badge at once. */
+  onSeen?: () => void;
 }) {
   const { user } = useApp();
   const currentUser = user || auth.currentUser;
-  const [messages, setMessages] = useState<CrewChatMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -96,24 +92,11 @@ export function CrewChat({
   const stickToBottomRef = useRef(true);
   const viewerIsCaptain = Boolean(captainId && currentUser?.uid && captainId === currentUser.uid);
 
-  useEffect(() => {
-    return subscribeToCrewMessages(crewId, setMessages);
-  }, [crewId]);
-
-  // Unread: messages newer than this device's last visit. Opening the
-  // chat marks it seen, and new messages while open do too.
-  const unreadCount = useMemo(() => {
-    const lastSeen = getCrewChatLastSeen(crewId);
-    return messages.filter((message) => messageMillis(message.createdAt) > lastSeen).length;
-  }, [messages, crewId]);
-
-  useEffect(() => {
-    onUnreadChange?.(unreadCount);
-  }, [unreadCount, onUnreadChange]);
-
+  // Opening the chat marks it seen, and new messages while open do too.
   useEffect(() => {
     markCrewChatSeen(crewId);
-  }, [crewId, messages.length]);
+    onSeen?.();
+  }, [crewId, messages.length, onSeen]);
 
   // Keep the newest message in view when the user is already at the bottom.
   useEffect(() => {
@@ -178,7 +161,7 @@ export function CrewChat({
           </p>
         ) : (
           messages.map((message) => {
-            const millis = messageMillis(message.createdAt);
+            const millis = crewChatMessageMillis(message.createdAt);
             const day = dayLabel(millis);
             const showDay = day !== lastDay;
             lastDay = day;

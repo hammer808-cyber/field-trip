@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { 
@@ -18,7 +18,8 @@ import {
 import { cn, formatSafeDateOnly } from '../lib/utils';
 import { db } from '../lib/firebase';
 import { collection, limit, onSnapshot, query, where } from 'firebase/firestore';
-import { entryLocalDay, todayLocalDay } from '../logic/crewSocial';
+import { countUnreadChatMessages, entryLocalDay, todayLocalDay } from '../logic/crewSocial';
+import { getCrewChatLastSeen, subscribeToCrewMessages } from '../services/crewChat';
 import {
   createCrew,
   acceptCrewInvite,
@@ -47,7 +48,7 @@ import {
   addCrewLoreNote,
 } from '../services/crewService';
 import { getWeeklySummary } from '../services/summaryService';
-import { Crew, CrewLore, CrewInvite, CrewJoinRequest, CrewMembershipState, CrewMode, CrewPrivacy, CrewRosterState } from '../types/crew';
+import { Crew, CrewChatMessage, CrewLore, CrewInvite, CrewJoinRequest, CrewMembershipState, CrewMode, CrewPrivacy, CrewRosterState } from '../types/crew';
 import { CrewArtifactsGallery } from '../components/CrewArtifactsGallery';
 import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
 import { CrewChat } from '../components/crew/CrewChat';
@@ -72,7 +73,13 @@ export default function CrewPage() {
     ? rawInitialTab as 'home' | 'feed' | 'chat' | 'voting' | 'zine' | 'members' | 'stats' | 'settings'
     : 'home';
   const [activeTab, setActiveTab ] = useState<'home' | 'feed' | 'chat' | 'voting' | 'zine' | 'members' | 'stats' | 'settings'>(initialTab);
-  const [chatUnread, setChatUnread] = useState(0);
+  // Chat messages live here, not in CrewChat: this page subscribes so the
+  // unread badge stays live on every tab, and the chat panel only renders
+  // them (opening it marks them seen — see handleChatSeen).
+  const [chatMessages, setChatMessages] = useState<CrewChatMessage[]>([]);
+  // Bumps whenever the chat is marked seen, so the badge recomputes at once
+  // instead of waiting for the next message to arrive.
+  const [chatSeenTick, setChatSeenTick] = useState(0);
   const [recentArchive, setRecentArchive] = useState<Array<{ id: string; userId: string; displayName: string; imageUrl: string; tripTitle: string; submittedAt: any; approvedAt: any; createdAt: any }>>([]);
   const [crew, setCrew] = useState<Crew | null>(null);
   const [membershipState, setMembershipState] = useState<CrewMembershipState | null>(null);
@@ -209,6 +216,28 @@ export default function CrewPage() {
       setRecentArchive(rows);
     }, () => setRecentArchive([]));
   }, [crewId]);
+
+  // Chat subscription (Nov 20, 2026 — unread-badge fix): one listener for
+  // the whole Crew page, so the badge counts new messages on every tab.
+  // The Chat tab only renders these messages; it never subscribes itself.
+  useEffect(() => {
+    if (!crew?.id) {
+      setChatMessages([]);
+      return;
+    }
+    return subscribeToCrewMessages(crew.id, setChatMessages);
+  }, [crew?.id]);
+
+  // The unread badge: messages newer than this device's last visit to the
+  // chat. Recomputes on new messages and on every mark-seen.
+  const chatUnread = useMemo(() => {
+    if (!crew?.id) return 0;
+    return countUnreadChatMessages(chatMessages, getCrewChatLastSeen(crew.id));
+  }, [chatMessages, chatSeenTick, crew?.id]);
+
+  const handleChatSeen = useCallback(() => {
+    setChatSeenTick((tick) => tick + 1);
+  }, []);
 
   useEffect(() => {
     const resolvedCrewId = crew?.id || crewId;
@@ -750,7 +779,8 @@ export default function CrewPage() {
                 displayName: member.displayNameSnapshot || member.displayName || member.userId,
                 username: member.usernameSnapshot,
               }))}
-              onUnreadChange={setChatUnread}
+              messages={chatMessages}
+              onSeen={handleChatSeen}
             />
           </div>
         )}

@@ -92,3 +92,32 @@ export function todayLocalDay(now: Date = new Date()): string {
   const day = String(now.getDate()).padStart(2, '0');
   return `${now.getFullYear()}-${month}-${day}`;
 }
+
+/**
+ * Milliseconds for a chat message timestamp — a Firestore Timestamp, a
+ * `{ seconds }` shape, a Date, or an ISO string. 0 when unreadable, so a
+ * malformed timestamp never counts as new.
+ */
+export function crewChatMessageMillis(createdAt: unknown): number {
+  if (!createdAt) return 0;
+  if (typeof (createdAt as { toMillis?: () => number }).toMillis === 'function') {
+    return (createdAt as { toMillis: () => number }).toMillis();
+  }
+  if (typeof (createdAt as { seconds?: number }).seconds === 'number') {
+    return (createdAt as { seconds: number }).seconds * 1000;
+  }
+  const parsed = Number(new Date(createdAt as string | number | Date).getTime());
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/**
+ * The unread badge count: how many chat messages are newer than
+ * `lastSeenMs` (the per-device "last opened the chat" marker). A message
+ * stamped exactly at the marker is already seen.
+ */
+export function countUnreadChatMessages(
+  messages: readonly { createdAt?: unknown }[],
+  lastSeenMs: number,
+): number {
+  return messages.filter((message) => crewChatMessageMillis(message.createdAt) > lastSeenMs).length;
+}

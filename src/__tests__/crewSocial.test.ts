@@ -13,6 +13,8 @@ import fs from 'node:fs';
 import {
   MAX_CREW_CHAT_LENGTH,
   MAX_CREW_COMMENT_LENGTH,
+  countUnreadChatMessages,
+  crewChatMessageMillis,
   entryLocalDay,
   parseChatMentions,
   todayLocalDay,
@@ -58,6 +60,32 @@ test('@-mentions match by username or first name, case-insensitively, deduped', 
   assert.deepEqual(parseChatMentions('hey @nobody and @ here', members), []);
   assert.deepEqual(parseChatMentions('no mentions at all', members), []);
   assert.deepEqual(parseChatMentions('@zach', []), []);
+});
+
+test('chat message millis: Timestamp seconds, Date, and null behave', () => {
+  assert.equal(crewChatMessageMillis({ seconds: 1700000000 }), 1700000000000);
+  assert.equal(crewChatMessageMillis(new Date('2026-11-20T12:00:00.000Z')), new Date('2026-11-20T12:00:00.000Z').getTime());
+  assert.equal(crewChatMessageMillis(null), 0);
+  assert.equal(crewChatMessageMillis(undefined), 0);
+  assert.equal(crewChatMessageMillis('not a date'), 0);
+});
+
+test('unread badge count: only messages newer than last-seen count', () => {
+  // The Nov 20 unread-badge fix: the count lives on the Crew page, so it
+  // stays live on every tab — the chat panel only renders and marks seen.
+  const messages = [
+    { createdAt: { seconds: 100 } },
+    { createdAt: { seconds: 200 } },
+    { createdAt: { seconds: 300 } },
+  ];
+  assert.equal(countUnreadChatMessages([], 0), 0);
+  assert.equal(countUnreadChatMessages(messages, 0), 3);
+  assert.equal(countUnreadChatMessages(messages, 150_000), 2);
+  // Stamped exactly at the marker is already seen, not unread.
+  assert.equal(countUnreadChatMessages(messages, 200_000), 1);
+  assert.equal(countUnreadChatMessages(messages, 300_000), 0);
+  // An unreadable timestamp never counts as new.
+  assert.equal(countUnreadChatMessages([{ createdAt: null }, { createdAt: { seconds: 400 } }], 0), 1);
 });
 
 test('local-day math: Timestamp seconds, Date, and null behave', () => {
