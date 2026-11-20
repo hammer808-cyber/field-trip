@@ -6,6 +6,7 @@ import * as LucideIcons from 'lucide-react';
 import { Sparkles, X, Award, Info, CheckCircle2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';
+import { resolveRewardIntensity } from '../logic/rewardIntensity';
 
 export const RewardFeedback: React.FC = () => {
   const { rewardQueue, dismissReward, profile } = useApp();
@@ -15,7 +16,7 @@ export const RewardFeedback: React.FC = () => {
   const isDiamond = skin.id === 'slippery-diamond';
   const isHeat = skin.id === 'heatwave';
 
-  const intensity = profile?.preferences?.rewardAnimationIntensity || 'full';
+  const intensity = resolveRewardIntensity(profile?.preferences);
 
   // Process ONLY one major reveal at a time unless minimal is set
   const majorReward = intensity !== 'minimal'

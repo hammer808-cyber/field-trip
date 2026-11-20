@@ -70,20 +70,24 @@ Each file below was verified as a real PNG that decodes (Pillow `Image.open`
 - Referenced in (1 site):
   - `src/pages/BigBoard.tsx:80` (`grid` skin)
 
-## BLOCKED — could not be downloaded
+## Generated locally (Nov 20, 2026 — Zach's call)
 
-### splatter.png — BLOCKED (HTTP 404)
-- Source: https://www.transparenttextures.com/patterns/splatter.png
-- Local: not present (no file saved; the 404 HTML body was discarded, not kept)
-- Error: `HTTP 404 Not Found` (nginx) on 2026-11-19, confirmed twice
-  (default curl UA and a browser UA). The pattern does not exist at that
-  URL on transparenttextures.com.
+### splatter-mask.png — GENERATED, not downloaded
+- Source: `https://www.transparenttextures.com/patterns/splatter.png`
+  returns **HTTP 404** (confirmed twice Nov 19). No upstream file exists to
+  download, so this is a locally generated replacement in the same spirit:
+  a 256 × 256 RGBA tile, mostly opaque white with irregular transparent /
+  semi-transparent speckles and blotches, denser toward the edges — the
+  grunge edge a `mask-image` needs. Generated with Pillow
+  (seed 20261120); not a copy of any upstream asset.
+- Local: `public/assets/textures/splatter-mask.png`
+- Bytes: 10,709 — Dimensions: 256 × 256 — Format: PNG, RGBA
+  (66 fully transparent px, 14,839 semi-transparent, 50,631 opaque)
 - Referenced in (2 sites):
-  - `src/index.css:292` (`mask-image`)
-  - `src/index.css:1146` (`mask-image`)
-- No substitute was downloaded. The URL-swap worker must not point these
-  two `mask-image` references at a different texture; the correct fix needs
-  a decision (find the pattern's new name/location, or drop the mask).
+  - `src/index.css` (`.stamped-text` `mask-image`)
+  - `src/index.css` (`.field-stamp` `mask-image`)
+- The two refs previously pointed at the 404 upstream URL; they now point
+  here, so zero `transparenttextures.com` URLs remain in `src/`.
 
 ## Excluded (intentionally not downloaded)
 

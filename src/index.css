@@ -308,7 +308,7 @@ html, body, #root {
 
 .stamped-text {
   @apply font-display text-on-surface/80 uppercase tracking-tight italic font-black;
-  mask-image: url("https://www.transparenttextures.com/patterns/splatter.png");
+  mask-image: url("/assets/textures/splatter-mask.png");
 }
 
 /* Physical Label Styles */
@@ -1162,7 +1162,7 @@ img, video, canvas, svg {
 /* 12. Splattered / Grunge Stamp accents */
 .field-stamp {
   @apply border-2 border-dashed px-3 py-1 text-center font-display uppercase italic text-xs font-black select-none pointer-events-none tracking-widest;
-  mask-image: url("https://www.transparenttextures.com/patterns/splatter.png");
+  mask-image: url("/assets/textures/splatter-mask.png");
 }
 
 /* 13. Slanted File Folder tab indicators */

@@ -25,9 +25,9 @@ test('P2-5: index.css has one global prefers-reduced-motion block', () => {
 });
 
 // P2-16 (audit §5.4, §12): every live texture reference points at the
-// self-hosted files in public/assets/textures/ — no hotlink remains in src/
-// except the BLOCKED splatter mask-image (HTTP 404 upstream; needs a user
-// decision, do not re-point it — see public/assets/textures/MANIFEST.md).
+// self-hosted files in public/assets/textures/ — no hotlink remains in src/.
+// The splatter mask is a locally generated replacement (upstream 404s);
+// see public/assets/textures/MANIFEST.md.
 const TEXTURES = [
   'handmade-paper.png',
   'micro-carbon.png',
@@ -36,6 +36,7 @@ const TEXTURES = [
   'graphy-dark.png',
   'grid-me.png',
   'cream-paper.png',
+  'splatter-mask.png',
 ];
 
 function walkSrc(dir: string, out: string[] = []): string[] {
@@ -50,12 +51,12 @@ function walkSrc(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-test('P2-16: no transparenttextures.com URL remains in src/ except splatter', () => {
+test('P2-16: no transparenttextures.com URL remains in src/', () => {
   const offenders: string[] = [];
   for (const file of walkSrc(join(repoRoot, 'src'))) {
     const text = readFileSync(file, 'utf8');
     for (const line of text.split('\n')) {
-      if (line.includes('transparenttextures.com') && !line.includes('splatter.png')) {
+      if (line.includes('transparenttextures.com')) {
         offenders.push(`${file}: ${line.trim()}`);
       }
     }
@@ -73,11 +74,14 @@ test('P2-16: self-hosted texture files exist and are real PNGs', () => {
   }
 });
 
-test('P2-16 BLOCKED: splatter mask-image references are left exactly as-is', () => {
+test('P2-16: splatter mask-image refs point at the self-hosted mask', () => {
+  // Upstream splatter.png 404s; Zach's call Nov 20 was to replace the mask
+  // with a locally generated one (public/assets/textures/splatter-mask.png),
+  // not to drop it — the grunge edge is part of the stamp look.
   const hits = indexCss.split('\n').filter((l) =>
-    l.includes('splatter.png') && l.includes('mask-image'));
-  assert.equal(hits.length, 2, `expected 2 untouched splatter mask-image refs, found ${hits.length}`);
+    l.includes('splatter-mask.png') && l.includes('mask-image'));
+  assert.equal(hits.length, 2, `expected 2 self-hosted splatter mask-image refs, found ${hits.length}`);
   for (const line of hits) {
-    assert.ok(line.includes('https://www.transparenttextures.com/patterns/splatter.png'), line.trim());
+    assert.ok(line.includes('url("/assets/textures/splatter-mask.png")'), line.trim());
   }
 });

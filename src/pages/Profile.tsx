@@ -595,6 +595,30 @@ export default function ProfilePage() {
                              );
                           })}
                        </div>
+                       {(() => {
+                          const reduceMotion = profile?.preferences?.motionEnabled === false;
+                          return (
+                             <button
+                                type="button"
+                                onClick={async () => {
+                                   const currentPrefs = profile?.preferences || {};
+                                   await updateProfile(profile?.id || '', {
+                                      preferences: {
+                                         ...currentPrefs,
+                                         motionEnabled: !reduceMotion
+                                      }
+                                   });
+                                }}
+                                className="w-full p-3 flex items-center justify-between font-mono text-xs uppercase font-black tracking-wider rounded-xl border-2 bg-white text-on-surface border-on-surface"
+                             >
+                                <span>Reduce motion</span>
+                                <span>{reduceMotion ? 'On' : 'Off'}</span>
+                             </button>
+                          );
+                       })()}
+                       <p className="text-xs opacity-55">
+                         Reduce motion calms the level-up and reward animations. Your device's reduced-motion setting still applies on its own.
+                       </p>
                     </div>
                  </div>
                  
