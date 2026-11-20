@@ -52,6 +52,13 @@ export const MAX_GRANT_REASON_LENGTH = 200;
 /** Trigger and source recorded on both the sticker doc and the ledger row. */
 export const ADMIN_GRANT_TRIGGER = 'admin_grant';
 
+/**
+ * Certified Menace (earn-audit fix #3, Nov 20, 2026 — Zach's call, Q5):
+ * the first Chaos achievement. It fires automatically when any Chaos
+ * sticker is granted — see `grantStickerServer` below.
+ */
+export const CERTIFIED_MENACE_STICKER_ID = 'first_offenses_certified_menace';
+
 /** Deterministic ledger id, per FIELDTRIP_GAME_LOGIC.md. */
 export function getStickerGrantAwardId(userId: string, stickerId: string): string {
   return `${userId}:${stickerId}`;
@@ -214,7 +221,7 @@ export async function grantStickerServer(
 
   // 2. Validate the sticker against the registry (canonical 42 only).
   //    No trigger check: the grant *is* the trigger; the sticker's natural
-  //    awardTrigger is irrelevant, and no sticker carries admin_grant today.
+  //    awardTrigger is irrelevant to a grant.
   const sticker = getStickerById(stickerId);
   if (!sticker) {
     return { ok: false, status: 400, code: 'UNKNOWN_STICKER_ID' };
@@ -247,6 +254,34 @@ export async function grantStickerServer(
       return { ok: false, status: 404, code: 'USER_NOT_FOUND' };
     }
     return { ok: true, awarded: false, alreadyUnlocked: true, sticker: summary };
+  }
+
+  // Earn-audit fix #3 (Nov 20, 2026 — Zach's call, Q5): Certified Menace
+  // fires automatically the first time any Chaos sticker is granted — the
+  // grant IS the Chaos moment (the 10 Chaos stickers stay admin-grant by
+  // design, each with a written grant moment). Best effort, in its own
+  // transaction: if it fails, the Chaos grant above still stands.
+  // Already-owned is a no-op (writeGrant dedupes), so a player who
+  // already holds a Chaos sticker from before this ships earns Certified
+  // Menace on their next Chaos grant (catch-up, same pattern as the
+  // milestone rules). Granting Certified Menace itself never triggers
+  // this (it is an achievement sticker, not chaos).
+  if (sticker.collection === 'chaos') {
+    const menace = getStickerById(CERTIFIED_MENACE_STICKER_ID);
+    if (menace) {
+      try {
+        await store.writeGrant({
+          targetUid,
+          stickerId: menace.id,
+          stickerName: menace.name,
+          stickerRarity: menace.rarity ?? null,
+          adminUid: input.adminUid,
+          reason: `Auto: first Chaos achievement (${sticker.name})`
+        });
+      } catch (autoError) {
+        console.error('[STICKER_GRANT] Certified Menace auto-award failed (Chaos grant stands):', autoError);
+      }
+    }
   }
 
   return { ok: true, awarded: true, sticker: summary, reason: reasonCheck.reason };

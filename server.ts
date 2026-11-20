@@ -8551,6 +8551,31 @@ async function startServer() {
               userUpdate.submittedChallengeIds = FieldValue.arrayRemove(challengeId);
             }
 
+            // Approval streak (earn-audit fix #3, Nov 20, 2026 — Zach's
+            // call, Q1): On a Roll needs five approved proofs on five
+            // consecutive days. Maintained here, in the same write as the
+            // approval caches, so the admin path's snapshot (built from
+            // the profile after this commit) already includes the
+            // triggering approval. UTC calendar days: `now` above is a
+            // serverTimestamp sentinel, so "today" is wall-clock UTC.
+            const todayUtc = new Date().toISOString().slice(0, 10);
+            const prevStreakDay = typeof userData.approvalStreakLastDay === 'string'
+              ? userData.approvalStreakLastDay
+              : null;
+            const prevStreak = Number(userData.approvalStreakDays || 0);
+            let nextStreak = 1;
+            if (prevStreakDay === todayUtc) {
+              nextStreak = prevStreak > 0 ? prevStreak : 1;
+            } else if (prevStreakDay) {
+              const dayMs = 24 * 60 * 60 * 1000;
+              const diffDays = Math.round(
+                (Date.parse(todayUtc + 'T00:00:00Z') - Date.parse(prevStreakDay + 'T00:00:00Z')) / dayMs
+              );
+              nextStreak = diffDays === 1 ? prevStreak + 1 : 1;
+            }
+            userUpdate.approvalStreakDays = nextStreak;
+            userUpdate.approvalStreakLastDay = todayUtc;
+
             if (!alreadyAwardedByEntry && isTrustedProofXpEligible(action, nextStatus, awardPoints)) {
               const awardResult = await awardTrustedXpInTransaction({
                 db: dbAdmin!,
