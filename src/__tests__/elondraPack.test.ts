@@ -66,10 +66,10 @@ const ELONDRA_PACK: ReadonlyArray<{
 
 test('elondra pack: all ten are registered as new Elondra stickers with the right collection, order, rarity and trigger', () => {
   const all = getAllStickers();
-  assert.equal(all.length, 101, '91 after the Captain Clipboard import + 10 new Chaos entries');
+  assert.equal(all.length, 105, '101 before the Nov 20 milestone variants + 4 new variant entries');
 
   const elondra = all.filter(sticker => sticker.archetype === 'elondra');
-  assert.equal(elondra.length, 17, '7 original Elondra stickers + 10 new pack entries');
+  assert.equal(elondra.length, 18, '7 original Elondra stickers + 10 new pack entries + 1 milestone variant');
 
   for (const expected of ELONDRA_PACK) {
     const sticker = getStickerById(expected.id);

@@ -489,6 +489,20 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     unlockReason: 'Earned for a landmark weekly Fieldtrip win.',
     tags: ['mascota', 'victory', 'flag', 'weekly-winner']
   },
+  // Milestone variant (Nov 20, 2026 — earn-audit fix #2b): generated
+  // in-house, not from a ZIP — Mascota had no archetype_milestone sticker.
+  {
+    id: 'mascota_mascot_trophy',
+    name: 'Mascot Trophy',
+    archetype: 'mascota',
+    collection: 'achievement',
+    displayOrder: 22,
+    imageUrl: '/assets/stickers/mascota/mascot-trophy.png',
+    rarity: 'rare',
+    awardTrigger: 'archetype_milestone',
+    unlockReason: 'Earned by reaching a Mascota archetype milestone.',
+    tags: ['mascota', 'trophy', 'milestone']
+  },
 
   // Elondra
   {
@@ -713,6 +727,20 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     unlockReason: 'Earned for hauling the cosmos home.',
     tags: ['elondra', 'shopping', 'bags', 'cosmic', 'trigger-pending']
   },
+  // Milestone variant (Nov 20, 2026 — earn-audit fix #2b): generated
+  // in-house, not from a ZIP — Elondra had no archetype_milestone sticker.
+  {
+    id: 'elondra_tiara',
+    name: 'Elondra Tiara',
+    archetype: 'elondra',
+    collection: 'achievement',
+    displayOrder: 23,
+    imageUrl: '/assets/stickers/elondra/tiara.png',
+    rarity: 'rare',
+    awardTrigger: 'archetype_milestone',
+    unlockReason: 'Earned by reaching an Elondra archetype milestone.',
+    tags: ['elondra', 'tiara', 'milestone']
+  },
 
   // Captain Clipboard pack (Nov 19, 2026 — Zach's call: add all ten as
   // new, 02 + 03 rare). Flat-vector burgundy + gold + cream badge-backing
@@ -851,6 +879,20 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     unlockReason: 'Earned for measuring twice.',
     tags: ['captain-clipboard', 'measuring-tape', 'precision', 'tape', 'trigger-pending']
   },
+  // Milestone variant (Nov 20, 2026 — earn-audit fix #2b): generated
+  // in-house, not from a ZIP — Captain Clipboard had no archetype_milestone sticker.
+  {
+    id: 'captain_clipboard_golden_clipboard',
+    name: 'Golden Clipboard',
+    archetype: 'captainClipboard',
+    collection: 'achievement',
+    displayOrder: 24,
+    imageUrl: '/assets/stickers/captainClipboard/golden-clipboard.png',
+    rarity: 'rare',
+    awardTrigger: 'archetype_milestone',
+    unlockReason: 'Earned by reaching a Captain Clipboard archetype milestone.',
+    tags: ['captain-clipboard', 'clipboard', 'gold', 'milestone']
+  },
 
   // Lost Camper
   {
@@ -936,6 +978,22 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     awardTrigger: 'first_submission',
     unlockReason: 'Earned when you submit your first receipt.',
     tags: ['lost-camper', 'character', 'camper', 'submission']
+  },
+  // Milestone variant (Nov 20, 2026 — earn-audit fix #2b): generated
+  // in-house, not from a ZIP — Lost Camper had no archetype_milestone
+  // sticker. Gobbler-persona players earn this one: the field-type map
+  // sends theGobbler to the lostCamper sticker archetype.
+  {
+    id: 'lost_camper_starry_tent',
+    name: 'Starry Tent',
+    archetype: 'lostCamper',
+    collection: 'achievement',
+    displayOrder: 25,
+    imageUrl: '/assets/stickers/lostCamper/starry-tent.png',
+    rarity: 'rare',
+    awardTrigger: 'archetype_milestone',
+    unlockReason: 'Earned by reaching a Lost Camper archetype milestone.',
+    tags: ['lost-camper', 'tent', 'stars', 'milestone']
   },
 
   // Bigfoot

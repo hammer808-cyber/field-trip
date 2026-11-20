@@ -25,8 +25,11 @@ const USER_ID = 'admin-review-player';
  *
  * These tests pin the helper end to end: profile → snapshot → bundle.
  * The fake unlock mirrors the unlock transaction's already_unlocked
- * dedupe. Exact-5 stays exact (audit fix #2, NOT this change) — the last
- * test pins that on purpose.
+ * dedupe. Exact-5 stays exact for mission_count_milestone (audit fix
+ * #2, NOT this change) — the last test pins that on purpose.
+ * archetype_milestone is a catch-up rule instead (audit fix #2a, Nov 20,
+ * 2026): it fires at 5 and on any later approval, so players already
+ * past 5 still earn it.
  */
 
 interface FakeUnlockCall {

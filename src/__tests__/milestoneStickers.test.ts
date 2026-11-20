@@ -40,7 +40,7 @@ test('milestone: On a Roll is registered as the first Chaos sticker', () => {
 
   const chaos = getStickersByCollection('chaos');
   assert.equal(chaos.length, 11, 'Chaos goes from 1 sticker (On a Roll) to 11 with the chaos pack (Nov 19, 2026)');
-  assert.equal(getAllStickers().length, 101);
+  assert.equal(getAllStickers().length, 105);
 });
 
 test('milestone: the On a Roll image resolves to the supplied PNG', () => {

@@ -12,7 +12,7 @@ import { STICKER_FILTER_OPTIONS } from '../components/stickers/StickerFilterTabs
 
 test('Sticker Machine exposes all required filters and every registry sticker', () => {
   const stickers = getAllStickers();
-  assert.equal(stickers.length, 101);
+  assert.equal(stickers.length, 105);
   assert.deepEqual(
     STICKER_FILTER_OPTIONS.map(option => option.label),
     ['All', 'Captain Clipboard', 'Mall Rat', 'Mascota', 'Elondra', 'Lost Camper', 'Bigfoot']
@@ -27,14 +27,15 @@ test('each Field Type filter returns its registered stickers plus the cross-pack
   // REPLACE 03 + 09, ADD the rest as new). Elondra grew from 7 to 17 with
   // the Nov 18 Elondra pack (Zach's call: ADD all ten as new). Captain
   // Clipboard grew from 7 to 17 with the Nov 19 Captain Clipboard pack
-  // (Zach's call: ADD all ten as new, 02 + 03 rare). Every other
-  // archetype still has 7.
+  // (Zach's call: ADD all ten as new, 02 + 03 rare). The Nov 20 milestone
+  // variants (earn-audit fix #2b) add one archetype_milestone sticker to
+  // Mascota, Elondra, Captain Clipboard, and Lost Camper.
   const expectedArchetypeCounts: Readonly<Record<string, number>> = {
     mallRat: 15,
-    captainClipboard: 17,
-    mascota: 7,
-    elondra: 17,
-    lostCamper: 7,
+    captainClipboard: 18,
+    mascota: 8,
+    elondra: 18,
+    lostCamper: 8,
     bigfoot: 7
   };
   for (const option of STICKER_FILTER_OPTIONS) {

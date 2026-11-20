@@ -274,7 +274,10 @@ test('archetype_milestone fires at the 5th approved proof, catches up after it, 
   );
 });
 
-test('archetype_milestone awards nothing for an archetype with no milestone sticker', async () => {
+test('archetype_milestone awards nothing for a field type with no sticker archetype', async () => {
+  // Every real archetype has a milestone sticker since fix #2b (Nov 20,
+  // 2026), so the no-variant case is now an unknown field type — the
+  // evaluator maps it to no archetype and awards nothing.
   const fake = makeFakeUnlock();
   await evaluateStickerTriggers({
     event: {
@@ -284,7 +287,7 @@ test('archetype_milestone awards nothing for an archetype with no milestone stic
     },
     userId: USER_ID,
     snapshot: makeSnapshot({ approved: ['mission-a', 'mission-b', 'mission-c', 'mission-d'] }),
-    fieldType: 'captainClipboard',
+    fieldType: 'nobody',
     unlock: fake.unlock
   });
   assert.equal(callsForTrigger(fake.calls, 'archetype_milestone').length, 0);

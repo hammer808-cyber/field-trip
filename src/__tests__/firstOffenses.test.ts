@@ -39,7 +39,7 @@ const FIRST_OFFENSES: ReadonlyArray<{
 
 test('first offenses: all nine are registered as cross-pack Achievement stickers', () => {
   const all = getAllStickers();
-  assert.equal(all.length, 101);
+  assert.equal(all.length, 105);
   const ids = new Set(all.map(sticker => sticker.id));
   assert.equal(ids.size, all.length, 'sticker ids must be unique');
 
@@ -60,9 +60,10 @@ test('first offenses: all nine are registered as cross-pack Achievement stickers
     assert.ok(sticker.tags.includes('first-offenses'));
   }
 
-  // Display order is unique inside Achievement (existing 1–12, these 13–21).
+  // Display order is unique inside Achievement (existing 1–12, these 13–21,
+  // plus the four Nov 20 milestone variants at 22–25).
   const achievement = getStickersByCollection('achievement');
-  assert.equal(achievement.length, 21);
+  assert.equal(achievement.length, 25);
   const orders = achievement.map(sticker => sticker.displayOrder);
   assert.equal(new Set(orders).size, orders.length);
 });
