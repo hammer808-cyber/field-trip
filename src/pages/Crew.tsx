@@ -3,7 +3,6 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { 
   Users, 
-  History, 
   BarChart3, 
   FileText, 
   Settings, 
@@ -11,13 +10,15 @@ import {
   Sparkles, 
   MessageSquare,
   ShieldCheck,
-  RotateCcw,
   Trophy,
   Vote,
   BookOpen,
   UserPlus
 } from 'lucide-react';
 import { cn, formatSafeDateOnly } from '../lib/utils';
+import { db } from '../lib/firebase';
+import { collection, limit, onSnapshot, query, where } from 'firebase/firestore';
+import { entryLocalDay, todayLocalDay } from '../logic/crewSocial';
 import {
   createCrew,
   acceptCrewInvite,
@@ -49,6 +50,7 @@ import { getWeeklySummary } from '../services/summaryService';
 import { Crew, CrewLore, CrewInvite, CrewJoinRequest, CrewMembershipState, CrewMode, CrewPrivacy, CrewRosterState } from '../types/crew';
 import { CrewArtifactsGallery } from '../components/CrewArtifactsGallery';
 import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
+import { CrewChat } from '../components/crew/CrewChat';
 import { ZineWorkspace } from '../components/ZineWorkspace';
 import { CrewPeopleHome } from '../components/crew/CrewPeopleHome';
 import { FieldPageHero } from '../components/FieldPageHero';
@@ -56,13 +58,22 @@ import { EmptyStatePanel, FieldtripLoader } from '../components/FieldtripLoader'
 import { FieldButton, PlayerPageBody, PlayerPageShell } from '../components/player';
 
 export default function CrewPage() {
-  const { user, profile, crewArtifacts, activeSeason, currentWeekNumber } = useApp();
+  const { user, profile, crewArtifacts, activeSeason, currentWeekNumber, isAdmin } = useApp();
   const [searchParams] = useSearchParams();
   const requestedTab = searchParams.get('tab');
   // 'dispatch' has no tab and no writer yet (season wrap-up is a later
   // feature), so a dispatch deep link lands on home instead of a blank tab.
-  const initialTab = requestedTab === 'lore' ? 'memories' : ['dispatch'].includes(requestedTab || '') ? 'home' : (requestedTab as any) || 'home';
-  const [activeTab, setActiveTab ] = useState<'home' | 'proofs' | 'voting' | 'memories' | 'zine' | 'lore' | 'members' | 'stats' | 'settings'>(initialTab);
+  // 'lore' used to mean the Memories tab — that tab is gone (its content
+  // lives on home now), so it lands on home too. 'proofs' is the old Feed
+  // id and still works.
+  const CREW_TAB_IDS = ['home', 'feed', 'chat', 'voting', 'zine', 'members', 'stats', 'settings'] as const;
+  const rawInitialTab = requestedTab === 'lore' ? 'home' : requestedTab === 'proofs' ? 'feed' : ['dispatch'].includes(requestedTab || '') ? 'home' : requestedTab || 'home';
+  const initialTab = (CREW_TAB_IDS as readonly string[]).includes(rawInitialTab)
+    ? rawInitialTab as 'home' | 'feed' | 'chat' | 'voting' | 'zine' | 'members' | 'stats' | 'settings'
+    : 'home';
+  const [activeTab, setActiveTab ] = useState<'home' | 'feed' | 'chat' | 'voting' | 'zine' | 'members' | 'stats' | 'settings'>(initialTab);
+  const [chatUnread, setChatUnread] = useState(0);
+  const [recentArchive, setRecentArchive] = useState<Array<{ id: string; userId: string; displayName: string; imageUrl: string; tripTitle: string; submittedAt: any; approvedAt: any; createdAt: any }>>([]);
   const [crew, setCrew] = useState<Crew | null>(null);
   const [membershipState, setMembershipState] = useState<CrewMembershipState | null>(null);
   const [lore, setLore] = useState<CrewLore | null>(null);
@@ -163,6 +174,41 @@ export default function CrewPage() {
   useEffect(() => {
     refreshCrewManagement().catch(err => console.warn('[Crew] management refresh failed:', err));
   }, [crewId, profile?.activeCrewId, profile?.crewId]);
+
+  // Home dashboard data (Nov 20, 2026 — crew clubhouse): the crew's most
+  // recent approved receipts. One small listener, sorted client-side by
+  // the same fallback chain the feed uses (approved → submitted → created).
+  useEffect(() => {
+    if (!crewId) {
+      setRecentArchive([]);
+      return;
+    }
+    const q = query(collection(db, 'crewArchiveEntries'), where('crewId', '==', crewId), limit(12));
+    return onSnapshot(q, (snapshot) => {
+      const rows = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data() || {};
+        return {
+          id: docSnap.id,
+          userId: String(data.userId || ''),
+          displayName: String(data.displayName || 'Crew Agent'),
+          imageUrl: String(data.imageRef || data.imageUrl || data.photoUrl || data.proofImage || ''),
+          tripTitle: String(data.challengeTitle || data.missionTitle || data.tripTitle || 'Field Mission'),
+          submittedAt: data.submittedAt ?? null,
+          approvedAt: data.approvedAt ?? null,
+          createdAt: data.createdAt ?? null,
+        };
+      }).filter((row) => row.imageUrl);
+      const millisOf = (row: typeof rows[number]) => {
+        const value = row.approvedAt || row.submittedAt || row.createdAt;
+        if (!value) return 0;
+        if (typeof value.toMillis === 'function') return value.toMillis();
+        if (typeof value.seconds === 'number') return value.seconds * 1000;
+        return Number(new Date(value).getTime()) || 0;
+      };
+      rows.sort((a, b) => millisOf(b) - millisOf(a));
+      setRecentArchive(rows);
+    }, () => setRecentArchive([]));
+  }, [crewId]);
 
   useEffect(() => {
     const resolvedCrewId = crew?.id || crewId;
@@ -272,6 +318,19 @@ export default function CrewPage() {
   const crewRank = weeklySummary ? (Object.entries(weeklySummary.crewStats)
     .sort(([, a]: any, [, b]: any) => b.totalScore - a.totalScore)
     .findIndex(([id]) => id === crewId) + 1) : 0;
+
+  // Home dashboard derivations (Nov 20, 2026 — crew clubhouse): who is out
+  // today and the latest photos, from the recent approved receipts.
+  const todayDay = todayLocalDay();
+  const outTodayMembers = (() => {
+    const seen = new Map<string, string>();
+    for (const row of recentArchive) {
+      if (entryLocalDay(row.submittedAt || row.approvedAt || row.createdAt) !== todayDay) continue;
+      if (!seen.has(row.userId)) seen.set(row.userId, row.displayName);
+    }
+    return Array.from(seen.entries()).map(([userId, displayName]) => ({ userId, displayName }));
+  })();
+  const latestPhotos = recentArchive.slice(0, 4);
 
   if (loading) {
     return (
@@ -442,11 +501,16 @@ export default function CrewPage() {
 
   const tabs = [
     { id: 'home', label: 'Overview', icon: Users },
+    { id: 'feed', label: 'Feed', icon: FileText },
+    { id: 'chat', label: (<>Chat {chatUnread > 0 && (<span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-orange px-1.5 font-mono text-xs font-black not-italic text-white">{chatUnread}</span>)}</>), icon: MessageSquare },
     { id: 'members', label: 'Members', icon: ShieldCheck },
-    { id: 'proofs', label: 'Crew Proofs', icon: FileText },
-    { id: 'voting', label: 'Crew Voting', icon: Vote },
-    { id: 'memories', label: 'Crew Memories', icon: History },
-    { id: 'zine', label: 'Crew Zine', icon: BookOpen },
+    // Voting and Zine are parked features (Nov 17, 2026) — their tabs only
+    // show for admins, who bypass the locks. Players get a clubhouse
+    // without dead ends.
+    ...(isAdmin ? [
+      { id: 'voting', label: 'Crew Voting', icon: Vote },
+      { id: 'zine', label: 'Crew Zine', icon: BookOpen },
+    ] : []),
     { id: 'stats', label: 'Stats', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
@@ -670,9 +734,24 @@ export default function CrewPage() {
           </div>
         )}
 
-        {activeTab === 'proofs' && (
+        {activeTab === 'feed' && (
           <div className="animate-in fade-in slide-in-from-bottom-6 duration-500">
-            <CrewMemoriesFeed />
+            <CrewMemoriesFeed crewCaptainId={canonicalCaptainId} />
+          </div>
+        )}
+
+        {activeTab === 'chat' && (
+          <div className="animate-in fade-in slide-in-from-bottom-6 duration-500">
+            <CrewChat
+              crewId={crew.id}
+              captainId={canonicalCaptainId}
+              members={(rosterState?.members || []).filter(member => member.status === 'active').map(member => ({
+                userId: member.userId,
+                displayName: member.displayNameSnapshot || member.displayName || member.userId,
+                username: member.usernameSnapshot,
+              }))}
+              onUnreadChange={setChatUnread}
+            />
           </div>
         )}
 
@@ -694,121 +773,133 @@ export default function CrewPage() {
         )}
 
         {activeTab === 'home' && (
-          <div className="space-y-20 animate-in fade-in slide-in-from-bottom-6 duration-500">
-            <section className="space-y-8">
-               <div className="flex items-center gap-6">
-                 <h3 className="font-display text-4xl italic uppercase tracking-tighter text-on-surface font-black">Current_Deployment</h3>
-                 <div className="h-2 flex-grow bg-on-surface/10" />
-               </div>
-               <div className="bg-white border-4 border-on-surface p-12 shadow-[12px_12px_0px_var(--color-brand-cyan)] relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 w-32 h-full bg-brand-cyan opacity-5 -skew-x-12 translate-x-12" />
-                  <div className="flex flex-col items-center text-center space-y-8 relative z-10">
-                    <div className="w-24 h-24 bg-on-surface text-brand-cyan border-4 border-on-surface flex items-center justify-center shadow-[8px_8px_0px_var(--color-brand-orange)] -rotate-6 transition-transform group-hover:rotate-0">
-                      <RotateCcw className="w-12 h-12 animate-spin-slow" />
-                    </div>
-                    <div className="space-y-4">
-                      <p className="font-display text-5xl uppercase tracking-tighter italic font-black text-on-surface">Season 1: The First Exit</p>
-                      <p className="font-display text-2xl italic opacity-60 text-on-surface max-w-xl mx-auto leading-tight">
-                        "Crews are currently operating in the Mayflower quadrant. Field streams verified."
-                      </p>
-                    </div>
-                  </div>
-               </div>
-            </section>
-
-            <section className="space-y-8">
+          <div className="space-y-16 animate-in fade-in slide-in-from-bottom-6 duration-500">
+            {/* Today in the crew — live, from the crew's approved receipts.
+                (Nov 20, 2026: this replaces the old hardcoded Season 1 card.) */}
+            <section className="space-y-6">
               <div className="flex items-center gap-6">
-                <h3 className="font-display text-4xl italic uppercase tracking-tighter text-on-surface font-black">Operational_Members</h3>
+                <h3 className="font-display text-4xl italic uppercase tracking-tighter text-on-surface font-black">Today_In_The_Crew</h3>
                 <div className="h-2 flex-grow bg-on-surface/10" />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {(rosterState?.members || []).filter(member => member.status === 'active').map(member => (
-                  <div key={member.userId} className="bg-white border-4 border-on-surface p-6 flex items-center gap-6 shadow-[8px_8px_0px_black] hover:-translate-y-1 transition-all group">
-                    <div className="w-16 h-16 bg-brand-lime border-4 border-on-surface flex items-center justify-center font-display font-black text-xl italic -rotate-3 group-hover:rotate-0 transition-transform">
-                      {(member.displayNameSnapshot || member.displayName || member.userId).slice(0, 2).toUpperCase()}
-                    </div>
-                    <div className="flex-1 space-y-1">
-                       <p className="font-display text-2xl uppercase tracking-tighter italic font-black text-on-surface">{member.displayNameSnapshot || member.displayName || `Player_${member.userId.slice(0, 8)}`}</p>
-                       <p className="text-xs font-mono font-black opacity-40 uppercase tracking-widest text-brand-orange">ROLE: {member.userId === crew.captainId ? 'CAPTAIN' : 'FIELD_SCOUT'}</p>
+              <div className="bg-white border-4 border-on-surface p-6 sm:p-8 shadow-[12px_12px_0px_var(--color-brand-cyan)] space-y-6">
+                {outTodayMembers.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="micro-label font-black opacity-40 uppercase tracking-widest">Out in the field today</p>
+                    <div className="flex flex-wrap gap-2">
+                      {outTodayMembers.map(member => (
+                        <span key={member.userId} className="inline-flex items-center gap-2 border-2 border-on-surface bg-brand-lime px-3 py-1.5 font-display font-black uppercase italic text-sm shadow-[3px_3px_0px_black]">
+                          {member.displayName}
+                        </span>
+                      ))}
                     </div>
                   </div>
-                ))}
-                {(rosterState?.members || []).filter(member => member.status === 'active').length === 0 && (
-                  <div className="md:col-span-2 lg:col-span-3 border-4 border-dashed border-on-surface/20 p-8 text-center font-mono text-xs uppercase opacity-50">Roster synchronizing. Open Members to refresh.</div>
+                ) : (
+                  <p className="font-serif italic text-sm opacity-60">Nobody has brought back a receipt yet today. Be the first.</p>
                 )}
+                {latestPhotos.length > 0 ? (
+                  <div>
+                    <p className="micro-label font-black opacity-40 uppercase tracking-widest mb-3">Latest from the feed</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {latestPhotos.map(photo => (
+                        <button key={photo.id} type="button" onClick={() => setActiveTab('feed')} className="group text-left">
+                          <div className="aspect-square border-2 border-on-surface overflow-hidden bg-black/5">
+                            <img src={photo.imageUrl} alt={photo.tripTitle} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                          </div>
+                          <p className="mt-1 font-mono text-xs font-black uppercase truncate">{photo.tripTitle}</p>
+                          <p className="font-mono text-xs uppercase opacity-50 truncate">{photo.displayName}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="font-serif italic text-sm opacity-60">No approved crew photos yet — the feed fills up as missions come back.</p>
+                )}
+                <div className="flex flex-wrap gap-3 pt-2">
+                  <button type="button" onClick={() => navigate('/missions')} className="bureau-btn bg-brand-lime text-on-surface">Draw a Mission</button>
+                  <button type="button" onClick={() => setActiveTab('feed')} className="bureau-btn bg-white text-on-surface">Open the Feed</button>
+                  <button type="button" onClick={() => setActiveTab('chat')} className="bureau-btn bg-white text-on-surface">Open the Chat</button>
+                </div>
               </div>
             </section>
-          </div>
-        )}
 
-        {activeTab === 'memories' && (
-          <div className="space-y-20 animate-in fade-in slide-in-from-bottom-6 duration-500">
-            <section className="space-y-10">
-               <div className="flex items-center gap-6">
-                 <h3 className="font-display text-4xl italic uppercase tracking-tighter text-on-surface font-black">Seasonal_Highlights</h3>
-                 <div className="h-2 flex-grow bg-on-surface/10" />
-                 <Sparkles className="w-8 h-8 text-brand-orange" />
-               </div>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {[
-                    { label: 'Most Suspicious Entry', value: lore?.highlights?.mostSuspiciousEntry ? `ENTRY_${lore.highlights.mostSuspiciousEntry.slice(-4).toUpperCase()}` : 'No suspicious activity yet. Boring, but respectable.', color: 'var(--color-brand-lime)' },
-                    { label: 'Biggest Comeback', value: lore?.highlights?.biggestComeback || 'Steady state maintained. No major swings recorded.', color: 'var(--color-brand-orange)' },
-                    { label: 'Most Chaotic Trip', value: lore?.highlights?.mostChaoticTrip || 'This crew has not caused enough trouble to be studied.', color: 'var(--color-brand-cyan)' },
-                    { label: 'Field Checks Survived', value: lore?.highlights?.mostFieldChecksSurvived || '0 (Clean Record)', color: 'var(--color-on-surface)' },
-                  ].map(h => (
-                    <div key={h.label} className="bg-white border-4 border-on-surface p-10 shadow-[12px_12px_0px_black] relative group overflow-hidden">
-                       <div className="absolute top-0 left-0 w-full h-2" style={{ backgroundColor: h.color }} />
-                       <p className="micro-label font-black opacity-40 mb-4">{h.label.toUpperCase()}</p>
-                       <p className="font-display text-3xl italic font-black uppercase text-on-surface leading-tight leading-none group-hover:text-brand-orange transition-colors">{h.value}</p>
-                    </div>
-                  ))}
-               </div>
+            <section className="space-y-6">
+              <div className="flex items-center gap-6">
+                <h3 className="font-display text-4xl italic uppercase tracking-tighter text-on-surface font-black">This_Week</h3>
+                <div className="h-2 flex-grow bg-on-surface/10" />
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-white border-4 border-on-surface p-5 text-center shadow-[6px_6px_0px_black]">
+                  <p className="font-display text-4xl italic font-black leading-none">{crewRank > 0 ? `#${crewRank}` : '—'}</p>
+                  <p className="micro-label font-black opacity-40 uppercase tracking-widest mt-2">Rank</p>
+                </div>
+                <div className="bg-white border-4 border-on-surface p-5 text-center shadow-[6px_6px_0px_black]">
+                  <p className="font-display text-4xl italic font-black leading-none">{crewStanding?.totalScore || 0}</p>
+                  <p className="micro-label font-black opacity-40 uppercase tracking-widest mt-2">Weekly Score</p>
+                </div>
+                <div className="bg-white border-4 border-on-surface p-5 text-center shadow-[6px_6px_0px_black]">
+                  <p className="font-display text-4xl italic font-black leading-none">{lore?.seasonStats?.S1?.totalApprovedEntries || 0}</p>
+                  <p className="micro-label font-black opacity-40 uppercase tracking-widest mt-2">Approved</p>
+                </div>
+              </div>
             </section>
 
+            {/* Crew lore — the inside jokes and season highlights, moved here
+                from the old Memories tab (Nov 20, 2026). */}
             <section className="space-y-8">
-               <div className="flex items-center gap-6">
-                 <h3 className="font-display text-4xl italic uppercase tracking-tighter text-on-surface font-black">Internal_Communication</h3>
-                 <div className="h-2 flex-grow bg-on-surface/10" />
-               </div>
-
-               <div className="space-y-6">
-                  {lore?.insideJokes?.length ? lore.insideJokes.map((joke, i) => (
-                     <div key={i} className="bg-white border-4 border-on-surface p-8 shadow-[8px_8px_0px_var(--color-brand-lime)] relative group overflow-hidden">
-                        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-100 transition-opacity">
-                          <MessageSquare className="w-12 h-12 text-on-surface" />
-                        </div>
-                        <p className="font-display text-3xl italic font-black text-on-surface leading-tight uppercase tracking-tight">"{joke}"</p>
-                     </div>
-                  )) : (
-                    <p className="font-display text-2xl italic opacity-40 text-center py-12 uppercase tracking-widest leading-none">Intelligence pending. Document a collective moment below.</p>
-                  )}
-               </div>
-               <div className="pt-8 flex gap-6">
-                  <div className="flex-grow relative">
-                    <input 
-                      type="text" 
-                      value={loreDraft}
-                      onChange={event => setLoreDraft(event.target.value)}
-                      placeholder="DOCUMENT A COLLECTIVE MOMENT..."
-                      className="w-full bg-white border-4 border-on-surface p-6 text-xl font-display font-black italic uppercase focus:bg-brand-lime/10 transition-colors placeholder:opacity-20"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddLore();
-                        }
-                      }}
-                    />
+              <div className="flex items-center gap-6">
+                <h3 className="font-display text-4xl italic uppercase tracking-tighter text-on-surface font-black">Crew_Lore</h3>
+                <div className="h-2 flex-grow bg-on-surface/10" />
+                <Sparkles className="w-8 h-8 text-brand-orange" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {[
+                  { label: 'Most Suspicious Entry', value: lore?.highlights?.mostSuspiciousEntry ? `ENTRY_${lore.highlights.mostSuspiciousEntry.slice(-4).toUpperCase()}` : 'No suspicious activity yet. Boring, but respectable.', color: 'var(--color-brand-lime)' },
+                  { label: 'Biggest Comeback', value: lore?.highlights?.biggestComeback || 'Steady state maintained. No major swings recorded.', color: 'var(--color-brand-orange)' },
+                  { label: 'Most Chaotic Trip', value: lore?.highlights?.mostChaoticTrip || 'This crew has not caused enough trouble to be studied.', color: 'var(--color-brand-cyan)' },
+                  { label: 'Field Checks Survived', value: lore?.highlights?.mostFieldChecksSurvived || '0 (Clean Record)', color: 'var(--color-on-surface)' },
+                ].map(h => (
+                  <div key={h.label} className="bg-white border-4 border-on-surface p-6 shadow-[8px_8px_0px_black] relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-2" style={{ backgroundColor: h.color }} />
+                    <p className="micro-label font-black opacity-40 mb-3">{h.label.toUpperCase()}</p>
+                    <p className="font-display text-2xl italic font-black uppercase text-on-surface leading-tight">{h.value}</p>
                   </div>
-                  <button type="button" disabled={crewActionBusy || loreDraft.trim().length < 2} onClick={handleAddLore} className="bureau-btn bg-on-surface text-white hover:bg-brand-orange transition-colors px-10 shadow-[8px_8px_0px_var(--color-brand-lime)] disabled:opacity-40">ADD_LORE</button>
-               </div>
+                ))}
+              </div>
+              <div className="space-y-4">
+                {lore?.insideJokes?.length ? lore.insideJokes.map((joke, i) => (
+                  <div key={i} className="bg-white border-4 border-on-surface p-6 shadow-[8px_8px_0px_var(--color-brand-lime)] relative overflow-hidden">
+                    <p className="font-display text-2xl italic font-black text-on-surface leading-tight uppercase tracking-tight">"{joke}"</p>
+                  </div>
+                )) : (
+                  <p className="font-display text-2xl italic opacity-40 text-center py-8 uppercase tracking-widest leading-none">Intelligence pending. Document a collective moment below.</p>
+                )}
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-grow relative">
+                  <input
+                    type="text"
+                    value={loreDraft}
+                    onChange={event => setLoreDraft(event.target.value)}
+                    placeholder="DOCUMENT A COLLECTIVE MOMENT..."
+                    className="w-full bg-white border-4 border-on-surface p-4 text-lg font-display font-black italic uppercase focus:bg-brand-lime/10 transition-colors placeholder:opacity-20"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddLore();
+                      }
+                    }}
+                  />
+                </div>
+                <button type="button" disabled={crewActionBusy || loreDraft.trim().length < 2} onClick={handleAddLore} className="bureau-btn bg-on-surface text-white hover:bg-brand-orange transition-colors px-8 shadow-[8px_8px_0px_var(--color-brand-lime)] disabled:opacity-40">ADD_LORE</button>
+              </div>
             </section>
 
-            <section className="space-y-4 pt-12 border-t-4 border-on-surface placeholder:opacity-20">
-               <div className="flex items-center gap-6 mb-8">
-                 <h3 className="font-display text-4xl italic uppercase tracking-tighter text-on-surface font-black">Field_Artifacts</h3>
-                 <div className="h-2 flex-grow bg-on-surface/10" />
-               </div>
-               <CrewArtifactsGallery artifacts={crewArtifacts} />
+            <section className="space-y-4 pt-8 border-t-4 border-on-surface">
+              <div className="flex items-center gap-6 mb-6">
+                <h3 className="font-display text-4xl italic uppercase tracking-tighter text-on-surface font-black">Field_Artifacts</h3>
+                <div className="h-2 flex-grow bg-on-surface/10" />
+              </div>
+              <CrewArtifactsGallery artifacts={crewArtifacts} />
             </section>
           </div>
         )}
@@ -951,3 +1042,4 @@ export default function CrewPage() {
     </PlayerPageShell>
   );
 }
+
