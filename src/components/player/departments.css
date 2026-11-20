@@ -34,7 +34,7 @@
 .ft-dept-logbook { --dept-accent: #14804a; }
 .ft-dept-crew { --dept-accent: #ff5c00; }
 .ft-dept-board,
-.ft-dept-frontlines { --dept-accent: #c7ff00; }
+.ft-dept-frontlines { --dept-accent: var(--skin-secondary, #ccff00); }
 .ft-dept-voting { --dept-accent: #19d7ff; }
 .ft-dept-loteria {
   --dept-accent: #ff5c00;

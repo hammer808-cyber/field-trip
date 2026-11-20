@@ -17,10 +17,10 @@ export const StatusLight = ({
   className?: string
 }) => {
   const colors = {
-    green: 'bg-brand-lime shadow-[0_0_8px_#B7FF00]',
-    success: 'bg-brand-lime shadow-[0_0_8px_#B7FF00]',
-    yellow: 'bg-brand-orange shadow-[0_0_8px_#FF5A00]',
-    warning: 'bg-brand-orange shadow-[0_0_8px_#FF5A00]',
+    green: 'bg-brand-lime shadow-[0_0_8px_var(--skin-secondary,#ccff00)]',
+    success: 'bg-brand-lime shadow-[0_0_8px_var(--skin-secondary,#ccff00)]',
+    yellow: 'bg-brand-orange shadow-[0_0_8px_var(--skin-primary,#ff5c00)]',
+    warning: 'bg-brand-orange shadow-[0_0_8px_var(--skin-primary,#ff5c00)]',
     red: 'bg-error shadow-[0_0_8px_#FF3131]',
     blue: 'bg-brand-cyan shadow-[0_0_8px_#2EE7F0]',
     neutral: 'bg-on-surface/20'

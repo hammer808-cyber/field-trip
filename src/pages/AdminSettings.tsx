@@ -265,7 +265,7 @@ export default function AdminSettings() {
               <div className="space-y-4">
                  <div className="p-4 bg-on-surface/5 border border-on-surface/10 space-y-3">
                     <div className="flex items-center gap-3">
-                       <div className="w-2 h-2 rounded-full bg-brand-lime shadow-[0_0_8px_#B7FF00]" />
+                       <div className="w-2 h-2 rounded-full bg-brand-lime shadow-[0_0_8px_var(--skin-secondary,#ccff00)]" />
                        <span className="font-mono text-[9px] font-black uppercase tracking-tight">RECAPTCHA_V3_ACTIVE</span>
                     </div>
                     <div className="flex items-center gap-3 opacity-30">

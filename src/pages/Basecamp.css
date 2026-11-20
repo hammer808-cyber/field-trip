@@ -13,7 +13,7 @@
   box-shadow: 10px 10px 0 var(--skin-border, #111);
 }
 .skin-basecamp .basecamp-today--urgent .basecamp-next-cta {
-  background: linear-gradient(100deg, #c7ff00 0%, #fff 42%, #ff6a00 130%);
+  background: linear-gradient(100deg, var(--skin-secondary, #ccff00) 0%, #fff 42%, var(--skin-primary, #ff5c00) 130%);
   color: #111;
   border-width: 4px;
   font-size: 1.65rem;

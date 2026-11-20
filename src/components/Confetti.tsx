@@ -5,7 +5,7 @@ export const Confetti = () => {
   const [pieces, setPieces] = useState<any[]>([]);
 
   useEffect(() => {
-    const colors = ['#00E5FF', '#FF5A00', '#DCEE0D', '#000000', '#FFFFFF'];
+    const colors = ['#00E5FF', '#FF5C00', '#CCFF00', '#000000', '#FFFFFF'];
     const newPieces = Array.from({ length: 40 }).map((_, i) => ({
       id: i,
       x: Math.random() * 100,

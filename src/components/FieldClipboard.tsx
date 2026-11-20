@@ -176,9 +176,9 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
   return (
     <div className="w-full max-w-md mx-auto space-y-6 px-4 pb-32">
       {/* NEW COMPACT MISSION SIGNAL HEADER */}
-      <div className="relative w-full overflow-hidden border-4 border-on-surface bg-[#FFFDF8] shadow-[6px_6px_0px_black] rounded-2xl animate-fade-in mb-4">
+      <div className="relative w-full overflow-hidden border-4 border-on-surface bg-paper shadow-[6px_6px_0px_black] rounded-2xl animate-fade-in mb-4">
         {/* Signal Strip */}
-        <div className="bg-on-surface text-[#B7FF00] py-1 px-4 flex justify-between items-center relative z-20 border-b-2 border-on-surface">
+        <div className="bg-on-surface text-brand-lime py-1 px-4 flex justify-between items-center relative z-20 border-b-2 border-on-surface">
            <div className="flex items-center gap-2">
              <div className="w-1 h-1 rounded-full bg-current animate-pulse shadow-[0_0_8px_currentColor]" />
              <span className="font-mono text-[7px] font-black uppercase tracking-[0.2em]">MISSION_SIGNAL</span>
@@ -204,13 +204,13 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               <div className="bg-[#2EE7F0] text-on-surface text-[8px] font-black px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase italic leading-none whitespace-nowrap">
                 {cardType}
               </div>
-              <div className="bg-[#B7FF00] text-on-surface text-[8px] font-black px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase italic leading-none rotate-[-1deg] whitespace-nowrap">
+              <div className="bg-brand-lime text-on-surface text-[8px] font-black px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase italic leading-none rotate-[-1deg] whitespace-nowrap">
                 {mission.deckName || 'ADVENTURE'}
               </div>
             </div>
 
             <div className="flex flex-col items-end gap-1.5 shrink-0">
-              <div className="bg-[#FF5A00] text-white px-2 py-1 text-[10px] font-black uppercase italic border-2 border-on-surface shadow-[2px_2px_0px_black]">
+              <div className="bg-brand-orange text-white px-2 py-1 text-[10px] font-black uppercase italic border-2 border-on-surface shadow-[2px_2px_0px_black]">
                 +{missionMaximum} XP MAX
               </div>
             </div>
@@ -254,7 +254,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
             <button
               type="button"
               onClick={scrollToCamera}
-              className="flex-1 px-4 py-2 flex items-center justify-center gap-2 text-[#FF5A00] font-mono text-[9px] font-black uppercase tracking-wider transition-all hover:bg-[#FF5A00]/5"
+              className="flex-1 px-4 py-2 flex items-center justify-center gap-2 text-brand-orange font-mono text-[9px] font-black uppercase tracking-wider transition-all hover:bg-brand-orange/5"
             >
               <ArrowRight className="w-3 h-3 animate-pulse" />
               <span>READY TO START</span>
@@ -550,7 +550,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               </label>
               <textarea
                 id="field-note"
-                className="w-full bg-[#FAF9F6] border-2 border-on-surface/10 p-4 rounded-xl font-serif text-base italic outline-none focus:border-brand-orange transition-all h-24"
+                className="w-full bg-paper border-2 border-on-surface/10 p-4 rounded-xl font-serif text-base italic outline-none focus:border-brand-orange transition-all h-24"
                 placeholder={fieldNotePrompt}
                 value={data.note}
                 onChange={(e) => setData(prev => ({ ...prev, note: e.target.value }))}

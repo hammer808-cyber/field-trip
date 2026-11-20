@@ -3,8 +3,8 @@
   "short_name": "Fieldtrip",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F2EEE8",
-  "theme_color": "#FF6B00",
+  "background_color": "#FCF9F2",
+  "theme_color": "#FF5C00",
   "icons": [
     {
       "src": "/images/icon-192.png",

@@ -94,7 +94,7 @@ export const MissionDetailsModal: React.FC<MissionDetailsModalProps> = ({
                 />
                 {/* Sticker Badges Overlay */}
                 <div className="absolute top-2 left-2 flex gap-1">
-                  <div className="bg-[#FF5A00] text-white px-2 py-0.5 text-[8px] font-black uppercase tracking-widest italic border border-on-surface shadow-[1px_1px_0px_black] rotate-[-2deg]">
+                  <div className="bg-brand-orange text-white px-2 py-0.5 text-[8px] font-black uppercase tracking-widest italic border border-on-surface shadow-[1px_1px_0px_black] rotate-[-2deg]">
                     {(mission.category || 'FIELD OP').toUpperCase()}
                   </div>
                   <div className="bg-[#B7FF00] text-on-surface px-2 py-0.5 text-[8px] font-black uppercase tracking-widest italic border border-on-surface shadow-[1px_1px_0px_black] rotate-[1deg]">

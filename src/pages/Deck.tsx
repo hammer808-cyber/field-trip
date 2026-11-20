@@ -668,7 +668,7 @@ export default function DeckPage() {
         isBaja ? "bg-baja-sand text-baja-pink" :
         isDiamond ? "bg-black text-white" :
         isHeat ? "bg-heat-yellow text-white" :
-        "bg-[#FAF8F5] text-on-surface"
+        "bg-paper text-on-surface"
       )}>
         {/* Background Gradients & Textures */}
         <div className="absolute inset-0 ft-paper-texture opacity-100" />
@@ -1071,7 +1071,7 @@ export default function DeckPage() {
                   </div>
                   <div className="space-y-2">
                     <h2 className="font-display text-4xl font-black uppercase italic tracking-tight text-on-surface">Starter Complete</h2>
-                    <p className="text-sm font-mono font-bold text-[#FF5A00] uppercase tracking-wider">{getDisplayLabel('HEATWAVE_RECEIPTS')} unlocked</p>
+                    <p className="text-sm font-mono font-bold text-brand-orange uppercase tracking-wider">{getDisplayLabel('HEATWAVE_RECEIPTS')} unlocked</p>
                   </div>
                   <button
                     onClick={() => {

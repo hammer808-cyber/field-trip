@@ -94,7 +94,7 @@ export function MissionDecodedCard({
   const difficultyConfig = {
     easy: { label: fc('Scout', 'SIMPLE'), color: 'bg-[#B7FF00]', text: 'text-on-surface' },
     medium: { label: fc('Vanguard', 'MODERATE'), color: 'bg-[#2EE7F0]', text: 'text-on-surface' },
-    hard: { label: fc('Elite', 'HARD'), color: 'bg-[#FF5A00]', text: 'text-white' }
+    hard: { label: fc('Elite', 'HARD'), color: 'bg-brand-orange', text: 'text-white' }
   };
 
   const diff = difficultyConfig[mission.difficulty as keyof typeof difficultyConfig] || difficultyConfig.easy;
@@ -137,19 +137,19 @@ export function MissionDecodedCard({
       className={cn("w-full max-w-xl mx-auto relative group field-card field-card--ticket field-paper-shadow-lg p-0 overflow-hidden", className)}
     >
       {/* Decorative Ticket Punch Notches */}
-      <div className="absolute left-[-11px] top-1/2 -translate-y-1/2 w-5 h-8 bg-[#FAF8F5] border-r-[3.5px] border-on-surface rounded-r-full z-40" />
-      <div className="absolute right-[-11px] top-1/2 -translate-y-1/2 w-5 h-8 bg-[#FAF8F5] border-l-[3.5px] border-on-surface rounded-l-full z-40" />
+      <div className="absolute left-[-11px] top-1/2 -translate-y-1/2 w-5 h-8 bg-paper border-r-[3.5px] border-on-surface rounded-r-full z-40" />
+      <div className="absolute right-[-11px] top-1/2 -translate-y-1/2 w-5 h-8 bg-paper border-l-[3.5px] border-on-surface rounded-l-full z-40" />
 
       {/* Gloss Highlight for that "vinyl sticker" feel */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none z-30" />
       <div className="absolute inset-y-0 left-[-100%] w-1/3 bg-white/20 skew-x-[-20deg] transition-all duration-700 pointer-events-none z-30 group-hover:left-[150%]" />
 
       {/* Main Card Container */}
-      <div className="bg-[#FFFDF4] overflow-hidden flex flex-col relative h-full">
+      <div className="bg-paper overflow-hidden flex flex-col relative h-full">
         {/* TOP COMPACT SIGNAL HEADER */}
         <div className={cn(
           "bg-on-surface text-[#B7FF00] py-1 px-4 flex justify-between items-center relative z-20 border-b-2 border-on-surface",
-          isLaunchMission && "bg-[#FF5A00] text-white"
+          isLaunchMission && "bg-brand-orange text-white"
         )}>
            <div className="flex items-center gap-2">
              <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse shadow-[0_0_8px_currentColor]" />
@@ -198,7 +198,7 @@ export function MissionDecodedCard({
         {/* BOTTOM ACTION / STATUS STRIP - Compact & High-Impact */}
         <div className="px-4 py-3 bg-[#FCFAF5] border-b-4 border-on-surface flex items-center justify-between gap-3 relative z-20">
            <div className="flex-1 min-w-0">
-             <div className="flex items-center gap-1 text-[9px] font-mono font-black uppercase tracking-wider text-[#FF5A00] animate-pulse">
+             <div className="flex items-center gap-1 text-[9px] font-mono font-black uppercase tracking-wider text-brand-orange animate-pulse">
                <Sparkles className="w-3 h-3" />
                <span>{statusLabel || 'READY_FOR_DEPLOYMENT'}</span>
              </div>
@@ -244,9 +244,9 @@ export function MissionDecodedCard({
 
 
           {/* Field Note Prompt - More compact */}
-          <div className="bg-[#FF5A00]/[0.03] border-2 border-dashed border-on-surface/10 p-3 space-y-1 rounded-xl relative rotate-[0.5deg]">
+          <div className="bg-brand-orange/[0.03] border-2 border-dashed border-on-surface/10 p-3 space-y-1 rounded-xl relative rotate-[0.5deg]">
             <div className="flex items-center gap-2 mb-0.5">
-               <Zap className="w-2.5 h-2.5 text-[#FF5A00] fill-[#FF5A00]/20" />
+               <Zap className="w-2.5 h-2.5 text-brand-orange fill-brand-orange/20" />
                <span className="text-[8px] font-mono font-black uppercase tracking-widest text-on-surface/60">{fc('Tell Trevor', 'STORY_REQUEST')}</span>
             </div>
             <p className="text-[12px] font-medium italic text-on-surface leading-tight font-serif">
@@ -278,10 +278,10 @@ export function MissionDecodedCard({
                         collected 
                           ? "bg-[#B7FF00] border-on-surface shadow-[2px_2px_0px_black] -translate-y-0.5" 
                           : "border-on-surface/10 bg-on-surface/[0.04]",
-                        isHoveredOrTapped && "border-[#FF5A00] bg-[#FF5A00]/5 shadow-[2px_2px_0px_black] -translate-y-0.5"
+                        isHoveredOrTapped && "border-brand-orange bg-brand-orange/5 shadow-[2px_2px_0px_black] -translate-y-0.5"
                       )}
                     >
-                      <Icon className={cn("w-3 h-3 transition-transform", collected ? "text-on-surface" : "opacity-20", isHoveredOrTapped && "text-[#FF5A00] scale-110 opacity-100")} />
+                      <Icon className={cn("w-3 h-3 transition-transform", collected ? "text-on-surface" : "opacity-20", isHoveredOrTapped && "text-brand-orange scale-110 opacity-100")} />
                       <div className="flex flex-col">
                         <span className="text-[9px] font-black uppercase tracking-tight leading-none">{r.label}</span>
                       </div>
@@ -298,7 +298,7 @@ export function MissionDecodedCard({
                  initial={{ opacity: 0, scale: 0.95, y: 5 }}
                  animate={{ opacity: 1, scale: 1, y: 0 }}
                  exit={{ opacity: 0, scale: 0.95, y: 5 }}
-                 className="p-3 bg-on-surface text-[#FFFDF4] border-2 border-on-surface rounded-xl flex items-start gap-3 relative shadow-[4px_4px_0px_black] transition-all"
+                 className="p-3 bg-on-surface text-paper border-2 border-on-surface rounded-xl flex items-start gap-3 relative shadow-[4px_4px_0px_black] transition-all"
                >
                  <div className="space-y-1 relative z-10 text-left">
                    <div className="flex items-center gap-1.5 text-[#B7FF00] font-mono text-[8px] font-black uppercase tracking-widest">

@@ -119,7 +119,7 @@ export const QuickMissionCard: React.FC<QuickMissionCardProps> = ({
             </div>
 
             {/* XP Award - Compact Sticker Style */}
-            <div className="bg-[#B7FF00] text-on-surface p-1.5 px-3 border-2 border-on-surface shadow-[3px_3px_0px_black] rotate-[-2deg] group-hover:rotate-0 transition-transform">
+            <div className="bg-brand-lime text-on-surface p-1.5 px-3 border-2 border-on-surface shadow-[3px_3px_0px_black] rotate-[-2deg] group-hover:rotate-0 transition-transform">
                <div className="flex items-center gap-1 font-display text-[10px] font-black uppercase tracking-tight">
                  <Zap className="w-2.5 h-2.5 fill-current" />
                  <span>+{mission.baseXP || 100}XP</span>

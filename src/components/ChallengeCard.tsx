@@ -139,7 +139,7 @@ export function MissionCard({
 
           {/* Center Raised Badge Container holding the lock/category icon */}
           <div className="my-auto py-4 flex flex-col items-center justify-center">
-            <div className="relative w-24 h-24 bg-[#FCF9F2] border-4 border-on-surface rounded-none shadow-[6px_6px_0px_black] flex items-center justify-center rotate-[-3deg] group-hover:rotate-[2deg] transition-transform">
+            <div className="relative w-24 h-24 bg-paper border-4 border-on-surface rounded-none shadow-[6px_6px_0px_black] flex items-center justify-center rotate-[-3deg] group-hover:rotate-[2deg] transition-transform">
               <div className="absolute inset-0 border-2 border-dashed border-on-surface/15 m-1" />
               <div className="absolute -top-3 -right-3 w-8 h-8 bg-brand-orange border-2 border-on-surface flex items-center justify-center rounded-none shadow-[2px_2px_0px_black] transform rotate-[10deg]">
                 <Lock className="w-4 h-4 text-white" />
@@ -179,7 +179,7 @@ export function MissionCard({
 
   // Determine a playful dominant theme color based on the challenge type
   let colorTheme = {
-    bg: "bg-[#FFFDF5]",
+    bg: "bg-paper",
     wash: "bg-brand-orange/5",
     header: "bg-brand-orange text-white",
     sticker: "bg-brand-orange text-white border-on-surface",
@@ -190,7 +190,7 @@ export function MissionCard({
 
   if (isStarter) {
     colorTheme = {
-      bg: "bg-[#FFFCEB]",
+      bg: "bg-paper",
       wash: "bg-brand-lime/10",
       header: "bg-brand-lime text-on-surface",
       sticker: "bg-brand-lime text-on-surface border-on-surface",
@@ -220,7 +220,7 @@ export function MissionCard({
     };
   } else if (challenge.category === 'Bonus' || challenge.type === 'Bonus') {
     colorTheme = {
-      bg: "bg-[#FFFDF5]",
+      bg: "bg-paper",
       wash: "bg-brand-yellow/15",
       header: "bg-brand-yellow text-on-surface border-b-2 border-on-surface",
       sticker: "bg-[#FFF9C4] text-on-surface border-on-surface",
