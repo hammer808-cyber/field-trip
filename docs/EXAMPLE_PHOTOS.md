@@ -190,11 +190,271 @@ fails if a Jet Setter card's photo is missing. The fetch script
 the recorded queries (Wikimedia rate-limits hard — expect HTTP 429s on
 back-to-back runs; the script retries).
 
+## SoCal Summer deck — example photos
+
+Every SoCal Summer card (`SoCal Summer`, socal-summer) carries a real example
+photo in `public/assets/challenges/socal-XX.jpg`, wired in via the card's
+`image` field in `src/data/socalSummerChallengeBank.ts`, the same way the
+Texas, Heatwave, and Jet Setter decks got theirs. Cards with a photo show an
+"Example photo" chip in the deck library and the card detail modal, so players
+know it's a sample, not the target itself.
+
+### Sources and licenses
+
+All photos are from Wikimedia Commons and are freely licensed (CC BY, CC BY-SA,
+CC0, or public domain). Attribution:
+
+| Card | File | Source | License |
+| --- | --- | --- | --- |
+| socal-01 — Shoreline Signal | `socal-01.jpg` | [File:Breaking waves (Pacific Ocean shoreline at Heceta Head beach, Oregon, USA) 10.jpg](https://commons.wikimedia.org/wiki/File%3ABreaking_waves_%28Pacific_Ocean_shoreline_at_Heceta_Head_beach%2C_Oregon%2C_USA%29_10.jpg) | CC BY 2.0 |
+| socal-02 — Palm Tree Paradise | `socal-02.jpg` | [File:Golden sunset with flying bird and palm trees silhouette at Rangamati.jpg](https://commons.wikimedia.org/wiki/File%3AGolden_sunset_with_flying_bird_and_palm_trees_silhouette_at_Rangamati.jpg) | CC BY-SA 4.0 |
+| socal-03 — Boardwalk Snack | `socal-03.jpg` | [File:Ice cream cone at the beach.jpg](https://commons.wikimedia.org/wiki/File%3AIce_cream_cone_at_the_beach.jpg) | CC BY-SA 4.0 |
+| socal-04 — Public Art Archive | `socal-04.jpg` | [File:A remarkable mural on a car park wall - geograph.org.uk - 7756456.jpg](https://commons.wikimedia.org/wiki/File%3AA_remarkable_mural_on_a_car_park_wall_-_geograph.org.uk_-_7756456.jpg) | CC BY-SA 2.0 |
+| socal-05 — Golden Hour Glow | `socal-05.jpg` | [File:Colorful sky with orange and pink clouds reflecting in the water of a paddy field at dusk in Don Det Laos.jpg](https://commons.wikimedia.org/wiki/File%3AColorful_sky_with_orange_and_pink_clouds_reflecting_in_the_water_of_a_paddy_field_at_dusk_in_Don_Det_Laos.jpg) | CC BY-SA 4.0 |
+| socal-06 — The Bike Path Scout | `socal-06.jpg` | [File:Beaches boardwalk and bike path (2481690050).jpg](https://commons.wikimedia.org/wiki/File%3ABeaches_boardwalk_and_bike_path_%282481690050%29.jpg) | CC BY 2.0 |
+| socal-07 — Neighborhood Artifact | `socal-07.jpg` | [File:Battered Little Free Library on the Hill.jpg](https://commons.wikimedia.org/wiki/File%3ABattered_Little_Free_Library_on_the_Hill.jpg) | CC BY-SA 4.0 |
+| socal-08 — Extreme Shadows | `socal-08.jpg` | [File:Sunset Beach - 016 (3468391204).jpg](https://commons.wikimedia.org/wiki/File%3ASunset_Beach_-_016_%283468391204%29.jpg) | CC BY 2.0 |
+| socal-09 — The Park Oasis | `socal-09.jpg` | [File:People’s Park in Davao City (009).jpg](https://commons.wikimedia.org/wiki/File%3APeople%E2%80%99s_Park_in_Davao_City_%28009%29.jpg) | CC BY-SA 4.0 |
+| socal-10 — Landmark Sighting | `socal-10.jpg` | [File:Lighthouse California-06499 - Point Arena Lighthouse (21719124282).jpg](https://commons.wikimedia.org/wiki/File%3ALighthouse_California-06499_-_Point_Arena_Lighthouse_%2821719124282%29.jpg) | CC BY-SA 2.0 |
+| socal-11 — Cold Brew Trail | `socal-11.jpg` | [File:Chiang Mai, Thailand, Ice coffee.jpg](https://commons.wikimedia.org/wiki/File%3AChiang_Mai%2C_Thailand%2C_Ice_coffee.jpg) | CC BY 4.0 |
+| socal-12 — Beach Gear Archive | `socal-12.jpg` | [File:Parasols, Evening, Beach, Rincon de la Victoria, Andalusia, Spain.jpg](https://commons.wikimedia.org/wiki/File%3AParasols%2C_Evening%2C_Beach%2C_Rincon_de_la_Victoria%2C_Andalusia%2C_Spain.jpg) | CC0 |
+| socal-13 — Local Signage Clue | `socal-13.jpg` | [File:Equator coffees neon sign.jpg](https://commons.wikimedia.org/wiki/File%3AEquator_coffees_neon_sign.jpg) | CC0 |
+| socal-14 — Boardwalk Souvenir | `socal-14.jpg` | [File:Board walk, a souvenir shop selling postcards is in the image (NBY 422406).jpg](https://commons.wikimedia.org/wiki/File%3ABoard_walk%2C_a_souvenir_shop_selling_postcards_is_in_the_image_%28NBY_422406%29.jpg) | Public domain |
+| socal-15 — The Blanket Archive | `socal-15.jpg` | [File:Man and woman picnic under a tree next to a car (AM 77435-1).jpg](https://commons.wikimedia.org/wiki/File%3AMan_and_woman_picnic_under_a_tree_next_to_a_car_%28AM_77435-1%29.jpg) | CC BY 4.0 |
+
+Per-card creator names live in `scripts/socal-example-photos-manifest.json`
+(the `creator` field, alongside source URL, page, license, and bytes).
+
+### How they were chosen
+
+Each photo was checked by eye against the card's required subjects before wiring.
+Six first picks failed that check and were replaced:
+
+- The Bike Path Scout (06): the first pick was cyclists on the Los Angeles beach
+  bike path, but the frame is dominated by a power plant and carries a film
+  date stamp; replaced by a dedicated boardwalk bike path with cyclists.
+- Extreme Shadows (08): four picks in a row failed. A telescope observatory
+  building under construction whose long shadow was incidental; a night street
+  scene whose long shadow falls under a streetlight, not late-afternoon sun; a
+  busy Pattaya beachfront street at sunset whose "long evening shadows" are
+  not the subject; and a backlit silhouette of a man and a rickshaw, which is
+  a silhouette, not a shadow cast on a surface. The winner is a single long
+  human shadow stretched across wet beach sand at low sun.
+- Cold Brew Trail (11): the first pick was a sealed 85&deg;C Bakery Cafe cup shot
+  from above — no ice and no iced coffee visible, it could be a hot drink;
+  replaced by an iced coffee in a glass mug with ice and straws on a cafe table.
+
+Two more swaps were quality upgrades, not subject failures: Landmark Sighting
+(10) first used Pigeon Point Lighthouse small in the distance behind a painter
+and was swapped for Point Arena Lighthouse filling the frame; The Bike Path
+Scout's replacement above is also the cleaner of two usable shots.
+
+The first Commons searches for Boardwalk Snack, Extreme Shadows, and Beach Gear
+Archive returned nothing but scanned books and magazines (the search matches
+the words, not the picture), so those cards needed narrower second-round
+queries — see the QUERIES in `scripts/fetch-socal-example-photos.py`.
+
+The judgment-call cards, noted here so the next pass can revisit them:
+
+- Golden Hour Glow (05): the sky is the whole frame — orange, pink, and purple
+  clouds at sunset — but the foreground is a flooded paddy field, not a SoCal
+  beach. The card only requires the golden-hour sky.
+- Extreme Shadows (08): the winning shadow falls on beach sand, not pavement;
+  the shadow itself is the entire subject and extremely elongated.
+- Landmark Sighting (10): Point Arena Lighthouse is in Northern California.
+  The card lists "a lighthouse" as an example landmark, and any California
+  lighthouse reads as the landmark.
+- Boardwalk Souvenir (14): the photo itself is a vintage postcard (Wildwood, NJ
+  boardwalk, c. 1900s) showing a boardwalk souvenir shop selling postcards —
+  the card wants a postcard or souvenir, and this one is both. Precedent: Jet
+  Setter's Postcard From the Plot is also a literal vintage postcard.
+- The Blanket Archive (15): a 1940s black-and-white archival photo of a couple
+  picnicking on a blanket on the grass — the picnic footprint is exactly the
+  subject, vintage look and all.
+- Shoreline Signal (01), Palm Tree Paradise (02), The Park Oasis (09), and
+  Beach Gear Archive (12) are likewise not photographed in Southern California
+  (Oregon coast, Bangladesh, Davao City, Spain); their subjects — the waterline,
+  a palm silhouette, a shady park, resting beach umbrellas — are generic, and
+  no SoCal-specific Commons photo of the same quality turned up.
+
+Files were recompressed into the ~87–200 KB class of the earlier decks
+(PIL, max width 1024, JPEG quality 78) — the deck adds ~2.9 MB total.
+The outliers are the fine-detail shots that don't compress further without
+visible loss: socal-07 (Little Free Library, 370 KB, quality 70) and
+socal-08 (beach-sand shadow, 357 KB, quality 72); socal-01, socal-04,
+socal-09, and socal-10 sit at 248–285 KB at quality 78 for the same reason.
+socal-02 (74 KB) lands just under the band — a smooth sunset sky compresses
+well, nothing wrong with the file.
+
+To replace a photo: drop a new file in `public/assets/challenges/` and update the
+card's `image` field in `src/data/socalSummerChallengeBank.ts` (or the manifest
+entry). The gate test `src/__tests__/socalExamplePhotos.test.ts` fails if a
+SoCal Summer card's photo is missing. The fetch script
+`scripts/fetch-socal-example-photos.py` re-downloads from Commons with the
+recorded queries (Wikimedia rate-limits hard — expect HTTP 429s on back-to-back
+runs; the script retries. Note the script requests 1280px thumbs: 1024px is not
+an allowed thumbor width and answers HTTP 400).
+
+## Errand Deck — example photos
+
+Every card in the Errand Deck (`The Errand Deck`, errand-deck) carries a real
+example photo in `public/assets/challenges/errand-deck-XX.jpg`, wired in via
+the card's `image` field (set in the map at the bottom of
+`src/data/errandDeckChallengeBank.ts`), the same way the Texas, Heatwave, and
+Jet Setter decks got theirs. Cards with a photo show an "Example photo" chip
+in the deck library and the card detail modal, so players know it's a sample,
+not the target itself.
+
+### Sources and licenses
+
+All photos are from Wikimedia Commons and are freely licensed (CC BY, CC BY-SA,
+CC0, or public domain). Attribution:
+
+| Card | File | Source | License |
+| --- | --- | --- | --- |
+| errand-deck-01 — Aisle Oracle | `errand-deck-01.jpg` | [File:Aisle in L Intermarche supermarket in Quebec City.jpg](https://commons.wikimedia.org/wiki/File%3AAisle_in_L_Intermarche_supermarket_in_Quebec_City.jpg) | CC BY-SA 4.0 |
+| errand-deck-02 — Parking Lot Ecology | `errand-deck-02.jpg` | [File:Shopping carts littered across a store parking lot in El Monte, USA.jpg](https://commons.wikimedia.org/wiki/File%3AShopping_carts_littered_across_a_store_parking_lot_in_El_Monte%2C_USA.jpg) | CC0 |
+| errand-deck-03 — Impulse Portal | `errand-deck-03.jpg` | [File:Cool M&M Candy Vending Machine (52989445950).jpg](https://commons.wikimedia.org/wiki/File%3ACool_M%26M_Candy_Vending_Machine_%2852989445950%29.jpg) | CC BY 2.0 |
+| errand-deck-04 — Errand Goblin Sighting | `errand-deck-04.jpg` | [File:Supermarket entrance - Flickr - @imaxeslugo.jpg](https://commons.wikimedia.org/wiki/File%3ASupermarket_entrance_-_Flickr_-_%40imaxeslugo.jpg) | CC BY 2.0 |
+| errand-deck-05 — One Thing, Allegedly | `errand-deck-05.jpg` | [File:Shopping with kids (5418349069).jpg](https://commons.wikimedia.org/wiki/File%3AShopping_with_kids_%285418349069%29.jpg) | CC BY 2.0 |
+| errand-deck-06 — Checkout Face, Optional | `errand-deck-06.jpg` | [File:Publix checkout aisle.jpg](https://commons.wikimedia.org/wiki/File%3APublix_checkout_aisle.jpg) | CC BY 4.0 |
+| errand-deck-07 — Errand Chaperone | `errand-deck-07.jpg` | [File:Service dog out shopping.jpg](https://commons.wikimedia.org/wiki/File%3AService_dog_out_shopping.jpg) | CC BY-SA 4.0 |
+| errand-deck-08 — Cart Council | `errand-deck-08.jpg` | [File:Asian Family Customers Shopping in The Super Market.jpg](https://commons.wikimedia.org/wiki/File%3AAsian_Family_Customers_Shopping_in_The_Super_Market.jpg) | CC BY 2.0 |
+| errand-deck-09 — Waiting Area Weather | `errand-deck-09.jpg` | [File:People Waiting For San Francisco Muni (84006253).jpg](https://commons.wikimedia.org/wiki/File%3APeople_Waiting_For_San_Francisco_Muni_%2884006253%29.jpg) | CC BY-SA 3.0 |
+| errand-deck-10 — Bag of Consequences | `errand-deck-10.jpg` | [File:Shopping freak (Unsplash).jpg](https://commons.wikimedia.org/wiki/File%3AShopping_freak_%28Unsplash%29.jpg) | CC0 |
+| errand-deck-11 — Receipt Archaeology | `errand-deck-11.jpg` | [File:Family Dollar store receipt.jpg](https://commons.wikimedia.org/wiki/File%3AFamily_Dollar_store_receipt.jpg) | CC BY-SA 3.0 |
+| errand-deck-12 — Emotional Support Beverage | `errand-deck-12.jpg` | [File:Person holding to-go coffee (Unsplash).jpg](https://commons.wikimedia.org/wiki/File%3APerson_holding_to-go_coffee_%28Unsplash%29.jpg) | CC0 |
+| errand-deck-13 — The Second Stop | `errand-deck-13.jpg` | [File:Customers about to load a car on the roof parking space 8c35060v.jpg](https://commons.wikimedia.org/wiki/File%3ACustomers_about_to_load_a_car_on_the_roof_parking_space_8c35060v.jpg) | Public domain |
+| errand-deck-14 — The Errand Fought Back | `errand-deck-14.jpg` | [File:Close-up of a closed sign hanging on a store door (51284470254).jpg](https://commons.wikimedia.org/wiki/File%3AClose-up_of_a_closed_sign_hanging_on_a_store_door_%2851284470254%29.jpg) | CC BY 2.0 |
+| errand-deck-15 — Add It to the Errand Lore | `errand-deck-15.jpg` | [File:Two friends sitting together, chatting and laughing.jpg](https://commons.wikimedia.org/wiki/File%3ATwo_friends_sitting_together%2C_chatting_and_laughing.jpg) | CC BY-SA 4.0 |
+
+Per-card creator names live in `scripts/errand-example-photos-manifest.json`
+(the `creator` field, alongside source URL, page, license, and bytes).
+
+### How they were chosen
+
+Each photo was checked by eye against the card's required subjects before wiring.
+Two first picks failed that check and were replaced, both for the same card:
+a "market basket" file for One Thing, Allegedly (05) that turned out to be a
+shopping cart abandoned on the grass in front of a glass tower, not a basket
+at all, and a stack of empty red shopping baskets for the same card — baskets,
+but empty, showing no "one thing" and no mission mutation. A third candidate
+for 05, a woman carrying a basket on her head down a street in Antigua, was
+passed over because the basket is small in the frame and the shot is a street
+scene, not an errand moment.
+
+The vibe cards are judgment calls, noted here so the next pass can revisit
+them: Errand Goblin Sighting (04) is a person with a stroller entering a
+Mercadona supermarket at night, face not visible — proof of entering the
+errand zone, which is the point of the card; One Thing, Allegedly (05) is a
+child sitting inside a shopping basket at a checkout — the basket holds a kid,
+not groceries, which is the mission mutating, the card's own joke; Cart
+Council (08) is a family debating sushi choices at a deli counter — a group
+decision moment at a counter, not a cart debate; Waiting Area Weather (09) is
+two men waiting at a transit stop, one facepalming, one on his phone — the
+emotional climate of waiting, not a store waiting area, but the card allows a
+line, bench, or parking-lot pause; The Second Stop (13) is a 1940s FSA photo
+of a man loading paper grocery bags into a car on a roof parking lot — the
+black film-frame border is part of the archival negative scan, the same
+archival-photo precedent as the Texas deck's Library of Congress scan; Add It
+to the Errand Lore (15) is two friends laughing together in a village
+courtyard — no errand setting at all, the lore is the laughter and the
+friendship, the same rationale as Jet Setter's sunset-friends lore card.
+
+Files were recompressed into the ~53–200 KB class of the earlier decks (PIL,
+max width 1024, JPEG quality 78) — the deck adds ~2.2 MB total. Two files
+needed lower quality to land in range: errand-deck-01 at quality 74 (188 KB)
+and errand-deck-03 at quality 70 (196 KB). The one outlier is
+errand-deck-02 (carts littered across a parking lot, 372 KB at quality 65):
+fine detail (foliage, dozens of carts) doesn't compress further without
+visible loss, so it stays, inside the ~380 KB outlier allowance. Two sources
+were smaller than 1024 px wide (errand-deck-07, 478 px; errand-deck-11,
+740 px) and were kept at native size, not upscaled.
+
+Wikimedia rate-limit note (Nov 20, 2026): upload.wikimedia.org (unscaled
+originals) returned HTTP 429 persistently from this machine, even after
+multi-minute waits, while thumb.wikimedia.org (1280px thumbs) kept working —
+the fetch script downloads through the thumb URLs, and the manifest records
+those thumb URLs as `source_url`.
+
+To replace a photo: drop a new file in `public/assets/challenges/` and update
+the card's `image` field in `src/data/errandDeckChallengeBank.ts` (or the
+manifest entry). The gate test `src/__tests__/errandExamplePhotos.test.ts`
+fails if an Errand Deck card's photo is missing. The fetch script
+`scripts/fetch-errand-example-photos.py` re-downloads from Commons with the
+recorded queries (Wikimedia rate-limits hard — expect HTTP 429s on
+back-to-back runs; the script retries).
+
+## Starter Signals deck — example photos
+
+Every starter card (`Starter Signals`, deck `starter-signals`) carries a real
+example photo in `public/assets/challenges/starter-N.jpg`, wired in via the
+card's `image` field in `src/data/starterMissionBank.ts`, the same way the
+Texas, Heatwave, and Jet Setter decks got theirs. Cards with a photo show an
+"Example photo" chip in the deck library and the card detail modal, so players
+know it's a sample, not the target itself. These are the first three missions
+every new player sees, so the photos matter most here.
+
+### Sources and licenses
+
+All photos are from Wikimedia Commons and are freely licensed (CC BY, CC BY-SA,
+CC0, or public domain). Attribution:
+
+| Card | File | Source link | License |
+| --- | --- | --- | --- |
+| starter-1 — The Initial Signal | `starter-1.jpg` | [File:Sunflower with blue sky background.jpg](https://commons.wikimedia.org/wiki/File%3ASunflower_with_blue_sky_background.jpg) | Public domain |
+| starter-2 — Snack Evidence | `starter-2.jpg` | [File:Slices of watermelon placed on a red tray at a summer gathering.jpg](https://commons.wikimedia.org/wiki/File%3ASlices_of_watermelon_placed_on_a_red_tray_at_a_summer_gathering.jpg) | CC BY 2.0 |
+| starter-3 — Personal Oasis | `starter-3.jpg` | [File:Park Bench Ooty Botanical Garden (125298855).jpeg](https://commons.wikimedia.org/wiki/File%3APark_Bench_Ooty_Botanical_Garden_%28125298855%29.jpeg) | CC BY-SA 3.0 |
+
+Per-card creator names live in `scripts/starter-example-photos-manifest.json`
+(the `creator` field, alongside source URL, page, license, and bytes).
+
+### How they were chosen
+
+Each photo was checked by eye against the card's required subjects before wiring.
+Two first picks failed that check and were replaced:
+
+- Personal Oasis (starter-3): first pick was "Shady bench under an old tree"
+  (geograph.org.uk) — the bench is under a tree, but the frame is dominated by
+  a brick apartment block ("FLATS 13-28"), so it reads as a housing estate,
+  not a cool shady retreat. Replaced with the Ooty Botanical Garden shot.
+- Snack Evidence (starter-2): first pick was "Ice cream cone - Summer 2018" —
+  a sprinkle-covered cone, clearly summer-coded, but the frame centers on a
+  young girl holding it rather than the snack itself. Replaced with watermelon
+  slices on a red tray: snack-only, unmistakably summer.
+
+Judgment-call cards, noted here so the next pass can revisit them:
+
+- Personal Oasis (starter-3) is a wide botanical-garden shot: a huge shady
+  tree dominates the frame, with green benches visible underneath it. The
+  oasis is the shade under the tree, and the benches are small in frame —
+  it reads as "shady park" rather than a close-up of one bench.
+- The Initial Signal (starter-1) is a sunflower against a striking blue sky —
+  two of the card's three allowed subjects (vibrant flower, blue sky) in one
+  frame.
+
+Files were recompressed into the ~87–200 KB class of the earlier decks
+(PIL, max width 1024, JPEG quality 78) — the deck adds ~420 KB total.
+The one outlier is starter-3 (251 KB): fine detail (foliage, grass) doesn't
+compress further without visible loss (quality 72 only reached 218 KB), so it
+stays, within the fine-detail allowance used by Jet Setter. starter-2 was
+saved at quality 85 (82 KB) because quality 78 came in at 64 KB, under the
+target band.
+
+### Replace instructions
+
+To replace a photo: drop a new file in `public/assets/challenges/` and update
+the card's `image` field in `src/data/starterMissionBank.ts`. The gate test
+`src/__tests__/starterExamplePhotos.test.ts` fails if a starter card's photo
+is missing. The fetch script `scripts/fetch-starter-example-photos.py`
+re-downloads from Commons with the recorded queries (Wikimedia rate-limits
+hard — expect HTTP 429s on back-to-back runs; the script retries).
+
 ## Next decks
 
 The same pattern extends to any deck: add an `image` field to the card, drop the
 file in `public/assets/challenges/`, and the photo shows everywhere the card art
 renders (library, detail modal, capture flow) with the "Example photo" chip where
-the surface shows it. Record the source and license here. Texas, Heatwave, and Jet Setter are
-done; the remaining decks without example photos are SoCal Summer, Errand Runner,
-and the starter cards.
+the surface shows it. Record the source and license here. Texas, Heatwave, Jet Setter, SoCal Summer, Errand Deck, and the starter cards
+are all done; every live deck now carries real example photos except Gobble &
+Glow, which stays on SVG badges by design.
