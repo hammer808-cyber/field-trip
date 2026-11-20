@@ -276,6 +276,7 @@ export function TrevorGuide() {
       isExpanded={panelState.isExpanded}
       hasNewState={hasNewState}
       focusPrimaryActionOnOpen={expandSource === 'user'}
+      fieldType={app.fieldType}
       onOpen={handleOpen}
       onCollapse={() => dispatchPanelEvent('collapse')}
       onAction={handleAction}

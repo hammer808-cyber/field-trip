@@ -3,6 +3,7 @@ import { Compass, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { BasecampAttentionPanel } from '../components/basecamp/BasecampAttentionPanel';
 import { BasecampBoard } from '../components/basecamp/BasecampBoard';
+import { BasecampCompanionBlock } from '../components/basecamp/BasecampCompanionBlock';
 import { BasecampCrewSummary } from '../components/basecamp/BasecampCrewSummary';
 import { BasecampNextActionPanel } from '../components/basecamp/BasecampNextActionPanel';
 import { BasecampNotifications } from '../components/basecamp/BasecampNotifications';
@@ -210,6 +211,10 @@ export default function Basecamp() {
       <BasecampBoard
         main={(
           <>
+            {/* Persona companion (Tier 1, Nov 20, 2026): the quiz persona as
+                a companion block beside the next action — the home-screen
+                presence; the Trevor panel/launcher cover the other pages. */}
+            <BasecampCompanionBlock fieldType={fieldType} onOpen={() => navigate('/profile?tab=overview')} />
             <BasecampNextActionPanel
               model={viewModel.nextAction}
               pack={activePack}

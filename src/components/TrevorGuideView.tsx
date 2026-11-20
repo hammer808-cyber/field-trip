@@ -2,8 +2,10 @@ import React, { useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { ArrowRight, ChevronDown, ChevronUp, EyeOff } from 'lucide-react';
 import type { ResolvedTrevorAction } from '../config/trevorActions';
+import type { FieldTypeId } from '../constants/fieldTypes';
 import { cn } from '../lib/utils';
 import type { ResolvedTrevorRecommendation } from '../services/trevorRecommendationEngine';
+import { CompanionAvatar, type CompanionMood } from './CompanionAvatar';
 
 export interface TrevorPanelState {
   isExpanded: boolean;
@@ -38,6 +40,13 @@ interface TrevorGuideViewProps {
   /** Permanent opt-out ("Stop showing these tips") — hides Trevor for good
    *  via the profile setting, not just for this session. */
   onDisable?: () => void;
+  /**
+   * The player's quiz persona. Drives the companion avatar beside Trevor;
+   * when undefined/null/'unclassified' the panel and launcher render exactly
+   * as they did before the companion existed. TrevorGuide passes
+   * app.fieldType; standalone callers (tests) omit it.
+   */
+  fieldType?: FieldTypeId | null;
 }
 
 export function TrevorGuideView({
@@ -51,10 +60,14 @@ export function TrevorGuideView({
   onAction,
   onSuppress,
   onDisable,
+  fieldType,
 }: TrevorGuideViewProps) {
   const primaryActionRef = useRef<HTMLButtonElement>(null);
   const isWarning = recommendation.tone === 'warning';
   const isCelebration = recommendation.tone === 'celebration';
+  // Companion mood follows Trevor's tone; the companion never speaks.
+  const companionMood: CompanionMood = isCelebration ? 'celebrate' : isWarning ? 'warn' : 'idle';
+  const hasCompanion = fieldType !== undefined && fieldType !== null && fieldType !== 'unclassified';
   const firstSentence = (message.replace(/[“”"]/g, '').split(/[.!?]/)[0] || recommendation.primaryAction.label).trim();
 
   useEffect(() => {
@@ -98,11 +111,23 @@ export function TrevorGuideView({
                   Trevor // Field guide
                 </p>
               </div>
+              {hasCompanion && (
+                <CompanionAvatar
+                  size="large"
+                  mood={companionMood}
+                  entrance="pop"
+                  fieldType={fieldType}
+                  className="ml-auto"
+                />
+              )}
               <button
                 type="button"
                 onClick={onCollapse}
                 aria-label="Collapse Trevor guide"
-                className="ml-auto flex min-h-11 min-w-11 items-center justify-center rounded-full text-on-surface/60 hover:bg-on-surface/5 hover:text-on-surface focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand-cyan"
+                className={cn(
+                  'flex min-h-11 min-w-11 items-center justify-center rounded-full text-on-surface/60 hover:bg-on-surface/5 hover:text-on-surface focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand-cyan',
+                  !hasCompanion && 'ml-auto',
+                )}
               >
                 <ChevronDown aria-hidden="true" size={20} />
               </button>
@@ -201,7 +226,16 @@ export function TrevorGuideView({
                   className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-on-surface bg-brand-cyan motion-safe:animate-ping"
                 />
               )}
-              <TrevorAvatar size="small" />
+              {hasCompanion ? (
+                <span className="flex shrink-0 items-center">
+                  <CompanionAvatar size="small" mood="idle" fieldType={fieldType} className="relative z-0 -mr-2" />
+                  <span className="relative z-10">
+                    <TrevorAvatar size="small" />
+                  </span>
+                </span>
+              ) : (
+                <TrevorAvatar size="small" />
+              )}
               <span className={cn(
                 'truncate font-display font-black uppercase italic leading-none tracking-normal text-on-surface',
                 isWarning ? 'max-w-[220px] text-xs' : 'max-w-[160px] text-xs',
