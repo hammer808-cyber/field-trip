@@ -4,6 +4,9 @@
 // deck draw keyboard path (DeckStack is now a real <button>; this comment
 // is the only change to this file). The freeze stands for everything
 // else; do not widen this lift without his word.
+// ONE-OFF LIFT (Nov 20, 2026, Zach's call — earn-audit fix #3, Q2):
+// Scene Starter's first_draw evaluation hook lives in AppContext
+// drawTrip, not this file; this comment is the only change here.
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import { useApp } from '../context/AppContext';

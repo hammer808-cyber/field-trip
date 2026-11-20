@@ -2219,6 +2219,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const drawTrip = async (tripId?: string, packId?: string): Promise<TripType | null> => {
     if (!user || trips.length === 0) return null;
 
+    // Earn-audit fix #3 (Nov 20, 2026 — Zach's call, Q2): Scene Starter
+    // is a separate first-draw moment, not stacked on first_submission.
+    // First draw = no drawn mission cards yet — captured BEFORE any save
+    // below, because drawTrip saves the card before returning. A stale
+    // empty read only re-evaluates (the unlock transaction dedupes), so
+    // this stays safe even if the subscription lags behind the save.
+    const isFirstDraw = drawnMissionCards.length === 0;
+    const maybeAwardFirstDraw = () => {
+      if (!isFirstDraw) return;
+      runStickerAwardNonBlocking('draw_first_draw', () =>
+        evaluateStickerTriggers({
+          event: { type: 'first_draw', source: `first_draw:${user.uid}` },
+          userId: user.uid,
+          fieldType: profile?.fieldType ?? null
+        })
+      );
+    };
+
     try {
       if (mustCompleteStarterMission && tripId !== LAUNCH_MISSION_ID) {
         console.warn("[AppContext] Launch mission is required first. Blocking normal draw.");
@@ -2233,6 +2251,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           status: 'active',
           isActive: true
         });
+        maybeAwardFirstDraw();
         return LAUNCH_MISSION;
       }
       
@@ -2254,6 +2273,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             status: 'active',
             isActive: true
           });
+          maybeAwardFirstDraw();
           return specific;
         }
       }
@@ -2366,7 +2386,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         console.warn("Trip draw save failed:", err);
       }
     }
-    
+
+    if (newTrip) maybeAwardFirstDraw();
     return newTrip;
   };
 
@@ -2554,6 +2575,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         })
       );
     }
+    // Earn-audit fix #3 (Nov 20, 2026 — Zach's call, Q6): Night Owl /
+    // After Hours. The submitting device's local hour decides the window
+    // (9 PM–midnight, midnight–5 AM); the evaluator filters by the
+    // stickers' `hourWindow`. Runs on every submit — the hour decides.
+    runStickerAwardNonBlocking('proof_late_night', () =>
+      evaluateStickerTriggers({
+        event: { type: 'late_night_submission', localHour: new Date().getHours(), source: `proof_submission:${entryId}` },
+        userId: user.uid,
+        fieldType: profile.fieldType
+      })
+    );
     if (status === 'approved') {
       // Immediate approval runs the full approval bundle: first_approval +
       // challenge_approved + count/milestone re-check, from the snapshot.
