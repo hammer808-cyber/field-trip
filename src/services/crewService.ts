@@ -21,8 +21,49 @@ const CREWS_COLLECTION = 'crews';
 const LORE_COLLECTION = 'crewLore';
 const DISPATCH_COLLECTION = 'crewDispatches';
 
+/**
+ * The Accomplice bar (earn-audit fix #3, Nov 20, 2026 — Zach's call,
+ * Q11): a crew counts once it still exists a week after it was created.
+ */
+export const CREW_SURVIVED_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * A crew's createdAt (any shape the doc carries: Firestore Timestamp,
+ * ISO string, or epoch ms) → Date, or null when it cannot be read.
+ * A missing/unreadable date never qualifies — the bar just doesn't
+ * award this time, and the next check retries.
+ */
+export function crewCreatedAtDate(createdAt: unknown): Date | null {
+  if (!createdAt) return null;
+  if (createdAt instanceof Date) return createdAt;
+  if (typeof (createdAt as { toDate?: unknown }).toDate === 'function') {
+    try {
+      const date = (createdAt as { toDate: () => Date }).toDate();
+      return date instanceof Date && !Number.isNaN(date.getTime()) ? date : null;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof createdAt === 'number') {
+    const date = new Date(createdAt);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  if (typeof createdAt === 'string') {
+    const parsed = Date.parse(createdAt);
+    return Number.isNaN(parsed) ? null : new Date(parsed);
+  }
+  return null;
+}
+
+/** True when the crew was created at least a week ago. */
+export function crewSurvivedWeek(createdAt: unknown, now: Date = new Date()): boolean {
+  const created = crewCreatedAtDate(createdAt);
+  if (!created) return false;
+  return now.getTime() - created.getTime() >= CREW_SURVIVED_WEEK_MS;
+}
+
 function awardCurrentUserCrewSticker(
-  trigger: 'crew_created' | 'crew_joined',
+  trigger: 'crew_created' | 'crew_joined' | 'crew_survived_week',
   source: string
 ): void {
   const userId = auth.currentUser?.uid;
@@ -33,6 +74,25 @@ function awardCurrentUserCrewSticker(
       userId
     })
   );
+}
+
+/**
+ * The Accomplice check (earn-audit fix #3, Q11): when the current user
+ * belongs to a crew that was created at least a week ago, the crew has
+ * survived the bar — evaluate `crew_survived_week` for them. Best
+ * effort: a failed read simply skips the award this time (the unlock
+ * dedupes, so re-checks are safe). Callers pass the crew id they already
+ * have; the crew doc is read fresh so the age is current.
+ */
+async function maybeAwardCrewSurvivedWeek(crewId: string): Promise<void> {
+  try {
+    const crew = await getCrew(crewId);
+    if (crew && crewSurvivedWeek(crew.createdAt)) {
+      awardCurrentUserCrewSticker('crew_survived_week', `crew_survived_week:${crew.id}`);
+    }
+  } catch {
+    // Best effort — the bar just doesn't award on this check.
+  }
 }
 
 async function readCrewResponse<T>(response: Response, fallbackMessage: string): Promise<T> {
@@ -52,6 +112,10 @@ export async function getCurrentCrewMembership(): Promise<CrewMembershipState> {
       'crew_joined',
       `crew_joined:${membership.membership.crewId}`
     );
+    // Accomplice bar (earn-audit fix #3, Q11): reconciliation runs on
+    // the Crew page, so a crew that ages into a week awards on the
+    // member's next visit there (the unlock dedupes re-checks).
+    void maybeAwardCrewSurvivedWeek(membership.membership.crewId);
   }
   return membership;
 }
@@ -131,6 +195,8 @@ export async function acceptCrewInvite(inviteId: string): Promise<{ success: boo
   if (result.success && result.crewId) {
     // Direct invite acceptance is a completed membership event, not a join request.
     awardCurrentUserCrewSticker('crew_joined', `crew_joined:${result.crewId}`);
+    // Joining a crew that is already a week old qualifies at once.
+    void maybeAwardCrewSurvivedWeek(result.crewId);
   }
   return result;
 }
@@ -151,6 +217,8 @@ export async function joinCrewByInviteToken(token: string): Promise<any> {
   if (result?.joined === true && result?.crewId) {
     // Share-link requests earn nothing until the server confirms membership was joined.
     awardCurrentUserCrewSticker('crew_joined', `crew_joined:${result.crewId}`);
+    // Joining a crew that is already a week old qualifies at once.
+    void maybeAwardCrewSurvivedWeek(result.crewId);
   }
   return result;
 }
