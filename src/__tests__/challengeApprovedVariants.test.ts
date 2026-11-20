@@ -52,7 +52,7 @@ const VARIANTS: ReadonlyArray<{
 ];
 
 test('fix #4 registry: three new challenge_approved variants close the set', () => {
-  assert.equal(getAllStickers().length, 108);
+  assert.equal(getAllStickers().length, 118);
   for (const expected of VARIANTS) {
     const sticker = getStickerById(expected.id);
     assert.ok(sticker, `${expected.id} is registered`);

@@ -347,7 +347,7 @@ export default function AdminUsers() {
                                 <span className="block text-sm font-bold">{sticker.name}</span>
                                 <span className="block text-[10px] font-black uppercase tracking-widest mt-1 opacity-70">
                                   {sticker.rarity}
-                                  {sticker.rarity === 'legendary' ? ' · Legendary — only 3 exist' : ''}
+                                  {sticker.rarity === 'legendary' ? ' · Legendary — only 4 exist' : ''}
                                   {isOwned ? ' · Owned' : ''}
                                 </span>
                               </button>
@@ -371,7 +371,7 @@ export default function AdminUsers() {
                 </p>
                 {selectedSticker.rarity === 'legendary' && (
                   <p className="mt-2 text-sm font-bold text-amber-700">
-                    Legendary — only 3 exist. Double-check the player and the reason before confirming.
+                    Legendary — only 4 exist. Double-check the player and the reason before confirming.
                   </p>
                 )}
                 <textarea

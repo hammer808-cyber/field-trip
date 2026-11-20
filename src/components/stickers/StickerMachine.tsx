@@ -103,6 +103,21 @@ export function StickerMachine() {
   }, [activeCollection, shelves]);
 
   const visibleStickerCount = visibleShelves.reduce((sum, shelf) => sum + shelf.stickers.length, 0);
+
+  /**
+   * Deck Collections (Texas Y'all pack, Nov 20, 2026): collections whose
+   * meta sets `isDeckCollection` render under a "Deck Collections" group
+   * instead of as top-level shelves. Future deck packs set the flag and
+   * land in the group automatically — no UI change per pack.
+   */
+  const deckShelves = useMemo(
+    () => visibleShelves.filter(shelf => COLLECTION_META[shelf.collection].isDeckCollection),
+    [visibleShelves]
+  );
+  const standardShelves = useMemo(
+    () => visibleShelves.filter(shelf => !COLLECTION_META[shelf.collection].isDeckCollection),
+    [visibleShelves]
+  );
   const featuredUnlocks = unlocks.filter(unlock => unlock.equipped);
   const selectedUnlock = selectedSticker ? unlocksById.get(selectedSticker.id) : undefined;
   const unseenCount = unlocks.filter(unlock => !unlock.seen).length;
@@ -145,6 +160,23 @@ export function StickerMachine() {
     }
     setIsUpdatingFeatured(false);
   }, [selectedSticker, selectedUnlock, user?.uid]);
+
+  const renderShelf = (shelf: (typeof visibleShelves)[number]) => (
+    <StickerCollectionSection
+      key={shelf.collection}
+      collection={shelf.collection}
+      stickers={shelf.stickers}
+      earnedCount={shelf.earnedCount}
+      totalCount={shelf.totalCount}
+      unlocksById={unlocksById}
+      onOpenSticker={openSticker}
+      emptyMessage={shelf.totalCount === 0
+        ? undefined
+        : activeFilter === 'all'
+          ? undefined
+          : `No ${STICKER_ARCHETYPE_LABELS[activeFilter]} stickers in ${COLLECTION_META[shelf.collection].label}.`}
+    />
+  );
 
   if (isLoading) {
     return (
@@ -245,22 +277,21 @@ export function StickerMachine() {
       </div>
 
       <div className="space-y-8">
-        {visibleShelves.map(shelf => (
-          <StickerCollectionSection
-            key={shelf.collection}
-            collection={shelf.collection}
-            stickers={shelf.stickers}
-            earnedCount={shelf.earnedCount}
-            totalCount={shelf.totalCount}
-            unlocksById={unlocksById}
-            onOpenSticker={openSticker}
-            emptyMessage={shelf.totalCount === 0
-              ? undefined
-              : activeFilter === 'all'
-                ? undefined
-                : `No ${STICKER_ARCHETYPE_LABELS[activeFilter]} stickers in ${COLLECTION_META[shelf.collection].label}.`}
-          />
-        ))}
+        {standardShelves.map(renderShelf)}
+
+        {/* Deck Collections: one pack per deck. In the All view the group
+            carries its own heading; in a single-collection view the shelf
+            renders bare, like any other collection. */}
+        {activeCollection === 'all' && deckShelves.length > 0 && (
+          <section aria-label="Deck Collections" className="space-y-6">
+            <header>
+              <h2 className="font-display text-lg font-black uppercase leading-none">Deck Collections</h2>
+              <p className="mt-1 font-serif text-sm font-semibold opacity-65">One pack per deck. Earn them in the field.</p>
+            </header>
+            {deckShelves.map(renderShelf)}
+          </section>
+        )}
+        {activeCollection !== 'all' && deckShelves.map(renderShelf)}
       </div>
 
       <StickerDetailModal

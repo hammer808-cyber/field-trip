@@ -115,8 +115,8 @@ export function filterNewStickerDocs(
  * Legendary-only catch-up for awards that landed while the player was
  * away: owned stickers that are legendary and still unseen, in unlock
  * order. Common/rare stickers from while away get no on-load celebration
- * — they show as "New" in the Dex. At most 3 can ever match (only 3
- * legendaries exist). `rarityOf` resolves a sticker id through the
+ * — they show as "New" in the Dex. At most 4 can ever match (only 4
+ * legendaries exist: the original 3 plus Texas Gold). `rarityOf` resolves a sticker id through the
  * registry; unknown ids resolve to `undefined` and are skipped.
  */
 export function unseenLegendaryCatchUpDocs(

@@ -6,7 +6,7 @@ import type {
   CanonicalProgressSnapshot
 } from '../services/canonicalProgress';
 import type { StickerUnlockResult } from '../services/stickerService';
-import { evaluateCountRule, evaluateStickerTriggers } from '../logic/stickerEvaluator';
+import { evaluateCountRule, evaluateStickerTriggers, getEntryDeckId } from '../logic/stickerEvaluator';
 
 const USER_ID = 'user-1';
 
@@ -450,4 +450,239 @@ test('an unknown trigger awards nothing', async () => {
     unlock: fake.unlock
   });
   assert.equal(fake.calls.length, 0);
+});
+
+// ---------------------------------------------------------------------------
+// TEXAS Y'ALL PACK — deck-scoped evaluation (Nov 20, 2026)
+// ---------------------------------------------------------------------------
+
+const TEXAS_DECK_ID = 'texas-get-it-yall';
+
+/** Texas pack + its 15 mission ids, read from the real catalog. */
+function texasDeck(): { packId: string; missionIds: string[] } {
+  const pack = getDeckPackById(TEXAS_DECK_ID);
+  assert.ok(pack, 'expected the Texas deck pack to exist');
+  const missionIds = (pack.missionIds ?? []).map((id) => String(id).toLowerCase());
+  assert.equal(missionIds.length, 15, 'Texas deck has 15 missions');
+  return { packId: TEXAS_DECK_ID, missionIds };
+}
+
+function texasAwardedIds(calls: FakeUnlockCall[]): string[] {
+  return calls
+    .flatMap((call) => call.stickerIds)
+    .filter((id) => id.startsWith('texas_yall_'));
+}
+
+test('getEntryDeckId prefers the entry deckId, else resolves the mission to its pack', () => {
+  assert.equal(getEntryDeckId({ deckId: 'texas-get-it-yall', tripId: 'texas-08' }), 'texas-get-it-yall');
+  assert.equal(getEntryDeckId({ challengeId: 'texas-08' }), 'texas-get-it-yall');
+  // 'heatwave-1' is not a real mission id (the existing tests use it as a
+  // generic non-starter fixture), so resolve from a real catalog mission.
+  const { packId, missionIds } = realNonStarterDeck();
+  assert.equal(getEntryDeckId({ tripId: missionIds[0] }), packId);
+  assert.equal(getEntryDeckId({ tripId: 'mission-that-exists-nowhere' }), null);
+  assert.equal(getEntryDeckId({}), null);
+  assert.equal(getEntryDeckId(null), null);
+  assert.equal(getEntryDeckId(undefined), null);
+});
+
+test('a Texas approval awards Texas Y\'all (01) and only its own mission sticker', async () => {
+  const fake = makeFakeUnlock();
+  await evaluateStickerTriggers({
+    event: {
+      type: 'first_approval',
+      // No deckId on the entry: the deck must resolve from the mission.
+      entry: { challengeId: 'texas-08' },
+      source: 'proof_approval:texas-1'
+    },
+    userId: USER_ID,
+    fieldType: 'elondra',
+    unlock: fake.unlock
+  });
+  assert.deepEqual(
+    callsForTrigger(fake.calls, 'first_approval').flatMap((call) => call.stickerIds),
+    ['elondra_glam_pose', 'texas_yall_01']
+  );
+  assert.deepEqual(
+    callsForTrigger(fake.calls, 'challenge_approved').flatMap((call) => call.stickerIds),
+    ['elondra_glam_shoe', 'texas_yall_02']
+  );
+  assert.deepEqual(texasAwardedIds(fake.calls), ['texas_yall_01', 'texas_yall_02']);
+});
+
+test('a different Texas mission awards its own sticker, not the others', async () => {
+  const fake = makeFakeUnlock();
+  await evaluateStickerTriggers({
+    event: {
+      type: 'first_approval',
+      entry: { tripId: 'texas-03', deckId: 'texas-get-it-yall' },
+      source: 'proof_approval:texas-2'
+    },
+    userId: USER_ID,
+    fieldType: 'bigfoot',
+    unlock: fake.unlock
+  });
+  assert.deepEqual(texasAwardedIds(fake.calls), ['texas_yall_01', 'texas_yall_03']);
+  assert.deepEqual(
+    callsForTrigger(fake.calls, 'challenge_approved').flatMap((call) => call.stickerIds),
+    ['bigfoot_tracks', 'texas_yall_03']
+  );
+});
+
+test('a non-Texas approval awards no Texas stickers, and the normal path still works', async () => {
+  const { missionIds: otherMissionIds } = realNonStarterDeck();
+  const fake = makeFakeUnlock();
+  await evaluateStickerTriggers({
+    event: {
+      type: 'first_approval',
+      entry: { tripId: otherMissionIds[0] },
+      source: 'proof_approval:other-1'
+    },
+    userId: USER_ID,
+    fieldType: 'elondra',
+    unlock: fake.unlock
+  });
+  assert.deepEqual(texasAwardedIds(fake.calls), []);
+  assert.deepEqual(
+    callsForTrigger(fake.calls, 'challenge_approved').flatMap((call) => call.stickerIds),
+    ['elondra_glam_shoe']
+  );
+});
+
+test('an approval with no entry awards no Texas stickers', async () => {
+  const fake = makeFakeUnlock();
+  await evaluateStickerTriggers({
+    event: { type: 'first_approval', source: 'proof_approval:no-entry' },
+    userId: USER_ID,
+    fieldType: 'elondra',
+    unlock: fake.unlock
+  });
+  assert.deepEqual(texasAwardedIds(fake.calls), []);
+});
+
+test('season_milestone awards Texas Gold (06) when the Texas deck is complete, and not otherwise', async () => {
+  const { packId, missionIds } = texasDeck();
+
+  // Texas complete: 06 rides along with the two deck-agnostic season stickers.
+  const texasFake = makeFakeUnlock();
+  await evaluateStickerTriggers({
+    event: {
+      type: 'first_approval',
+      entry: { tripId: missionIds[missionIds.length - 1] },
+      source: 'proof_approval:texas-complete'
+    },
+    userId: USER_ID,
+    snapshot: makeSnapshot({
+      approved: missionIds,
+      deckProgress: { [packId]: deckProgress(packId, missionIds.length, missionIds.length) }
+    }),
+    fieldType: 'captainClipboard',
+    unlock: texasFake.unlock
+  });
+  const texasSeasonCalls = callsForTrigger(texasFake.calls, 'season_milestone');
+  assert.equal(texasSeasonCalls.length, 1);
+  assert.deepEqual(
+    [...texasSeasonCalls[0].stickerIds].sort(),
+    ['elondra_arrival_pose', 'mall_rat_escalator_pose', 'texas_yall_06']
+  );
+
+  // A different deck complete: the two generic season stickers only, no 06.
+  const { packId: otherPackId, missionIds: otherMissionIds } = realNonStarterDeck();
+  assert.notEqual(otherPackId, TEXAS_DECK_ID, 'the comparison deck must not be Texas');
+  const otherFake = makeFakeUnlock();
+  await evaluateStickerTriggers({
+    event: {
+      type: 'first_approval',
+      entry: { tripId: otherMissionIds[0] },
+      source: 'proof_approval:other-complete'
+    },
+    userId: USER_ID,
+    snapshot: makeSnapshot({
+      approved: otherMissionIds,
+      deckProgress: { [otherPackId]: deckProgress(otherPackId, otherMissionIds.length, otherMissionIds.length) }
+    }),
+    fieldType: 'captainClipboard',
+    unlock: otherFake.unlock
+  });
+  const otherSeasonCalls = callsForTrigger(otherFake.calls, 'season_milestone');
+  assert.equal(otherSeasonCalls.length, 1);
+  assert.deepEqual(
+    [...otherSeasonCalls[0].stickerIds].sort(),
+    ['elondra_arrival_pose', 'mall_rat_escalator_pose']
+  );
+});
+
+test('season_milestone fires Texas Gold on the approval that completes the Texas deck', async () => {
+  const { packId, missionIds } = texasDeck();
+  const approvedSoFar = missionIds.slice(0, -1);
+  const lastMissionId = missionIds[missionIds.length - 1];
+  const fake = makeFakeUnlock();
+  await evaluateStickerTriggers({
+    event: {
+      type: 'first_approval',
+      entry: { tripId: lastMissionId },
+      source: 'proof_approval:texas-last'
+    },
+    userId: USER_ID,
+    snapshot: makeSnapshot({
+      approved: approvedSoFar,
+      deckProgress: { [packId]: deckProgress(packId, missionIds.length, missionIds.length - 1) }
+    }),
+    fieldType: 'captainClipboard',
+    unlock: fake.unlock
+  });
+  const seasonCalls = callsForTrigger(fake.calls, 'season_milestone');
+  assert.equal(seasonCalls.length, 1);
+  assert.ok(seasonCalls[0].stickerIds.includes('texas_yall_06'));
+});
+
+test('a pending 15th Texas mission does not complete the deck: no Texas Gold', async () => {
+  const { packId, missionIds } = texasDeck();
+  const approvedSoFar = missionIds.slice(0, -1);
+  const { missionIds: otherMissionIds } = realNonStarterDeck();
+  // The 15th Texas mission is still pending, so the next approval is for
+  // another deck entirely. Pending/rejected proofs live in separate sets
+  // and never count toward completion.
+  const fake = makeFakeUnlock();
+  await evaluateStickerTriggers({
+    event: {
+      type: 'first_approval',
+      entry: { tripId: otherMissionIds[0] },
+      source: 'proof_approval:other-2'
+    },
+    userId: USER_ID,
+    snapshot: makeSnapshot({
+      approved: approvedSoFar,
+      deckProgress: { [packId]: deckProgress(packId, missionIds.length, missionIds.length - 1) }
+    }),
+    fieldType: 'captainClipboard',
+    unlock: fake.unlock
+  });
+  assert.equal(callsForTrigger(fake.calls, 'season_milestone').length, 0);
+  assert.deepEqual(texasAwardedIds(fake.calls), []);
+});
+
+test('re-approving a Texas mission does not duplicate its sticker', async () => {
+  const fake = makeFakeUnlock();
+  const evaluate = () => evaluateStickerTriggers({
+    event: {
+      type: 'first_approval',
+      entry: { tripId: 'texas-08', deckId: 'texas-get-it-yall' },
+      source: 'proof_approval:texas-repeat'
+    },
+    userId: USER_ID,
+    fieldType: 'elondra',
+    unlock: fake.unlock
+  });
+  const first = await evaluate();
+  assert.ok(
+    first.some((result) => result.stickerId === 'texas_yall_02' && result.status === 'unlocked')
+  );
+  const second = await evaluate();
+  assert.ok(
+    second.some((result) => result.stickerId === 'texas_yall_02' && result.status === 'already_unlocked')
+  );
+  assert.ok(
+    second.some((result) => result.stickerId === 'texas_yall_01' && result.status === 'already_unlocked')
+  );
 });

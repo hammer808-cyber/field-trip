@@ -33,6 +33,15 @@
  * Not evaluated on the client: `starter_pack` (a grant at quiz time),
  * `weekly_winner` (server-side, see `src/server/canonicalStickerAwards.ts`),
  * `admin_grant` (Stage 4).
+ *
+ * Deck scoping (Texas Y'all pack, Nov 20, 2026): a sticker definition may
+ * carry `deckId` (and, for one mission, `missionId`). Such a sticker only
+ * matches when the triggering event's entry belongs to that deck (and
+ * mission). The deck comes from the entry's own `deckId` when present,
+ * else from resolving the entry's mission to its deck pack. No new
+ * trigger values: deck packs reuse `first_approval`, `challenge_approved`
+ * and `season_milestone`, deck-scoped. A sticker with no `deckId` is
+ * deck-agnostic and follows the existing trigger + archetype logic.
  */
 
 import {
@@ -42,7 +51,7 @@ import {
   type StickerAwardTrigger,
   type StickerDefinition
 } from '../data/stickers';
-import { getActiveDeckPacks, getDeckPackById } from '../data/deckPacks';
+import { getActiveDeckPacks, getDeckPackById, missionBelongsToPack } from '../data/deckPacks';
 import { STARTER_SIGNAL_IDS } from './starterDeckState';
 import {
   buildCanonicalProgress,
@@ -188,6 +197,25 @@ export function getEntryMissionId(entry: StickerEventEntryLike | null | undefine
   return canonicalizeId(entry.missionId ?? entry.challengeId ?? entry.tripId ?? entry.id);
 }
 
+/**
+ * Deck id for an entry, or null when it cannot be determined. Prefers the
+ * entry's own `deckId` (the admin paths pass the entry doc, which carries
+ * it); otherwise resolves the entry's mission to its deck pack. Deck-scoped
+ * stickers only match when this returns their deck — a deckless event
+ * (no entry, or an entry with no deck and no known mission) never awards
+ * them, same as the existing "no entry, no award" rule for
+ * `challenge_approved`.
+ */
+export function getEntryDeckId(entry: StickerEventEntryLike | null | undefined): string | null {
+  if (!entry) return null;
+  const direct = canonicalizeId(entry.deckId);
+  if (direct) return direct;
+  const missionId = getEntryMissionId(entry);
+  if (!missionId) return null;
+  const pack = getActiveDeckPacks().find(candidate => missionBelongsToPack(missionId, candidate.packId));
+  return pack ? pack.packId : null;
+}
+
 function isStarterMissionId(missionId: string | null): boolean {
   return !!missionId && (STARTER_SIGNAL_IDS as readonly string[]).includes(missionId);
 }
@@ -203,22 +231,40 @@ function isStarterMissionId(missionId: string | null): boolean {
  * player, so they ride along with the archetype variant or the default
  * instead of being swallowed by the archetype match. A trigger whose only
  * stickers are cross-pack awards exactly those.
+ *
+ * Deck scoping (Texas Y'all pack, Nov 20, 2026): a sticker with a `deckId`
+ * only matches when `eventDeckId` is that deck, and a sticker with a
+ * `missionId` only when `eventMissionId` is that mission. A sticker with
+ * no `deckId` is deck-agnostic. Omit both (or pass nulls) when the event
+ * has no entry: deck-scoped stickers never match a deckless event.
  */
 export function resolveEventStickers(
   trigger: StickerAwardTrigger,
-  fieldArchetype: StickerArchetype | null
+  fieldArchetype: StickerArchetype | null,
+  eventDeckId?: string | null,
+  eventMissionId?: string | null
 ): StickerDefinition[] {
   const candidates = getStickersByTrigger(trigger);
   if (candidates.length === 0) return [];
-  const crossPack = candidates.filter(sticker => !sticker.archetype);
+  const eligible = candidates.filter(sticker => {
+    if (!sticker.deckId) return true;
+    if (!eventDeckId || eventDeckId !== sticker.deckId) return false;
+    if (sticker.missionId && sticker.missionId !== eventMissionId) return false;
+    return true;
+  });
+  const crossPack = eligible.filter(sticker => !sticker.archetype);
   if (fieldArchetype) {
-    const matches = candidates.filter(sticker => sticker.archetype === fieldArchetype);
+    const matches = eligible.filter(sticker => sticker.archetype === fieldArchetype);
     if (matches.length > 0) return [...matches, ...crossPack];
   }
   const defaultId = TRIGGER_DEFAULT_STICKER_IDS[trigger];
   if (defaultId) {
-    const fallback = candidates.find(sticker => sticker.id === defaultId)
-      ?? getStickerById(defaultId);
+    // The defensive getStickerById lookup only applies to deck-agnostic
+    // defaults: a deck-scoped default that does not match this event
+    // never falls back.
+    const defaultSticker = getStickerById(defaultId);
+    const fallback = eligible.find(sticker => sticker.id === defaultId)
+      ?? (defaultSticker && !defaultSticker.deckId ? defaultSticker : undefined);
     return fallback ? [fallback, ...crossPack] : [...crossPack];
   }
   return [...crossPack];
@@ -301,6 +347,7 @@ export async function evaluateStickerTriggers(
   const unlock = input.unlock ?? unlockStickersForUser;
   const fieldArchetype = getStickerArchetypeForFieldType(input.fieldType ?? null);
   const entryMissionId = getEntryMissionId(event.entry ?? null);
+  const eventDeckId = getEntryDeckId(event.entry ?? null);
   const pending: PendingAward[] = [];
 
   const addAward = (trigger: StickerAwardTrigger, stickerIds: string[]) => {
@@ -313,10 +360,10 @@ export async function evaluateStickerTriggers(
       // A challenge approval only counts for a non-starter mission entry.
       // Without the entry in hand the claim cannot be verified: no award.
       if (entryMissionId && !isStarterMissionId(entryMissionId)) {
-        addAward('challenge_approved', resolveEventStickers('challenge_approved', fieldArchetype).map(s => s.id));
+        addAward('challenge_approved', resolveEventStickers('challenge_approved', fieldArchetype, eventDeckId, entryMissionId).map(s => s.id));
       }
     } else {
-      addAward(event.type, resolveEventStickers(event.type, fieldArchetype).map(s => s.id));
+      addAward(event.type, resolveEventStickers(event.type, fieldArchetype, eventDeckId, entryMissionId).map(s => s.id));
     }
   }
 
@@ -324,14 +371,14 @@ export async function evaluateStickerTriggers(
   // and set rules. Only `first_approval` events run the bundle.
   if (event.type === 'first_approval') {
     if (entryMissionId && !isStarterMissionId(entryMissionId)) {
-      addAward('challenge_approved', resolveEventStickers('challenge_approved', fieldArchetype).map(s => s.id));
+      addAward('challenge_approved', resolveEventStickers('challenge_approved', fieldArchetype, eventDeckId, entryMissionId).map(s => s.id));
     }
     // Repair approval (earn-audit fix #3): the mission was sent back for
     // more proof and came back approved — Plot Twist. This needs no
     // snapshot, so it runs even when the profile read failed and the rest
     // of the bundle is skipped.
     if (event.wasRepair) {
-      addAward('repair_approved', resolveEventStickers('repair_approved', fieldArchetype).map(s => s.id));
+      addAward('repair_approved', resolveEventStickers('repair_approved', fieldArchetype, eventDeckId, entryMissionId).map(s => s.id));
     }
     if (snapshot) {
       const approvedCount = getEffectiveApprovedCount(snapshot, entryMissionId);
@@ -350,10 +397,17 @@ export async function evaluateStickerTriggers(
         'mission_count_milestone',
         evaluateCountRule('mission_count_milestone', approvedCount).map(s => s.id)
       );
-      // Season milestone: completing any full non-starter deck awards BOTH
-      // season stickers (seasonal art, not persona art).
-      if (getCompletedNonStarterDecks(snapshot, entryMissionId).length > 0) {
-        addAward('season_milestone', getStickersByTrigger('season_milestone').map(s => s.id));
+      // Season milestone: completing any full non-starter deck awards the
+      // deck-agnostic season stickers (seasonal art, not persona art).
+      // Deck-scoped season stickers (Texas Gold) only fire when THEIR deck
+      // is among the completed ones — completing SoCal Summer must not
+      // award Texas Gold.
+      const completedDecks = getCompletedNonStarterDecks(snapshot, entryMissionId);
+      if (completedDecks.length > 0) {
+        const seasonStickers = getStickersByTrigger('season_milestone').filter(
+          sticker => !sticker.deckId || completedDecks.includes(sticker.deckId)
+        );
+        addAward('season_milestone', seasonStickers.map(s => s.id));
       }
     }
   }

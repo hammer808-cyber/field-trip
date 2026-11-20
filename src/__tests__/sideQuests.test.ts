@@ -72,7 +72,7 @@ const SIDE_QUESTS: ReadonlyArray<{
 
 test('side quests: all eleven are registered as cross-pack Side Quests stickers', () => {
   const all = getAllStickers();
-  assert.equal(all.length, 108);
+  assert.equal(all.length, 118);
   const ids = new Set(all.map(sticker => sticker.id));
   assert.equal(ids.size, all.length, 'sticker ids must be unique');
 
@@ -133,7 +133,7 @@ test('side quests: the collection is wired into the shelf order and metadata', (
   assert.ok(COLLECTION_SHELF_ORDER.includes('side_quests'), 'side_quests must be on the Dex shelf order');
   assert.deepEqual(
     [...COLLECTION_SHELF_ORDER],
-    ['explorer', 'adventure', 'side_quests', 'achievement', 'social', 'chaos', 'limited_edition'],
+    ['explorer', 'adventure', 'side_quests', 'achievement', 'social', 'chaos', 'limited_edition', 'texas_yall'],
     'Side Quests sits after Adventure, before Achievement'
   );
   const meta = COLLECTION_META.side_quests;

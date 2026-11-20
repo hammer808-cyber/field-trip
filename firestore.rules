@@ -498,7 +498,17 @@ service cloud.firestore {
             'side_quests_full_send',
             'side_quests_after_hours',
             'side_quests_plot_twist',
-            'side_quests_sasquatch_sighting'
+            'side_quests_sasquatch_sighting',
+            'texas_yall_01',
+            'texas_yall_02',
+            'texas_yall_03',
+            'texas_yall_04',
+            'texas_yall_05',
+            'texas_yall_06',
+            'texas_yall_07',
+            'texas_yall_08',
+            'texas_yall_09',
+            'texas_yall_10'
           ];
         }
 

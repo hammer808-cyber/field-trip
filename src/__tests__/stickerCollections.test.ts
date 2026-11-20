@@ -19,12 +19,13 @@ const EXPECTED_COUNTS: Readonly<Record<StickerCollection, number>> = {
   achievement: 28,
   social: 4,
   chaos: 11,
-  limited_edition: 0
+  limited_edition: 0,
+  texas_yall: 10
 };
 
 test('every sticker has exactly one valid collection and the counts match the Stage 3 mapping', () => {
   const stickers = getAllStickers();
-  assert.equal(stickers.length, 108);
+  assert.equal(stickers.length, 118);
   const validCollections = new Set<string>(COLLECTION_SHELF_ORDER);
   for (const sticker of stickers) {
     assert.ok(validCollections.has(sticker.collection), `${sticker.id} has an unknown collection`);
@@ -41,9 +42,9 @@ test('every sticker has exactly one valid collection and the counts match the St
 test('rarity is 3 levels: no uncommon remains', () => {
   const stickers = getAllStickers();
   assert.ok(stickers.every(sticker => ['common', 'rare', 'legendary'].includes(sticker.rarity)));
-  assert.equal(stickers.filter(sticker => sticker.rarity === 'common').length, 72);
-  assert.equal(stickers.filter(sticker => sticker.rarity === 'rare').length, 33);
-  assert.equal(stickers.filter(sticker => sticker.rarity === 'legendary').length, 3);
+  assert.equal(stickers.filter(sticker => sticker.rarity === 'common').length, 78);
+  assert.equal(stickers.filter(sticker => sticker.rarity === 'rare').length, 36);
+  assert.equal(stickers.filter(sticker => sticker.rarity === 'legendary').length, 4);
 });
 
 test('displayOrder is unique within each collection and getStickersByCollection sorts by it', () => {
@@ -64,7 +65,7 @@ test('every catalog imageUrl resolves to a real file under public/', () => {
   }
 });
 
-test('collection metadata covers all seven collections in the approved shelf order', () => {
+test('collection metadata covers all eight collections in the approved shelf order', () => {
   assert.deepEqual([...COLLECTION_SHELF_ORDER], [
     'explorer',
     'adventure',
@@ -72,7 +73,8 @@ test('collection metadata covers all seven collections in the approved shelf ord
     'achievement',
     'social',
     'chaos',
-    'limited_edition'
+    'limited_edition',
+    'texas_yall'
   ]);
   for (const collection of COLLECTION_SHELF_ORDER) {
     const meta = COLLECTION_META[collection];
@@ -83,6 +85,7 @@ test('collection metadata covers all seven collections in the approved shelf ord
   assert.equal(getStickersByCollection('chaos').length, 11, 'Chaos holds 11 stickers: On a Roll + the 10-sticker chaos pack (Nov 19, 2026)');
   assert.equal(getStickersByCollection('side_quests').length, 11, 'Side Quests holds 11 of its 12 supplied stickers — 18_mall_rat is left out by Zach\'s call (Nov 18, 2026)');
   assert.equal(getStickersByCollection('limited_edition').length, 0);
+  assert.equal(getStickersByCollection('texas_yall').length, 10, 'Texas Y\'all holds its 10-sticker deck pack (Nov 20, 2026)');
 });
 
 test('a cross-pack sticker (no archetype) is never hidden by the archetype filter', () => {

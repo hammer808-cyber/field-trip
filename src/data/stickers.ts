@@ -37,7 +37,8 @@ export type StickerCollection =
   | 'chaos'
   | 'social'
   | 'explorer'
-  | 'limited_edition';
+  | 'limited_edition'
+  | 'texas_yall';
 
 /**
  * Shelf order in the Dex (Stage 3, Scheme A). Explorer first because a new
@@ -50,13 +51,20 @@ export const COLLECTION_SHELF_ORDER: readonly StickerCollection[] = [
   'achievement',
   'social',
   'chaos',
-  'limited_edition'
+  'limited_edition',
+  'texas_yall'
 ];
 
 export interface StickerCollectionMeta {
   label: string;
   tagline: string;
   emptyState: string;
+  /**
+   * Deck collections render under the "Deck Collections" grouping in the
+   * Dex (Texas Y'all pack, Nov 20, 2026) instead of as a top-level shelf.
+   * Future deck packs set this and land in the same group automatically.
+   */
+  isDeckCollection?: boolean;
 }
 
 export const COLLECTION_META: Readonly<Record<StickerCollection, StickerCollectionMeta>> = {
@@ -94,6 +102,12 @@ export const COLLECTION_META: Readonly<Record<StickerCollection, StickerCollecti
     label: 'Limited Edition',
     tagline: 'Here for a season, gone after.',
     emptyState: 'No stickers here yet — first drops land with Stage 6.'
+  },
+  texas_yall: {
+    label: 'Texas Y\'all',
+    tagline: 'Fifteen missions, ten stickers, one big state.',
+    emptyState: 'No Texas Y\'all stickers yet — get a Texas proof approved.',
+    isDeckCollection: true
   }
 };
 
@@ -111,6 +125,19 @@ export interface StickerDefinition {
   tags: string[];
   /** Shelf order inside the collection. */
   displayOrder?: number;
+  /**
+   * Deck this sticker belongs to (deck packs, Texas Y'all Nov 20, 2026).
+   * A sticker with a deckId only matches events from that deck — see the
+   * deck-scoped rules in `src/logic/stickerEvaluator.ts`. A sticker with
+   * no deckId is deck-agnostic and follows the existing trigger logic.
+   */
+  deckId?: string;
+  /**
+   * The specific mission (challenge) that earns this sticker, within its
+   * deck. Only meaningful alongside `deckId`; a deck sticker with no
+   * missionId matches any approval from its deck.
+   */
+  missionId?: string;
   /** Hide name + how-to-earn until earned (Stage 6 use). */
   secret?: boolean;
   /** ISO date, window start (Stage 6 use). */
@@ -1568,6 +1595,154 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     awardTrigger: 'admin_grant',
     unlockReason: 'Earned for spotting Sasquatch in the wild.',
     tags: ['side-quests', 'sasquatch', 'bigfoot', 'skateboard', 'ufo', 'trigger-pending']
+  },
+
+  // ---------------------------------------------------------------------------
+  // TEXAS Y'ALL PACK — 10 new entries (Nov 20, 2026; design approved)
+  // ---------------------------------------------------------------------------
+  // The first deck-specific pack, and the pattern for future deck packs:
+  // every entry carries deckId 'texas-get-it-yall' (deck FT-06, "Get It,
+  // Y'all", 15 missions texas-01..texas-15). The evaluator deck-scopes
+  // them (see src/logic/stickerEvaluator.ts): 01 fires on the first
+  // approved Texas proof, 02/03/04/05/07/08/09/10 on approval of one
+  // specific Texas mission each, 06 on completing the whole Texas deck.
+  // No new trigger values — first_approval / challenge_approved /
+  // season_milestone, deck-scoped. Rarity: 6 common / 3 rare / 1
+  // legendary (Texas Gold, deck completion only).
+  //
+  // Art: the ZIP (fieldtrip_texas_yall_10_transparent_pngs_71_sgor.zip)
+  // held 10 RGBA PNGs with neighboring-sheet bleed at the edges. Trimmed
+  // by connected-component analysis (see docs/sticker-texas-yall-design.md
+  // §9): foreign slivers removed, sticker art untouched. Trimmed files
+  // live in public/assets/stickers/texas_yall/; texasYallPack.test.ts
+  // pins their md5s.
+  {
+    id: 'texas_yall_01',
+    name: 'Texas Y\'all',
+    collection: 'texas_yall',
+    displayOrder: 1,
+    imageUrl: '/assets/stickers/texas_yall/01_texas_yall_sign.png',
+    rarity: 'common',
+    awardTrigger: 'first_approval',
+    deckId: 'texas-get-it-yall',
+    unlockReason: 'Earned when your first Texas Y\'all proof is approved. You showed up. Texas said y\'all come back now.',
+    tags: ['texas-yall', 'texas', 'sign', 'first-approval']
+  },
+  {
+    id: 'texas_yall_02',
+    name: 'Big Mood Longhorn',
+    collection: 'texas_yall',
+    displayOrder: 2,
+    imageUrl: '/assets/stickers/texas_yall/02_big_mood_longhorn.png',
+    rarity: 'rare',
+    awardTrigger: 'challenge_approved',
+    deckId: 'texas-get-it-yall',
+    missionId: 'texas-08',
+    unlockReason: 'Earned by getting Longhorn Lookout approved. Spotted the big mood himself, horns and all.',
+    tags: ['texas-yall', 'longhorn', 'texas-08']
+  },
+  {
+    id: 'texas_yall_03',
+    name: 'These Boots',
+    collection: 'texas_yall',
+    displayOrder: 3,
+    imageUrl: '/assets/stickers/texas_yall/03_these_boots.png',
+    rarity: 'common',
+    awardTrigger: 'challenge_approved',
+    deckId: 'texas-get-it-yall',
+    missionId: 'texas-03',
+    unlockReason: 'Earned by getting Boots on the Ground approved. Made for walking Texas ground.',
+    tags: ['texas-yall', 'boots', 'texas-03']
+  },
+  {
+    id: 'texas_yall_04',
+    name: 'Prickly Personality',
+    collection: 'texas_yall',
+    displayOrder: 4,
+    imageUrl: '/assets/stickers/texas_yall/04_prickly_personality.png',
+    rarity: 'rare',
+    awardTrigger: 'challenge_approved',
+    deckId: 'texas-get-it-yall',
+    missionId: 'texas-13',
+    unlockReason: 'Earned by getting Big Bend Blues approved. Big Bend tough. Prickly, but make it charming.',
+    tags: ['texas-yall', 'cactus', 'big-bend', 'texas-13']
+  },
+  {
+    id: 'texas_yall_05',
+    name: 'Lone Star State',
+    collection: 'texas_yall',
+    displayOrder: 5,
+    imageUrl: '/assets/stickers/texas_yall/05_lone_star_state.png',
+    rarity: 'common',
+    awardTrigger: 'challenge_approved',
+    deckId: 'texas-get-it-yall',
+    missionId: 'texas-10',
+    unlockReason: 'Earned by getting Lone Star Flag approved. One star, flown right.',
+    tags: ['texas-yall', 'lone-star', 'flag', 'texas-10']
+  },
+  {
+    id: 'texas_yall_06',
+    name: 'Texas Gold',
+    collection: 'texas_yall',
+    displayOrder: 6,
+    imageUrl: '/assets/stickers/texas_yall/06_texas_gold.png',
+    rarity: 'legendary',
+    awardTrigger: 'season_milestone',
+    deckId: 'texas-get-it-yall',
+    unlockReason: 'Earned by completing the Texas Y\'all deck, all fifteen missions approved. The whole deck, struck gold.',
+    tags: ['texas-yall', 'texas-gold', 'deck-complete']
+  },
+  {
+    id: 'texas_yall_07',
+    name: 'Smoke Show',
+    collection: 'texas_yall',
+    displayOrder: 7,
+    imageUrl: '/assets/stickers/texas_yall/07_smoke_show.png',
+    rarity: 'common',
+    awardTrigger: 'challenge_approved',
+    deckId: 'texas-get-it-yall',
+    missionId: 'texas-06',
+    unlockReason: 'Earned by getting Brisket Smoke approved. Brisket smoke, certified show-stealer.',
+    tags: ['texas-yall', 'brisket', 'smoke', 'texas-06']
+  },
+  {
+    id: 'texas_yall_08',
+    name: 'Taco Detour',
+    collection: 'texas_yall',
+    displayOrder: 8,
+    imageUrl: '/assets/stickers/texas_yall/08_taco_detour.png',
+    rarity: 'common',
+    awardTrigger: 'challenge_approved',
+    deckId: 'texas-get-it-yall',
+    missionId: 'texas-02',
+    unlockReason: 'Earned by getting Taco Truck Stop approved. Every great Texas trip takes a taco detour.',
+    tags: ['texas-yall', 'taco', 'texas-02']
+  },
+  {
+    id: 'texas_yall_09',
+    name: 'Armadillo After Hours',
+    collection: 'texas_yall',
+    displayOrder: 9,
+    imageUrl: '/assets/stickers/texas_yall/09_armadillo_after_hours.png',
+    rarity: 'rare',
+    awardTrigger: 'challenge_approved',
+    deckId: 'texas-get-it-yall',
+    missionId: 'texas-12',
+    unlockReason: 'Earned by getting Friday Night Lights approved. Friday night lights, armadillo approved.',
+    tags: ['texas-yall', 'armadillo', 'friday-night-lights', 'texas-12']
+  },
+  {
+    id: 'texas_yall_10',
+    name: 'Lone Star Refreshment',
+    collection: 'texas_yall',
+    displayOrder: 10,
+    imageUrl: '/assets/stickers/texas_yall/10_lone_star_refreshment.png',
+    rarity: 'common',
+    awardTrigger: 'challenge_approved',
+    deckId: 'texas-get-it-yall',
+    missionId: 'texas-11',
+    unlockReason: 'Earned by getting Swimming Hole approved. Cooled off Texas-style.',
+    tags: ['texas-yall', 'swimming-hole', 'refreshment', 'texas-11']
   }
 ];
 
