@@ -113,6 +113,32 @@ export default function CapturePage() {
     return repairEntry.adminNotes || (repairEntry as any).adminNote || (repairEntry as any).reviewerNote || null;
   }, [repairEntry]);
 
+  // P0-8 (Nov 19, 2026): the entry write is NOT idempotent — submitTripEntry
+  // mints a fresh entry doc on every call unless existingEntryId is set, and
+  // its anti-repeat check only blocks APPROVED entries. If a submit fails
+  // AFTER the entry doc was written (markCanonicalSubmissionPending /
+  // user-doc update are unwrapped awaits after the setDoc), a plain retry
+  // would create a second pending entry for the same mission. So a retry
+  // reuses the id of a pending entry for this trip when the synced entries
+  // list already shows one, turning the retry into an update-in-place
+  // (setDoc merge) instead of a duplicate. The in-flight guard is the
+  // submitLockRef/isUploading early return in handleSubmit plus the retry
+  // button being disabled while a retry runs. Residual gap, out of scope
+  // here (needs a pipeline change): if the listener has not synced the
+  // first attempt's entry yet when the user retries, Capture cannot know
+  // its id — addEntry only returns entryId on success — so a duplicate
+  // pending entry is still possible in that narrow window.
+  const pendingEntryIdForTrip = React.useMemo(() => {
+    if (!entries || entries.length === 0 || !tripIdParam) return null;
+    const lowerId = tripIdParam.toLowerCase();
+    const pending = entries.find(e =>
+      !isArchivedEntry(e) &&
+      (e.tripId?.toLowerCase() === lowerId || e.missionId?.toLowerCase() === lowerId || e.challengeId?.toLowerCase() === lowerId) &&
+      normalizeEntryStatus(e.status) === 'pending_review'
+    );
+    return pending?.id || null;
+  }, [entries, tripIdParam]);
+
   // Initialization Timeout Logic
   const [initializationTimedOut, setInitializationTimedOut] = useState(false);
   useEffect(() => {
@@ -973,7 +999,9 @@ export default function CapturePage() {
 
   const handleSubmit = async (bypassReview = false) => {
     if (!user || !profile || !captureData || isUploading || submitLockRef.current) return;
-    
+
+    // A fresh attempt clears the previous inline submit error (P0-8).
+    setErrorMessage(null);
     // We do not auto-advance here to avoid navigating away from the MISSION SECURED screen prematurely.
     // Instead, we will advance the onboarding step when they hit "BACK TO DECK".
     if (!currentTrip) {
@@ -1190,7 +1218,10 @@ export default function CapturePage() {
           isRetry: isRetry,
           retryPointMultiplier: isRetry ? 0.5 : undefined,
           originalEntryId: originalEntryId || null,
-          existingEntryId: entryIdParam || null,
+          // P0-8: reuse a pending entry for this trip when one already
+          // exists, so a retry after a post-write failure updates it
+          // instead of minting a duplicate pending entry.
+          existingEntryId: entryIdParam || pendingEntryIdForTrip || null,
           fastFindAttempt: isFastFind ? {
             mode: "fastFind",
             selectedIntensity: lockedSignalIntensity || 'Standard',
@@ -1273,10 +1304,16 @@ export default function CapturePage() {
         
       } catch (error: any) {
         console.error("[ProofSubmit] FATAL Error:", error);
+        // P0-8 (Nov 19, 2026): no browser alert dialog. The failure is shown
+        // inline with a working retry, and the captured evidence is NOT
+        // cleared — captureData (photo) and fcData.note live in component
+        // state and are untouched here, so the reviewing screen below still
+        // shows them. Only the optimistic local record is dropped; it is
+        // rebuilt from the same evidence on retry.
         setFcState('reviewing');
         setSubmissionStatus('error');
         setCompleteRecord(null);
-        alert(`Proof did not save. Please try again. ${error?.message || error}`);
+        setErrorMessage(error?.message ? `Proof did not save: ${error.message}` : 'Proof did not save. Please try again.');
       } finally {
         setIsUploading(false);
         submitLockRef.current = false;
@@ -1296,7 +1333,13 @@ export default function CapturePage() {
   };
 
   const handleRetrySync = async () => {
-    if (submissionStatus === 'syncing' || !completeRecord) return;
+    // P0-8 (Nov 19, 2026): the fatal submit catch nulls completeRecord, so
+    // gating the retry on it made the retry dead on arrival — the button
+    // could never fire after the failure it exists to recover from. The
+    // retry only needs captured evidence, which handleSubmit itself guards
+    // on (user/profile/captureData plus the isUploading/submitLockRef
+    // in-flight guard, so a double-tap cannot double-submit).
+    if (submissionStatus === 'syncing' || isUploading || submitLockRef.current) return;
     handleSubmit(true); // Bypass review on retry
   };
 
@@ -1358,6 +1401,40 @@ export default function CapturePage() {
                 <p className="text-xs font-serif italic text-on-surface leading-relaxed">
                   "{repairFeedback}"
                 </p>
+              </div>
+            )}
+
+            {/* P0-8 (Nov 19, 2026): submit failure is an inline error with an
+                explicit retry, not a browser alert(). The photo and field
+                note stay on the reviewing screen below — nothing was lost. */}
+            {submissionStatus === 'error' && (
+              <div role="alert" className="mb-6 bg-red-500/10 border-l-4 border-red-600 p-5 rounded-2xl text-left space-y-2 shadow-sm">
+                <p className="font-mono text-[9px] font-black uppercase tracking-wider text-red-700 flex items-center gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5" /> Proof didn&apos;t save
+                </p>
+                <p className="text-xs font-sans font-bold text-on-surface leading-relaxed">
+                  {errorMessage || 'Proof did not save. Please try again.'}
+                </p>
+                <p className="text-xs font-serif italic text-on-surface/70 leading-relaxed">
+                  Your photo and field note are still here — nothing was lost.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleRetrySync}
+                  disabled={isUploading}
+                  className={cn(
+                    "mt-1 w-full py-3 border-4 border-on-surface rounded-2xl font-display text-lg font-black uppercase italic tracking-widest shadow-[6px_6px_0px_black] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2",
+                    isUploading
+                      ? "bg-on-surface/5 text-on-surface/35 border-on-surface/15 cursor-not-allowed shadow-none"
+                      : "bg-brand-orange text-white hover:bg-on-surface hover:text-brand-lime"
+                  )}
+                >
+                  {isUploading ? (
+                    <><Loader2 className="w-5 h-5 animate-spin" /> Sending…</>
+                  ) : (
+                    <><RefreshCw className="w-5 h-5" /> Try sending again</>
+                  )}
+                </button>
               </div>
             )}
 
