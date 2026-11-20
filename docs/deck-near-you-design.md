@@ -125,14 +125,22 @@ No new copy beyond the badge.
 
 ## 5. Live check
 
-- Cloud browser with emulated coordinates (DevTools location override), since the
-  VM is not in either region: (a) inside Texas (e.g. Grand Prairie 32.75, -97.0)
-  → Texas deck leads Local Fieldtrips with a Near you badge, SoCal does not;
-  (b) inside SoCal (e.g. Long Beach 33.77, -118.19) → SoCal leads, Texas does not;
-  (c) outside both (e.g. New York) → normal order, no badges, no prompt loop.
-- Real proof is Zach's phone in Grand Prairie Nov 21–24: Texas deck on top there.
-- Denied-permission path: with location blocked, the list renders in normal order
-  with no error.
+Status: **BUILT + PUSHED Nov 20, 2026 — commit b3220c1 on main.**
+Independent verification: tsc clean, build clean, suite 977/979 (only the 2 known
+pre-existing failures). Live check Nov 20: site serving normally post-push, baseline
+stable across reloads (Local Fieldtrips in normal order, no badge with no location
+available), Missions page renders fine, no visible errors. One transient Dex render
+crash at ~10:11 AM during the deploy window, recovered on retry, not recurred.
+
+NOT verified live: the position-dependent behavior (Texas on top in Texas, SoCal on
+top in SoCal, denied-permission fallback). The cloud browser cannot emulate GPS
+(no DevTools/Sensors/CDP access) and the served bundle's hash differs from the
+local build, so the bundle-string check could not be completed either. Phone check
+Nov 20: Zach confirmed the Near you badge shows on mobile in LA (SoCal) — the
+region check and live deploy are good. Texas side still pending Grand Prairie
+Nov 21–24.
+The Missions deck-picker badge is also unverified live (picker menu not opened;
+badge only shows with a location anyway).
 
 ## 6. Deferred (option B)
 

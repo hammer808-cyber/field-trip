@@ -43,11 +43,18 @@ export function buildTrevorRecommendationFromGuidance(
       ? 'celebration'
       : 'normal';
 
+  // Trevor nearby suggestion (Nov 20, 2026): a DRAW_MISSION whose deck was
+  // chosen for proximity speaks the nearby_deck line instead of the generic
+  // fallback_draw line. Every other state maps exactly as before.
+  const messageKey = guidance.state === 'DRAW_MISSION' && guidance.deckIdIsNearby
+    ? 'nearby_deck'
+    : STATE_TO_MESSAGE_KEY[guidance.state];
+
   return {
     id: `guidance_${guidance.state.toLowerCase()}`,
     priority: guidance.priority,
     category: STATE_TO_CATEGORY[guidance.state],
-    messageKey: STATE_TO_MESSAGE_KEY[guidance.state],
+    messageKey,
     reason: `player_guidance_${guidance.state}`,
     tone,
     primaryAction: {

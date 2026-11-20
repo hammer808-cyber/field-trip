@@ -70,6 +70,9 @@ const TREVOR_DIALOGUE: Readonly<Record<TrevorMessageKey, readonly string[]>> = {
   mission_discovery: [
     '{deckName} is still waiting. Go make it specific.',
   ],
+  nearby_deck: [
+    "You're in {regionLabel} — {nearbyDeckName} is right here. Want to start with it?",
+  ],
   fallback_draw: [
     'Nothing urgent. Draw a mission when you’re ready.',
     'Systems calm. A fresh mission is the useful next tap.',
@@ -111,6 +114,8 @@ function getDialogueReplacements(context: TrevorContext): Record<string, string>
     profileField: readableToken(context.missingProfileFields[0] || 'profile details'),
     zineGap: readableToken(context.zineContentGaps[0] || 'field material'),
     deckName: readableToken(context.recommendedDeckId || 'the mission deck'),
+    nearbyDeckName: context.nearbyDeckName || '',
+    regionLabel: context.nearbyRegionLabel || '',
   };
 }
 

@@ -4,6 +4,7 @@ import {
   type TrevorAction,
 } from '../config/trevorActions';
 import type { TrevorContext, TrevorProofRepairTarget } from './trevorContextService';
+import { pickNearbyDeckId } from './trevorContextService';
 import {
   isRecommendationCoolingDown,
   type TrevorHistoryEntry,
@@ -42,6 +43,7 @@ export type TrevorMessageKey =
   | 'zine_gap'
   | 'proof_variety'
   | 'mission_discovery'
+  | 'nearby_deck'
   | 'fallback_draw'
   | 'fallback_standings';
 
@@ -316,6 +318,28 @@ export const TREVOR_RULES: readonly TrevorRule[] = [
     },
   },
   {
+    id: 'nearby_deck',
+    evaluate(context) {
+      // Trevor nearby suggestion (Nov 20, 2026): a nearby deck that is
+      // accessible and not recently used outranks the rotation-based
+      // mission_discovery rule below. Non-location decks lose nothing —
+      // when no nearby deck qualifies this returns null and the engine
+      // falls through to the existing rules unchanged.
+      const nearbyDeckId = pickNearbyDeckId(context.nearbyDeckIds, context.accessibleDeckIds, context.recentlyUsedDeckIds);
+      if (!nearbyDeckId) return null;
+      return {
+        id: `nearby_deck_${nearbyDeckId}`,
+        priority: 425,
+        category: 'discovery',
+        messageKey: 'nearby_deck',
+        reason: 'nearby_accessible_deck',
+        primaryAction: getRecommendedMissionAction(context, nearbyDeckId),
+        secondaryAction: { id: 'open_logbook' },
+        cooldownHours: 18,
+      };
+    },
+  },
+  {
     id: 'mission_discovery',
     evaluate(context) {
       if (!context.recommendedDeckId || context.recentlyUsedDeckIds.includes(context.recommendedDeckId)) return null;
@@ -425,12 +449,13 @@ function getProofRepairAction(target: TrevorProofRepairTarget): TrevorAction {
   };
 }
 
-function getRecommendedMissionAction(context: TrevorContext): TrevorAction {
+function getRecommendedMissionAction(context: TrevorContext, deckIdOverride?: string): TrevorAction {
+  const deckId = deckIdOverride || context.recommendedDeckId || '';
   return {
     id: 'draw_recommended_mission',
     params: {
-      deckId: context.recommendedDeckId || '',
-      deckLabel: formatDeckLabel(context.recommendedDeckId),
+      deckId,
+      deckLabel: formatDeckLabel(deckId || undefined),
     },
   };
 }

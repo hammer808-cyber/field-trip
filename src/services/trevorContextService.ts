@@ -76,6 +76,20 @@ export interface TrevorContext {
   recentlyUsedDeckIds: string[];
   recommendedDeckId?: string;
 
+  /**
+   * Deck ids whose home region contains the player (Near You, option A).
+   * Empty when the location read is unresolved, denied, or the player is
+   * outside every deck region.
+   */
+  nearbyDeckIds: string[];
+  /**
+   * Display name + region label of the nearby deck the nearby_deck rule
+   * would suggest (same pick as the rule — see pickNearbyDeckId). Only used
+   * for Trevor's dialogue copy; undefined when no nearby deck qualifies.
+   */
+  nearbyDeckName?: string;
+  nearbyRegionLabel?: string;
+
   crewId?: string;
   crewUnlocked: boolean;
   crewHasOpenTasks: boolean;
@@ -102,6 +116,7 @@ export interface TrevorContextInput {
   drawnMissionCards?: readonly DrawnMissionCard[];
   memories?: readonly MemoryEntry[];
   accessibleDecks?: readonly DeckPack[];
+  nearbyDeckIds?: readonly string[];
   standings?: readonly UserProfile[];
   userVotes?: readonly unknown[];
   currentDate?: Date;
@@ -207,6 +222,13 @@ export function buildTrevorContext(input: TrevorContextInput): TrevorContext {
   const recentlyUsedDeckIds = uniqueStrings(entries.map(getEntryDeckId)).slice(0, 4);
   const accessibleDeckIds = uniqueStrings((input.accessibleDecks ?? []).map(deck => deck.packId || deck.deckId || deck.id));
   const recommendedDeckId = getRecommendedDeckId(accessibleDeckIds, recentlyUsedDeckIds, starterComplete);
+  const nearbyDeckIds = uniqueStrings(input.nearbyDeckIds ?? []);
+  const nearbyDeckId = pickNearbyDeckId(nearbyDeckIds, accessibleDeckIds, recentlyUsedDeckIds);
+  const nearbyDeck = nearbyDeckId
+    ? (input.accessibleDecks ?? []).find(deck => [deck.packId, deck.deckId, deck.id].includes(nearbyDeckId))
+    : undefined;
+  const nearbyDeckName = nearbyDeck ? (nearbyDeck.title || nearbyDeck.packName || nearbyDeckId) : undefined;
+  const nearbyRegionLabel = nearbyDeck?.homeRegion?.label;
   const crewId = normalizeOptionalString(profile?.activeCrewId || profile?.crewId);
   const ranking = getWeeklyRanking(profile, input.standings ?? []);
   const cycle = getCurrentVotingCycle(currentDate);
@@ -261,6 +283,9 @@ export function buildTrevorContext(input: TrevorContextInput): TrevorContext {
     accessibleDeckIds,
     recentlyUsedDeckIds,
     recommendedDeckId,
+    nearbyDeckIds,
+    nearbyDeckName,
+    nearbyRegionLabel,
     crewId,
     crewUnlocked: input.crewUnlocked === true,
     crewHasOpenTasks: input.crewHasOpenTasks === true,
@@ -444,6 +469,20 @@ function uniqueStrings(values: readonly (string | null | undefined)[]): string[]
     if (normalized) unique.add(normalized);
   });
   return [...unique];
+}
+
+/**
+ * Nearby-deck pick (Trevor nearby suggestion, Nov 20, 2026): the first deck
+ * in nearbyDeckIds that is accessible and not recently used. Shared by the
+ * nearby_deck engine rule and buildTrevorContext (dialogue copy), so the
+ * name and region label Trevor says always match the deck the rule picks.
+ */
+export function pickNearbyDeckId(
+  nearbyDeckIds: readonly string[],
+  accessibleDeckIds: readonly string[],
+  recentlyUsedDeckIds: readonly string[],
+): string | undefined {
+  return nearbyDeckIds.find(id => accessibleDeckIds.includes(id) && !recentlyUsedDeckIds.includes(id));
 }
 
 function getRecommendedDeckId(

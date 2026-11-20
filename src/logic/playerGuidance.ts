@@ -115,6 +115,12 @@ export interface PlayerGuidanceSnapshot {
   secondaryAction: PlayerGuidanceAction | null;
   mission: PlayerMissionLifecycle | null;
   deckId: string;
+  /**
+   * True when the snapshot's deck was chosen because it is near the player
+   * (Trevor nearby suggestion, Nov 20, 2026). Only set on DRAW_MISSION.
+   * The adapter maps those snapshots to the nearby_deck message.
+   */
+  deckIdIsNearby?: boolean;
 }
 
 export interface ResolvePlayerGuidanceInput {
@@ -139,6 +145,12 @@ export interface ResolvePlayerGuidanceInput {
   isHeatwaveDeckUnlocked?: boolean;
   voteAvailable?: boolean;
   hasUnseenStarterUnlock?: boolean;
+  /**
+   * Deck ids whose home region contains the player (Near You, option A).
+   * Only the DRAW_MISSION branches consult it; every other state is
+   * unchanged when it is absent or empty.
+   */
+  nearbyDeckIds?: readonly string[];
 }
 
 export const GUIDANCE_PRIORITY: Record<PlayerGuidanceState, number> = {
@@ -366,6 +378,21 @@ function preferredDrawableDeckId(input: ResolvePlayerGuidanceInput): string {
   return eligible?.deckId || 'heatwave-receipts';
 }
 
+/**
+ * Nearby-deck preference for Trevor's live suggestion (Nov 20, 2026): the
+ * first nearby deck that is playable post-starter and still has eligible
+ * missions. Returns undefined when there is none — callers fall back to
+ * preferredDrawableDeckId. Only DRAW_MISSION uses it; STARTER_COMPLETE
+ * keeps its existing deck (its copy is Heatwave-specific).
+ */
+function preferredNearbyDrawableDeckId(input: ResolvePlayerGuidanceInput): string | undefined {
+  const byId = input.canonicalProgress.deckProgressById;
+  return (input.nearbyDeckIds ?? []).find(deckId => {
+    const deck = byId[deckId];
+    return deck !== undefined && isPlayablePostStarterDeck(deck.deckId) && deck.eligibleCount > 0;
+  });
+}
+
 /** Starter unlock celebration is one-shot via profile.trevorSettings.lastSeenApprovedCount. */
 export function isUnseenStarterUnlock(input: {
   starterComplete: boolean;
@@ -470,6 +497,7 @@ function present(
     repair?: { entryId: string; missionId: string; title: string } | null;
     starterLabel?: string;
     deckId?: string;
+    deckIdIsNearby?: boolean;
     secondary?: PlayerGuidanceAction | null;
     flavorMessage?: string;
     title?: string;
@@ -509,6 +537,7 @@ function present(
     secondaryAction: extras.secondary !== undefined ? extras.secondary : primary.secondary,
     mission,
     deckId,
+    ...(extras.deckIdIsNearby ? { deckIdIsNearby: true as const } : {}),
   };
 }
 
@@ -695,6 +724,9 @@ export function resolvePlayerGuidance(input: ResolvePlayerGuidanceInput): Player
   const repair = latestActionableProof(input.entries, 'needs_more_proof');
   const rejected = latestActionableProof(input.entries, 'rejected');
   const canDrawMore = missionsStillAvailable(input);
+  // Trevor nearby suggestion (Nov 20, 2026): computed once, consulted only
+  // by the DRAW_MISSION branches below.
+  const nearbyDeckId = preferredNearbyDrawableDeckId(input);
 
   const onboardingIncomplete = input.legalComplete === false
     || input.fieldClassificationComplete === false
@@ -748,7 +780,8 @@ export function resolvePlayerGuidance(input: ResolvePlayerGuidanceInput): Player
   } else if ((mission?.status === 'pending_review' || hasPendingProof(input.entries)) && canDrawMore) {
     presented = present('DRAW_MISSION', {
       mission,
-      deckId: preferredDrawableDeckId(input),
+      deckId: nearbyDeckId ?? preferredDrawableDeckId(input),
+      deckIdIsNearby: nearbyDeckId !== undefined,
       secondary: { label: 'View Proof Status', destination: '/profile?tab=logbook', intent: 'navigate' },
       flavorMessage: 'PENDING DOES NOT STOP YOU FROM DRAWING ANOTHER MISSION.',
     });
@@ -762,7 +795,8 @@ export function resolvePlayerGuidance(input: ResolvePlayerGuidanceInput): Player
   } else if (canDrawMore) {
     presented = present('DRAW_MISSION', {
       mission,
-      deckId: preferredDrawableDeckId(input),
+      deckId: nearbyDeckId ?? preferredDrawableDeckId(input),
+      deckIdIsNearby: nearbyDeckId !== undefined,
     });
   } else {
     presented = present('NO_URGENT_ACTION', { mission });

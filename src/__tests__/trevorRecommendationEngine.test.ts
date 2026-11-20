@@ -39,6 +39,7 @@ function context(overrides: Partial<TrevorContext> = {}): TrevorContext {
     accessibleDeckIds: ['heatwave-receipts'],
     recentlyUsedDeckIds: ['heatwave-receipts'],
     recommendedDeckId: 'heatwave-receipts',
+    nearbyDeckIds: [],
     crewUnlocked: true,
     crewHasOpenTasks: false,
     votingPhase: 'submission',
@@ -278,4 +279,82 @@ test('rejected proof retry uses the current Capture query contract', () => {
   assert.match(action?.route || '', /^\/capture\?/);
   assert.match(action?.route || '', /isRetry=true/);
   assert.match(action?.route || '', /originalEntryId=entry-rejected/);
+});
+
+test('a nearby accessible deck outranks the rotation-based discovery rule', () => {
+  const recommendation = getTrevorRecommendation(context({
+    accessibleDeckIds: ['heatwave-receipts', 'socal-summer', 'texas-get-it-yall'],
+    recentlyUsedDeckIds: ['heatwave-receipts'],
+    recommendedDeckId: 'socal-summer',
+    nearbyDeckIds: ['texas-get-it-yall'],
+  }));
+  assert.equal(recommendation?.id, 'nearby_deck_texas-get-it-yall');
+  assert.equal(recommendation?.messageKey, 'nearby_deck');
+  assert.equal(recommendation?.reason, 'nearby_accessible_deck');
+  assert.equal(recommendation?.priority, 425);
+  assert.equal(recommendation?.primaryAction.id, 'draw_recommended_mission');
+  assert.match(recommendation?.primaryAction.route || '', /pack=texas-get-it-yall/);
+  assert.equal(recommendation?.secondaryAction?.id, 'open_logbook');
+});
+
+test('without a nearby deck the rotation-based discovery rule fires as before', () => {
+  const recommendation = getTrevorRecommendation(context({
+    accessibleDeckIds: ['heatwave-receipts', 'socal-summer'],
+    recentlyUsedDeckIds: ['heatwave-receipts'],
+    recommendedDeckId: 'socal-summer',
+    nearbyDeckIds: [],
+  }));
+  assert.equal(recommendation?.id, 'mission_discovery_socal-summer');
+  assert.equal(recommendation?.messageKey, 'mission_discovery');
+});
+
+test('a recently used nearby deck falls through to rotation discovery', () => {
+  const recommendation = getTrevorRecommendation(context({
+    accessibleDeckIds: ['heatwave-receipts', 'socal-summer', 'texas-get-it-yall'],
+    recentlyUsedDeckIds: ['heatwave-receipts', 'texas-get-it-yall'],
+    recommendedDeckId: 'socal-summer',
+    nearbyDeckIds: ['texas-get-it-yall'],
+  }));
+  assert.equal(recommendation?.id, 'mission_discovery_socal-summer');
+});
+
+test('a nearby deck on cooldown falls through to rotation discovery', () => {
+  const now = new Date('2026-07-15T12:00:00.000Z');
+  const history: TrevorHistoryEntry[] = [{
+    recommendationId: 'nearby_deck_texas-get-it-yall',
+    shownAt: new Date(now.getTime() - 60 * 60 * 1000).toISOString(),
+  }];
+  const recommendation = getTrevorRecommendation(context({
+    accessibleDeckIds: ['heatwave-receipts', 'socal-summer', 'texas-get-it-yall'],
+    recentlyUsedDeckIds: ['heatwave-receipts'],
+    recommendedDeckId: 'socal-summer',
+    nearbyDeckIds: ['texas-get-it-yall'],
+  }), { history, now });
+  assert.equal(recommendation?.id, 'mission_discovery_socal-summer');
+});
+
+test('a nearby deck that is not accessible never fires the nearby rule', () => {
+  const recommendation = getTrevorRecommendation(context({
+    accessibleDeckIds: ['heatwave-receipts', 'socal-summer'],
+    recentlyUsedDeckIds: ['heatwave-receipts'],
+    recommendedDeckId: 'socal-summer',
+    nearbyDeckIds: ['texas-get-it-yall'],
+  }));
+  assert.equal(recommendation?.id, 'mission_discovery_socal-summer');
+});
+
+test('a proof needing more evidence still outranks a nearby deck', () => {
+  const recommendation = getTrevorRecommendation(context({
+    needsMoreProofCount: 1,
+    proofNeedingMoreEvidence: {
+      entryId: 'entry-1',
+      missionId: 'mission-1',
+      missionTitle: 'Odd Sign',
+      status: 'needs_more_proof',
+    },
+    accessibleDeckIds: ['heatwave-receipts', 'texas-get-it-yall'],
+    recentlyUsedDeckIds: [],
+    nearbyDeckIds: ['texas-get-it-yall'],
+  }));
+  assert.equal(recommendation?.id, 'proof_needs_more');
 });

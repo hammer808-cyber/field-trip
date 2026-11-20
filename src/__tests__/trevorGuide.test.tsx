@@ -41,6 +41,7 @@ function context(overrides: Partial<TrevorContext> = {}): TrevorContext {
     accessibleDeckIds: ['heatwave-receipts'],
     recentlyUsedDeckIds: ['heatwave-receipts'],
     recommendedDeckId: 'heatwave-receipts',
+    nearbyDeckIds: [],
     crewUnlocked: true,
     crewHasOpenTasks: false,
     votingPhase: 'submission',

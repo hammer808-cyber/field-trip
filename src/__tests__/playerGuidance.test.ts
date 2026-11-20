@@ -5,6 +5,7 @@ import type { TripCard } from '../types/challenges';
 import type { DrawnMissionCard, Entry } from '../types/game';
 import type { UserProfile } from '../services/userService';
 import { buildCanonicalProgress } from '../services/canonicalProgress';
+import { buildTrevorRecommendationFromGuidance } from '../services/trevorGuidanceAdapter';
 import {
   GUIDANCE_PRIORITY,
   hasRealMissionProgress,
@@ -151,6 +152,7 @@ function input(overrides: Partial<ResolvePlayerGuidanceInput> & { profile?: User
     drawnMissionCards: overrides.drawnMissionCards || [],
     trips,
     tripProgress: overrides.tripProgress,
+    nearbyDeckIds: overrides.nearbyDeckIds,
     legalComplete: overrides.legalComplete ?? true,
     fieldClassificationComplete: overrides.fieldClassificationComplete ?? true,
     hasSeenFieldTypeResults: overrides.hasSeenFieldTypeResults ?? true,
@@ -381,6 +383,62 @@ test('9. Normal pending proof + missions still available continues play', () => 
   assert.equal(snapshot.primaryActionLabel, 'Draw Another Mission');
   assert.equal(snapshot.secondaryAction?.label, 'View Proof Status');
   assert.equal(snapshot.secondaryAction?.destination, '/profile?tab=logbook');
+});
+
+test('9a. DRAW_MISSION prefers a nearby deck with eligible missions', () => {
+  const snapshot = resolvePlayerGuidance(input({
+    entries: [
+      ...starterApprovals(),
+      entry({ id: 'pending-heat', entryId: 'pending-heat', status: 'pending_review' }),
+    ],
+    isHeatwaveDeckUnlocked: true,
+    nearbyDeckIds: ['texas-get-it-yall'],
+  }));
+  assert.equal(snapshot.state, 'DRAW_MISSION');
+  assert.equal(snapshot.deckId, 'texas-get-it-yall');
+  assert.equal(snapshot.deckIdIsNearby, true);
+  assert.equal(snapshot.primaryActionDestination, '/missions?pack=texas-get-it-yall');
+});
+
+test('9b. DRAW_MISSION without a nearby deck keeps the existing destination', () => {
+  const snapshot = resolvePlayerGuidance(input({
+    entries: [
+      ...starterApprovals(),
+      entry({ id: 'pending-heat', entryId: 'pending-heat', status: 'pending_review' }),
+    ],
+    isHeatwaveDeckUnlocked: true,
+  }));
+  assert.equal(snapshot.state, 'DRAW_MISSION');
+  assert.equal(snapshot.deckId, 'heatwave-receipts');
+  assert.equal(snapshot.deckIdIsNearby, undefined);
+});
+
+test('9c. A nearby deck with no eligible missions falls back to the existing destination', () => {
+  const snapshot = resolvePlayerGuidance(input({
+    entries: [
+      ...starterApprovals(),
+      entry({ id: 'pending-heat', entryId: 'pending-heat', status: 'pending_review' }),
+    ],
+    isHeatwaveDeckUnlocked: true,
+    nearbyDeckIds: ['no-such-deck'],
+  }));
+  assert.equal(snapshot.state, 'DRAW_MISSION');
+  assert.equal(snapshot.deckId, 'heatwave-receipts');
+  assert.equal(snapshot.deckIdIsNearby, undefined);
+});
+
+test('9d. A nearby DRAW_MISSION speaks the nearby_deck line', () => {
+  const snapshot = resolvePlayerGuidance(input({
+    entries: [
+      ...starterApprovals(),
+      entry({ id: 'pending-heat', entryId: 'pending-heat', status: 'pending_review' }),
+    ],
+    isHeatwaveDeckUnlocked: true,
+    nearbyDeckIds: ['texas-get-it-yall'],
+  }));
+  const recommendation = buildTrevorRecommendationFromGuidance(snapshot);
+  assert.equal(recommendation.messageKey, 'nearby_deck');
+  assert.equal(recommendation.primaryAction.route, '/missions?pack=texas-get-it-yall');
 });
 
 test('10. Approved player entry is completed, not resume', () => {

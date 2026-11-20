@@ -11,6 +11,7 @@ import {
 } from '../services/trevorRecommendationEngine';
 import { buildTrevorRecommendationFromGuidance } from '../services/trevorGuidanceAdapter';
 import { usePlayerGuidance } from '../hooks/usePlayerGuidance';
+import { useNearbyDeckPackIds } from '../hooks/useNearbyDeckPackIds';
 import {
   isTrevorSuppressedForSession,
   readTrevorHistory,
@@ -43,6 +44,12 @@ export function TrevorGuide() {
     [app.deckPacks, app.getDeckAccessForPack],
   );
 
+  // Trevor nearby suggestion (Nov 20, 2026): the location hook reads
+  // silently with fallback (option A) — null until resolved, then the set
+  // of deck ids whose home region contains the player. No new permission
+  // request is added here.
+  const nearbyPackIds = useNearbyDeckPackIds();
+
   const trevorContext = useMemo(() => buildTrevorContext({
     userId: app.user?.uid,
     currentRoute: location.pathname,
@@ -54,6 +61,7 @@ export function TrevorGuide() {
     drawnMissionCards: app.drawnMissionCards,
     memories: app.memories,
     accessibleDecks,
+    nearbyDeckIds: nearbyPackIds ? [...nearbyPackIds] : [],
     standings: app.standings,
     userVotes: app.userVotes,
     currentDate: app.currentDate,
@@ -96,6 +104,7 @@ export function TrevorGuide() {
     app.userVotes,
     app.xp,
     location.pathname,
+    nearbyPackIds,
   ]);
 
   const history = useMemo(
