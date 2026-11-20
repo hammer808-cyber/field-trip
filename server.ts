@@ -12,6 +12,7 @@ import fs from 'fs';
 import crypto from 'crypto';
 import rateLimit from "express-rate-limit";
 import { buildCanonicalStarterDeckState, toStarterProfileMirrors, STARTER_SIGNAL_IDS } from "./src/logic/starterDeckState";
+import { parseChatMentions, validateCrewChatText, validateCrewCommentText } from "./src/logic/crewSocial";
 import {
   FIELDTRIP_FIRESTORE_DATABASE_ID,
   FIELDTRIP_PROJECT_ID,
@@ -6009,6 +6010,142 @@ async function startServer() {
     }
   });
 
+  // CREW CLUBHOUSE (Nov 20, 2026): feed comments + chat. Writes are
+  // server-side so the notification fan-out lands in the same call;
+  // clients read via Firestore rules and delete their own words
+  // (author or captain — see firestore.rules). No edits: a wrong
+  // comment/message is deleted and re-posted.
+  function crewSocialPreview(text: string): string {
+    const trimmed = String(text || '').trim();
+    return trimmed.length > 120 ? `${trimmed.slice(0, 120)}…` : trimmed;
+  }
+
+  async function writeCrewPlayerNotification(targetUid: string, doc: Record<string, unknown>): Promise<void> {
+    await dbAdmin!.collection('users').doc(targetUid).collection('notifications').doc().set({
+      ...doc,
+      read: false,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  async function getActiveCrewMember(crewId: string, uid: string): Promise<{ crew: any; member: any } | null> {
+    const [crewSnap, memberSnap] = await Promise.all([
+      dbAdmin!.collection('crews').doc(crewId).get(),
+      dbAdmin!.collection('crews').doc(crewId).collection('members').doc(uid).get(),
+    ]);
+    if (!crewSnap.exists || crewSnap.data()?.status !== 'active') return null;
+    if (memberSnap.data()?.status !== 'active') return null;
+    return { crew: { id: crewSnap.id, ...crewSnap.data() }, member: { userId: uid, ...memberSnap.data() } };
+  }
+
+  async function getActiveCrewMembers(crewId: string): Promise<Array<{ userId: string; username: string; displayName: string }>> {
+    const snap = await dbAdmin!.collection('crews').doc(crewId).collection('members').where('status', '==', 'active').get();
+    return snap.docs.map((docSnap: any) => {
+      const data = docSnap.data() || {};
+      return {
+        userId: docSnap.id,
+        username: String(data.usernameSnapshot || data.username || ''),
+        displayName: String(data.displayNameSnapshot || data.displayName || ''),
+      };
+    });
+  }
+
+  function displayNameFromProfile(profile: any, uid: string): string {
+    return String(profile?.displayName || profile?.username || '').trim() || `Player_${String(uid).slice(0, 8)}`;
+  }
+
+  /** Fan out "X joined the crew" to every other active member. Best effort — a missed row never fails the join. */
+  async function notifyCrewMemberJoined(crewId: string, crewName: string, joinedUserId: string, joinedName: string): Promise<void> {
+    try {
+      const members = await getActiveCrewMembers(crewId);
+      await Promise.all(members.filter((member) => member.userId !== joinedUserId).map((member) =>
+        writeCrewPlayerNotification(member.userId, {
+          type: 'crew_member_joined', crewId, crewName, memberId: joinedUserId, memberName: joinedName,
+        }).catch((err) => console.error('[CREW_SOCIAL] member-joined notify failed:', err)),
+      ));
+    } catch (err) {
+      console.error('[CREW_SOCIAL] member-joined fan-out failed:', err);
+    }
+  }
+
+  app.post("/api/crew/feed/comments", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const uid = req.user.uid;
+    const crewId = String(req.body?.crewId || '').trim();
+    const entryId = String(req.body?.entryId || '').trim();
+    const check = validateCrewCommentText(req.body?.text);
+    if (!crewId || !entryId) return res.status(400).json({ error: "MISSING_CREW_OR_ENTRY" });
+    if (!check.ok) return res.status(400).json({ error: check.code === 'EMPTY' ? "COMMENT_EMPTY" : "COMMENT_TOO_LONG" });
+    try {
+      const membership = await getActiveCrewMember(crewId, uid);
+      if (!membership) return res.status(403).json({ error: "NOT_AN_ACTIVE_CREW_MEMBER" });
+      // Comments attach to the crew's archive only — the archive doc id
+      // is `${crewId}_${entryId}`, so this is a single doc read, no index.
+      const archiveSnap = await dbAdmin.collection('crewArchiveEntries').doc(`${crewId}_${entryId}`).get();
+      if (!archiveSnap.exists) return res.status(403).json({ error: "ENTRY_NOT_IN_CREW_ARCHIVE" });
+      const archive = archiveSnap.data() || {};
+      const [authorSnap] = await Promise.all([
+        dbAdmin.collection('users').doc(uid).get(),
+      ]);
+      const authorName = displayNameFromProfile(authorSnap.data() || {}, uid);
+      const ownerId = String(archive.userId || archive.uid || '');
+      const commentRef = dbAdmin.collection('crewFeedComments').doc();
+      await commentRef.set({
+        crewId, entryId, authorId: uid, authorName, text: check.text,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      // Notify the photo's owner (not yourself) — best effort.
+      if (ownerId && ownerId !== uid) {
+        await writeCrewPlayerNotification(ownerId, {
+          type: 'crew_comment', crewId, entryId,
+          missionTitle: String(archive.challengeTitle || archive.missionTitle || archive.tripTitle || 'your crew photo'),
+          actorId: uid, actorName: authorName, preview: crewSocialPreview(check.text),
+        }).catch((err) => console.error('[CREW_SOCIAL] comment notify failed:', err));
+      }
+      res.json({ success: true, comment: { id: commentRef.id, crewId, entryId, authorId: uid, authorName, text: check.text } });
+    } catch (error: any) {
+      console.error("[CREW_FEED_COMMENT] Failed:", error);
+      res.status(500).json({ error: "CREW_FEED_COMMENT_FAILED", message: error.message || String(error) });
+    }
+  });
+
+  app.post("/api/crew/chat/messages", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const uid = req.user.uid;
+    const crewId = String(req.body?.crewId || '').trim();
+    const check = validateCrewChatText(req.body?.text);
+    if (!crewId) return res.status(400).json({ error: "MISSING_CREW" });
+    if (!check.ok) return res.status(400).json({ error: check.code === 'EMPTY' ? "MESSAGE_EMPTY" : "MESSAGE_TOO_LONG" });
+    try {
+      const membership = await getActiveCrewMember(crewId, uid);
+      if (!membership) return res.status(403).json({ error: "NOT_AN_ACTIVE_CREW_MEMBER" });
+      const [authorSnap, members] = await Promise.all([
+        dbAdmin.collection('users').doc(uid).get(),
+        getActiveCrewMembers(crewId),
+      ]);
+      const authorName = displayNameFromProfile(authorSnap.data() || {}, uid);
+      const mentions = parseChatMentions(check.text, members);
+      const messageRef = dbAdmin.collection('crews').doc(crewId).collection('messages').doc();
+      await messageRef.set({
+        crewId, authorId: uid, authorName, text: check.text, mentions,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      // @-mentions notify (never the author); a message that mentions
+      // nobody writes no notification — the Chat tab's unread dot is the
+      // signal for those.
+      await Promise.all(mentions.filter((id) => id !== uid).map((id) =>
+        writeCrewPlayerNotification(id, {
+          type: 'crew_chat_mention', crewId, messageId: messageRef.id,
+          actorId: uid, actorName: authorName, preview: crewSocialPreview(check.text),
+        }).catch((err) => console.error('[CREW_SOCIAL] mention notify failed:', err)),
+      ));
+      res.json({ success: true, message: { id: messageRef.id, crewId, authorId: uid, authorName, text: check.text, mentions } });
+    } catch (error: any) {
+      console.error("[CREW_CHAT_MESSAGE] Failed:", error);
+      res.status(500).json({ error: "CREW_CHAT_MESSAGE_FAILED", message: error.message || String(error) });
+    }
+  });
+
   app.get('/api/crew/discover', authRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: 'DB_ADMIN_NOT_READY' });
     try {
@@ -6503,6 +6640,7 @@ async function startServer() {
       if (joinedCrewSnap.exists && hasCompletedStarterForZine(joinedUserSnap.data())) {
         await ensureCrewZineShell({ id: joinedCrewSnap.id, ...joinedCrewSnap.data() }, uid, await getActiveSeasonIdForCrew());
       }
+      await notifyCrewMemberJoined(result.crewId, String(joinedCrewSnap.data()?.name || 'your crew'), uid, displayNameFromProfile(joinedUserSnap.data() || {}, uid));
       await dbAdmin.collection('crewAuditLogs').add({ actorId: uid, crewId: result.crewId, action: 'accept_invite', inviteId, createdAt: FieldValue.serverTimestamp() });
       res.json({ success: true, crewId: result.crewId });
     } catch (error: any) {
@@ -6725,6 +6863,7 @@ async function startServer() {
         if (joinedCrewSnap.exists && hasCompletedStarterForZine(joinedUserSnap.data())) {
           await ensureCrewZineShell({ id: joinedCrewSnap.id, ...joinedCrewSnap.data() }, result.joinedUserId, await getActiveSeasonIdForCrew());
         }
+        await notifyCrewMemberJoined(result.crewId, String(joinedCrewSnap.data()?.name || 'your crew'), result.joinedUserId, displayNameFromProfile(joinedUserSnap.data() || {}, result.joinedUserId));
       }
       await dbAdmin.collection('crewAuditLogs').add({ actorId: uid, crewId: result.crewId, action: result.approved ? 'approve_join_request' : 'decline_join_request', requestId, createdAt: FieldValue.serverTimestamp() });
       res.json({ success: true, ...result });

@@ -1103,6 +1103,24 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // CREW CLUBHOUSE (Nov 20, 2026): feed comments + chat messages.
+    // Writes are server-only (Admin SDK bypasses rules) so the server can
+    // fan notifications out in the same call; clients read (active
+    // members) and delete their own words — or the captain's, for
+    // moderation. No edits: a wrong comment/message is deleted and
+    // re-posted.
+    match /crewFeedComments/{commentId} {
+      allow read: if isApproved() && (isAdmin() || isActiveCrewMemberOf(resource.data.get('crewId', '')));
+      allow create, update: if false;
+      allow delete: if isSignedIn() && (resource.data.get('authorId', '') == request.auth.uid || isCrewCaptainOf(resource.data.get('crewId', '')));
+    }
+
+    match /crews/{crewId}/messages/{messageId} {
+      allow read: if isApproved() && (isAdmin() || isActiveCrewMemberOf(crewId));
+      allow create, update: if false;
+      allow delete: if isSignedIn() && (resource.data.get('authorId', '') == request.auth.uid || isCrewCaptainOf(crewId));
+    }
+
     match /personalArchiveEntries/{id} {
       allow read: if isApproved() && (isAdmin() || resource.data.get('ownerId', '') == request.auth.uid);
       allow write: if false;

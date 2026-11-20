@@ -98,11 +98,22 @@ test('sticker awards: the client read maps the sticker shape, not a decision', (
 
 test('Q11: the server writes the notification in the decision transaction', () => {
   const server = read('server.ts');
-  // Exactly one notification write in the whole server, inside the
-  // proof-review action handler — no second surface, no write on
-  // dry-run/repair paths (those never reach this handler).
+  // Exactly two notification writes in the whole server: the decision
+  // write inside the proof-review action handler, and the shared
+  // writeCrewPlayerNotification helper the crew clubhouse (Nov 20, 2026)
+  // uses for comments, @-mentions, and member joins. No second surface
+  // for decisions, and no write on dry-run/repair paths (those never
+  // reach this handler).
   const writes = server.match(/\.collection\('notifications'\)/g) || [];
-  assert.equal(writes.length, 1, 'exactly one notifications write in server.ts');
+  assert.equal(writes.length, 2, 'exactly two notifications writes in server.ts: the decision write and the crew helper');
+  assert.ok(
+    server.includes(".collection('users').doc(ownerId).collection('notifications').doc()"),
+    'notification is written under the deciding player',
+  );
+  assert.ok(
+    server.includes('async function writeCrewPlayerNotification(targetUid: string'),
+    'crew notifications go through the shared helper, not ad-hoc writes',
+  );
   assert.ok(
     server.includes(".collection('users').doc(ownerId).collection('notifications').doc()"),
     'notification is written under the deciding player',

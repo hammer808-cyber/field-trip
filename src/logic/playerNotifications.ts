@@ -28,13 +28,16 @@
  * No push notifications and no email: this app has no push/email infra,
  * so delivery is in-app only, via the Basecamp "Notifications" section.
  *
- * Four doc types share the collection (Nov 17, 2026, Notifications split):
- * proof_review_decision (review action), sticker_awarded (sticker award +
- * admin grant), proof_submitted (POST /api/entries/:id/notify-submitted,
- * called after a successful submit), and power_hour_live (POST
- * /api/notifications/power-hour-live, announced when the app opens inside
- * the Afternoon Power Hour window). Notifications is the single home for
- * all of them; Updates no longer renders notification rows.
+ * Seven doc types share the collection (Nov 17, 2026, Notifications split,
+ * plus the crew clubhouse types Nov 20, 2026): proof_review_decision
+ * (review action), sticker_awarded (sticker award + admin grant),
+ * proof_submitted (POST /api/entries/:id/notify-submitted, called after a
+ * successful submit), power_hour_live (POST /api/notifications/power-hour-live,
+ * announced when the app opens inside the Afternoon Power Hour window),
+ * crew_comment (a comment on your crew photo), crew_chat_mention (an
+ * @-mention in the crew chat), and crew_member_joined (a new member joined
+ * your crew). Notifications is the single home for all of them; Updates no
+ * longer renders notification rows.
  */
 
 /** The three review decisions. All three notify; only the copy differs. */
@@ -125,7 +128,68 @@ export type PlayerNotification =
   | ProofReviewNotification
   | StickerAwardedNotification
   | ProofSubmittedNotification
-  | PowerHourLiveNotification;
+  | PowerHourLiveNotification
+  | CrewCommentNotification
+  | CrewChatMentionNotification
+  | CrewMemberJoinedNotification;
+
+/**
+ * A comment on your crew feed photo (Nov 20, 2026 — crew clubhouse).
+ * Written server-side by POST /api/crew/feed/comments, in the same call
+ * as the comment itself. One doc per comment (no dedupe id — a photo can
+ * collect many comments).
+ */
+export interface CrewCommentNotification {
+  id: string;
+  type: 'crew_comment';
+  crewId: string;
+  entryId: string;
+  missionTitle: string;
+  actorId: string;
+  actorName: string;
+  /** First 120 chars of the comment, so the row reads without a tap. */
+  preview: string;
+  read: boolean;
+  /** Milliseconds since epoch. */
+  createdAt: number;
+}
+
+/**
+ * An @-mention in the crew chat (Nov 20, 2026 — crew clubhouse).
+ * Written server-side by POST /api/crew/chat/messages for each mentioned
+ * member (never the author). Chat messages that mention nobody write no
+ * notification — the unread dot on the Chat tab is the signal for those.
+ */
+export interface CrewChatMentionNotification {
+  id: string;
+  type: 'crew_chat_mention';
+  crewId: string;
+  messageId: string;
+  actorId: string;
+  actorName: string;
+  /** First 120 chars of the message. */
+  preview: string;
+  read: boolean;
+  /** Milliseconds since epoch. */
+  createdAt: number;
+}
+
+/**
+ * A new member joined your crew (Nov 20, 2026 — crew clubhouse).
+ * Written server-side by the invite-accept and join-approve routes,
+ * fanned out to every other active member. One doc per member per join.
+ */
+export interface CrewMemberJoinedNotification {
+  id: string;
+  type: 'crew_member_joined';
+  crewId: string;
+  crewName: string;
+  memberId: string;
+  memberName: string;
+  read: boolean;
+  /** Milliseconds since epoch. */
+  createdAt: number;
+}
 
 /**
  * The Updates-panel copy for one decision notification. The title matches
@@ -227,5 +291,54 @@ export function powerHourLiveCopy(notification: {
   return {
     title: 'Power Hour is live',
     detail: `Start a mission before ${formatHour(notification.endHourExclusive)} for ${formatMultiplier(notification.multiplier)}x XP.`,
+  };
+}
+
+/**
+ * The Notifications-section copy for a comment on your crew photo. The
+ * actor is the headline (it's a person talking to you); the preview is
+ * the comment itself, so the row reads without a tap.
+ */
+export function crewCommentCopy(notification: {
+  actorName: string;
+  missionTitle: string;
+  preview: string;
+}): { title: string; detail: string } {
+  const actor = String(notification.actorName || 'A crewmate').trim() || 'A crewmate';
+  const title = String(notification.missionTitle || 'your crew photo').trim() || 'your crew photo';
+  const preview = String(notification.preview || '').trim();
+  return {
+    title: `${actor} commented on ${title}`,
+    detail: preview || 'View the comment.',
+  };
+}
+
+/**
+ * The Notifications-section copy for an @-mention in the crew chat.
+ */
+export function crewChatMentionCopy(notification: {
+  actorName: string;
+  preview: string;
+}): { title: string; detail: string } {
+  const actor = String(notification.actorName || 'A crewmate').trim() || 'A crewmate';
+  const preview = String(notification.preview || '').trim();
+  return {
+    title: `${actor} mentioned you in the crew chat`,
+    detail: preview || 'Open the chat.',
+  };
+}
+
+/**
+ * The Notifications-section copy for a new crew member.
+ */
+export function crewMemberJoinedCopy(notification: {
+  memberName: string;
+  crewName: string;
+}): { title: string; detail: string } {
+  const member = String(notification.memberName || 'Someone').trim() || 'Someone';
+  const crew = String(notification.crewName || 'your crew').trim() || 'your crew';
+  return {
+    title: `${member} joined ${crew}`,
+    detail: 'Say hi in the crew chat.',
   };
 }

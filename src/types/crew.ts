@@ -148,3 +148,41 @@ export interface CrewDispatch {
   createdAt: string;
   isUnlocked: boolean;
 }
+
+/**
+ * A comment on a crew feed entry (Nov 20, 2026 — crew clubhouse).
+ * Lives in the top-level `crewFeedComments` collection so crew members
+ * can read it under their own rules (the entry itself is a player-private
+ * doc they cannot read). Written by the server endpoint
+ * POST /api/crew/feed/comments, which also fans the notification out to
+ * the entry's owner. Deletes are client-side (author or captain, see
+ * firestore.rules); there is no edit — a wrong comment is deleted and
+ * re-posted.
+ */
+export interface CrewFeedComment {
+  id: string;
+  crewId: string;
+  /** The archive entry id (the proof entry id, not the archive doc id). */
+  entryId: string;
+  authorId: string;
+  authorName: string;
+  text: string;
+  createdAt: any;
+}
+
+/**
+ * One message in a crew's chat (Nov 20, 2026 — crew clubhouse).
+ * Lives in `crews/{crewId}/messages`. Written by the server endpoint
+ * POST /api/crew/chat/messages, which also notifies @-mentioned members.
+ * Deletes are client-side (author or captain, see firestore.rules).
+ */
+export interface CrewChatMessage {
+  id: string;
+  crewId: string;
+  authorId: string;
+  authorName: string;
+  text: string;
+  /** User ids @-mentioned in the text (matched server-side). */
+  mentions?: string[];
+  createdAt: any;
+}
