@@ -75,6 +75,9 @@ export const DECK_PACKS: DeckPack[] = [
     requiredStarterApprovals: 3,
     totalCards: 15,
     catalogSection: 'local-fieldtrips',
+    // Near You (option A, Nov 20, 2026): San Diego to Santa Barbara,
+    // inland to Riverside.
+    homeRegion: { minLat: 32.53, maxLat: 34.35, minLng: -120.65, maxLng: -117.00, label: 'SoCal coast' },
 
     defaultFindingTypes: [
       "Beach Clue",
@@ -111,6 +114,10 @@ export const DECK_PACKS: DeckPack[] = [
     difficultyRange: ['easy', 'medium', 'hard'],
     tags: ['texas', 'regional', 'evergreen', 'crew-friendly'],
     catalogSection: 'local-fieldtrips',
+    // Near You (option A, Nov 20, 2026): the state boundary. Texas is
+    // "photographable anywhere in the state", so a state-wide box is the
+    // honest shape for it.
+    homeRegion: { minLat: 25.84, maxLat: 36.50, minLng: -106.65, maxLng: -93.51, label: 'Texas' },
 
     // Canonical properties
     deckId: 'texas-get-it-yall',
@@ -389,12 +396,25 @@ const DECK_CATALOG_SECTION_ORDER: Array<Pick<DeckCatalogSection, 'id' | 'label'>
   { id: 'starter-training', label: 'Starter / Training Deck' },
 ];
 
-export function getDeckCatalogSections(packs: DeckPack[] = getActiveDeckPacks()): DeckCatalogSection[] {
+/**
+ * Near You (option A, Nov 20, 2026): pass the set of pack ids whose home
+ * region contains the player's current position and those packs float to
+ * the top of their own section. Sections keep their fixed order; within a
+ * section, boosted packs sort first (by sortOrder, then name among
+ * themselves), then the rest exactly as today. Locked decks can be boosted
+ * too — this only reorders, it never locks, unlocks, or hides anything.
+ * Omit (or pass null) for the normal sort.
+ */
+export function getDeckCatalogSections(packs: DeckPack[] = getActiveDeckPacks(), nearbyPackIds?: ReadonlySet<string> | null): DeckCatalogSection[] {
   return DECK_CATALOG_SECTION_ORDER.map(section => ({
     ...section,
     packs: packs
       .filter(pack => pack.catalogSection === section.id)
-      .sort((a, b) => a.sortOrder - b.sortOrder || a.packName.localeCompare(b.packName)),
+      .sort((a, b) => {
+        const aNearby = nearbyPackIds?.has(a.packId) ? 0 : 1;
+        const bNearby = nearbyPackIds?.has(b.packId) ? 0 : 1;
+        return aNearby - bNearby || a.sortOrder - b.sortOrder || a.packName.localeCompare(b.packName);
+      }),
   })).filter(section => section.packs.length > 0);
 }
 

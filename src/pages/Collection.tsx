@@ -19,6 +19,7 @@ import { cn } from '../lib/utils';
 import { FieldBadge } from '../components/UI';
 import { useTheme } from '../context/ThemeContext';
 import { getDeckCatalogSections, getDeckPackById, getDefaultDeckPack, getActiveDeckPacks, normalizeDeckPackId } from '../data/deckPacks';
+import { useNearbyDeckPackIds } from '../hooks/useNearbyDeckPackIds';
 import { FieldPageHero } from '../components/FieldPageHero';
 import { MissionCard } from '../components/ChallengeCard';
 import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
@@ -76,6 +77,10 @@ export default function CollectionPage() {
   );
 
   const activePacks = getActiveDeckPacks();
+  // Near You (option A, Nov 20, 2026): one-shot location read; boosted
+  // decks float to the top of their section with a badge. Null until the
+  // read resolves — the list renders in normal order meanwhile.
+  const nearbyPackIds = useNearbyDeckPackIds();
   const starterProgress = getStarterProgress(canonicalProgress);
   const isStarterComplete = starterProgress.starterComplete;
 
@@ -368,7 +373,7 @@ export default function CollectionPage() {
               exit={{ opacity: 0, y: -15 }}
               className="space-y-10"
             >
-              {getDeckCatalogSections(activePacks).map(section => (
+              {getDeckCatalogSections(activePacks, nearbyPackIds).map(section => (
                 <section key={section.id} className="space-y-4">
                   <h2 className="font-display text-2xl sm:text-3xl font-black uppercase italic tracking-tight text-on-surface">
                     {section.label}
@@ -390,9 +395,14 @@ export default function CollectionPage() {
                       locked ? "opacity-55 grayscale border-dashed border-on-surface/20 shadow-none bg-[#FAFAF8]" : "hover:shadow-[8px_8px_0px_black] hover:-translate-y-0.5"
                     )}
                   >
-                    {!locked && isCurrent && (
-                       <div className="absolute top-0 right-0 p-2">
-                          <FieldBadge variant="sticker" color="orange" size="xs" className="py-0.5 px-2">CURRENT</FieldBadge>
+                    {((!locked && isCurrent) || nearbyPackIds?.has(pack.packId)) && (
+                       <div className="absolute top-0 right-0 p-2 flex gap-1.5">
+                          {nearbyPackIds?.has(pack.packId) && (
+                            <FieldBadge variant="sticker" color="lime" size="xs" className="py-0.5 px-2">Near you</FieldBadge>
+                          )}
+                          {!locked && isCurrent && (
+                            <FieldBadge variant="sticker" color="orange" size="xs" className="py-0.5 px-2">CURRENT</FieldBadge>
+                          )}
                        </div>
                     )}
 

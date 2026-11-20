@@ -250,8 +250,17 @@ the mapping above prioritizes mission pairs (8) + first approval + completion. D
 
 ## 6. Build plan (after approval)
 
-Status: **BUILT Nov 20, 2026 — uncommitted, awaiting independent verification.**
-No commit, no deploy, no rules publish (Zach deploys rules from his Mac).
+Status: **BUILT + LIVE Nov 20, 2026 — commit 04592d8 on main, verified live.**
+Independent verification: tsc clean, build clean, suite 969/971 (only the 2 known
+pre-existing failures). Live check Nov 20: deploy landed, Deck Collections group
+renders with Texas Y'all 0/10 locked, all 10 images load, Texas Gold modal correct,
+deck doc + 15 missions playable, admin grant of texas_yall_01 worked with the
+celebration toast, Dex moved to 1/10 (account 14/118). Still open: Zach publishes
+rules from his Mac (10 Texas ids + 3 fix-#4 ids) — the grant path worked pre-deploy
+(server-side), but real Texas proof approvals award client-side and need the publish;
+a real Texas approval is the last unverified earn step. Admin Deck Control Panel
+does not list the Texas deck (only 4 decks) — deck is playable via user-facing
+pages; panel gap noted, not blocking.
 
 1. Import 10 PNGs to `public/assets/stickers/texas_yall/` (after decision 6). DONE
    earlier (trim per §9); files untouched by this build.

@@ -17,6 +17,23 @@ export type DeckCatalogSectionId =
   | 'local-fieldtrips'
   | 'starter-training';
 
+/**
+ * Home region for a location-based deck (Near You, option A, Nov 20, 2026).
+ * Bounding box, not a circle: regions here are states/coasts, and a box is
+ * exact for them. A point inside the box counts as "near" — the deck floats
+ * to the top of its section, with a "Near you" badge. No geofence locking:
+ * being outside never hides or locks a deck.
+ */
+export interface DeckHomeRegion {
+  /** Bounding box: a point inside it counts as "near". */
+  minLat: number;
+  maxLat: number;
+  minLng: number;
+  maxLng: number;
+  /** Short label for the badge, e.g. "Texas", "SoCal coast". */
+  label: string;
+}
+
 export interface DeckPack {
   packId: string;
   packName: string;
@@ -59,6 +76,9 @@ export interface DeckPack {
   tags?: string[];
   isFutureDrop?: boolean;
   catalogSection?: DeckCatalogSectionId;
+  /** Home region for location-based decks (Near You, option A). Decks
+   * without one are never boosted and their order never changes. */
+  homeRegion?: DeckHomeRegion;
 
   // Seasonal/Canonical fields
   id?: string;

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { getDeckCatalogSections } from '../data/deckPacks';
+import { useNearbyDeckPackIds } from '../hooks/useNearbyDeckPackIds';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { Zap, ChevronDown, Check, Info, Lock, X, Waves } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -109,7 +110,11 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
   };
 
   const activePacks = visibleDeckPacks;
-  const catalogSections = getDeckCatalogSections(activePacks);
+  // Near You (option A, Nov 20, 2026): one-shot location read; boosted
+  // decks float to the top of their section with a badge. Null until the
+  // read resolves — the list renders in normal order meanwhile.
+  const nearbyPackIds = useNearbyDeckPackIds();
+  const catalogSections = getDeckCatalogSections(activePacks, nearbyPackIds);
   const currentPack = activePacks.find(p => p.packId === selectedPackId) || activePacks[0];
 
   const renderIcon = (iconName: string, className?: string) => {
@@ -201,6 +206,11 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
 
               {/* Metadata pills */}
               <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
+                {nearbyPackIds?.has(pack.packId) && (
+                  <span className="px-2.5 py-0.5 bg-brand-lime/10 text-on-surface border border-brand-lime/30 rounded-full text-xs font-mono font-extrabold tracking-wider uppercase inline-flex items-center">
+                    Near you
+                  </span>
+                )}
                 <span className="px-2.5 py-0.5 bg-on-surface/5 text-on-surface/85 border border-on-surface/20 rounded-full text-xs font-mono font-extrabold tracking-wider uppercase inline-flex items-center">
                   {missionCount} SIGNALS
                 </span>
