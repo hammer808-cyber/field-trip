@@ -301,7 +301,7 @@ html, body, #root {
 }
 
 .paper-texture {
-  background-image: url("https://www.transparenttextures.com/patterns/handmade-paper.png");
+  background-image: url("/assets/textures/handmade-paper.png");
   pointer-events: none;
   mix-blend-mode: multiply;
 }
@@ -380,7 +380,7 @@ body::before {
 body::after {
   content: "";
   @apply fixed inset-0 pointer-events-none opacity-[0.03];
-  background-image: url("https://www.transparenttextures.com/patterns/micro-carbon.png");
+  background-image: url("/assets/textures/micro-carbon.png");
   z-index: 50;
   background-attachment: fixed;
 }
@@ -628,7 +628,7 @@ body::after {
 }
 
 .app-skin-heatwave body::after {
-  background: url("https://www.transparenttextures.com/patterns/cubes.png");
+  background: url("/assets/textures/cubes.png");
   opacity: 0.05;
 }
 
@@ -987,7 +987,7 @@ img, video, canvas, svg {
 .field-card--paper::after {
   content: "";
   @apply absolute inset-0 pointer-events-none opacity-[0.04];
-  background-image: url("https://www.transparenttextures.com/patterns/felt.png");
+  background-image: url("/assets/textures/felt.png");
 }
 
 /* Primary CTA Action Cards */
@@ -1192,3 +1192,24 @@ img, video, canvas, svg {
 
 
 
+/* P2-5 (audit §4 M3, §6.1): one global reduced-motion rule. The
+   framer-motion layer is already gated by MotionConfig (ThemeContext.tsx:299)
+   and per-component useReducedMotion; this covers the CSS layer — the
+   card-sheen 6s sweep, prism-flow 10s, shimmer/liquid, and the ~130 Tailwind
+   animate-spin/pulse/bounce uses — which ran unconditionally in Classic.
+   Mirrors the blanket 0.01ms rule already in the notebook/clubhouse skins
+   (fieldNotebook.css, clubhouseWall.css); only BottomNav.css gated before.
+   Does not touch the MotionConfig plumbing or Frankie Mode's forced
+   reducedMotion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

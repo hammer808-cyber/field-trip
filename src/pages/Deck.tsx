@@ -865,7 +865,7 @@ export default function DeckPage() {
     return (
       <div className="skin-page skin-deck-browser min-h-screen bg-neutral-50 flex flex-col items-center justify-center p-6 space-y-12 relative overflow-hidden">
         {/* Background Grain */}
-        <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')] mix-blend-multiply" />
+        <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[url('/assets/textures/handmade-paper.png')] mix-blend-multiply" />
         
         <div className="text-center space-y-2 relative z-10">
            <div className="w-fit mx-auto bg-brand-orange text-black text-[9px] font-mono font-black px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase rotate-[-2deg] mb-1">

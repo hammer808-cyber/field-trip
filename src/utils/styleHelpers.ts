@@ -19,12 +19,12 @@ export const FIELD_SHADOWS = {
 };
 
 export const FIELD_MATERIALS = {
-  paper: 'bg-[url("https://www.transparenttextures.com/patterns/handmade-paper.png")]',
+  paper: 'bg-[url("/assets/textures/handmade-paper.png")]',
   grid: 'bg-[radial-gradient(var(--color-on-surface)_1px,transparent_0)] bg-[length:24px_24px] opacity-[0.03]',
   sticker: 'relative bg-white border-2 border-on-surface shadow-[4px_4px_0px_black] before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/40 before:to-transparent before:pointer-events-none',
   stickerRaised: 'shadow-[8px_8px_0px_black] -translate-y-0.5 transition-transform hover:-translate-y-1',
   patch: 'relative bg-brand-orange border-2 border-on-surface shadow-[4px_4px_0px_black] before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/20 before:to-black/10 before:pointer-events-none rounded-sm',
-  tape: 'h-4 bg-white/20 border-x border-on-surface/10 skew-x-12 relative overflow-hidden before:absolute before:inset-0 before:bg-[url("https://www.transparenttextures.com/patterns/handmade-paper.png")] before:opacity-20',
+  tape: 'h-4 bg-white/20 border-x border-on-surface/10 skew-x-12 relative overflow-hidden before:absolute before:inset-0 before:bg-[url("/assets/textures/handmade-paper.png")] before:opacity-20',
   stacked: 'relative after:absolute after:inset-0 after:bg-white after:border-b-2 after:border-r-2 after:border-on-surface after:-z-10 after:translate-x-1 after:translate-y-1',
   stackedDouble: 'relative after:absolute after:inset-0 after:bg-white after:border-b-2 after:border-r-2 after:border-on-surface after:-z-10 after:translate-x-1 after:translate-y-1 before:absolute before:inset-0 before:bg-white before:border-b-2 before:border-r-2 before:border-on-surface/50 before:-z-20 before:translate-x-2 before:translate-y-2',
 };

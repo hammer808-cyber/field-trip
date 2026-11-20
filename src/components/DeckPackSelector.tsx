@@ -261,7 +261,7 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
         <div className="absolute top-0 right-0 w-12 h-full opacity-[0.15] bg-[repeating-linear-gradient(0deg,#000,#000_1px,transparent_1px,transparent_6px)] pointer-events-none" />
         
         {/* Paper Grain & Material Depth */}
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')] opacity-20 pointer-events-none mix-blend-multiply" />
+        <div className="absolute inset-0 bg-[url('/assets/textures/handmade-paper.png')] opacity-20 pointer-events-none mix-blend-multiply" />
         <div className="absolute inset-0 shadow-[inset_2px_2px_12px_rgba(255,255,255,0.4)] pointer-events-none" />
         
         {/* Top Gloss Glint */}

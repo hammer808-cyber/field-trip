@@ -107,7 +107,7 @@ export function MissionCard({
         )}
       >
         {/* Paper Grain Overlay */}
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')] opacity-[0.12] pointer-events-none mix-blend-multiply" />
+        <div className="absolute inset-0 bg-[url('/assets/textures/handmade-paper.png')] opacity-[0.12] pointer-events-none mix-blend-multiply" />
         
         {/* Diagonal Warning/Classified Tape */}
         <div className="absolute -right-12 top-8 bg-brand-orange text-black text-xs font-mono font-black uppercase tracking-[0.2em] px-14 py-2 rotate-[35deg] shadow-[2px_2px_4px_rgba(0,0,0,0.15)] border-y border-on-surface z-20">

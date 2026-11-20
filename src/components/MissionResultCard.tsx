@@ -145,7 +145,7 @@ export function MissionResultCard({
         </div>
         
         {/* Background Noise/Texture */}
-        <div className="absolute inset-0 opacity-10 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/grid-me.png')]" />
+        <div className="absolute inset-0 opacity-10 pointer-events-none bg-[url('/assets/textures/grid-me.png')]" />
       </div>
 
       <div className="p-5 sm:p-8 space-y-6 sm:space-y-10 relative">

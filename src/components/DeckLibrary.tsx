@@ -233,7 +233,7 @@ function MissionCardItem({ challenge, onClick, idx }: { challenge: TripCard & { 
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
         
         {/* Paper Texture Overlay */}
-        <div className="absolute inset-0 opacity-10 pointer-events-none mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')]" />
+        <div className="absolute inset-0 opacity-10 pointer-events-none mix-blend-multiply bg-[url('/assets/textures/handmade-paper.png')]" />
 
         {/* Example-photo label: real photo, not the target itself */}
         {challenge.image && (
@@ -383,7 +383,7 @@ function ChallengePreviewModal({ challenge, uiStatus, onClose, onStart }: { chal
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
           
           {/* Paper Texture Overlay */}
-          <div className="absolute inset-0 opacity-10 pointer-events-none mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')]" />
+          <div className="absolute inset-0 opacity-10 pointer-events-none mix-blend-multiply bg-[url('/assets/textures/handmade-paper.png')]" />
 
           {isLocked && (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-black/40 backdrop-blur-[2px]">

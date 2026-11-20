@@ -77,7 +77,7 @@ export function EntryCard({ entry, className }: EntryCardProps) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
         <div className="absolute inset-0 bg-brand-lime/10 mix-blend-overlay pointer-events-none" />
-        <div className="absolute inset-0 opacity-[0.12] pointer-events-none mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')]" />
+        <div className="absolute inset-0 opacity-[0.12] pointer-events-none mix-blend-multiply bg-[url('/assets/textures/handmade-paper.png')]" />
         
         {isAdmin && (
           <div className="absolute inset-0 bg-on-surface/90 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-6 p-6 backdrop-blur-sm z-30">

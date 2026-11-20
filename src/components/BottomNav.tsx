@@ -112,7 +112,7 @@ export function BottomNav() {
     >
       {!isBaja && !isDiamond && !isHeat && (
         <>
-          <div className="absolute inset-0 pointer-events-none opacity-[0.06] bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')] mix-blend-multiply rounded-t-[2.5rem] md:rounded-[2.5rem]" />
+          <div className="absolute inset-0 pointer-events-none opacity-[0.06] bg-[url('/assets/textures/handmade-paper.png')] mix-blend-multiply rounded-t-[2.5rem] md:rounded-[2.5rem]" />
           <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%)] bg-[length:100%_2px]" />
         </>
       )}

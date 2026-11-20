@@ -60,7 +60,7 @@ export const QuickMissionCard: React.FC<QuickMissionCardProps> = ({
               referrerPolicy="no-referrer"
             />
             {/* Subtle paper texture overlay on image */}
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')] opacity-15 pointer-events-none mix-blend-overlay" />
+            <div className="absolute inset-0 bg-[url('/assets/textures/handmade-paper.png')] opacity-15 pointer-events-none mix-blend-overlay" />
           </div>
 
           {/* Compact Badges */}

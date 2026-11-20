@@ -77,7 +77,7 @@ const SEASON_TOKEN_GOAL = 1000;
 
 const BOARD_MATERIALS = {
   paper: "bg-[#F5F2EA] shadow-[inset_0_2px_10px_rgba(0,0,0,0.06)]",
-  grid: "bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]",
+  grid: "bg-[url('/assets/textures/cream-paper.png')]",
   casing:
     "bg-[#D9C5A0] border-8 border-[#BFA880] shadow-[0_15px_40px_rgba(0,0,0,0.1)]",
   metal:
@@ -566,7 +566,7 @@ function WeeklyAwardsSection({ currentWeekNumber }: WeeklyAwardsSectionProps) {
       </div>
 
       {/* Transparent Handmade Paper Texture */}
-      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')] opacity-[0.1] pointer-events-none mix-blend-multiply" />
+      <div className="absolute inset-0 bg-[url('/assets/textures/handmade-paper.png')] opacity-[0.1] pointer-events-none mix-blend-multiply" />
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b-4 border-on-surface/10 pb-4 mb-4 gap-4 pt-4">
         <div className="text-left space-y-1">

@@ -62,7 +62,7 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
     return (
       <div className={cn("w-full bg-[#FAF8F5] p-3 rounded-2xl border-4 border-on-surface field-paper-shadow relative overflow-hidden group", className)}>
         {/* Background Paper Texture */}
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/graphy-dark.png')] opacity-5 pointer-events-none" />
+        <div className="absolute inset-0 bg-[url('/assets/textures/graphy-dark.png')] opacity-5 pointer-events-none" />
         
         <div className="flex items-center justify-between relative z-10 mb-2">
           <div className="flex items-center gap-2">
@@ -127,7 +127,7 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
   return (
     <div className={cn("w-full bg-[#FAF8F5] p-6 rounded-[2rem] border-4 border-on-surface field-paper-shadow-lg relative overflow-hidden", className)}>
       {/* Background Paper Texture */}
-      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/graphy-dark.png')] opacity-10 pointer-events-none" />
+      <div className="absolute inset-0 bg-[url('/assets/textures/graphy-dark.png')] opacity-10 pointer-events-none" />
       
       <div className="flex items-center justify-between relative z-10 mb-6">
         <div className="flex items-center gap-4">

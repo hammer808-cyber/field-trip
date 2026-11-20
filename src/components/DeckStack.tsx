@@ -124,7 +124,7 @@ export function DeckStack({
                     pack={activePack}
                     imageClassName="group-hover:scale-[1.025] group-hover:grayscale-0"
                   />
-                  <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')] opacity-10 pointer-events-none mix-blend-multiply" />
+                  <div className="absolute inset-0 bg-[url('/assets/textures/handmade-paper.png')] opacity-10 pointer-events-none mix-blend-multiply" />
                   <div className="absolute inset-0 shadow-[inset_2px_2px_10px_rgba(0,0,0,0.16)] pointer-events-none" />
                   <div className="absolute bottom-2 right-2 z-20 bg-white/80 border-2 border-on-surface text-[7px] font-black px-2 py-0.5 shadow-[2px_2px_0px_black] rotate-[-2deg]">S01_DECAL</div>
                 </>
@@ -154,7 +154,7 @@ export function DeckStack({
                       i === 7 ? "rotate-[-1deg]" : i === 6 ? "rotate-[1.5deg]" : "rotate-0"
                     )}>
                       {/* Subtle paper texture on the sticker itself */}
-                      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')] opacity-15 pointer-events-none z-10" />
+                      <div className="absolute inset-0 bg-[url('/assets/textures/handmade-paper.png')] opacity-15 pointer-events-none z-10" />
 
                       {/* Inset shadow for depth */}
                       <div className="absolute inset-0 shadow-[inset_2px_2px_8px_rgba(0,0,0,0.1)] pointer-events-none" />
