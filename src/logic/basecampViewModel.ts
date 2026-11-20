@@ -12,6 +12,9 @@ import {
 import { getLevelProgress } from './playerLevel';
 import { isArchivedEntry, normalizeEntryStatus } from './entryLogic';
 import {
+  crewChatMentionCopy,
+  crewCommentCopy,
+  crewMemberJoinedCopy,
   powerHourLiveCopy,
   proofReviewDecisionCopy,
   proofSubmittedCopy,
@@ -113,7 +116,7 @@ export interface BasecampQuickLink {
   href: string;
 }
 
-export type BasecampNotificationKind = 'decision' | 'sticker' | 'submission' | 'power_hour';
+export type BasecampNotificationKind = 'decision' | 'sticker' | 'submission' | 'power_hour' | 'crew';
 
 /**
  * One row of the Basecamp Notifications section (Nov 17, 2026): the full
@@ -407,6 +410,47 @@ function buildNotifications(input: BuildBasecampViewModelInput): BasecampNotific
           timeLabel,
           unread,
           href: '/missions',
+        }];
+      }
+      // Crew clubhouse (Nov 20, 2026): comments, @-mentions, and new
+      // members all land in Notifications and tap through to the crew.
+      if (notification.type === 'crew_comment') {
+        const copy = crewCommentCopy(notification);
+        return [{
+          id: `notification-${notification.id}`,
+          kind: 'crew' as const,
+          title: copy.title,
+          detail: copy.detail,
+          timestamp,
+          timeLabel,
+          unread,
+          href: '/crew?tab=feed',
+        }];
+      }
+      if (notification.type === 'crew_chat_mention') {
+        const copy = crewChatMentionCopy(notification);
+        return [{
+          id: `notification-${notification.id}`,
+          kind: 'crew' as const,
+          title: copy.title,
+          detail: copy.detail,
+          timestamp,
+          timeLabel,
+          unread,
+          href: '/crew?tab=chat',
+        }];
+      }
+      if (notification.type === 'crew_member_joined') {
+        const copy = crewMemberJoinedCopy(notification);
+        return [{
+          id: `notification-${notification.id}`,
+          kind: 'crew' as const,
+          title: copy.title,
+          detail: copy.detail,
+          timestamp,
+          timeLabel,
+          unread,
+          href: '/crew',
         }];
       }
       const copy = proofReviewDecisionCopy(notification);

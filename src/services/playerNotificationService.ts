@@ -105,6 +105,47 @@ export function subscribeToPlayerNotifications(
               createdAt: toMillis(data.createdAt),
             } as PlayerNotification;
           }
+          // Crew clubhouse (Nov 20, 2026): a comment on your crew photo,
+          // an @-mention in the crew chat, or a new member joining.
+          if (data.type === 'crew_comment') {
+            return {
+              id: docSnap.id,
+              type: 'crew_comment',
+              crewId: String(data.crewId || ''),
+              entryId: String(data.entryId || ''),
+              missionTitle: String(data.missionTitle || 'your crew photo'),
+              actorId: String(data.actorId || ''),
+              actorName: String(data.actorName || 'A crewmate'),
+              preview: String(data.preview || ''),
+              read: data.read === true,
+              createdAt: toMillis(data.createdAt),
+            } as PlayerNotification;
+          }
+          if (data.type === 'crew_chat_mention') {
+            return {
+              id: docSnap.id,
+              type: 'crew_chat_mention',
+              crewId: String(data.crewId || ''),
+              messageId: String(data.messageId || ''),
+              actorId: String(data.actorId || ''),
+              actorName: String(data.actorName || 'A crewmate'),
+              preview: String(data.preview || ''),
+              read: data.read === true,
+              createdAt: toMillis(data.createdAt),
+            } as PlayerNotification;
+          }
+          if (data.type === 'crew_member_joined') {
+            return {
+              id: docSnap.id,
+              type: 'crew_member_joined',
+              crewId: String(data.crewId || ''),
+              crewName: String(data.crewName || 'your crew'),
+              memberId: String(data.memberId || ''),
+              memberName: String(data.memberName || 'Someone'),
+              read: data.read === true,
+              createdAt: toMillis(data.createdAt),
+            } as PlayerNotification;
+          }
           const decision = (['approve', 'request_info', 'reject'] as ProofReviewDecision[]).includes(
             data.decision,
           )

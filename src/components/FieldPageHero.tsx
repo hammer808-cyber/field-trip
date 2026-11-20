@@ -6,7 +6,7 @@ import type { PlayerDepartment } from './player/PlayerPageShell';
 
 export type FieldPageHeroTab = {
   id: string;
-  label: string;
+  label: React.ReactNode;
   locked?: boolean;
 };
 

@@ -4,7 +4,7 @@ import { Timestamp } from 'firebase/firestore';
 import type { TripCard } from '../types/challenges';
 import type { Entry, Vote } from '../types/game';
 import type { Observation } from '../types/observations';
-import type { PlayerNotification, PowerHourLiveNotification, ProofReviewNotification, ProofSubmittedNotification, StickerAwardedNotification } from '../logic/playerNotifications';
+import type { CrewChatMentionNotification, CrewCommentNotification, CrewMemberJoinedNotification, PlayerNotification, PowerHourLiveNotification, ProofReviewNotification, ProofSubmittedNotification, StickerAwardedNotification } from '../logic/playerNotifications';
 import type { UserProfile } from '../services/userService';
 import { buildCanonicalProgress } from '../services/canonicalProgress';
 import {
@@ -478,6 +478,72 @@ test('Notifications section lists decisions and sticker awards, newest-first', (
   assert.equal(model.notifications[1].title, 'Proof approved');
   assert.equal(model.notifications[1].href, '/profile?tab=logbook');
   assert.equal(model.notifications[1].unread, true);
+});
+
+// Crew clubhouse (Nov 20, 2026): comments, @-mentions, and new members
+// land in Notifications as 'crew' rows and tap through to the crew.
+function crewCommentNotification(overrides: Partial<CrewCommentNotification> = {}): CrewCommentNotification {
+  return {
+    id: 'notif-crew-comment-1',
+    type: 'crew_comment',
+    crewId: 'crew-1',
+    entryId: 'entry-1',
+    missionTitle: 'The Park Oasis',
+    actorId: 'u-mascota',
+    actorName: 'Mascota',
+    preview: 'That bench is legendary.',
+    read: false,
+    createdAt: new Date('2026-11-20T17:30:00.000Z').getTime(),
+    ...overrides,
+  };
+}
+
+function crewMentionNotification(overrides: Partial<CrewChatMentionNotification> = {}): CrewChatMentionNotification {
+  return {
+    id: 'notif-crew-mention-1',
+    type: 'crew_chat_mention',
+    crewId: 'crew-1',
+    messageId: 'msg-1',
+    actorId: 'u-zach',
+    actorName: 'Zach Hammer',
+    preview: '@mascota draw a card!',
+    read: false,
+    createdAt: new Date('2026-11-20T17:35:00.000Z').getTime(),
+    ...overrides,
+  };
+}
+
+function crewJoinedNotification(overrides: Partial<CrewMemberJoinedNotification> = {}): CrewMemberJoinedNotification {
+  return {
+    id: 'notif-crew-joined-1',
+    type: 'crew_member_joined',
+    crewId: 'crew-1',
+    crewName: 'The Parking Lot Legends',
+    memberId: 'u-elondra',
+    memberName: 'Elondra',
+    read: false,
+    createdAt: new Date('2026-11-20T17:40:00.000Z').getTime(),
+    ...overrides,
+  };
+}
+
+test('Crew notifications render as crew rows with the right destinations', () => {
+  const model = buildBasecampViewModel(input({
+    entries: [entry({ status: 'approved' })],
+    notifications: [crewCommentNotification(), crewMentionNotification(), crewJoinedNotification()],
+  }));
+  assert.equal(model.notifications.length, 3);
+  // Newest first: joined (17:40), mention (17:35), comment (17:30).
+  assert.equal(model.notifications[0].kind, 'crew');
+  assert.equal(model.notifications[0].title, 'Elondra joined The Parking Lot Legends');
+  assert.equal(model.notifications[0].href, '/crew');
+  assert.equal(model.notifications[1].kind, 'crew');
+  assert.equal(model.notifications[1].title, 'Zach Hammer mentioned you in the crew chat');
+  assert.equal(model.notifications[1].href, '/crew?tab=chat');
+  assert.equal(model.notifications[2].kind, 'crew');
+  assert.equal(model.notifications[2].title, 'Mascota commented on The Park Oasis');
+  assert.equal(model.notifications[2].detail, 'That bench is legendary.');
+  assert.equal(model.notifications[2].href, '/crew?tab=feed');
 });
 
 test('Notifications section has no 5-item cap, and read rows are not unread', () => {

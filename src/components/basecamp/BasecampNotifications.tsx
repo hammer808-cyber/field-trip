@@ -1,4 +1,4 @@
-import { FileCheck2, Send, Sparkles, Zap } from 'lucide-react';
+import { FileCheck2, Send, Sparkles, Users, Zap } from 'lucide-react';
 import type { BasecampNotificationItem, BasecampNotificationKind } from '../../logic/basecampViewModel';
 import { cn } from '../../lib/utils';
 
@@ -12,6 +12,7 @@ const notificationIcons: Record<BasecampNotificationKind, typeof FileCheck2> = {
   sticker: Sparkles,
   submission: Send,
   power_hour: Zap,
+  crew: Users,
 };
 
 /**

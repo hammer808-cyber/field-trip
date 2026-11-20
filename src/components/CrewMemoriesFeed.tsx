@@ -23,12 +23,19 @@ import { useApp } from '../context/AppContext';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { Entry } from '../types/game';
 import { toggleLikeEntry, checkIfLiked } from '../services/proofService';
-import { 
-  addReaction, 
-  removeReaction, 
-  subscribeToAllReactions, 
-  EntryReaction 
+import {
+  addReaction,
+  removeReaction,
+  subscribeToAllReactions,
+  EntryReaction
 } from '../services/reactionService';
+import {
+  addCrewFeedComment,
+  deleteCrewFeedComment,
+  subscribeToCrewComments,
+} from '../services/crewFeedComments';
+import { MAX_CREW_COMMENT_LENGTH } from '../logic/crewSocial';
+import type { CrewFeedComment } from '../types/crew';
 
 import { ProofImage } from './ProofImage';
 import { EmptyStatePanel, FieldtripLoader } from './FieldtripLoader';
@@ -36,18 +43,61 @@ import { cn } from '../lib/utils';
 
 const AVAILABLE_EMOJIS = ['🔥', '😂', '🤯', '😎', '👏', '🙌', '🎉', '❤️'];
 
-export function CrewMemoriesFeed() {
+export function CrewMemoriesFeed({ crewCaptainId = null }: { crewCaptainId?: string | null } = {}) {
   const { profile, activeSeason } = useApp();
   const navigate = useNavigate();
   const currentUser = auth.currentUser;
-  
+
   const [entries, setEntries] = useState<Entry[]>([]);
   const [reactions, setReactions] = useState<EntryReaction[]>([]);
   const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
+  const [comments, setComments] = useState<CrewFeedComment[]>([]);
+  const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+  const [commentBusy, setCommentBusy] = useState<Record<string, boolean>>({});
+  const [commentErrors, setCommentErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [activePickerId, setActivePickerId] = useState<string | null>(null);
 
   const crewId = profile?.activeCrewId || profile?.crewId;
+  const viewerIsCaptain = Boolean(crewCaptainId && currentUser?.uid && crewCaptainId === currentUser.uid);
+
+  // Comments on an entry, grouped by entry id (one subscription per crew).
+  const commentsByEntry = React.useMemo(() => {
+    const grouped: Record<string, CrewFeedComment[]> = {};
+    for (const comment of comments) {
+      if (!grouped[comment.entryId]) grouped[comment.entryId] = [];
+      grouped[comment.entryId].push(comment);
+    }
+    return grouped;
+  }, [comments]);
+
+  const handlePostComment = async (entryId: string) => {
+    if (!currentUser || !crewId || commentBusy[entryId]) return;
+    const draft = (commentDrafts[entryId] || '').trim();
+    if (draft.length === 0) return;
+    setCommentBusy(prev => ({ ...prev, [entryId]: true }));
+    setCommentErrors(prev => ({ ...prev, [entryId]: '' }));
+    try {
+      await addCrewFeedComment(crewId, entryId, draft);
+      setCommentDrafts(prev => ({ ...prev, [entryId]: '' }));
+      setExpandedComments(prev => ({ ...prev, [entryId]: true }));
+    } catch (err: any) {
+      setCommentErrors(prev => ({ ...prev, [entryId]: err?.message === 'COMMENT_TOO_LONG' ? 'That comment is too long — keep it under 500 characters.' : 'The comment did not post. Try again.' }));
+    } finally {
+      setCommentBusy(prev => ({ ...prev, [entryId]: false }));
+    }
+  };
+
+  const handleDeleteComment = async (comment: CrewFeedComment) => {
+    if (!currentUser) return;
+    if (comment.authorId !== currentUser.uid && !viewerIsCaptain) return;
+    try {
+      await deleteCrewFeedComment(comment.id);
+    } catch (err) {
+      console.error('Failed to delete comment:', err);
+    }
+  };
 
   // 1. Subscribe to stable Crew archive snapshots. These are created only after
   // approval and intentionally do not retro-import personal Starter receipts.
@@ -153,6 +203,15 @@ export function CrewMemoriesFeed() {
 
     checkLikes();
   }, [entries, currentUser]);
+
+  // 4. Subscribe to crew comments (one listener for the whole crew feed).
+  useEffect(() => {
+    if (!crewId) {
+      setComments([]);
+      return;
+    }
+    return subscribeToCrewComments(crewId, setComments);
+  }, [crewId]);
 
   const handleLikeToggle = async (entryId: string) => {
     if (!currentUser) return;
@@ -261,9 +320,9 @@ export function CrewMemoriesFeed() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b-4 border-on-surface/10 pb-6">
         <div>
           <p className="font-mono text-xs font-black uppercase tracking-[0.24em] text-brand-orange">The shared evidence locker</p>
-          <h2 className="text-4xl font-display font-black uppercase italic tracking-tighter text-on-surface">Crew Archive</h2>
+          <h2 className="text-4xl font-display font-black uppercase italic tracking-tighter text-on-surface">Crew Feed</h2>
           <p className="text-xs font-mono text-on-surface/60 uppercase tracking-wider">
-            Approved crew-season receipts. Zine selections are curated from this archive.
+            Approved crew-season receipts. Like them, talk about them, add to the lore.
           </p>
         </div>
         <button
@@ -310,6 +369,8 @@ export function CrewMemoriesFeed() {
             const displayImage = entry.imageUrl || entry.photoUrl || entry.proofImage;
             const pointsValue = entry.awardedXP || entry.pointsAwarded || entry.awardedPoints || entry.estimatedPoints || 100;
             const entryReactions = getReactionsSummary(entry.id);
+            const entryComments = commentsByEntry[entry.id] || [];
+            const commentsOpen = !!expandedComments[entry.id];
             const isLiked = !!likedMap[entry.id];
             const eligibilityReasons = Array.isArray((entry as any).eligibilityReasons) ? (entry as any).eligibilityReasons : [];
             const archiveStatus = String((entry as any).archiveStatus || 'candidate');
@@ -491,6 +552,61 @@ export function CrewMemoriesFeed() {
                   </div>
 
                 </div>
+
+                {/* Comments — the conversation on this receipt */}
+                <div className="mt-4 pt-4 border-t-2 border-on-surface/10">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedComments(prev => ({ ...prev, [entry.id]: !prev[entry.id] }))}
+                    className="flex items-center gap-2 font-mono text-xs font-black uppercase tracking-wider text-on-surface/70 hover:text-on-surface"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    {entryComments.length === 0 ? 'Be the first to comment' : `${entryComments.length} comment${entryComments.length === 1 ? '' : 's'}`}
+                  </button>
+
+                  {commentsOpen && (
+                    <div className="mt-3 space-y-3">
+                      {entryComments.map(comment => (
+                        <div key={comment.id} className="flex gap-2">
+                          <div className="w-7 h-7 shrink-0 rounded-full border-2 border-on-surface bg-[#EAF7F7] flex items-center justify-center font-mono font-black text-xs text-brand-cyan-dark">
+                            {comment.authorName?.substring(0, 2).toUpperCase() || 'AG'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-mono font-black uppercase tracking-wider">
+                              {comment.authorName}
+                              <span className="ml-2 font-normal normal-case tracking-normal text-on-surface/60">{formatCommentTime(comment.createdAt)}</span>
+                            </p>
+                            <p className="font-serif text-sm leading-relaxed text-on-surface/85 break-words">{comment.text}</p>
+                          </div>
+                          {(comment.authorId === currentUser?.uid || viewerIsCaptain) && (
+                            <button type="button" onClick={() => handleDeleteComment(comment)} className="shrink-0 text-on-surface/60 hover:text-red-600 font-mono text-xs font-black uppercase" title="Delete comment">×</button>
+                          )}
+                        </div>
+                      ))}
+                      <div className="flex gap-2">
+                        <input
+                          value={commentDrafts[entry.id] || ''}
+                          onChange={e => setCommentDrafts(prev => ({ ...prev, [entry.id]: e.target.value }))}
+                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handlePostComment(entry.id); } }}
+                          placeholder="Add a comment..."
+                          maxLength={MAX_CREW_COMMENT_LENGTH}
+                          className="flex-1 min-w-0 border-2 border-on-surface px-3 py-2 font-serif text-sm bg-[#FCFAF2] placeholder:italic placeholder:text-on-surface/60"
+                        />
+                        <button
+                          type="button"
+                          disabled={commentBusy[entry.id] || !(commentDrafts[entry.id] || '').trim()}
+                          onClick={() => handlePostComment(entry.id)}
+                          className="px-4 py-2 bg-brand-lime border-2 border-on-surface font-mono text-xs font-black uppercase shadow-[2px_2px_0px_black] active:translate-y-0.5 active:shadow-none disabled:opacity-40"
+                        >
+                          {commentBusy[entry.id] ? 'Posting…' : 'Post'}
+                        </button>
+                      </div>
+                      {commentErrors[entry.id] && (
+                        <p className="font-mono text-xs font-black uppercase text-red-600">{commentErrors[entry.id]}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </motion.div>
             );
           })}
@@ -498,6 +614,23 @@ export function CrewMemoriesFeed() {
       )}
     </div>
   );
+}
+
+/** Short time for a comment: clock time today, short date otherwise. */
+function formatCommentTime(createdAt: any): string {
+  if (!createdAt) return 'Just now';
+  const millis =
+    typeof createdAt.toMillis === 'function'
+      ? createdAt.toMillis()
+      : typeof createdAt.seconds === 'number'
+        ? createdAt.seconds * 1000
+        : Number(new Date(createdAt).getTime());
+  if (!Number.isFinite(millis) || millis <= 0) return 'Just now';
+  const date = new Date(millis);
+  if (date.toDateString() === new Date().toDateString()) {
+    return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 function ArchiveMetric({ label, value, compact = false }: { label: string; value: React.ReactNode; compact?: boolean }) {
