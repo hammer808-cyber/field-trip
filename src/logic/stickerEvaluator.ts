@@ -78,6 +78,14 @@ export interface StickerRule {
   kind: StickerRuleKind;
   /** Count-rule thresholds (exact match — see `evaluateCountRule`). */
   thresholds?: readonly number[];
+  /**
+   * Catch-up count rules fire at the threshold AND on every approval
+   * after it (audit fix #2): a player already past the threshold when
+   * the rule ships earns the sticker on their next approval instead of
+   * never. The unlock transaction dedupes re-evaluation, so re-firing
+   * is safe. Exact-match rules re-attempt only at their thresholds.
+   */
+  catchUp?: boolean;
 }
 
 /**
@@ -98,7 +106,7 @@ export const STICKER_RULES: Readonly<Record<StickerAwardTrigger, StickerRule>> =
   crew_joined: { kind: 'event' },
   crew_created: { kind: 'event' },
   zine_page_added: { kind: 'event' },
-  archetype_milestone: { kind: 'count', thresholds: [ARCHETYPE_MILESTONE_THRESHOLD] },
+  archetype_milestone: { kind: 'count', thresholds: [ARCHETYPE_MILESTONE_THRESHOLD], catchUp: true },
   season_milestone: { kind: 'set' },
   mission_count_milestone: { kind: 'count', thresholds: MISSION_COUNT_MILESTONE_THRESHOLDS },
   level_up: { kind: 'event' },
@@ -216,13 +224,14 @@ export function getEffectiveApprovedCount(
 }
 
 /**
- * Count-rule evaluation. Fires only on the exact threshold crossing — not
- * on the 4th, not on the 6th. Re-evaluation at the threshold is safe: the
- * unlock transaction returns `already_unlocked`.
+ * Count-rule evaluation. Exact-match rules fire only on the threshold
+ * crossing — not on the 4th, not on the 6th. Re-evaluation at the
+ * threshold is safe: the unlock transaction returns `already_unlocked`.
  *
- * Known gap (design §4.2, strict-equality read): a player who was already
- * past the threshold when Stage 3 ships never crosses it again, so they
- * never earn the sticker. `season_milestone` does not have this gap — it
+ * Catch-up rules (`archetype_milestone`, audit fix #2) fire at the
+ * threshold and on every approval after it, so a player already past
+ * the threshold when the rule ships earns the sticker on their next
+ * approval instead of never. `season_milestone` has the same shape — it
  * re-checks completion on every approval.
  */
 export function evaluateCountRule(
@@ -230,8 +239,11 @@ export function evaluateCountRule(
   approvedCount: number
 ): StickerDefinition[] {
   const rule = STICKER_RULES[trigger];
-  if (!rule || rule.kind !== 'count') return [];
-  if (!rule.thresholds?.includes(approvedCount)) return [];
+  if (!rule || rule.kind !== 'count' || !rule.thresholds) return [];
+  const fires = rule.catchUp
+    ? approvedCount >= Math.min(...rule.thresholds)
+    : rule.thresholds.includes(approvedCount);
+  if (!fires) return [];
   return getStickersByTrigger(trigger);
 }
 
@@ -372,12 +384,11 @@ export interface AdminApprovalEvaluationInput {
  * per review click, and the unlock transaction dedupes re-evaluation
  * (`already_unlocked`).
  *
- * Known gap, NOT fixed here (audit fix #2): `archetype_milestone` fires
- * only on the exact 5th approval — a player already past 5 when this
- * ships never crosses it again. `season_milestone` has no such gap (it
- * re-checks deck completion on every approval), and
- * `mission_count_milestone` re-attempts at each of its thresholds
- * (3, 5, 10).
+ * Audit fix #2 (Nov 20, 2026): `archetype_milestone` is now a catch-up
+ * rule — it fires at 5 approved proofs and on every approval after it,
+ * so a player already past 5 earns it on their next approval.
+ * `mission_count_milestone` stays exact-match and re-attempts at each of
+ * its thresholds (3, 5, 10).
  */
 export async function evaluateAdminApprovalStickers(
   input: AdminApprovalEvaluationInput

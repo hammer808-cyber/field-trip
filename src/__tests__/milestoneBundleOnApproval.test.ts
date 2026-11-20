@@ -177,9 +177,9 @@ test('admin approval: a profile that already includes the triggering mission doe
   assert.deepEqual(calls[0].stickerIds, ['first_offenses_repeat_offender']);
 });
 
-test('admin approval: archetype_milestone stays exact-5 (known gap, audit fix #2 — not this change)', async () => {
+test('admin approval: archetype_milestone catches up past 5 (audit fix #2)', async () => {
   const fake = makeFakeUnlock();
-  await evaluateAdminApprovalStickers({
+  const results = await evaluateAdminApprovalStickers({
     userId: USER_ID,
     entry: { tripId: 'mission-f' },
     source: 'proof_approval:e1',
@@ -187,11 +187,16 @@ test('admin approval: archetype_milestone stays exact-5 (known gap, audit fix #2
     profile: makeProfile(['mission-a', 'mission-b', 'mission-c', 'mission-d', 'mission-e']),
     unlock: fake.unlock
   });
-  // 6th approval: the bundle ran, but no milestone fires — 6 is past the
-  // archetype threshold (exactly 5) and past the mission-count thresholds
-  // (3, 5, 10), so the 6th approval earns no milestone sticker at all.
-  // That is the known exact-threshold gap (audit fix #2), not this change.
-  assert.equal(callsForTrigger(fake.calls, 'archetype_milestone').length, 0);
+  // 6th approval: the archetype milestone fires (catch-up — a player
+  // already past 5 earns it on their next approval), while the
+  // mission-count rule stays exact-match: 6 is past its thresholds
+  // (3, 5, 10), so no mission-count milestone fires here.
+  const calls = callsForTrigger(fake.calls, 'archetype_milestone');
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].stickerIds, ['mall_rat_sunglasses']);
+  assert.ok(
+    results.some((result) => result.stickerId === 'mall_rat_sunglasses' && result.status === 'unlocked')
+  );
   assert.equal(callsForTrigger(fake.calls, 'mission_count_milestone').length, 0);
 });
 

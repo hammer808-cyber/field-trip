@@ -6,7 +6,7 @@ import type {
   CanonicalProgressSnapshot
 } from '../services/canonicalProgress';
 import type { StickerUnlockResult } from '../services/stickerService';
-import { evaluateStickerTriggers } from '../logic/stickerEvaluator';
+import { evaluateCountRule, evaluateStickerTriggers } from '../logic/stickerEvaluator';
 
 const USER_ID = 'user-1';
 
@@ -198,7 +198,24 @@ test('challenge_approved fires only for non-starter approvals, with the archetyp
   assert.equal(callsForTrigger(noEntryFake.calls, 'challenge_approved').length, 0);
 });
 
-test('archetype_milestone fires on exactly the 5th approved proof, once, and not on the 4th or 6th', async () => {
+test('evaluateCountRule: archetype_milestone is catch-up (>= 5), mission_count_milestone stays exact-match', () => {
+  const archetypeIds = (count: number) =>
+    evaluateCountRule('archetype_milestone', count).map((s) => s.id);
+  assert.deepEqual(archetypeIds(4), []);
+  assert.ok(archetypeIds(5).length > 0, '5th approval must fire the milestone');
+  assert.ok(archetypeIds(6).length > 0, '6th approval must catch up, not miss');
+  assert.ok(archetypeIds(12).length > 0, '12th approval must still catch up');
+
+  const missionIds = (count: number) =>
+    evaluateCountRule('mission_count_milestone', count).map((s) => s.id);
+  assert.ok(missionIds(3).length > 0, '3 fires Repeat Offender');
+  assert.deepEqual(missionIds(4), [], '4 is past a threshold — exact-match stays silent');
+  assert.ok(missionIds(5).length > 0, '5 re-attempts at its threshold');
+  assert.deepEqual(missionIds(6), [], '6 is past a threshold — exact-match stays silent');
+  assert.ok(missionIds(10).length > 0, '10 re-attempts at its threshold');
+});
+
+test('archetype_milestone fires at the 5th approved proof, catches up after it, and not before the 5th', async () => {
   const atCount = async (approvedInSnapshot: string[], entryMissionId: string) => {
     const fake = makeFakeUnlock();
     const results = await evaluateStickerTriggers({
@@ -242,11 +259,19 @@ test('archetype_milestone fires on exactly the 5th approved proof, once, and not
     repeat.some((result) => result.stickerId === 'mall_rat_sunglasses' && result.status === 'already_unlocked')
   );
 
+  // Catch-up (audit fix #2): past 5, the milestone fires on the next
+  // approval instead of never — a player already past 5 when this ships
+  // earns it on their 6th approval. The unlock dedupes re-evaluation.
   const sixth = await atCount(
     ['mission-a', 'mission-b', 'mission-c', 'mission-d', 'mission-e'],
     'mission-f'
   );
-  assert.equal(callsForTrigger(sixth.fake.calls, 'archetype_milestone').length, 0);
+  const sixthCalls = callsForTrigger(sixth.fake.calls, 'archetype_milestone');
+  assert.equal(sixthCalls.length, 1);
+  assert.deepEqual(sixthCalls[0].stickerIds, ['mall_rat_sunglasses']);
+  assert.ok(
+    sixth.results.some((result) => result.stickerId === 'mall_rat_sunglasses' && result.status === 'unlocked')
+  );
 });
 
 test('archetype_milestone awards nothing for an archetype with no milestone sticker', async () => {
