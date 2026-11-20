@@ -172,14 +172,14 @@ test('chaos pack: firestore.rules whitelists the ten new ids', () => {
   }
 });
 
-test('chaos pack: On a Roll is untouched (Zach\'s call: add all ten as new)', () => {
+test('chaos pack: On a Roll is now the approval-streak sticker (earn-audit fix #3 remainder, Zach\'s call: 5 days in a row)', () => {
   const sticker = getStickerById('chaos_on_a_roll');
   assert.ok(sticker, 'chaos_on_a_roll must still be registered');
   assert.equal(sticker.name, 'On a Roll');
   assert.equal(sticker.collection, 'chaos');
   assert.equal(sticker.displayOrder, 1);
-  assert.equal(sticker.rarity, 'common', 'On a Roll rarity stays defaulted common — its own call, not this change');
-  assert.equal(sticker.awardTrigger, 'admin_grant');
+  assert.equal(sticker.rarity, 'rare', 'On a Roll went common -> rare with the 5-day bar');
+  assert.equal(sticker.awardTrigger, 'approval_streak');
   assert.equal(sticker.imageUrl, '/assets/stickers/chaos/on_a_roll.png');
   assert.equal(
     md5(path.join('public', 'assets', 'stickers', 'chaos', 'on_a_roll.png')),

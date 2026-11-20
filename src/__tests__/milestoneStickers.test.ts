@@ -33,9 +33,9 @@ test('milestone: On a Roll is registered as the first Chaos sticker', () => {
   assert.equal(sticker.archetype, undefined, 'On a Roll is cross-pack (no archetype)');
   assert.equal(sticker.displayOrder, 1);
   assert.equal(sticker.imageUrl, '/assets/stickers/chaos/on_a_roll.png');
-  assert.equal(sticker.awardTrigger, 'admin_grant', 'no streak trigger exists yet — grantable only');
+  assert.equal(sticker.awardTrigger, 'approval_streak', 'the streak trigger now exists (earn-audit fix #3 remainder, Nov 20, 2026 — Zach\'s call: 5 days in a row)');
   assert.ok(sticker.tags.includes('milestone'));
-  assert.ok(sticker.tags.includes('trigger-pending'), 'trigger needs Zach to define what counts as a roll');
+  assert.ok(!sticker.tags.includes('trigger-pending'), 'Zach defined the roll: 5 approved proofs on 5 consecutive days');
   assert.ok(sticker.unlockReason.length > 0);
 
   const chaos = getStickersByCollection('chaos');

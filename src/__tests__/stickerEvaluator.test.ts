@@ -126,9 +126,11 @@ test('first_approval with no field type falls back to the default', async () => 
 test('event rules archetype-match across triggers', async () => {
   // Cross-pack stickers ride along with the archetype variant (or the
   // default) on their trigger: Fresh Meat on first_submission, Democracy
-  // Is Messy on weekly_vote_cast, Accomplice and Good Company (earn-audit
-  // fix #3) on crew_joined. Triggers with no cross-pack sticker are
-  // unchanged.
+  // Is Messy on weekly_vote_cast, Good Company (earn-audit fix #3) on
+  // crew_joined, The Instigator (fix #3 remainder) on crew_created.
+  // Accomplice used to ride crew_joined; the remainder moved it to the
+  // crew-surviving-a-week bar (crew_survived_week). Triggers with no
+  // cross-pack sticker are unchanged.
   const cases: Array<{ trigger: Parameters<typeof evaluateStickerTriggers>[0]['event']['type']; fieldType: string; expected: string[] }> = [
     { trigger: 'first_submission', fieldType: 'lostCamper', expected: ['lost_camper_nervous_camper', 'first_offenses_fresh_meat'] },
     { trigger: 'first_submission', fieldType: 'captainClipboard', expected: ['mall_rat_receipt_curl', 'first_offenses_fresh_meat'] },
@@ -137,9 +139,9 @@ test('event rules archetype-match across triggers', async () => {
     { trigger: 'photo_proof_added', fieldType: 'mallRat', expected: ['mall_rat_food_court_tray'] },
     { trigger: 'photo_proof_added', fieldType: 'elondra', expected: ['mall_rat_food_court_tray'] },
     { trigger: 'weekly_vote_cast', fieldType: 'bigfoot', expected: ['mascota_foam_finger', 'first_offenses_democracy_is_messy'] },
-    { trigger: 'crew_created', fieldType: 'mallRat', expected: ['captain_clipboard_whistle_lanyard'] },
-    { trigger: 'crew_joined', fieldType: 'lostCamper', expected: ['lost_camper_trail_sign', 'first_offenses_accomplice', 'side_quests_good_company'] },
-    { trigger: 'crew_joined', fieldType: 'mallRat', expected: ['bigfoot_peace_sign', 'first_offenses_accomplice', 'side_quests_good_company'] },
+    { trigger: 'crew_created', fieldType: 'mallRat', expected: ['captain_clipboard_whistle_lanyard', 'first_offenses_the_instigator'] },
+    { trigger: 'crew_joined', fieldType: 'lostCamper', expected: ['lost_camper_trail_sign', 'side_quests_good_company'] },
+    { trigger: 'crew_joined', fieldType: 'mallRat', expected: ['bigfoot_peace_sign', 'side_quests_good_company'] },
     { trigger: 'zine_page_added', fieldType: 'elondra', expected: ['elondra_purse'] },
     { trigger: 'zine_page_added', fieldType: 'bigfoot', expected: ['captain_clipboard_flying_papers'] }
   ];
@@ -501,7 +503,10 @@ test('a Texas approval awards Texas Y\'all (01) and only its own mission sticker
   });
   assert.deepEqual(
     callsForTrigger(fake.calls, 'first_approval').flatMap((call) => call.stickerIds),
-    ['elondra_glam_pose', 'texas_yall_01']
+    // Roadside Weird (fix #3 remainder, Q7) stacks with the Texas 01 on
+    // the first Texas approval; Outside Person rides the separate
+    // location_verified call, not this one.
+    ['elondra_glam_pose', 'side_quests_roadside_weird', 'texas_yall_01']
   );
   assert.deepEqual(
     callsForTrigger(fake.calls, 'challenge_approved').flatMap((call) => call.stickerIds),

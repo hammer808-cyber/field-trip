@@ -80,8 +80,19 @@ test('elondra pack: all ten are registered as new Elondra stickers with the righ
     assert.equal(sticker.displayOrder, expected.displayOrder);
     assert.equal(sticker.rarity, expected.rarity);
     assert.equal(sticker.imageUrl, `/assets/stickers/elondra/${expected.file}`);
-    assert.equal(sticker.awardTrigger, 'admin_grant');
-    assert.ok(sticker.tags.includes('trigger-pending'), `${expected.id} must be tagged trigger-pending`);
+    // Desert Alien Encounter left admin_grant in the fix #3 remainder
+    // (Nov 20, 2026 — Zach's call, Q10): `desert_state_approval` on a
+    // desert-state tag, and no desert-state mission exists yet. The other
+    // nine stay admin_grant / trigger-pending.
+    const expectedTrigger = expected.id === 'elondra_desert_alien_encounter'
+      ? 'desert_state_approval'
+      : 'admin_grant';
+    assert.equal(sticker.awardTrigger, expectedTrigger);
+    if (expectedTrigger === 'admin_grant') {
+      assert.ok(sticker.tags.includes('trigger-pending'), `${expected.id} must be tagged trigger-pending`);
+    } else {
+      assert.ok(!sticker.tags.includes('trigger-pending'), `${expected.id} has a wired trigger — the pending tag must be gone`);
+    }
     assert.ok(sticker.unlockReason.length > 0);
   }
 });

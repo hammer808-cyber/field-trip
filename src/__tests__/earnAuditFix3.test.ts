@@ -102,11 +102,15 @@ test('fix #3: other archetypes keep their first-approval variant (no regression)
   );
 });
 
-test('fix #3: a crew join awards Accomplice + Good Company (+ the bigfoot default)', () => {
+test('fix #3 remainder: a crew join awards Good Company (+ the bigfoot default) — Accomplice moved to the week bar', () => {
   const awarded = resolveEventStickers('crew_joined', 'elondra').map((s) => s.id);
-  assert.ok(awarded.includes('first_offenses_accomplice'), 'Accomplice still fires');
+  assert.ok(!awarded.includes('first_offenses_accomplice'), 'Accomplice no longer fires on the join (Q11: the crew must still exist a week later)');
   assert.ok(awarded.includes('side_quests_good_company'), 'Good Company rides along');
   assert.ok(awarded.includes('bigfoot_peace_sign'), 'the crew_joined default still fires');
+  assert.ok(
+    resolveEventStickers('crew_survived_week', 'elondra').includes(getStickerById('first_offenses_accomplice')!),
+    'Accomplice fires on crew_survived_week'
+  );
 });
 
 test('fix #3: a repair approval awards Plot Twist', async () => {

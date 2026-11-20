@@ -107,7 +107,7 @@ test('fix #4: every archetype now earns a variant on its first non-starter appro
   }
 });
 
-test('fix #4: first_approval variants are unchanged by the new stickers', () => {
+test('fix #3 remainder: Bigfoot\'s first_approval variant is now Sasquatch Sighting (was the Checkmark Seal default)', () => {
   assert.deepEqual(
     resolveEventStickers('first_approval', 'captainClipboard').map((s) => s.id),
     ['captain_clipboard_checkmark_seal']
@@ -118,6 +118,6 @@ test('fix #4: first_approval variants are unchanged by the new stickers', () => 
   );
   assert.deepEqual(
     resolveEventStickers('first_approval', 'bigfoot').map((s) => s.id),
-    ['captain_clipboard_checkmark_seal']
+    ['side_quests_sasquatch_sighting']
   );
 });

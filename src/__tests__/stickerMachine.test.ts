@@ -32,14 +32,17 @@ test('each Field Type filter returns its registered stickers plus the cross-pack
   // Mascota, Elondra, Captain Clipboard, and Lost Camper. Earn-audit fix
   // #3 (Nov 20, 2026) moves Retail Therapy from cross-pack to Mall Rat
   // (the Mall Rat first-approval variant), so Mall Rat is 16 and the
-  // cross-pack set shrinks by one.
+  // cross-pack set shrinks by one. The #3 remainder (Nov 20, 2026, Zach's
+  // call, Q8) moves Sasquatch Sighting from cross-pack to Bigfoot (its
+  // first-approval variant), so Bigfoot is 9 and the cross-pack set
+  // shrinks by one more.
   const expectedArchetypeCounts: Readonly<Record<string, number>> = {
     mallRat: 17,
     captainClipboard: 19,
     mascota: 8,
     elondra: 18,
     lostCamper: 8,
-    bigfoot: 8
+    bigfoot: 9
   };
   for (const option of STICKER_FILTER_OPTIONS) {
     if (option.id === 'all') continue;

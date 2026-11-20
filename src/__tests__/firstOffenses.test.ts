@@ -27,14 +27,18 @@ const FIRST_OFFENSES: ReadonlyArray<{
   wired: boolean;
 }> = [
   { id: 'first_offenses_fresh_meat', name: 'Fresh Meat', file: '01_fresh_meat.png', rarity: 'common', displayOrder: 13, trigger: 'first_submission', wired: true },
-  { id: 'first_offenses_scene_starter', name: 'Scene Starter', file: '02_scene_starter.png', rarity: 'common', displayOrder: 14, trigger: 'admin_grant', wired: false },
-  { id: 'first_offenses_the_instigator', name: 'The Instigator', file: '03_the_instigator.png', rarity: 'common', displayOrder: 15, trigger: 'admin_grant', wired: false },
+  { id: 'first_offenses_scene_starter', name: 'Scene Starter', file: '02_scene_starter.png', rarity: 'common', displayOrder: 14, trigger: 'first_draw', wired: true },
+  { id: 'first_offenses_the_instigator', name: 'The Instigator', file: '03_the_instigator.png', rarity: 'common', displayOrder: 15, trigger: 'crew_created', wired: true },
   { id: 'first_offenses_democracy_is_messy', name: 'Democracy Is Messy', file: '04_democracy_is_messy.png', rarity: 'common', displayOrder: 16, trigger: 'weekly_vote_cast', wired: true },
-  { id: 'first_offenses_accomplice', name: 'Accomplice', file: '05_accomplice.png', rarity: 'common', displayOrder: 17, trigger: 'crew_joined', wired: true },
-  { id: 'first_offenses_outside_person', name: 'Outside Person', file: '06_outside_person.png', rarity: 'common', displayOrder: 18, trigger: 'admin_grant', wired: false },
+  { id: 'first_offenses_accomplice', name: 'Accomplice', file: '05_accomplice.png', rarity: 'common', displayOrder: 17, trigger: 'crew_survived_week', wired: true },
+  { id: 'first_offenses_outside_person', name: 'Outside Person', file: '06_outside_person.png', rarity: 'common', displayOrder: 18, trigger: 'location_verified', wired: true },
   { id: 'first_offenses_repeat_offender', name: 'Repeat Offender', file: '07_repeat_offender.png', rarity: 'rare', displayOrder: 19, trigger: 'mission_count_milestone', wired: true },
   { id: 'first_offenses_level_up', name: 'Level Up', file: '08_level_up.png', rarity: 'common', displayOrder: 20, trigger: 'level_up', wired: true },
-  { id: 'first_offenses_certified_menace', name: 'Certified Menace', file: '09_certified_menace.png', rarity: 'rare', displayOrder: 21, trigger: 'admin_grant', wired: false }
+  // Certified Menace stays admin_grant, but its earning IS defined now
+  // (earn-audit fix #3 remainder, Nov 20, 2026 — Zach's call, Q5): it
+  // fires automatically the first time any Chaos sticker is granted.
+  // So `wired: true` — the trigger-pending tag is gone (see below).
+  { id: 'first_offenses_certified_menace', name: 'Certified Menace', file: '09_certified_menace.png', rarity: 'rare', displayOrder: 21, trigger: 'admin_grant', wired: true }
 ];
 
 test('first offenses: all nine are registered as cross-pack Achievement stickers', () => {
@@ -77,25 +81,15 @@ test('first offenses: every catalog image resolves to a real supplied PNG', () =
   }
 });
 
-test('first offenses: the four trigger-pending stickers are admin_grant and marked', () => {
+test('first offenses: no trigger-pending stickers remain in the series', () => {
+  // Earn-audit fix #3 remainder (Nov 20, 2026 — Zach's red pen, Q1–Q11):
+  // the four pending stickers all got definitions, so the pending list
+  // is empty. Certified Menace is the only one whose trigger stays
+  // admin_grant — and its earning is defined anyway (first Chaos grant).
   const pending = FIRST_OFFENSES.filter(entry => !entry.wired);
-  assert.deepEqual(
-    pending.map(entry => entry.id),
-    [
-      'first_offenses_scene_starter',
-      'first_offenses_the_instigator',
-      'first_offenses_outside_person',
-      'first_offenses_certified_menace'
-    ]
-  );
-  for (const entry of pending) {
-    const sticker = getStickerById(entry.id)!;
-    assert.equal(sticker.awardTrigger, 'admin_grant');
-    assert.ok(sticker.tags.includes('trigger-pending'), `${entry.id} must carry the trigger-pending tag`);
-  }
-  // The wired five never carry the pending tag.
-  for (const entry of FIRST_OFFENSES.filter(entry => entry.wired)) {
-    assert.ok(!getStickerById(entry.id)!.tags.includes('trigger-pending'));
+  assert.deepEqual(pending.map(entry => entry.id), []);
+  for (const entry of FIRST_OFFENSES) {
+    assert.ok(!getStickerById(entry.id)!.tags.includes('trigger-pending'), `${entry.id} must not carry the trigger-pending tag`);
   }
 });
 
@@ -105,9 +99,16 @@ test('first offenses: wired triggers resolve through the evaluator, including cr
     const resolved = resolveEventStickers('first_submission', archetype);
     assert.ok(resolved.some(sticker => sticker.id === 'first_offenses_fresh_meat'));
   }
-  // Democracy rides the weekly vote; Accomplice rides crew joins.
+  // Democracy rides the weekly vote; Scene Starter rides the first draw;
+  // The Instigator rides crew creation; Outside Person rides a
+  // location-verified approval; Accomplice rides the crew surviving a
+  // week — NOT the join (earn-audit fix #3 remainder, Nov 20, 2026).
   assert.ok(resolveEventStickers('weekly_vote_cast', 'mascota').some(s => s.id === 'first_offenses_democracy_is_messy'));
-  assert.ok(resolveEventStickers('crew_joined', null).some(s => s.id === 'first_offenses_accomplice'));
+  assert.ok(resolveEventStickers('first_draw', null).some(s => s.id === 'first_offenses_scene_starter'));
+  assert.ok(resolveEventStickers('crew_created', null).some(s => s.id === 'first_offenses_the_instigator'));
+  assert.ok(resolveEventStickers('location_verified', null).some(s => s.id === 'first_offenses_outside_person'));
+  assert.ok(!resolveEventStickers('crew_joined', null).some(s => s.id === 'first_offenses_accomplice'));
+  assert.ok(resolveEventStickers('crew_survived_week', null).some(s => s.id === 'first_offenses_accomplice'));
   // Level Up is a cross-pack event trigger: any archetype, even none.
   assert.deepEqual(
     resolveEventStickers('level_up', null).map(s => s.id),

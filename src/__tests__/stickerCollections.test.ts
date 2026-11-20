@@ -42,8 +42,8 @@ test('every sticker has exactly one valid collection and the counts match the St
 test('rarity is 3 levels: no uncommon remains', () => {
   const stickers = getAllStickers();
   assert.ok(stickers.every(sticker => ['common', 'rare', 'legendary'].includes(sticker.rarity)));
-  assert.equal(stickers.filter(sticker => sticker.rarity === 'common').length, 78);
-  assert.equal(stickers.filter(sticker => sticker.rarity === 'rare').length, 36);
+  assert.equal(stickers.filter(sticker => sticker.rarity === 'common').length, 77);
+  assert.equal(stickers.filter(sticker => sticker.rarity === 'rare').length, 37);
   assert.equal(stickers.filter(sticker => sticker.rarity === 'legendary').length, 4);
 });
 
