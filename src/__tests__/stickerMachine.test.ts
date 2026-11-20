@@ -12,7 +12,7 @@ import { STICKER_FILTER_OPTIONS } from '../components/stickers/StickerFilterTabs
 
 test('Sticker Machine exposes all required filters and every registry sticker', () => {
   const stickers = getAllStickers();
-  assert.equal(stickers.length, 91);
+  assert.equal(stickers.length, 101);
   assert.deepEqual(
     STICKER_FILTER_OPTIONS.map(option => option.label),
     ['All', 'Captain Clipboard', 'Mall Rat', 'Mascota', 'Elondra', 'Lost Camper', 'Bigfoot']

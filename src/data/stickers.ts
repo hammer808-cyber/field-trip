@@ -1177,6 +1177,139 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
   },
 
   // ---------------------------------------------------------------------------
+  // CHAOS PACK — 10 new entries (Nov 19, 2026; Zach's call)
+  // ---------------------------------------------------------------------------
+  // The chaos ZIP (FIELDTRIP_Chaos_Stickers_10_Transparent_PNG_70_g0xa.zip)
+  // held 10 PNGs numbered 01–10 — all entirely new scenes, none a re-render
+  // of On a Roll. Same neon pop-art style as On a Roll (faces on inanimate
+  // objects, lightning shades, tongue out). Chaos goes from 1 lonely sticker
+  // to a real shelf of 11.
+  //
+  // Files were 1254x1254, 1.5–2.3 MB each (~19.6 MB total) — shrunk with
+  // PIL LANCZOS to 400x400 RGBA before import (Elondra precedent), total
+  // ~2.7 MB. chaosPack.test.ts pins the post-shrink md5s.
+  //
+  // 01 + 10 ship AS-IS with their own art slightly clipped at the top edge
+  // (~30–35 px of the white die-cut border interrupted — 01's popcorn puff,
+  // 10's alarm-ray tip). A clean crop would cut the art, so no crop without
+  // Zach's call. 04's top-left corner alpha is 1 (one pixel) — negligible.
+  //
+  // All 10 are trigger-pending (admin_grant): no existing event fits a
+  // runaway cart, a vending machine, or a crayon campfire. Zach's call on
+  // what earns each one. Rarity is Zach's call too: 04 Vending Machine and
+  // 06 Disco Explosion are rare; the other eight are common.
+  {
+    id: 'chaos_runaway_cart',
+    name: 'Runaway Cart',
+    collection: 'chaos',
+    displayOrder: 2,
+    imageUrl: '/assets/stickers/chaos/chaos_01_runaway_cart.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for letting the cart run away with you.',
+    tags: ['chaos', 'cart', 'runaway', 'trigger-pending']
+  },
+  {
+    id: 'chaos_roller_skate',
+    name: 'Roller Skate',
+    collection: 'chaos',
+    displayOrder: 3,
+    imageUrl: '/assets/stickers/chaos/chaos_02_roller_skate.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for skating straight into the chaos.',
+    tags: ['chaos', 'roller-skate', 'skate', 'trigger-pending']
+  },
+  {
+    id: 'chaos_backpack_heist',
+    name: 'Backpack Heist',
+    collection: 'chaos',
+    displayOrder: 4,
+    imageUrl: '/assets/stickers/chaos/chaos_03_backpack_heist.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for the backpack heist.',
+    tags: ['chaos', 'backpack', 'heist', 'trigger-pending']
+  },
+  {
+    id: 'chaos_vending_machine',
+    name: 'Vending Machine',
+    collection: 'chaos',
+    displayOrder: 5,
+    imageUrl: '/assets/stickers/chaos/chaos_04_vending_machine.png',
+    rarity: 'rare',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for shaking the vending machine until it gave up the goods.',
+    tags: ['chaos', 'vending-machine', 'trigger-pending']
+  },
+  {
+    id: 'chaos_melting_cone',
+    name: 'Melting Cone',
+    collection: 'chaos',
+    displayOrder: 6,
+    imageUrl: '/assets/stickers/chaos/chaos_05_melting_cone.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for melting down in the best way.',
+    tags: ['chaos', 'traffic-cone', 'cone', 'trigger-pending']
+  },
+  {
+    id: 'chaos_disco_explosion',
+    name: 'Disco Explosion',
+    collection: 'chaos',
+    displayOrder: 7,
+    imageUrl: '/assets/stickers/chaos/chaos_06_disco_explosion.png',
+    rarity: 'rare',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for blowing the disco ball wide open.',
+    tags: ['chaos', 'disco', 'explosion', 'trigger-pending']
+  },
+  {
+    id: 'chaos_crayon_campfire',
+    name: 'Crayon Campfire',
+    collection: 'chaos',
+    displayOrder: 8,
+    imageUrl: '/assets/stickers/chaos/chaos_07_crayon_campfire.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for burning the crayons and roasting the marshmallow anyway.',
+    tags: ['chaos', 'crayon', 'campfire', 'trigger-pending']
+  },
+  {
+    id: 'chaos_punk_moon',
+    name: 'Punk Moon',
+    collection: 'chaos',
+    displayOrder: 9,
+    imageUrl: '/assets/stickers/chaos/chaos_08_punk_moon.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for howling at the punk moon.',
+    tags: ['chaos', 'moon', 'punk', 'trigger-pending']
+  },
+  {
+    id: 'chaos_confused_signpost',
+    name: 'Confused Signpost',
+    collection: 'chaos',
+    displayOrder: 10,
+    imageUrl: '/assets/stickers/chaos/chaos_09_confused_signpost.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for following the signpost that points everywhere at once.',
+    tags: ['chaos', 'signpost', 'confused', 'trigger-pending']
+  },
+  {
+    id: 'chaos_cosmic_payphone',
+    name: 'Cosmic Payphone',
+    collection: 'chaos',
+    displayOrder: 11,
+    imageUrl: '/assets/stickers/chaos/chaos_10_cosmic_payphone.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for answering the cosmic payphone.',
+    tags: ['chaos', 'payphone', 'cosmic', 'trigger-pending']
+  },
+
+  // ---------------------------------------------------------------------------
   // SIDE QUESTS — new collection (Nov 18, 2026; Zach's call)
   // ---------------------------------------------------------------------------
   // The side-quests ZIP (fieldtrip_side_quests_12_transparent_png_44_9l2i.zip)

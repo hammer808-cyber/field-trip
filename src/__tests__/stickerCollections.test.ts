@@ -18,13 +18,13 @@ const EXPECTED_COUNTS: Readonly<Record<StickerCollection, number>> = {
   side_quests: 11,
   achievement: 21,
   social: 4,
-  chaos: 1,
+  chaos: 11,
   limited_edition: 0
 };
 
 test('every sticker has exactly one valid collection and the counts match the Stage 3 mapping', () => {
   const stickers = getAllStickers();
-  assert.equal(stickers.length, 91);
+  assert.equal(stickers.length, 101);
   const validCollections = new Set<string>(COLLECTION_SHELF_ORDER);
   for (const sticker of stickers) {
     assert.ok(validCollections.has(sticker.collection), `${sticker.id} has an unknown collection`);
@@ -41,8 +41,8 @@ test('every sticker has exactly one valid collection and the counts match the St
 test('rarity is 3 levels: no uncommon remains', () => {
   const stickers = getAllStickers();
   assert.ok(stickers.every(sticker => ['common', 'rare', 'legendary'].includes(sticker.rarity)));
-  assert.equal(stickers.filter(sticker => sticker.rarity === 'common').length, 63);
-  assert.equal(stickers.filter(sticker => sticker.rarity === 'rare').length, 25);
+  assert.equal(stickers.filter(sticker => sticker.rarity === 'common').length, 71);
+  assert.equal(stickers.filter(sticker => sticker.rarity === 'rare').length, 27);
   assert.equal(stickers.filter(sticker => sticker.rarity === 'legendary').length, 3);
 });
 
@@ -80,7 +80,7 @@ test('collection metadata covers all seven collections in the approved shelf ord
     assert.ok(meta.tagline.length > 0, `${collection} needs a tagline`);
     assert.ok(meta.emptyState.length > 0, `${collection} needs empty-state copy`);
   }
-  assert.equal(getStickersByCollection('chaos').length, 1, 'Chaos holds its first sticker: On a Roll (milestone batch, Nov 18, 2026)');
+  assert.equal(getStickersByCollection('chaos').length, 11, 'Chaos holds 11 stickers: On a Roll + the 10-sticker chaos pack (Nov 19, 2026)');
   assert.equal(getStickersByCollection('side_quests').length, 11, 'Side Quests holds 11 of its 12 supplied stickers — 18_mall_rat is left out by Zach\'s call (Nov 18, 2026)');
   assert.equal(getStickersByCollection('limited_edition').length, 0);
 });

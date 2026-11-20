@@ -67,7 +67,7 @@ const CAPTAIN_CLIPBOARD_PACK: ReadonlyArray<{
 
 test('captain clipboard pack: all ten are registered as new Captain Clipboard stickers with the right collection, order, rarity and trigger', () => {
   const all = getAllStickers();
-  assert.equal(all.length, 91, '81 after the Elondra import + 10 new Captain Clipboard entries');
+  assert.equal(all.length, 101, '91 after the Captain Clipboard import + 10 new Chaos entries');
 
   const captainClipboard = all.filter(sticker => sticker.archetype === 'captainClipboard');
   assert.equal(captainClipboard.length, 17, '7 original Captain Clipboard stickers + 10 new pack entries');

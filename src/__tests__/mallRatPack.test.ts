@@ -71,7 +71,7 @@ test('mall rat pack: the 8 new entries are registered with the right collection,
 
   const mallRatIds = getAllStickers().filter(sticker => sticker.id.startsWith('mall_rat_'));
   assert.equal(mallRatIds.length, 15, '7 original Mall Rat stickers + 8 new pack entries');
-  assert.equal(getAllStickers().length, 91, '71 after the Mall Rat import + 10 new Elondra entries + 10 new Captain Clipboard entries');
+  assert.equal(getAllStickers().length, 101, '91 after the Captain Clipboard import + 10 new Chaos entries');
 });
 
 test('mall rat pack: the 8 new images are the supplied PNGs, byte-identical to the ZIP', () => {
