@@ -64,7 +64,7 @@ const SIDE_QUESTS: ReadonlyArray<{
 
 test('side quests: all eleven are registered as cross-pack Side Quests stickers', () => {
   const all = getAllStickers();
-  assert.equal(all.length, 81);
+  assert.equal(all.length, 91);
   const ids = new Set(all.map(sticker => sticker.id));
   assert.equal(ids.size, all.length, 'sticker ids must be unique');
 

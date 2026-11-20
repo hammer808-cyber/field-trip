@@ -714,6 +714,144 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     tags: ['elondra', 'shopping', 'bags', 'cosmic', 'trigger-pending']
   },
 
+  // Captain Clipboard pack (Nov 19, 2026 — Zach's call: add all ten as
+  // new, 02 + 03 rare). Flat-vector burgundy + gold + cream badge-backing
+  // art (circle / shield / starburst / rounded square), shipped as a ZIP
+  // with no metadata. All ten land as new entries — no replacements, no
+  // re-renders, no byte-identical matches: the existing 7 all match their
+  // names, so there is no defect to fix; 09 sits alongside the Checkmark
+  // Seal as a distinct sticker (stamp tool + prohibition vs green seal +
+  // checkmark). All trigger-pending (admin_grant): no existing event fits
+  // them. Do NOT give new entries awardTrigger 'starter_pack' —
+  // unlockStarterPackForArchetype grants all starter_pack entries at quiz
+  // time with no backfill for existing players. Files are 1024x1024,
+  // 104–156 KB each — batch-1 size class, imported as-is, no shrink
+  // needed. Originals live in the ZIP
+  // captain_clipboard_10_unique_stickers_68_wdru.zip, not in the repo.
+  {
+    id: 'captain_clipboard_cat_eye_glasses',
+    name: 'Cat Eye Glasses',
+    archetype: 'captainClipboard',
+    collection: 'explorer',
+    displayOrder: 30,
+    imageUrl: '/assets/stickers/captainClipboard/01_cat_eye_glasses.png',
+    rarity: 'common',
+    // Trigger PENDING (Nov 19, 2026): no existing event fits cat-eye
+    // sunglasses. Registered as admin_grant so it is visible and
+    // grantable, never mis-awarded by a guessed event.
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for seeing the rules in style.',
+    tags: ['captain-clipboard', 'glasses', 'cat-eye', 'sunglasses', 'trigger-pending']
+  },
+  {
+    id: 'captain_clipboard_rule_enforcer_gavel',
+    name: 'Rule Enforcer Gavel',
+    archetype: 'captainClipboard',
+    collection: 'explorer',
+    displayOrder: 31,
+    imageUrl: '/assets/stickers/captainClipboard/02_rule_enforcer_gavel.png',
+    rarity: 'rare',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for laying down the law.',
+    tags: ['captain-clipboard', 'gavel', 'rules', 'authority', 'trigger-pending']
+  },
+  {
+    id: 'captain_clipboard_chess_queen',
+    name: 'Chess Queen',
+    archetype: 'captainClipboard',
+    collection: 'explorer',
+    displayOrder: 32,
+    imageUrl: '/assets/stickers/captainClipboard/03_chess_queen.png',
+    rarity: 'rare',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for playing the long game.',
+    tags: ['captain-clipboard', 'chess', 'queen', 'strategy', 'trigger-pending']
+  },
+  {
+    id: 'captain_clipboard_sideline_megaphone',
+    name: 'Sideline Megaphone',
+    archetype: 'captainClipboard',
+    collection: 'explorer',
+    displayOrder: 33,
+    imageUrl: '/assets/stickers/captainClipboard/04_sideline_megaphone.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for calling it from the sidelines.',
+    tags: ['captain-clipboard', 'megaphone', 'sideline', 'cheer', 'trigger-pending']
+  },
+  {
+    id: 'captain_clipboard_color_coded_organizer',
+    name: 'Color Coded Organizer',
+    archetype: 'captainClipboard',
+    collection: 'explorer',
+    displayOrder: 34,
+    imageUrl: '/assets/stickers/captainClipboard/05_color_coded_organizer.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for filing everything in its place.',
+    tags: ['captain-clipboard', 'organizer', 'color-coded', 'files', 'trigger-pending']
+  },
+  {
+    id: 'captain_clipboard_velvet_rope_checkpoint',
+    name: 'Velvet Rope Checkpoint',
+    archetype: 'captainClipboard',
+    collection: 'explorer',
+    displayOrder: 35,
+    imageUrl: '/assets/stickers/captainClipboard/06_velvet_rope_checkpoint.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for holding the line.',
+    tags: ['captain-clipboard', 'velvet-rope', 'checkpoint', 'stanchion', 'trigger-pending']
+  },
+  {
+    id: 'captain_clipboard_perfect_lunchbox',
+    name: 'Perfect Lunchbox',
+    archetype: 'captainClipboard',
+    collection: 'explorer',
+    displayOrder: 36,
+    imageUrl: '/assets/stickers/captainClipboard/07_perfect_lunchbox.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for packing it perfectly.',
+    tags: ['captain-clipboard', 'lunchbox', 'bento', 'fuel', 'trigger-pending']
+  },
+  {
+    id: 'captain_clipboard_minivan_keychain',
+    name: 'Minivan Keychain',
+    archetype: 'captainClipboard',
+    collection: 'explorer',
+    displayOrder: 37,
+    imageUrl: '/assets/stickers/captainClipboard/08_minivan_keychain.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for keeping the keys to the kingdom.',
+    tags: ['captain-clipboard', 'keychain', 'minivan', 'keys', 'trigger-pending']
+  },
+  {
+    id: 'captain_clipboard_rules_stamp',
+    name: 'Rules Stamp',
+    archetype: 'captainClipboard',
+    collection: 'explorer',
+    displayOrder: 38,
+    imageUrl: '/assets/stickers/captainClipboard/09_rules_stamp.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for stamping the rules.',
+    tags: ['captain-clipboard', 'stamp', 'rules', 'prohibition', 'trigger-pending']
+  },
+  {
+    id: 'captain_clipboard_precision_measuring_tape',
+    name: 'Precision Measuring Tape',
+    archetype: 'captainClipboard',
+    collection: 'explorer',
+    displayOrder: 39,
+    imageUrl: '/assets/stickers/captainClipboard/10_precision_measuring_tape.png',
+    rarity: 'common',
+    awardTrigger: 'admin_grant',
+    unlockReason: 'Earned for measuring twice.',
+    tags: ['captain-clipboard', 'measuring-tape', 'precision', 'tape', 'trigger-pending']
+  },
+
   // Lost Camper
   {
     id: 'lost_camper_map',

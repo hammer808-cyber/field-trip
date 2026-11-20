@@ -66,7 +66,7 @@ const ELONDRA_PACK: ReadonlyArray<{
 
 test('elondra pack: all ten are registered as new Elondra stickers with the right collection, order, rarity and trigger', () => {
   const all = getAllStickers();
-  assert.equal(all.length, 81, '71 after the Mall Rat import + 10 new Elondra entries');
+  assert.equal(all.length, 91, '71 after the Mall Rat import + 10 new Elondra entries + 10 new Captain Clipboard entries');
 
   const elondra = all.filter(sticker => sticker.archetype === 'elondra');
   assert.equal(elondra.length, 17, '7 original Elondra stickers + 10 new pack entries');
