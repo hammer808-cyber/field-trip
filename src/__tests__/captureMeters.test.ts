@@ -23,3 +23,14 @@ test('FieldClipboard: the bottom EvidenceMeter still renders', () => {
   const clipboard = read('src/components/FieldClipboard.tsx');
   assert.match(clipboard, /<EvidenceMeter/);
 });
+
+test('FieldClipboard: the field-note textarea has a visible label (P0-5)', () => {
+  // Audit P0-5 (Nov 19, 2026): the textarea had only a placeholder, so
+  // screen readers got no field name and the "label" vanished on typing.
+  // A visible <label> wired to the textarea by id gives it an accessible
+  // name without changing the note logic, placeholder, or submit gating.
+  const clipboard = read('src/components/FieldClipboard.tsx');
+  assert.match(clipboard, /<label htmlFor="field-note"/);
+  assert.match(clipboard, /<textarea[^>]*\bid="field-note"/);
+  assert.match(clipboard, /<label htmlFor="field-note"[^>]*>\s*Field note\s*<\/label>/);
+});

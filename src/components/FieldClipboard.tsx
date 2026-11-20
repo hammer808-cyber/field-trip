@@ -545,7 +545,11 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                 </div>
               )}
 
-              <textarea 
+              <label htmlFor="field-note" className="block text-sm font-sans font-bold text-on-surface/70">
+                Field note
+              </label>
+              <textarea
+                id="field-note"
                 className="w-full bg-[#FAF9F6] border-2 border-on-surface/10 p-4 rounded-xl font-serif text-base italic outline-none focus:border-brand-orange transition-all h-24"
                 placeholder={fieldNotePrompt}
                 value={data.note}
