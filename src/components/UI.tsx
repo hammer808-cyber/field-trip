@@ -17,7 +17,7 @@ export function Card({
 }) {
   const variants = {
     default: "sticker-card",
-    'high-voltage': "sticker-card shadow-[0_8px_0_var(--field-black),0_14px_22px_var(--field-shadow),inset_0_1px_0_rgba(255,255,255,0.9),inset_0_-3px_0_rgba(0,0,0,0.08)] bg-brand-lime/10",
+    'high-voltage': "sticker-card shadow-[0_8px_0_var(--skin-border,#111111),0_14px_22px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.9),inset_0_-3px_0_rgba(0,0,0,0.08)] bg-brand-lime/10",
     orange: "sticker-card cta-card",
     lime: "sticker-card bg-brand-lime",
     magenta: "sticker-card bg-brand-magenta text-white",

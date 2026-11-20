@@ -39,28 +39,25 @@
 
 :root {
   --app-height: 100dvh;
-  --field-cream: #fff8df;
-  --field-paper: #fdf4d0;
-  --field-orange: #ff5a1f;
-  --field-pink: #ff2fb3;
-  --field-lime: #c8ff1a;
-  --field-blue: #184cff;
-  --field-purple: #7b2cff;
-  --field-black: #111111;
-  --field-shadow: rgba(0, 0, 0, 0.28);
+  /* P2-1: the duplicate --field-* token set lived here and is deleted.
+     Usages now read the skin tokens directly (see FIELD_MANUAL_TOKENS
+     in src/skins/registry.ts): --field-black -> --skin-border,
+     --field-lime -> --skin-secondary, --field-pink -> --color-brand-magenta,
+     --field-cream / --field-paper -> --color-paper. --field-orange /
+     --field-blue / --field-purple were defined but never used. */
 }
 
 .sticker-card {
   position: relative;
-  border: 3px solid var(--field-black);
+  border: 3px solid var(--skin-border, #111111);
   border-radius: 22px;
   background:
     linear-gradient(180deg, rgba(255,255,255,0.72), rgba(255,255,255,0.08) 38%, rgba(0,0,0,0.04)),
     radial-gradient(circle at 20% 0%, rgba(255,255,255,0.8), transparent 34%),
-    var(--field-cream);
+    var(--color-paper, #fcf9f2);
   box-shadow:
-    0 8px 0 var(--field-black),
-    0 14px 22px var(--field-shadow),
+    0 8px 0 var(--skin-border, #111111),
+    0 14px 22px rgba(0, 0, 0, 0.28),
     inset 0 1px 0 rgba(255,255,255,0.9),
     inset 0 -3px 0 rgba(0,0,0,0.08);
   overflow: hidden;
@@ -85,10 +82,10 @@
 
 .glossy-card {
   position: relative;
-  border: 3px solid var(--field-black);
+  border: 3px solid var(--skin-border, #111111);
   border-radius: 20px;
   box-shadow:
-    0 6px 0 var(--field-black),
+    0 6px 0 var(--skin-border, #111111),
     0 12px 18px rgba(0,0,0,0.25),
     inset 0 2px 0 rgba(255,255,255,0.7);
   overflow: hidden;
@@ -128,34 +125,34 @@
   background:
     radial-gradient(circle at 10% 0%, rgba(255,255,255,0.65), transparent 26%),
     linear-gradient(135deg, #ff4fd8 0%, #d84cff 45%, #ffe6fb 100%) !important;
-  color: var(--field-black) !important;
+  color: var(--skin-border, #111111) !important;
 }
 
 .stat-card {
   background:
     linear-gradient(180deg, rgba(255,255,255,0.78), rgba(255,255,255,0.15)),
-    var(--field-paper) !important;
+    var(--color-paper, #fcf9f2) !important;
 }
 
 .status-chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid var(--field-black);
+  border: 2px solid var(--skin-border, #111111);
   border-radius: 999px;
   padding: 0.25rem 0.6rem;
   font-weight: 800;
   font-size: 0.72rem;
   /* P0-2: explicit black text so every variant (lime / yellow / pink /
      red) clears 4.5:1 instead of inheriting whatever the parent sets. */
-  color: var(--field-black);
+  color: var(--skin-border, #111111);
   box-shadow:
-    0 3px 0 var(--field-black),
+    0 3px 0 var(--skin-border, #111111),
     inset 0 1px 0 rgba(255,255,255,0.75);
 }
 
 .status-chip.approved {
-  background: var(--field-lime);
+  background: var(--skin-secondary, #ccff00);
 }
 
 .status-chip.review {
@@ -163,7 +160,7 @@
 }
 
 .status-chip.needs-proof {
-  background: var(--field-pink);
+  background: var(--color-brand-magenta, #ff00ff);
   /* P0-2: white on #ff2fb3 is 3.33:1; black is 6.31:1. */
   color: #000000;
 }
@@ -175,11 +172,11 @@
 }
 
 .sticker-badge {
-  border: 3px solid var(--field-black);
+  border: 3px solid var(--skin-border, #111111);
   border-radius: 18px;
-  background: var(--field-lime);
+  background: var(--skin-secondary, #ccff00);
   box-shadow:
-    0 4px 0 var(--field-black),
+    0 4px 0 var(--skin-border, #111111),
     0 8px 12px rgba(0,0,0,0.25);
   transform: rotate(-2deg);
 }
@@ -962,7 +959,7 @@ img, video, canvas, svg {
 
 /* 2. Paper / Manila Cardstock */
 .field-card--paper {
-  @apply relative rounded-none border-[3.5px] border-on-surface bg-[#FFFDF6] transition-all duration-300;
+  @apply relative rounded-none border-[3.5px] border-on-surface bg-paper transition-all duration-300;
   box-shadow: 8px 10px 0px 0px #000000;
 }
 
@@ -981,7 +978,7 @@ img, video, canvas, svg {
 
 .field-card--success {
   @apply border-[3px] border-on-surface bg-[#F6FFEE];
-  box-shadow: 6px 8px 0px 0px #111;
+  box-shadow: 6px 8px 0px 0px var(--skin-border, #111111);
 }
 
 /* 3. Ticket Stub with Scallop Punch Edges */
@@ -1091,10 +1088,10 @@ img, video, canvas, svg {
 
 /* 10b. Field CTA Button - Premium Gradient & Depth */
 .field-cta {
-  background: linear-gradient(135deg, #ff5a00, #ff2fa8);
+  background: linear-gradient(135deg, #ff5c00, #ff2fa8); /* P2-1: orange end unified to the primary token; #ff2fa8 pink end is deferred (Missions freeze, no token equivalent) */
   color: white;
-  border: 3px solid #111;
-  box-shadow: 6px 8px 0 #111;
+  border: 3px solid var(--skin-border, #111111);
+  box-shadow: 6px 8px 0 var(--skin-border, #111111);
   font-weight: 900;
   text-transform: uppercase;
   transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -1121,12 +1118,12 @@ img, video, canvas, svg {
 
 .field-cta:active {
   transform: translate(3px, 4px);
-  box-shadow: 2px 3px 0 #111;
+  box-shadow: 2px 3px 0 var(--skin-border, #111111);
 }
 
 .field-cta:hover {
   filter: brightness(1.05);
-  box-shadow: 8px 10px 0 #111;
+  box-shadow: 8px 10px 0 var(--skin-border, #111111);
   transform: translate(-1px, -1px);
 }
 

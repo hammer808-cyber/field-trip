@@ -19,6 +19,55 @@ export const DEFAULT_SKIN_ID = 'classic';
 export const FIELD_NOTEBOOK_SKIN_ID = 'journal';
 export const CLUBHOUSE_WALL_SKIN_ID = 'clubhouse-wall';
 
+/**
+ * P2-1 — Field Manual canonical palette (audit §9 Direction A, §10.1).
+ *
+ * The skin-token system is the single source of truth for colour: one hex
+ * per semantic meaning. This table names the canonical hex for the
+ * default (Classic) skin. The other skins keep their own per-skin values
+ * in their `designTokens` below — that is the point of skins, not a
+ * duplicate system. No new colour may enter the codebase except through
+ * a skin token here (or as a `@theme` token in `src/index.css`, whose
+ * values must match this table for the shared meanings).
+ *
+ * Deleted in P2-1 (do not reintroduce): the duplicate `--field-*` set
+ * (`--field-orange #ff5a1f`, `--field-lime #c8ff1a`, `--field-pink
+ * #ff2fb3`, `--field-blue #184cff`, `--field-purple #7b2cff`,
+ * `--field-cream #fff8df`, `--field-paper #fdf4d0`) and the hard-coded
+ * variants `#FF5A00` (→ primary), `#B7FF00` / `#c7ff00` / `#DCEE0D`
+ * (→ secondary), `#FF6B00` theme-color (→ primary).
+ *
+ * Two cyans, deliberately: `accent` is the live skin accent token
+ * (`--skin-accent`, and `--color-brand-cyan` at runtime via
+ * ThemeContext); `cyan` is the static `@theme` fallback used
+ * pre-hydration (e.g. the P0-4 focus ring). Do not "fix" one into the
+ * other — the runtime value is the accent, the static value is the
+ * fallback.
+ *
+ * Deferred, kept on purpose (Missions freeze / approved art — see
+ * `src/__tests__/tokenHexGuard.test.ts`): `#B7FF00` where it renders on
+ * the frozen Missions page (MissionDecodedCard, MissionDetailsModal),
+ * the generated SVG badge palette in `src/utils/missionImages.ts`, and
+ * the `#ff2fa8` pink end of the `.field-cta` gradient.
+ */
+export const FIELD_MANUAL_TOKENS = {
+  primary: '#ff5c00',
+  secondary: '#ccff00',
+  accent: '#00b7c7',
+  success: '#2f7d32',
+  warning: '#b96900',
+  error: '#c52233',
+  paper: '#fcf9f2',
+  ink: '#111111',
+  muted: '#5c5c59',
+  magenta: '#ff00ff',
+  blue: '#0047ff',
+  cyan: '#00f0ff',
+  yellow: '#f0ff00',
+  purple: '#9d00ff',
+  teal: '#00a3a3',
+} as const;
+
 const DEFAULT_DESIGN_TOKENS: SkinDesignTokens = {
   background: '#f4f3ef',
   backgroundAlt: '#e8e7e1',
