@@ -59,6 +59,12 @@ export function DeckStack({
     }
   };
 
+  // The visible prompt under the deck, reused as the button's accessible
+  // name so the name a screen reader announces always matches the label
+  // a sighted player sees (WCAG 2.5.3 label in name).
+  const drawLabel =
+    statusLabel || (poolEmpty ? getDisplayLabel('DECK_EXHAUSTED') : (isActuallyDisabled ? 'Locked' : getDisplayLabel('DRAW_A_MISSION')));
+
   const renderIcon = (iconName: string, className?: string) => {
     const IconComponent = (Icons as any)[iconName];
     return IconComponent ? <IconComponent className={className} /> : <RotateCcw className={className} />;
@@ -66,16 +72,26 @@ export function DeckStack({
 
   return (
     <div id="deck-draw-area" className="relative h-[460px] sm:h-[680px] w-full flex items-center justify-center py-4">
-      {/* The Stack */}
-      <div
+      {/* The Stack — a real <button> (P0-3, Nov 19, 2026): the deck is
+          the primary draw affordance, so it must be reachable by Tab and
+          operable by Enter/Space. A native button gives both for free;
+          the draw handler and the disabled/exhausted conditions are
+          unchanged, so pointer behaviour is identical. Focus uses the
+          scoped focus-visible ring from the newer components (P0-4 owns
+          the global rule, so none is added here). */}
+      <button
+           type="button"
            id="starter-deck"
            data-tour="deck-draw"
            data-onboarding="starter-deck"
            className={cn(
              "relative w-60 h-80 sm:w-[27rem] sm:h-[33rem] group cursor-pointer select-none transition-all",
+             "focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan",
              isActuallyDisabled ? "cursor-not-allowed grayscale opacity-40" : ""
            )}
            onClick={handleDraw}
+           disabled={isActuallyDisabled || isDrawing}
+           aria-label={drawLabel}
            onMouseEnter={() => !isActuallyDisabled && setIsHovered(true)}
            onMouseLeave={() => setIsHovered(false)}
       >
@@ -215,7 +231,7 @@ export function DeckStack({
                   "font-display text-2xl uppercase italic font-black transition-all duration-300 tracking-tighter",
                   isHovered && !isActuallyDisabled ? "text-brand-orange scale-110" : "text-on-surface opacity-40"
               )}>
-                  {statusLabel || (poolEmpty ? getDisplayLabel('DECK_EXHAUSTED') : (isActuallyDisabled ? 'Locked' : getDisplayLabel('DRAW_A_MISSION')))}
+                  {drawLabel}
               </p>
               <div className="flex justify-center gap-1">
                  {[...Array(3)].map((_, i) => (
@@ -228,7 +244,7 @@ export function DeckStack({
               </div>
             </motion.div>
         </div>
-      </div>
+      </button>
     </div>
   );
 }

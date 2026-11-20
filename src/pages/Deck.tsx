@@ -1,5 +1,9 @@
 // Missions page locked per Zach, Nov 18, 2026 — no additions or changes
 // to this page until he says so.
+// ONE-OFF LIFT (Nov 19, 2026, Zach's call, 19:21 PST): P0-3 ONLY — the
+// deck draw keyboard path (DeckStack is now a real <button>; this comment
+// is the only change to this file). The freeze stands for everything
+// else; do not widen this lift without his word.
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import { useApp } from '../context/AppContext';
