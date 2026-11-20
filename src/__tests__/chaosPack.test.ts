@@ -183,7 +183,7 @@ test('chaos pack: On a Roll is now the approval-streak sticker (earn-audit fix #
   assert.equal(sticker.imageUrl, '/assets/stickers/chaos/on_a_roll.png');
   assert.equal(
     md5(path.join('public', 'assets', 'stickers', 'chaos', 'on_a_roll.png')),
-    '23c77e270e987d1a553f66a13c010eb8',
-    'on_a_roll.png art must be unchanged'
+    'e67b193ff4336d442132314f72b49080',
+    'on_a_roll.png art must be the final Nov 20 render'
   );
 });

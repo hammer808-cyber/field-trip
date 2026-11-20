@@ -1322,12 +1322,13 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
   // Level Up, Certified Menace. The batch-2 files are different renders of
   // the same art — higher resolution, with the sticker name baked in as a
   // title banner (and edge slivers of neighbouring stickers where they
-  // were cropped from a sheet). They were NOT imported: existing assets
-  // and ownership records are preserved, and no duplicate display names
-  // were registered. Only the genuinely new sticker lands here. If Zach
-  // wants the batch-2 art to REPLACE the batch-1 art for those four, that
-  // is a deliberate swap to approve — see milestoneStickers.test.ts,
-  // which pins the batch-1 files in place.
+  // were cropped from a sheet). They REPLACED the batch-1 art at the same
+  // paths on Zach's call, Nov 17 (commit 1890150; batch-1 preserved under
+  // stickers/achievement/alternates/). Only the genuinely new sticker
+  // lands here. Nov 20: Zach sent final renders for three of the four
+  // (Level Up, On a Roll, Certified Menace), which replaced the batch-2
+  // art at the same paths; Outside Person and Repeat Offender stay
+  // batch-2. See milestoneStickers.test.ts, which pins the live files.
   {
     id: 'chaos_on_a_roll',
     name: 'On a Roll',

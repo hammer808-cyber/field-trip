@@ -24,6 +24,17 @@ function md5(filePath: string): string {
  * left edge, cropped off (570 -> 559 wide); the other three carry
  * small edge slivers that could not be trimmed without cutting the
  * sticker art, and ship as-is per Zach's swap decision.
+ *
+ * SWAP 2 (Nov 20, 2026): Zach sent the final three FIRST OFFENSES
+ * renders (fieldtrip_first_offenses_10_12 ZIP) — new art for Level Up,
+ * On a Roll, and Certified Menace — which replace the batch-2 art at
+ * the same three paths. 06 Outside Person and 07 Repeat Offender stay
+ * batch-2. Only Certified Menace was trimmed: a 1,904px disconnected
+ * arc of a neighbouring sticker down its left edge, erased (the main
+ * art is byte-identical); Level Up and On a Roll ship as-is — their
+ * edge marks are the art's own rays/flame touching the canvas edge.
+ * The batch-2 renders of 08/09 live on in git history (commit
+ * 1890150); the batch-2 on_a_roll in commit 99c03d3.
  */
 test('milestone: On a Roll is registered as the first Chaos sticker', () => {
   const sticker = getStickerById('chaos_on_a_roll');
@@ -54,7 +65,7 @@ test('milestone: no two stickers share a display name', () => {
   assert.equal(new Set(names).size, names.length, 'duplicate display names would confuse the Dex');
 });
 
-test('milestone: the four batch-2 renders replaced batch-1 art at the same paths (Zach\'s call, Nov 17)', () => {
+test('milestone: the final FIRST OFFENSES renders replaced batch-2 art at the same paths (Nov 20, 2026)', () => {
   // Registry paths are unchanged — same imageUrl values, same sticker
   // IDs. Only the file bytes changed.
   const stillSamePath: ReadonlyArray<[string, string]> = [
@@ -67,18 +78,18 @@ test('milestone: the four batch-2 renders replaced batch-1 art at the same paths
     assert.equal(getStickerById(id)?.imageUrl, imageUrl, `${id} must keep its registry path`);
   }
 
-  // The files at those paths are the batch-2 renders, pinned by md5.
-  // 06/08/09 are byte-identical to the ZIP; 07 is the ZIP render with
-  // an 11px neighbour strip cropped off its left edge (570 -> 559).
-  const batchTwoMd5: ReadonlyArray<[string, string]> = [
+  // The files at those paths: 06/07 are still the batch-2 renders;
+  // 08/09 are the final Nov 20 renders (09 with the foreign left-edge
+  // arc erased). Pinned by md5.
+  const liveMd5: ReadonlyArray<[string, string]> = [
     ['06_outside_person.png', '9410b0a2663b9c52f8cef60c11cef8f7'],
     ['07_repeat_offender.png', 'a9bea7313f2118b64872843d0f3a1364'],
-    ['08_level_up.png', '4114af217a507b94c9cd6b2a8f59262b'],
-    ['09_certified_menace.png', 'fa062bf14b7a1646f4a5b180c8d9014d']
+    ['08_level_up.png', '0c823d282189c705ca761dfec4422fe9'],
+    ['09_certified_menace.png', 'c37ab24e1ef04f113626f01b5d62ee62']
   ];
-  for (const [file, expected] of batchTwoMd5) {
+  for (const [file, expected] of liveMd5) {
     const filePath = path.join('public', 'assets', 'stickers', 'achievement', file);
-    assert.equal(md5(filePath), expected, `${file} must be the batch-2 render`);
+    assert.equal(md5(filePath), expected, `${file} must be the live render`);
   }
 
   // The batch-1 renders were preserved for reuse, byte-identical.
