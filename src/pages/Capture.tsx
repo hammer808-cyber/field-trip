@@ -789,17 +789,11 @@ export default function CapturePage() {
     ? `${getFrankieEvidenceLabel(currentTrip, 'location', fPref)} — ${getLocationTagLabel(locationTag)}`
     : getFrankieEvidenceLabel(currentTrip, 'location', fPref);
 
-  // Note, audio and location rows are optional for submit: they earn
-  // their XP layers (note +30, location +25% layer) but handleSubmit never
-  // checks them, so no row may read as a submit blocker. `required` below
-  // only means the mission lists that proof type; the level gate
-  // (Advanced / Certified) auto-drops the level instead of blocking a
-  // submit. `optionalForSubmit` marks exactly those rows.
   const evidenceRequirements = [
     { key: 'photo', label: getFrankieEvidenceLabel(currentTrip, 'photo', fPref), fulfilled: isPhotoFulfilled, required: (currentTrip?.proofType || currentTrip?.requiredProof || []).includes('photo') },
-    { key: 'field_note', label: getFrankieEvidenceLabel(currentTrip, 'field_note', fPref), fulfilled: isNoteFulfilled, required: (currentTrip?.proofType || currentTrip?.requiredProof || []).includes('note'), optionalForSubmit: true },
-    { key: 'audio', label: getFrankieEvidenceLabel(currentTrip, 'audio', fPref), fulfilled: voiceNoteReady, required: (currentTrip?.proofType || currentTrip?.requiredProof || []).includes('audio'), optionalForSubmit: true },
-    { key: 'location', label: locationRowLabel, fulfilled: isLocationFulfilled, required: (currentTrip?.proofRequirements?.requireLocation || currentTrip?.proofNeeded?.toLowerCase().includes('location') || (currentTrip?.tags || []).includes('location') || (currentTrip?.proofType || []).includes('location')), optionalForSubmit: true },
+    { key: 'field_note', label: getFrankieEvidenceLabel(currentTrip, 'field_note', fPref), fulfilled: isNoteFulfilled, required: (currentTrip?.proofType || currentTrip?.requiredProof || []).includes('note') },
+    { key: 'audio', label: getFrankieEvidenceLabel(currentTrip, 'audio', fPref), fulfilled: voiceNoteReady, required: (currentTrip?.proofType || currentTrip?.requiredProof || []).includes('audio') },
+    { key: 'location', label: locationRowLabel, fulfilled: isLocationFulfilled, required: (currentTrip?.proofRequirements?.requireLocation || currentTrip?.proofNeeded?.toLowerCase().includes('location') || (currentTrip?.tags || []).includes('location') || (currentTrip?.proofType || []).includes('location')) },
   ].filter(req => req.required);
 
   // --- POINT SELECTION SYSTEM GATING ---
@@ -816,9 +810,6 @@ export default function CapturePage() {
   const supportsBonusProof = !!currentTrip?.distanceBonus?.eligible;
   const isBonusProofCompleted = bonusProofFulfilled;
 
-  // Lock reasons name the LEVEL they gate, never the submit: the note is
-  // optional for submit ("Optional — adds XP") and only gates the higher
-  // level's XP, so no reason may read as "add a note or you are stuck".
   const getLockReason = (level: 'Standard' | 'Advanced' | 'Certified') => {
     if (isStarterTrainingActive) {
       if (level === 'Advanced' || level === 'Certified') {
@@ -827,7 +818,7 @@ export default function CapturePage() {
     } else {
       if (level === 'Advanced') {
         if (!isFieldNoteEntered) {
-          return "Optional — adds XP. Add a field note to unlock Advanced.";
+          return "Add a field note to unlock.";
         }
       }
       if (level === 'Certified') {
@@ -835,7 +826,7 @@ export default function CapturePage() {
           return "Locked: Hint used.";
         }
         if (!isFieldNoteEntered) {
-          return "Optional — adds XP. Add a field note to unlock Certified.";
+          return "Add a field note to unlock.";
         }
         if (supportsBonusProof && !isBonusProofCompleted) {
           return "Bonus proof required.";
