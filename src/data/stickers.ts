@@ -28,7 +28,13 @@ export type StickerAwardTrigger =
   | 'mission_count_milestone'
   | 'level_up'
   | 'repair_approved'
-  | 'admin_grant';
+  | 'admin_grant'
+  | 'first_draw'
+  | 'location_verified'
+  | 'late_night_submission'
+  | 'desert_state_approval'
+  | 'approval_streak'
+  | 'crew_survived_week';
 
 export type StickerCollection =
   | 'adventure'
@@ -138,6 +144,14 @@ export interface StickerDefinition {
    * missionId matches any approval from its deck.
    */
   missionId?: string;
+  /**
+   * Local-hour window [start, end) this sticker matches, for the
+   * `late_night_submission` trigger (earn-audit fix #3, Nov 20, 2026).
+   * Night Owl is [21, 24), After Hours [0, 5). Only meaningful alongside
+   * that trigger; the evaluator filters by the submitting device's local
+   * hour. A late-night sticker with no window matches any hour.
+   */
+  hourWindow?: readonly [number, number];
   /** Hide name + how-to-earn until earned (Stage 6 use). */
   secret?: boolean;
   /** ISO date, window start (Stage 6 use). */
@@ -742,9 +756,16 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     displayOrder: 15,
     imageUrl: '/assets/stickers/elondra/08_desert_alien_encounter.png',
     rarity: 'rare',
-    awardTrigger: 'admin_grant',
-    unlockReason: 'Earned for a close encounter in the desert.',
-    tags: ['elondra', 'ufo', 'alien', 'desert', 'trigger-pending']
+    // Earn-audit fix #3 (Nov 20, 2026 — Zach's call, Q10): add a
+    // desert-state tag and a rule. New `desert_state_approval` trigger —
+    // fires from the approval bundle when the approved mission is tagged
+    // to a desert state (AZ, NV, NM, UT; see DESERT_STATES in
+    // `src/logic/locationTags.ts`). No mission carries such a tag yet, so
+    // the rule cannot fire until one does — the rule is built, the path
+    // is not live.
+    awardTrigger: 'desert_state_approval',
+    unlockReason: 'Earned when your first proof on a desert-state mission (AZ, NV, NM, UT) is approved.',
+    tags: ['elondra', 'ufo', 'alien', 'desert']
   },
   {
     id: 'elondra_glamour_kit',
@@ -1180,13 +1201,12 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     displayOrder: 14,
     imageUrl: '/assets/stickers/achievement/02_scene_starter.png',
     rarity: 'common',
-    // Trigger PENDING confirmation (Nov 17, 2026): "first mission started"
-    // has no canonical event yet — the draw is the likely trigger, but that
-    // is Zach's call. Registered as admin_grant so it is visible and
-    // grantable, never mis-awarded by a guessed event.
-    awardTrigger: 'admin_grant',
+    // Earn-audit fix #3 (Nov 20, 2026 — Zach's call, Q2): a separate
+    // first-draw moment, not stacked on first_submission. New `first_draw`
+    // event, evaluated at the draw-time call site.
+    awardTrigger: 'first_draw',
     unlockReason: 'Earned when you start your first mission.',
-    tags: ['first-offenses', 'achievement', 'first-mission', 'trigger-pending']
+    tags: ['first-offenses', 'achievement', 'first-mission']
   },
   {
     id: 'first_offenses_the_instigator',
@@ -1195,12 +1215,11 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     displayOrder: 15,
     imageUrl: '/assets/stickers/achievement/03_the_instigator.png',
     rarity: 'common',
-    // Trigger PENDING confirmation (Nov 17, 2026): "first qualifying
-    // mission or group action initiated" matches no existing event —
-    // crew_created and the mission draw are both candidates. Zach's call.
-    awardTrigger: 'admin_grant',
+    // Earn-audit fix #3 (Nov 20, 2026 — Zach's call, Q3): `crew_created`,
+    // stacking with Whistle Lanyard on creating a crew.
+    awardTrigger: 'crew_created',
     unlockReason: 'Earned when you kick off your first mission or group action.',
-    tags: ['first-offenses', 'achievement', 'initiated', 'trigger-pending']
+    tags: ['first-offenses', 'achievement', 'initiated']
   },
   {
     id: 'first_offenses_democracy_is_messy',
@@ -1220,8 +1239,17 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     displayOrder: 17,
     imageUrl: '/assets/stickers/achievement/05_accomplice.png',
     rarity: 'common',
-    awardTrigger: 'crew_joined',
-    unlockReason: 'Earned when you join your first Fieldtrip crew.',
+    // Earn-audit fix #3 (Nov 20, 2026 — Zach's call, Q11): the join alone
+    // no longer earns it. The bar is the crew still existing a week after
+    // it was created, so the award comes from the crew-membership check
+    // in `src/services/crewService.ts` (reconciliation + join paths),
+    // not the join event. Joining a crew that is already a week old
+    // qualifies on the next check; a new crew qualifies once it ages
+    // into a week. The codebase's only cron schedule is disabled (see
+    // server.ts), so there is no server job for this — the lazy check
+    // is the mechanism, and the unlock dedupes re-checks.
+    awardTrigger: 'crew_survived_week',
+    unlockReason: 'Earned when a crew you joined is still going a week later.',
     tags: ['first-offenses', 'achievement', 'crew', 'collaboration']
   },
   {
@@ -1231,12 +1259,15 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     displayOrder: 18,
     imageUrl: '/assets/stickers/achievement/06_outside_person.png',
     rarity: 'common',
-    // Trigger PENDING confirmation (Nov 17, 2026): "first location-based
-    // adventure completed" has no canonical event yet — the anticipated
-    // location_verified trigger is not built. Zach's call.
-    awardTrigger: 'admin_grant',
+    // Earn-audit fix #3 (Nov 20, 2026 — Zach's call, Q4): `location_verified`
+    // — first approved proof on a location-tagged mission only (not any
+    // captured GPS). Fires from the approval bundle; see the evaluator.
+    // Today only the Texas deck carries location tags, so in practice the
+    // first Texas approval earns this alongside Roadside Weird and the
+    // Texas Y'all 01 — the stacking the game already does elsewhere.
+    awardTrigger: 'location_verified',
     unlockReason: 'Earned when you complete your first location-based adventure.',
-    tags: ['first-offenses', 'achievement', 'location', 'trigger-pending']
+    tags: ['first-offenses', 'achievement', 'location']
   },
   {
     id: 'first_offenses_repeat_offender',
@@ -1267,12 +1298,19 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     displayOrder: 21,
     imageUrl: '/assets/stickers/achievement/09_certified_menace.png',
     rarity: 'rare',
-    // Trigger PENDING confirmation (Nov 17, 2026): "first defined Chaos
-    // achievement" — no Chaos achievements are defined yet, so there is
-    // nothing to trigger on. Zach's call on what counts.
+    // Earn-audit fix #3 (Nov 20, 2026 — Zach's call, Q5): "Chaos" in play
+    // is a Chaos-collection sticker, and the 10 Chaos stickers stay
+    // admin-grant by design (each with a written grant moment — see the
+    // Chaos block). So this fires automatically the first time ANY Chaos
+    // sticker is granted: the grant endpoint awards it alongside the
+    // granted sticker (see `src/server/stickerGrants.ts`). It stays
+    // `admin_grant` because the grant flow is its award path — an admin
+    // can also grant it directly. A player who already holds a Chaos
+    // sticker earns it on their next Chaos grant (catch-up, same pattern
+    // as the milestone rules).
     awardTrigger: 'admin_grant',
     unlockReason: 'Earned for your first Chaos achievement.',
-    tags: ['first-offenses', 'achievement', 'chaos', 'trigger-pending']
+    tags: ['first-offenses', 'achievement', 'chaos']
   },
 
   // ---------------------------------------------------------------------------
@@ -1296,18 +1334,15 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     collection: 'chaos',
     displayOrder: 1,
     imageUrl: '/assets/stickers/chaos/on_a_roll.png',
-    // Rarity NOT supplied with the batch — no rarity or description was
-    // provided in or around the files (the PNGs carry no metadata).
-    // Defaulted to 'common' (the base rarity); needs Zach's call.
-    rarity: 'common',
-    // Trigger PENDING confirmation (Nov 18, 2026): "on a roll" implies a
-    // streak (consecutive missions), and no streak trigger exists — the
-    // closest event, mission_count_milestone, counts totals, not streaks.
-    // Do not wire a count threshold and call it a streak. Zach's call on
-    // what counts as a roll.
-    awardTrigger: 'admin_grant',
-    unlockReason: 'Earned for going on a roll — a streak of missions, one after another.',
-    tags: ['milestone', 'chaos', 'streak', 'trigger-pending']
+    // Earn-audit fix #3 (Nov 20, 2026 — Zach's call, Q1): five approved
+    // proofs on five consecutive days, rarity common → rare. The streak
+    // is maintained server-side on the profile (`approvalStreakDays`, UTC
+    // calendar days) because the snapshot carries no approval history;
+    // the evaluator fires `approval_streak` at >= 5 (catch-up rule).
+    rarity: 'rare',
+    awardTrigger: 'approval_streak',
+    unlockReason: 'Earned for five approved proofs on five days in a row.',
+    tags: ['milestone', 'chaos', 'streak']
   },
 
   // ---------------------------------------------------------------------------
@@ -1328,10 +1363,16 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
   // 10's alarm-ray tip). A clean crop would cut the art, so no crop without
   // Zach's call. 04's top-left corner alpha is 1 (one pixel) — negligible.
   //
-  // All 10 are trigger-pending (admin_grant): no existing event fits a
-  // runaway cart, a vending machine, or a crayon campfire. Zach's call on
-  // what earns each one. Rarity is Zach's call too: 04 Vending Machine and
-  // 06 Disco Explosion are rare; the other eight are common.
+  // All 10 stay admin_grant by design (earn-audit fix #3, Nov 20, 2026 —
+  // Zach's call, Q5 + Chaos suggestion): Chaos is earned by random/crazy
+  // actions in real life, and no mechanical reading of "melting down in
+  // the best way" is honest — forcing one would be worse than the grant.
+  // Each unlockReason below names the grant moment, so granting is not
+  // arbitrary: Zach awards the sticker when the moment happens. Granting
+  // any Chaos sticker also awards Certified Menace automatically (first
+  // Chaos achievement) — see `src/server/stickerGrants.ts`. Rarity is
+  // Zach's call: 04 Vending Machine and 06 Disco Explosion are rare; the
+  // other eight are common.
   {
     id: 'chaos_runaway_cart',
     name: 'Runaway Cart',
@@ -1362,7 +1403,7 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     imageUrl: '/assets/stickers/chaos/chaos_03_backpack_heist.png',
     rarity: 'common',
     awardTrigger: 'admin_grant',
-    unlockReason: 'Earned for the backpack heist.',
+    unlockReason: 'Earned for pulling off the heist — in, out, and gone before anyone notices.',
     tags: ['chaos', 'backpack', 'heist', 'trigger-pending']
   },
   {
@@ -1509,9 +1550,12 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     displayOrder: 4,
     imageUrl: '/assets/stickers/sideQuests/16_night_owl.png',
     rarity: 'common',
-    awardTrigger: 'admin_grant',
-    unlockReason: 'Earned for staying out past dark.',
-    tags: ['side-quests', 'night', 'owl', 'moon', 'trigger-pending']
+    // Earn-audit fix #3 (Nov 20, 2026 — Zach's call, Q6): `late_night_submission`,
+    // hour window 9 PM–midnight local (the submitting device's hour).
+    awardTrigger: 'late_night_submission',
+    hourWindow: [21, 24],
+    unlockReason: 'Earned for submitting a proof between 9 PM and midnight.',
+    tags: ['side-quests', 'night', 'owl', 'moon']
   },
   {
     id: 'side_quests_hidden_gem',
@@ -1544,9 +1588,14 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     displayOrder: 7,
     imageUrl: '/assets/stickers/sideQuests/20_roadside_weird.png',
     rarity: 'common',
-    awardTrigger: 'admin_grant',
-    unlockReason: 'Earned for stopping at the weird roadside thing.',
-    tags: ['side-quests', 'roadside', 'ufo', 'motel', 'trigger-pending']
+    // Earn-audit fix #3 (Nov 20, 2026 — Zach's call, Q7): `first_approval`
+    // deck-scoped to Texas (the road-trip deck). Stacks with Texas Y'all
+    // 01 on the first Texas approval — the stacking the game already does
+    // elsewhere. Uses the Texas pack's deck-scoping (see the evaluator).
+    awardTrigger: 'first_approval',
+    deckId: 'texas-get-it-yall',
+    unlockReason: "Earned when your first Texas Y'all proof is approved.",
+    tags: ['side-quests', 'roadside', 'ufo', 'motel']
   },
   {
     id: 'side_quests_full_send',
@@ -1566,9 +1615,12 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     displayOrder: 9,
     imageUrl: '/assets/stickers/sideQuests/22_after_hours.png',
     rarity: 'common',
-    awardTrigger: 'admin_grant',
-    unlockReason: 'Earned for the after-hours adventure.',
-    tags: ['side-quests', 'after-hours', 'neon', 'night', 'trigger-pending']
+    // Earn-audit fix #3 (Nov 20, 2026 — Zach's call, Q6): `late_night_submission`,
+    // hour window midnight–5 AM local (the submitting device's hour).
+    awardTrigger: 'late_night_submission',
+    hourWindow: [0, 5],
+    unlockReason: 'Earned for submitting a proof between midnight and 5 AM.',
+    tags: ['side-quests', 'after-hours', 'neon', 'night']
   },
   {
     id: 'side_quests_plot_twist',
@@ -1592,9 +1644,13 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     displayOrder: 11,
     imageUrl: '/assets/stickers/sideQuests/24_sasquatch_sighting.png',
     rarity: 'rare',
-    awardTrigger: 'admin_grant',
-    unlockReason: 'Earned for spotting Sasquatch in the wild.',
-    tags: ['side-quests', 'sasquatch', 'bigfoot', 'skateboard', 'ufo', 'trigger-pending']
+    // Earn-audit fix #3 (Nov 20, 2026 — Zach's call, Q8): Bigfoot's
+    // `first_approval` variant. Bigfoot's first approval used to fall
+    // back to the Checkmark Seal default; now it earns this instead.
+    archetype: 'bigfoot',
+    awardTrigger: 'first_approval',
+    unlockReason: 'Earned when your first proof is approved as Bigfoot.',
+    tags: ['side-quests', 'sasquatch', 'bigfoot', 'skateboard', 'ufo']
   },
 
   // ---------------------------------------------------------------------------

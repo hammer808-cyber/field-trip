@@ -530,7 +530,13 @@ service cloud.firestore {
             'mission_count_milestone',
             'level_up',
             'repair_approved',
-            'admin_grant'
+            'admin_grant',
+            'first_draw',
+            'location_verified',
+            'late_night_submission',
+            'desert_state_approval',
+            'approval_streak',
+            'crew_survived_week'
           ];
         }
 

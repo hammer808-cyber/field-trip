@@ -78,6 +78,14 @@ export interface CanonicalProgressSnapshot {
     approvedCount: number;
     requiredCount: number;
   };
+  /**
+   * Current approval streak, in consecutive UTC calendar days each with
+   * at least one approved proof (earn-audit fix #3, Q1 — On a Roll).
+   * Maintained server-side on the profile (`approvalStreakDays`) at
+   * approval time; the snapshot just carries it. 0 when the profile
+   * has no streak (including every player before the field ships).
+   */
+  approvalStreakDays: number;
   timestamps: {
     lastDrawAt: string | null;
     lastSubmissionAt: string | null;
@@ -285,6 +293,10 @@ export function buildCanonicalProgress(input: BuildCanonicalProgressInput): Cano
       approvedCount: starter.starterApprovedCount,
       requiredCount: starter.starterRequiredCount
     },
+    approvalStreakDays:
+      typeof (profile as any)?.approvalStreakDays === 'number'
+        ? Math.max(0, Math.floor((profile as any).approvalStreakDays))
+        : 0,
     timestamps: {
       lastDrawAt: latestIso(input.drawnMissionCards || [], ['drawnAt', 'updatedAt', 'createdAt']),
       lastSubmissionAt: latestIso(activeEntries as Array<Record<string, any>>, ['submittedAt', 'createdAt', 'updatedAt'])

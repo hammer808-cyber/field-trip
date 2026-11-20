@@ -193,3 +193,77 @@ for anything Zach wants to hand out by hand.
    evaluator first; these are the expensive ones.
 4. The ladder/loot, if Q9 picks one — a design of its own, not a
    follow-on.
+
+## Outcome — Zach's calls, built Nov 20, 2026
+
+Zach's red pen (Nov 20, 10:10 AM) and his "Build all and q7 and chaos
+as your suggestion" (10:22 AM). What shipped, per question:
+
+- **Q1 — On a Roll: 5 days in a row** (approvals; the draft's rare
+  taken as the default, flagged to Zach, unconfirmed). New
+  `approval_streak` count rule, threshold 5, catch-up; the streak is
+  maintained by the server in the approve transaction
+  (`approvalStreakDays` + `approvalStreakLastDay`, UTC days) and carried
+  into the admin path's snapshot. Rarity common → rare.
+- **Q2 — Scene Starter: separate `first_draw` event.** The hook lives
+  inside `drawTrip` in `AppContext.tsx` (both callers covered — Deck
+  and DeckLibrary), firing at the three new-draw returns; the
+  Missions page itself is untouched except the freeze-comment lift
+  note in `Deck.tsx`.
+- **Q3 — The Instigator: `crew_created`, stacks with Whistle Lanyard.**
+- **Q4 — Outside Person: location-tagged missions only** (new
+  `location_verified` trigger, awarded in the approval bundle when the
+  approved mission carries a location tag; stacks with Roadside Weird
+  + Texas Y'all 01 on a first Texas approval, since only Texas
+  missions carry tags today).
+- **Q5 — Chaos: all 10 stay admin-grant, each with a written grant
+  moment** in its unlockReason. **Certified Menace fires automatically
+  the first time any Chaos sticker is granted** (server-side, inside
+  `grantStickerServer`, best-effort in its own transaction; already-owned
+  is a no-op, so a player who already holds a Chaos sticker earns it on
+  their next Chaos grant). The Melting Cone comeback experiment was
+  offered only conditionally and was NOT picked — not built.
+- **Q6 — Night Owl / After Hours: windows as drafted (9 PM–midnight /
+  midnight–5 AM).** New `late_night_submission` trigger with
+  `hourWindow` on the stickers; the submitting device's local hour is
+  passed at the submit call site in `AppContext.addEntry`. No hour, no
+  award.
+- **Q7 — Roadside Weird: first Texas approval** (deck-scoped
+  `first_approval`; stacks with Texas Y'all 01). **Detour and Hidden
+  Gem stay admin** (the readings are stretches — Detour fires trivially
+  on the second approval; Hidden Gem needs photo-analysis plumbing).
+- **Q8 — Sasquatch Sighting: Bigfoot's `first_approval` variant**
+  (archetype cross-pack → bigfoot; replaces the Checkmark Seal default
+  for Bigfoot).
+- **Q9 — mix (D).** Desert Alien Encounter got its rule (Q10); the
+  other 27 pack stickers stay admin-grant.
+- **Q10 — Desert Alien Encounter: desert-state tag + rule** (new
+  `desert_state_approval`; `LocationTag` widened with `DesertState =
+  'AZ' | 'NV' | 'NM' | 'UT'`). No desert-state mission exists yet —
+  only Texas missions carry state tags — so the rule is built but
+  cannot fire until one does.
+- **Q11 — Accomplice: a bar — the crew must still exist a week after
+  it was created** (`crew_survived_week`). Mechanism change from the
+  draft's "daily server job": the codebase's only cron schedule is
+  disabled (see `server.ts`), so the check is lazy and client-side in
+  `crewService` — at membership reconciliation (Crew page load) and on
+  both join paths, reading the crew's `createdAt` fresh. Joining an
+  already-old crew qualifies at once; a new crew qualifies on the next
+  check after it turns a week old. The unlock dedupes re-checks.
+
+Registry after the build: 118 stickers (no new ones). Earnable by
+playing: **64 of 118** (was 56). Admin-grant-only: **42** (was 51).
+Dead triggers (Voting/Zines, fix #5 territory): 11. Rule built, no live
+path: 1 (Desert Alien Encounter). Trigger-pending tags: 41.
+
+New triggers (23 total): `first_draw`, `location_verified`,
+`late_night_submission`, `desert_state_approval`, `approval_streak`,
+`crew_survived_week`. All six are in `firestore.rules`
+`isValidStickerTrigger` (repo file — needs Zach's second publish;
+see the rules note in MEMORY.md).
+
+Tests: `src/__tests__/earnAuditFix3Remainder.test.ts` (20 tests) +
+pin updates in firstOffenses, sideQuests, chaosPack, elondraPack,
+stickerCollections, stickerMachine, stickerEvaluator, earnAuditFix3,
+challengeApprovedVariants, milestoneStickers. Suite: 1064 tests /
+997 pass / 67 fail = the pre-existing emulator-dependent baseline.

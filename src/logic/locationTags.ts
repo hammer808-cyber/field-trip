@@ -20,8 +20,10 @@
  * same trust boundary as the location layer has always had.)
  */
 
+import { ALL_CHALLENGE_CARDS } from '../data/allChallengeBanks';
+
 export type LocationTag =
-  | { kind: 'state'; state: 'TX'; label?: string }
+  | { kind: 'state'; state: 'TX' | DesertState; label?: string }
   | {
       kind: 'place';
       latitude: number;
@@ -29,6 +31,24 @@ export type LocationTag =
       radiusMeters: number;
       label: string;
     };
+
+/**
+ * Desert states (earn-audit fix #3, Nov 20, 2026 — Zach's call, Q10):
+ * the four states that are predominantly desert. A mission tagged to
+ * one of these earns Desert Alien Encounter on its first approval. No
+ * mission carries such a tag yet — only the Texas deck has state tags —
+ * so the rule is built but cannot fire until a desert-state mission
+ * exists. California and Texas have desert regions but are not desert
+ * states; tagging them would over-claim the tag.
+ */
+export type DesertState = 'AZ' | 'NV' | 'NM' | 'UT';
+
+export const DESERT_STATES: readonly DesertState[] = ['AZ', 'NV', 'NM', 'UT'];
+
+/** True when the tag is a desert-state tag. */
+export function isDesertStateTag(tag: LocationTag | null | undefined): boolean {
+  return !!tag && tag.kind === 'state' && (DESERT_STATES as readonly string[]).includes(tag.state);
+}
 
 export interface LatLng {
   latitude: number;
@@ -124,6 +144,25 @@ export function matchesLocationTag(coords: LatLng, tag: LocationTag): boolean {
       longitude: tag.longitude,
     }) <= tag.radiusMeters
   );
+}
+
+/**
+ * The location tag of a mission, if its card carries one. Looks the card
+ * up in the canonical bank (ALL_CHALLENGE_CARDS). Today only the Texas
+ * deck's 15 cards carry a tag (state TX); every other card returns null.
+ * Used by the approval bundle for `location_verified` (Outside Person)
+ * and `desert_state_approval` (Desert Alien Encounter).
+ */
+export function getMissionLocationTag(missionId: string | null | undefined): LocationTag | null {
+  if (!missionId) return null;
+  const wanted = missionId.trim().toLowerCase();
+  for (const card of ALL_CHALLENGE_CARDS) {
+    const id = (card as { id?: unknown }).id;
+    if (typeof id === 'string' && id.trim().toLowerCase() === wanted) {
+      return (card as { locationTag?: LocationTag }).locationTag ?? null;
+    }
+  }
+  return null;
 }
 
 /** Short human label for a tag, for the capture checklist ("Drop a Pin — Texas"). */

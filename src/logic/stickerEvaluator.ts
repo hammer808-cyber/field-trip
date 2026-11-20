@@ -52,6 +52,7 @@ import {
   type StickerDefinition
 } from '../data/stickers';
 import { getActiveDeckPacks, getDeckPackById, missionBelongsToPack } from '../data/deckPacks';
+import { getMissionLocationTag, isDesertStateTag } from './locationTags';
 import { STARTER_SIGNAL_IDS } from './starterDeckState';
 import {
   buildCanonicalProgress,
@@ -72,6 +73,14 @@ export const STARTER_DECK_ID = 'starter-signals';
 
 /** `archetype_milestone`: 5th approved proof as that archetype (Stage 3, §4.2). */
 export const ARCHETYPE_MILESTONE_THRESHOLD = 5;
+
+/**
+ * `approval_streak` (earn-audit fix #3, Nov 20, 2026 — Zach's call, Q1):
+ * On a Roll fires at 5 approved proofs on 5 consecutive days. The streak
+ * is the snapshot's `approvalStreakDays` (server-maintained, UTC calendar
+ * days), not the approved count — see the bundle branch below.
+ */
+export const APPROVAL_STREAK_THRESHOLD = 5;
 
 /**
  * `mission_count_milestone` thresholds (Stage 3, §4.2). Repeat Offender
@@ -99,9 +108,11 @@ export interface StickerRule {
 
 /**
  * Rule table, keyed by trigger. `field` / `window` kinds have no rows yet:
- * their stickers arrive in Stage 6 (`location_verified`,
- * `chaos_modifier_applied`, `late_night_submission`, `new_destination`,
- * windowed Limited Edition), and Stage 6 adds both halves together.
+ * their stickers arrive in Stage 6 (`chaos_modifier_applied`,
+ * `new_destination`, windowed Limited Edition), and Stage 6 adds both
+ * halves together. Two Stage 6 names are already built by earn-audit fix
+ * #3 (Nov 20, 2026): `location_verified` (Outside Person) and
+ * `late_night_submission` (Night Owl / After Hours).
  */
 export const STICKER_RULES: Readonly<Record<StickerAwardTrigger, StickerRule>> = {
   starter_pack: { kind: 'event' },
@@ -127,7 +138,27 @@ export const STICKER_RULES: Readonly<Record<StickerAwardTrigger, StickerRule>> =
    * below awards it alongside the rest of the approval bundle.
    */
   repair_approved: { kind: 'event' },
-  admin_grant: { kind: 'event' }
+  admin_grant: { kind: 'event' },
+  /**
+   * Earn-audit fix #3 (Nov 20, 2026 — Zach's red pen): the remaining
+   * triggers. `first_draw` is a draw-time client event (Scene Starter);
+   * `location_verified` and `desert_state_approval` fire from the
+   * approval bundle on the approved mission's location tag (Outside
+   * Person, Desert Alien Encounter); `late_night_submission` is a
+   * submit-time client event carrying the device's local hour (Night
+   * Owl / After Hours, filtered by `hourWindow` in resolveEventStickers);
+   * `approval_streak` is a catch-up count rule on the snapshot's
+   * `approvalStreakDays` (On a Roll, 5 days); `crew_survived_week` is
+   * evaluated client-side from the crew-membership check in
+   * `src/services/crewService.ts` (Accomplice — the crew must still
+   * exist a week after creation).
+   */
+  first_draw: { kind: 'event' },
+  location_verified: { kind: 'event' },
+  late_night_submission: { kind: 'event' },
+  desert_state_approval: { kind: 'event' },
+  approval_streak: { kind: 'count', thresholds: [APPROVAL_STREAK_THRESHOLD], catchUp: true },
+  crew_survived_week: { kind: 'event' }
 };
 
 /** Triggers whose award is a grant or server-side, never client-evaluated. */
@@ -169,6 +200,14 @@ export interface StickerEvent {
    * on it. Defaults to false.
    */
   wasRepair?: boolean;
+  /**
+   * The submitting device's local hour (0–23) for `late_night_submission`
+   * events (earn-audit fix #3, Q6 — Night Owl / After Hours). Only the
+   * submit-time call site sets this; the resolver filters the two
+   * stickers by their `hourWindow`. Defaults to undefined (no hour, no
+   * late-night award).
+   */
+  localHour?: number;
   /** Source string recorded on the unlock (1–200 chars). */
   source: string;
 }
@@ -237,12 +276,19 @@ function isStarterMissionId(missionId: string | null): boolean {
  * `missionId` only when `eventMissionId` is that mission. A sticker with
  * no `deckId` is deck-agnostic. Omit both (or pass nulls) when the event
  * has no entry: deck-scoped stickers never match a deckless event.
+ *
+ * Hour windows (earn-audit fix #3, Nov 20, 2026 — Q6): a
+ * `late_night_submission` sticker with an `hourWindow` only matches when
+ * `eventLocalHour` falls inside it. Without an hour, a windowed sticker
+ * never matches — there is no evidence it was night. A late-night
+ * sticker with no window matches any hour.
  */
 export function resolveEventStickers(
   trigger: StickerAwardTrigger,
   fieldArchetype: StickerArchetype | null,
   eventDeckId?: string | null,
-  eventMissionId?: string | null
+  eventMissionId?: string | null,
+  eventLocalHour?: number | null
 ): StickerDefinition[] {
   const candidates = getStickersByTrigger(trigger);
   if (candidates.length === 0) return [];
@@ -252,9 +298,15 @@ export function resolveEventStickers(
     if (sticker.missionId && sticker.missionId !== eventMissionId) return false;
     return true;
   });
-  const crossPack = eligible.filter(sticker => !sticker.archetype);
+  const hourEligible = eligible.filter(sticker => {
+    if (trigger !== 'late_night_submission' || !sticker.hourWindow) return true;
+    if (eventLocalHour === undefined || eventLocalHour === null) return false;
+    const [start, end] = sticker.hourWindow;
+    return eventLocalHour >= start && eventLocalHour < end;
+  });
+  const crossPack = hourEligible.filter(sticker => !sticker.archetype);
   if (fieldArchetype) {
-    const matches = eligible.filter(sticker => sticker.archetype === fieldArchetype);
+    const matches = hourEligible.filter(sticker => sticker.archetype === fieldArchetype);
     if (matches.length > 0) return [...matches, ...crossPack];
   }
   const defaultId = TRIGGER_DEFAULT_STICKER_IDS[trigger];
@@ -263,7 +315,7 @@ export function resolveEventStickers(
     // defaults: a deck-scoped default that does not match this event
     // never falls back.
     const defaultSticker = getStickerById(defaultId);
-    const fallback = eligible.find(sticker => sticker.id === defaultId)
+    const fallback = hourEligible.find(sticker => sticker.id === defaultId)
       ?? (defaultSticker && !defaultSticker.deckId ? defaultSticker : undefined);
     return fallback ? [fallback, ...crossPack] : [...crossPack];
   }
@@ -363,7 +415,7 @@ export async function evaluateStickerTriggers(
         addAward('challenge_approved', resolveEventStickers('challenge_approved', fieldArchetype, eventDeckId, entryMissionId).map(s => s.id));
       }
     } else {
-      addAward(event.type, resolveEventStickers(event.type, fieldArchetype, eventDeckId, entryMissionId).map(s => s.id));
+      addAward(event.type, resolveEventStickers(event.type, fieldArchetype, eventDeckId, entryMissionId, event.localHour ?? null).map(s => s.id));
     }
   }
 
@@ -379,6 +431,24 @@ export async function evaluateStickerTriggers(
     // of the bundle is skipped.
     if (event.wasRepair) {
       addAward('repair_approved', resolveEventStickers('repair_approved', fieldArchetype, eventDeckId, entryMissionId).map(s => s.id));
+    }
+    // Location-verified (earn-audit fix #3, Q4): the approved mission
+    // carries a locationTag — first such approval earns Outside Person.
+    // Desert-state approval (fix #3, Q10): the approved mission is tagged
+    // to a desert state — first such approval earns Desert Alien
+    // Encounter. Both need no snapshot (catalog lookup only), so they run
+    // even when the profile read failed. The unlock transaction dedupes,
+    // so firing on every matching approval is safe: only the first one
+    // awards. Starter missions never carry tags, but the guard matches
+    // the challenge_approved branch above.
+    if (entryMissionId && !isStarterMissionId(entryMissionId)) {
+      const tag = getMissionLocationTag(entryMissionId);
+      if (tag) {
+        addAward('location_verified', resolveEventStickers('location_verified', fieldArchetype, eventDeckId, entryMissionId).map(s => s.id));
+        if (isDesertStateTag(tag)) {
+          addAward('desert_state_approval', resolveEventStickers('desert_state_approval', fieldArchetype, eventDeckId, entryMissionId).map(s => s.id));
+        }
+      }
     }
     if (snapshot) {
       const approvedCount = getEffectiveApprovedCount(snapshot, entryMissionId);
@@ -396,6 +466,15 @@ export async function evaluateStickerTriggers(
       addAward(
         'mission_count_milestone',
         evaluateCountRule('mission_count_milestone', approvedCount).map(s => s.id)
+      );
+      // Approval streak (earn-audit fix #3, Q1): five approved proofs on
+      // five consecutive days earns On a Roll. The streak is the
+      // snapshot's `approvalStreakDays` (server-maintained, UTC calendar
+      // days — see canonicalProgress.ts). Catch-up rule: a player already
+      // at 5 earns it on their next approval.
+      addAward(
+        'approval_streak',
+        evaluateCountRule('approval_streak', snapshot.approvalStreakDays).map(s => s.id)
       );
       // Season milestone: completing any full non-starter deck awards the
       // deck-agnostic season stickers (seasonal art, not persona art).
