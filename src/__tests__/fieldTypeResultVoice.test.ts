@@ -51,24 +51,30 @@ test('result page how-to-play lines are Trevor talking, not rules', () => {
 
 test('result page CTA says what happens next', () => {
   const page = read('src/pages/FieldTypeResult.tsx');
-  // "Start my first mission" opens the photo step first, then Basecamp —
-  // the page says so now, on both the inline button and the sticky footer.
-  assert.match(page, /Next: add a photo if you want, then your first mission on Basecamp\./);
+  // "Start my first mission" opens the photo step first, then Missions for
+  // a pre-starter player (Basecamp only once the starters are done — P1-2,
+  // Nov 20, 2026) — the page says so now, on both the inline button and
+  // the sticky footer.
+  assert.match(page, /Next: add a photo if you want, then your first mission\./);
+  assert.doesNotMatch(page, /your first mission on Basecamp/);
   assert.match(page, /Photo first if you want it, then your first mission\./);
   // The non-guided button gets the same honesty when the photo step
   // will actually appear.
-  assert.match(page, /Next: add a photo if you want one, then Basecamp\./);
+  assert.match(page, /Next: add a photo if you want one, then \{startDestination\}\./);
   // The caption only shows when there is no photo saved — with one, the
-  // button goes straight to Basecamp and the line would be wrong.
+  // button goes straight on and the line would be wrong.
   assert.match(page, /isGuidedActive && !profile\?\.photoURL && \(/);
   assert.match(page, /!isGuidedActive && !profile\?\.photoURL && \(/);
-  // The navigating label used to promise a mission while routing to
-  // Basecamp.
-  assert.match(page, /Opening Basecamp\.\.\./);
+  // The navigating label names the real destination now (P1-2): it used
+  // to say Basecamp while routing pre-starter players to Missions.
+  assert.match(page, /Opening \$\{startDestination\}\.\.\./);
+  assert.doesNotMatch(page, /'Opening Basecamp\.\.\.'/);
+  assert.doesNotMatch(page, /'Opening Missions\.\.\.'/);
   assert.doesNotMatch(page, /Opening mission\.\.\./);
   assert.doesNotMatch(page, /This will open your first required starter mission/);
   // Skipping the photo step says where it goes.
-  assert.match(page, /Skip — go to Basecamp/);
+  assert.match(page, /Skip — go to \{startDestination\}/);
+  assert.doesNotMatch(page, /Skip — go to Basecamp/);
   assert.doesNotMatch(page, /Skip for now/);
 });
 

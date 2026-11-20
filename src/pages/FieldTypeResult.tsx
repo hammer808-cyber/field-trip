@@ -102,6 +102,12 @@ export default function FieldTypeResult() {
     setShowPhotoStep(true);
   };
 
+  // P1-2 (Nov 20, 2026): the destination copy must match handleStartApp.
+  // Pre-starter players land on /missions — Basecamp is locked until all
+  // three starters are approved — so only a starter-complete player ever
+  // sees "Basecamp" as the destination.
+  const startDestination = starterState?.starterComplete ? 'Basecamp' : 'Missions';
+
   const handleStartApp = async () => {
     if (isNavigating) return;
     setIsNavigating(true);
@@ -487,7 +493,7 @@ export default function FieldTypeResult() {
                     disabled={isNavigating}
                     className="w-full py-3 bg-white text-on-surface font-display font-black text-lg uppercase italic tracking-tight border-2 border-on-surface shadow-[4px_4px_0px_black] active:translate-y-0.5 active:shadow-none disabled:opacity-50"
                   >
-                    Skip — go to Basecamp
+                    Skip — go to {startDestination}
                   </button>
                 </div>
               </div>
@@ -510,25 +516,25 @@ export default function FieldTypeResult() {
                 "bg-brand-orange text-white border-on-surface shadow-[16px_16px_0px_black] hover:bg-on-surface hover:text-brand-lime hover:shadow-[20px_20px_0px_var(--color-brand-orange)]"
               )}
             >
-              {isNavigating ? 'Opening Basecamp...' : (isBaja ? 'START THE BEACH VACAY' : isDiamond ? 'INITIATE DEPLOYMENT' : isHeat ? 'TAKE THE PLUNGE' : (isGuidedActive ? 'Start my first mission' : 'Enter the Field'))}
+              {isNavigating ? `Opening ${startDestination}...` : (isBaja ? 'START THE BEACH VACAY' : isDiamond ? 'INITIATE DEPLOYMENT' : isHeat ? 'TAKE THE PLUNGE' : (isGuidedActive ? 'Start my first mission' : 'Enter the Field'))}
             </button>
           </div>
           )}
 
           {/* The caption names the next step only when the photo step will
               actually appear — with a photo saved, the button goes
-              straight to Basecamp and the line would be wrong. */}
+              straight on and the line would be wrong. */}
           {isGuidedActive && !profile?.photoURL && (
              <div className="flex flex-col items-center gap-4 md:pb-10">
                 <p className="text-xs font-mono font-black uppercase text-on-surface/60 tracking-widest italic">
-                  Next: add a photo if you want, then your first mission on Basecamp.
+                  Next: add a photo if you want, then your first mission.
                 </p>
              </div>
           )}
           {!isGuidedActive && !profile?.photoURL && (
              <div className="flex flex-col items-center gap-4 md:pb-10">
                 <p className="text-xs font-mono font-black uppercase text-on-surface/60 tracking-widest italic">
-                  Next: add a photo if you want one, then Basecamp.
+                  Next: add a photo if you want one, then {startDestination}.
                 </p>
              </div>
           )}
@@ -546,7 +552,7 @@ export default function FieldTypeResult() {
                isNavigating && "opacity-80 grayscale pointer-events-none"
             )}
           >
-            {isNavigating ? 'Opening Basecamp...' : 'Start my first mission'}
+            {isNavigating ? `Opening ${startDestination}...` : 'Start my first mission'}
           </button>
           {!profile?.photoURL && (
             <p className="mt-2 text-center text-xs font-mono font-black uppercase text-on-surface/60 tracking-widest italic">
