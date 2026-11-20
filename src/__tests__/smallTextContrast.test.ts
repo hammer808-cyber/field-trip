@@ -60,7 +60,9 @@ test('P0-2: the fixed hard-coded pairs clear 4.5:1', () => {
   assert.ok(contrastRatio('#C2410C', '#ffffff') >= AA_NORMAL); // 5.18
   // Status-chip variants that inherit the base black text.
   assert.ok(contrastRatio('#000000', '#ffd02a') >= AA_NORMAL); // review, 14.31
-  assert.ok(contrastRatio('#000000', '#c8ff1a') >= AA_NORMAL); // approved lime, 17.77
+  assert.ok(contrastRatio('#000000', '#c8ff1a') >= AA_NORMAL); // pre-P2-1 approved lime, 17.77
+  // P2-1: the approved chip now reads the unified token lime.
+  assert.ok(contrastRatio('#000000', '#ccff00') >= AA_NORMAL); // 17.87
 });
 
 test('P0-2: the fixed pairs are the ones the components actually render', () => {
@@ -80,7 +82,9 @@ test('P0-2: the fixed pairs are the ones the components actually render', () => 
   assert.doesNotMatch(proofCard, /opacity-80/);
 
   const css = read('src/index.css');
-  assert.match(css, /\.status-chip \{[^}]*color: var\(--field-black\)/);
+  // P2-1 companion rename (same assertion, same value #111111): the
+  // --field-* token set is deleted; the chip ink is --skin-border now.
+  assert.match(css, /\.status-chip \{[^}]*color: var\(--skin-border/);
   assert.match(css, /\.status-chip\.needs-proof \{[^}]*color: #000000/);
   assert.match(css, /\.status-chip\.locked \{[^}]*color: #000000/);
   assert.doesNotMatch(css, /\.status-chip\.needs-proof \{[^}]*color: white/);

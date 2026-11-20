@@ -1,0 +1,459 @@
+{
+  "generated": "P2-1 token consolidation",
+  "files": {
+    "index.html": [
+      "#ff5c00"
+    ],
+    "public/manifest.webmanifest": [
+      "#fcf9f2",
+      "#ff5c00"
+    ],
+    "src/App.tsx": [
+      "#ff3131"
+    ],
+    "src/components/AdminDiagnosticsPanel.tsx": [
+      "#f5f1e9",
+      "#fffdf9"
+    ],
+    "src/components/AdminReviewPanel.tsx": [
+      "#fefc9c",
+      "#fffeec"
+    ],
+    "src/components/BottomNav.css": [
+      "#111",
+      "#ccff00",
+      "#ffe600",
+      "#fff"
+    ],
+    "src/components/ChallengeCard.tsx": [
+      "#c2410c",
+      "#e65100",
+      "#f2fcfc",
+      "#f3efe3",
+      "#f57f17",
+      "#fefc9c",
+      "#ffe0f7",
+      "#fff5ff",
+      "#fff9c4"
+    ],
+    "src/components/CommunityProofCard.tsx": [
+      "#ece9e0",
+      "#fffdf6"
+    ],
+    "src/components/Confetti.tsx": [
+      "#000000",
+      "#00e5ff",
+      "#ccff00",
+      "#ff5c00",
+      "#ffffff"
+    ],
+    "src/components/ContentMenu.tsx": [
+      "#000"
+    ],
+    "src/components/CrewArtifactsGallery.tsx": [
+      "#40e0d0",
+      "#ff007f"
+    ],
+    "src/components/CrewMemoriesFeed.tsx": [
+      "#eaf7f7",
+      "#eefcee",
+      "#fcfaf2",
+      "#fff8e8",
+      "#fffceb"
+    ],
+    "src/components/DeckLibrary.tsx": [
+      "#fdfdfb",
+      "#fffdf4"
+    ],
+    "src/components/DeckPackSelector.tsx": [
+      "#000",
+      "#c23c00",
+      "#f2ede2",
+      "#faf7f0",
+      "#faf8f5",
+      "#fcf9f2",
+      "#ffefe5"
+    ],
+    "src/components/DeckStack.tsx": [
+      "#000",
+      "#1e1e1f",
+      "#242426",
+      "#b89065",
+      "#ff5c00"
+    ],
+    "src/components/DevelopingPolaroid.tsx": [
+      "#141615",
+      "#fffdf6"
+    ],
+    "src/components/EntryCard.tsx": [
+      "#ece9e0",
+      "#faf9f4",
+      "#fefc9c",
+      "#fffdf8"
+    ],
+    "src/components/EvidenceMeter.tsx": [
+      "#faf8f5"
+    ],
+    "src/components/FieldClipboard.tsx": [
+      "#2ee7f0",
+      "#ff3131"
+    ],
+    "src/components/FieldKitOnboarding.tsx": [
+      "#bef264"
+    ],
+    "src/components/FieldPageHero.tsx": [
+      "#141414",
+      "#4a473e",
+      "#e8e2d2",
+      "#faf8f5"
+    ],
+    "src/components/FieldSignalCard.tsx": [
+      "#40e0d0",
+      "#ff007f"
+    ],
+    "src/components/FieldtripLoader.tsx": [
+      "#fff8e8"
+    ],
+    "src/components/FlipbookShell.tsx": [
+      "#e8e1d2",
+      "#f2eddf",
+      "#fffdf6"
+    ],
+    "src/components/GuidedTour.tsx": [
+      "#fffdf4"
+    ],
+    "src/components/LogbookFlipbook.tsx": [
+      "#183b32"
+    ],
+    "src/components/MissionDecodedCard.tsx": [
+      "#2ee7f0",
+      "#b7ff00",
+      "#fcfaf5"
+    ],
+    "src/components/MissionDetailsModal.tsx": [
+      "#b7ff00",
+      "#f1e6d0"
+    ],
+    "src/components/MissionResultCard.tsx": [
+      "#eae5d8",
+      "#fffdf8"
+    ],
+    "src/components/ObservationFeed.tsx": [
+      "#ff007f"
+    ],
+    "src/components/ProofCorrection.tsx": [
+      "#40e0d0"
+    ],
+    "src/components/RewardFeedback.tsx": [
+      "#40e0d0"
+    ],
+    "src/components/StickerBook.tsx": [
+      "#ede6d5",
+      "#f5e9c9",
+      "#fffdf6"
+    ],
+    "src/components/StickerDecals.tsx": [
+      "#fffdf5"
+    ],
+    "src/components/TabbedSection.tsx": [
+      "#f1e6d0"
+    ],
+    "src/components/UI.tsx": [
+      "#111111",
+      "#f2eee8"
+    ],
+    "src/components/ViewfinderCamera.tsx": [
+      "#000",
+      "#0c0c0e",
+      "#1c1c1e",
+      "#22d3ee",
+      "#bef264",
+      "#ff5c00",
+      "#ffece3",
+      "#ffffff"
+    ],
+    "src/components/VoiceNoteRecorder.tsx": [
+      "#faf9f6"
+    ],
+    "src/components/VotingHub.tsx": [
+      "#fff7e8",
+      "#fffaf0",
+      "#fffdf7"
+    ],
+    "src/components/ZineWorkspace.tsx": [
+      "#fffceb",
+      "#fffdf6"
+    ],
+    "src/components/admin/AdminShared.tsx": [
+      "#2ee7f0",
+      "#ccff00",
+      "#f0efed",
+      "#ff3131",
+      "#ff5c00",
+      "#ffdd00"
+    ],
+    "src/components/crew/CrewPeopleHome.tsx": [
+      "#fffdf6"
+    ],
+    "src/components/missions/MissionActionPanel.tsx": [
+      "#00a6b2"
+    ],
+    "src/components/missions/MissionLogbookPanel.tsx": [
+      "#000000",
+      "#a7611d",
+      "#f6ea38",
+      "#ffffff"
+    ],
+    "src/components/player/FieldButton.tsx": [
+      "#c52233"
+    ],
+    "src/components/player/departments.css": [
+      "#111",
+      "#14804a",
+      "#19d7ff",
+      "#5c5c59",
+      "#6d6d68",
+      "#7a3cff",
+      "#c52233",
+      "#ccff00",
+      "#d8cb83",
+      "#f4f3ef",
+      "#ff2daa",
+      "#ff5c00",
+      "#ffd02a",
+      "#fff"
+    ],
+    "src/data/stickerRegistry.ts": [
+      "#1e293b",
+      "#7c2d12",
+      "#9333ea",
+      "#fed7aa",
+      "#fffdf5"
+    ],
+    "src/index.css": [
+      "#000",
+      "#000000",
+      "#000055",
+      "#0047ff",
+      "#00a3a3",
+      "#00d8ff",
+      "#00f0ff",
+      "#111111",
+      "#12007a",
+      "#1726c9",
+      "#1a1a1a",
+      "#3317ff",
+      "#40e0d0",
+      "#502000",
+      "#808080",
+      "#9d00ff",
+      "#a0a0a0",
+      "#c0c0c0",
+      "#ccff00",
+      "#d84cff",
+      "#ece9e0",
+      "#f02d00",
+      "#f0ff00",
+      "#f2f6f8",
+      "#f5f1e8",
+      "#f6ffee",
+      "#f7e9d7",
+      "#fafaf7",
+      "#fcf9f2",
+      "#fefc9c",
+      "#ff003d",
+      "#ff007f",
+      "#ff00ff",
+      "#ff2fa8",
+      "#ff4a16",
+      "#ff4b65",
+      "#ff4d94",
+      "#ff4fd8",
+      "#ff5c00",
+      "#ff7a1c",
+      "#ff7d00",
+      "#ff8c00",
+      "#ffb300",
+      "#ffd02a",
+      "#ffd700",
+      "#ffe6fb",
+      "#fff5e6",
+      "#fff9f2",
+      "#fffdfb",
+      "#ffffff"
+    ],
+    "src/pages/AdminArchive.tsx": [
+      "#faf8f5"
+    ],
+    "src/pages/AdminArchiveSubmissions.tsx": [
+      "#070708",
+      "#0a0a0a",
+      "#0f1012",
+      "#121316",
+      "#38bdf8",
+      "#eb5e28",
+      "#ff6b35"
+    ],
+    "src/pages/AdminBoard.tsx": [
+      "#f0efed"
+    ],
+    "src/pages/AdminDecks.tsx": [
+      "#faf8f5"
+    ],
+    "src/pages/AdminDevTools.tsx": [
+      "#0a0a0a"
+    ],
+    "src/pages/AdminDiagnostics.tsx": [
+      "#faf8f5"
+    ],
+    "src/pages/AdminModeration.tsx": [
+      "#fff7e8"
+    ],
+    "src/pages/AdminProofReview.tsx": [
+      "#faf8f5",
+      "#ffdd00"
+    ],
+    "src/pages/AdminRepair.tsx": [
+      "#faf8f5"
+    ],
+    "src/pages/AdminSettings.tsx": [
+      "#ccff00",
+      "#fcf9f2",
+      "#ffdd00"
+    ],
+    "src/pages/AdminSkins.tsx": [
+      "#2d5a27"
+    ],
+    "src/pages/Banned.tsx": [
+      "#c52233"
+    ],
+    "src/pages/Basecamp.css": [
+      "#111",
+      "#1113",
+      "#2a160c",
+      "#3338",
+      "#41100e",
+      "#6f4224",
+      "#9f2924",
+      "#a96f43",
+      "#c1121f",
+      "#ccff00",
+      "#ff5c00",
+      "#ff938b",
+      "#fff"
+    ],
+    "src/pages/BigBoard.tsx": [
+      "#000000",
+      "#00838f",
+      "#00acc1",
+      "#00d2ff",
+      "#0369a1",
+      "#1a1a1a",
+      "#243447",
+      "#558b2f",
+      "#7b1fa2",
+      "#7dd3fc",
+      "#8fb3cc",
+      "#9333ea",
+      "#96f300",
+      "#be185d",
+      "#bfa880",
+      "#d9c5a0",
+      "#d9e8f5",
+      "#e64a19",
+      "#e6f9ff",
+      "#e8e4d5",
+      "#eab308",
+      "#eae5d8",
+      "#efece1",
+      "#f3e5f5",
+      "#f3ffdf",
+      "#f472b6",
+      "#f5f2ea",
+      "#f5f5f5",
+      "#faf7ee",
+      "#faf9f5",
+      "#faf9f6",
+      "#fcf9f2",
+      "#fcfbf8",
+      "#fde047",
+      "#fdf3d6",
+      "#ff5d22",
+      "#fff4e0",
+      "#fffdf7"
+    ],
+    "src/pages/Capture.tsx": [
+      "#faf8f5",
+      "#ff3131"
+    ],
+    "src/pages/Collection.tsx": [
+      "#fafaf8"
+    ],
+    "src/pages/Deck.tsx": [
+      "#121212",
+      "#1d1d1d",
+      "#222222",
+      "#f5e9c9"
+    ],
+    "src/pages/Frontlines.tsx": [
+      "#40e0d0"
+    ],
+    "src/pages/LoteriaExploreBoard.tsx": [
+      "#4b0082",
+      "#c4c2a2",
+      "#d8cb83",
+      "#efefd9",
+      "#fafbe5"
+    ],
+    "src/pages/MissionBriefing.tsx": [
+      "#faf8f5"
+    ],
+    "src/pages/MissionSubmitted.tsx": [
+      "#fcf8f2",
+      "#fffceb"
+    ],
+    "src/pages/Profile.tsx": [
+      "#f9f7f2",
+      "#fffdf9"
+    ],
+    "src/pages/SnitchCouncilPage.tsx": [
+      "#120d09",
+      "#19140f",
+      "#21160f",
+      "#24170f",
+      "#3a2112",
+      "#adff4f",
+      "#bf5d00",
+      "#ff9d4d",
+      "#ffd08a",
+      "#ffe2bd",
+      "#fff8e8"
+    ],
+    "src/pages/WeeklyAwardsPage.tsx": [
+      "#b5a585"
+    ],
+    "src/pages/Welcome.tsx": [
+      "#0a0a0a",
+      "#f5e6d3",
+      "#ffcc33",
+      "#fffdf9"
+    ],
+    "src/utils/missionImages.ts": [
+      "#000",
+      "#000000",
+      "#00e5ff",
+      "#0b0b0b",
+      "#b7ff00",
+      "#ff5a00",
+      "#fff",
+      "#fffdf4"
+    ],
+    "src/utils/personaQuizSimulator.ts": [
+      "#000",
+      "#4ade80",
+      "#4caf50",
+      "#f44336",
+      "#fbbf24"
+    ]
+  }
+}

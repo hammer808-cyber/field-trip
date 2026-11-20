@@ -161,7 +161,9 @@
 
 .status-chip.needs-proof {
   background: var(--color-brand-magenta, #ff00ff);
-  /* P0-2: white on #ff2fb3 is 3.33:1; black is 6.31:1. */
+  /* P2-1: chip background unified from the old field pink to the canonical
+     magenta #ff00ff. P0-2 ratios on the new value: white on #ff00ff is
+     3.14:1; black is 6.70:1, so the black text stays. */
   color: #000000;
 }
 
