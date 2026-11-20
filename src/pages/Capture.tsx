@@ -42,6 +42,13 @@ import { buildScoreBreakdownEvents, calculateMissionScore, MIN_VOICE_NOTE_SECOND
 import { getLocationTagLabel, matchesLocationTag, pickCoords } from '../logic/locationTags';
 import { uploadBase64Audio } from '../services/storageService';
 import { revokeTemporaryPreviewUrls } from '../logic/polaroidDevelopment';
+import {
+  clearCaptureDraft,
+  downscalePhotoDataUrl,
+  loadCaptureDraft,
+  saveCaptureDraft,
+  type CaptureDraft,
+} from '../logic/captureDraft';
 import { bakeStickerIntoPhoto } from '../lib/photoUtils';
 import { DEFAULT_POLAROID_STICKER_PLACEMENT, resolvePolaroidSticker } from '../logic/polaroidSticker';
 
@@ -296,14 +303,34 @@ export default function CapturePage() {
   });
 
   const isNeedsMore = tripIdParam ? needsMoreProofChallengeIds?.has(tripIdParam.toLowerCase()) : false;
-  const initialFcState: FieldClipboardState = restoredState ? 'result' : (isNeedsMore || isRepairMode ? 'needs_more_proof' : 'brief');
-  
+
+  // P1-3: a saved capture draft (photo + note) for this user + mission.
+  // Skipped when viewing a submitted result, or in repair/needs-more mode
+  // (the submitted entry is the source of truth there). The memo feeds
+  // the state initializers below; the effect in the draft block covers
+  // the cold-refresh case where the user is not set on first render.
+  const initialDraft = React.useMemo<CaptureDraft | null>(() => {
+    if (restoredState || isNeedsMore || isRepairMode) return null;
+    if (!user?.uid || !tripIdParam) return null;
+    return loadCaptureDraft(user.uid, tripIdParam);
+  }, [restoredState, isNeedsMore, isRepairMode, user?.uid, tripIdParam]);
+
+  const initialFcState: FieldClipboardState = (() => {
+    if (restoredState) return 'result';
+    if (isNeedsMore || isRepairMode) return 'needs_more_proof';
+    if (initialDraft?.photoDataUrl) return 'developing_polaroid';
+    if (initialDraft?.note) return 'capture';
+    return 'brief';
+  })();
+
   const [fcState, setFcState] = useState<FieldClipboardState>(initialFcState);
   const [fcData, setFcData] = useState<FieldClipboardData>({
-    photoCaptured: restoredState ? true : (isNeedsMore || isRepairMode), // if we are in repair mode, we likely had data but need to fix it
-    photoUrl: restoredState ? restoredState.evidenceSubmitted : undefined,
-    note: restoredState ? restoredState.fieldLogMessage : '',
+    photoCaptured: restoredState ? true : (isNeedsMore || isRepairMode) || !!initialDraft?.photoDataUrl, // if we are in repair mode, we likely had data but need to fix it
+    photoUrl: restoredState ? restoredState.evidenceSubmitted : initialDraft?.photoDataUrl ?? undefined,
+    note: restoredState ? restoredState.fieldLogMessage : initialDraft?.note ?? '',
     findingType: restoredState ? (restoredState as any).findingType : undefined,
+    stickerId: initialDraft?.stickerId ?? undefined,
+    stickerPlacement: initialDraft?.stickerPlacement ?? undefined,
     isRetry,
     isRepair: isRepairMode || isNeedsMore
   });
@@ -342,6 +369,8 @@ export default function CapturePage() {
 
     // If it's already in a final/pending state and NOT specifically requested for resubmission
     if ((isCompleted || isPending) && !isNeedsMore && fcState !== 'result' && submissionStatus !== 'submitted') {
+       // P1-3: the mission is submitted — a draft for it is stale, clear it.
+       clearCaptureDraft(user.uid, tripIdParam);
        console.log(`[Capture Guard] Mission ${lowerId} already submitted/approved. Redirecting back to ${backHomePath}.`);
        // Use replace: true to prevent back-button loops
        navigate(backHomePath, { replace: true });
@@ -577,7 +606,22 @@ export default function CapturePage() {
     aiAnalysisResult?: any;
     proofCheckResult?: any;
     proofId?: string;
-  } | null>(null);
+  } | null>(() =>
+    initialDraft?.photoDataUrl
+      ? {
+          originalImageUrl: initialDraft.photoDataUrl,
+          filteredImageUrl: initialDraft.photoDataUrl,
+          metadata: {
+            source: initialDraft.photoSource ?? 'draft',
+            photoTakenAt: initialDraft.photoTakenAt,
+          },
+          trustLevel: initialDraft.trustLevel ?? 'unverified',
+          filterId: 'original',
+          reviewStatus: 'pending',
+          proofId: `draft_${initialDraft.savedAt}`,
+        }
+      : null
+  );
   const [scoringData, setScoringData] = useState<{
     scoring?: any;
     ftBonus?: number;
@@ -739,7 +783,7 @@ export default function CapturePage() {
   const [isUploading, setIsUploading] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
   
-  const [localPhotoCaptured, setLocalPhotoCaptured] = useState(false);
+  const [localPhotoCaptured, setLocalPhotoCaptured] = useState(!!initialDraft?.photoDataUrl);
   const [localLocationChecked, setLocalLocationChecked] = useState(false);
 
   useEffect(() => {
@@ -902,6 +946,135 @@ export default function CapturePage() {
 
     setFcState('capture');
   };
+
+  // --- P1-3: capture draft persistence ---------------------------------
+  // The draft is saved on photo capture and (debounced) on note/sticker
+  // edits, and restored on mount. The photo is downscaled before it is
+  // stored; a save that still won't fit keeps the note and drops the
+  // photo. The draft is cleared on a successful submit (below) and when
+  // the mission is already submitted/approved (guard effect above); a
+  // failed submit keeps it, so retry still has the evidence.
+  const [draftRestored, setDraftRestored] = useState(
+    !!initialDraft && (!!initialDraft.photoDataUrl || initialDraft.note !== '')
+  );
+  const draftPhotoRef = useRef<string | null>(initialDraft?.photoDataUrl ?? null);
+  const draftValuesRef = useRef({
+    note: '',
+    stickerId: undefined as string | undefined,
+    stickerPlacement: undefined as FieldClipboardData['stickerPlacement'],
+  });
+  const draftMetaRef = useRef({
+    photoTakenAt: null as string | null,
+    photoSource: null as string | null,
+    trustLevel: null as string | null,
+  });
+  draftValuesRef.current = {
+    note: fcData.note,
+    stickerId: fcData.stickerId,
+    stickerPlacement: fcData.stickerPlacement,
+  };
+  draftMetaRef.current = {
+    photoTakenAt: captureData?.metadata?.photoTakenAt ?? initialDraft?.photoTakenAt ?? null,
+    photoSource: captureData?.metadata?.source ?? initialDraft?.photoSource ?? null,
+    trustLevel: captureData?.trustLevel ?? initialDraft?.trustLevel ?? null,
+  };
+
+  const persistDraft = React.useCallback(() => {
+    if (!user?.uid || !tripIdParam || restoredState || isNeedsMore || isRepairMode) return;
+    const values = draftValuesRef.current;
+    // Nothing left to keep — a deleted note plus a retaken-away photo
+    // removes the draft instead of leaving a stale one behind.
+    if (!values.note && !draftPhotoRef.current && !values.stickerId) {
+      clearCaptureDraft(user.uid, tripIdParam);
+      return;
+    }
+    saveCaptureDraft({
+      version: 1,
+      userId: user.uid,
+      missionId: tripIdParam,
+      savedAt: Date.now(),
+      note: values.note,
+      photoDataUrl: draftPhotoRef.current,
+      photoTakenAt: draftMetaRef.current.photoTakenAt,
+      photoSource: draftMetaRef.current.photoSource,
+      trustLevel: draftMetaRef.current.trustLevel,
+      stickerId: values.stickerId ?? null,
+      stickerPlacement: values.stickerPlacement ?? null,
+    });
+  }, [user?.uid, tripIdParam, restoredState, isNeedsMore, isRepairMode]);
+
+  const applyDraft = React.useCallback((draft: CaptureDraft) => {
+    draftPhotoRef.current = draft.photoDataUrl;
+    draftMetaRef.current = {
+      photoTakenAt: draft.photoTakenAt,
+      photoSource: draft.photoSource,
+      trustLevel: draft.trustLevel,
+    };
+    if (draft.photoDataUrl) {
+      setCaptureData({
+        originalImageUrl: draft.photoDataUrl,
+        filteredImageUrl: draft.photoDataUrl,
+        metadata: { source: draft.photoSource ?? 'draft', photoTakenAt: draft.photoTakenAt },
+        trustLevel: draft.trustLevel ?? 'unverified',
+        filterId: 'original',
+        reviewStatus: 'pending',
+        proofId: `draft_${draft.savedAt}`,
+      });
+      setLocalPhotoCaptured(true);
+      setFcState('developing_polaroid');
+    } else if (draft.note) {
+      setFcState('capture');
+    }
+    setFcData(prev => ({
+      ...prev,
+      photoCaptured: prev.photoCaptured || !!draft.photoDataUrl,
+      photoUrl: draft.photoDataUrl ?? prev.photoUrl,
+      note: prev.note || draft.note,
+      stickerId: draft.stickerId ?? prev.stickerId,
+      stickerPlacement: draft.stickerPlacement ?? prev.stickerPlacement,
+    }));
+    setDraftRestored(true);
+  }, []);
+
+  // Cold-refresh path: the initializers above only see the draft when the
+  // user is set on first render. If auth resolved later, apply the draft
+  // once — only while the capture is still pristine, so typed input is
+  // never overwritten.
+  const draftAppliedRef = useRef(false);
+  useEffect(() => {
+    if (draftAppliedRef.current) return;
+    if (restoredState || isNeedsMore || isRepairMode) return;
+    if (!user?.uid || !tripIdParam) return;
+    if (initialDraft) { draftAppliedRef.current = true; return; }
+    if (captureData || fcData.note !== '' || fcData.photoCaptured) return;
+    const draft = loadCaptureDraft(user.uid, tripIdParam);
+    if (!draft || (!draft.photoDataUrl && !draft.note)) return;
+    draftAppliedRef.current = true;
+    applyDraft(draft);
+  }, [user?.uid, tripIdParam, restoredState, isNeedsMore, isRepairMode, initialDraft, captureData, fcData.note, fcData.photoCaptured, applyDraft]);
+
+  // Save the (downscaled) photo when it changes; retake clears it.
+  useEffect(() => {
+    let cancelled = false;
+    const url = captureData?.filteredImageUrl ?? null;
+    if (!url) {
+      draftPhotoRef.current = null;
+      persistDraft();
+      return;
+    }
+    downscalePhotoDataUrl(url).then((downscaled) => {
+      if (cancelled) return;
+      draftPhotoRef.current = downscaled;
+      persistDraft();
+    });
+    return () => { cancelled = true; };
+  }, [captureData?.filteredImageUrl, persistDraft]);
+
+  // Save the note + sticker choice, debounced while typing.
+  useEffect(() => {
+    const timer = setTimeout(() => { persistDraft(); }, 500);
+    return () => clearTimeout(timer);
+  }, [fcData.note, fcData.stickerId, fcData.stickerPlacement, persistDraft]);
 
   const onCapture = (data: any) => {
     const proofId = data?.proofId || `proof_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -1303,6 +1476,10 @@ export default function CapturePage() {
         if (currentTrip?.id) {
           localStorage.removeItem(`ft_challenge_${currentTrip.id}`);
         }
+        // P1-3: the evidence is submitted — the draft must not resurrect.
+        if (user?.uid && tripIdParam) {
+          clearCaptureDraft(user.uid, tripIdParam);
+        }
         if (incomingFieldCheck) resolveIncomingFieldCheck();
         
       } catch (error: any) {
@@ -1437,6 +1614,24 @@ export default function CapturePage() {
                   ) : (
                     <><RefreshCw className="w-5 h-5" /> Try sending again</>
                   )}
+                </button>
+              </div>
+            )}
+
+            {draftRestored && (
+              <div className="mb-4 flex items-center justify-between gap-3 border-2 border-on-surface bg-brand-lime/30 px-3 py-2">
+                <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface">
+                  {fcData.photoUrl
+                    ? 'Draft restored — your photo and note are back.'
+                    : 'Draft restored — your note is back. Take a photo to continue.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setDraftRestored(false)}
+                  className="shrink-0 font-mono text-xs font-black uppercase tracking-widest text-on-surface/60 hover:text-on-surface"
+                  aria-label="Dismiss draft notice"
+                >
+                  Dismiss
                 </button>
               </div>
             )}
