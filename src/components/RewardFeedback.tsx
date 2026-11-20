@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { RewardIntensity, RewardQueueItem } from '../types/feedback';
@@ -7,6 +7,11 @@ import { Sparkles, X, Award, Info, CheckCircle2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';
 import { resolveRewardIntensity } from '../logic/rewardIntensity';
+import {
+  buildAchievementShareData,
+  defaultShareApi,
+  shareAchievement,
+} from '../logic/shareAchievement';
 
 export const RewardFeedback: React.FC = () => {
   const { rewardQueue, dismissReward, profile } = useApp();
@@ -82,6 +87,46 @@ interface MajorRevealProps {
   skinConfig: { isBaja: boolean; isDiamond: boolean; isHeat: boolean };
   intensity: 'full' | 'reduced' | 'minimal';
 }
+
+// P1-11: the one share path in the app. System share sheet where the
+// platform has one, copy-link fallback where it doesn't. Sharing never
+// dismisses the celebration and never touches the once-per-device keys.
+const ShareAchievementButton: React.FC<{ reward: RewardQueueItem }> = ({ reward }) => {
+  const [status, setStatus] = useState<'idle' | 'shared' | 'copied' | 'unavailable'>('idle');
+  const timeoutRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
+  }, []);
+
+  const handleShare = async () => {
+    const data = buildAchievementShareData(reward, window.location.origin);
+    const outcome = await shareAchievement(data, defaultShareApi());
+    // The user dismissed the sheet on purpose — stay idle, say nothing.
+    if (outcome === 'cancelled') return;
+    setStatus(outcome);
+    if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
+    timeoutRef.current = window.setTimeout(() => setStatus('idle'), 2500);
+  };
+
+  const ShareIcon = (LucideIcons as any).Share2 ?? null;
+  const label =
+    status === 'shared' ? 'Shared!' :
+    status === 'copied' ? 'Link copied' :
+    status === 'unavailable' ? 'Sharing is not available here' :
+    'Share this';
+
+  return (
+    <button
+      type="button"
+      onClick={handleShare}
+      className="w-full py-3 font-display font-black uppercase tracking-widest text-sm italic bg-white text-on-surface border-4 border-on-surface shadow-[6px_6px_0px_black] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all active:scale-95 flex items-center justify-center gap-2"
+    >
+      {ShareIcon && <ShareIcon className="w-5 h-5" />}
+      {label}
+    </button>
+  );
+};
 
 const MajorReveal: React.FC<MajorRevealProps> = ({ reward, onDismiss, skinConfig, intensity }) => {
   const { isBaja, isDiamond, isHeat } = skinConfig;
@@ -195,6 +240,7 @@ const MajorReveal: React.FC<MajorRevealProps> = ({ reward, onDismiss, skinConfig
               >
                 View in Dex
               </button>
+              <ShareAchievementButton reward={reward} />
               <button
                 onClick={onDismiss}
                 className="w-full py-2 text-xs font-mono font-black uppercase tracking-[0.2em] text-on-surface/60 hover:text-on-surface transition-colors"
@@ -203,23 +249,26 @@ const MajorReveal: React.FC<MajorRevealProps> = ({ reward, onDismiss, skinConfig
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => {
-                onDismiss();
-                if (reward.redirectPath) {
-                  window.location.href = reward.redirectPath;
-                }
-              }}
-              className={cn(
-                "w-full py-5 font-display font-black uppercase tracking-widest transition-all text-lg italic px-4",
-                isReduced ? "" : "active:scale-95",
-                isBaja ? "bg-baja-pink text-white rounded-full shadow-[8px_8px_0px_#40e0d0]" :
-                isDiamond ? "bg-white text-black rounded-none" :
-                "bg-on-surface text-white shadow-[10px_10px_0px_var(--color-brand-magenta)] hover:bg-brand-magenta active:shadow-none translate-y-0 active:translate-y-2"
-              )}
-            >
-              {reward.type === 'milestone' && reward.rewardText ? reward.rewardText : "Got it"}
-            </button>
+            <div className="space-y-4 pt-2">
+              <button
+                onClick={() => {
+                  onDismiss();
+                  if (reward.redirectPath) {
+                    window.location.href = reward.redirectPath;
+                  }
+                }}
+                className={cn(
+                  "w-full py-5 font-display font-black uppercase tracking-widest transition-all text-lg italic px-4",
+                  isReduced ? "" : "active:scale-95",
+                  isBaja ? "bg-baja-pink text-white rounded-full shadow-[8px_8px_0px_#40e0d0]" :
+                  isDiamond ? "bg-white text-black rounded-none" :
+                  "bg-on-surface text-white shadow-[10px_10px_0px_var(--color-brand-magenta)] hover:bg-brand-magenta active:shadow-none translate-y-0 active:translate-y-2"
+                )}
+              >
+                {reward.type === 'milestone' && reward.rewardText ? reward.rewardText : "Got it"}
+              </button>
+              <ShareAchievementButton reward={reward} />
+            </div>
           )}
         </div>
 
