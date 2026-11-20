@@ -132,11 +132,18 @@ one-line exception in the ranking.
 ## 5. Live check
 
 Position-dependent, so Zach's phone again: finish a deck (or the starter, on a
-fresh test account) and Trevor pops open with the ranked next deck. In Texas,
-finishing a deck should suggest Texas Y'all if it still has missions left, or
-the next ranked deck if Texas is the one just finished. Baseline the browser
-can do: Trevor panel renders, no errors, and with no deck just finished the
-suggestions are exactly as before.
+fresh test account) and Trevor pops open with 3 deck buttons, top-ranked first.
+In Texas, finishing a deck should suggest Texas Y'all if it still has missions
+left, or the next ranked deck if Texas is the one just finished. Baseline the
+browser can do: Trevor panel renders, no errors, and with no deck just finished
+the suggestions are exactly as before.
+
+Baseline live check Nov 20 (~12:51 PM PST): deploy landed, Trevor panel renders
+cleanly, no errors. Suggestion shown was "The Park Oasis is still open. Resume
+it." — the active-mission rule, correct while he has an active mission. No
+deck-complete popup and no 3-deck list, as expected with no deck just finished.
+The real deck-finish pop is still unverified live and needs a real deck finish
+on his phone.
 
 ## 6. Build notes (Nov 20, 2026 — option B, as built)
 
