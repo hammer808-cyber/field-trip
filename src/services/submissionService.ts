@@ -45,7 +45,7 @@ import {
 import {
   runStickerAwardNonBlocking,
 } from './stickerService';
-import { evaluateStickerTriggers } from '../logic/stickerEvaluator';
+import { evaluateAdminApprovalStickers } from '../logic/stickerEvaluator';
 
 // COLLECTION NAMES
 const ENTRIES_COLLECTION = 'entries';
@@ -762,24 +762,30 @@ async function submitAdminProofReviewAction(
     // Approval is already committed; sticker failure must not roll back proof status or XP.
     // The server payload carries no mission id or field type, so read the entry
     // doc for them; a failed read still evaluates first_approval (default variant).
-    // No snapshot is available here, so count/milestone rules are skipped for
-    // this call — they re-check on the player's next AppContext approval.
+    // Milestone bundle (Nov 19, 2026, fix #1): the player's profile doc is
+    // read too, and the snapshot is built from it — the server maintains the
+    // profile's approval caches on every approval, so the count/set rules
+    // run on this approval instead of waiting for a next AppContext approval
+    // that never comes (submit always returns pending_review). A failed or
+    // missing profile read degrades to the old behavior: event rules only,
+    // bundle skipped for this call.
     runStickerAwardNonBlocking('admin_proof_first_approval', async () => {
       const entryData = await getDoc(doc(db, ENTRIES_COLLECTION, String(payload.entryId || submissionId)))
         .then(snap => (snap.exists() ? snap.data() : null))
         .catch(() => null);
-      return evaluateStickerTriggers({
-        event: {
-          type: 'first_approval',
-          entry: entryData ? {
-            missionId: (entryData as any).missionId,
-            challengeId: (entryData as any).challengeId,
-            tripId: (entryData as any).tripId
-          } : null,
-          source: `proof_approval:${payload.entryId || submissionId}`
-        },
+      const profileData = await getDoc(doc(db, 'users', String(payload.userId)))
+        .then(snap => (snap.exists() ? snap.data() : null))
+        .catch(() => null);
+      return evaluateAdminApprovalStickers({
         userId: String(payload.userId),
-        fieldType: (entryData as any)?.fieldType ?? null
+        entry: entryData ? {
+          missionId: (entryData as any).missionId,
+          challengeId: (entryData as any).challengeId,
+          tripId: (entryData as any).tripId
+        } : null,
+        source: `proof_approval:${payload.entryId || submissionId}`,
+        fieldType: (entryData as any)?.fieldType ?? null,
+        profile: profileData as any
       });
     });
   }

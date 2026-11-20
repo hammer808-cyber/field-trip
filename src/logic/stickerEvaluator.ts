@@ -19,12 +19,16 @@
  * The evaluator makes no Firestore reads of its own. Its inputs are the
  * triggering event payload (which carries the entry, if any), the
  * `CanonicalProgressSnapshot` the call site already has (AppContext builds
- * one), and the player's field type. Call sites that have no snapshot
- * (admin approval paths) pass none: event rules still evaluate, count/set
- * rules are skipped for that call. The snapshot is stale by one entry at
- * evaluation time in AppContext (the just-approved entry is not in it yet),
- * so count/set rules treat the triggering approval as already counted —
- * see `getEffectiveApprovedIds` / `getCompletedNonStarterDecks`.
+ * one), and the player's field type. Admin approval paths build the
+ * snapshot from the player's profile doc — see
+ * `evaluateAdminApprovalStickers` — because the server maintains the
+ * profile's approval caches on every approval, so a profile-only snapshot
+ * carries the counts and deck progress the bundle needs; the evaluator's
+ * stale-by-one handling covers the triggering approval whether or not the
+ * profile already includes it (the snapshot is built after the server
+ * commit, so it usually does). Call sites that have no snapshot at all
+ * pass none: event rules still evaluate, count/set rules are skipped for
+ * that call — that is now only a degradation path, not the admin path.
  *
  * Not evaluated on the client: `starter_pack` (a grant at quiz time),
  * `weekly_winner` (server-side, see `src/server/canonicalStickerAwards.ts`),
@@ -41,8 +45,10 @@ import {
 import { getActiveDeckPacks, getDeckPackById } from '../data/deckPacks';
 import { STARTER_SIGNAL_IDS } from './starterDeckState';
 import {
+  buildCanonicalProgress,
   canonicalizeId,
   getDeckProgress,
+  type BuildCanonicalProgressInput,
   type CanonicalProgressSnapshot
 } from '../services/canonicalProgress';
 import {
@@ -324,4 +330,70 @@ export async function evaluateStickerTriggers(
     results.push(...awarded);
   }
   return results;
+}
+
+export interface AdminApprovalEvaluationInput {
+  userId: string;
+  /** The approved entry, when the entry doc could be read. */
+  entry?: StickerEventEntryLike | null;
+  /** Source string recorded on the unlock (1–200 chars). */
+  source: string;
+  /** Player's field type (profile.fieldType, or the entry's fieldType). */
+  fieldType?: string | null;
+  /**
+   * The player's profile doc data, when it could be read. The milestone
+   * bundle needs a snapshot, and the profile is the snapshot's source: the
+   * server maintains the profile's approval caches
+   * (`approvedCompletedChallengeIds` / `completedChallengeIds`) on every
+   * approval, so a profile-only snapshot carries the counts and deck
+   * progress the bundle needs — no entry query required. Pass null when
+   * the profile read failed or the doc is missing: the event rules still
+   * evaluate, and the bundle is skipped for that call (the pre-fix
+   * behavior, kept as a degradation path).
+   */
+  profile?: BuildCanonicalProgressInput['profile'] | null;
+  /** Test seam — defaults to `unlockStickersForUser`. */
+  unlock?: StickerUnlockFn;
+}
+
+/**
+ * Admin-approval evaluation (Nov 19, 2026 — milestone bundle fix #1).
+ *
+ * The two admin review paths funnel through here. Before this, both
+ * evaluated `first_approval` with no snapshot, so the milestone bundle
+ * (archetype / mission-count / season) never ran on an admin approval —
+ * and the only snapshot-carrying call site, AppContext's immediate-approval
+ * branch, never runs because `submitTripEntry` always returns
+ * `pending_review`. The 5 milestone stickers had no live award path.
+ *
+ * This builds the snapshot from the player's profile and runs the full
+ * `first_approval` bundle, so a milestone crossed by this approval is
+ * awarded on this approval. Exactly-once: one of the two review paths runs
+ * per review click, and the unlock transaction dedupes re-evaluation
+ * (`already_unlocked`).
+ *
+ * Known gap, NOT fixed here (audit fix #2): `archetype_milestone` fires
+ * only on the exact 5th approval — a player already past 5 when this
+ * ships never crosses it again. `season_milestone` has no such gap (it
+ * re-checks deck completion on every approval), and
+ * `mission_count_milestone` re-attempts at each of its thresholds
+ * (3, 5, 10).
+ */
+export async function evaluateAdminApprovalStickers(
+  input: AdminApprovalEvaluationInput
+): Promise<StickerUnlockResult[]> {
+  const snapshot = input.profile
+    ? buildCanonicalProgress({ userId: input.userId, profile: input.profile })
+    : null;
+  return evaluateStickerTriggers({
+    event: {
+      type: 'first_approval',
+      entry: input.entry ?? null,
+      source: input.source
+    },
+    userId: input.userId,
+    snapshot,
+    fieldType: input.fieldType ?? null,
+    unlock: input.unlock
+  });
 }

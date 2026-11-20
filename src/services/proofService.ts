@@ -38,7 +38,7 @@ import { calculateAverageHash, calculateHammingDistance } from '../utils/hashUti
 import {
   runStickerAwardNonBlocking,
 } from './stickerService';
-import { evaluateStickerTriggers } from '../logic/stickerEvaluator';
+import { evaluateAdminApprovalStickers } from '../logic/stickerEvaluator';
 
 const REQUIREMENTS_COLLECTION = 'proofRequirements';
 const REVIEWS_COLLECTION = 'proofReviews';
@@ -627,24 +627,30 @@ export async function adminOverrideReview(
     // Legacy admin review surfaces share the same non-blocking canonical sticker award.
     // The server payload carries no mission id or field type, so read the entry
     // doc for them; a failed read still evaluates first_approval (default variant).
-    // No snapshot is available here, so count/milestone rules are skipped for
-    // this call — they re-check on the player's next AppContext approval.
+    // Milestone bundle (Nov 19, 2026, fix #1): the player's profile doc is
+    // read too, and the snapshot is built from it — the server maintains the
+    // profile's approval caches on every approval, so the count/set rules
+    // run on this approval instead of waiting for a next AppContext approval
+    // that never comes (submit always returns pending_review). A failed or
+    // missing profile read degrades to the old behavior: event rules only,
+    // bundle skipped for this call.
     runStickerAwardNonBlocking('admin_override_first_approval', async () => {
       const entryData = await getDoc(doc(db, 'entries', String(payload.entryId || entryId)))
         .then(snap => (snap.exists() ? snap.data() : null))
         .catch(() => null);
-      return evaluateStickerTriggers({
-        event: {
-          type: 'first_approval',
-          entry: entryData ? {
-            missionId: (entryData as any).missionId,
-            challengeId: (entryData as any).challengeId,
-            tripId: (entryData as any).tripId
-          } : null,
-          source: `proof_approval:${payload.entryId || entryId}`
-        },
+      const profileData = await getDoc(doc(db, 'users', String(payload.userId)))
+        .then(snap => (snap.exists() ? snap.data() : null))
+        .catch(() => null);
+      return evaluateAdminApprovalStickers({
         userId: String(payload.userId),
-        fieldType: (entryData as any)?.fieldType ?? null
+        entry: entryData ? {
+          missionId: (entryData as any).missionId,
+          challengeId: (entryData as any).challengeId,
+          tripId: (entryData as any).tripId
+        } : null,
+        source: `proof_approval:${payload.entryId || entryId}`,
+        fieldType: (entryData as any)?.fieldType ?? null,
+        profile: profileData as any
       });
     });
   }
