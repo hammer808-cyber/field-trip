@@ -129,4 +129,7 @@ avatar rendered as a giant ~350px card covering page content and hiding the
 label. Cause: the duo wrapped TrevorAvatar in a plain span, so it went back to
 inline, h-8/w-8 stopped applying, and the DiceBear SVG rendered at intrinsic
 size. Fix (commit 11cde6a): `block` on TrevorAvatar's span + regression test
-pinning the block + size classes. Re-check of the launcher running.
+pinning the block + size classes. Re-check Nov 20 (~1:34 PM PST) confirmed:
+the pill is small and correct, both avatars ~32px, "Resume mission" label
+visible, nothing covering page content. All three Tier 1 surfaces verified
+live: Basecamp block, panel header, launcher duo.
