@@ -1,0 +1,29 @@
+{
+  "starter-1": {
+    "bytes": 106918,
+    "creator": "javier velazquez",
+    "file": "starter-1.jpg",
+    "license": "Public domain",
+    "source_page": "https://commons.wikimedia.org/wiki/File%3ASunflower_with_blue_sky_background.jpg",
+    "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1b/Sunflower_with_blue_sky_background.jpg/1280px-Sunflower_with_blue_sky_background.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "title": "File:Sunflower with blue sky background.jpg"
+  },
+  "starter-2": {
+    "bytes": 84712,
+    "creator": "<a href=\"//commons.wikimedia.org/wiki/User:Shixart1985\" title=\"User:Shixart1985\">Shixart1985</a>",
+    "file": "starter-2.jpg",
+    "license": "CC BY 2.0",
+    "source_page": "https://commons.wikimedia.org/wiki/File%3ASlices_of_watermelon_placed_on_a_red_tray_at_a_summer_gathering.jpg",
+    "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b8/Slices_of_watermelon_placed_on_a_red_tray_at_a_summer_gathering.jpg/1280px-Slices_of_watermelon_placed_on_a_red_tray_at_a_summer_gathering.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "title": "File:Slices of watermelon placed on a red tray at a summer gathering.jpg"
+  },
+  "starter-3": {
+    "bytes": 257627,
+    "creator": "<div class=\"fn value\">\n<a rel=\"nofollow\" class=\"external text\" href=\"https://500px.com/VincentPaul\">Vincent Paul</a></div>",
+    "file": "starter-3.jpg",
+    "license": "CC BY-SA 3.0",
+    "source_page": "https://commons.wikimedia.org/wiki/File%3APark_Bench_Ooty_Botanical_Garden_%28125298855%29.jpeg",
+    "source_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/63/Park_Bench_Ooty_Botanical_Garden_%28125298855%29.jpeg/1280px-Park_Bench_Ooty_Botanical_Garden_%28125298855%29.jpeg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+    "title": "File:Park Bench Ooty Botanical Garden (125298855).jpeg"
+  }
+}
