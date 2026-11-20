@@ -262,6 +262,7 @@ export const ERRAND_DECK_CHALLENGE_BANK: Partial<ChallengeCard>[] = CARD_DEFINIT
     season: ERRAND_DECK_SEASON,
     safetyNote: ERRAND_DECK_SAFETY_NOTE,
     isActive: true,
+    image: `/assets/challenges/${card.id}.jpg`,
     category: type,
     type,
     lane: 'core',
