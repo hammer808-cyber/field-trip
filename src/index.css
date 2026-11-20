@@ -444,7 +444,7 @@ body::after {
 }
 
 .bureau-input {
-  @apply w-full bg-white border-2 border-on-surface p-5 font-mono text-sm focus:bg-brand-lime/10 outline-none transition-all rounded-none placeholder:opacity-30 font-bold;
+  @apply w-full bg-white border-2 border-on-surface p-5 font-mono text-sm focus:bg-brand-lime/10 transition-all rounded-none placeholder:opacity-30 font-bold;
   box-shadow: inset 2px 2px 0px rgba(0,0,0,0.05);
 }
 
@@ -843,6 +843,21 @@ body::after {
 img, video, canvas, svg {
   max-width: 100%;
   height: auto;
+}
+
+/* P0-4 (audit fix, Nov 19): one global keyboard-focus indicator. Unlayered
+   on purpose — unlayered author CSS beats Tailwind v4's layered utilities
+   (same cascade fact as the .skin-viewfinder rule below), so this wins over
+   every `outline-none` / `focus:outline-none` utility in the codebase,
+   including in files this change does not touch. It uses :focus-visible,
+   not :focus, so the ring appears for keyboard/switch focus only and never
+   on pointer taps. Reuses the established pattern (4px solid brand-cyan,
+   matching focus-visible:outline-4 outline-brand-cyan in
+   DevelopingPolaroid / StickerBook). Do not move this inside an @layer:
+   a layered copy would lose to the utilities layer. */
+:focus-visible {
+  outline: 4px solid var(--color-brand-cyan, #00f0ff);
+  outline-offset: 2px;
 }
 
 /* Full-bleed viewfinder feed: the containment rule above is unlayered, so

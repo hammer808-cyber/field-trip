@@ -371,11 +371,11 @@ export default function CrewPage() {
             <>
               <label className="block space-y-2">
                 <span className="micro-label">Crew Name</span>
-                <input value={crewForm.name} onChange={(e) => setCrewForm(prev => ({ ...prev, name: e.target.value }))} className="w-full border-4 border-on-surface p-4 font-display font-black uppercase outline-none" placeholder="THE PARKING LOT LEGENDS" required minLength={3} maxLength={64} />
+                <input value={crewForm.name} onChange={(e) => setCrewForm(prev => ({ ...prev, name: e.target.value }))} className="w-full border-4 border-on-surface p-4 font-display font-black uppercase" placeholder="THE PARKING LOT LEGENDS" required minLength={3} maxLength={64} />
               </label>
               <label className="block space-y-2">
                 <span className="micro-label">Motto</span>
-                <input value={crewForm.motto} onChange={(e) => setCrewForm(prev => ({ ...prev, motto: e.target.value }))} className="w-full border-4 border-on-surface p-4 font-serif italic outline-none" placeholder="We saw it, we submitted it." maxLength={140} />
+                <input value={crewForm.motto} onChange={(e) => setCrewForm(prev => ({ ...prev, motto: e.target.value }))} className="w-full border-4 border-on-surface p-4 font-serif italic" placeholder="We saw it, we submitted it." maxLength={140} />
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <label className="block space-y-2">
@@ -790,7 +790,7 @@ export default function CrewPage() {
                       value={loreDraft}
                       onChange={event => setLoreDraft(event.target.value)}
                       placeholder="DOCUMENT A COLLECTIVE MOMENT..."
-                      className="w-full bg-white border-4 border-on-surface p-6 text-xl font-display font-black italic uppercase outline-none focus:bg-brand-lime/10 transition-colors placeholder:opacity-20"
+                      className="w-full bg-white border-4 border-on-surface p-6 text-xl font-display font-black italic uppercase focus:bg-brand-lime/10 transition-colors placeholder:opacity-20"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           e.preventDefault();

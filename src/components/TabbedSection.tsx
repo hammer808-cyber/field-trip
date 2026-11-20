@@ -58,7 +58,7 @@ export const TabbedSection: React.FC<TabbedSectionProps> = ({
       <button
         onClick={handleToggle}
         className={cn(
-          "w-full text-left p-3 sm:p-10 flex items-center justify-between gap-3 sm:gap-6 hover:bg-on-surface/[0.015] transition-all focus:outline-none select-none relative z-10 group",
+          "w-full text-left p-3 sm:p-10 flex items-center justify-between gap-3 sm:gap-6 hover:bg-on-surface/[0.015] transition-all select-none relative z-10 group",
           isOpen ? "bg-on-surface/[0.02] pb-3 sm:pb-8" : "pb-4 sm:pb-12"
         )}
       >

@@ -144,7 +144,7 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
               setIsOpen(false);
             }}
             className={cn(
-              "w-full text-left p-4 bg-white border-2 transition-all flex gap-4 items-start rounded-none group cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-orange-500 relative overflow-hidden",
+              "w-full text-left p-4 bg-white border-2 transition-all flex gap-4 items-start rounded-none group cursor-pointer focus:ring-2 focus:ring-brand-orange-500 relative overflow-hidden",
               isSelected 
                 ? "bg-[#FAF7F0] border-on-surface shadow-[4px_4px_0px_black]" 
                 : "border-on-surface/15 hover:border-on-surface/40 hover:bg-[#FAF8F5]",
@@ -345,7 +345,7 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
                   </div>
                   <button 
                     onClick={() => setIsOpen(false)}
-                    className="w-[38px] h-[38px] sm:w-[42px] sm:h-[42px] flex items-center justify-center bg-on-surface/5 hover:bg-on-surface/10 hover:text-brand-orange border-2 border-on-surface transition-colors cursor-pointer rounded-none focus:outline-none focus:ring-2 focus:ring-brand-orange/40 shrink-0"
+                    className="w-[38px] h-[38px] sm:w-[42px] sm:h-[42px] flex items-center justify-center bg-on-surface/5 hover:bg-on-surface/10 hover:text-brand-orange border-2 border-on-surface transition-colors cursor-pointer rounded-none focus:ring-2 focus:ring-brand-orange/40 shrink-0"
                     aria-label="Close Library"
                   >
                     <X className="w-5 h-5 stroke-[2.5]" />

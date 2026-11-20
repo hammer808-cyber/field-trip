@@ -147,7 +147,7 @@ export function FieldCheckModal({
                       placeholder={fc('EXPLAIN_THE_REGRESSION...', 'Explain the issue here...')}
                       maxLength={500}
                       required
-                      className="w-full bg-paper-dark border-4 border-on-surface p-4 font-serif text-lg focus:outline-none focus:ring-4 focus:ring-brand-lime/30 min-h-[120px] resize-none"
+                      className="w-full bg-paper-dark border-4 border-on-surface p-4 font-serif text-lg focus:ring-4 focus:ring-brand-lime/30 min-h-[120px] resize-none"
                     />
                     <p className="text-[10px] uppercase font-bold text-on-surface/40 italic">
                       MIN_LENGTH: 5_CHARS

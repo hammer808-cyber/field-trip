@@ -205,7 +205,7 @@ export const PersonaQuiz: React.FC<PersonaQuizProps> = ({ onComplete }) => {
               id={`question-${question.id}`}
               ref={questionHeadingRef}
               tabIndex={-1}
-              className="font-display text-3xl sm:text-4xl font-black uppercase italic leading-tight outline-none"
+              className="font-display text-3xl sm:text-4xl font-black uppercase italic leading-tight"
             >
               {question.plainHeadline ?? question.prompt}
             </h1>

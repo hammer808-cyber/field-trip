@@ -98,7 +98,7 @@ export function ReportModal({ isOpen, onClose, targetId, targetType, targetName 
                     value={details}
                     onChange={(e) => setDetails(e.target.value)}
                     placeholder="Provide evidence details for bureau analysts..."
-                    className="w-full bg-white border-4 border-on-surface p-4 text-xs font-mono font-bold focus:ring-4 focus:ring-brand-lime outline-none h-32 placeholder:opacity-40"
+                    className="w-full bg-white border-4 border-on-surface p-4 text-xs font-mono font-bold focus:ring-4 focus:ring-brand-lime h-32 placeholder:opacity-40"
                   />
                 </div>
                 <button

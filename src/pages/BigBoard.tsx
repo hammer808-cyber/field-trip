@@ -689,7 +689,7 @@ function WeeklyAwardsSection({ currentWeekNumber }: WeeklyAwardsSectionProps) {
                           onClick={() => handleVote(category.id, nominee.id)}
                           aria-label={`Vote for nominee ${nominee.name} in category ${category.title}`}
                           className={cn(
-                            "relative p-2 border-4 text-center flex flex-col items-center justify-between transition-all rounded-none min-h-[84px] focus:outline-none focus:ring-2 focus:ring-brand-orange",
+                            "relative p-2 border-4 text-center flex flex-col items-center justify-between transition-all rounded-none min-h-[84px] focus:ring-2 focus:ring-brand-orange",
                             isVoted
                               ? "bg-brand-lime border-on-surface shadow-[4px_4px_0px_black] text-on-surface -translate-y-1 scale-[1.03]"
                               : cn(

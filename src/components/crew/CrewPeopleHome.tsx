@@ -242,7 +242,7 @@ export function CrewPeopleHome() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="username"
-            className="flex-1 border-4 border-on-surface p-4 font-mono uppercase outline-none"
+            className="flex-1 border-4 border-on-surface p-4 font-mono uppercase"
             minLength={2}
           />
           <button type="submit" disabled={searching} className="bureau-btn bg-brand-cyan text-on-surface">

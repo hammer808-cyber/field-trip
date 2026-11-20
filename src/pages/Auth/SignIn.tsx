@@ -88,7 +88,7 @@ export default function SignIn({ onSuccess, onBack, onCreateAccount }: SignInPro
             <button 
               type="button" 
               onClick={handleForgotPassword}
-              className="text-[10px] uppercase font-black tracking-widest text-brand-orange hover:underline focus:outline-none"
+              className="text-[10px] uppercase font-black tracking-widest text-brand-orange hover:underline"
             >
               Forgot password
             </button>

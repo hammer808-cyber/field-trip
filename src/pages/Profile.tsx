@@ -721,7 +721,7 @@ export default function ProfilePage() {
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   placeholder="Your name"
-                  className="w-full px-4 py-3 bg-[#FFFDF9] border-[3px] border-on-surface rounded-xl shadow-[4px_4px_0px_black] focus:shadow-none focus:translate-y-1 focus:outline-none font-display font-black uppercase text-sm tracking-tight transition-all"
+                  className="w-full px-4 py-3 bg-[#FFFDF9] border-[3px] border-on-surface rounded-xl shadow-[4px_4px_0px_black] focus:shadow-none focus:translate-y-1 font-display font-black uppercase text-sm tracking-tight transition-all"
                   maxLength={25}
                 />
               </div>
