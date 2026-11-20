@@ -868,7 +868,7 @@ export default function DeckPage() {
         <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')] mix-blend-multiply" />
         
         <div className="text-center space-y-2 relative z-10">
-           <div className="w-fit mx-auto bg-brand-orange text-white text-[9px] font-mono font-black px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase rotate-[-2deg] mb-1">
+           <div className="w-fit mx-auto bg-brand-orange text-black text-[9px] font-mono font-black px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase rotate-[-2deg] mb-1">
              {getDisplayLabel('TRANSMISSION_RECEIVED')}
            </div>
            <h1 className="font-display text-3xl sm:text-4xl font-black uppercase italic tracking-tighter leading-none">Your Mission</h1>

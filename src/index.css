@@ -146,6 +146,9 @@
   padding: 0.25rem 0.6rem;
   font-weight: 800;
   font-size: 0.72rem;
+  /* P0-2: explicit black text so every variant (lime / yellow / pink /
+     red) clears 4.5:1 instead of inheriting whatever the parent sets. */
+  color: var(--field-black);
   box-shadow:
     0 3px 0 var(--field-black),
     inset 0 1px 0 rgba(255,255,255,0.75);
@@ -161,12 +164,14 @@
 
 .status-chip.needs-proof {
   background: var(--field-pink);
-  color: white;
+  /* P0-2: white on #ff2fb3 is 3.33:1; black is 6.31:1. */
+  color: #000000;
 }
 
 .status-chip.locked {
   background: #ff4b65;
-  color: white;
+  /* P0-2: white on #ff4b65 is 3.26:1; black is 6.45:1. */
+  color: #000000;
 }
 
 .sticker-badge {

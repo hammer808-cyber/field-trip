@@ -179,11 +179,11 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
               </div>
               {hasXpDisplay && (
                 <div
-                  className="bg-brand-magenta text-white text-[8px] font-black px-2 py-0.5 rounded border border-on-surface shadow-[1px_1.5px_0px_black] shrink-0"
+                  className="bg-brand-magenta text-black text-[8px] font-black px-2 py-0.5 rounded border border-on-surface shadow-[1px_1.5px_0px_black] shrink-0"
                   title={hasClassifiedReserve ? 'Not every signal is visible yet. Some Fieldtrip points remain reserved for future discoveries, special conditions, and seasonal surprises.' : undefined}
                 >
                   {awardedXp} / {maxUiPotentialXp} XP
-                  {hasClassifiedReserve && <span className="block text-[6px] leading-tight opacity-80">{reservedPotentialXp} XP classified</span>}
+                  {hasClassifiedReserve && <span className="block text-[6px] leading-tight">{reservedPotentialXp} XP classified</span>}
                 </div>
               )}
             </div>
@@ -199,11 +199,11 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
                 <span className="text-[7px] font-mono font-black uppercase text-on-surface bg-brand-cyan/15 px-1.5 py-0.5 rounded-sm">
                   {proof.cardType || 'Signal'}
                 </span>
-                <span className="text-[7px] font-mono font-black uppercase text-brand-lime bg-brand-lime/10 px-1.5 py-0.5 rounded-sm">
+                <span className="text-[7px] font-mono font-black uppercase text-on-surface bg-brand-lime/10 px-1.5 py-0.5 rounded-sm">
                   {statusLabel === 'approved' ? 'Verified' : 'Hidden'}
                 </span>
                 {explorerType && (
-                  <span className="text-[7px] font-mono font-black uppercase text-brand-magenta bg-brand-magenta/10 px-1.5 py-0.5 rounded-sm">
+                  <span className="text-[7px] font-mono font-black uppercase text-on-surface bg-brand-magenta/10 px-1.5 py-0.5 rounded-sm">
                     {explorerType}
                   </span>
                 )}

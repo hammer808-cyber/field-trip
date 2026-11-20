@@ -110,7 +110,7 @@ export function MissionCard({
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')] opacity-[0.12] pointer-events-none mix-blend-multiply" />
         
         {/* Diagonal Warning/Classified Tape */}
-        <div className="absolute -right-12 top-8 bg-brand-orange text-white text-[10px] font-mono font-black uppercase tracking-[0.2em] px-14 py-2 rotate-[35deg] shadow-[2px_2px_4px_rgba(0,0,0,0.15)] border-y border-on-surface z-20">
+        <div className="absolute -right-12 top-8 bg-brand-orange text-black text-[10px] font-mono font-black uppercase tracking-[0.2em] px-14 py-2 rotate-[35deg] shadow-[2px_2px_4px_rgba(0,0,0,0.15)] border-y border-on-surface z-20">
           SEALED FILE
         </div>
 
@@ -282,7 +282,7 @@ export function MissionCard({
           <div className="absolute top-2 right-2 text-on-surface/10">
             <Camera className="w-5 h-5 text-brand-orange opacity-40 animate-pulse" />
           </div>
-          <span className="text-[8px] font-mono font-black uppercase tracking-[0.25em] text-brand-orange flex items-center gap-1">
+          <span className="text-[8px] font-mono font-black uppercase tracking-[0.25em] text-[#C2410C] flex items-center gap-1">
             <span className="w-1.5 h-1.5 bg-brand-orange rounded-full" />
             WHAT TO HUNT
           </span>
@@ -293,7 +293,7 @@ export function MissionCard({
 
         {/* 2. MEMORY ANGLE (Why is it fun? / Suggestion) */}
         <div className="bg-brand-yellow/5 border-[2px] border-dashed border-on-surface/15 p-4 space-y-1 rounded-xl relative">
-          <span className="text-[8px] font-mono font-black uppercase tracking-[0.25em] text-[#D84315] flex items-center gap-1">
+          <span className="text-[8px] font-mono font-black uppercase tracking-[0.25em] text-[#C2410C] flex items-center gap-1">
             ✨ WHY IT'S FUN
           </span>
           <p className="text-xs font-serif italic font-bold text-on-surface/70 leading-relaxed">

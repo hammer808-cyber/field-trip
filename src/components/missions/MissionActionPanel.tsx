@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { Crosshair } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { DEFAULT_APP_SKIN } from '../../skins/registry';
+import { pickTextOnBackground, skinVarHex } from './MissionLogbookPanel';
 
 interface MissionActionPanelProps {
   eyebrow: string;
@@ -28,6 +30,13 @@ export function MissionActionPanel({
   onDraw,
   drawDisabled,
 }: MissionActionPanelProps) {
+  // P0-2: the 8px status badge sits on the skin secondary background, and
+  // the token onSecondary fails in baja (white on #00a6b2 is 2.96:1), so
+  // the text color is derived from the live background instead. The header
+  // icon chip is icon-only (3:1 non-text bar) and passes in every skin.
+  const badgeText = pickTextOnBackground(
+    skinVarHex('--skin-secondary', DEFAULT_APP_SKIN.designTokens.secondary),
+  );
   return (
     <section
       aria-labelledby="mission-dispatch-heading"
@@ -53,13 +62,14 @@ export function MissionActionPanel({
             type="button"
             onClick={onDraw}
             disabled={drawDisabled}
-            className="border-2 border-[var(--skin-border)] bg-[var(--skin-secondary)] px-2.5 py-1 font-mono text-[8px] font-black uppercase tracking-widest text-[var(--skin-on-secondary)] shadow-[2px_2px_0_var(--skin-border)] transition-all active:translate-y-0.5 active:shadow-none disabled:cursor-not-allowed disabled:opacity-60"
+            className="border-2 border-[var(--skin-border)] bg-[var(--skin-secondary)] px-2.5 py-1 font-mono text-[8px] font-black uppercase tracking-widest shadow-[2px_2px_0_var(--skin-border)] transition-all active:translate-y-0.5 active:shadow-none disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ color: badgeText }}
             aria-live="polite"
           >
             {status}
           </button>
         ) : (
-          <span className="border-2 border-[var(--skin-border)] bg-[var(--skin-secondary)] px-2.5 py-1 font-mono text-[8px] font-black uppercase tracking-widest text-[var(--skin-on-secondary)] shadow-[2px_2px_0_var(--skin-border)]" aria-live="polite">
+          <span className="border-2 border-[var(--skin-border)] bg-[var(--skin-secondary)] px-2.5 py-1 font-mono text-[8px] font-black uppercase tracking-widest shadow-[2px_2px_0_var(--skin-border)]" style={{ color: badgeText }} aria-live="polite">
             {status}
           </span>
         )}
