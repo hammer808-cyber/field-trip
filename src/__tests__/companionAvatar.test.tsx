@@ -176,6 +176,19 @@ test('Trevor launcher shows the duo only when classified', () => {
   assert.ok(withCompanion.includes('/assets/characters/mascota/avatar.png'), 'duo has companion');
   assert.ok(withCompanion.includes('api.dicebear.com'), 'duo keeps Trevor');
   assert.equal((withCompanion.match(/<img/g) || []).length, 2, 'duo renders two avatars');
+  // Regression (Nov 20, 2026): TrevorAvatar's span must be `block` with its
+  // size classes. When the duo wrapped it in a plain span it went back to
+  // inline, h-8/w-8 stopped applying, and the DiceBear SVG rendered at its
+  // intrinsic size (~350px) over the page. The companion's span is `block`
+  // too, for the same reason.
+  assert.ok(
+    withCompanion.includes('block shrink-0 overflow-hidden rounded-full border-2 border-on-surface bg-brand-cyan h-8 w-8'),
+    'Trevor avatar is block-sized in the launcher',
+  );
+  assert.ok(
+    withCompanion.includes('block shrink-0 overflow-hidden rounded-full border-2 border-on-surface bg-white h-8 w-8'),
+    'companion avatar is block-sized in the launcher',
+  );
   assert.equal((withCompanion.match(/aria-label="Open Trevor guide"/g) || []).length, 1);
 
   const withoutCompanion = collapsed(null);

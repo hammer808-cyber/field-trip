@@ -255,8 +255,14 @@ export function TrevorGuideView({
 
 function TrevorAvatar({ size }: { size: 'small' | 'large' }) {
   return (
+    // NOTE (Nov 20, 2026): the `block` is load-bearing. This span used to be
+    // a direct flex child of the launcher button, which blockified it so
+    // h-8/w-8 applied; the companion duo wrapped it in a plain span, the
+    // span went back to inline, h-8/w-8 stopped applying, and the DiceBear
+    // SVG rendered at its huge intrinsic size, covering the page. Never
+    // remove `block` without checking the launcher live.
     <span className={cn(
-      'shrink-0 overflow-hidden rounded-full border-2 border-on-surface bg-brand-cyan',
+      'block shrink-0 overflow-hidden rounded-full border-2 border-on-surface bg-brand-cyan',
       size === 'large' ? 'h-10 w-10' : 'h-8 w-8',
     )}>
       <img
