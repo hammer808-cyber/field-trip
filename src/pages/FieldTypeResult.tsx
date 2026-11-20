@@ -350,17 +350,17 @@ export default function FieldTypeResult() {
                    used to hide all three and show only the how-to. */}
                <div className="relative z-10">
                  <p className="font-mono text-xs font-black uppercase tracking-[0.3em] text-brand-orange not-italic">Trevor says</p>
-                 <p className={cn("mt-2 text-2xl leading-tight font-medium", isDiamond ? "font-mono text-white/80" : "font-serif text-on-surface")}>
+                 <p className={cn("mt-2 text-display-card leading-tight font-medium", isDiamond ? "font-mono text-white/80" : "font-serif text-on-surface")}>
                    {`“${trevorLine}”`}
                  </p>
                </div>
                {data.plainSummary && (
-                 <p className={cn("text-xl sm:text-2xl leading-snug font-black relative z-10", isDiamond ? "font-sans text-white" : "font-sans text-on-surface")}>
+                 <p className={cn("text-xl sm:text-display-card leading-snug font-black relative z-10", isDiamond ? "font-sans text-white" : "font-sans text-on-surface")}>
                    {data.plainSummary}
                  </p>
                )}
                {!frankieMode && (
-                 <p className={cn("text-2xl leading-tight font-medium relative z-10", isDiamond ? "font-mono text-white/80" : "font-serif text-on-surface")}>
+                 <p className={cn("text-display-card leading-tight font-medium relative z-10", isDiamond ? "font-mono text-white/80" : "font-serif text-on-surface")}>
                    {`"${data.description}"`}
                  </p>
                )}

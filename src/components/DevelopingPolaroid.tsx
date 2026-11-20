@@ -192,7 +192,7 @@ export function DevelopingPolaroid({
       <motion.div
         animate={{ y: frameY, rotate: isDeveloped ? -1 : 0, scale: isDeveloped ? 1 : 0.96 }}
         transition={reduceMotion ? { duration: 0.08 } : { type: 'spring', stiffness: 115, damping: 18 }}
-        className="relative w-full max-w-[19rem] bg-[#FFFDF6] p-3 pb-16 border border-black/10 shadow-[0_22px_55px_rgba(0,0,0,0.55)]"
+        className="relative w-full max-w-[19rem] bg-paper p-3 pb-16 border border-black/10 shadow-[0_22px_55px_rgba(0,0,0,0.55)]"
       >
         <div
           ref={imageContainerRef}
@@ -237,7 +237,7 @@ export function DevelopingPolaroid({
               ) : (
                 <div className="bg-white border-2 border-on-surface shadow-[3px_3px_0px_black] p-2 max-w-24 text-center">
                   <span className="block text-2xl" aria-hidden="true">{selectedSticker.emoji}</span>
-                  <span className="block font-mono text-xs font-black uppercase leading-none mt-1">{selectedSticker.name}</span>
+                  <span className="block font-mono text-label font-black uppercase leading-none mt-1">{selectedSticker.name}</span>
                 </div>
               )}
               <button

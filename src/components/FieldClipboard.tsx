@@ -201,10 +201,10 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
           {/* Metadata Badges (STICKERS) */}
           <div className="flex justify-between items-start mb-2 relative z-20 w-full">
             <div className="flex flex-wrap gap-1.5 max-w-[70%]">
-              <div className="bg-[#2EE7F0] text-on-surface text-xs font-black px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase italic leading-none whitespace-nowrap">
+              <div className="bg-[#2EE7F0] text-on-surface text-label font-black px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase italic leading-none whitespace-nowrap">
                 {cardType}
               </div>
-              <div className="bg-brand-lime text-on-surface text-xs font-black px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase italic leading-none rotate-[-1deg] whitespace-nowrap">
+              <div className="bg-brand-lime text-on-surface text-label font-black px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase italic leading-none rotate-[-1deg] whitespace-nowrap">
                 {mission.deckName || 'ADVENTURE'}
               </div>
             </div>
@@ -218,11 +218,11 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
 
           {/* MISSION TITLE AREA - No truncation, clear hierarchy */}
           <div className="relative z-20 mt-auto">
-            <h1 className="font-display text-2xl sm:text-3xl font-black uppercase italic text-white tracking-tighter leading-[0.85] drop-shadow-2xl">
+            <h1 className="font-display text-display-card sm:text-3xl font-black uppercase italic text-white tracking-tighter leading-[0.85] drop-shadow-2xl">
               {mission.title}
             </h1>
             {mission.deckSubtitle && (
-              <p className="mt-1 line-clamp-2 font-mono text-xs font-bold leading-tight text-white/65">
+              <p className="mt-1 line-clamp-2 font-mono text-label font-bold leading-tight text-white/65">
                 {mission.deckSubtitle}
               </p>
             )}
@@ -344,7 +344,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                        {missionAttempt.hint.shortText}
                      </p>
                      {missionAttempt.hint.example && (
-                       <p className="mt-2 text-xs italic leading-relaxed text-on-surface/60">
+                       <p className="mt-2 text-label italic leading-relaxed text-on-surface/60">
                          Example: {missionAttempt.hint.example}
                        </p>
                      )}
@@ -369,7 +369,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                {trevorLine && (
                  <div className="rounded-2xl border border-on-surface/10 bg-on-surface/[0.025] p-4">
                    <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">Trevor's Take</p>
-                   <p className="mt-1 text-xs font-semibold leading-relaxed text-on-surface/75">{trevorLine}</p>
+                   <p className="mt-1 text-label font-semibold leading-relaxed text-on-surface/75">{trevorLine}</p>
                    <p className="mt-2 font-mono text-xs font-black uppercase text-on-surface/60">Optional advice. No extra points.</p>
                  </div>
                )}
@@ -381,7 +381,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                      {appliedBonus.type === 'time_window' ? 'Time Bonus' : 'Random Bonus'} · {appliedBonus.multiplier}× XP
                    </p>
                    <p className="mt-1 font-display text-lg font-black uppercase italic">{appliedBonus.label}</p>
-                   <p className="mt-2 pr-8 text-xs font-semibold leading-relaxed text-on-surface/70">{appliedBonus.description}</p>
+                   <p className="mt-2 pr-8 text-label font-semibold leading-relaxed text-on-surface/70">{appliedBonus.description}</p>
                  </div>
                )}
             </div>
@@ -477,7 +477,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                        ) : (
                          <div className="bg-white border-2 border-on-surface shadow-[3px_3px_0px_black] p-2 max-w-24 text-center">
                            <span className="block text-2xl">{reviewingSticker.emoji}</span>
-                           <span className="block font-mono text-xs font-black uppercase leading-none mt-1">{reviewingSticker.name}</span>
+                           <span className="block font-mono text-label font-black uppercase leading-none mt-1">{reviewingSticker.name}</span>
                          </div>
                        )}
                      </div>

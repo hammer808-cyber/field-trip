@@ -118,7 +118,7 @@ export function VoiceNoteRecorder({ value, onChange, prompt, frankieMode }: Voic
   };
 
   return (
-    <div className="rounded-xl border-2 border-on-surface bg-[#FAF9F6] p-4">
+    <div className="rounded-xl border-2 border-on-surface bg-paper p-4">
       <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">
         {frankieMode ? 'Or say it instead' : 'Voice note instead'}
       </p>

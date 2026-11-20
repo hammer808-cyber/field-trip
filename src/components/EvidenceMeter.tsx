@@ -60,7 +60,7 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
 
   if (variant === 'compact') {
     return (
-      <div className={cn("w-full bg-[#FAF8F5] p-3 rounded-2xl border-4 border-on-surface field-paper-shadow relative overflow-hidden group", className)}>
+      <div className={cn("w-full bg-paper p-3 rounded-2xl border-4 border-on-surface field-paper-shadow relative overflow-hidden group", className)}>
         {/* Background Paper Texture */}
         <div className="absolute inset-0 bg-[url('/assets/textures/graphy-dark.png')] opacity-5 pointer-events-none" />
         
@@ -70,7 +70,7 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
               <Zap className="w-3.5 h-3.5 text-on-surface fill-on-surface" />
             </div>
             <div>
-              <h4 className="text-on-surface font-display text-xs font-black uppercase italic tracking-tighter leading-none">Evidence_Meter</h4>
+              <h4 className="text-on-surface font-display text-label font-black uppercase italic tracking-tighter leading-none">Evidence_Meter</h4>
               <p className="text-xs font-mono text-on-surface font-black uppercase tracking-widest mt-0.5">UPLINK // ACTIVE</p>
             </div>
           </div>
@@ -114,7 +114,7 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
               )}>
                 {chip.icon}
               </div>
-              <span className="text-xs font-mono font-black uppercase tracking-tighter leading-none">{chip.pts}</span>
+              <span className="text-label font-mono font-black uppercase tracking-tighter leading-none">{chip.pts}</span>
             </div>
           ))}
         </div>
@@ -125,7 +125,7 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
   }
 
   return (
-    <div className={cn("w-full bg-[#FAF8F5] p-6 rounded-[2rem] border-4 border-on-surface field-paper-shadow-lg relative overflow-hidden", className)}>
+    <div className={cn("w-full bg-paper p-6 rounded-[2rem] border-4 border-on-surface field-paper-shadow-lg relative overflow-hidden", className)}>
       {/* Background Paper Texture */}
       <div className="absolute inset-0 bg-[url('/assets/textures/graphy-dark.png')] opacity-10 pointer-events-none" />
       
@@ -138,7 +138,7 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
             <h4 className="text-on-surface font-display text-xl font-black uppercase italic tracking-tighter leading-none">Evidence Meter</h4>
             <div className="flex items-center gap-2 mt-1">
               <span className="flex h-2 w-2 rounded-full bg-brand-lime animate-pulse" />
-              <p className="text-xs font-mono text-on-surface/60 font-black uppercase tracking-widest leading-none">UPLINK_VERIFICATION // ACTIVE</p>
+              <p className="text-label font-mono text-on-surface/60 font-black uppercase tracking-widest leading-none">UPLINK_VERIFICATION // ACTIVE</p>
             </div>
           </div>
         </div>
@@ -232,7 +232,7 @@ const StatusChip = ({ icon, label, pts, active, locked }: { icon: React.ReactNod
       {icon}
     </div>
     <div className="text-center flex flex-col items-center">
-      <p className="text-xs font-display font-black uppercase tracking-wider leading-none mb-1">{label}</p>
+      <p className="text-label font-display font-black uppercase tracking-wider leading-none mb-1">{label}</p>
       <div className={cn(
         "px-2 py-0.5 rounded-full border-2 text-xs font-mono font-black italic transition-all",
         active ? "bg-on-surface text-white border-on-surface" : "bg-on-surface/5 border-transparent"

@@ -215,7 +215,7 @@ export const PersonaQuiz: React.FC<PersonaQuizProps> = ({ onComplete }) => {
               </p>
             )}
             {trevorLine(question) && (
-              <p className="inline-flex items-start gap-2 border-2 border-dashed border-on-surface/25 bg-white/60 px-3 py-2 font-mono text-xs font-bold leading-relaxed text-on-surface/75">
+              <p className="inline-flex items-start gap-2 border-2 border-dashed border-on-surface/25 bg-white/60 px-3 py-2 font-mono text-label font-bold leading-relaxed text-on-surface/75">
                 <span className="shrink-0 bg-on-surface px-1.5 py-0.5 text-xs font-black uppercase tracking-widest text-white">Trevor</span>
                 {trevorLine(question)}
               </p>
@@ -237,7 +237,7 @@ export const PersonaQuiz: React.FC<PersonaQuizProps> = ({ onComplete }) => {
                     isSelected ? 'bg-brand-lime' : 'bg-white hover:bg-brand-lime/35'
                   }`}
                 >
-                  <span className="flex items-start gap-3 font-mono text-xs sm:text-sm font-bold leading-relaxed">
+                  <span className="flex items-start gap-3 font-mono text-label sm:text-sm font-bold leading-relaxed">
                     <span className="mt-0.5 w-6 h-6 shrink-0 border-2 border-on-surface flex items-center justify-center font-black bg-white" aria-hidden="true">
                       {isSelected ? <Check className="w-4 h-4" /> : answerIndex + 1}
                     </span>

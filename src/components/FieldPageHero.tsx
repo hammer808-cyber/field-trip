@@ -133,7 +133,7 @@ export function FieldPageHero({
                 )}>{eyebrow}</p>
               </div>
               <h1 className={cn(
-                'mt-2 break-words font-display text-[clamp(2.75rem,12vw,5.5rem)] font-black uppercase italic leading-[0.82] tracking-normal sm:text-[clamp(3.5rem,11vw,6rem)]',
+                'mt-2 break-words font-display text-display-hero font-black uppercase italic leading-[0.82] tracking-normal sm:text-[clamp(3.5rem,11vw,6rem)]',
                 chrome ? 'text-white' : 'text-[var(--skin-text)]',
               )}>
                 {title}

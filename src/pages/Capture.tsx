@@ -1376,7 +1376,7 @@ export default function CapturePage() {
       isBaja ? "bg-baja-sand text-baja-pink" : 
       isDiamond ? "bg-black text-white" :
       isHeat ? "bg-heat-yellow text-white" :
-      "bg-[#FAF8F5] text-on-surface"
+      "bg-paper text-on-surface"
     )}>
       {/* Removed: Notebook Rings Decoration to avoid confusion with horizontal guide pills */}
       <div className="w-full flex justify-center py-2 relative z-20 select-none pointer-events-none mb-2" />
@@ -1398,7 +1398,7 @@ export default function CapturePage() {
                 <p className="font-mono text-xs font-black uppercase tracking-wider text-brand-orange flex items-center gap-1.5">
                   <AlertCircle className="w-3.5 h-3.5" /> Needs more proof
                 </p>
-                <p className="text-xs font-serif italic text-on-surface leading-relaxed">
+                <p className="text-label font-serif italic text-on-surface leading-relaxed">
                   "{repairFeedback}"
                 </p>
               </div>
@@ -1412,10 +1412,10 @@ export default function CapturePage() {
                 <p className="font-mono text-xs font-black uppercase tracking-wider text-red-700 flex items-center gap-1.5">
                   <AlertCircle className="w-3.5 h-3.5" /> Proof didn&apos;t save
                 </p>
-                <p className="text-xs font-sans font-bold text-on-surface leading-relaxed">
+                <p className="text-label font-sans font-bold text-on-surface leading-relaxed">
                   {errorMessage || 'Proof did not save. Please try again.'}
                 </p>
-                <p className="text-xs font-serif italic text-on-surface/70 leading-relaxed">
+                <p className="text-label font-serif italic text-on-surface/70 leading-relaxed">
                   Your photo and field note are still here — nothing was lost.
                 </p>
                 <button

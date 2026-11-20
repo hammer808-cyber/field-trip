@@ -41,11 +41,11 @@ export default function MissionSubmittedPage() {
   const showBasecampButton = starter.starterComplete || isAdmin;
 
   return (
-    <PlayerPageShell department="missions" className="skin-page skin-proof-status skin-success-state min-h-screen bg-[#FCF8F2] flex flex-col items-center justify-center p-6 relative overflow-hidden">
+    <PlayerPageShell department="missions" className="skin-page skin-proof-status skin-success-state min-h-screen bg-paper flex flex-col items-center justify-center p-6 relative overflow-hidden">
       <Confetti />
       
       {/* Background Grid Pattern (field trip dossier style) */}
-      <div className="absolute inset-0 bg-[#FFFCEB] bg-[radial-gradient(rgba(0,0,0,0.03)_1.5px,transparent_1.5px)] bg-[size:16px_16px] pointer-events-none opacity-60" />
+      <div className="absolute inset-0 bg-paper bg-[radial-gradient(rgba(0,0,0,0.03)_1.5px,transparent_1.5px)] bg-[size:16px_16px] pointer-events-none opacity-60" />
       
       {/* Tape Deco and Visual Background Elements */}
       <div className="absolute inset-0 opacity-15 pointer-events-none select-none">
@@ -88,7 +88,7 @@ export default function MissionSubmittedPage() {
               </div>
             </div>
 
-            <div className="bg-[#FFFCEB] border-2 border-dashed border-on-surface/15 p-4 rounded-xl space-y-1.5 text-center relative">
+            <div className="bg-paper border-2 border-dashed border-on-surface/15 p-4 rounded-xl space-y-1.5 text-center relative">
               {showStarterGuidance && starterGuidance.progressLine && (
                 <p className="text-sm font-sans font-bold text-on-surface">
                   {starterGuidance.progressLine}
@@ -103,7 +103,7 @@ export default function MissionSubmittedPage() {
                       ? 'STARTER COMPLETE'
                       : 'AWAITING REVIEW'}
               </p>
-              <p className="text-xs font-sans font-bold text-on-surface leading-normal">
+              <p className="text-label font-sans font-bold text-on-surface leading-normal">
                 {showStarterGuidance ? starterGuidance.statusLine : 'Your proof is waiting for review.'}
               </p>
             </div>
@@ -121,7 +121,7 @@ export default function MissionSubmittedPage() {
 
           {/* End of Season Banner Quote */}
           <div className="mt-6 pt-4 border-t-2 border-dashed border-on-surface/10">
-            <p className="font-mono text-xs uppercase tracking-wider leading-relaxed text-on-surface/60">
+            <p className="font-mono text-label uppercase tracking-wider leading-relaxed text-on-surface/60">
               Take photos. Earn points. Make the summer reel. Win the season!
             </p>
           </div>

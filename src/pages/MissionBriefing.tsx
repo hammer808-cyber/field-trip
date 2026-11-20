@@ -47,7 +47,7 @@ export default function MissionBriefingPage() {
 
   if (savedConfirmation) {
     return (
-      <div className="skin-page skin-mission-briefing min-h-screen bg-[#FAF8F5] flex items-center justify-center p-6 ft-paper-texture">
+      <div className="skin-page skin-mission-briefing min-h-screen bg-paper flex items-center justify-center p-6 ft-paper-texture">
         <div className="w-full max-w-sm bg-white border-4 border-on-surface p-8 shadow-[10px_10px_0px_black] text-center space-y-5">
           <div className="mx-auto w-16 h-16 bg-brand-lime border-4 border-on-surface flex items-center justify-center shadow-[4px_4px_0px_black]">
             <CheckCircle2 className="w-8 h-8 text-on-surface" />
@@ -69,7 +69,7 @@ export default function MissionBriefingPage() {
   }
 
   return (
-    <div className="skin-page skin-mission-briefing min-h-screen bg-[#FAF8F5] pb-40 ft-paper-texture">
+    <div className="skin-page skin-mission-briefing min-h-screen bg-paper pb-40 ft-paper-texture">
       <header className="px-4 pt-6 flex items-center justify-between">
         <button 
           onClick={() => navigate(-1)}
@@ -78,7 +78,7 @@ export default function MissionBriefingPage() {
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <div className="font-mono text-[10px] font-black uppercase tracking-widest opacity-40">
+        <div className="font-mono text-xs font-black uppercase tracking-widest opacity-40">
           Mission briefing
         </div>
         <div className="w-10" />
@@ -86,7 +86,7 @@ export default function MissionBriefingPage() {
 
       <main className="px-6 pt-8 space-y-12 max-w-xl mx-auto">
         <div className="space-y-4 text-center">
-          <div className="inline-flex gap-2 items-center px-3 py-1 bg-brand-orange/10 border-2 border-brand-orange rounded-full text-[10px] font-black uppercase tracking-widest text-brand-orange">
+          <div className="inline-flex gap-2 items-center px-3 py-1 bg-brand-orange/10 border-2 border-brand-orange rounded-full text-xs font-black uppercase tracking-widest text-brand-orange">
             <Clock className="w-3 h-3" />
             Field Ready
           </div>
@@ -115,12 +115,12 @@ export default function MissionBriefingPage() {
           <div className="grid grid-cols-2 gap-4">
              <div className="bg-white border-2 border-on-surface/10 p-4 rounded-2xl flex flex-col items-center gap-2 text-center">
                 <Compass className="w-5 h-5 text-brand-cyan" />
-                <span className="text-[10px] font-mono font-black uppercase opacity-40">Lane</span>
+                <span className="text-xs font-mono font-black uppercase opacity-40">Lane</span>
                 <span className="text-xs font-bold uppercase">{mission.lane || 'Standard'}</span>
              </div>
              <div className="bg-white border-2 border-on-surface/10 p-4 rounded-2xl flex flex-col items-center gap-2 text-center">
                 <Bookmark className="w-5 h-5 text-brand-orange" />
-                <span className="text-[10px] font-mono font-black uppercase opacity-40">Reward</span>
+                <span className="text-xs font-mono font-black uppercase opacity-40">Reward</span>
                 <span className="text-xs font-bold uppercase">{mission.baseXP || mission.basePoints || 100} XP</span>
              </div>
           </div>
@@ -137,7 +137,7 @@ export default function MissionBriefingPage() {
 
           <button
             onClick={handleSaveForLater}
-            className="w-full min-h-12 py-3 text-on-surface/55 hover:text-on-surface font-mono text-[11px] font-black uppercase tracking-[0.2em] transition-colors flex items-center justify-center gap-2"
+            className="w-full min-h-12 py-3 text-on-surface/55 hover:text-on-surface font-mono text-xs font-black uppercase tracking-[0.2em] transition-colors flex items-center justify-center gap-2"
           >
             <Bookmark className="w-4 h-4" />
             <span>Save for later</span>
@@ -146,7 +146,7 @@ export default function MissionBriefingPage() {
 
         <button 
           onClick={() => navigate('/missions')}
-          className="w-full py-4 text-center text-on-surface/40 hover:text-on-surface font-mono text-[10px] font-black uppercase tracking-[0.2em] transition-colors"
+          className="w-full py-4 text-center text-on-surface/60 hover:text-on-surface font-mono text-xs font-black uppercase tracking-[0.2em] transition-colors"
         >
           Back to Missions
         </button>

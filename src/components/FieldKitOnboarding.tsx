@@ -204,8 +204,8 @@ export default function FieldKitOnboarding() {
               <Camera className="w-5 h-5 text-brand-orange" />
             </div>
             <div className="space-y-1">
-              <p className="font-mono text-xs font-black uppercase tracking-wider leading-none">Camera</p>
-              <p className="text-xs text-on-surface/60 leading-relaxed">So you can take proof photos.</p>
+              <p className="font-mono text-label font-black uppercase tracking-wider leading-none">Camera</p>
+              <p className="text-label text-on-surface/60 leading-relaxed">So you can take proof photos.</p>
             </div>
           </div>
 
@@ -215,8 +215,8 @@ export default function FieldKitOnboarding() {
               <MapPin className="w-5 h-5 text-brand-lime" />
             </div>
             <div className="space-y-1">
-              <p className="font-mono text-xs font-black uppercase tracking-wider leading-none">Location</p>
-              <p className="text-xs text-on-surface/60 leading-relaxed">So Fieldtrip can check you were really out there.</p>
+              <p className="font-mono text-label font-black uppercase tracking-wider leading-none">Location</p>
+              <p className="text-label text-on-surface/60 leading-relaxed">So Fieldtrip can check you were really out there.</p>
             </div>
           </div>
         </div>

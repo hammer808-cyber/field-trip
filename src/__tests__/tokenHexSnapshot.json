@@ -82,17 +82,13 @@
       "#ff5c00"
     ],
     "src/components/DevelopingPolaroid.tsx": [
-      "#141615",
-      "#fffdf6"
+      "#141615"
     ],
     "src/components/EntryCard.tsx": [
       "#ece9e0",
       "#faf9f4",
       "#fefc9c",
       "#fffdf8"
-    ],
-    "src/components/EvidenceMeter.tsx": [
-      "#faf8f5"
     ],
     "src/components/FieldClipboard.tsx": [
       "#2ee7f0",
@@ -172,9 +168,6 @@
       "#ffece3",
       "#ffffff"
     ],
-    "src/components/VoiceNoteRecorder.tsx": [
-      "#faf9f6"
-    ],
     "src/components/VotingHub.tsx": [
       "#fff7e8",
       "#fffaf0",
@@ -243,7 +236,6 @@
       "#1726c9",
       "#1a1a1a",
       "#3317ff",
-      "#40e0d0",
       "#502000",
       "#808080",
       "#9d00ff",
@@ -383,7 +375,6 @@
       "#fffdf7"
     ],
     "src/pages/Capture.tsx": [
-      "#faf8f5",
       "#ff3131"
     ],
     "src/pages/Collection.tsx": [
@@ -404,13 +395,6 @@
       "#d8cb83",
       "#efefd9",
       "#fafbe5"
-    ],
-    "src/pages/MissionBriefing.tsx": [
-      "#faf8f5"
-    ],
-    "src/pages/MissionSubmitted.tsx": [
-      "#fcf8f2",
-      "#fffceb"
     ],
     "src/pages/Profile.tsx": [
       "#f9f7f2",

@@ -668,7 +668,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
         />
         <div className="space-y-4 max-w-xs w-full my-auto">
           <AlertCircle className="w-12 h-12 text-brand-orange mx-auto" />
-          <p className="font-mono text-xs text-brand-orange uppercase tracking-widest leading-relaxed break-all">{error}</p>
+          <p className="font-mono text-label text-brand-orange uppercase tracking-widest leading-relaxed break-all">{error}</p>
           
           <button 
             onClick={openFileUpload}
@@ -1058,7 +1058,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
                       />
                     </div>
                     <span className={cn(
-                      "font-mono text-xs uppercase tracking-tighter w-16 text-center leading-tight",
+                      "font-mono text-label uppercase tracking-tighter w-16 text-center leading-tight",
                       selectedFilter === f.id ? "text-white" : "text-white/40"
                     )}>
                       {f.name}
