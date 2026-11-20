@@ -67,10 +67,10 @@ const CAPTAIN_CLIPBOARD_PACK: ReadonlyArray<{
 
 test('captain clipboard pack: all ten are registered as new Captain Clipboard stickers with the right collection, order, rarity and trigger', () => {
   const all = getAllStickers();
-  assert.equal(all.length, 105, '101 before the Nov 20 milestone variants + 4 new variant entries');
+  assert.equal(all.length, 108, '105 before the Nov 20 challenge-approved variants + 3 new variant entries');
 
   const captainClipboard = all.filter(sticker => sticker.archetype === 'captainClipboard');
-  assert.equal(captainClipboard.length, 18, '7 original Captain Clipboard stickers + 10 new pack entries + 1 milestone variant');
+  assert.equal(captainClipboard.length, 19, '7 original Captain Clipboard stickers + 10 new pack entries + 1 milestone variant + 1 challenge-approved variant');
 
   for (const expected of CAPTAIN_CLIPBOARD_PACK) {
     const sticker = getStickerById(expected.id);

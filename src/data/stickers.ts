@@ -404,6 +404,21 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     unlockReason: 'Earned for the pretzel and iced coffee.',
     tags: ['mall-rat', 'pretzel', 'iced-coffee', 'snack', 'trigger-pending']
   },
+  // Challenge-approved variant (Nov 20, 2026 — earn-audit fix #4, shape A):
+  // generated in-house, not from a ZIP — Mall Rat had no challenge_approved
+  // sticker, so its first non-starter approval earned nothing.
+  {
+    id: 'mall_rat_shopping_spree',
+    name: 'Shopping Spree',
+    archetype: 'mallRat',
+    collection: 'achievement',
+    displayOrder: 27,
+    imageUrl: '/assets/stickers/mallRat/shopping-spree.png',
+    rarity: 'rare',
+    awardTrigger: 'challenge_approved',
+    unlockReason: 'Earned when an eligible challenge is approved.',
+    tags: ['mall-rat', 'shopping', 'spree', 'challenge']
+  },
 
   // Mascota
   {
@@ -894,6 +909,22 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     unlockReason: 'Earned by reaching a Captain Clipboard archetype milestone.',
     tags: ['captain-clipboard', 'clipboard', 'gold', 'milestone']
   },
+  // Challenge-approved variant (Nov 20, 2026 — earn-audit fix #4, shape A):
+  // generated in-house, not from a ZIP — Captain Clipboard had no
+  // challenge_approved sticker, so its first non-starter approval earned
+  // nothing. Rarity mirrors the existing set (two rare, one common).
+  {
+    id: 'captain_clipboard_gold_star',
+    name: 'Gold Star',
+    archetype: 'captainClipboard',
+    collection: 'achievement',
+    displayOrder: 26,
+    imageUrl: '/assets/stickers/captainClipboard/gold-star.png',
+    rarity: 'rare',
+    awardTrigger: 'challenge_approved',
+    unlockReason: 'Earned when an eligible challenge is approved.',
+    tags: ['captain-clipboard', 'gold-star', 'approval', 'challenge']
+  },
 
   // Lost Camper
   {
@@ -1021,6 +1052,23 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     awardTrigger: 'archetype_milestone',
     unlockReason: 'Earned by reaching a Bigfoot archetype milestone.',
     tags: ['bigfoot', 'tree', 'hideout', 'milestone']
+  },
+  // Challenge-approved variant (Nov 20, 2026 — earn-audit fix #4, shape A):
+  // generated in-house, not from a ZIP — Bigfoot had no challenge_approved
+  // sticker, so its first non-starter approval earned nothing. Common, to
+  // mirror the existing set's two-rare-one-common split (Compass is the
+  // other common one — the wild archetypes earn common, the rest rare).
+  {
+    id: 'bigfoot_tracks',
+    name: 'Bigfoot Tracks',
+    archetype: 'bigfoot',
+    collection: 'achievement',
+    displayOrder: 28,
+    imageUrl: '/assets/stickers/bigfoot/tracks.png',
+    rarity: 'common',
+    awardTrigger: 'challenge_approved',
+    unlockReason: 'Earned when an eligible challenge is approved.',
+    tags: ['bigfoot', 'tracks', 'footprints', 'challenge']
   },
   {
     id: 'bigfoot_blurry_polaroid',

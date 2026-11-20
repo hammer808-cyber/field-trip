@@ -87,7 +87,7 @@ test('milestone variants: every sticker archetype has exactly one archetype_mile
     [...byArchetype.keys()].sort(),
     ['bigfoot', 'captainClipboard', 'elondra', 'lostCamper', 'mallRat', 'mascota']
   );
-  assert.equal(getAllStickers().length, 105);
+  assert.equal(getAllStickers().length, 108);
 });
 
 for (const variant of VARIANTS) {

@@ -125,7 +125,7 @@ const CHAOS_PACK: ReadonlyArray<{
 
 test('chaos pack: all ten are registered as new Chaos stickers with the right collection, order, rarity and trigger', () => {
   const all = getAllStickers();
-  assert.equal(all.length, 105, '101 before the Nov 20 milestone variants + 4 new variant entries');
+  assert.equal(all.length, 108, '105 before the Nov 20 challenge-approved variants + 3 new variant entries');
 
   const chaos = all.filter(sticker => sticker.collection === 'chaos');
   assert.equal(chaos.length, 11, 'On a Roll + 10 new chaos pack entries');

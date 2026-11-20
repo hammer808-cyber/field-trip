@@ -12,7 +12,7 @@ import { STICKER_FILTER_OPTIONS } from '../components/stickers/StickerFilterTabs
 
 test('Sticker Machine exposes all required filters and every registry sticker', () => {
   const stickers = getAllStickers();
-  assert.equal(stickers.length, 105);
+  assert.equal(stickers.length, 108);
   assert.deepEqual(
     STICKER_FILTER_OPTIONS.map(option => option.label),
     ['All', 'Captain Clipboard', 'Mall Rat', 'Mascota', 'Elondra', 'Lost Camper', 'Bigfoot']
@@ -34,12 +34,12 @@ test('each Field Type filter returns its registered stickers plus the cross-pack
   // (the Mall Rat first-approval variant), so Mall Rat is 16 and the
   // cross-pack set shrinks by one.
   const expectedArchetypeCounts: Readonly<Record<string, number>> = {
-    mallRat: 16,
-    captainClipboard: 18,
+    mallRat: 17,
+    captainClipboard: 19,
     mascota: 8,
     elondra: 18,
     lostCamper: 8,
-    bigfoot: 7
+    bigfoot: 8
   };
   for (const option of STICKER_FILTER_OPTIONS) {
     if (option.id === 'all') continue;

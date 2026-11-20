@@ -66,7 +66,7 @@ const ELONDRA_PACK: ReadonlyArray<{
 
 test('elondra pack: all ten are registered as new Elondra stickers with the right collection, order, rarity and trigger', () => {
   const all = getAllStickers();
-  assert.equal(all.length, 105, '101 before the Nov 20 milestone variants + 4 new variant entries');
+  assert.equal(all.length, 108, '105 before the Nov 20 challenge-approved variants + 3 new variant entries');
 
   const elondra = all.filter(sticker => sticker.archetype === 'elondra');
   assert.equal(elondra.length, 18, '7 original Elondra stickers + 10 new pack entries + 1 milestone variant');
