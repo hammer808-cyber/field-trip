@@ -799,8 +799,11 @@ export default function CapturePage() {
   // --- POINT SELECTION SYSTEM GATING ---
   // (isStarterTrainingActive moved higher up)
 
-  // A voice note never blocks a submit — like the field note, it is a
-  // way to earn the note layer, not a gate.
+  // The field note IS a submit requirement (Zach's call, Nov 20, 2026):
+  // non-Frankie submit needs a >=10-char note or a satisfying voice note
+  // (FieldClipboard's noteSatisfied / canSubmit). A voice note on its own
+  // never blocks a submit — it is an alternate way to satisfy the note,
+  // not a separate gate. Frankie Mode exempts the note entirely.
   const isRequiredProofCompleted = evidenceRequirements
     .filter(r => r.key !== 'field_note' && r.key !== 'audio')
     .every(r => r.fulfilled);
