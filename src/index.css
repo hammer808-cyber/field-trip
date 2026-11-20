@@ -1,16 +1,30 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Inter:wght@100..900&family=Kalam:wght@300;400;700&family=Newsreader:opsz,wght@6..72,200..800&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Anton&family=Outfit:wght@100..900&family=Permanent+Marker&family=Bebas+Neue&family=JetBrains+Mono:wght@100..800&family=Space+Grotesk:wght@300..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Kalam:wght@300;400;700&family=Newsreader:opsz,wght@6..72,200..800&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Outfit:wght@100..900&family=Permanent+Marker&family=Bebas+Neue&family=JetBrains+Mono:wght@100..800&family=Space+Grotesk:wght@300..700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Newsreader", "Georgia", serif;
   --font-accent: "Newsreader", serif;
   --font-mono: "Courier Prime", "Courier New", monospace;
-  --font-display: "Bebas Neue", sans-serif;
   --font-outfit: "Outfit", sans-serif;
   --font-kalam: "Kalam", cursive;
   --font-marker: "Permanent Marker", cursive;
-  --font-anton: "Anton", sans-serif;
+
+  /* P2-3: 4-step display scale (audit §10.1), tokenised from the sizes
+     already in use — hero is the editorial FieldPageHero h1
+     clamp(2.75rem,12vw,5.5rem); section spans the text-3xl–text-5xl band
+     used for section heads; card is the common text-2xl card title;
+     label is the 12px floor for meaningful text (audit H1); micro is
+     decorative microcopy ONLY (7–8px), never meaningful text. */
+  --text-display-hero: clamp(2.75rem, 12vw, 5.5rem);
+  --text-display-hero-line-height: 0.95;
+  --text-display-section: clamp(1.875rem, 6vw, 3rem);
+  --text-display-section-line-height: 1;
+  --text-display-card: 1.5rem;
+  --text-display-card-line-height: 1.05;
+  --text-label: 0.75rem;
+  --text-label-line-height: 1.25;
+  --text-micro: 0.5rem;
+  --text-micro-line-height: 1;
 
   /* High-Contrast Fieldtrip Tokens */
   --color-brand-orange: #FF5C00;
@@ -27,6 +41,11 @@
   --color-paper-dark: #F5F1E8;
   --color-error: #FF003D;
 
+  /* P2-15: --font-display / --font-sans are defined exactly once, here,
+     skin-aware via --font-heading / --font-body (set per skin by
+     applySkinVariables in ThemeContext.tsx). The earlier duplicate
+     plain definitions above are deleted; the second definition used to
+     win silently. */
   --font-display: var(--font-heading, "Bebas Neue"), sans-serif;
   --font-sans: var(--font-body, "Inter"), ui-sans-serif, system-ui, sans-serif;
 
@@ -142,7 +161,8 @@
   border-radius: 999px;
   padding: 0.25rem 0.6rem;
   font-weight: 800;
-  font-size: 0.72rem;
+  /* P2-3: 12px floor for meaningful text (was 0.72rem / 11.5px). */
+  font-size: 0.75rem;
   /* P0-2: explicit black text so every variant (lime / yellow / pink /
      red) clears 4.5:1 instead of inheriting whatever the parent sets. */
   color: var(--skin-border, #111111);
@@ -385,7 +405,9 @@ body::after {
 }
 
 .micro-label {
-  @apply font-mono text-[10px] uppercase tracking-[0.3em] font-extrabold leading-none;
+  /* P2-3: 12px floor (was text-[10px]); .micro-label is a real label,
+     not decorative microcopy. */
+  @apply font-mono text-xs uppercase tracking-[0.3em] font-extrabold leading-none;
 }
 
 .bureau-header {
@@ -438,12 +460,14 @@ body::after {
 }
 
 .bureau-btn-sm {
-  @apply bg-on-surface text-white px-4 py-2 font-display uppercase tracking-widest text-[10px] border-2 border-on-surface transition-all active:scale-95 flex items-center justify-center;
+  /* P2-3: 12px floor (was text-[10px]). */
+  @apply bg-on-surface text-white px-4 py-2 font-display uppercase tracking-widest text-xs border-2 border-on-surface transition-all active:scale-95 flex items-center justify-center;
   box-shadow: 3px 3px 0px 0px var(--color-brand-magenta);
 }
 
 .bureau-tag {
-  @apply px-4 py-2 bg-brand-lime text-black border-2 border-on-surface font-mono text-[11px] font-bold uppercase tracking-wider inline-block leading-none;
+  /* P2-3: 12px floor (was text-[11px]). */
+  @apply px-4 py-2 bg-brand-lime text-black border-2 border-on-surface font-mono text-xs font-bold uppercase tracking-wider inline-block leading-none;
   box-shadow: 4px 4px 0px 0px var(--color-on-surface);
 }
 
@@ -464,7 +488,8 @@ body::after {
 }
 
 .evidence-label {
-  @apply absolute bottom-0 left-0 right-0 bg-on-surface text-brand-lime p-3 text-[9px] font-mono font-black uppercase flex justify-between items-center z-20;
+  /* P2-3: 12px floor (was text-[9px]); the frame label is read as content. */
+  @apply absolute bottom-0 left-0 right-0 bg-on-surface text-brand-lime p-3 text-xs font-mono font-black uppercase flex justify-between items-center z-20;
 }
 
 .report-filed-stamp {
@@ -537,14 +562,6 @@ body::after {
 
 .neon-border {
   @apply border-2 border-brand-lime shadow-[0_0_15px_rgba(191,255,0,0.4)];
-}
-
-/* Skin Overrides remain for legacy support/seasonal swaps */
-.app-skin-baja-bratz {
-  --color-paper: #fff5e6;
-  --color-on-surface: #ff4d94;
-  --color-brand-green: #40e0d0;
-  --font-display: "Titan One", cursive;
 }
 
 /* Slippery Diamond Skin */
@@ -794,14 +811,16 @@ body::after {
 
 /* 6. LABEL-MAKER CHIPS */
 .ft-chip-status {
-  @apply inline-flex items-center justify-center px-3 py-1 border-2 border-on-surface font-mono text-[10px] font-black uppercase tracking-wider select-none leading-none rounded-none;
+  /* P2-3: 12px floor (was text-[10px]). */
+  @apply inline-flex items-center justify-center px-3 py-1 border-2 border-on-surface font-mono text-xs font-black uppercase tracking-wider select-none leading-none rounded-none;
   box-shadow: 2px 2px 0px 0px #000000;
   background-color: var(--chip-bg, #ffffff);
   color: var(--chip-fg, #000000);
 }
 
 .ft-chip-interactive {
-  @apply inline-flex items-center justify-center px-3 py-1 border-2 border-on-surface font-mono text-[10px] font-black uppercase tracking-wider select-none leading-none rounded-none cursor-pointer transition-all active:translate-x-[1px] active:translate-y-[1px];
+  /* P2-3: 12px floor (was text-[10px]). */
+  @apply inline-flex items-center justify-center px-3 py-1 border-2 border-on-surface font-mono text-xs font-black uppercase tracking-wider select-none leading-none rounded-none cursor-pointer transition-all active:translate-x-[1px] active:translate-y-[1px];
   box-shadow: 2px 2px 0px 0px #000000;
   background-color: var(--chip-bg, #ffffff);
   color: var(--chip-fg, #000000);
@@ -1084,7 +1103,8 @@ img, video, canvas, svg {
 
 /* 10. Heavy Solid Black Utility label strings  */
 .field-label {
-  @apply font-mono text-[10px] leading-none text-white bg-on-surface px-2.5 py-1.5 select-none font-black uppercase tracking-widest inline-block;
+  /* P2-3: 12px floor (was text-[10px]). */
+  @apply font-mono text-xs leading-none text-white bg-on-surface px-2.5 py-1.5 select-none font-black uppercase tracking-widest inline-block;
   box-shadow: 2px 2px 0px 0px rgba(0,0,0,0.15);
 }
 
