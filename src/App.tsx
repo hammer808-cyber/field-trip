@@ -270,6 +270,14 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     </Suspense>
   );
 
+  // P1-15 (Nov 20, 2026): Frontlines is the legacy scoreboard — players
+  // reach one scoreboard only (Big Board). Non-admins hitting /frontlines
+  // redirect to /big-board; admins keep reaching Frontlines exactly as
+  // before (route + AdminDevTools quick jump + bottom nav unchanged).
+  if (location.pathname === '/frontlines' && !isAdmin) {
+    return <Navigate to="/big-board" replace />;
+  }
+
   // Banned Gate
   const isBannedPage = location.pathname === '/banned';
   const isBanned = profile?.accessStatus === 'banned' || (profile?.accessStatus as string) === 'suspended';
