@@ -55,6 +55,9 @@ export default function CollectionPage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const initialTabParam = searchParams.get('tab');
+  // P1-8 (Nov 20, 2026): DEX opens on the sticker collection, not the
+  // deck shelf. An explicit tab (?tab=, /dex/<tab>) or a legacy alias
+  // still wins over this default.
   const rawInitialTab = (
     initialTabParam === 'skins' ||
     initialTabParam === 'badges' ||
@@ -65,7 +68,7 @@ export default function CollectionPage() {
         : initialTabParam === 'stickers'
           ? 'stickers'
           : (initialTabParam as CollectionTab)
-  ) || 'decks';
+  ) || 'stickers';
   const initialTab: CollectionTab = DEX_TABS.includes(rawInitialTab as CollectionTab) ? (rawInitialTab as CollectionTab) : 'decks';
   const [activeTab, setActiveTab] = useState<CollectionTab>(initialTab);
   const [memoriesView, setMemoriesView] = useState<MemoriesView>(

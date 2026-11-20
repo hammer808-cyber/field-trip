@@ -10,7 +10,7 @@ const root = path.resolve(__dirname, '../..');
 const read = (relativePath: string) =>
   fs.readFileSync(path.join(root, relativePath), 'utf8');
 
-test('DEX opens on the deck shelf: Decks is the first tab and the default', () => {
+test('DEX tabs: Decks is the first tab; Stickers is the default (P1-8)', () => {
   const source = read('src/pages/Collection.tsx');
 
   // Tabs array: Decks first, before Collection / Stickers / Zines / Memories.
@@ -20,8 +20,9 @@ test('DEX opens on the deck shelf: Decks is the first tab and the default', () =
   const firstTab = tabsBlock.match(/id: '(\w+)'/);
   assert.equal(firstTab?.[1], 'decks', 'Decks should be the first DEX tab');
 
-  // Default tab (no ?tab= param) lands on the shelf.
-  assert.match(source, /\) \|\| 'decks';/);
+  // Default tab (no ?tab= param) lands on the sticker collection (P1-8,
+  // Nov 20, 2026 — was 'decks' before the fix).
+  assert.match(source, /\) \|\| 'stickers';/);
 });
 
 test('DEX deck shelf deep-links at /dex/decks', () => {
