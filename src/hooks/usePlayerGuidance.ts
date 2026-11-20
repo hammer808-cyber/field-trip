@@ -10,13 +10,16 @@ import { getStarterProgress } from '../services/canonicalProgress';
 
 export function usePlayerGuidance(): PlayerGuidanceSnapshot {
   const {
+    activeSeason,
     activeSubmissionStatus,
     activeTrip,
     canonicalProgress,
     currentWeekNumber,
+    deckPacks,
     drawnMissionCards,
     entries,
     fieldClassificationComplete,
+    getDeckAccessForPack,
     hasCompletedFieldKitOnboarding,
     hasConfirmedLegal,
     hasSeenFieldTypeResults,
@@ -32,6 +35,16 @@ export function usePlayerGuidance(): PlayerGuidanceSnapshot {
   // cached per session, so every guidance consumer shares one read.
   const nearbyPackIds = useNearbyDeckPackIds();
 
+  // Trevor deck-complete ranking (Nov 20, 2026): accessible decks in deck
+  // sort order (sortOrder, then pack name) — the rotation tiebreak for the
+  // next-deck ranking. Same playable filter TrevorGuide uses for context.
+  const accessibleDeckIds = useMemo(() => deckPacks
+    .filter(deck => getDeckAccessForPack(deck).playable)
+    .sort((left, right) => left.sortOrder - right.sortOrder || left.packName.localeCompare(right.packName))
+    .map(deck => deck.packId || deck.deckId || deck.id)
+    .filter((id): id is string => typeof id === 'string' && id.length > 0),
+  [deckPacks, getDeckAccessForPack]);
+
   return useMemo(() => {
     const starter = getStarterProgress(canonicalProgress);
     return resolvePlayerGuidance({
@@ -42,6 +55,9 @@ export function usePlayerGuidance(): PlayerGuidanceSnapshot {
       drawnMissionCards,
       trips,
       nearbyDeckIds: nearbyPackIds ? [...nearbyPackIds] : undefined,
+      seenDeckCompletions: profile?.trevorSettings?.seenDeckCompletions,
+      accessibleDeckIds,
+      seasonalDeckId: activeSeason?.id,
       legalComplete: hasConfirmedLegal,
       fieldClassificationComplete,
       hasSeenFieldTypeResults,
@@ -70,9 +86,12 @@ export function usePlayerGuidance(): PlayerGuidanceSnapshot {
     isHeatwaveDeckUnlocked,
     isVotingWindowOpen,
     profile?.trevorSettings?.lastSeenApprovedCount,
+    profile?.trevorSettings?.seenDeckCompletions,
     profile?.tripProgress,
     trips,
     userVotes,
     nearbyPackIds,
+    accessibleDeckIds,
+    activeSeason?.id,
   ]);
 }

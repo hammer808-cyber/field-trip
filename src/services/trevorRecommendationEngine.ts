@@ -44,6 +44,7 @@ export type TrevorMessageKey =
   | 'proof_variety'
   | 'mission_discovery'
   | 'nearby_deck'
+  | 'deck_complete'
   | 'fallback_draw'
   | 'fallback_standings';
 
@@ -55,13 +56,21 @@ export interface TrevorRecommendation {
   reason: string;
   primaryAction: TrevorAction;
   secondaryAction?: TrevorAction;
+  /**
+   * Extra same-kind actions for the deck-complete chooser (Nov 20, 2026):
+   * the 2nd and 3rd ranked next decks, rendered as additional buttons in
+   * the panel. Only set on DECK_COMPLETE; every other recommendation
+   * carries primary + optional secondary exactly as before.
+   */
+  additionalActions?: TrevorAction[];
   cooldownHours?: number;
   tone?: TrevorRecommendationTone;
 }
 
-export interface ResolvedTrevorRecommendation extends Omit<TrevorRecommendation, 'primaryAction' | 'secondaryAction'> {
+export interface ResolvedTrevorRecommendation extends Omit<TrevorRecommendation, 'primaryAction' | 'secondaryAction' | 'additionalActions'> {
   primaryAction: ResolvedTrevorAction;
   secondaryAction?: ResolvedTrevorAction;
+  additionalActions?: ResolvedTrevorAction[];
 }
 
 export interface TrevorRule {
@@ -413,11 +422,17 @@ export function getTrevorRecommendation(
       && (!secondaryAction.route || secondaryAction.route !== primaryAction.route)
       ? secondaryAction
       : undefined;
+    // Deck-complete chooser actions resolve like the secondary: unresolvable
+    // ones drop out rather than rendering dead.
+    const additionalActions = recommendation.additionalActions
+      ?.map(action => resolveTrevorAction(action, context))
+      .filter((action): action is ResolvedTrevorAction => action !== null);
 
     return {
       ...recommendation,
       primaryAction,
       secondaryAction: distinctSecondary,
+      additionalActions: additionalActions && additionalActions.length > 0 ? additionalActions : undefined,
     };
   }
   return null;

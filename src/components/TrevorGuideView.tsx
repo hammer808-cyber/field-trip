@@ -129,6 +129,18 @@ export function TrevorGuideView({
                 <ArrowRight aria-hidden="true" size={14} className="stroke-[3]" />
               </button>
 
+              {recommendation.additionalActions?.map((action) => (
+                <button
+                  key={action.route || action.id}
+                  type="button"
+                  onClick={() => onAction(action)}
+                  className="skin-button flex min-h-12 w-full items-center justify-center gap-2 border-2 border-on-surface bg-brand-lime px-4 py-3 font-display text-xs font-black uppercase italic tracking-normal text-on-surface shadow-[4px_4px_0px_black] transition-all active:translate-x-0.5 active:translate-y-0.5 active:shadow-none focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand-cyan"
+                >
+                  {action.label}
+                  <ArrowRight aria-hidden="true" size={14} className="stroke-[3]" />
+                </button>
+              ))}
+
               {recommendation.secondaryAction && (
                 <button
                   type="button"

@@ -153,6 +153,9 @@ function input(overrides: Partial<ResolvePlayerGuidanceInput> & { profile?: User
     trips,
     tripProgress: overrides.tripProgress,
     nearbyDeckIds: overrides.nearbyDeckIds,
+    seenDeckCompletions: overrides.seenDeckCompletions,
+    accessibleDeckIds: overrides.accessibleDeckIds,
+    seasonalDeckId: overrides.seasonalDeckId,
     legalComplete: overrides.legalComplete ?? true,
     fieldClassificationComplete: overrides.fieldClassificationComplete ?? true,
     hasSeenFieldTypeResults: overrides.hasSeenFieldTypeResults ?? true,
@@ -266,10 +269,15 @@ test('7. Starter complete with no active mission celebrates unlock', () => {
     entries: starterApprovals(),
     isHeatwaveDeckUnlocked: true,
     hasUnseenStarterUnlock: true,
+    accessibleDeckIds: ['heatwave-receipts', 'socal-summer', 'texas-get-it-yall', 'gobble-and-glow'],
   }));
-  assert.equal(snapshot.state, 'STARTER_COMPLETE');
-  assert.equal(snapshot.primaryActionLabel, 'Draw a Mission');
+  assert.equal(snapshot.state, 'DECK_COMPLETE');
+  assert.equal(snapshot.finishedDeckId, 'starter-signals');
+  assert.equal(snapshot.finishedDeckName, 'Starter');
+  assert.deepEqual(snapshot.nextDeckIds, ['heatwave-receipts', 'socal-summer', 'texas-get-it-yall']);
+  assert.equal(snapshot.primaryActionLabel, 'Draw from Heatwave Receipts');
   assert.match(snapshot.primaryActionDestination, /heatwave-receipts/);
+  assert.equal(snapshot.autoOpenTrevor, true);
 });
 
 test('8. Active drawn mission with no tripProgress map says Do this mission, never Resume', () => {
@@ -462,7 +470,7 @@ test('10. Approved player entry is completed, not resume', () => {
   assert.notEqual(snapshot.state, 'RESUME_ACTIVE_MISSION');
   assert.ok(
     snapshot.state === 'DRAW_MISSION'
-    || snapshot.state === 'STARTER_COMPLETE'
+    || snapshot.state === 'DECK_COMPLETE'
     || snapshot.state === 'NO_URGENT_ACTION'
     || snapshot.state === 'VOTE_AVAILABLE',
   );
@@ -697,7 +705,7 @@ test('fix1: rejected → retry pending supersedes rejection', () => {
     isHeatwaveDeckUnlocked: true,
   }));
   assert.notEqual(snapshot.state, 'RETRY_REJECTED_PROOF');
-  assert.ok(snapshot.state === 'DRAW_MISSION' || snapshot.state === 'VOTE_AVAILABLE' || snapshot.state === 'NO_URGENT_ACTION' || snapshot.state === 'STARTER_COMPLETE');
+  assert.ok(snapshot.state === 'DRAW_MISSION' || snapshot.state === 'VOTE_AVAILABLE' || snapshot.state === 'NO_URGENT_ACTION' || snapshot.state === 'DECK_COMPLETE');
 });
 
 test('fix1: rejected → retry rejected again keeps newest rejection actionable', () => {
@@ -819,7 +827,7 @@ test('fix1: older retried marker + newer rejected keeps Retry primary', () => {
   assert.equal(snapshot.state, 'RETRY_REJECTED_PROOF');
 });
 
-test('fix2: unseen starter unlock → STARTER_COMPLETE; acknowledged → not STARTER_COMPLETE', () => {
+test('fix2: unseen starter unlock → DECK_COMPLETE; acknowledged → not DECK_COMPLETE', () => {
   assert.equal(isUnseenStarterUnlock({
     starterComplete: true,
     starterApprovedCount: 3,
@@ -838,7 +846,7 @@ test('fix2: unseen starter unlock → STARTER_COMPLETE; acknowledged → not STA
     isHeatwaveDeckUnlocked: true,
     hasUnseenStarterUnlock: true,
   }));
-  assert.equal(unseen.state, 'STARTER_COMPLETE');
+  assert.equal(unseen.state, 'DECK_COMPLETE');
   assert.equal(unseen.autoOpenTrevor, true);
 
   const seen = resolvePlayerGuidance(input({
@@ -847,7 +855,7 @@ test('fix2: unseen starter unlock → STARTER_COMPLETE; acknowledged → not STA
     hasUnseenStarterUnlock: false,
     voteAvailable: true,
   }));
-  assert.notEqual(seen.state, 'STARTER_COMPLETE');
+  assert.notEqual(seen.state, 'DECK_COMPLETE');
   assert.equal(seen.autoOpenTrevor, false);
 });
 
@@ -874,11 +882,12 @@ test('fix2: after acknowledgement, active mission resumes and vote does not win 
   assert.notEqual(vote.navigationTarget, 'voting');
 });
 
-test('fix3: STARTER_COMPLETE primary action draws the post-Starter pack, not starter-signals', () => {
+test('fix3: DECK_COMPLETE primary action draws the post-Starter pack, not starter-signals', () => {
   const snapshot = resolvePlayerGuidance(input({
     entries: starterApprovals(),
     isHeatwaveDeckUnlocked: true,
     hasUnseenStarterUnlock: true,
+    accessibleDeckIds: ['heatwave-receipts', 'socal-summer'],
   }));
   const action = resolveMissionsGuidancePrimaryAction(snapshot);
   assert.equal(action.kind, 'draw-pack');

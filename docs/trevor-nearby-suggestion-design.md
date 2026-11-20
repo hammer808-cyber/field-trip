@@ -149,3 +149,10 @@ suggestion shows whenever Trevor is opened in a DRAW_MISSION state while in the
 region, same as `fallback_draw` behaves today. And Trevor only auto-opens for
 repair/retry/starter-complete states, so the nearby suggestion is visible when
 the user opens Trevor, not as an unsolicited popup.
+
+Baseline live check Nov 20 (~12:00 PM PST): deploy landed, Trevor panel renders
+cleanly, no errors. Suggestion shown was "Finish The Park Oasis before drawing
+another." — the active-mission rule (850), which correctly outranks nearby
+(425) while he has an active mission. No location line, as expected with no
+GPS in the cloud browser. Phone check needs a DRAW_MISSION state (no active
+mission) for the nearby line to fire.

@@ -137,6 +137,8 @@ function input(overrides: Partial<BuildBasecampViewModelInput> = {}): BuildBasec
     currentDate: overrides.currentDate || NOW,
     isHeatwaveDeckUnlocked: overrides.isHeatwaveDeckUnlocked ?? false,
     isVotingOpen: overrides.isVotingOpen ?? false,
+    accessibleDeckIds: overrides.accessibleDeckIds,
+    seasonalDeckId: overrides.seasonalDeckId,
     crewGraph: overrides.crewGraph,
   };
 }
@@ -255,12 +257,18 @@ test('progress uses canonical XP and deck completion data', () => {
     entry({ id: 'approved-heat', entryId: 'approved-heat', status: 'approved', challengeId: 'heatwave-01', missionId: 'heatwave-01' }),
   ];
   const currentProfile = profile({ xp: 700 });
-  const currentInput = input({ entries: records, profile: currentProfile, isHeatwaveDeckUnlocked: true });
+  const currentInput = input({ entries: records, profile: currentProfile, isHeatwaveDeckUnlocked: true, accessibleDeckIds: ['heatwave-receipts', 'socal-summer', 'texas-get-it-yall', 'gobble-and-glow'] });
   const model = buildBasecampViewModel(currentInput);
   assert.equal(model.progress.xp, 700);
   assert.equal(model.progress.level, 3);
   assert.equal(model.progress.starterApprovedCount, 3);
-  assert.equal(model.progress.activeDeckApprovedCount, 1);
+  // The approved Heatwave entry makes Heatwave recently used, so the
+  // deck-complete ranking demotes it: the active deck is the rotation pick,
+  // SoCal Summer, and the progress card reads SoCal's canonical counts.
+  assert.equal(model.progress.activeDeckId, 'socal-summer');
+  assert.equal(model.progress.activeDeckName, 'SoCal Summer');
+  assert.equal(model.progress.activeDeckApprovedCount, 0);
+  assert.equal(model.progress.activeDeckTotalCount, 15);
   assert.ok(model.progress.levelProgressPercent >= 0 && model.progress.levelProgressPercent <= 100);
 });
 

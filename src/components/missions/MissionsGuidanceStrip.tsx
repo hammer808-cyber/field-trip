@@ -20,7 +20,7 @@ const CRITICAL_STATES = new Set([
   'RETRY_REJECTED_PROOF',
   'RESUME_ACTIVE_MISSION',
   'WAITING_FOR_STARTER_REVIEW',
-  'STARTER_COMPLETE',
+  'DECK_COMPLETE',
 ]);
 
 export function getMissionsStripRole(state: PlayerGuidanceSnapshot['state']): 'dominant' | 'quiet' {

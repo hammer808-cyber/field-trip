@@ -9,7 +9,7 @@ const STATE_TO_MESSAGE_KEY: Record<PlayerGuidanceSnapshot['state'], ResolvedTrev
   DRAW_STARTER_MISSION: 'starter_incomplete',
   DRAW_NEXT_STARTER: 'starter_incomplete',
   WAITING_FOR_STARTER_REVIEW: 'starter_pending',
-  STARTER_COMPLETE: 'starter_complete_unlock',
+  DECK_COMPLETE: 'deck_complete',
   DRAW_MISSION: 'fallback_draw',
   VOTE_AVAILABLE: 'voting_open',
   NO_URGENT_ACTION: 'fallback_draw',
@@ -23,7 +23,7 @@ const STATE_TO_CATEGORY: Record<PlayerGuidanceSnapshot['state'], ResolvedTrevorR
   DRAW_STARTER_MISSION: 'onboarding',
   DRAW_NEXT_STARTER: 'onboarding',
   WAITING_FOR_STARTER_REVIEW: 'onboarding',
-  STARTER_COMPLETE: 'discovery',
+  DECK_COMPLETE: 'discovery',
   DRAW_MISSION: 'mission',
   VOTE_AVAILABLE: 'voting',
   NO_URGENT_ACTION: 'mission',
@@ -39,7 +39,7 @@ export function buildTrevorRecommendationFromGuidance(
 ): ResolvedTrevorRecommendation {
   const tone = guidance.urgency === 'critical'
     ? 'warning'
-    : guidance.state === 'STARTER_COMPLETE'
+    : guidance.state === 'DECK_COMPLETE'
       ? 'celebration'
       : 'normal';
 
@@ -49,6 +49,18 @@ export function buildTrevorRecommendationFromGuidance(
   const messageKey = guidance.state === 'DRAW_MISSION' && guidance.deckIdIsNearby
     ? 'nearby_deck'
     : STATE_TO_MESSAGE_KEY[guidance.state];
+
+  // Trevor deck-complete chooser (Nov 20, 2026): the 2nd and 3rd ranked
+  // next decks ride as additional actions; the top-ranked deck stays the
+  // primary action. No other state carries additional actions.
+  const additionalActions = guidance.state === 'DECK_COMPLETE'
+    ? (guidance.nextDeckIds ?? []).slice(1).map((deckId, index) => ({
+      id: 'draw_recommended_mission' as const,
+      label: `Draw from ${guidance.nextDeckNames?.[index + 1] || deckId}`,
+      route: `/missions?pack=${encodeURIComponent(deckId)}`,
+      analyticsEventName: 'trevor_guidance_additional',
+    }))
+    : undefined;
 
   return {
     id: `guidance_${guidance.state.toLowerCase()}`,
@@ -77,5 +89,6 @@ export function buildTrevorRecommendationFromGuidance(
           analyticsEventName: 'trevor_guidance_secondary',
         }
       : undefined,
+    ...(additionalActions && additionalActions.length > 0 ? { additionalActions } : {}),
   };
 }

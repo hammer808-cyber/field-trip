@@ -90,6 +90,15 @@ export interface TrevorContext {
   nearbyDeckName?: string;
   nearbyRegionLabel?: string;
 
+  /**
+   * Deck-complete names (Nov 20, 2026): the finished deck and the top
+   * next deck, for the deck_complete dialogue line. Passed through from
+   * the guidance snapshot (deck names come from deckProgressById there);
+   * undefined when the current recommendation is not DECK_COMPLETE.
+   */
+  finishedDeckName?: string;
+  nextDeckName?: string;
+
   crewId?: string;
   crewUnlocked: boolean;
   crewHasOpenTasks: boolean;
@@ -117,6 +126,9 @@ export interface TrevorContextInput {
   memories?: readonly MemoryEntry[];
   accessibleDecks?: readonly DeckPack[];
   nearbyDeckIds?: readonly string[];
+  /** Deck-complete names, passed through from the guidance snapshot. */
+  finishedDeckName?: string;
+  nextDeckName?: string;
   standings?: readonly UserProfile[];
   userVotes?: readonly unknown[];
   currentDate?: Date;
@@ -286,6 +298,8 @@ export function buildTrevorContext(input: TrevorContextInput): TrevorContext {
     nearbyDeckIds,
     nearbyDeckName,
     nearbyRegionLabel,
+    finishedDeckName: input.finishedDeckName,
+    nextDeckName: input.nextDeckName,
     crewId,
     crewUnlocked: input.crewUnlocked === true,
     crewHasOpenTasks: input.crewHasOpenTasks === true,

@@ -18,7 +18,7 @@ import {
   recordTrevorRecommendation,
   suppressTrevorForSession,
 } from '../services/trevorHistoryService';
-import { acknowledgeStarterUnlockSeen } from '../services/starterUnlockAck';
+import { acknowledgeDeckCompleteSeen } from '../services/deckCompleteAck';
 import type { ResolvedTrevorAction } from '../config/trevorActions';
 import { reduceTrevorPanelState, TrevorGuideView } from './TrevorGuideView';
 
@@ -62,6 +62,8 @@ export function TrevorGuide() {
     memories: app.memories,
     accessibleDecks,
     nearbyDeckIds: nearbyPackIds ? [...nearbyPackIds] : [],
+    finishedDeckName: guidance.finishedDeckName,
+    nextDeckName: guidance.nextDeckNames?.[0],
     standings: app.standings,
     userVotes: app.userVotes,
     currentDate: app.currentDate,
@@ -105,6 +107,8 @@ export function TrevorGuide() {
     app.xp,
     location.pathname,
     nearbyPackIds,
+    guidance.finishedDeckName,
+    guidance.nextDeckNames?.[0],
   ]);
 
   const history = useMemo(
@@ -125,27 +129,34 @@ export function TrevorGuide() {
 
   useEffect(() => {
     if (!guidance.autoOpenTrevor) return;
-    if (autoOpenedState.current === guidance.state) return;
-    autoOpenedState.current = guidance.state;
+    // Auto-open is keyed per deck finish, not just per state: two decks
+    // finished in one session must each pop once (Nov 20, 2026).
+    const autoOpenKey = guidance.finishedDeckId
+      ? `${guidance.state}:${guidance.finishedDeckId}`
+      : guidance.state;
+    if (autoOpenedState.current === autoOpenKey) return;
+    autoOpenedState.current = autoOpenKey;
     setExpandSource('auto');
     dispatchPanelEvent('open');
-    // Persist one-shot Starter unlock acknowledgement so remount does not
-    // re-select STARTER_COMPLETE / re-auto-open Trevor.
+    // Persist one-shot deck-complete acknowledgement so remount does not
+    // re-select DECK_COMPLETE / re-auto-open Trevor.
     if (
-      guidance.state === 'STARTER_COMPLETE'
+      guidance.state === 'DECK_COMPLETE'
       && app.user?.uid
-      && app.starterState.starterComplete
+      && guidance.finishedDeckId
     ) {
-      void acknowledgeStarterUnlockSeen(
+      void acknowledgeDeckCompleteSeen(
         app.user.uid,
+        guidance.finishedDeckId,
         app.starterState.starterApprovedCount || app.starterApprovedCount || 3,
       ).catch((error) => {
-        console.warn('[TrevorGuide] Failed to acknowledge Starter unlock:', error);
+        console.warn('[TrevorGuide] Failed to acknowledge deck completion:', error);
       });
     }
   }, [
     guidance.autoOpenTrevor,
     guidance.state,
+    guidance.finishedDeckId,
     app.user?.uid,
     app.starterState.starterComplete,
     app.starterState.starterApprovedCount,
@@ -212,6 +223,9 @@ export function TrevorGuide() {
           ...(existing?.lastSeenApprovedCount !== undefined
             ? { lastSeenApprovedCount: existing.lastSeenApprovedCount }
             : {}),
+          ...(existing?.seenDeckCompletions !== undefined
+            ? { seenDeckCompletions: existing.seenDeckCompletions }
+            : {}),
         },
       } as any).catch((error: unknown) => {
         console.warn('[TrevorGuide] Failed to save Trevor opt-out:', error);
@@ -222,15 +236,16 @@ export function TrevorGuide() {
   const handleAction = (action: ResolvedTrevorAction) => {
     emitTrevorActionEvent(recommendation, action);
     if (
-      guidance.state === 'STARTER_COMPLETE'
+      guidance.state === 'DECK_COMPLETE'
       && app.user?.uid
-      && app.starterState.starterComplete
+      && guidance.finishedDeckId
     ) {
-      void acknowledgeStarterUnlockSeen(
+      void acknowledgeDeckCompleteSeen(
         app.user.uid,
+        guidance.finishedDeckId,
         app.starterState.starterApprovedCount || app.starterApprovedCount || 3,
       ).catch((error) => {
-        console.warn('[TrevorGuide] Failed to acknowledge Starter unlock on action:', error);
+        console.warn('[TrevorGuide] Failed to acknowledge deck completion on action:', error);
       });
     }
     if (action.route) navigate(action.route);

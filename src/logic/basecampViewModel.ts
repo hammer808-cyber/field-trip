@@ -165,6 +165,11 @@ export interface BuildBasecampViewModelInput {
   currentDate: Date;
   isHeatwaveDeckUnlocked: boolean;
   isVotingOpen: boolean;
+  /** Accessible deck ids in deck sort order + seasonal deck, for the
+   * next-deck ranking. Optional; without them the ranking falls back to
+   * deckProgressById order with no seasonal pick. */
+  accessibleDeckIds?: readonly string[];
+  seasonalDeckId?: string;
   crewGraph?: {
     acceptedCount: number;
     incomingCount: number;
@@ -490,6 +495,13 @@ export function buildBasecampViewModel(input: BuildBasecampViewModelInput): Base
       starterRequiredCount: starter.starterRequiredCount,
       lastSeenApprovedCount: input.profile?.trevorSettings?.lastSeenApprovedCount,
     }),
+    // Deck-complete one-shot + ranking inputs (Nov 20, 2026): Basecamp.tsx
+    // passes the same sorted accessible list Trevor uses, so the two agree
+    // on the next deck. Tests that omit them get the deckProgressById
+    // fallback order with no seasonal pick.
+    seenDeckCompletions: input.profile?.trevorSettings?.seenDeckCompletions,
+    accessibleDeckIds: input.accessibleDeckIds,
+    seasonalDeckId: input.seasonalDeckId,
   });
   const attention = buildAttention(input.entries);
   const mission = resolveMission(input);

@@ -26,7 +26,7 @@
  *  850 DRAW_STARTER_MISSION       Starter not started, draw available
  *  840 DRAW_NEXT_STARTER          Starter in progress, another Starter still available
  *  800 WAITING_FOR_STARTER_REVIEW all required Starter proofs submitted, none left to draw
- *  750 STARTER_COMPLETE           Starter just complete; no active mission
+ *  750 DECK_COMPLETE              Any deck just finished (incl. Starter); no active mission
  *  700 DRAW_MISSION               continue playing (pending proof + draws still available)
  *  600 VOTE_AVAILABLE             starter unlocked + voting window open + not yet voted
  *  100 NO_URGENT_ACTION           idle / optional draw-next when nothing else is urgent
@@ -70,7 +70,7 @@ export type PlayerGuidanceState =
   | 'RETRY_REJECTED_PROOF'
   | 'DRAW_NEXT_STARTER'
   | 'WAITING_FOR_STARTER_REVIEW'
-  | 'STARTER_COMPLETE'
+  | 'DECK_COMPLETE'
   | 'DRAW_MISSION'
   | 'VOTE_AVAILABLE'
   | 'NO_URGENT_ACTION';
@@ -121,6 +121,17 @@ export interface PlayerGuidanceSnapshot {
    * The adapter maps those snapshots to the nearby_deck message.
    */
   deckIdIsNearby?: boolean;
+  /**
+   * Deck-complete details (Nov 20, 2026): set only on DECK_COMPLETE.
+   * finishedDeckId is the deck just finished ('starter-signals' for the
+   * Starter); nextDeckIds/nextDeckNames are the ranked top-3 next decks
+   * (nearby > seasonal > rotation), parallel arrays, top pick first.
+   * The adapter maps these to the deck_complete line + the panel list.
+   */
+  finishedDeckId?: string;
+  finishedDeckName?: string;
+  nextDeckIds?: string[];
+  nextDeckNames?: string[];
 }
 
 export interface ResolvePlayerGuidanceInput {
@@ -151,6 +162,20 @@ export interface ResolvePlayerGuidanceInput {
    * unchanged when it is absent or empty.
    */
   nearbyDeckIds?: readonly string[];
+  /**
+   * Per-deck one-shot store for deck completions (Nov 20, 2026): deck ids
+   * whose finish Trevor already celebrated. A finished deck in this set
+   * never re-fires DECK_COMPLETE. Passed from profile.trevorSettings.
+   */
+  seenDeckCompletions?: readonly string[];
+  /**
+   * Accessible deck ids in deck sort order (sortOrder, then pack name),
+   * for the next-deck ranking. When absent, deckProgressById order is the
+   * fallback (callers without a catalogue — tests only, in practice).
+   */
+  accessibleDeckIds?: readonly string[];
+  /** The active season's deck id (app.activeSeason?.id), for rank 2. */
+  seasonalDeckId?: string;
 }
 
 export const GUIDANCE_PRIORITY: Record<PlayerGuidanceState, number> = {
@@ -161,7 +186,7 @@ export const GUIDANCE_PRIORITY: Record<PlayerGuidanceState, number> = {
   DRAW_STARTER_MISSION: 850,
   DRAW_NEXT_STARTER: 840,
   WAITING_FOR_STARTER_REVIEW: 800,
-  STARTER_COMPLETE: 750,
+  DECK_COMPLETE: 750,
   DRAW_MISSION: 700,
   VOTE_AVAILABLE: 600,
   NO_URGENT_ACTION: 100,
@@ -382,8 +407,7 @@ function preferredDrawableDeckId(input: ResolvePlayerGuidanceInput): string {
  * Nearby-deck preference for Trevor's live suggestion (Nov 20, 2026): the
  * first nearby deck that is playable post-starter and still has eligible
  * missions. Returns undefined when there is none — callers fall back to
- * preferredDrawableDeckId. Only DRAW_MISSION uses it; STARTER_COMPLETE
- * keeps its existing deck (its copy is Heatwave-specific).
+ * preferredDrawableDeckId. Only DRAW_MISSION uses it.
  */
 function preferredNearbyDrawableDeckId(input: ResolvePlayerGuidanceInput): string | undefined {
   const byId = input.canonicalProgress.deckProgressById;
@@ -391,6 +415,98 @@ function preferredNearbyDrawableDeckId(input: ResolvePlayerGuidanceInput): strin
     const deck = byId[deckId];
     return deck !== undefined && isPlayablePostStarterDeck(deck.deckId) && deck.eligibleCount > 0;
   });
+}
+
+function isDeckFinished(deck: { totalCards: number; approvedCount: number }): boolean {
+  return deck.totalCards > 0 && deck.approvedCount >= deck.totalCards;
+}
+
+/** Recently-used decks, newest first — same derivation as trevorContextService. */
+function recentlyUsedDeckIds(entries: readonly Entry[]): string[] {
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+  for (const entry of entries) {
+    const deckId = String(entry.deckId || '').trim().toLowerCase();
+    if (!deckId || seen.has(deckId)) continue;
+    seen.add(deckId);
+    ordered.push(deckId);
+  }
+  return ordered.slice(0, 4);
+}
+
+/**
+ * Ranked next decks after a finish (Trevor deck-complete, Nov 20, 2026):
+ * 1. the nearby deck with missions left, 2. the active seasonal deck with
+ * missions left, 3. accessible decks with missions left, not recently used
+ * first, in the caller's sort order. Finished, locked, starter, and
+ * exhausted decks never qualify; recently-used decks backfill only when
+ * fewer than three fresh picks exist. Parallel id/name arrays, top pick
+ * first. The finished deck itself is never a candidate.
+ */
+function rankNextDecks(
+  input: ResolvePlayerGuidanceInput,
+  finishedDeckId: string,
+): { ids: string[]; names: string[] } {
+  const byId = input.canonicalProgress.deckProgressById;
+  const accessible = input.accessibleDeckIds;
+  const accessibleSet = accessible ? new Set(accessible) : null;
+  const isCandidate = (deckId: string): boolean => {
+    const deck = byId[deckId];
+    if (!deck) return false;
+    if (!isPlayablePostStarterDeck(deck.deckId)) return false;
+    if (deck.deckId === finishedDeckId) return false;
+    if (isDeckFinished(deck)) return false;
+    if (deck.eligibleCount <= 0) return false;
+    if (accessibleSet && !accessibleSet.has(deck.deckId)) return false;
+    return true;
+  };
+  const orderedIds = accessible ?? Object.keys(byId);
+  const recent = new Set(recentlyUsedDeckIds(input.entries));
+  const ranked: string[] = [];
+  const push = (deckId: string | undefined) => {
+    if (deckId && isCandidate(deckId) && !ranked.includes(deckId)) ranked.push(deckId);
+  };
+  // 1. Nearby (regions do not overlap, so at most one qualifies).
+  push((input.nearbyDeckIds ?? []).find(deckId => isCandidate(deckId)));
+  // 2. Seasonal.
+  if (ranked.length < 3) push(input.seasonalDeckId);
+  // 3a. Rotation, not recently used.
+  for (const deckId of orderedIds) {
+    if (ranked.length >= 3) break;
+    if (!recent.has(deckId)) push(deckId);
+  }
+  // 3b. Backfill with recently used decks rather than a short list.
+  for (const deckId of orderedIds) {
+    if (ranked.length >= 3) break;
+    push(deckId);
+  }
+  return {
+    ids: ranked,
+    names: ranked.map(deckId => byId[deckId]?.deckName || deckId),
+  };
+}
+
+/**
+ * A deck counts as just finished when it is complete and Trevor has not
+ * celebrated it yet. The Starter keeps its existing one-shot
+ * (hasUnseenStarterUnlock via lastSeenApprovedCount); every other deck
+ * uses the per-deck seen set. Returns null when nothing just finished.
+ * When several decks are finished and unacknowledged, the first in
+ * deckProgressById order wins — deterministic, and the rest fire on later
+ * resolves once the first is acknowledged.
+ */
+function findJustFinishedDeck(input: ResolvePlayerGuidanceInput): { deckId: string; deckName: string } | null {
+  if (starterJustComplete(input)) {
+    return { deckId: 'starter-signals', deckName: 'Starter' };
+  }
+  const seen = new Set(input.seenDeckCompletions ?? []);
+  for (const deck of Object.values(input.canonicalProgress.deckProgressById)) {
+    if (!isPlayablePostStarterDeck(deck.deckId)) continue;
+    if (seen.has(deck.deckId)) continue;
+    if (!isDeckFinished(deck)) continue;
+    return { deckId: deck.deckId, deckName: deck.deckName };
+  }
+  return null;
 }
 
 /** Starter unlock celebration is one-shot via profile.trevorSettings.lastSeenApprovedCount. */
@@ -421,7 +537,7 @@ function packIdFromGuidanceDestination(guidance: PlayerGuidanceSnapshot): string
 }
 
 /**
- * Deck owns draw behavior, but must honor guidance destinations. STARTER_COMPLETE
+ * Deck owns draw behavior, but must honor guidance destinations. DECK_COMPLETE
  * must not draw from an exhausted starter-signals pack. After the unlock is
  * acknowledged, DRAW_MISSION must still follow the destination pack so a leftover
  * starter-signals selection cannot produce a dead draw.
@@ -435,7 +551,7 @@ export function resolveMissionsGuidancePrimaryAction(
 ): MissionsGuidancePrimaryAction {
   const destination = guidance.primaryActionDestination;
   const destPack = packIdFromGuidanceDestination(guidance);
-  if (guidance.state === 'STARTER_COMPLETE') {
+  if (guidance.state === 'DECK_COMPLETE') {
     const packId = destPack && isPlayablePostStarterDeck(destPack)
       ? destPack
       : 'heatwave-receipts';
@@ -498,6 +614,10 @@ function present(
     starterLabel?: string;
     deckId?: string;
     deckIdIsNearby?: boolean;
+    finishedDeckId?: string;
+    finishedDeckName?: string;
+    nextDeckIds?: string[];
+    nextDeckNames?: string[];
     secondary?: PlayerGuidanceAction | null;
     flavorMessage?: string;
     title?: string;
@@ -538,6 +658,10 @@ function present(
     mission,
     deckId,
     ...(extras.deckIdIsNearby ? { deckIdIsNearby: true as const } : {}),
+    ...(extras.finishedDeckId ? { finishedDeckId: extras.finishedDeckId } : {}),
+    ...(extras.finishedDeckName ? { finishedDeckName: extras.finishedDeckName } : {}),
+    ...(extras.nextDeckIds ? { nextDeckIds: extras.nextDeckIds } : {}),
+    ...(extras.nextDeckNames ? { nextDeckNames: extras.nextDeckNames } : {}),
   };
 }
 
@@ -659,17 +783,20 @@ const COPY: Record<PlayerGuidanceState, {
     }),
     destination: () => ({ href: '/profile?tab=logbook', intent: 'navigate' }),
   },
-  STARTER_COMPLETE: {
+  DECK_COMPLETE: {
     urgency: 'normal',
     navigationTarget: 'missions',
     primary: () => ({
-      title: 'Starter complete',
-      shortMessage: 'Heatwave is open. Draw your next mission.',
-      flavorMessage: 'CLEARANCE CONFIRMED. THE SUMMER DECK IS LIVE.',
+      title: 'Deck complete',
+      shortMessage: 'Pick your next deck.',
+      flavorMessage: 'DECK CLEARED. CHOOSE YOUR NEXT FIELD.',
       actionLabel: 'Draw a Mission',
       secondary: null,
     }),
-    destination: () => ({ href: '/missions?pack=heatwave-receipts', intent: 'navigate' }),
+    destination: ({ deckId }) => ({
+      href: `/missions?pack=${encodeURIComponent(deckId)}`,
+      intent: 'navigate',
+    }),
   },
   DRAW_MISSION: {
     urgency: 'normal',
@@ -715,7 +842,7 @@ const COPY: Record<PlayerGuidanceState, {
 export function shouldAutoOpenTrevor(state: PlayerGuidanceState): boolean {
   return state === 'REPAIR_PROOF'
     || state === 'RETRY_REJECTED_PROOF'
-    || state === 'STARTER_COMPLETE';
+    || state === 'DECK_COMPLETE';
 }
 
 export function resolvePlayerGuidance(input: ResolvePlayerGuidanceInput): PlayerGuidanceSnapshot {
@@ -727,6 +854,12 @@ export function resolvePlayerGuidance(input: ResolvePlayerGuidanceInput): Player
   // Trevor nearby suggestion (Nov 20, 2026): computed once, consulted only
   // by the DRAW_MISSION branches below.
   const nearbyDeckId = preferredNearbyDrawableDeckId(input);
+  // Trevor deck-complete (Nov 20, 2026): computed once; the DECK_COMPLETE
+  // branch below fires only when there is at least one ranked next deck —
+  // with every deck finished there is nothing to suggest, so it falls
+  // through to NO_URGENT_ACTION instead of celebrating into a dead end.
+  const justFinished = findJustFinishedDeck(input);
+  const nextDecks = justFinished ? rankNextDecks(input, justFinished.deckId) : { ids: [] as string[], names: [] as string[] };
 
   const onboardingIncomplete = input.legalComplete === false
     || input.fieldClassificationComplete === false
@@ -785,10 +918,19 @@ export function resolvePlayerGuidance(input: ResolvePlayerGuidanceInput): Player
       secondary: { label: 'View Proof Status', destination: '/profile?tab=logbook', intent: 'navigate' },
       flavorMessage: 'PENDING DOES NOT STOP YOU FROM DRAWING ANOTHER MISSION.',
     });
-  } else if (starterJustComplete(input)) {
-    presented = present('STARTER_COMPLETE', {
+  } else if (justFinished && nextDecks.ids.length > 0) {
+    presented = present('DECK_COMPLETE', {
       mission,
-      deckId: preferredDrawableDeckId(input),
+      deckId: nextDecks.ids[0],
+      finishedDeckId: justFinished.deckId,
+      finishedDeckName: justFinished.deckName,
+      nextDeckIds: nextDecks.ids,
+      nextDeckNames: nextDecks.names,
+      title: `${justFinished.deckName} complete`,
+      shortMessage: nextDecks.ids.length > 1
+        ? `${nextDecks.names[0]} is next up — or pick another deck.`
+        : `${nextDecks.names[0]} is next up.`,
+      actionLabel: `Draw from ${nextDecks.names[0]}`,
     });
   } else if (input.voteAvailable && canAccessFeature(input.canonicalProgress, 'voting')) {
     presented = present('VOTE_AVAILABLE', { mission });

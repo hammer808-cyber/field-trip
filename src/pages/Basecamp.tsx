@@ -18,7 +18,7 @@ import {
   type BasecampNotificationItem,
   type BasecampPrimaryAction,
 } from '../logic/basecampViewModel';
-import { acknowledgeStarterUnlockSeen } from '../services/starterUnlockAck';
+import { acknowledgeDeckCompleteSeen } from '../services/deckCompleteAck';
 import { getSeasonCountdown } from '../utils/seasonCountdown';
 import './Basecamp.css';
 
@@ -31,9 +31,11 @@ export default function Basecamp() {
     canonicalProgress,
     currentDate,
     currentWeekNumber,
+    deckPacks,
     drawnMissionCards,
     entries,
     fieldType,
+    getDeckAccessForPack,
     isAdmin,
     isHeatwaveDeckUnlocked,
     isVotingWindowOpen,
@@ -47,6 +49,15 @@ export default function Basecamp() {
     crewGraph,
   } = useApp();
   const navigate = useNavigate();
+
+  // Deck-complete ranking (Nov 20, 2026): accessible decks in deck sort
+  // order, so Basecamp's next action and Trevor agree on the next deck.
+  const accessibleDeckIds = React.useMemo(() => deckPacks
+    .filter(deck => getDeckAccessForPack(deck).playable)
+    .sort((left, right) => left.sortOrder - right.sortOrder || left.packName.localeCompare(right.packName))
+    .map(deck => deck.packId || deck.deckId || deck.id)
+    .filter((id): id is string => typeof id === 'string' && id.length > 0),
+  [deckPacks, getDeckAccessForPack]);
 
   const viewModel = React.useMemo(() => buildBasecampViewModel({
     canonicalProgress,
@@ -63,11 +74,14 @@ export default function Basecamp() {
     currentDate,
     isHeatwaveDeckUnlocked,
     isVotingOpen: isVotingWindowOpen(currentWeekNumber),
+    accessibleDeckIds,
+    seasonalDeckId: activeSeason?.id,
     crewGraph: {
       acceptedCount: crewGraph?.acceptedCount || 0,
       incomingCount: crewGraph?.incomingCount || 0,
     },
   }), [
+    activeSeason?.id,
     activeSubmissionStatus,
     activeTrip,
     badgeProgress,
@@ -84,6 +98,7 @@ export default function Basecamp() {
     userVotes,
     notifications,
     crewGraph,
+    accessibleDeckIds,
   ]);
 
   const fieldTypeName = fieldType ? FIELD_TYPES[fieldType]?.name : null;
@@ -119,17 +134,18 @@ export default function Basecamp() {
   // navigates (or retries a proof). Basecamp itself never draws.
   const runAction = React.useCallback(async (action: BasecampPrimaryAction) => {
     if (
-      viewModel.guidance.state === 'STARTER_COMPLETE'
+      viewModel.guidance.state === 'DECK_COMPLETE'
       && (profile?.id || user?.uid)
-      && canonicalProgress.starter.starterComplete
+      && viewModel.guidance.finishedDeckId
     ) {
       try {
-        await acknowledgeStarterUnlockSeen(
+        await acknowledgeDeckCompleteSeen(
           profile?.id || user!.uid,
+          viewModel.guidance.finishedDeckId,
           canonicalProgress.starter.starterApprovedCount,
         );
       } catch (error) {
-        console.warn('[Basecamp] Failed to acknowledge Starter unlock:', error);
+        console.warn('[Basecamp] Failed to acknowledge deck completion:', error);
       }
     }
     if (action.intent === 'retry-proof' && action.missionId) {

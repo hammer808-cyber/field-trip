@@ -162,7 +162,7 @@ import { MissionsGuidanceStrip, getMissionsStripRole } from '../components/missi
 import { SAVE_FOR_LATER_RECOVERY_NOTICE } from '../components/bottomNavPresentation';
 import { usePlayerGuidance } from '../hooks/usePlayerGuidance';
 import { resolveMissionsGuidancePrimaryAction } from '../logic/playerGuidance';
-import { acknowledgeStarterUnlockSeen } from '../services/starterUnlockAck';
+import { acknowledgeDeckCompleteSeen } from '../services/deckCompleteAck';
 
 export default function DeckPage() {
   const navigate = useNavigate();
@@ -541,7 +541,7 @@ export default function DeckPage() {
 
   const handleDraw = async (isRedraw: boolean = false, packIdOverride?: string) => {
     const drawPackId = packIdOverride || activePackId;
-    // When switching packs for STARTER_COMPLETE, do not apply starter-pack exhausted lock.
+    // When switching packs for DECK_COMPLETE, do not apply starter-pack exhausted lock.
     const drawingFromOverridePack = !!packIdOverride && packIdOverride !== activePackId;
     if (
       isDrawing
@@ -1015,12 +1015,13 @@ export default function DeckPage() {
               guidance={guidance}
               onPrimary={() => {
                 const action = resolveMissionsGuidancePrimaryAction(guidance);
-                if (guidance.state === 'STARTER_COMPLETE' && user?.uid && starterState.starterComplete) {
-                  void acknowledgeStarterUnlockSeen(
+                if (guidance.state === 'DECK_COMPLETE' && user?.uid && guidance.finishedDeckId) {
+                  void acknowledgeDeckCompleteSeen(
                     user.uid,
+                    guidance.finishedDeckId,
                     starterState.starterApprovedCount || onboardingCompletedCount || 3,
                   ).catch((error) => {
-                    console.warn('[Deck] Failed to acknowledge Starter unlock:', error);
+                    console.warn('[Deck] Failed to acknowledge deck completion:', error);
                   });
                 }
                 if (action.kind === 'draw-pack' && !isDrawn) {

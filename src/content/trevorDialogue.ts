@@ -73,6 +73,9 @@ const TREVOR_DIALOGUE: Readonly<Record<TrevorMessageKey, readonly string[]>> = {
   nearby_deck: [
     "You're in {regionLabel} — {nearbyDeckName} is right here. Want to start with it?",
   ],
+  deck_complete: [
+    '{finishedDeckName} complete. {nextDeckName} is next up — or pick another below.',
+  ],
   fallback_draw: [
     'Nothing urgent. Draw a mission when you’re ready.',
     'Systems calm. A fresh mission is the useful next tap.',
@@ -116,6 +119,8 @@ function getDialogueReplacements(context: TrevorContext): Record<string, string>
     deckName: readableToken(context.recommendedDeckId || 'the mission deck'),
     nearbyDeckName: context.nearbyDeckName || '',
     regionLabel: context.nearbyRegionLabel || '',
+    finishedDeckName: context.finishedDeckName || '',
+    nextDeckName: context.nextDeckName || '',
   };
 }
 

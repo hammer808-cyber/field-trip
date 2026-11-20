@@ -160,6 +160,8 @@ export interface UserProfile {
     collapsed: boolean;
     dismissedAfterFiveMissions?: boolean;
     lastSeenApprovedCount?: number;
+    /** Deck ids whose finish Trevor already celebrated (DECK_COMPLETE one-shot). */
+    seenDeckCompletions?: string[];
   };
   completedDiscoveryGroups?: string[];
   earnedStickers?: Array<{
