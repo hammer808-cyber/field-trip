@@ -121,3 +121,12 @@ companion block with the persona name; with Reduce motion on, the avatar is
 static. The phone check is Zach's: the companion feels present while playing,
 and the deck-complete pop bounces. If the avatar feels too small or too quiet
 on first sight, that is Tier 2 territory (expressions), not a Tier 1 fix.
+
+Live check Nov 20 (~1:25 PM PST): Basecamp block present and clean
+("ELONDRA — DRAMATURG", "Sophisticated, Dramatic, Sharp"); panel header clean
+with Elondra beside Trevor. BUT the collapsed launcher was broken: Trevor's
+avatar rendered as a giant ~350px card covering page content and hiding the
+label. Cause: the duo wrapped TrevorAvatar in a plain span, so it went back to
+inline, h-8/w-8 stopped applying, and the DiceBear SVG rendered at intrinsic
+size. Fix (commit 11cde6a): `block` on TrevorAvatar's span + regression test
+pinning the block + size classes. Re-check of the launcher running.
