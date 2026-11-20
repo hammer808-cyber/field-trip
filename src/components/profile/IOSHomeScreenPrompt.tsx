@@ -36,7 +36,7 @@ export function IOSHomeScreenPrompt() {
           <div className="bg-white border-[3px] border-on-surface p-5 rounded-2xl shadow-[8px_8px_0px_black] relative overflow-hidden">
             <button 
               onClick={dismiss}
-              className="absolute top-2 right-2 p-1 text-on-surface/40 hover:text-on-surface"
+              className="absolute top-2 right-2 p-1 text-on-surface/60 hover:text-on-surface"
             >
               <X className="w-4 h-4" />
             </button>
@@ -49,7 +49,7 @@ export function IOSHomeScreenPrompt() {
                 <h4 className="font-display font-black uppercase italic text-sm tracking-tight leading-none">
                   Install Fieldtrip
                 </h4>
-                <p className="text-[10px] font-sans font-medium text-on-surface/70 leading-tight">
+                <p className="text-xs font-sans font-medium text-on-surface/70 leading-tight">
                   Tap <Share className="w-3 h-3 inline pb-0.5" /> then <span className="font-bold">"Add to Home Screen"</span> for the full experience.
                 </p>
               </div>

@@ -61,7 +61,7 @@ export function StickerCard({ sticker, unlock, onOpen }: StickerCardProps) {
         )}
 
         {isNew && (
-          <span className="absolute left-2 top-2 inline-flex min-h-7 items-center gap-1 border-2 bg-[var(--skin-primary)] px-2 font-mono text-[9px] font-black uppercase" style={{ borderColor: 'var(--skin-border)' }}>
+          <span className="absolute left-2 top-2 inline-flex min-h-7 items-center gap-1 border-2 bg-[var(--skin-primary)] px-2 font-mono text-xs font-black uppercase" style={{ borderColor: 'var(--skin-border)' }}>
             <Sparkles className="h-3 w-3" aria-hidden="true" /> New
           </span>
         )}
@@ -79,11 +79,11 @@ export function StickerCard({ sticker, unlock, onOpen }: StickerCardProps) {
           <p className="line-clamp-2 font-display text-sm font-black uppercase leading-tight">
             {sticker.name}
           </p>
-          <p className="mt-1 truncate font-mono text-[8px] font-bold uppercase opacity-55">
+          <p className="mt-1 truncate font-mono text-xs font-bold uppercase opacity-55">
             {sticker.archetype ? STICKER_ARCHETYPE_LABELS[sticker.archetype] : 'Cross-pack'}
           </p>
         </div>
-        <div className="flex items-center justify-between gap-2 font-mono text-[8px] font-black uppercase">
+        <div className="flex items-center justify-between gap-2 font-mono text-xs font-black uppercase">
           <span>{sticker.rarity}</span>
           <span className={isUnlocked ? 'opacity-65' : 'opacity-45'}>
             {isUnlocked ? 'Unlocked' : 'Locked'}

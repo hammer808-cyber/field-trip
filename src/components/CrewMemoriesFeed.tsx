@@ -260,9 +260,9 @@ export function CrewMemoriesFeed() {
     <div className="space-y-8 max-w-3xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b-4 border-on-surface/10 pb-6">
         <div>
-          <p className="font-mono text-[9px] font-black uppercase tracking-[0.24em] text-brand-orange">The shared evidence locker</p>
+          <p className="font-mono text-xs font-black uppercase tracking-[0.24em] text-brand-orange">The shared evidence locker</p>
           <h2 className="text-4xl font-display font-black uppercase italic tracking-tighter text-on-surface">Crew Archive</h2>
-          <p className="text-xs font-mono text-on-surface/50 uppercase tracking-wider">
+          <p className="text-xs font-mono text-on-surface/60 uppercase tracking-wider">
             Approved crew-season receipts. Zine selections are curated from this archive.
           </p>
         </div>
@@ -343,7 +343,7 @@ export function CrewMemoriesFeed() {
                       <h4 className="font-display font-black text-sm uppercase text-on-surface tracking-tight">
                         {entry.displayName || "Anonymous Agent"}
                       </h4>
-                      <p className="text-[10px] font-mono text-on-surface/40 uppercase tracking-widest flex items-center gap-1">
+                      <p className="text-xs font-mono text-on-surface/60 uppercase tracking-widest flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {entry.createdAt ? (
                           new Date(entry.createdAt.seconds * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
@@ -371,7 +371,7 @@ export function CrewMemoriesFeed() {
 
                 {/* Subtitle / Challenge Descriptor */}
                 <div className="mb-4 bg-brand-yellow/10 border-2 border-on-surface/25 p-2 rounded">
-                  <p className="text-[10px] font-mono font-black text-brand-orange uppercase tracking-wider mb-0.5">ADVENTURE SAVED:</p>
+                  <p className="text-xs font-mono font-black text-brand-orange uppercase tracking-wider mb-0.5">ADVENTURE SAVED:</p>
                   <p className="font-display font-black text-sm text-on-surface uppercase leading-tight">
                     {entry.tripTitle || entry.challengeTitle || "Field Mission Exploration"}
                   </p>
@@ -386,7 +386,7 @@ export function CrewMemoriesFeed() {
                   />
                   
                   {/* Watermark Sticker */}
-                  <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm border border-on-surface px-2 py-0.5 rounded font-mono text-[8px] uppercase tracking-widest pointer-events-none select-none text-on-surface/80">
+                  <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm border border-on-surface px-2 py-0.5 rounded font-mono text-xs uppercase tracking-widest pointer-events-none select-none text-on-surface/80">
                     🔒 APPROVED EVIDENCE
                   </div>
                 </div>
@@ -394,7 +394,7 @@ export function CrewMemoriesFeed() {
                 {/* Field Notes Section */}
                 {entry.fieldNote && (
                   <div className="my-4 p-3 bg-[#FCFAF2] border-l-4 border-brand-orange font-serif text-xs leading-relaxed italic text-on-surface/85 relative">
-                    <span className="absolute -top-3 right-2 text-2xl text-on-surface/10 select-none">“</span>
+                    <span className="absolute -top-3 right-2 text-2xl text-on-surface/60 select-none">“</span>
                     {entry.fieldNote}
                   </div>
                 )}
@@ -431,7 +431,7 @@ export function CrewMemoriesFeed() {
                         title={rect.users.length + " reaction(s)"}
                       >
                         <span className="text-sm select-none">{rect.emoji}</span>
-                        <span className="font-mono text-[10px] font-black">{rect.count}</span>
+                        <span className="font-mono text-xs font-black">{rect.count}</span>
                       </button>
                     ))}
 
@@ -485,7 +485,7 @@ export function CrewMemoriesFeed() {
                   </div>
 
                   {/* Right side check status indication */}
-                  <div className="flex items-center gap-1 bg-[#EEFCEE] border border-brand-green/30 px-2 py-1 rounded text-[9px] font-mono text-brand-green-dark uppercase tracking-wider font-semibold">
+                  <div className="flex items-center gap-1 bg-[#EEFCEE] border border-brand-green/30 px-2 py-1 rounded text-xs font-mono text-brand-green-dark uppercase tracking-wider font-semibold">
                     <CheckCircle2 className="w-3 h-3 text-brand-green" />
                     <span>Scout Verified</span>
                   </div>
@@ -503,7 +503,7 @@ export function CrewMemoriesFeed() {
 function ArchiveMetric({ label, value, compact = false }: { label: string; value: React.ReactNode; compact?: boolean }) {
   return (
     <div className="border-2 border-on-surface bg-white p-3 shadow-[3px_3px_0px_black]">
-      <p className="font-mono text-[8px] font-black uppercase tracking-widest text-on-surface/40">{label}</p>
+      <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">{label}</p>
       <p className={cn("mt-1 font-display font-black italic uppercase leading-none", compact ? "text-lg" : "text-3xl")}>{value}</p>
     </div>
   );
@@ -520,7 +520,7 @@ function CrewMemoryBadge({
 }) {
   return (
     <span className={cn(
-      "inline-flex items-center gap-1 border-2 border-on-surface px-2 py-1 font-mono text-[8px] font-black uppercase tracking-widest shadow-[2px_2px_0px_black]",
+      "inline-flex items-center gap-1 border-2 border-on-surface px-2 py-1 font-mono text-xs font-black uppercase tracking-widest shadow-[2px_2px_0px_black]",
       tone === 'cyan' && "bg-brand-cyan text-on-surface",
       tone === 'lime' && "bg-brand-lime text-on-surface",
       tone === 'orange' && "bg-brand-orange text-white",

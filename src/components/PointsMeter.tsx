@@ -48,12 +48,12 @@ export function PointsMeter({ score }: { score: ScoreCalculationResult }) {
   return (
     <div className="w-full rounded-2xl border-4 border-on-surface bg-white p-4 shadow-[6px_6px_0px_black]">
       <div className="flex items-end justify-between gap-3">
-        <p className="font-mono text-[10px] font-black uppercase tracking-[0.25em] text-on-surface/50">
+        <p className="font-mono text-xs font-black uppercase tracking-[0.25em] text-on-surface/60">
           Points so far
         </p>
         <p className="font-display text-3xl font-black italic leading-none text-brand-orange">
           {score.finalScore}
-          <span className="ml-1 text-sm not-italic text-on-surface/40">/ {maxPossible} XP</span>
+          <span className="ml-1 text-sm not-italic text-on-surface/60">/ {maxPossible} XP</span>
         </p>
       </div>
 
@@ -78,10 +78,10 @@ export function PointsMeter({ score }: { score: ScoreCalculationResult }) {
       <div className="mt-3 grid grid-cols-4 gap-2">
         {segments.map((segment) => (
           <div key={segment.key} className="text-center">
-            <p className={`font-mono text-[9px] font-black uppercase tracking-widest ${segment.earned ? 'text-on-surface' : 'text-on-surface/35'}`}>
+            <p className={`font-mono text-xs font-black uppercase tracking-widest ${segment.earned ? 'text-on-surface' : 'text-on-surface/60'}`}>
               {segment.label}
             </p>
-            <p className={`font-display text-sm font-black italic ${segment.earned ? 'text-on-surface' : 'text-on-surface/35'}`}>
+            <p className={`font-display text-sm font-black italic ${segment.earned ? 'text-on-surface' : 'text-on-surface/60'}`}>
               {segment.earned ? `+${segment.points}` : `+${segment.key === 'base' ? segment.points : layerValue}`}
             </p>
           </div>
@@ -89,12 +89,12 @@ export function PointsMeter({ score }: { score: ScoreCalculationResult }) {
       </div>
 
       {score.hintUsed && (
-        <p className="mt-2 text-center font-mono text-[9px] font-black uppercase tracking-widest text-brand-orange">
+        <p className="mt-2 text-center font-mono text-xs font-black uppercase tracking-widest text-brand-orange">
           Hint used: base is {score.adjustedMaxScore} instead of {score.baseMaxScore}
         </p>
       )}
       {score.appliedMultiplier > 1 && (
-        <p className="mt-2 text-center font-mono text-[9px] font-black uppercase tracking-widest text-brand-lime">
+        <p className="mt-2 text-center font-mono text-xs font-black uppercase tracking-widest text-brand-lime">
           {score.appliedBonusLabel} ×{score.appliedMultiplier} applies at review
         </p>
       )}

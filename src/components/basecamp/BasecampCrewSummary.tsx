@@ -16,7 +16,7 @@ export function BasecampCrewSummary({ model, onOpenCrew }: BasecampCrewSummaryPr
       <span className="basecamp-tape basecamp-tape--left" aria-hidden="true" />
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="font-mono text-[8px] font-black uppercase tracking-[0.22em] text-[var(--skin-text-muted)]">My Crew</p>
+          <p className="font-mono text-xs font-black uppercase tracking-[0.22em] text-[var(--skin-text-muted)]">My Crew</p>
           <h2 id="basecamp-crew-heading" className="mt-1 font-display text-2xl font-black uppercase italic tracking-normal text-[var(--skin-text)]">
             {model.crewName}
           </h2>
@@ -44,12 +44,12 @@ export function BasecampCrewSummary({ model, onOpenCrew }: BasecampCrewSummaryPr
               : 'Open Crew for members, invites, and shared memories.'}
         </p>
         {model.incomingCount > 0 && (
-          <p className="mt-3 inline-block bg-[var(--skin-secondary)] px-2 py-1 font-mono text-[8px] font-black uppercase tracking-widest text-[var(--skin-on-secondary)]">
+          <p className="mt-3 inline-block bg-[var(--skin-secondary)] px-2 py-1 font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-on-secondary)]">
             {model.incomingCount} Crew request{model.incomingCount === 1 ? '' : 's'}
           </p>
         )}
         {model.roleLabel && (
-          <p className="mt-3 inline-block bg-[var(--skin-secondary)] px-2 py-1 font-mono text-[8px] font-black uppercase tracking-widest text-[var(--skin-on-secondary)]">
+          <p className="mt-3 inline-block bg-[var(--skin-secondary)] px-2 py-1 font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-on-secondary)]">
             Current role: {model.roleLabel}
           </p>
         )}
@@ -58,7 +58,7 @@ export function BasecampCrewSummary({ model, onOpenCrew }: BasecampCrewSummaryPr
       <button
         type="button"
         onClick={onOpenCrew}
-        className="basecamp-crew-cta relative mt-5 flex min-h-12 w-full items-center justify-center gap-2 px-4 py-2 font-mono text-[9px] font-black uppercase tracking-widest focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)]"
+        className="basecamp-crew-cta relative mt-5 flex min-h-12 w-full items-center justify-center gap-2 px-4 py-2 font-mono text-xs font-black uppercase tracking-widest focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)]"
       >
         {empty ? 'Find Players' : 'Open Crew'}
         <ArrowRight size={16} aria-hidden="true" />

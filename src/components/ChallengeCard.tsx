@@ -110,12 +110,12 @@ export function MissionCard({
         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/handmade-paper.png')] opacity-[0.12] pointer-events-none mix-blend-multiply" />
         
         {/* Diagonal Warning/Classified Tape */}
-        <div className="absolute -right-12 top-8 bg-brand-orange text-black text-[10px] font-mono font-black uppercase tracking-[0.2em] px-14 py-2 rotate-[35deg] shadow-[2px_2px_4px_rgba(0,0,0,0.15)] border-y border-on-surface z-20">
+        <div className="absolute -right-12 top-8 bg-brand-orange text-black text-xs font-mono font-black uppercase tracking-[0.2em] px-14 py-2 rotate-[35deg] shadow-[2px_2px_4px_rgba(0,0,0,0.15)] border-y border-on-surface z-20">
           SEALED FILE
         </div>
 
         {/* Small Stamped LOCKED / CLASSIFIED Tag */}
-        <div className="absolute top-5 left-5 bg-on-surface text-brand-lime border-2 border-on-surface font-mono text-[9px] font-black uppercase tracking-widest px-3 py-1 rotate-[-2deg] shadow-[3px_3px_0px_black] z-20">
+        <div className="absolute top-5 left-5 bg-on-surface text-brand-lime border-2 border-on-surface font-mono text-xs font-black uppercase tracking-widest px-3 py-1 rotate-[-2deg] shadow-[3px_3px_0px_black] z-20">
           🔒 SECURE_LANE_{currentLane.toUpperCase()}
         </div>
 
@@ -123,16 +123,16 @@ export function MissionCard({
           {/* Top category label & XP */}
           <div className="flex justify-between items-start gap-4 pt-4">
             <div className="space-y-1.5 flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 mb-1 text-on-surface/50">
+              <div className="flex items-center gap-1.5 mb-1 text-on-surface/60">
                 <Lock className="w-3.5 h-3.5 text-brand-orange shrink-0 animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em]">{cardType}</span>
+                <span className="text-xs font-black uppercase tracking-[0.2em]">{cardType}</span>
               </div>
-              <h3 className="font-display text-2xl leading-[1.0] uppercase tracking-tighter font-black italic text-on-surface/40 break-words text-wrap">
+              <h3 className="font-display text-2xl leading-[1.0] uppercase tracking-tighter font-black italic text-on-surface/60 break-words text-wrap">
                 {getFrankieTitle(challenge, fPref)}
               </h3>
-              <p className="font-mono text-[8px] font-black uppercase tracking-wider text-on-surface/35">{deckName}</p>
+              <p className="font-mono text-xs font-black uppercase tracking-wider text-on-surface/60">{deckName}</p>
             </div>
-            <div className="bg-on-surface/10 text-on-surface/30 px-3 py-1 text-sm font-black italic border-2 border-on-surface/20 shrink-0 rotate-[1deg]">
+            <div className="bg-on-surface/10 text-on-surface/60 px-3 py-1 text-sm font-black italic border-2 border-on-surface/20 shrink-0 rotate-[1deg]">
               +{baseXP}{fc('XP', ' PTS')}
             </div>
           </div>
@@ -144,20 +144,20 @@ export function MissionCard({
               <div className="absolute -top-3 -right-3 w-8 h-8 bg-brand-orange border-2 border-on-surface flex items-center justify-center rounded-none shadow-[2px_2px_0px_black] transform rotate-[10deg]">
                 <Lock className="w-4 h-4 text-white" />
               </div>
-              <Icon className="w-10 h-10 text-on-surface/25 stroke-[1.5]" />
+              <Icon className="w-10 h-10 text-on-surface/60 stroke-[1.5]" />
             </div>
             
-            <p className="text-[9px] font-mono leading-none text-on-surface/40 uppercase font-black tracking-widest mt-6 text-center">
+            <p className="text-xs font-mono leading-none text-on-surface/60 uppercase font-black tracking-widest mt-6 text-center">
               NOT YET, LEGEND
             </p>
           </div>
 
           {/* Locked / Requirement Details */}
           <div className="bg-on-surface/[0.04] border-4 border-dashed border-on-surface/10 p-4 rounded-none space-y-1 text-center relative overflow-hidden">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-orange">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#C2410C]">
               FINISH THE EARLIER ADVENTURES
             </p>
-            <p className="text-[11px] font-medium italic text-on-surface/60 leading-snug">
+            <p className="text-xs font-medium italic text-on-surface/60 leading-snug">
               Finish the adventures before this one, then Trevor opens the next tiny door: {getFrankieTitle(challenge, fPref).replace(/_/g, ' ')}.
             </p>
           </div>
@@ -165,7 +165,7 @@ export function MissionCard({
           {/* Stamped Tactile Bottom Banner */}
           <button 
             disabled
-            className="w-full py-4 bg-on-surface/[0.05] text-on-surface/30 border-4 border-dashed border-on-surface/20 font-display text-lg font-black uppercase italic tracking-tight flex items-center justify-center gap-2 cursor-not-allowed"
+            className="w-full py-4 bg-on-surface/[0.05] text-on-surface/60 border-4 border-dashed border-on-surface/20 font-display text-lg font-black uppercase italic tracking-tight flex items-center justify-center gap-2 cursor-not-allowed"
           >
             <Lock className="w-5 h-5" />
             <span>MISSION DECK RESTRICTED</span>
@@ -253,7 +253,7 @@ export function MissionCard({
 
       {/* Decorative ID Label / Sticker */}
       <div className={cn(
-        "absolute top-4 right-4 px-3 py-1.5 text-[9px] font-mono uppercase tracking-[0.2em] z-20 font-black italic shadow-[3px_3px_0px_black] border-2 border-on-surface rotate-[2deg] transition-transform group-hover:rotate-0",
+        "absolute top-4 right-4 px-3 py-1.5 text-xs font-mono uppercase tracking-[0.2em] z-20 font-black italic shadow-[3px_3px_0px_black] border-2 border-on-surface rotate-[2deg] transition-transform group-hover:rotate-0",
         colorTheme.sticker
       )}>
         {colorTheme.accentLabel}
@@ -264,14 +264,14 @@ export function MissionCard({
           <div className="space-y-1 flex-1 min-w-0">
              <div className="flex items-center gap-1.5 mb-0.5">
                 <span className="text-lg select-none">{colorTheme.emoji}</span>
-                <span className="text-[9px] font-mono font-black uppercase tracking-[0.2em] opacity-40 italic">
+                <span className="text-xs font-mono font-black uppercase tracking-[0.2em] opacity-40 italic">
                   {cardType}
                 </span>
              </div>
              <h3 className="font-display text-2xl sm:text-3xl leading-[0.95] uppercase tracking-tighter font-black italic text-on-surface">
                 {getFrankieTitle(challenge, fPref)}
              </h3>
-             <p className="font-mono text-[8px] font-black uppercase tracking-wider text-on-surface/40">
+             <p className="font-mono text-xs font-black uppercase tracking-wider text-on-surface/60">
                {deckName}{challenge.deckSubtitle ? ` // ${challenge.deckSubtitle}` : ''}
              </p>
           </div>
@@ -279,10 +279,10 @@ export function MissionCard({
 
         {/* 1. PHOTO PROMPT Area (Dotted & Styled) */}
         <div className="bg-white border-2 border-on-surface/10 p-4 space-y-1.5 rounded-xl relative overflow-hidden shadow-[inset_1px_1px_4px_rgba(0,0,0,0.05)]">
-          <div className="absolute top-2 right-2 text-on-surface/10">
+          <div className="absolute top-2 right-2 text-on-surface/60">
             <Camera className="w-5 h-5 text-brand-orange opacity-40 animate-pulse" />
           </div>
-          <span className="text-[8px] font-mono font-black uppercase tracking-[0.25em] text-[#C2410C] flex items-center gap-1">
+          <span className="text-xs font-mono font-black uppercase tracking-[0.25em] text-[#C2410C] flex items-center gap-1">
             <span className="w-1.5 h-1.5 bg-brand-orange rounded-full" />
             WHAT TO HUNT
           </span>
@@ -293,7 +293,7 @@ export function MissionCard({
 
         {/* 2. MEMORY ANGLE (Why is it fun? / Suggestion) */}
         <div className="bg-brand-yellow/5 border-[2px] border-dashed border-on-surface/15 p-4 space-y-1 rounded-xl relative">
-          <span className="text-[8px] font-mono font-black uppercase tracking-[0.25em] text-[#C2410C] flex items-center gap-1">
+          <span className="text-xs font-mono font-black uppercase tracking-[0.25em] text-[#C2410C] flex items-center gap-1">
             ✨ WHY IT'S FUN
           </span>
           <p className="text-xs font-serif italic font-bold text-on-surface/70 leading-relaxed">
@@ -304,10 +304,10 @@ export function MissionCard({
         {/* 3. GAME DETAILS BOX (Points, Who will see it) */}
         <div className="bg-on-surface/[0.02] border-[2px] border-on-surface/5 p-4 rounded-xl flex items-center justify-between gap-4">
           <div className="space-y-0.5">
-            <span className="text-[7px] font-mono font-black uppercase tracking-widest text-on-surface/30 block">WHERE IT GOES</span>
+            <span className="text-xs font-mono font-black uppercase tracking-widest text-on-surface/60 block">WHERE IT GOES</span>
             <div className="flex items-center gap-1.5">
               <Users className="w-3.5 h-3.5 text-brand-cyan" />
-              <p className="text-[10px] font-sans font-bold text-on-surface/60">
+              <p className="text-xs font-sans font-bold text-on-surface/60">
                 Added to your <span className="text-brand-orange-dark font-black">Crew Feed</span>
               </p>
             </div>

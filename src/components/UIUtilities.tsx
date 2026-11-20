@@ -27,7 +27,7 @@ export function DisplayPanel({ title, value, label, icon: Icon, className, helpT
       )}
     >
       <div className="relative z-10 flex justify-between items-start mb-1.5">
-        <p className="text-[10px] font-mono font-black uppercase text-on-surface/40 tracking-widest">{title}</p>
+        <p className="text-xs font-mono font-black uppercase text-on-surface/60 tracking-widest">{title}</p>
         <div className="flex gap-1 opacity-20">
            <div className="w-1.5 h-1.5 rounded-full bg-on-surface" />
            <div className="w-1.5 h-1.5 rounded-full bg-on-surface" />
@@ -42,7 +42,7 @@ export function DisplayPanel({ title, value, label, icon: Icon, className, helpT
         </h3>
       </div>
       {label && (
-        <span className="relative z-10 inline-block mt-3 px-2.5 py-1 bg-on-surface text-white border-2 border-on-surface rounded-lg text-[9px] font-mono font-black uppercase tracking-wider leading-none shadow-[2px_2px_0px_rgba(0,0,0,0.15)]">
+        <span className="relative z-10 inline-block mt-3 px-2.5 py-1 bg-on-surface text-white border-2 border-on-surface rounded-lg text-xs font-mono font-black uppercase tracking-wider leading-none shadow-[2px_2px_0px_rgba(0,0,0,0.15)]">
           {label}
         </span>
       )}
@@ -124,7 +124,7 @@ export function RecoveryScreen({ message = "It looks like we took a wrong turn."
         {onAction && (
           <button 
             onClick={onAction}
-            className="text-[10px] font-mono font-black uppercase tracking-[0.2em] text-on-surface/40 hover:text-on-surface transition-colors"
+            className="text-xs font-mono font-black uppercase tracking-[0.2em] text-on-surface/60 hover:text-on-surface transition-colors"
           >
             Report Problem to Bureau
           </button>

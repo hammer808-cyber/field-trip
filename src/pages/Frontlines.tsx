@@ -214,7 +214,7 @@ export default function FrontlinesPage() {
           "border-on-surface relative"
         )}>
           <div className="absolute -top-6 left-0 flex items-center gap-2">
-             <span className="text-[10px] font-black uppercase text-brand-orange italic">LOG_ENTRY_01.HV</span>
+             <span className="text-xs font-black uppercase text-brand-orange italic">LOG_ENTRY_01.HV</span>
              <div className="w-12 h-[1px] bg-brand-orange opacity-30" />
           </div>
           <h2 className={cn(
@@ -237,7 +237,7 @@ export default function FrontlinesPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
           {/* Individual Rankings */}
           <div className="space-y-4">
-            <h3 className={cn("inline-block micro-label bg-brand-orange text-white px-3 py-1 border-2 border-on-surface shadow-[4px_4px_0px_black]", isBaja ? "text-baja-aqua" : isDiamond ? "text-white/40" : isHeat ? "text-white" : "")}>
+            <h3 className={cn("inline-block micro-label bg-brand-orange text-white px-3 py-1 border-2 border-on-surface shadow-[4px_4px_0px_black]", isBaja ? "text-baja-aqua" : isDiamond ? "text-white/60" : isHeat ? "text-white" : "")}>
               {isBaja ? 'BEACH BABES' : isDiamond ? 'MIRROR ENTITIES' : isHeat ? 'POOLSIDE SQUAD' : 'EXPLORERS'}
             </h3>
             <div className="space-y-8 mt-8">
@@ -248,7 +248,7 @@ export default function FrontlinesPage() {
                     isBaja ? "text-baja-pink/20 group-hover:text-baja-aqua" : 
                     isDiamond ? "text-white/10 group-hover:text-white" :
                     isHeat ? "text-white/20 group-hover:text-heat-pink" :
-                    "text-on-surface/10 group-hover:text-on-surface font-bold"
+                    "text-on-surface/60 group-hover:text-on-surface font-bold"
                   )}>{(idx + 1).toString().padStart(2, '0')}</span>
                   
                   <div className="shrink-0">
@@ -271,7 +271,7 @@ export default function FrontlinesPage() {
                         "text-on-surface"
                       )}>{user.name}</p>
                       <p className={cn(
-                        "micro-label text-[10px] font-bold", 
+                        "micro-label text-xs font-bold",
                         isBaja ? "text-baja-coral" : 
                         isDiamond ? "text-white/30" :
                         isHeat ? "text-white font-display" : 
@@ -293,7 +293,7 @@ export default function FrontlinesPage() {
                 <button 
                   onClick={loadMore}
                   disabled={loadingBatch}
-                  className="w-full py-4 border-2 border-dashed border-on-surface/10 flex items-center justify-center gap-2 font-display text-[10px] tracking-widest uppercase opacity-40 hover:opacity-100 hover:border-brand-orange/40 hover:bg-brand-orange/5 transition-all text-on-surface"
+                  className="w-full py-4 border-2 border-dashed border-on-surface/10 flex items-center justify-center gap-2 font-display text-xs tracking-widest uppercase opacity-40 hover:opacity-100 hover:border-brand-orange/40 hover:bg-brand-orange/5 transition-all text-on-surface"
                 >
                   <MoreHorizontal className={cn("w-4 h-4", loadingBatch && "animate-pulse")} />
                   {loadingBatch ? 'Calibrating Batch...' : 'Load More Entries'}
@@ -326,7 +326,7 @@ export default function FrontlinesPage() {
                       "text-on-surface"
                     )}>YOU // ASSET</p>
                     <p className={cn(
-                      "micro-label text-[8px]", 
+                      "micro-label text-xs",
                       isBaja ? "text-baja-coral" : 
                       isDiamond ? "text-white/60" :
                       isHeat ? "text-white font-display" : 
@@ -347,7 +347,7 @@ export default function FrontlinesPage() {
 
           {/* Crew Rankings */}
           <div className="space-y-6">
-            <h3 className={cn("micro-label", isBaja ? "text-baja-aqua" : isDiamond ? "text-white/40" : isHeat ? "text-white" : "text-brand-orange")}>
+            <h3 className={cn("micro-label", isBaja ? "text-baja-aqua" : isDiamond ? "text-white/60" : isHeat ? "text-white" : "text-brand-orange")}>
               {isBaja ? 'SURF CREWS' : isDiamond ? 'GLOSS SYNDICATES' : isHeat ? 'POOLSIDE GANGS' : 'OPERATIONAL UNITS'}
             </h3>
             {isCrewUnlocked ? (
@@ -359,7 +359,7 @@ export default function FrontlinesPage() {
                       isBaja ? "text-baja-pink/20 group-hover:text-baja-aqua" : 
                       isDiamond ? "text-white/10 group-hover:text-white" :
                       isHeat ? "text-white/20 group-hover:text-heat-pink" :
-                      "text-on-surface/10 group-hover:text-on-surface"
+                      "text-on-surface/60 group-hover:text-on-surface"
                     )}>0{idx + 1}</span>
                     <div className={cn(
                       "flex-grow border-b border-dashed pb-2 flex justify-between items-end transition-colors",
@@ -453,7 +453,7 @@ export default function FrontlinesPage() {
                   <p className="font-display text-5xl text-on-surface font-bold italic">{avgPoints}</p>
                   <div className="absolute -bottom-1 left-0 w-full h-2 bg-brand-lime -z-10 group-hover:bg-brand-orange transition-colors" />
                 </div>
-                <p className="text-[11px] font-mono font-bold uppercase tracking-widest opacity-50">AVG_POINTS</p>
+                <p className="text-xs font-mono font-bold uppercase tracking-widest opacity-50">AVG_POINTS</p>
               </div>
             );
           })}
@@ -511,7 +511,7 @@ export default function FrontlinesPage() {
                         <p className="font-display text-xl italic uppercase font-bold text-on-surface">
                           {event.userName}
                         </p>
-                        <p className="text-[11px] font-mono font-bold uppercase text-on-surface/60 tracking-widest">{event.description}</p>
+                        <p className="text-xs font-mono font-bold uppercase text-on-surface/60 tracking-widest">{event.description}</p>
                       </div>
                       <div className="flex items-center gap-4">
                          <span className="font-display text-3xl italic font-bold text-brand-orange">+{event.points}</span>
@@ -523,7 +523,7 @@ export default function FrontlinesPage() {
                          />
                       </div>
                     </div>
-                    <p className="text-[10px] font-mono opacity-70 uppercase font-bold tracking-tight">
+                    <p className="text-xs font-mono opacity-70 uppercase font-bold tracking-tight">
                       {formatSafeDate(event.createdAt, { dateStyle: 'short', timeStyle: 'short' }, 'Just now')} // {event.type}
                     </p>
                   </div>

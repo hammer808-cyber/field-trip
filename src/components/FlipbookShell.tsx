@@ -175,7 +175,7 @@ export function FlipbookShell({
           })}
         </div>
         {viewMode === 'flipbook' && pages.length > 0 && (
-          <p className="font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/55" aria-live="polite">
+          <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/55" aria-live="polite">
             Page {page + 1}{layout === 'desktop' && visibleIndexes.length > 1 ? `-${visibleIndexes[visibleIndexes.length - 1] + 1}` : ''} of {pages.length}
           </p>
         )}
@@ -208,7 +208,7 @@ export function FlipbookShell({
                 >
                   <div className="absolute inset-0 pointer-events-none opacity-40 bg-[radial-gradient(rgba(0,0,0,0.08)_0.7px,transparent_0.7px)] bg-[size:8px_8px]" />
                   <div className="relative z-10 h-full">{pages[index]}</div>
-                  <span className="absolute bottom-2 right-3 font-mono text-[8px] font-black text-on-surface/30">{index + 1}</span>
+                  <span className="absolute bottom-2 right-3 font-mono text-xs font-black text-on-surface/60">{index + 1}</span>
                 </article>
               ))}
               {layout === 'desktop' && visibleIndexes.length === 1 && (
@@ -225,7 +225,7 @@ export function FlipbookShell({
               className="min-w-11 min-h-11 px-4 inline-flex items-center justify-center gap-2 bg-white border-2 border-on-surface shadow-[3px_3px_0px_black] disabled:opacity-30 disabled:shadow-none focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan"
             >
               <ChevronLeft className="w-4 h-4" aria-hidden="true" />
-              <span className="sr-only sm:not-sr-only font-mono text-[9px] font-black uppercase">Previous</span>
+              <span className="sr-only sm:not-sr-only font-mono text-xs font-black uppercase">Previous</span>
             </button>
             <button
               type="button"
@@ -233,7 +233,7 @@ export function FlipbookShell({
               disabled={!canGoForward || loadingMore}
               className="min-w-11 min-h-11 px-4 inline-flex items-center justify-center gap-2 bg-on-surface text-white border-2 border-on-surface shadow-[3px_3px_0px_var(--color-brand-orange)] disabled:opacity-30 disabled:shadow-none focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan"
             >
-              <span className="sr-only sm:not-sr-only font-mono text-[9px] font-black uppercase">{loadingMore ? 'Loading' : 'Next'}</span>
+              <span className="sr-only sm:not-sr-only font-mono text-xs font-black uppercase">{loadingMore ? 'Loading' : 'Next'}</span>
               <ChevronRight className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
@@ -248,7 +248,7 @@ export function FlipbookShell({
               type="button"
               onClick={onRequestMore}
               disabled={loadingMore}
-              className="min-h-11 px-5 bg-white border-2 border-on-surface shadow-[3px_3px_0px_black] font-mono text-[10px] font-black uppercase disabled:opacity-40 sm:col-span-2 xl:col-span-3"
+              className="min-h-11 px-5 bg-white border-2 border-on-surface shadow-[3px_3px_0px_black] font-mono text-xs font-black uppercase disabled:opacity-40 sm:col-span-2 xl:col-span-3"
             >
               {loadingMore ? 'Loading more receipts' : 'Load more receipts'}
             </button>

@@ -84,7 +84,7 @@ export const StickerDecal: React.FC<StickerDecalProps> = ({
           <div className={cn("w-12 h-12 rounded-full flex items-center justify-center text-2xl border-2 border-on-surface/80 shadow-inner", meta.color)}>
             <span className="filter drop-shadow-[0_1.5px_1px_rgba(0,0,0,0.2)]">{meta.emoji}</span>
           </div>
-          <span className={cn("text-[8px] font-sans font-black tracking-widest uppercase mt-2 select-none border-t border-on-surface/20 pt-1 leading-none w-full truncate", meta.textColor)}>
+          <span className={cn("text-xs font-sans font-black tracking-widest uppercase mt-2 select-none border-t border-on-surface/20 pt-1 leading-none w-full truncate", meta.textColor)}>
             {meta.label}
           </span>
           {/* Corner diagonal "peel" line detail */}

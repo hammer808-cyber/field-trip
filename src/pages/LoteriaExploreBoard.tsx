@@ -138,12 +138,12 @@ export default function LoteriaExploreBoard() {
                       locked && 'opacity-60',
                     )}
                   >
-                    <div className={cn('mb-5 inline-flex border-[3px] border-on-surface px-3 py-1 font-mono text-[9px] font-black uppercase tracking-widest shadow-[3px_3px_0_black]', accentClass[board.accent])}>
+                    <div className={cn('mb-5 inline-flex border-[3px] border-on-surface px-3 py-1 font-mono text-xs font-black uppercase tracking-widest shadow-[3px_3px_0_black]', accentClass[board.accent])}>
                       {locked ? 'Locked' : 'Ready'}
                     </div>
                     <h2 className="font-display text-4xl font-black uppercase italic leading-none">{board.title}</h2>
                     <p className="mt-3 max-w-sm text-sm font-bold leading-snug text-on-surface/65">{board.subtitle}</p>
-                    <div className="mt-6 flex items-center justify-between font-mono text-[10px] font-black uppercase tracking-widest">
+                    <div className="mt-6 flex items-center justify-between font-mono text-xs font-black uppercase tracking-widest">
                       <span>{board.cardCount} Cards</span>
                       {locked ? <Lock className="h-5 w-5 stroke-[3]" /> : <ArrowRight className="h-5 w-5 stroke-[3]" />}
                     </div>
@@ -181,7 +181,7 @@ export default function LoteriaExploreBoard() {
             <button
               type="button"
               onClick={() => setView('active')}
-              className="inline-flex min-h-11 items-center gap-2 border-[3px] border-on-surface bg-white px-4 py-2 font-mono text-[9px] font-black uppercase tracking-widest shadow-[4px_4px_0_black]"
+              className="inline-flex min-h-11 items-center gap-2 border-[3px] border-on-surface bg-white px-4 py-2 font-mono text-xs font-black uppercase tracking-widest shadow-[4px_4px_0_black]"
             >
               <ChevronLeft className="h-4 w-4 stroke-[3]" />
               Back To Board
@@ -189,11 +189,11 @@ export default function LoteriaExploreBoard() {
             <div className="grid gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-start">
               <MiniLoteriaCard card={selectedCard} marked className="min-h-[360px]" />
               <div className="border-[4px] border-on-surface bg-white p-6 shadow-[10px_10px_0_black]">
-                <p className="font-mono text-[10px] font-black uppercase tracking-[0.28em] text-brand-orange">{selectedCard.code}</p>
+                <p className="font-mono text-xs font-black uppercase tracking-[0.28em] text-brand-orange">{selectedCard.code}</p>
                 <h1 className="mt-2 font-display text-5xl font-black uppercase italic leading-[0.9]">{selectedCard.title}</h1>
                 <p className="mt-5 border-l-[6px] border-brand-lime pl-4 text-lg font-black italic leading-snug">{selectedCard.prompt}</p>
                 <div className="mt-6 border-[3px] border-on-surface bg-[#fafbe5] p-4 shadow-[5px_5px_0_black]">
-                  <p className="font-mono text-[9px] font-black uppercase tracking-widest text-on-surface/45">Proof hint</p>
+                  <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">Proof hint</p>
                   <p className="mt-2 text-sm font-bold leading-relaxed text-on-surface/75">{selectedCard.proofHint}</p>
                 </div>
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -241,7 +241,7 @@ function PlayerCard({ panel }: { panel: ReturnType<typeof buildLoteriaPlayerPane
           <User className="h-10 w-10 stroke-[3]" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-mono text-[10px] font-black uppercase tracking-[0.2em] text-brand-orange">{panel.fieldTypeLabel || 'Explorer'}</p>
+          <p className="font-mono text-xs font-black uppercase tracking-[0.2em] text-brand-orange">{panel.fieldTypeLabel || 'Explorer'}</p>
           <h1 className="truncate font-display text-3xl font-black uppercase italic leading-none">{panel.displayName}</h1>
           <div className="mt-3 flex items-center gap-3">
             <div className="h-6 flex-1 border-[3px] border-on-surface bg-[#c4c2a2]">
@@ -258,7 +258,7 @@ function PlayerCard({ panel }: { panel: ReturnType<typeof buildLoteriaPlayerPane
 function SectionTitle({ eyebrow, title }: { eyebrow: string; title: string }) {
   return (
     <div className="space-y-2">
-      <p className="font-mono text-[10px] font-black uppercase tracking-[0.28em] text-brand-orange">{eyebrow}</p>
+      <p className="font-mono text-xs font-black uppercase tracking-[0.28em] text-brand-orange">{eyebrow}</p>
       <h1 className="inline-block bg-white/35 px-3 font-display text-5xl font-black uppercase italic leading-none shadow-[5px_5px_0_rgba(0,0,0,0.18)]">{title}</h1>
     </div>
   );
@@ -285,12 +285,12 @@ function MemoryStrip({ memories }: { memories: ReturnType<typeof getRecentLoteri
     <section className="space-y-4">
       <div className="flex items-end justify-between gap-4">
         <SectionTitle eyebrow="Archive" title="Your Memories" />
-        <span className="font-mono text-[10px] font-black uppercase tracking-widest text-brand-orange">See All</span>
+        <span className="font-mono text-xs font-black uppercase tracking-widest text-brand-orange">See All</span>
       </div>
       <div className="flex gap-5 overflow-x-auto pb-3">
         {memories.length === 0 ? (
           <div className="min-w-[260px] border-[4px] border-on-surface bg-white p-5 text-center shadow-[7px_7px_0_black]">
-            <Images className="mx-auto h-10 w-10 stroke-[3] text-on-surface/40" />
+            <Images className="mx-auto h-10 w-10 stroke-[3] text-on-surface/60" />
             <p className="mt-3 font-display text-2xl font-black uppercase italic">No Prints Yet</p>
             <p className="mt-2 text-xs font-bold text-on-surface/55">Approved photo receipts will become board memories here.</p>
           </div>
@@ -303,7 +303,7 @@ function MemoryStrip({ memories }: { memories: ReturnType<typeof getRecentLoteri
               {entry.imageUrl || entry.photoUrl || entry.mediaUrl ? (
                 <img src={entry.imageUrl || entry.photoUrl || entry.mediaUrl} alt={entry.tripTitle || entry.missionTitle || 'Approved Fieldtrip proof'} className="h-full w-full object-cover grayscale" loading="lazy" />
               ) : (
-                <div className="grid h-full place-items-center text-center font-mono text-[10px] font-black uppercase text-on-surface/40">Storage Proof</div>
+                <div className="grid h-full place-items-center text-center font-mono text-xs font-black uppercase text-on-surface/60">Storage Proof</div>
               )}
             </div>
             <h3 className="mt-3 truncate text-center font-display text-xl font-black uppercase italic">{entry.deckName || entry.tripTitle || 'Field Print'}</h3>
@@ -335,7 +335,7 @@ function SeasonalBoards({ onSelect, isOnboardingComplete }: { onSelect: (board: 
                 </div>
               </div>
               <h3 className="mt-3 font-display text-xl font-black uppercase leading-none">{board.title}</h3>
-              <p className="mt-1 font-mono text-[10px] font-black uppercase text-brand-orange">{board.cardCount} cards</p>
+              <p className="mt-1 font-mono text-xs font-black uppercase text-brand-orange">{board.cardCount} cards</p>
             </button>
           );
         })}
@@ -349,7 +349,7 @@ function ActiveBoardHeader({ board, completionCount, complete, onResults }: { bo
     <div className="border-[4px] border-on-surface bg-white p-4 shadow-[7px_7px_0_black]">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="font-mono text-[10px] font-black uppercase tracking-[0.28em] text-brand-orange">Active Sheet</p>
+          <p className="font-mono text-xs font-black uppercase tracking-[0.28em] text-brand-orange">Active Sheet</p>
           <h1 className="font-display text-4xl font-black uppercase italic leading-none">{board.title}</h1>
         </div>
         <button type="button" onClick={onResults} className="grid min-h-12 min-w-12 place-items-center rounded-full border-[3px] border-on-surface bg-brand-lime shadow-[4px_4px_0_black]">
@@ -361,7 +361,7 @@ function ActiveBoardHeader({ board, completionCount, complete, onResults }: { bo
         <div className="h-4 flex-1 border-[2px] border-on-surface bg-[#efefd9]">
           <div className={cn('h-full', complete ? 'bg-brand-lime' : 'bg-brand-orange')} style={{ width: `${Math.round((completionCount / board.cards.length) * 100)}%` }} />
         </div>
-        <span className="font-mono text-[10px] font-black uppercase">{completionCount}/{board.cards.length}</span>
+        <span className="font-mono text-xs font-black uppercase">{completionCount}/{board.cards.length}</span>
       </div>
     </div>
   );
@@ -391,13 +391,13 @@ function MiniLoteriaCard({ card, marked = false, compact = false, className, onC
     >
       <div className={cn('h-3 w-full border-2 border-on-surface', categoryClass[card.category])} />
       <div className="mt-2 flex items-center justify-between gap-2">
-        <span className="font-mono text-[7px] font-black uppercase tracking-wider text-brand-orange">{card.code}</span>
+        <span className="font-mono text-xs font-black uppercase tracking-wider text-brand-orange">{card.code}</span>
         {marked && <Check className="h-4 w-4 stroke-[4] text-brand-orange" />}
       </div>
       <div className="my-2 grid flex-1 place-items-center border-[2px] border-on-surface bg-[#fafbe5] p-2">
         <span className={cn('font-display font-black uppercase italic leading-none text-center', compact ? 'text-lg' : 'text-4xl')}>{card.icon}</span>
       </div>
-      <h3 className={cn('font-display font-black uppercase italic leading-none', compact ? 'text-[10px]' : 'text-lg')}>{card.title}</h3>
+      <h3 className={cn('font-display font-black uppercase italic leading-none', compact ? 'text-xs' : 'text-lg')}>{card.title}</h3>
       {!compact && <p className="mt-2 line-clamp-3 text-xs font-bold leading-tight text-on-surface/60">{card.prompt}</p>}
       {marked && <div className="absolute inset-0 pointer-events-none bg-brand-lime/20 mix-blend-multiply" />}
     </Element>

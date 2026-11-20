@@ -66,7 +66,7 @@ export function ProofImage({
         <div className="flex items-center justify-between gap-2 mb-1">
           <span className="text-[7.5px] font-mono font-bold tracking-wider text-neutral-400">IMG_DIAGNOSTICS</span>
           <span className={cn(
-            "text-[7px] font-mono px-1 py-0.5 rounded font-black uppercase tracking-tight",
+            "text-xs font-mono px-1 py-0.5 rounded font-black uppercase tracking-tight",
             statusText === 'SUCCESS' ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : 
             statusText === 'LOADING' ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" :
             "bg-rose-500/20 text-rose-400 border border-rose-500/30"
@@ -170,7 +170,7 @@ export function ProofImage({
       <div className={cn("w-full h-full flex flex-col items-center justify-center gap-2 p-4 bg-neutral-900 text-center border-2 border-dashed border-red-500/30 relative", className)}>
         <div className="flex flex-col items-center justify-center gap-2 mb-10">
           <CameraOff className="w-4 h-4 text-red-500/40 animate-pulse mb-1" />
-          <p className="text-[10px] font-mono font-bold text-red-400">
+          <p className="text-xs font-mono font-bold text-red-400">
             Missing photoUrl on this approved entry.
           </p>
           <p className="text-[8.5px] font-mono text-neutral-500">ID: {entry?.id}</p>
@@ -185,7 +185,7 @@ export function ProofImage({
       <div className={cn("w-full h-full flex flex-col items-center justify-center gap-2 p-4 bg-neutral-900 text-center border-2 border-dashed border-orange-500/30 relative", className)}>
         <div className="flex flex-col items-center justify-center gap-2 mb-10">
           <CameraOff className="w-4 h-4 text-orange-500/40 animate-pulse mb-1" />
-          <p className="text-[10px] font-mono font-bold text-orange-400">
+          <p className="text-xs font-mono font-bold text-orange-400">
             Photo URL exists but failed to load.
           </p>
           <p className="text-[8.5px] font-mono text-neutral-500 max-w-full truncate">ID: {entry?.id}</p>
@@ -329,7 +329,7 @@ export function ProofImage({
       {showDiagnostics && (
         <div className="absolute top-2 left-2 z-30 pointer-events-none">
           <div className={cn(
-            "px-1.5 py-0.5 rounded text-[7px] font-mono font-black uppercase tracking-widest shadow-sm border",
+            "px-1.5 py-0.5 rounded text-xs font-mono font-black uppercase tracking-widest shadow-sm border",
             isReal ? "bg-brand-lime text-black border-black/20" : "bg-brand-orange text-white border-white/20"
           )}>
             PHOTO: {isReal ? 'REAL' : 'PLACEHOLDER - MISSING photoUrl'}
@@ -338,7 +338,7 @@ export function ProofImage({
       )}
 
       {isAdmin && showDiagnostics && (
-        <div className="absolute top-0 right-0 p-1 bg-black/80 text-[6px] font-mono text-white pointer-events-none z-50 flex flex-col items-end">
+        <div className="absolute top-0 right-0 p-1 bg-black/80 text-xs font-mono text-white pointer-events-none z-50 flex flex-col items-end">
           <span>id: {entry.id?.substring(0,8)}</span>
           <span className={cn(entry.photoUrl ? "text-brand-lime" : "text-error")}>pu: {entry.photoUrl ? 'YES' : 'NO'}</span>
           <span className={cn(entry.imageUrl ? "text-brand-lime" : "text-error")}>iu: {entry.imageUrl ? 'YES' : 'NO'}</span>
@@ -348,10 +348,10 @@ export function ProofImage({
 
       {showMetadataStamp && stamp && (
         <div className={cn(
-          "absolute right-3 flex flex-col items-end text-right font-mono text-[7px] sm:text-[9px] text-brand-orange tracking-wider leading-relaxed drop-shadow-[0px_1.5px_2px_rgba(0,0,0,0.95)] z-10 pointer-events-none select-none uppercase transition-all duration-350",
+          "absolute right-3 flex flex-col items-end text-right font-mono text-xs sm:text-xs text-brand-orange tracking-wider leading-relaxed drop-shadow-[0px_1.5px_2px_rgba(0,0,0,0.95)] z-10 pointer-events-none select-none uppercase transition-all duration-350",
           showDiagnostics ? "bottom-14" : "bottom-3"
         )}>
-          <div className="flex items-center gap-1 opacity-90 text-[6px] sm:text-[8px] font-black">
+          <div className="flex items-center gap-1 opacity-90 text-xs sm:text-xs font-black">
             <span className="w-1.5 h-1.5 rounded-full bg-brand-lime animate-pulse inline-block" />
             <span>SYS_{stamp.trustLevel.toUpperCase()}</span>
             <span className="opacity-40">//</span>

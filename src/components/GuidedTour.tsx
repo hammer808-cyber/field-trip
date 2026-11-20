@@ -266,7 +266,7 @@ export function GuidedTour() {
           ...(bubbleBelow ? { top: pad.bottom + 12 } : { bottom: vh - pad.top + 12 }),
         }}
       >
-        <p className="font-mono text-[9px] font-black uppercase tracking-[0.25em] text-brand-orange">
+        <p className="font-mono text-xs font-black uppercase tracking-[0.25em] text-brand-orange">
           Trevor says
         </p>
         <p className="mt-1 font-display text-xl font-black uppercase italic leading-tight text-on-surface">
@@ -274,13 +274,13 @@ export function GuidedTour() {
         </p>
         <p className="mt-1 text-sm font-semibold leading-snug text-on-surface/80">{copy.body}</p>
         <div className="mt-3 flex items-center justify-between gap-2">
-          <span className="font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/50">
+          <span className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">
             Step {step.number} of {GUIDED_TOUR_STEP_COUNT}
           </span>
           <button
             type="button"
             onClick={completeTour}
-            className="shrink-0 border-2 border-on-surface bg-white px-3 py-1.5 font-mono text-[11px] font-black uppercase tracking-widest text-on-surface shadow-[2px_2px_0px_black] transition-all active:translate-y-0.5 active:shadow-none"
+            className="shrink-0 border-2 border-on-surface bg-white px-3 py-1.5 font-mono text-xs font-black uppercase tracking-widest text-on-surface shadow-[2px_2px_0px_black] transition-all active:translate-y-0.5 active:shadow-none"
           >
             {GUIDED_TOUR_SKIP_LABEL}
           </button>

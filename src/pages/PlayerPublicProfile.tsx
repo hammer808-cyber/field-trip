@@ -29,7 +29,7 @@ export default function PlayerPublicProfile() {
   if (error) {
     return (
       <div className="skin-page min-h-screen p-8 space-y-4">
-        <button type="button" onClick={() => navigate('/crew')} className="bureau-btn bg-white text-on-surface text-[10px]"><ArrowLeft className="w-4 h-4" /> Back to Crew</button>
+        <button type="button" onClick={() => navigate('/crew')} className="bureau-btn bg-white text-on-surface text-xs"><ArrowLeft className="w-4 h-4" /> Back to Crew</button>
         <p className="font-mono text-sm uppercase">{error}</p>
       </div>
     );
@@ -41,7 +41,7 @@ export default function PlayerPublicProfile() {
 
   return (
     <div className="skin-page min-h-screen p-6 pb-32 max-w-xl mx-auto space-y-8">
-      <button type="button" onClick={() => navigate('/crew')} className="bureau-btn bg-white text-on-surface text-[10px]">
+      <button type="button" onClick={() => navigate('/crew')} className="bureau-btn bg-white text-on-surface text-xs">
         <ArrowLeft className="w-4 h-4" /> Back to Crew
       </button>
       <div className="border-4 border-on-surface bg-white p-8 shadow-[8px_8px_0px_black] space-y-4 text-center">
@@ -49,7 +49,7 @@ export default function PlayerPublicProfile() {
           <AvatarPreview avatar={player.avatar || DEFAULT_AVATAR} />
         </div>
         <h1 className="font-display text-4xl font-black uppercase italic">{player.displayName}</h1>
-        <p className="font-mono text-[10px] uppercase tracking-widest opacity-55">
+        <p className="font-mono text-xs uppercase tracking-widest opacity-55">
           {player.username ? `@${player.username}` : 'Field agent'}
           {player.fieldTypeName ? ` / ${player.fieldTypeName}` : ''}
           {player.levelTitle ? ` / ${player.levelTitle}` : ''}
@@ -78,10 +78,10 @@ export default function PlayerPublicProfile() {
           </button>
         )}
         {relationship === 'outgoing_request' && (
-          <p className="font-mono text-[10px] font-black uppercase">Request Sent</p>
+          <p className="font-mono text-xs font-black uppercase">Request Sent</p>
         )}
         {relationship === 'accepted' && (
-          <p className="font-mono text-[10px] font-black uppercase">Accepted Crew</p>
+          <p className="font-mono text-xs font-black uppercase">Accepted Crew</p>
         )}
       </div>
     </div>

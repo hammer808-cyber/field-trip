@@ -42,6 +42,6 @@ export const FIELD_CARDS = {
 export const FIELD_TYPOGRAPHY = {
   sectionHeader: 'font-outfit uppercase tracking-tight italic font-black text-on-surface leading-[0.95]',
   bureauHeader: 'font-display uppercase tracking-tight font-black italic text-4xl sm:text-5xl border-b-4 border-on-surface pb-3 mb-6',
-  stickerLabel: 'inline-block bg-on-surface text-brand-lime px-3 py-1.5 border-2 border-on-surface font-black font-sans text-[10px] uppercase tracking-wider italic shadow-[2.5px_2.5px_0px_black]',
-  microLabel: 'font-mono text-[9px] uppercase tracking-[0.2em] font-black text-on-surface/50 leading-none',
+  stickerLabel: 'inline-block bg-on-surface text-brand-lime px-3 py-1.5 border-2 border-on-surface font-black font-sans text-xs uppercase tracking-wider italic shadow-[2.5px_2.5px_0px_black]',
+  microLabel: 'font-mono text-xs uppercase tracking-[0.2em] font-black text-on-surface/60 leading-none',
 };

@@ -86,7 +86,8 @@
   border: 2px solid var(--skin-border, #111);
   padding: 0.2rem 0.55rem;
   font-family: var(--font-mono, "Courier Prime", monospace);
-  font-size: 10px;
+  /* P2-3: 12px floor (was 10px). */
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.04em;
   text-transform: uppercase;

@@ -35,7 +35,7 @@ export const TabbedSection: React.FC<TabbedSectionProps> = ({
       case 'active':
         return 'bg-brand-lime text-on-surface border-on-surface ring-2 ring-brand-lime/30';
       case 'locked':
-        return 'bg-on-surface/5 text-on-surface/40 border-on-surface/10 grayscale';
+        return 'bg-on-surface/5 text-on-surface/60 border-on-surface/10 grayscale';
       case 'results ready':
         return 'bg-on-surface text-white border-on-surface shadow-[2px_2px_0px_black]';
       default:
@@ -64,12 +64,12 @@ export const TabbedSection: React.FC<TabbedSectionProps> = ({
       >
         <div className="space-y-1 sm:space-y-3 flex-grow min-w-0">
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-            <span className="text-[8px] sm:text-[10px] font-mono font-black uppercase tracking-[0.3em] text-on-surface/40">
+            <span className="text-xs sm:text-xs font-mono font-black uppercase tracking-[0.3em] text-on-surface/60">
               {eyebrow}
             </span>
             {statusLabel && (
               <span className={cn(
-                "px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-none border sm:border-2 border-current text-[8px] sm:text-[9px] font-black uppercase tracking-widest transition-transform group-hover:scale-105",
+                "px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-none border sm:border-2 border-current text-xs sm:text-xs font-black uppercase tracking-widest transition-transform group-hover:scale-105",
                 getStatusColor()
               )}>
                 {statusLabel}
@@ -88,7 +88,7 @@ export const TabbedSection: React.FC<TabbedSectionProps> = ({
             </div>
           </div>
           {quote && !isOpen && (
-            <p className="text-[10px] sm:text-[11px] font-mono text-on-surface/50 font-black italic truncate max-w-xl">
+            <p className="text-xs sm:text-xs font-mono text-on-surface/60 font-black italic truncate max-w-xl">
               "{quote}"
             </p>
           )}

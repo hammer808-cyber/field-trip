@@ -23,7 +23,7 @@ export function FrankieModeCard({ compact = false }: { compact?: boolean }) {
     >
       <div className="flex items-start justify-between gap-5">
         <div className="min-w-0">
-          <p className="font-mono text-[9px] font-black uppercase tracking-widest text-brand-orange">
+          <p className="font-mono text-xs font-black uppercase tracking-widest text-brand-orange">
             Reading
           </p>
           <h4 className="font-display text-2xl font-black leading-none">Simple Words</h4>
@@ -33,15 +33,15 @@ export function FrankieModeCard({ compact = false }: { compact?: boolean }) {
           </p>
           {!compact && (
             <div className="mt-3 space-y-1 border-t border-on-surface/10 pt-3 text-sm">
-              <p className="text-on-surface/50">
+              <p className="text-on-surface/60">
                 Off: <span className="font-semibold text-on-surface/70">“Aisle Oracle”</span>
               </p>
-              <p className="text-on-surface/50">
+              <p className="text-on-surface/60">
                 On: <span className="font-semibold text-on-surface">“A Sign in a Store — take a photo of a sign that tells you something.”</span>
               </p>
             </div>
           )}
-          <p className="mt-3 font-mono text-[10px] font-black uppercase tracking-widest" aria-live="polite">
+          <p className="mt-3 font-mono text-xs font-black uppercase tracking-widest" aria-live="polite">
             {frankieMode ? 'Simple Words is ON' : 'Simple Words is OFF'}
           </p>
         </div>

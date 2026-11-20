@@ -37,7 +37,7 @@ const FirebaseConfigError = ({ error }: { error: string }) => (
           <p className="text-sm font-sans font-bold leading-relaxed">
             Something went wrong while connecting. Try again in a moment.
           </p>
-          <p className="mt-3 text-[10px] font-mono text-on-surface/50 break-all">{error}</p>
+          <p className="mt-3 text-xs font-mono text-on-surface/60 break-all">{error}</p>
         </div>
       </div>
 

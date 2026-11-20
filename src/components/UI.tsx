@@ -144,8 +144,8 @@ export function FieldBadge({
   interactive?: boolean
 }) {
   const sizeClasses = {
-    xs: "px-1.5 py-0.5 text-[8px] border-[1.5px] shadow-[1.5px_1.5px_0px_black]",
-    sm: "px-2.5 py-1 text-[10px] border-[2.5px] shadow-[2.5px_2.5px_0px_black]",
+    xs: "px-1.5 py-0.5 text-xs border-[1.5px] shadow-[1.5px_1.5px_0px_black]",
+    sm: "px-2.5 py-1 text-xs border-[2.5px] shadow-[2.5px_2.5px_0px_black]",
     md: "px-4 py-2 text-xs border-[3.5px] shadow-[4px_4px_0px_black]",
     lg: "px-6 py-3 text-lg border-[4.5px] shadow-[6px_6px_0px_black]"
   };
@@ -177,9 +177,9 @@ export function FieldBadge({
     label: "field-label",
     pill: "rounded-full px-4",
     ticket: "field-card--ticket px-2 py-1",
-    seal: "rounded-full w-12 h-12 flex items-center justify-center border-4 border-double border-on-surface shadow-[4px_4px_0px_black] text-[8px] font-black text-center p-1",
-    starburst: "starburst-clip w-14 h-14 flex items-center justify-center border-2 border-on-surface shadow-[4px_4px_0px_black] text-[9px] font-black text-center p-1",
-    clipped: "clip-path-clipped px-3 py-1 border-2 border-on-surface shadow-[3px_3px_0px_black] text-[10px] font-bold uppercase"
+    seal: "rounded-full w-12 h-12 flex items-center justify-center border-4 border-double border-on-surface shadow-[4px_4px_0px_black] text-xs font-black text-center p-1",
+    starburst: "starburst-clip w-14 h-14 flex items-center justify-center border-2 border-on-surface shadow-[4px_4px_0px_black] text-xs font-black text-center p-1",
+    clipped: "clip-path-clipped px-3 py-1 border-2 border-on-surface shadow-[3px_3px_0px_black] text-xs font-bold uppercase"
   };
 
   // Custom shadow for charcoal color to use lime shadow

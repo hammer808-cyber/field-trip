@@ -1071,7 +1071,7 @@ export default function DeckPage() {
                   </div>
                   <div className="space-y-2">
                     <h2 className="font-display text-4xl font-black uppercase italic tracking-tight text-on-surface">Starter Complete</h2>
-                    <p className="text-sm font-mono font-bold text-brand-orange uppercase tracking-wider">{getDisplayLabel('HEATWAVE_RECEIPTS')} unlocked</p>
+                    <p className="text-sm font-mono font-bold text-on-surface uppercase tracking-wider">{getDisplayLabel('HEATWAVE_RECEIPTS')} unlocked</p>
                   </div>
                   <button
                     onClick={() => {

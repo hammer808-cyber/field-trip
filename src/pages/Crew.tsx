@@ -314,10 +314,10 @@ export default function CrewPage() {
           </div>
 
           <div className="grid grid-cols-2 border-4 border-on-surface bg-white p-1" role="tablist" aria-label="Crew start options">
-            <button type="button" role="tab" aria-selected={noCrewView === 'create'} onClick={() => setNoCrewView('create')} className={cn('p-3 font-mono text-[10px] font-black uppercase', noCrewView === 'create' ? 'bg-brand-lime' : 'text-on-surface/45')}>
+            <button type="button" role="tab" aria-selected={noCrewView === 'create'} onClick={() => setNoCrewView('create')} className={cn('p-3 font-mono text-xs font-black uppercase', noCrewView === 'create' ? 'bg-brand-lime' : 'text-on-surface/60')}>
               Create Crew
             </button>
-            <button type="button" role="tab" aria-selected={noCrewView === 'join'} onClick={() => setNoCrewView('join')} className={cn('p-3 font-mono text-[10px] font-black uppercase', noCrewView === 'join' ? 'bg-brand-cyan' : 'text-on-surface/45')}>
+            <button type="button" role="tab" aria-selected={noCrewView === 'join'} onClick={() => setNoCrewView('join')} className={cn('p-3 font-mono text-xs font-black uppercase', noCrewView === 'join' ? 'bg-brand-cyan' : 'text-on-surface/60')}>
               Find Crew
             </button>
           </div>
@@ -328,12 +328,12 @@ export default function CrewPage() {
               {incomingInvites.map(invite => (
                 <div key={invite.id} className="bg-white border-2 border-on-surface p-3 space-y-2">
                   <p className="font-display font-black uppercase text-xl">{invite.crew?.name || 'Crew Invite'}</p>
-                  <p className="font-mono text-[10px] uppercase opacity-60">
+                  <p className="font-mono text-xs uppercase opacity-60">
                     {invite.crew?.mode || 'friendly'} / {invite.crew?.memberCount || 0} members / expires {formatSafeDateOnly(invite.expiresAt)}
                   </p>
                   <div className="flex gap-2">
-                    <button type="button" className="bureau-btn bg-brand-lime text-on-surface text-[10px]" onClick={() => runCrewAction('accept invite', () => acceptCrewInvite(invite.id))}>Accept</button>
-                    <button type="button" className="bureau-btn bg-white text-on-surface text-[10px]" onClick={() => runCrewAction('decline invite', () => declineCrewInvite(invite.id))}>Decline</button>
+                    <button type="button" className="bureau-btn bg-brand-lime text-on-surface text-xs" onClick={() => runCrewAction('accept invite', () => acceptCrewInvite(invite.id))}>Accept</button>
+                    <button type="button" className="bureau-btn bg-white text-on-surface text-xs" onClick={() => runCrewAction('decline invite', () => declineCrewInvite(invite.id))}>Decline</button>
                   </div>
                 </div>
               ))}
@@ -347,9 +347,9 @@ export default function CrewPage() {
                 <div key={request.id} className="bg-white border-2 border-on-surface p-3 flex items-center justify-between gap-3">
                   <div>
                     <p className="font-display font-black uppercase">{(request as any).crew?.name || request.crewId}</p>
-                    <p className="font-mono text-[9px] uppercase opacity-50">Waiting for the Crew captain</p>
+                    <p className="font-mono text-xs uppercase opacity-50">Waiting for the Crew captain</p>
                   </div>
-                  <button type="button" className="bureau-btn bg-white text-on-surface text-[9px]" onClick={() => runCrewAction('cancel request', () => cancelCrewJoinRequest(request.id))}>Cancel</button>
+                  <button type="button" className="bureau-btn bg-white text-on-surface text-xs" onClick={() => runCrewAction('cancel request', () => cancelCrewJoinRequest(request.id))}>Cancel</button>
                 </div>
               ))}
             </div>
@@ -421,9 +421,9 @@ export default function CrewPage() {
                     <div>
                       <h3 className="font-display text-2xl font-black uppercase italic">{discovered.name}</h3>
                       <p className="font-serif italic text-sm opacity-60">{discovered.motto || 'A Crew looking for another field agent.'}</p>
-                      <p className="font-mono text-[9px] uppercase opacity-45 mt-2">{discovered.mode || 'friendly'} / {discovered.memberCount || 0} of {discovered.memberLimit || 8}</p>
+                      <p className="font-mono text-xs uppercase opacity-45 mt-2">{discovered.mode || 'friendly'} / {discovered.memberCount || 0} of {discovered.memberLimit || 8}</p>
                     </div>
-                    <button type="button" disabled={pending || crewActionBusy || !!cooldownText} onClick={() => runCrewAction('request to join', () => requestToJoinCrew(discovered.id))} className="bureau-btn bg-brand-cyan text-on-surface text-[10px] disabled:opacity-40">
+                    <button type="button" disabled={pending || crewActionBusy || !!cooldownText} onClick={() => runCrewAction('request to join', () => requestToJoinCrew(discovered.id))} className="bureau-btn bg-brand-cyan text-on-surface text-xs disabled:opacity-40">
                       <UserPlus className="w-4 h-4" /> {pending ? 'Request Pending' : 'Request to Join'}
                     </button>
                   </div>
@@ -477,7 +477,7 @@ export default function CrewPage() {
               <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
                 <div>
                   <h3 className="font-display text-4xl italic uppercase tracking-tighter font-black leading-none">Crew Members</h3>
-                  <p className="font-mono text-[10px] uppercase tracking-widest opacity-50">
+                  <p className="font-mono text-xs uppercase tracking-widest opacity-50">
                     {rosterState?.crew?.memberCount || crew.memberCount || crew.members?.length || 0} / {rosterState?.crew?.memberLimit || crew.memberLimit || 8} Members
                   </p>
                 </div>
@@ -503,13 +503,13 @@ export default function CrewPage() {
                     <div key={invite.id} className="bg-white border-2 border-on-surface p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div>
                         <p className="font-display font-black uppercase text-xl">{invite.crew?.name || 'Crew Invite'}</p>
-                        <p className="font-mono text-[10px] uppercase opacity-60">
+                        <p className="font-mono text-xs uppercase opacity-60">
                           {invite.crew?.mode || 'friendly'} / expires {formatSafeDateOnly(invite.expiresAt)}
                         </p>
                       </div>
                       <div className="flex gap-2">
-                        <button className="bureau-btn bg-brand-lime text-on-surface text-[10px]" onClick={() => runCrewAction('accept invite', () => acceptCrewInvite(invite.id))}>Accept</button>
-                        <button className="bureau-btn bg-white text-on-surface text-[10px]" onClick={() => runCrewAction('decline invite', () => declineCrewInvite(invite.id))}>Decline</button>
+                        <button className="bureau-btn bg-brand-lime text-on-surface text-xs" onClick={() => runCrewAction('accept invite', () => acceptCrewInvite(invite.id))}>Accept</button>
+                        <button className="bureau-btn bg-white text-on-surface text-xs" onClick={() => runCrewAction('decline invite', () => declineCrewInvite(invite.id))}>Decline</button>
                       </div>
                     </div>
                   ))}
@@ -528,15 +528,15 @@ export default function CrewPage() {
                     />
                     <div className="space-y-2">
                       {inviteResults.length === 0 ? (
-                        <p className="font-mono text-[10px] opacity-50 uppercase">No eligible users found yet.</p>
+                        <p className="font-mono text-xs opacity-50 uppercase">No eligible users found yet.</p>
                       ) : inviteResults.map(result => (
                         <div key={result.userId} className="flex items-center justify-between gap-3 bg-paper-light border-2 border-on-surface p-3">
                           <div>
                             <p className="font-display font-black uppercase">{result.displayName}</p>
-                            <p className="font-mono text-[10px] opacity-50">@{result.username || result.userId.slice(0, 8)}</p>
+                            <p className="font-mono text-xs opacity-50">@{result.username || result.userId.slice(0, 8)}</p>
                           </div>
                           <button
-                            className="bureau-btn bg-brand-lime text-on-surface text-[10px]"
+                            className="bureau-btn bg-brand-lime text-on-surface text-xs"
                             onClick={() => runCrewAction('send invite', () => createDirectCrewInvite(crew.id, result.userId))}
                           >
                             Send Invite
@@ -550,21 +550,21 @@ export default function CrewPage() {
                     <h4 className="font-display font-black italic text-2xl uppercase">Manage Invite Link</h4>
                     {inviteLink ? (
                       <div className="space-y-3">
-                        <div className="bg-black text-white p-3 font-mono text-[10px] break-all">{inviteLink.url}</div>
-                        <p className="font-mono text-[10px] uppercase opacity-60">Expires {formatSafeDateOnly(inviteLink.expiresAt)}</p>
+                        <div className="bg-black text-white p-3 font-mono text-xs break-all">{inviteLink.url}</div>
+                        <p className="font-mono text-xs uppercase opacity-60">Expires {formatSafeDateOnly(inviteLink.expiresAt)}</p>
                         <div className="aspect-square max-w-[160px] border-4 border-on-surface bg-white grid grid-cols-5 gap-1 p-3" aria-label="Invite QR-style code">
                           {Array.from({ length: 25 }).map((_, idx) => (
                             <div key={idx} className={(idx + inviteLink.url.length) % 3 === 0 ? 'bg-on-surface' : 'bg-transparent'} />
                           ))}
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          <button className="bureau-btn bg-brand-cyan text-on-surface text-[10px]" onClick={() => navigator.clipboard?.writeText(inviteLink.url)}>Copy Link</button>
-                          <button className="bureau-btn bg-white text-on-surface text-[10px]" onClick={() => runCrewAction('revoke invite link', async () => { await revokeCrewInviteLink(inviteLink.inviteId); setInviteLink(null); }, 'Revoke this Crew invite link?')}>Revoke Link</button>
+                          <button className="bureau-btn bg-brand-cyan text-on-surface text-xs" onClick={() => navigator.clipboard?.writeText(inviteLink.url)}>Copy Link</button>
+                          <button className="bureau-btn bg-white text-on-surface text-xs" onClick={() => runCrewAction('revoke invite link', async () => { await revokeCrewInviteLink(inviteLink.inviteId); setInviteLink(null); }, 'Revoke this Crew invite link?')}>Revoke Link</button>
                         </div>
                       </div>
                     ) : (
                       <button
-                        className="bureau-btn bg-brand-orange text-white text-[10px]"
+                        className="bureau-btn bg-brand-orange text-white text-xs"
                         onClick={() => runCrewAction('generate invite link', async () => {
                           const generated = await generateCrewInviteLink(crew.id);
                           const absoluteUrl = new URL(generated.inviteUrl, window.location.origin).toString();
@@ -585,23 +585,23 @@ export default function CrewPage() {
                 <div className="border-4 border-brand-orange/60 bg-brand-orange/5 p-5 space-y-4">
                   <h4 className="font-display font-black italic text-2xl uppercase">Pending Join Requests</h4>
                   {!rosterState.pendingRequests?.some(request => request.status === 'pending') ? (
-                    <p className="font-mono text-[10px] uppercase opacity-50">No pending requests.</p>
+                    <p className="font-mono text-xs uppercase opacity-50">No pending requests.</p>
                   ) : rosterState.pendingRequests.filter(request => request.status === 'pending').map(request => (
                     <div key={request.id} className="bg-white border-2 border-on-surface p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div>
                         <p className="font-display font-black uppercase">{request.applicantSnapshot?.displayNameSnapshot || request.userId}</p>
-                        <p className="font-mono text-[10px] opacity-50">@{request.applicantSnapshot?.usernameSnapshot || request.userId.slice(0, 8)} / {formatSafeDateOnly(request.createdAt)}</p>
+                        <p className="font-mono text-xs opacity-50">@{request.applicantSnapshot?.usernameSnapshot || request.userId.slice(0, 8)} / {formatSafeDateOnly(request.createdAt)}</p>
                       </div>
                       <div className="flex gap-2">
-                        <button className="bureau-btn bg-brand-lime text-on-surface text-[10px]" onClick={() => runCrewAction('approve request', () => approveCrewJoinRequest(request.id))}>Approve</button>
-                        <button className="bureau-btn bg-white text-on-surface text-[10px]" onClick={() => runCrewAction('decline request', () => declineCrewJoinRequest(request.id))}>Decline</button>
+                        <button className="bureau-btn bg-brand-lime text-on-surface text-xs" onClick={() => runCrewAction('approve request', () => approveCrewJoinRequest(request.id))}>Approve</button>
+                        <button className="bureau-btn bg-white text-on-surface text-xs" onClick={() => runCrewAction('decline request', () => declineCrewJoinRequest(request.id))}>Decline</button>
                       </div>
                     </div>
                   ))}
                   {rosterState.pendingRequests?.some(request => request.status !== 'pending') && (
                     <div className="border-t-2 border-on-surface/10 pt-3 flex flex-wrap gap-2">
                       {rosterState.pendingRequests.filter(request => request.status !== 'pending').slice(0, 8).map(request => (
-                        <span key={request.id} className="border border-on-surface/20 bg-white px-2 py-1 font-mono text-[8px] font-black uppercase">
+                        <span key={request.id} className="border border-on-surface/20 bg-white px-2 py-1 font-mono text-xs font-black uppercase">
                           {request.applicantSnapshot?.displayNameSnapshot || request.userId.slice(0, 8)} / {request.status}
                         </span>
                       ))}
@@ -617,10 +617,10 @@ export default function CrewPage() {
                     <div key={invite.id} className="border-2 border-on-surface/20 p-3 flex items-center justify-between gap-3">
                       <div>
                         <p className="font-display font-black uppercase">{invite.inviteeSnapshot?.displayNameSnapshot || (invite.type === 'share_link' ? 'Share link' : invite.inviteeUserId)}</p>
-                        <p className="font-mono text-[9px] uppercase opacity-50">{invite.type.replace('_', ' ')} / {invite.status} / expires {formatSafeDateOnly(invite.expiresAt)}</p>
+                        <p className="font-mono text-xs uppercase opacity-50">{invite.type.replace('_', ' ')} / {invite.status} / expires {formatSafeDateOnly(invite.expiresAt)}</p>
                       </div>
                       {invite.status === 'pending' && (
-                        <button type="button" className="bureau-btn bg-white text-on-surface text-[9px]" onClick={() => runCrewAction('revoke invite', () => revokeCrewInviteLink(invite.id), 'Revoke this invitation?')}>Revoke</button>
+                        <button type="button" className="bureau-btn bg-white text-on-surface text-xs" onClick={() => runCrewAction('revoke invite', () => revokeCrewInviteLink(invite.id), 'Revoke this invitation?')}>Revoke</button>
                       )}
                     </div>
                   ))}
@@ -630,7 +630,7 @@ export default function CrewPage() {
               <div className="space-y-3">
                 <h4 className="font-display font-black italic text-2xl uppercase">Active Roster</h4>
                 {(rosterState?.members || []).filter(member => member.status === 'active').length === 0 ? (
-                  <p className="font-mono text-[10px] uppercase opacity-50">Roster is loading.</p>
+                  <p className="font-mono text-xs uppercase opacity-50">Roster is loading.</p>
                 ) : (rosterState?.members || [])
                   .filter(member => member.status === 'active')
                   .sort((a, b) => (a.userId === crew.captainId ? -1 : b.userId === crew.captainId ? 1 : 0))
@@ -653,14 +653,14 @@ export default function CrewPage() {
                           </div>
                           <div>
                             <p className="font-display font-black uppercase text-xl leading-none">{member.displayNameSnapshot || member.displayName || member.userId}</p>
-                            <p className="font-mono text-[10px] uppercase opacity-50">
+                            <p className="font-mono text-xs uppercase opacity-50">
                               @{member.usernameSnapshot || member.userId.slice(0, 8)} / {isCaptain ? 'captain' : 'member'} / joined {formatSafeDateOnly(member.joinedAt)}
                             </p>
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {canTransfer && <button className="bureau-btn bg-brand-cyan text-on-surface text-[10px]" onClick={() => runCrewAction('transfer captain', () => transferCrewCaptain(crew.id, member.userId), `Transfer captain authority to ${member.displayNameSnapshot || member.displayName || 'this member'}? You will become a member.`)}>Transfer Captain</button>}
-                          {canRemove && <button className="bureau-btn bg-red-500 text-white text-[10px]" onClick={() => runCrewAction('remove member', () => removeCrewMember(crew.id, member.userId), 'Remove this user from the Crew? Their personal archive and prior Crew archive snapshots remain unchanged.')}>Remove from Crew</button>}
+                          {canTransfer && <button className="bureau-btn bg-brand-cyan text-on-surface text-xs" onClick={() => runCrewAction('transfer captain', () => transferCrewCaptain(crew.id, member.userId), `Transfer captain authority to ${member.displayNameSnapshot || member.displayName || 'this member'}? You will become a member.`)}>Transfer Captain</button>}
+                          {canRemove && <button className="bureau-btn bg-red-500 text-white text-xs" onClick={() => runCrewAction('remove member', () => removeCrewMember(crew.id, member.userId), 'Remove this user from the Crew? Their personal archive and prior Crew archive snapshots remain unchanged.')}>Remove from Crew</button>}
                         </div>
                       </div>
                     );
@@ -679,7 +679,7 @@ export default function CrewPage() {
         {activeTab === 'voting' && (
           <div className="animate-in fade-in slide-in-from-bottom-6 duration-500 bg-white border-8 border-on-surface p-8 sm:p-12 shadow-[12px_12px_0px_black] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-8">
             <div className="space-y-3">
-              <p className="font-mono text-[9px] uppercase tracking-widest text-brand-orange">Crew weekly ballot</p>
+              <p className="font-mono text-xs uppercase tracking-widest text-brand-orange">Crew weekly ballot</p>
               <h2 className="font-display text-4xl font-black uppercase italic leading-none">Vote with your Crew</h2>
               <p className="font-serif italic text-sm opacity-65 max-w-xl">Open the protected weekly ballot for this Crew. Eligibility and vote limits are checked by the server.</p>
             </div>
@@ -729,12 +729,12 @@ export default function CrewPage() {
                     </div>
                     <div className="flex-1 space-y-1">
                        <p className="font-display text-2xl uppercase tracking-tighter italic font-black text-on-surface">{member.displayNameSnapshot || member.displayName || `Player_${member.userId.slice(0, 8)}`}</p>
-                       <p className="text-[10px] font-mono font-black opacity-40 uppercase tracking-widest text-brand-orange">ROLE: {member.userId === crew.captainId ? 'CAPTAIN' : 'FIELD_SCOUT'}</p>
+                       <p className="text-xs font-mono font-black opacity-40 uppercase tracking-widest text-brand-orange">ROLE: {member.userId === crew.captainId ? 'CAPTAIN' : 'FIELD_SCOUT'}</p>
                     </div>
                   </div>
                 ))}
                 {(rosterState?.members || []).filter(member => member.status === 'active').length === 0 && (
-                  <div className="md:col-span-2 lg:col-span-3 border-4 border-dashed border-on-surface/20 p-8 text-center font-mono text-[10px] uppercase opacity-50">Roster synchronizing. Open Members to refresh.</div>
+                  <div className="md:col-span-2 lg:col-span-3 border-4 border-dashed border-on-surface/20 p-8 text-center font-mono text-xs uppercase opacity-50">Roster synchronizing. Open Members to refresh.</div>
                 )}
               </div>
             </section>
@@ -840,7 +840,7 @@ export default function CrewPage() {
                 <Settings className="w-8 h-8 text-brand-orange" />
                 <div>
                   <h3 className="font-display text-4xl italic uppercase tracking-tighter font-black leading-none">Crew Settings</h3>
-                  <p className="font-mono text-[10px] uppercase tracking-widest opacity-50">
+                  <p className="font-mono text-xs uppercase tracking-widest opacity-50">
                     Active membership is personal. Seasonal archive entries stay with the Crew.
                   </p>
                 </div>
@@ -904,11 +904,11 @@ export default function CrewPage() {
                   </div>
                   <label className="flex items-start gap-3 border-2 border-on-surface/20 p-3">
                     <input type="checkbox" checked={settingsDraft.allowMemberInvites} onChange={event => setSettingsDraft(current => ({ ...current, allowMemberInvites: event.target.checked }))} className="mt-1" />
-                    <span><strong className="block font-mono text-[10px] uppercase">Members may invite</strong><span className="font-serif italic text-xs opacity-60">Members can search eligible users and send invitations. Captain approval rules do not change.</span></span>
+                    <span><strong className="block font-mono text-xs uppercase">Members may invite</strong><span className="font-serif italic text-xs opacity-60">Members can search eligible users and send invitations. Captain approval rules do not change.</span></span>
                   </label>
                   <label className="flex items-start gap-3 border-2 border-on-surface/20 p-3">
                     <input type="checkbox" checked={settingsDraft.autoApproveShareLinks} onChange={event => setSettingsDraft(current => ({ ...current, autoApproveShareLinks: event.target.checked }))} className="mt-1" />
-                    <span><strong className="block font-mono text-[10px] uppercase">Auto-join valid share links</strong><span className="font-serif italic text-xs opacity-60">Only applies to discoverable Crews. Capacity, expiry, cooldown, and single-Crew checks still run.</span></span>
+                    <span><strong className="block font-mono text-xs uppercase">Auto-join valid share links</strong><span className="font-serif italic text-xs opacity-60">Only applies to discoverable Crews. Capacity, expiry, cooldown, and single-Crew checks still run.</span></span>
                   </label>
                   <button type="button" disabled={crewActionBusy || settingsDraft.name.trim().length < 2} onClick={handleSaveSettings} className="bureau-btn bg-brand-lime text-on-surface disabled:opacity-40">Save Crew Settings</button>
                 </div>

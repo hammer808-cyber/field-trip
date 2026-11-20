@@ -107,7 +107,7 @@ export function MissionResultCard({
         <div className="relative z-10 flex flex-col gap-4">
           <motion.div variants={itemVariants} className="flex items-center gap-2">
             <div className="w-2 h-2 bg-brand-lime shadow-[0_0_8px_var(--color-brand-lime)] rounded-full" />
-            <p className="font-mono text-[9px] font-black uppercase tracking-[0.25em] text-brand-lime">
+            <p className="font-mono text-xs font-black uppercase tracking-[0.25em] text-brand-lime">
               {isApproved
                 ? fc(getDisplayLabel('MISSION_SECURED'), 'MISSION APPROVED')
                 : getDisplayLabel('PROOF_SENT')}
@@ -120,7 +120,7 @@ export function MissionResultCard({
             </motion.h2>
             
             <motion.div variants={itemVariants} className="text-right shrink-0 flex flex-col items-end">
-              <span className="text-[10px] font-mono font-black uppercase tracking-widest text-[#FFFDF8]/40 mb-1">
+              <span className="text-xs font-mono font-black uppercase tracking-widest text-[#FFFDF8]/40 mb-1">
                 {isApproved ? getDisplayLabel('XP_YIELD') : showReceipt ? 'Estimated XP' : 'REVIEW STATUS'}
               </span>
               <div className="flex flex-col items-end relative">
@@ -132,11 +132,11 @@ export function MissionResultCard({
                   </span>
                 )}
                 {!isApproved && showReceipt && (
-                  <span className="mt-1 font-mono text-[9px] font-black uppercase tracking-widest text-[#FFFDF8]/50">Estimate — final at review</span>
+                  <span className="mt-1 font-mono text-xs font-black uppercase tracking-widest text-[#FFFDF8]/50">Estimate — final at review</span>
                 )}
                 {isApproved && tokenAwarded && (
                   <div className="absolute -bottom-4 right-0 bg-brand-lime text-on-surface px-2 py-0.5 border-2 border-on-surface shadow-[3px_3px_0px_black] rotate-[-4deg] z-20">
-                    <p className="text-[9px] font-black uppercase tracking-tighter italic leading-none">{fc('+1 TOKEN', getDisplayLabel('NEW_TOKEN'))}</p>
+                    <p className="text-xs font-black uppercase tracking-tighter italic leading-none">{fc('+1 TOKEN', getDisplayLabel('NEW_TOKEN'))}</p>
                   </div>
                 )}
               </div>
@@ -158,7 +158,7 @@ export function MissionResultCard({
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-80" />
             
             {/* Submission status strip */}
-            <div className="absolute bottom-5 left-0 w-full bg-on-surface/85 backdrop-blur-md text-brand-lime px-4 py-2 font-mono text-[9px] uppercase tracking-widest italic font-black border-y border-white/5">
+            <div className="absolute bottom-5 left-0 w-full bg-on-surface/85 backdrop-blur-md text-brand-lime px-4 py-2 font-mono text-xs uppercase tracking-widest italic font-black border-y border-white/5">
               {isApproved
                 ? fc(`TIMESTAMP // ${new Date().toLocaleTimeString()} // VERIFIED`, `Approved proof`)
                 : 'Receipt saved // awaiting human review'}
@@ -181,7 +181,7 @@ export function MissionResultCard({
              <div className="field-tape w-12 h-4 absolute -top-1 left-4 opacity-20 rotate-[-12deg]" />
              <div className="flex items-center gap-2 mb-3">
                <FileText className="w-4 h-4 text-brand-cyan" />
-               <span className="font-display text-[10px] font-black uppercase tracking-wider text-brand-cyan italic">{fc(getDisplayLabel('LOG_ENTRY'), 'FIELD NOTE')}</span>
+               <span className="font-display text-xs font-black uppercase tracking-wider text-brand-cyan italic">{fc(getDisplayLabel('LOG_ENTRY'), 'FIELD NOTE')}</span>
              </div>
              <p className="text-sm font-serif text-on-surface/80 leading-relaxed italic line-clamp-4">"{evidence.note}"</p>
              <div className="field-stamp absolute bottom-2 right-2 opacity-5 scale-75" />
@@ -191,17 +191,17 @@ export function MissionResultCard({
           <div className="p-5 bg-on-surface text-white border-4 border-on-surface shadow-[6px_6px_0px_black] rotate-[-0.5deg] relative overflow-hidden">
              <div className="flex items-center gap-2 mb-4 text-brand-lime">
                <Zap className="w-4 h-4 fill-brand-lime" />
-               <span className="font-display text-[10px] font-black uppercase tracking-wider italic">{fc(getDisplayLabel('UPLINK_DETAILS'), 'EVIDENCE')}</span>
+               <span className="font-display text-xs font-black uppercase tracking-wider italic">{fc(getDisplayLabel('UPLINK_DETAILS'), 'EVIDENCE')}</span>
              </div>
              <div className="space-y-2">
                {trip.proofType.map((type) => (
-                 <div key={type} className="flex items-center gap-2 text-[10px] font-mono font-black uppercase tracking-widest text-white/50">
+                 <div key={type} className="flex items-center gap-2 text-xs font-mono font-black uppercase tracking-widest text-white/50">
                    <div className="w-1.5 h-1.5 bg-brand-lime rounded-full shadow-[0_0_8px_var(--color-brand-lime)]" />
                    {type === 'note' ? 'Text Synthesis' : type === 'photo' ? 'Visual Signal' : type}
                  </div>
                ))}
                {ftBonus > 0 && (
-                  <div className="flex items-center gap-2 text-[10px] font-mono font-black uppercase tracking-widest text-brand-orange animate-pulse">
+                  <div className="flex items-center gap-2 text-xs font-mono font-black uppercase tracking-widest text-brand-orange animate-pulse">
                     <Sparkles className="w-3.5 h-3.5" />
                     {ftText.toUpperCase()}
                   </div>
@@ -218,7 +218,7 @@ export function MissionResultCard({
           <motion.div variants={itemVariants} className="p-6 bg-brand-purple/5 border-4 border-brand-purple shadow-[8px_8px_0px_black] rotate-[-1deg] relative overflow-hidden">
              <div className="flex items-center gap-2 text-brand-purple mb-5">
                <Sparkles className="w-4 h-4 animate-pulse" />
-               <span className="font-display text-[11px] font-black uppercase tracking-widest leading-none">{fc(getDisplayLabel('SYNCHRONIZING_COLLECTION'), getDisplayLabel('NEW_REWARD_UNLOCKED'))}</span>
+               <span className="font-display text-xs font-black uppercase tracking-widest leading-none">{fc(getDisplayLabel('SYNCHRONIZING_COLLECTION'), getDisplayLabel('NEW_REWARD_UNLOCKED'))}</span>
              </div>
              
              <div className="flex flex-wrap gap-4">
@@ -236,8 +236,8 @@ export function MissionResultCard({
                         <div className="w-6 h-6 bg-brand-orange rounded-full shadow-inner" />
                       )}
                       <div className="flex flex-col">
-                        <span className="text-[8px] font-mono font-black uppercase text-on-surface/40 leading-tight">ARTIFACT</span>
-                        <span className="text-[11px] font-black uppercase italic tracking-tighter leading-none">{meta.label}</span>
+                        <span className="text-xs font-mono font-black uppercase text-on-surface/60 leading-tight">ARTIFACT</span>
+                        <span className="text-xs font-black uppercase italic tracking-tighter leading-none">{meta.label}</span>
                       </div>
                    </div>
                  );
@@ -256,8 +256,8 @@ export function MissionResultCard({
                         <ShieldCheck className="w-6 h-6 text-on-surface" />
                       )}
                       <div className="flex flex-col">
-                        <span className="text-[8px] font-mono font-black uppercase text-on-surface/40 leading-tight">BADGE</span>
-                        <span className="text-[11px] font-black uppercase italic tracking-tighter leading-none">{meta.label}</span>
+                        <span className="text-xs font-mono font-black uppercase text-on-surface/60 leading-tight">BADGE</span>
+                        <span className="text-xs font-black uppercase italic tracking-tighter leading-none">{meta.label}</span>
                       </div>
                    </div>
                  );
@@ -278,8 +278,8 @@ export function MissionResultCard({
               <Zap className="w-16 h-16" />
             </div>
             
-            <p className="text-[10px] font-black text-brand-orange uppercase tracking-[0.3em] mb-5">{fc(getDisplayLabel('SIGNAL_ANALYSIS'), getDisplayLabel('MATH_WIZARD_BREAKDOWN'))}</p>
-            <div className="space-y-2.5 text-[10px] uppercase font-bold">
+            <p className="text-xs font-black text-brand-orange uppercase tracking-[0.3em] mb-5">{fc(getDisplayLabel('SIGNAL_ANALYSIS'), getDisplayLabel('MATH_WIZARD_BREAKDOWN'))}</p>
+            <div className="space-y-2.5 text-xs uppercase font-bold">
               {scoring.scoreEvents?.map((ev: any, idx: number) => (
                 <div key={idx} className="flex justify-between items-center gap-4">
                   <span className="opacity-40 truncate">{ev.description.toUpperCase()}</span>
@@ -292,12 +292,12 @@ export function MissionResultCard({
                   <span className="text-brand-orange">+{ftBonus}</span>
                 </div>
               )}
-              <div className="flex justify-between items-center pt-4 border-t-2 border-brand-orange/40 text-[11px] font-black text-brand-orange mt-2">
+              <div className="flex justify-between items-center pt-4 border-t-2 border-brand-orange/40 text-xs font-black text-brand-orange mt-2">
                 <span>{isApproved ? 'FINAL_YIELD' : 'ESTIMATED_YIELD'}</span>
                 <span className="text-2xl italic tracking-tighter">{totalXP} XP</span>
               </div>
               {!isApproved && (
-                <p className="mt-3 text-[9px] font-bold normal-case tracking-normal text-white/50">
+                <p className="mt-3 text-xs font-bold normal-case tracking-normal text-white/50">
                   Estimate — the final total is confirmed when a human reviews your proof.
                 </p>
               )}
@@ -311,7 +311,7 @@ export function MissionResultCard({
              <p className="font-display text-3xl font-black uppercase italic tracking-tight">
                {getDisplayLabel('PROOF_SENT')}
              </p>
-             <p className="font-mono text-[9px] font-black uppercase tracking-[0.25em] text-on-surface/35">
+             <p className="font-mono text-xs font-black uppercase tracking-[0.25em] text-on-surface/60">
                Waiting for approval
              </p>
              {showStarterGuidance && starterGuidance.progressLine && (
@@ -344,23 +344,23 @@ export function MissionResultCard({
            <div className="space-y-1">
              <button 
                disabled
-               className="w-full py-4 border-4 border-on-surface/10 text-on-surface/30 font-black uppercase text-[10px] flex items-center justify-center gap-3 cursor-not-allowed group transition-all italic tracking-[0.25em] rounded-2xl"
+               className="w-full py-4 border-4 border-on-surface/10 text-on-surface/60 font-black uppercase text-xs flex items-center justify-center gap-3 cursor-not-allowed group transition-all italic tracking-[0.25em] rounded-2xl"
              >
                <Download className="w-4 h-4 opacity-30" />
                Print card (coming soon)
              </button>
-             <p className="text-center text-[11px] font-sans font-bold text-on-surface/45">
+             <p className="text-center text-xs font-sans font-bold text-on-surface/60">
                Printing isn't available yet.
              </p>
            </div>
            
            <div className="flex flex-col items-center gap-2 pt-4">
-              <p className="text-[8px] text-center opacity-20 font-mono tracking-widest uppercase italic">{fc(`BUREAU_TX_REF: ${Math.random().toString(36).substring(7).toUpperCase()}`, `TX REF: ${Math.random().toString(36).substring(7).toUpperCase()}`)}</p>
+              <p className="text-xs text-center opacity-20 font-mono tracking-widest uppercase italic">{fc(`BUREAU_TX_REF: ${Math.random().toString(36).substring(7).toUpperCase()}`, `TX REF: ${Math.random().toString(36).substring(7).toUpperCase()}`)}</p>
               {totalTokens !== undefined && (
                 <div className="flex items-center gap-4 px-6 opacity-30 h-px w-full max-w-[200px] bg-on-surface/20 self-center mt-2" />
               )}
               {totalTokens !== undefined && (
-                <span className="text-[10px] font-display font-black uppercase tracking-widest italic text-on-surface/40 mt-1">Total Field Tokens: {totalTokens}</span>
+                <span className="text-xs font-display font-black uppercase tracking-widest italic text-on-surface/60 mt-1">Total Field Tokens: {totalTokens}</span>
               )}
            </div>
         </motion.div>

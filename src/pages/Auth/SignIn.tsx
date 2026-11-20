@@ -88,7 +88,7 @@ export default function SignIn({ onSuccess, onBack, onCreateAccount }: SignInPro
             <button 
               type="button" 
               onClick={handleForgotPassword}
-              className="text-[10px] uppercase font-black tracking-widest text-brand-orange hover:underline"
+              className="text-xs uppercase font-black tracking-widest text-brand-orange hover:underline"
             >
               Forgot password
             </button>
@@ -107,7 +107,7 @@ export default function SignIn({ onSuccess, onBack, onCreateAccount }: SignInPro
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="flex items-center gap-3 p-4 bg-error text-white font-black text-[10px] uppercase tracking-widest border-4 border-on-surface shadow-[8px_8px_0px_black]"
+            className="flex items-center gap-3 p-4 bg-error text-white font-black text-xs uppercase tracking-widest border-4 border-on-surface shadow-[8px_8px_0px_black]"
           >
             <AlertCircle className="w-5 h-5 shrink-0" />
             {error}
@@ -115,7 +115,7 @@ export default function SignIn({ onSuccess, onBack, onCreateAccount }: SignInPro
         )}
 
         {resetSent && (
-          <div className="flex items-center gap-3 p-4 bg-brand-lime text-black font-black text-[10px] uppercase tracking-widest border-4 border-on-surface shadow-[8px_8px_0px_black]">
+          <div className="flex items-center gap-3 p-4 bg-brand-lime text-black font-black text-xs uppercase tracking-widest border-4 border-on-surface shadow-[8px_8px_0px_black]">
             <Key className="w-5 h-5 shrink-0" />
             Check your email for instructions.
           </div>
@@ -143,7 +143,7 @@ export default function SignIn({ onSuccess, onBack, onCreateAccount }: SignInPro
           <button 
             type="button"
             onClick={onBack}
-            className="w-full p-4 text-[10px] uppercase font-black tracking-[0.3em] opacity-40 hover:opacity-100 hover:text-brand-orange transition-all"
+            className="w-full p-4 text-xs uppercase font-black tracking-[0.3em] opacity-40 hover:opacity-100 hover:text-brand-orange transition-all"
           >
             &lt; Back
           </button>

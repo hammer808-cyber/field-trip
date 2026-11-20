@@ -94,7 +94,7 @@ export const QuickMissionCard: React.FC<QuickMissionCardProps> = ({
             <h3 className="font-display text-lg sm:text-xl font-black uppercase italic tracking-tighter text-on-surface leading-[0.9] sm:leading-[0.9] line-clamp-2 drop-shadow-sm">
               {mission.title}
             </h3>
-            <p className="text-[10px] opacity-75 font-serif font-bold italic leading-tight line-clamp-2 mt-1.5">
+            <p className="text-xs opacity-75 font-serif font-bold italic leading-tight line-clamp-2 mt-1.5">
               "{mission.description}"
             </p>
           </div>
@@ -102,7 +102,7 @@ export const QuickMissionCard: React.FC<QuickMissionCardProps> = ({
           <div className="pt-3 border-t-2 border-dashed border-on-surface/10 flex items-center justify-between">
             {/* Requirements icons summary */}
             <div className="flex flex-col gap-1">
-              <span className="text-[7px] font-mono font-black opacity-30 uppercase tracking-widest whitespace-nowrap">MISSION_REQ:</span>
+              <span className="text-xs font-mono font-black opacity-30 uppercase tracking-widest whitespace-nowrap">MISSION_REQ:</span>
               <div className="flex items-center gap-1">
                 {(mission.proofType || []).slice(0, 3).map((type, idx) => (
                   <div 
@@ -120,7 +120,7 @@ export const QuickMissionCard: React.FC<QuickMissionCardProps> = ({
 
             {/* XP Award - Compact Sticker Style */}
             <div className="bg-brand-lime text-on-surface p-1.5 px-3 border-2 border-on-surface shadow-[3px_3px_0px_black] rotate-[-2deg] group-hover:rotate-0 transition-transform">
-               <div className="flex items-center gap-1 font-display text-[10px] font-black uppercase tracking-tight">
+               <div className="flex items-center gap-1 font-display text-xs font-black uppercase tracking-tight">
                  <Zap className="w-2.5 h-2.5 fill-current" />
                  <span>+{mission.baseXP || 100}XP</span>
                </div>

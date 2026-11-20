@@ -36,7 +36,7 @@ export function GatedFeaturePanel({
         <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full border-4 border-on-surface bg-brand-magenta text-white shadow-[4px_4px_0px_black]">
           <Lock className="h-10 w-10 stroke-[2.5]" aria-hidden="true" />
         </div>
-        <p className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-on-surface/45">
+        <p className="font-mono text-xs font-black uppercase tracking-[0.22em] text-on-surface/60">
           {reason === 'coming_soon' ? 'Coming soon' : 'Locked for now'}
         </p>
         <h1 className="mt-2 font-display text-3xl font-black uppercase italic leading-none tracking-tight">
@@ -51,7 +51,7 @@ export function GatedFeaturePanel({
             <p className="mx-auto mt-4 max-w-sm font-sans text-sm font-bold text-on-surface/80">
               Finish 3 starter missions to open this.
             </p>
-            <p className="mx-auto mt-2 font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/45">
+            <p className="mx-auto mt-2 font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">
               {approved} of {required} approved
             </p>
             <div className="mx-auto mt-5 h-5 w-full max-w-xs overflow-hidden rounded-full border-2 border-on-surface bg-white shadow-[3px_3px_0px_black]">

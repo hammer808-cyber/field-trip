@@ -48,7 +48,7 @@ export function GameWrapper({ children }: { children: React.ReactNode }) {
           <h2 className="text-huge text-4xl tracking-tighter uppercase font-black">Season Offline</h2>
           <p className="text-sm opacity-60">The bureau is currently in a recalibration phase. No active seasons detected in your sector.</p>
           <div className="h-px bg-on-surface/10" />
-          <p className="text-[10px] uppercase font-bold tracking-widest text-brand-orange">Protocol: Standby for Dispatch</p>
+          <p className="text-xs uppercase font-bold tracking-widest text-brand-orange">Protocol: Standby for Dispatch</p>
         </Card>
       </div>
     );
@@ -118,11 +118,11 @@ export function GameWrapper({ children }: { children: React.ReactNode }) {
     <>
       {(isAdmin || import.meta.env.DEV) && (!isSeasonActive || activeSeason?.status !== 'active' || activeSeason?.id === 'dev-season-2026') && (
         <div className="fixed top-2 sm:top-20 right-2 sm:right-4 z-[100] pointer-events-none flex flex-row sm:flex-col items-center sm:items-end gap-1 sm:gap-2">
-          <FieldBadge variant="sticker" color="black" className="text-[6px] sm:text-[8px] opacity-70 border-dashed border border-brand-orange py-0.5 px-1 sm:py-1 sm:px-2 leading-none">
+          <FieldBadge variant="sticker" color="black" className="text-xs sm:text-xs opacity-70 border-dashed border border-brand-orange py-0.5 px-1 sm:py-1 sm:px-2 leading-none">
             {isAdmin ? 'ADMIN_BYPASS' : 'DEV_ACTIVE'}
           </FieldBadge>
           {activeSeason?.id === 'dev-season-2026' && (
-            <div className="bg-brand-orange text-white text-[5px] sm:text-[7px] px-1 sm:px-2 py-0.5 font-bold uppercase tracking-widest leading-none">
+            <div className="bg-brand-orange text-white text-[5px] sm:text-xs px-1 sm:px-2 py-0.5 font-bold uppercase tracking-widest leading-none">
               FALLBACK_MODE
             </div>
           )}

@@ -80,7 +80,7 @@ export function ReportModal({ isOpen, onClose, targetId, targetType, targetName 
                         <span className="text-xs uppercase font-black tracking-widest">{reason.label}</span>
                         <ChevronRight className="w-5 h-5 opacity-40 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                       </div>
-                      <p className="text-[10px] opacity-60 font-mono mt-2 leading-tight uppercase font-bold">{reason.description}</p>
+                      <p className="text-xs opacity-60 font-mono mt-2 leading-tight uppercase font-bold">{reason.description}</p>
                     </button>
                   ))}
                 </div>
@@ -89,7 +89,7 @@ export function ReportModal({ isOpen, onClose, targetId, targetType, targetName 
 
             {step === 'details' && (
               <div className="space-y-6">
-                <button onClick={() => setStep('reason')} className="text-[10px] uppercase tracking-widest font-black opacity-40 hover:opacity-100 transition-opacity flex items-center gap-2 mb-2">
+                <button onClick={() => setStep('reason')} className="text-xs uppercase tracking-widest font-black opacity-40 hover:opacity-100 transition-opacity flex items-center gap-2 mb-2">
                   ← REVISE_REASON
                 </button>
                 <div className="space-y-2">

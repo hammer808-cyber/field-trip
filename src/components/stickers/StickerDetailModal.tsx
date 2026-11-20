@@ -110,17 +110,17 @@ export function StickerDetailModal({
         <div className="space-y-4">
           <div className="pr-12">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="border border-current px-2 py-1 font-mono text-[9px] font-black uppercase">
+              <span className="border border-current px-2 py-1 font-mono text-xs font-black uppercase">
                 {sticker.rarity}
               </span>
-              <span className="border border-current px-2 py-1 font-mono text-[9px] font-black uppercase">
+              <span className="border border-current px-2 py-1 font-mono text-xs font-black uppercase">
                 {COLLECTION_META[sticker.collection].label}
               </span>
-              <span className="font-mono text-[9px] font-black uppercase opacity-55">
+              <span className="font-mono text-xs font-black uppercase opacity-55">
                 {isUnlocked ? 'Unlocked' : 'Locked'}
               </span>
               {unlock?.seen === false && (
-                <span className="inline-flex items-center gap-1 bg-[var(--skin-primary)] px-2 py-1 font-mono text-[9px] font-black uppercase">
+                <span className="inline-flex items-center gap-1 bg-[var(--skin-primary)] px-2 py-1 font-mono text-xs font-black uppercase">
                   <Sparkles className="h-3 w-3" aria-hidden="true" /> New
                 </span>
               )}
@@ -128,18 +128,18 @@ export function StickerDetailModal({
             <h2 id="sticker-detail-title" className="mt-3 font-display text-2xl font-black uppercase leading-none">
               {sticker.name}
             </h2>
-            <p className="mt-2 font-mono text-[10px] font-bold uppercase opacity-55">
+            <p className="mt-2 font-mono text-xs font-bold uppercase opacity-55">
               {sticker.archetype ? STICKER_ARCHETYPE_LABELS[sticker.archetype] : 'Cross-pack'}
             </p>
             {isUnlocked && earnedDateLabel && (
-              <p className="mt-1 font-mono text-[10px] font-bold uppercase opacity-55">
+              <p className="mt-1 font-mono text-xs font-bold uppercase opacity-55">
                 Earned {earnedDateLabel}
               </p>
             )}
           </div>
 
           <div className="border-y py-4" style={{ borderColor: 'color-mix(in srgb, var(--skin-border) 20%, transparent)' }}>
-            <p className="font-mono text-[9px] font-black uppercase opacity-45">How to unlock</p>
+            <p className="font-mono text-xs font-black uppercase opacity-45">How to unlock</p>
             <p className="mt-2 font-serif text-sm font-semibold leading-relaxed">{sticker.unlockReason}</p>
           </div>
 
@@ -163,19 +163,19 @@ export function StickerDetailModal({
                     ? 'Remove from profile'
                     : 'Feature on profile'}
               </button>
-              <p className="text-center font-mono text-[9px] font-bold uppercase opacity-55" aria-live="polite">
+              <p className="text-center font-mono text-xs font-bold uppercase opacity-55" aria-live="polite">
                 {featureLimitReached
                   ? `Profile full: remove one of your ${maxFeatured} featured stickers first.`
                   : `${featuredCount} of ${maxFeatured} profile spots used.`}
               </p>
               {featuredError && (
-                <p className="border border-red-600 bg-red-50 px-3 py-2 text-center font-mono text-[9px] font-black uppercase text-red-800" role="alert">
+                <p className="border border-red-600 bg-red-50 px-3 py-2 text-center font-mono text-xs font-black uppercase text-red-800" role="alert">
                   {featuredError}
                 </p>
               )}
             </div>
           ) : (
-            <div className="flex min-h-12 items-center justify-center gap-2 border-2 border-dashed px-4 py-3 font-mono text-[10px] font-black uppercase opacity-55" style={{ borderColor: 'var(--skin-border)' }}>
+            <div className="flex min-h-12 items-center justify-center gap-2 border-2 border-dashed px-4 py-3 font-mono text-xs font-black uppercase opacity-55" style={{ borderColor: 'var(--skin-border)' }}>
               <LockKeyhole className="h-4 w-4" aria-hidden="true" /> Earn this sticker to feature it
             </div>
           )}

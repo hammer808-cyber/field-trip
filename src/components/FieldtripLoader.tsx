@@ -157,7 +157,7 @@ export function FieldtripLoader({
           />
         </div>
         <div>
-          <p className="font-mono text-[9px] font-black uppercase tracking-[0.24em] text-brand-orange">
+          <p className="font-mono text-xs font-black uppercase tracking-[0.24em] text-brand-orange">
             {estimatedStep || 'FIELD SYSTEM ACTIVE'}
           </p>
           <h2 className="mt-1 font-display text-3xl font-black italic uppercase leading-none">
@@ -241,7 +241,7 @@ export function LockedStatePanel({
       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border-4 border-on-surface bg-brand-magenta text-white shadow-[4px_4px_0px_black]">
         {icon || <Lock className="h-8 w-8" aria-hidden="true" />}
       </div>
-      <p className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-on-surface/45">Locked</p>
+      <p className="font-mono text-xs font-black uppercase tracking-[0.22em] text-on-surface/60">Locked</p>
       <h3 className="mt-2 font-display text-3xl font-black italic uppercase leading-none">{title}</h3>
       <p className="mx-auto mt-3 max-w-md font-sans text-sm font-bold text-on-surface/80">{body}</p>
       {hint && <p className="mx-auto mt-2 max-w-md font-serif italic text-sm text-on-surface/55">{hint}</p>}
@@ -250,7 +250,7 @@ export function LockedStatePanel({
           <div className="h-5 overflow-hidden rounded-full border-2 border-on-surface bg-white shadow-[3px_3px_0px_black]">
             <div className="h-full bg-brand-lime" style={{ width: `${pct}%` }} />
           </div>
-          <p className="font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/55">{progressLabel}</p>
+          <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/55">{progressLabel}</p>
         </div>
       )}
       {action && <div className="mt-6">{action}</div>}
@@ -286,8 +286,8 @@ export function ErrorStatePanel({
       <p className="mx-auto mt-3 max-w-md text-center font-sans text-sm font-bold text-on-surface/80">{body}</p>
       {details && (
         <details className="mt-4 border-2 border-on-surface/10 bg-on-surface/5 p-3">
-          <summary className="cursor-pointer font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/45">Technical details</summary>
-          <pre id={detailsId} className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-all font-mono text-[10px] text-on-surface/70">{details}</pre>
+          <summary className="cursor-pointer font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">Technical details</summary>
+          <pre id={detailsId} className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-all font-mono text-xs text-on-surface/70">{details}</pre>
         </details>
       )}
       <div className={cn('mt-6 grid gap-3', secondaryAction ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1')}>

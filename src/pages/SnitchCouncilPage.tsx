@@ -157,20 +157,20 @@ export default function SnitchCouncilPage() {
                     <div className="p-6 space-y-5">
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.28em] text-[#adff4f]">Case Briefing</p>
+                          <p className="text-xs font-black uppercase tracking-[0.28em] text-[#adff4f]">Case Briefing</p>
                           <h2 className="font-display text-4xl uppercase italic leading-none mt-2">{selectedCase.title || selectedCase.missionTitle || 'Fieldtrip Proof'}</h2>
                         </div>
-                        <span className="shrink-0 text-[10px] font-black uppercase tracking-widest border border-[#ffe2bd]/30 px-3 py-2">
+                        <span className="shrink-0 text-xs font-black uppercase tracking-widest border border-[#ffe2bd]/30 px-3 py-2">
                           {selectedCase.status}
                         </span>
                       </div>
                       <div className="grid sm:grid-cols-2 gap-4 text-sm">
                         <div className="border border-[#ffe2bd]/15 bg-[#120d09] p-4">
-                          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#ff9d4d]">Mission</p>
+                          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#ff9d4d]">Mission</p>
                           <p className="mt-2 font-bold">{selectedCase.missionTitle || selectedCase.deckName || 'Fieldtrip mission'}</p>
                         </div>
                         <div className="border border-[#ffe2bd]/15 bg-[#120d09] p-4">
-                          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#ff9d4d]">Field Note</p>
+                          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#ff9d4d]">Field Note</p>
                           <p className="mt-2 font-serif italic text-[#ffe2bd]/80">{selectedCase.fieldNote || selectedCase.description || 'No field note snapshot.'}</p>
                         </div>
                       </div>
@@ -180,7 +180,7 @@ export default function SnitchCouncilPage() {
                   <Card className="border-2 border-[#ffe2bd] bg-[#fff8e8] text-[#19140f] p-6 shadow-[10px_10px_0px_rgba(0,0,0,0.45)]">
                     {existingVote ? (
                       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#bf5d00]">Vote Cast Waiting</p>
+                        <p className="text-xs font-black uppercase tracking-[0.25em] text-[#bf5d00]">Vote Cast Waiting</p>
                         <h3 className="font-display text-4xl uppercase italic leading-none">Your verdict is recorded.</h3>
                         <p className="font-serif italic text-lg">
                           You voted: <strong>{existingVote === 'valid' ? 'Receipt Holds' : 'Signal Looks Off'}</strong>. Totals stay sealed until an admin closes the case.
@@ -188,7 +188,7 @@ export default function SnitchCouncilPage() {
                       </motion.div>
                     ) : (
                       <div className="space-y-5">
-                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#bf5d00]">Vote Booth</p>
+                        <p className="text-xs font-black uppercase tracking-[0.25em] text-[#bf5d00]">Vote Booth</p>
                         <h3 className="font-display text-4xl uppercase italic leading-none">What does the receipt say?</h3>
                         <div className="grid sm:grid-cols-2 gap-3">
                           <button
@@ -219,7 +219,7 @@ export default function SnitchCouncilPage() {
 
             <aside className="space-y-4">
               <Card className="p-5 border border-[#ff9d4d]/40 bg-[#21160f] text-[#fff8e8]">
-                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#ff9d4d]">Open Case Files</p>
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-[#ff9d4d]">Open Case Files</p>
                 <div className="mt-4 space-y-2">
                   {openCases.map(c => {
                     const id = c.caseId || c.id;
@@ -242,7 +242,7 @@ export default function SnitchCouncilPage() {
               <Card className="p-5 border border-[#ffe2bd]/15 bg-[#120d09] text-[#fff8e8]">
                 <div className="flex items-center gap-2">
                   <Archive className="w-4 h-4 text-[#ffd08a]" />
-                  <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#ffd08a]">Resolution Archive</p>
+                  <p className="text-xs font-black uppercase tracking-[0.25em] text-[#ffd08a]">Resolution Archive</p>
                 </div>
                 <div className="mt-4 space-y-3">
                   {closedCases.length === 0 ? (

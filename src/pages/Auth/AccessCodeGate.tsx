@@ -73,7 +73,7 @@ export default function AccessCodeGate({ onSuccess, onBack }: AccessCodeGateProp
         <p className="text-sm font-sans font-bold text-on-surface/70 leading-snug">
           Fieldtrip is invite-only during beta.
         </p>
-        <p className="text-[10px] opacity-100 font-bold uppercase tracking-[0.4em] bg-brand-lime inline-block px-2 border border-on-surface">
+        <p className="text-xs opacity-100 font-bold uppercase tracking-[0.4em] bg-brand-lime inline-block px-2 border border-on-surface">
           BETA CLEARANCE
         </p>
       </div>
@@ -124,7 +124,7 @@ export default function AccessCodeGate({ onSuccess, onBack }: AccessCodeGateProp
           <button 
             type="button"
             onClick={onBack}
-            className="w-full p-6 text-[11px] uppercase font-black tracking-[0.4em] opacity-40 hover:opacity-100 hover:text-brand-orange transition-all font-mono"
+            className="w-full p-6 text-xs uppercase font-black tracking-[0.4em] opacity-40 hover:opacity-100 hover:text-brand-orange transition-all font-mono"
           >
             &lt; Back
           </button>
@@ -132,10 +132,10 @@ export default function AccessCodeGate({ onSuccess, onBack }: AccessCodeGateProp
       </form>
 
       <div className="bureau-panel p-6 border-4 border-on-surface bg-white shadow-[8px_8px_0px_var(--color-brand-cyan)]">
-        <p className="text-[11px] font-sans font-bold tracking-tight opacity-80 leading-relaxed text-left">
+        <p className="text-xs font-sans font-bold tracking-tight opacity-80 leading-relaxed text-left">
           Need a code? Ask the person who invited you.
         </p>
-        <p className="mt-2 text-[9px] uppercase font-mono font-bold tracking-widest opacity-40 text-left">
+        <p className="mt-2 text-xs uppercase font-mono font-bold tracking-widest opacity-40 text-left">
           Fieldtrip HQ // single-use invites
         </p>
       </div>

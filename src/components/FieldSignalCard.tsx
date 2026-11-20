@@ -157,12 +157,12 @@ export const FieldSignalCard: React.FC<FieldSignalCardProps> = ({ activeSignal, 
             >
               <div className="pt-4 pb-2 space-y-3">
                 <p className="micro-label font-black text-brand-orange">SYSTEM_NOTES</p>
-                <p className="text-[11px] leading-relaxed font-mono font-bold uppercase opacity-60">
+                <p className="text-xs leading-relaxed font-mono font-bold uppercase opacity-60">
                    Field Signals are real-time modifiers injected by the Bureau to reward adaptive behavior. 
                    Submitting reports during this window yields high-voltage clearance bonuses.
                 </p>
                 {activeSignal.flavorText && (
-                  <p className="text-[10px] leading-relaxed font-mono text-on-surface font-black bg-brand-lime/10 p-2 border border-brand-lime/20">
+                  <p className="text-xs leading-relaxed font-mono text-on-surface font-black bg-brand-lime/10 p-2 border border-brand-lime/20">
                     &gt; OBS_DATA: {activeSignal.flavorText}
                   </p>
                 )}

@@ -234,7 +234,7 @@ export default function WelcomePage() {
                     Log In
                   </button>
                 </div>
-                <p className="text-center font-mono text-[10px] font-bold uppercase tracking-widest text-on-surface/45 lg:text-left">
+                <p className="text-center font-mono text-xs font-bold uppercase tracking-widest text-on-surface/60 lg:text-left">
                   Invite code needed for beta.
                 </p>
               </div>
@@ -282,7 +282,7 @@ export default function WelcomePage() {
                       HOW FIELDTRIP WORKS
                     </h3>
                     
-                    <div className="space-y-4 font-mono text-[11px] text-left">
+                    <div className="space-y-4 font-mono text-xs text-left">
                       {[
                         { step: "01", title: "OPEN APP", text: "Come back for simple photo missions." },
                         { step: "02", title: "GET A PHOTO MISSION", text: "Draw a mission card and see what to photograph." },
@@ -294,7 +294,7 @@ export default function WelcomePage() {
                           <span className="font-sans font-black text-xs px-2 py-0.5 bg-brand-orange text-white rounded-sm">{item.step}</span>
                           <div>
                             <p className="font-sans font-black text-sm text-on-surface leading-tight uppercase tracking-tight mb-1">{item.title}</p>
-                            <p className="text-on-surface/70 leading-relaxed text-[10px]">{item.text}</p>
+                            <p className="text-on-surface/70 leading-relaxed text-xs">{item.text}</p>
                           </div>
                         </div>
                       ))}
@@ -348,7 +348,7 @@ export default function WelcomePage() {
       
       {authMode !== 'welcome' && (
         <footer className={cn(
-          "fixed bottom-6 left-0 w-full px-8 flex justify-between font-mono text-[10px] pointer-events-none",
+          "fixed bottom-6 left-0 w-full px-8 flex justify-between font-mono text-xs pointer-events-none",
           isBaja ? "text-baja-pink opacity-60" : isDiamond ? "text-white opacity-40" : isHeat ? "text-white" : "text-on-surface opacity-30"
         )}>
           <span>{isBaja ? 'COASTAL VOL. 02' : isDiamond ? 'REFLECTIVE SYS 9.1' : isHeat ? 'HEATWAVE v2.0' : 'THE RECEIPTS // VOLUME_11.2'}</span>

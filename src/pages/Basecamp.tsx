@@ -212,13 +212,13 @@ export default function Basecamp() {
               aria-label={`Active deck ${viewModel.progress.activeDeckName}. Open the deck shelf.`}
               className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 border-2 border-[var(--skin-border)] bg-[var(--skin-surface)] px-4 py-3 text-left shadow-[4px_4px_0_var(--skin-border)] transition-all hover:shadow-[6px_6px_0_var(--skin-border)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
             >
-              <span className="font-mono text-[8px] font-black uppercase tracking-[0.22em] text-[var(--skin-text-muted)]">Active deck</span>
+              <span className="font-mono text-xs font-black uppercase tracking-[0.22em] text-[var(--skin-text-muted)]">Active deck</span>
               <span className="font-display text-base font-black uppercase italic leading-none tracking-normal text-[var(--skin-text)]">{viewModel.progress.activeDeckName}</span>
-              <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-[var(--skin-text-muted)]">
+              <span className="font-mono text-xs font-bold uppercase tracking-wider text-[var(--skin-text-muted)]">
                 {viewModel.progress.activeDeckApprovedCount}/{viewModel.progress.activeDeckTotalCount} approved
                 {viewModel.progress.activeDeckPendingCount > 0 && ` · ${viewModel.progress.activeDeckPendingCount} pending`}
               </span>
-              <span className="ml-auto font-mono text-[9px] font-black uppercase tracking-widest text-[var(--skin-text)]">Deck shelf →</span>
+              <span className="ml-auto font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-text)]">Deck shelf →</span>
             </button>
             <BasecampAttentionPanel
               model={viewModel.attention}

@@ -56,7 +56,7 @@ export const ObservationFeed: React.FC = () => {
               <div className="flex items-center gap-2">
                  <div className={cn("w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full animate-pulse", latest.observationType === 'Behavior' ? "bg-brand-orange" : "bg-brand-lime")} />
                  <p className={cn(
-                   "text-[9px] sm:text-[10px] uppercase tracking-[0.4em] font-black leading-none",
+                   "text-xs sm:text-xs uppercase tracking-[0.4em] font-black leading-none",
                    latest.observationType === 'Behavior' ? "text-brand-orange" : "opacity-40"
                  )}>
                    SIGNAL_DECODEX // {latest.observationType.toUpperCase()}
@@ -77,7 +77,7 @@ export const ObservationFeed: React.FC = () => {
             </p>
             <div className="flex items-center gap-4 pt-2">
                <div className="h-[1px] flex-grow bg-on-surface/5" />
-               <span className="text-[8px] font-mono opacity-20 uppercase tracking-widest">BUREAU_COMMS_STABLE</span>
+               <span className="text-xs font-mono opacity-20 uppercase tracking-widest">BUREAU_COMMS_STABLE</span>
             </div>
           </div>
 

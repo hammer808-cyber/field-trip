@@ -354,7 +354,7 @@ export default function ProfilePage() {
                         {portraitFailed ? (
                           <div className="w-24 h-36 rounded-[1.5rem] rotate-[3.5deg] border-[3.5px] border-on-surface bg-on-surface text-brand-lime shadow-[6px_6px_0px_black] flex flex-col items-center justify-center gap-1">
                             <span className="font-display text-4xl font-black italic leading-none">{fieldTypeData.name.charAt(0)}</span>
-                            <span className="font-mono text-[8px] font-black uppercase tracking-[0.2em]">Portrait incoming</span>
+                            <span className="font-mono text-xs font-black uppercase tracking-[0.2em]">Portrait incoming</span>
                           </div>
                         ) : (
                           <img
@@ -381,9 +381,9 @@ export default function ProfilePage() {
                     <div className="flex justify-between items-end">
                       <div className="space-y-1">
                          <p className="text-4xl font-display font-black italic uppercase tracking-tighter text-on-surface leading-none">Level {level}</p>
-                         <p className="text-[10px] font-mono font-black uppercase tracking-widest text-on-surface/30 px-1">{displayedLevelTitle}</p>
+                         <p className="text-xs font-mono font-black uppercase tracking-widest text-on-surface/60 px-1">{displayedLevelTitle}</p>
                       </div>
-                      <p className="text-[10px] font-mono font-black text-on-surface bg-brand-cyan/20 px-2 py-1 rounded border border-on-surface/10">
+                      <p className="text-xs font-mono font-black text-on-surface bg-brand-cyan/20 px-2 py-1 rounded border border-on-surface/10">
                         {levelProgress.xp.toLocaleString()} / {levelProgress.nextLevel.minXp.toLocaleString()} XP
                       </p>
                     </div>
@@ -404,8 +404,8 @@ export default function ProfilePage() {
                          />
                        </div>
                        <div className="flex justify-between px-1">
-                          <span className="text-[8px] font-mono font-black uppercase text-on-surface/20">Current_Echelon</span>
-                          <span className="text-[8px] font-mono font-black uppercase text-on-surface/20">
+                          <span className="text-xs font-mono font-black uppercase text-on-surface/60">Current_Echelon</span>
+                          <span className="text-xs font-mono font-black uppercase text-on-surface/60">
                             {levelProgress.xpToNextLevel.toLocaleString()} XP to level {levelProgress.nextLevel.level}
                           </span>
                        </div>
@@ -416,14 +416,14 @@ export default function ProfilePage() {
                         <div className="absolute top-[-10px] right-[-10px] opacity-5 rotate-12 transition-transform group-hover:scale-110">
                            <Compass className="w-16 h-16 text-on-surface" />
                         </div>
-                        <p className="text-[9px] font-mono font-black opacity-30 uppercase tracking-[0.2em] mb-2 leading-none">{getDisplayLabel('LOGS_VERIFIED')}</p>
+                        <p className="text-xs font-mono font-black opacity-30 uppercase tracking-[0.2em] mb-2 leading-none">{getDisplayLabel('LOGS_VERIFIED')}</p>
                         <p className="text-3xl font-display font-black italic text-on-surface leading-none tracking-tight">{approvedEntriesCount}</p>
                       </div>
                       <div className="p-4 bg-on-surface/5 border-[2px] border-on-surface/10 rounded-2xl relative overflow-hidden group">
                         <div className="absolute top-[-10px] right-[-10px] opacity-5 rotate-12 transition-transform group-hover:scale-110">
                            <Star className="w-16 h-16 text-on-surface" />
                         </div>
-                        <p className="text-[9px] font-mono font-black opacity-30 uppercase tracking-[0.2em] mb-2 leading-none">{getDisplayLabel('TOKENS')}</p>
+                        <p className="text-xs font-mono font-black opacity-30 uppercase tracking-[0.2em] mb-2 leading-none">{getDisplayLabel('TOKENS')}</p>
                         <p className="text-3xl font-display font-black italic text-brand-orange leading-none tracking-tight">{fieldTokens}</p>
                       </div>
                     </div>
@@ -584,10 +584,10 @@ export default function ProfilePage() {
                                       });
                                    }}
                                    className={cn(
-                                      "py-3 text-[9px] uppercase font-black tracking-wider transition-all rounded-xl border-2 text-center",
+                                      "py-3 text-xs uppercase font-black tracking-wider transition-all rounded-xl border-2 text-center",
                                       active 
                                          ? "bg-on-surface text-white border-on-surface shadow-[2px_2px_0px_black]" 
-                                         : "bg-white text-on-surface/50 hover:bg-paper-dark border-on-surface shadow-[1px_1px_0px_black]"
+                                         : "bg-white text-on-surface/60 hover:bg-paper-dark border-on-surface shadow-[1px_1px_0px_black]"
                                    )}
                                 >
                                    {opt.label}
@@ -612,7 +612,7 @@ export default function ProfilePage() {
                         <div className="space-y-3">
                            <fieldset className="space-y-2">
                               <legend className="font-display text-lg font-black uppercase">Who can see my receipts?</legend>
-                              <p className="text-[10px] opacity-55">The feed defaults to your Crew. Public discovery is reserved for a deliberate future discovery surface.</p>
+                              <p className="text-xs opacity-55">The feed defaults to your Crew. Public discovery is reserved for a deliberate future discovery surface.</p>
                               {[
                                  ['crew_only', 'Crew only'],
                                  ['followers_only', 'People I add'],
@@ -623,7 +623,7 @@ export default function ProfilePage() {
                                  const available = value === 'crew_only' || value === 'private';
                                  return <button key={value} type="button" disabled={!available} onClick={async () => {
                                     await updateFeedPrivacy(value as 'crew_only' | 'followers_only' | 'public_discovery' | 'private');
-                                 }} className={cn("w-full p-3 flex items-center justify-between font-mono text-[10px] uppercase font-black tracking-wider rounded-xl border-2 text-left disabled:opacity-40", selected ? "bg-brand-lime text-on-surface border-on-surface shadow-[2px_2px_0px_black]" : "bg-white text-on-surface/50 border-on-surface")}>
+                                 }} className={cn("w-full p-3 flex items-center justify-between font-mono text-xs uppercase font-black tracking-wider rounded-xl border-2 text-left disabled:opacity-40", selected ? "bg-brand-lime text-on-surface border-on-surface shadow-[2px_2px_0px_black]" : "bg-white text-on-surface/60 border-on-surface")}>
                                     <span>{label}</span><span>{selected ? 'Selected' : available ? '' : 'Coming later'}</span>
                                  </button>;
                               })}
@@ -636,7 +636,7 @@ export default function ProfilePage() {
                               return <button key={key} type="button" onClick={async () => {
                                  const currentPrefs = profile?.preferences || {};
                                  await updateProfile(profile?.id || '', { preferences: { ...currentPrefs, [key]: !enabled } });
-                              }} className="w-full p-3 flex items-center justify-between font-mono text-[10px] uppercase font-black tracking-wider rounded-xl border-2 bg-white text-on-surface border-on-surface">
+                              }} className="w-full p-3 flex items-center justify-between font-mono text-xs uppercase font-black tracking-wider rounded-xl border-2 bg-white text-on-surface border-on-surface">
                                  <span>{label}</span><span>{enabled ? 'Allowed' : 'Off'}</span>
                               </button>;
                            })}
@@ -653,10 +653,10 @@ export default function ProfilePage() {
                                  });
                               }}
                               className={cn(
-                                 "w-full p-4 flex items-center justify-between font-mono text-[10px] uppercase font-black tracking-wider transition-all rounded-xl border-2 text-left",
+                                 "w-full p-4 flex items-center justify-between font-mono text-xs uppercase font-black tracking-wider transition-all rounded-xl border-2 text-left",
                                  profile?.preferences?.showExactCoordinates
                                     ? "bg-brand-lime text-on-surface border-on-surface shadow-[2px_2px_0px_black]"
-                                    : "bg-white text-on-surface/50 hover:bg-paper-dark border-on-surface shadow-[1px_1px_0px_black]"
+                                    : "bg-white text-on-surface/60 hover:bg-paper-dark border-on-surface shadow-[1px_1px_0px_black]"
                               )}
                            >
                               <span>🛰️ Share Exact GPS Coordinates</span>
@@ -703,7 +703,7 @@ export default function ProfilePage() {
               <div className="flex items-center justify-between border-b-4 border-dashed border-on-surface/10 pb-4">
                 <div className="flex items-center gap-2">
                   <div className="h-4 w-1 bg-brand-orange shadow-[1px_1px_0px_black]" />
-                  <span className="text-[10px] font-mono font-black text-on-surface/50 uppercase tracking-[0.2em]">Edit profile</span>
+                  <span className="text-xs font-mono font-black text-on-surface/60 uppercase tracking-[0.2em]">Edit profile</span>
                 </div>
                 <button 
                   onClick={() => setIsEditModalOpen(false)}

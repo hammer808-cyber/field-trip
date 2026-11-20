@@ -30,7 +30,7 @@ export function BasecampNotifications({ items, onOpen }: BasecampNotificationsPr
       aria-labelledby="basecamp-notifications-heading"
       className="skin-card border-[var(--skin-border-width)] border-[var(--skin-border)] bg-[var(--skin-surface)] p-5 shadow-[var(--skin-card-shadow)] sm:p-6"
     >
-      <p className="font-mono text-[8px] font-black uppercase tracking-[0.22em] text-[var(--skin-text-muted)]">Field notices</p>
+      <p className="font-mono text-xs font-black uppercase tracking-[0.22em] text-[var(--skin-text-muted)]">Field notices</p>
       <h2 id="basecamp-notifications-heading" className="mt-1 font-display text-2xl font-black uppercase italic tracking-normal text-[var(--skin-text)]">
         Notifications
       </h2>
@@ -70,9 +70,9 @@ export function BasecampNotifications({ items, onOpen }: BasecampNotificationsPr
                     )}>
                       {item.title}
                     </span>
-                    <span className="mt-1 line-clamp-2 block text-[11px] leading-relaxed text-[var(--skin-text-muted)]">{item.detail}</span>
+                    <span className="mt-1 line-clamp-2 block text-xs leading-relaxed text-[var(--skin-text-muted)]">{item.detail}</span>
                   </span>
-                  <time className="pt-1 font-mono text-[7px] font-bold uppercase tracking-wider text-[var(--skin-text-muted)]">
+                  <time className="pt-1 font-mono text-xs font-bold uppercase tracking-wider text-[var(--skin-text-muted)]">
                     {item.timeLabel}
                   </time>
                 </button>

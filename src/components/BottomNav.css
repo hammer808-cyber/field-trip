@@ -15,7 +15,8 @@
   border: 1.5px solid #111;
   background: var(--skin-secondary, #ccff00);
   color: #111;
-  font: 900 8px/1.1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* P2-3: 12px floor (was 8px). */
+  font: 900 12px/1.1 ui-monospace, SFMono-Regular, Menlo, monospace;
   letter-spacing: .12em;
   text-transform: uppercase;
 }

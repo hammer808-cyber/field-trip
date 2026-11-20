@@ -1395,7 +1395,7 @@ export default function CapturePage() {
           >
             {isRepairMode && repairFeedback && fcState === 'brief' && (
               <div className="mb-6 bg-brand-orange/10 border-l-4 border-brand-orange p-5 rounded-2xl text-left space-y-1.5 shadow-sm">
-                <p className="font-mono text-[9px] font-black uppercase tracking-wider text-brand-orange flex items-center gap-1.5">
+                <p className="font-mono text-xs font-black uppercase tracking-wider text-brand-orange flex items-center gap-1.5">
                   <AlertCircle className="w-3.5 h-3.5" /> Needs more proof
                 </p>
                 <p className="text-xs font-serif italic text-on-surface leading-relaxed">
@@ -1409,7 +1409,7 @@ export default function CapturePage() {
                 note stay on the reviewing screen below — nothing was lost. */}
             {submissionStatus === 'error' && (
               <div role="alert" className="mb-6 bg-red-500/10 border-l-4 border-red-600 p-5 rounded-2xl text-left space-y-2 shadow-sm">
-                <p className="font-mono text-[9px] font-black uppercase tracking-wider text-red-700 flex items-center gap-1.5">
+                <p className="font-mono text-xs font-black uppercase tracking-wider text-red-700 flex items-center gap-1.5">
                   <AlertCircle className="w-3.5 h-3.5" /> Proof didn&apos;t save
                 </p>
                 <p className="text-xs font-sans font-bold text-on-surface leading-relaxed">
@@ -1425,7 +1425,7 @@ export default function CapturePage() {
                   className={cn(
                     "mt-1 w-full py-3 border-4 border-on-surface rounded-2xl font-display text-lg font-black uppercase italic tracking-widest shadow-[6px_6px_0px_black] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2",
                     isUploading
-                      ? "bg-on-surface/5 text-on-surface/35 border-on-surface/15 cursor-not-allowed shadow-none"
+                      ? "bg-on-surface/5 text-on-surface/60 border-on-surface/15 cursor-not-allowed shadow-none"
                       : "bg-brand-orange text-white hover:bg-on-surface hover:text-brand-lime"
                   )}
                 >
@@ -1471,7 +1471,7 @@ export default function CapturePage() {
                     <div className="w-full bg-on-surface text-paper border-2 border-brand-orange p-3 flex items-center justify-between gap-3 shadow-[4px_4px_0px_black] font-mono rounded-xl">
                       <div className="flex items-center gap-2">
                         <div className="w-2 rounded-full h-2 bg-brand-orange animate-ping" />
-                        <span className="text-[9px] uppercase font-black text-brand-orange">Fast Find Timer:</span>
+                        <span className="text-xs uppercase font-black text-brand-orange">Fast Find Timer:</span>
                       </div>
                       <div className="text-sm font-black text-white bg-black px-2 py-0.5 rounded tracking-widest font-mono">
                         {Math.floor(fastFindTimeRemaining / 60).toString().padStart(2, '0')}:
@@ -1526,7 +1526,7 @@ export default function CapturePage() {
           {!showDebug ? (
             <button 
               onClick={() => setShowDebug(true)}
-              className="bg-black/95 text-brand-lime hover:bg-brand-orange font-mono text-[8px] px-2 py-1 border border-brand-lime shadow-md uppercase font-black cursor-pointer rounded-sm pointer-events-auto"
+              className="bg-black/95 text-brand-lime hover:bg-brand-orange font-mono text-xs px-2 py-1 border border-brand-lime shadow-md uppercase font-black cursor-pointer rounded-sm pointer-events-auto"
               title="Open QA Console"
             >
               [QA DBG]
@@ -1535,11 +1535,11 @@ export default function CapturePage() {
             <div className="bg-black/95 text-brand-lime font-mono text-[8.5px] p-2.5 border border-brand-lime space-y-1 w-48 shadow-2xl relative rounded-sm pointer-events-auto">
               <button 
                 onClick={() => setShowDebug(false)}
-                className="absolute top-1 right-2 text-white hover:text-brand-orange text-[9px] font-bold cursor-pointer"
+                className="absolute top-1 right-2 text-white hover:text-brand-orange text-xs font-bold cursor-pointer"
               >
                 [X]
               </button>
-              <p className="text-[9px] font-black uppercase text-white tracking-widest border-b border-white/20 pb-0.5 mb-1 font-sans">QA_CONSOLE</p>
+              <p className="text-xs font-black uppercase text-white tracking-widest border-b border-white/20 pb-0.5 mb-1 font-sans">QA_CONSOLE</p>
               <p>screenMode: {(() => {
                 if (completeRecord) {
                   if (completeRecord.syncStatus === 'sync_failed') return 'error';

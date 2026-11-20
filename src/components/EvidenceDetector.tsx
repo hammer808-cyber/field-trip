@@ -53,7 +53,7 @@ export const EvidenceDetector: React.FC<EvidenceDetectorProps> = ({
       case 'error': return <ShieldAlert className="w-4 h-4 text-on-surface" />;
       case 'skipped':
       case 'manual_review_required': return <Search className="w-4 h-4 text-on-surface" />;
-      default: return <Search className="w-4 h-4 text-on-surface/40" />;
+      default: return <Search className="w-4 h-4 text-on-surface/60" />;
     }
   };
 
@@ -121,7 +121,7 @@ export const EvidenceDetector: React.FC<EvidenceDetectorProps> = ({
           <div className="font-display font-black uppercase text-xs italic tracking-tight text-white leading-tight">
             {content.title}
           </div>
-          <div className="font-mono text-[8px] font-black uppercase tracking-widest text-brand-lime/60 mt-0.5">
+          <div className="font-mono text-xs font-black uppercase tracking-widest text-brand-lime/60 mt-0.5">
             {content.subtitle}
           </div>
         </div>
@@ -130,7 +130,7 @@ export const EvidenceDetector: React.FC<EvidenceDetectorProps> = ({
         {(status === 'error' || status === 'not_detected') && onRetry && (
            <button 
              onClick={onRetry}
-             className="ml-auto bg-brand-orange text-white px-2 py-1 text-[8px] font-mono font-black uppercase border border-white/20 rounded hover:bg-white hover:text-on-surface transition-colors relative z-10"
+             className="ml-auto bg-brand-orange text-white px-2 py-1 text-xs font-mono font-black uppercase border border-white/20 rounded hover:bg-white hover:text-on-surface transition-colors relative z-10"
            >
              RETRY
            </button>
@@ -139,7 +139,7 @@ export const EvidenceDetector: React.FC<EvidenceDetectorProps> = ({
         {(status === 'skipped' || status === 'manual_review_required') && onManualReview && (
            <button 
              onClick={onManualReview}
-             className="ml-auto bg-brand-cyan text-on-surface px-2 py-1 text-[8px] font-mono font-black uppercase border border-white/40 rounded hover:bg-white transition-colors relative z-10"
+             className="ml-auto bg-brand-cyan text-on-surface px-2 py-1 text-xs font-mono font-black uppercase border border-white/40 rounded hover:bg-white transition-colors relative z-10"
            >
              SUBMIT_ANYWAY
            </button>

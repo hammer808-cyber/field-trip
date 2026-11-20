@@ -199,7 +199,7 @@ export const PersonaQuiz: React.FC<PersonaQuizProps> = ({ onComplete }) => {
           className="space-y-6"
         >
           <div className="space-y-2">
-            <p className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-brand-orange">3 quick picks</p>
+            <p className="font-mono text-xs font-black uppercase tracking-[0.22em] text-brand-orange">3 quick picks</p>
             <p className="font-sans text-sm font-bold text-on-surface/70">This picks your Explorer Type.</p>
             <h1
               id={`question-${question.id}`}
@@ -215,8 +215,8 @@ export const PersonaQuiz: React.FC<PersonaQuizProps> = ({ onComplete }) => {
               </p>
             )}
             {trevorLine(question) && (
-              <p className="inline-flex items-start gap-2 border-2 border-dashed border-on-surface/25 bg-white/60 px-3 py-2 font-mono text-[11px] font-bold leading-relaxed text-on-surface/75">
-                <span className="shrink-0 bg-on-surface px-1.5 py-0.5 text-[9px] font-black uppercase tracking-widest text-white">Trevor</span>
+              <p className="inline-flex items-start gap-2 border-2 border-dashed border-on-surface/25 bg-white/60 px-3 py-2 font-mono text-xs font-bold leading-relaxed text-on-surface/75">
+                <span className="shrink-0 bg-on-surface px-1.5 py-0.5 text-xs font-black uppercase tracking-widest text-white">Trevor</span>
                 {trevorLine(question)}
               </p>
             )}

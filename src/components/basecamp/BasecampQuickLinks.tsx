@@ -27,7 +27,7 @@ export function BasecampQuickLinks({ links, onOpen, extraActions = [] }: Basecam
     <section aria-labelledby="basecamp-destinations-heading" className="basecamp-more-places">
       <div className="mb-3 flex items-end justify-between gap-4 border-b-2 border-[var(--skin-border)] pb-2">
         <div>
-          <p className="font-mono text-[8px] font-black uppercase tracking-[0.22em] text-[var(--skin-text-muted)]">Optional</p>
+          <p className="font-mono text-xs font-black uppercase tracking-[0.22em] text-[var(--skin-text-muted)]">Optional</p>
           <h2 id="basecamp-destinations-heading" className="mt-1 font-display text-2xl font-black uppercase italic tracking-normal text-[var(--skin-text)]">
             More places
           </h2>
@@ -60,7 +60,7 @@ export function BasecampQuickLinks({ links, onOpen, extraActions = [] }: Basecam
                 </div>
                 <div>
                   <h3 className="font-display text-xl font-black uppercase italic leading-none tracking-normal">{link.label}</h3>
-                  <p className="mt-1 max-w-[30ch] text-[11px] font-bold leading-snug opacity-70">{link.description}</p>
+                  <p className="mt-1 max-w-[30ch] text-xs font-bold leading-snug opacity-70">{link.description}</p>
                 </div>
               </div>
             </button>
@@ -77,7 +77,7 @@ export function BasecampQuickLinks({ links, onOpen, extraActions = [] }: Basecam
                 key={action.id}
                 type="button"
                 onClick={() => onOpen(action.href)}
-                className="inline-flex min-h-10 items-center gap-2 border-2 border-[var(--skin-border)] bg-[var(--skin-surface)] px-3 py-1.5 font-mono text-[9px] font-black uppercase tracking-widest text-[var(--skin-text)] opacity-70 hover:opacity-100 focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)]"
+                className="inline-flex min-h-10 items-center gap-2 border-2 border-[var(--skin-border)] bg-[var(--skin-surface)] px-3 py-1.5 font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-text)] opacity-70 hover:opacity-100 focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)]"
               >
                 <Icon size={14} aria-hidden="true" />
                 {action.label}

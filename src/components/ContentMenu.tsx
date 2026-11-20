@@ -57,7 +57,7 @@ export function ContentMenu({ targetId, targetType, authorId, authorName, classN
             className="fixed inset-0 z-40" 
             onClick={() => setIsOpen(false)} 
           />
-          <div className="absolute top-8 right-0 z-50 bg-paper border-2 border-on-surface shadow-[4px_4px_0px_#000] w-48 text-[10px] uppercase font-bold tracking-widest divide-y divide-on-surface/10">
+          <div className="absolute top-8 right-0 z-50 bg-paper border-2 border-on-surface shadow-[4px_4px_0px_#000] w-48 text-xs uppercase font-bold tracking-widest divide-y divide-on-surface/10">
             {isFieldCheckUnlocked && targetType === 'entry' && (
                <button 
                 onClick={() => {

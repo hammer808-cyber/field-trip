@@ -79,10 +79,10 @@ export default function MissionSubmittedPage() {
               <h1 className="font-display text-4xl font-black uppercase italic tracking-tighter leading-none text-on-surface">
                 {getDisplayLabel('PROOF_SENT')}
               </h1>
-              <p className="font-mono text-[9px] font-black uppercase tracking-[0.25em] text-on-surface/40">
+              <p className="font-mono text-xs font-black uppercase tracking-[0.25em] text-on-surface/60">
                 TRANSMISSION COMPLETE
               </p>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-orange text-white text-[9px] font-mono font-black uppercase tracking-widest border-2 border-on-surface rotate-[-1deg]">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-orange text-white text-xs font-mono font-black uppercase tracking-widest border-2 border-on-surface rotate-[-1deg]">
                 <Sparkles className="w-3 h-3 text-white" />
                 <span>PHOTO SUBMITTED</span>
               </div>
@@ -94,7 +94,7 @@ export default function MissionSubmittedPage() {
                   {starterGuidance.progressLine}
                 </p>
               )}
-              <p className="text-[9px] font-mono font-black uppercase tracking-wider text-brand-orange-dark">
+              <p className="text-xs font-mono font-black uppercase tracking-wider text-brand-orange-dark">
                 {starterGuidance.status === 'NEEDS_MORE_PROOF'
                   ? 'NEEDS MORE PROOF'
                   : starterGuidance.status === 'REJECTED_RETRY_AVAILABLE'
@@ -111,7 +111,7 @@ export default function MissionSubmittedPage() {
 
           {mission && (
             <div className="mt-5 bg-on-surface/[0.02] border-2 border-on-surface/5 p-4 rounded-xl">
-              <span className="text-[8px] font-mono font-black uppercase tracking-widest text-on-surface/30 block mb-1">COMPLETED MISSION</span>
+              <span className="text-xs font-mono font-black uppercase tracking-widest text-on-surface/60 block mb-1">COMPLETED MISSION</span>
               <p className="text-xs font-bold text-on-surface flex items-center justify-center gap-1.5">
                 <Camera className="w-4 h-4 text-brand-orange" />
                 {mission.title}
@@ -121,7 +121,7 @@ export default function MissionSubmittedPage() {
 
           {/* End of Season Banner Quote */}
           <div className="mt-6 pt-4 border-t-2 border-dashed border-on-surface/10">
-            <p className="font-mono text-[9px] uppercase tracking-wider leading-relaxed text-on-surface/40">
+            <p className="font-mono text-xs uppercase tracking-wider leading-relaxed text-on-surface/60">
               Take photos. Earn points. Make the summer reel. Win the season!
             </p>
           </div>

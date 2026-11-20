@@ -43,7 +43,7 @@ export const ProofCorrection: React.FC<ProofCorrectionProps> = ({ review, onRetr
             <AlertTriangle className="w-8 h-8" />
           </div>
           <div>
-            <p className="font-mono text-[10px] font-black uppercase tracking-[0.18em] text-on-surface/45">Proof review</p>
+            <p className="font-mono text-xs font-black uppercase tracking-[0.18em] text-on-surface/60">Proof review</p>
             <h2 className="font-display text-2xl uppercase italic tracking-normal leading-none">
               {isRejected ? 'Rejected' : 'Needs more proof'}
             </h2>
@@ -80,7 +80,7 @@ export const ProofCorrection: React.FC<ProofCorrectionProps> = ({ review, onRetr
 
         {/* AI Insight */}
         <div className="p-4 border border-on-surface/10 rounded-2xl bg-on-surface/5">
-           <p className="text-[10px] font-mono opacity-40 leading-tight">
+           <p className="text-xs font-mono opacity-40 leading-tight">
              // PROOF_FINDER AGENT NOTE: This almost passes, but the Bureau prefers higher fidelity submissions. 
              If this was a spontaneous moment, consider adding a memo explaining the discrepancy.
            </p>

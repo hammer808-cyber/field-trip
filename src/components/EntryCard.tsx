@@ -81,7 +81,7 @@ export function EntryCard({ entry, className }: EntryCardProps) {
         
         {isAdmin && (
           <div className="absolute inset-0 bg-on-surface/90 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-6 p-6 backdrop-blur-sm z-30">
-            <p className="text-white font-mono text-[9px] mb-2 font-black tracking-[0.4em] uppercase italic">ADMIN_OVERRIDE_PROTOCOL</p>
+            <p className="text-white font-mono text-xs mb-2 font-black tracking-[0.4em] uppercase italic">ADMIN_OVERRIDE_PROTOCOL</p>
             <div className="flex gap-4">
               <button 
                 onClick={() => handleAdminAction('approved')}
@@ -128,11 +128,11 @@ export function EntryCard({ entry, className }: EntryCardProps) {
             <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-brand-cyan border-2 border-on-surface rounded-full z-10" />
           </div>
           <div className="space-y-1 to-left">
-            <p className="text-[9px] font-mono opacity-40 font-black tracking-[0.2em] italic uppercase leading-none">{fc(`SOURCE // ${entry.userName?.toUpperCase() || 'ANON_AGENT'}`, `By ${entry.userName || 'Agent'}`)}</p>
+            <p className="text-xs font-mono opacity-40 font-black tracking-[0.2em] italic uppercase leading-none">{fc(`SOURCE // ${entry.userName?.toUpperCase() || 'ANON_AGENT'}`, `By ${entry.userName || 'Agent'}`)}</p>
             <h4 className="font-display text-3xl uppercase tracking-tighter text-on-surface font-black italic leading-[0.8] mt-1">
               {entry.tripTitle || entry.challengeTitle || entry.missionTitle || 'Retired Mission'}
             </h4>
-            <p className="pt-1 font-mono text-[8px] font-black uppercase tracking-wider text-on-surface/45">
+            <p className="pt-1 font-mono text-xs font-black uppercase tracking-wider text-on-surface/60">
               {entry.deckName || entry.deckId || 'Fieldtrip'} · {entry.cardType || 'Signal'}
             </p>
           </div>
@@ -168,7 +168,7 @@ export function EntryCard({ entry, className }: EntryCardProps) {
             >
               <div className="flex items-center gap-2">
                 <StatusIcon className="w-4 h-4" />
-                <span className="text-[11px] font-black tracking-tight">{isPlain ? status.text : status.text.replace(/ /g, '_')}</span>
+                <span className="text-xs font-black tracking-tight">{isPlain ? status.text : status.text.replace(/ /g, '_')}</span>
               </div>
             </FieldBadge>
           </div>
@@ -176,7 +176,7 @@ export function EntryCard({ entry, className }: EntryCardProps) {
           {isApproved && !isOwnEntry && (
             <button
               onClick={() => setIsFieldCheckOpen(true)}
-              className="flex items-center gap-2 text-[10px] font-black uppercase italic tracking-[0.2em] text-on-surface/30 hover:text-brand-orange transition-colors"
+              className="flex items-center gap-2 text-xs font-black uppercase italic tracking-[0.2em] text-on-surface/60 hover:text-brand-orange transition-colors"
             >
               <Flag className="w-3 h-3" />
               {fc('REQUEST_FIELD_CHECK', 'Request Field Check')}
@@ -194,7 +194,7 @@ export function EntryCard({ entry, className }: EntryCardProps) {
           </div>
           {hasClassifiedReserve && (
             <p
-              className="mt-2 max-w-44 text-[9px] font-mono font-black uppercase tracking-widest text-on-surface/45"
+              className="mt-2 max-w-44 text-xs font-mono font-black uppercase tracking-widest text-on-surface/60"
               title="Not every signal is visible yet. Some Fieldtrip points remain reserved for future discoveries, special conditions, and seasonal surprises."
             >
               {reservedPotentialXp} XP remains classified

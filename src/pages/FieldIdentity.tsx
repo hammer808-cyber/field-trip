@@ -137,7 +137,7 @@ export default function FieldIdentity() {
                 onClick={() => setActiveCategory(cat.key)}
                 className={cn(
                   "px-4 py-2 text-xs uppercase tracking-widest font-black transition-all border-b-4",
-                  activeCategory === cat.key ? "border-brand-orange text-brand-orange scale-105" : "border-transparent text-on-surface/40 hover:text-on-surface/60"
+                  activeCategory === cat.key ? "border-brand-orange text-brand-orange scale-105" : "border-transparent text-on-surface/60 hover:text-on-surface/60"
                 )}
               >
                 {cat.label}
@@ -148,7 +148,7 @@ export default function FieldIdentity() {
           {profile?.fieldType && PERSONA_AVATAR_PRESETS[profile.fieldType] && (
             <button 
               onClick={handleResetToPersona}
-              className="flex items-center gap-2 px-4 py-2 bg-on-surface/5 border-2 border-on-surface font-black uppercase text-[9px] tracking-widest hover:bg-brand-lime transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-on-surface/5 border-2 border-on-surface font-black uppercase text-xs tracking-widest hover:bg-brand-lime transition-colors"
               title="Reset to Persona Default"
             >
               <RefreshCcw size={12} strokeWidth={3} />
@@ -180,12 +180,12 @@ export default function FieldIdentity() {
                 {option.path ? (
                   <img src={option.path} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-[10px] opacity-20 uppercase font-black italic">Null</span>
+                  <span className="text-xs opacity-20 uppercase font-black italic">Null</span>
                 )}
               </div>
               <span className={cn(
-                "text-[10px] uppercase font-black tracking-widest text-center line-clamp-1 transition-colors",
-                selectedId === option.id ? "text-white" : "text-on-surface/40 group-hover:text-on-surface"
+                "text-xs uppercase font-black tracking-widest text-center line-clamp-1 transition-colors",
+                selectedId === option.id ? "text-white" : "text-on-surface/60 group-hover:text-on-surface"
               )}>
                 {option.name}
               </span>

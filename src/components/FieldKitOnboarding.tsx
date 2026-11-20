@@ -103,7 +103,7 @@ export default function FieldKitOnboarding() {
       <div className="fixed inset-0 z-[200] flex items-center justify-center bg-paper p-4">
         <div className="w-full max-w-sm space-y-8 text-center">
           <div className="space-y-2">
-            <h2 className="font-mono text-[10px] font-black uppercase tracking-[0.4em] text-on-surface/40">Getting ready</h2>
+            <h2 className="font-mono text-xs font-black uppercase tracking-[0.4em] text-on-surface/60">Getting ready</h2>
             <div className="h-1.5 bg-on-surface/5 border border-on-surface/10 rounded-full overflow-hidden p-0.5">
               <motion.div 
                 initial={{ width: 0 }}
@@ -112,7 +112,7 @@ export default function FieldKitOnboarding() {
               />
             </div>
           </div>
-          <div className="space-y-4 font-mono text-[9px] font-bold text-on-surface/60 uppercase tracking-widest italic animate-pulse">
+          <div className="space-y-4 font-mono text-xs font-bold text-on-surface/60 uppercase tracking-widest italic animate-pulse">
             <p>Readying Field Kit...</p>
             <p className={cn(bootProgress > 30 ? "opacity-100" : "opacity-0")}>Calibrating Lens...</p>
             <p className={cn(bootProgress > 60 ? "opacity-100" : "opacity-0")}>Mapping Coordinates...</p>
@@ -146,7 +146,7 @@ export default function FieldKitOnboarding() {
           </div>
           <div className="space-y-2">
             <h2 className="font-display text-4xl font-black uppercase tracking-tighter italic">{granted ? "You're ready" : 'Not quite ready'}</h2>
-            <p className="font-mono text-[10px] font-bold text-on-surface/40 uppercase tracking-widest">{granted ? 'Camera + location set' : 'Camera and location not set — you can turn them on later from Settings'}</p>
+            <p className="font-mono text-xs font-bold text-on-surface/60 uppercase tracking-widest">{granted ? 'Camera + location set' : 'Camera and location not set — you can turn them on later from Settings'}</p>
           </div>
           {!granted && (
             <div className="space-y-3 pt-2">
@@ -159,7 +159,7 @@ export default function FieldKitOnboarding() {
               </button>
               <button
                 onClick={handleContinueWithoutPermissions}
-                className="w-full py-3 text-on-surface/50 hover:text-on-surface font-mono text-[10px] font-bold uppercase tracking-widest transition-colors"
+                className="w-full py-3 text-on-surface/60 hover:text-on-surface font-mono text-xs font-bold uppercase tracking-widest transition-colors"
               >
                 Continue without permissions
               </button>
@@ -187,7 +187,7 @@ export default function FieldKitOnboarding() {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-brand-orange animate-pulse" />
-            <span className="font-mono text-[10px] font-black uppercase tracking-widest text-brand-orange">Camera + location</span>
+            <span className="font-mono text-xs font-black uppercase tracking-widest text-on-surface">Camera + location</span>
           </div>
           <h1 className="font-display text-3xl sm:text-4xl font-black uppercase tracking-tighter leading-none italic">
             Turn on camera + location
@@ -204,8 +204,8 @@ export default function FieldKitOnboarding() {
               <Camera className="w-5 h-5 text-brand-orange" />
             </div>
             <div className="space-y-1">
-              <p className="font-mono text-[11px] font-black uppercase tracking-wider leading-none">Camera</p>
-              <p className="text-[11px] text-on-surface/60 leading-relaxed">So you can take proof photos.</p>
+              <p className="font-mono text-xs font-black uppercase tracking-wider leading-none">Camera</p>
+              <p className="text-xs text-on-surface/60 leading-relaxed">So you can take proof photos.</p>
             </div>
           </div>
 
@@ -215,13 +215,13 @@ export default function FieldKitOnboarding() {
               <MapPin className="w-5 h-5 text-brand-lime" />
             </div>
             <div className="space-y-1">
-              <p className="font-mono text-[11px] font-black uppercase tracking-wider leading-none">Location</p>
-              <p className="text-[11px] text-on-surface/60 leading-relaxed">So Fieldtrip can check you were really out there.</p>
+              <p className="font-mono text-xs font-black uppercase tracking-wider leading-none">Location</p>
+              <p className="text-xs text-on-surface/60 leading-relaxed">So Fieldtrip can check you were really out there.</p>
             </div>
           </div>
         </div>
 
-        <p className="text-[10px] font-mono text-on-surface/50 text-center uppercase tracking-widest pt-2">
+        <p className="text-xs font-mono text-on-surface/60 text-center uppercase tracking-widest pt-2">
           We only ask when the app needs them.
         </p>
 
@@ -242,7 +242,7 @@ export default function FieldKitOnboarding() {
           <button
             onClick={handleMaybeLater}
             disabled={isRequesting}
-            className="w-full py-3 text-on-surface/50 hover:text-on-surface font-mono text-[10px] font-bold uppercase tracking-widest transition-colors"
+            className="w-full py-3 text-on-surface/60 hover:text-on-surface font-mono text-xs font-bold uppercase tracking-widest transition-colors"
           >
             Not now
           </button>
@@ -251,7 +251,7 @@ export default function FieldKitOnboarding() {
         {error && (
           <div className="flex items-center gap-2 text-red-500 justify-center">
             <AlertCircle className="w-3 h-3" />
-            <span className="text-[10px] font-mono font-bold uppercase">{error}</span>
+            <span className="text-xs font-mono font-bold uppercase">{error}</span>
           </div>
         )}
 

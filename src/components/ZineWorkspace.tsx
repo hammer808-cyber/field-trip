@@ -128,7 +128,7 @@ function ZineWorkspaceInner({ initialKind = 'personal', showScopeSwitch = true }
     <section className="skin-zine space-y-8" aria-label="Fieldtrip zine workspace">
       <header className="border-b-4 border-on-surface pb-6 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
         <div className="space-y-2">
-          <p className="font-mono text-[10px] font-black uppercase tracking-[0.2em] text-brand-orange">Season edition / {workspace?.seasonId || 'active season'}</p>
+          <p className="font-mono text-xs font-black uppercase tracking-[0.2em] text-brand-orange">Season edition / {workspace?.seasonId || 'active season'}</p>
           <h2 className="font-display text-4xl sm:text-5xl font-black uppercase italic tracking-tight leading-none">
             {kind === 'personal' ? 'My Zine' : 'Crew Zine'}
           </h2>
@@ -140,13 +140,13 @@ function ZineWorkspaceInner({ initialKind = 'personal', showScopeSwitch = true }
           {showScopeSwitch && (
             <div className="inline-flex border-2 border-on-surface bg-white p-1" role="tablist" aria-label="Zine type">
               {(['personal', 'crew'] as ZineKind[]).map(item => (
-                <button key={item} role="tab" aria-selected={kind === item} onClick={() => setKind(item)} className={cn('px-4 py-2 font-mono text-[10px] font-black uppercase', kind === item ? 'bg-brand-lime' : 'text-on-surface/50')}>
+                <button key={item} role="tab" aria-selected={kind === item} onClick={() => setKind(item)} className={cn('px-4 py-2 font-mono text-xs font-black uppercase', kind === item ? 'bg-brand-lime' : 'text-on-surface/60')}>
                   {item}
                 </button>
               ))}
             </div>
           )}
-          <span className="border-2 border-on-surface px-3 py-2 bg-white font-mono text-[9px] font-black uppercase">{shellStatus.replace(/_/g, ' ')}</span>
+          <span className="border-2 border-on-surface px-3 py-2 bg-white font-mono text-xs font-black uppercase">{shellStatus.replace(/_/g, ' ')}</span>
           <button type="button" title="Refresh zine" onClick={() => load(kind)} className="w-10 h-10 border-2 border-on-surface bg-white grid place-items-center"><RefreshCw className="w-4 h-4" /></button>
         </div>
       </header>
@@ -155,7 +155,7 @@ function ZineWorkspaceInner({ initialKind = 'personal', showScopeSwitch = true }
 
       {!zine && (
         <div className="border-4 border-dashed border-on-surface/25 bg-white min-h-[260px] flex flex-col items-center justify-center text-center p-8 gap-4">
-          <Lock className="w-10 h-10 text-on-surface/30" />
+          <Lock className="w-10 h-10 text-on-surface/60" />
           <h3 className="font-display text-3xl font-black uppercase italic">
             {kind === 'crew' ? 'Crew zine not eligible yet' : 'Personal zine not eligible yet'}
           </h3>
@@ -170,7 +170,7 @@ function ZineWorkspaceInner({ initialKind = 'personal', showScopeSwitch = true }
       {zine && ['shell', 'generation_failed'].includes(zine.status) && (
         <div className="border-4 border-on-surface bg-[#FFFCEB] p-7 sm:p-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 shadow-[8px_8px_0px_black]">
           <div className="space-y-2">
-            <p className="font-mono text-[9px] uppercase tracking-widest opacity-55">Automatic archive ready</p>
+            <p className="font-mono text-xs uppercase tracking-widest opacity-55">Automatic archive ready</p>
             <h3 className="font-display text-3xl font-black uppercase italic">Generate the first draft</h3>
             <p className="font-serif italic text-sm opacity-65">{candidates.length} approved receipt{candidates.length === 1 ? '' : 's'} currently qualify. Sparse seasons still produce a usable draft.</p>
           </div>
@@ -183,13 +183,13 @@ function ZineWorkspaceInner({ initialKind = 'personal', showScopeSwitch = true }
       {zine && displayedPages.length > 0 && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3 border-y-2 border-on-surface/15 py-4">
-            <div className="font-mono text-[10px] font-black uppercase">{displayedPages.length} pages / {candidates.length} eligible receipts</div>
+            <div className="font-mono text-xs font-black uppercase">{displayedPages.length} pages / {candidates.length} eligible receipts</div>
             <div className="flex flex-wrap gap-2">
               {permissions.canEdit && zine.optionalPageCount < 2 && zine.status !== 'ready_for_review' && (
-                <button disabled={busy} onClick={() => run(() => addOptionalZinePage(zine.id))} className="bureau-btn bg-white text-on-surface text-[10px]"><FilePlus2 className="w-4 h-4" /> Add Page</button>
+                <button disabled={busy} onClick={() => run(() => addOptionalZinePage(zine.id))} className="bureau-btn bg-white text-on-surface text-xs"><FilePlus2 className="w-4 h-4" /> Add Page</button>
               )}
-              <button onClick={() => setPreview(value => !value)} className="bureau-btn bg-white text-on-surface text-[10px]"><BookOpen className="w-4 h-4" /> {preview ? 'Edit View' : 'Full Preview'}</button>
-              <button onClick={() => window.print()} className="bureau-btn bg-white text-on-surface text-[10px]"><Printer className="w-4 h-4" /> Print / Save PDF</button>
+              <button onClick={() => setPreview(value => !value)} className="bureau-btn bg-white text-on-surface text-xs"><BookOpen className="w-4 h-4" /> {preview ? 'Edit View' : 'Full Preview'}</button>
+              <button onClick={() => window.print()} className="bureau-btn bg-white text-on-surface text-xs"><Printer className="w-4 h-4" /> Print / Save PDF</button>
             </div>
           </div>
 
@@ -232,7 +232,7 @@ function ZineWorkspaceInner({ initialKind = 'personal', showScopeSwitch = true }
                   <button key={candidate.entryId} disabled={busy || zine.nominatedProofIds?.includes(candidate.entryId)} onClick={() => run(() => nominateCrewZineProof(zine.id, candidate.entryId))} className="shrink-0 w-48 border-2 border-on-surface bg-white p-3 text-left disabled:opacity-45">
                     <Star className="w-4 h-4 mb-2 text-brand-orange" />
                     <p className="font-display font-black uppercase truncate">{candidate.missionTitle}</p>
-                    <p className="font-mono text-[9px] uppercase opacity-50">{zine.nominatedProofIds?.includes(candidate.entryId) ? 'Nominated' : 'Nominate moment'}</p>
+                    <p className="font-mono text-xs uppercase opacity-50">{zine.nominatedProofIds?.includes(candidate.entryId) ? 'Nominated' : 'Nominate moment'}</p>
                   </button>
                 ))}
               </div>
@@ -241,14 +241,14 @@ function ZineWorkspaceInner({ initialKind = 'personal', showScopeSwitch = true }
 
           <footer className="border-4 border-on-surface bg-black text-white p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 print:hidden">
             <div>
-              <p className="font-mono text-[9px] uppercase tracking-widest text-brand-lime">Edition control</p>
+              <p className="font-mono text-xs uppercase tracking-widest text-brand-lime">Edition control</p>
               <p className="font-serif italic text-sm text-white/65">Finalization freezes proof snapshots, captions, stickers, order, and cover.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {permissions.canEdit && ['draft', 'curating'].includes(zine.status) && <button disabled={busy} onClick={() => run(() => markZineReady(zine.id))} className="bureau-btn bg-brand-cyan text-on-surface">Ready for Review</button>}
               {permissions.canFinalize && <button disabled={busy} onClick={() => run(() => finalizeZine(zine.id))} className="bureau-btn bg-brand-lime text-on-surface">Finalize Edition</button>}
-              {zine.status === 'ready_for_review' && !permissions.canFinalize && <span className="font-mono text-[10px] uppercase text-white/60">Waiting for authorized curator</span>}
-              {zine.status === 'finalized' && <span className="inline-flex items-center gap-2 font-mono text-[10px] uppercase text-brand-lime"><Check className="w-4 h-4" /> Edition finalized</span>}
+              {zine.status === 'ready_for_review' && !permissions.canFinalize && <span className="font-mono text-xs uppercase text-white/60">Waiting for authorized curator</span>}
+              {zine.status === 'finalized' && <span className="inline-flex items-center gap-2 font-mono text-xs uppercase text-brand-lime"><Check className="w-4 h-4" /> Edition finalized</span>}
             </div>
           </footer>
         </>
@@ -273,33 +273,33 @@ function ZinePagePanel({ zine, page, candidates, unlockedStickers, canEdit, comp
   return (
     <article className={cn('skin-card skin-zine-page relative border-4 border-on-surface bg-[#FFFDF6] overflow-hidden', compact ? 'min-h-[480px] shadow-[8px_8px_0px_black]' : 'grid md:grid-cols-[240px_1fr]')}>
       <div className={cn('relative bg-neutral-900', compact ? 'h-72' : 'min-h-64 md:min-h-full')}>
-        {imageEntry ? <ProofImage entry={imageEntry} className="absolute inset-0 w-full h-full" alt={selected?.missionTitle || page.title} /> : <div className="absolute inset-0 grid place-items-center text-center p-6 text-white/40 font-mono text-[10px] uppercase">Page waiting for a receipt</div>}
+        {imageEntry ? <ProofImage entry={imageEntry} className="absolute inset-0 w-full h-full" alt={selected?.missionTitle || page.title} /> : <div className="absolute inset-0 grid place-items-center text-center p-6 text-white/40 font-mono text-xs uppercase">Page waiting for a receipt</div>}
         <ZineStickerLayer page={page} />
-        <span className="absolute z-10 top-3 left-3 bg-brand-lime border-2 border-on-surface px-2 py-1 font-mono text-[8px] font-black uppercase">{page.order + 1} / {page.role.replace(/_/g, ' ')}</span>
+        <span className="absolute z-10 top-3 left-3 bg-brand-lime border-2 border-on-surface px-2 py-1 font-mono text-xs font-black uppercase">{page.order + 1} / {page.role.replace(/_/g, ' ')}</span>
       </div>
       <div className="p-5 sm:p-6 space-y-4">
         <div>
           <h3 className="font-display text-2xl sm:text-3xl font-black uppercase italic leading-none">{page.title}</h3>
-          {selected && <p className="font-mono text-[9px] uppercase opacity-45 mt-2">{selected.missionTitle} / {selected.ownerDisplayName}</p>}
+          {selected && <p className="font-mono text-xs uppercase opacity-45 mt-2">{selected.missionTitle} / {selected.ownerDisplayName}</p>}
         </div>
         <p className="font-serif italic text-sm text-on-surface/70 min-h-10">{page.caption || 'No caption yet.'}</p>
         {canEdit && (
           <div className="border-t-2 border-on-surface/15 pt-4 grid sm:grid-cols-2 gap-3">
             <label className="space-y-1">
-              <span className="font-mono text-[8px] font-black uppercase">Receipt</span>
-              <select value={page.proofIds[0] || ''} onChange={event => onRun(() => updateZinePage(zine.id, page.id, { proofIds: event.target.value ? [event.target.value] : [] }))} className="w-full border-2 border-on-surface bg-white p-2 font-mono text-[10px]">
+              <span className="font-mono text-xs font-black uppercase">Receipt</span>
+              <select value={page.proofIds[0] || ''} onChange={event => onRun(() => updateZinePage(zine.id, page.id, { proofIds: event.target.value ? [event.target.value] : [] }))} className="w-full border-2 border-on-surface bg-white p-2 font-mono text-xs">
                 <option value="">No receipt</option>
                 {candidates.map(candidate => <option key={candidate.entryId} value={candidate.entryId}>{candidate.missionTitle} / {candidate.ownerDisplayName}</option>)}
               </select>
             </label>
             <label className="space-y-1">
-              <span className="font-mono text-[8px] font-black uppercase">Layout</span>
-              <select value={page.layoutId} onChange={event => onRun(() => updateZinePage(zine.id, page.id, { layoutId: event.target.value as any }))} className="w-full border-2 border-on-surface bg-white p-2 font-mono text-[10px]">
+              <span className="font-mono text-xs font-black uppercase">Layout</span>
+              <select value={page.layoutId} onChange={event => onRun(() => updateZinePage(zine.id, page.id, { layoutId: event.target.value as any }))} className="w-full border-2 border-on-surface bg-white p-2 font-mono text-xs">
                 {LAYOUT_OPTIONS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
               </select>
             </label>
             <label className="sm:col-span-2 space-y-1">
-              <span className="font-mono text-[8px] font-black uppercase">Caption</span>
+              <span className="font-mono text-xs font-black uppercase">Caption</span>
               <textarea key={`${page.id}_${page.caption}`} defaultValue={page.caption} onBlur={event => event.target.value !== page.caption && onRun(() => updateZinePage(zine.id, page.id, { caption: event.target.value }))} className="w-full min-h-20 border-2 border-on-surface bg-white p-3 font-serif italic text-sm" maxLength={600} />
             </label>
             <ZineStickerPicker

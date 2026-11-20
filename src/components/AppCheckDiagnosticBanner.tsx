@@ -53,14 +53,14 @@ export function AppCheckDiagnosticBanner() {
             </div>
             <button 
               onClick={() => setIsVisible(false)}
-              className="text-[10px] font-mono hover:underline"
+              className="text-xs font-mono hover:underline"
             >
               [DISMISS]
             </button>
           </div>
 
           <div className="space-y-2">
-            <p className="text-[10px] font-mono leading-tight">
+            <p className="text-xs font-mono leading-tight">
               {initError ? (
                 <>
                   <span className="font-black">INITIALIZATION_ERROR:</span> {initError}
@@ -81,14 +81,14 @@ export function AppCheckDiagnosticBanner() {
                 href="https://console.firebase.google.com/" 
                 target="_blank" 
                 rel="noreferrer"
-                className="flex items-center gap-1 px-2 py-1 bg-white/20 border border-current/20 rounded text-[8px] font-black uppercase hover:bg-white/40 transition-colors"
+                className="flex items-center gap-1 px-2 py-1 bg-white/20 border border-current/20 rounded text-xs font-black uppercase hover:bg-white/40 transition-colors"
               >
                 Firebase Console <ExternalLink className="w-2 h-2" />
               </a>
               {initError && (
                  <button 
                    onClick={() => window.location.reload()}
-                   className="px-2 py-1 bg-current text-white border border-current rounded text-[8px] font-black uppercase"
+                   className="px-2 py-1 bg-current text-white border border-current rounded text-xs font-black uppercase"
                  >
                    Retry Handshake
                  </button>

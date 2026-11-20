@@ -66,13 +66,13 @@ export function StickerCollectionSection({
           <h3 className="font-display text-lg font-black uppercase leading-none">{meta.label}</h3>
           <p className="mt-1 font-serif text-sm font-semibold opacity-65">{meta.tagline}</p>
         </div>
-        <p className="shrink-0 font-mono text-[9px] font-black uppercase opacity-55">
+        <p className="shrink-0 font-mono text-xs font-black uppercase opacity-55">
           {earnedCount} / {totalCount}
         </p>
       </header>
       {stickers.length === 0 ? (
         <p
-          className="border-2 border-dashed px-4 py-6 text-center font-mono text-[10px] font-bold uppercase opacity-55"
+          className="border-2 border-dashed px-4 py-6 text-center font-mono text-xs font-bold uppercase opacity-55"
           style={{ borderColor: 'var(--skin-border)' }}
         >
           {emptyMessage ?? meta.emptyState}

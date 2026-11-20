@@ -668,11 +668,11 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
         />
         <div className="space-y-4 max-w-xs w-full my-auto">
           <AlertCircle className="w-12 h-12 text-brand-orange mx-auto" />
-          <p className="font-mono text-[11px] text-brand-orange uppercase tracking-widest leading-relaxed break-all">{error}</p>
+          <p className="font-mono text-xs text-brand-orange uppercase tracking-widest leading-relaxed break-all">{error}</p>
           
           <button 
             onClick={openFileUpload}
-            className="w-full py-3 bg-brand-lime text-on-surface font-mono text-[10px] uppercase font-black tracking-widest hover:bg-brand-lime/90 transition-colors shadow-[4px_4px_0px_black] border border-on-surface"
+            className="w-full py-3 bg-brand-lime text-on-surface font-mono text-xs uppercase font-black tracking-widest hover:bg-brand-lime/90 transition-colors shadow-[4px_4px_0px_black] border border-on-surface"
           >
             Upload Photo Evidence
           </button>
@@ -687,7 +687,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
               reviewStatus: 'approved',
               message: 'Beta simulator fallback.'
             })}
-            className="w-full py-3 bg-brand-orange text-white font-mono text-[10px] uppercase font-black tracking-widest hover:bg-brand-orange/90 transition-colors shadow-[4px_4px_0px_black] border border-on-surface"
+            className="w-full py-3 bg-brand-orange text-white font-mono text-xs uppercase font-black tracking-widest hover:bg-brand-orange/90 transition-colors shadow-[4px_4px_0px_black] border border-on-surface"
           >
             Simulate Beta Capture
           </button>
@@ -699,7 +699,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
               // error alone used to show a dead camera. Restart it.
               setCameraRestartNonce((n) => n + 1);
             }}
-            className="w-full py-3 bg-white/10 border border-white/20 font-mono text-[10px] text-white uppercase tracking-widest hover:bg-white/20 transition-colors"
+            className="w-full py-3 bg-white/10 border border-white/20 font-mono text-xs text-white uppercase tracking-widest hover:bg-white/20 transition-colors"
           >
             DISMISS & RETRY CAMERA
           </button>
@@ -765,7 +765,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
         <div className="absolute inset-x-0 h-[2px] bg-brand-orange/30 shadow-[0_0_15px_rgba(255,107,0,0.5)] animate-scan z-10" style={{ top: '20%' }} />
 
         {/* HUD Elements */}
-        <div className="absolute top-6 left-6 font-mono text-[9px] text-white uppercase tracking-widest space-y-2 z-40">
+        <div className="absolute top-6 left-6 font-mono text-xs text-white uppercase tracking-widest space-y-2 z-40">
           <div className="flex items-center gap-2 bg-on-surface/80 px-2 py-0.5 border border-white/20">
             <span className={cn("w-2 h-2 rounded-full", isProcessing ? "bg-red-500 animate-pulse" : "bg-brand-lime")} />
             {isProcessing ? getDisplayLabel('PROCESSING_SIGNAL') : `LINK_STABLE // ${readouts.status}`}
@@ -781,7 +781,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
           </div>
         </div>
 
-        <div className="absolute top-16 right-4 font-mono text-[8px] text-white/60 uppercase tracking-widest text-right z-40">
+        <div className="absolute top-16 right-4 font-mono text-xs text-white/60 uppercase tracking-widest text-right z-40">
           <div className="flex items-center justify-end gap-2">
              <div className="w-12 h-2 bg-white/20 border border-white/10 p-0.5">
                 <div className="h-full bg-brand-lime" style={{ width: `${readouts.battery}%` }} />
@@ -807,7 +807,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
             aria-label="Toggle camera zoom controls"
           >
             <ZoomIn className="h-4 w-4" />
-            <span className="font-mono text-[8px] font-black uppercase tracking-widest">
+            <span className="font-mono text-xs font-black uppercase tracking-widest">
               {zoomState.supported ? `${zoomState.value.toFixed(1)}x` : '1x'}
             </span>
           </button>
@@ -824,7 +824,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
             aria-label={`Switch to ${facingMode === 'environment' ? 'front' : 'rear'} camera`}
           >
             <SwitchCamera className="h-4 w-4" />
-            <span className="hidden font-mono text-[8px] font-black uppercase tracking-widest min-[390px]:inline">
+            <span className="hidden font-mono text-xs font-black uppercase tracking-widest min-[390px]:inline">
               {facingMode === 'environment' ? 'Rear' : 'Front'}
             </span>
           </button>
@@ -838,7 +838,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
               exit={{ y: 16, opacity: 0 }}
               className="skin-viewfinder-panel absolute bottom-40 left-4 right-4 z-50 rounded-2xl border border-white/15 bg-black/70 p-3 text-white shadow-lg backdrop-blur-md sm:left-auto sm:right-5 sm:w-[220px]"
             >
-            <div className="mb-2 flex items-center justify-between font-mono text-[8px] uppercase tracking-widest">
+            <div className="mb-2 flex items-center justify-between font-mono text-xs uppercase tracking-widest">
               <span className="text-white/60">Zoom</span>
               <span className={cn(
                 "font-black",
@@ -878,7 +878,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
                 <ZoomIn className="h-4 w-4" />
               </button>
             </div>
-            <div className="mt-2 text-center font-mono text-[10px] font-black tracking-widest text-brand-lime">
+            <div className="mt-2 text-center font-mono text-xs font-black tracking-widest text-brand-lime">
               {zoomState.supported ? `${zoomState.value.toFixed(1)}x` : '1.0x'}
             </div>
             </motion.div>
@@ -917,11 +917,11 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
               <div className="w-11 h-11 rounded-full bg-black/45 backdrop-blur-md border border-white/20 flex items-center justify-center transition-all group-hover:bg-black/70 group-hover:border-white/40 shadow-md">
                 <ImageIcon className="w-5 h-5 text-current" />
               </div>
-              <span className="font-mono text-[8px] uppercase tracking-wider font-semibold">Upload</span>
+              <span className="font-mono text-xs uppercase tracking-wider font-semibold">Upload</span>
             </button>
             {!activeRules.allowCameraRollUpload && (
               <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-brand-orange text-white px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] whitespace-nowrap">
-                <p className="font-mono text-[7px] font-black uppercase">Live_Only</p>
+                <p className="font-mono text-xs font-black uppercase">Live_Only</p>
               </div>
             )}
             </div>
@@ -952,7 +952,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
               )}>
                 <Zap className={cn("h-5 w-5", flashEnabled && "fill-current")} />
               </div>
-              <span className="font-mono text-[8px] font-semibold uppercase tracking-wider">
+              <span className="font-mono text-xs font-semibold uppercase tracking-wider">
                 {flashEnabled ? 'Flash On' : 'Flash'}
               </span>
             </button>
@@ -994,7 +994,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
                       </div>
                       
                       {/* Certified live stamp badge */}
-                      <span className="text-[6px] font-mono tracking-widest font-black uppercase opacity-90 text-[#FFECE3] mb-1">STRIKE RECON</span>
+                      <span className="text-xs font-mono tracking-widest font-black uppercase opacity-90 text-[#FFECE3] mb-1">STRIKE RECON</span>
                       
                       {/* Tactile Camera Ring */}
                       <div className="w-10 h-10 rounded-full bg-white text-on-surface flex items-center justify-center shadow-md border-[2.5px] border-on-surface transition-transform duration-300 group-hover:scale-110">
@@ -1002,7 +1002,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
                       </div>
                       
                       {/* Seal type text */}
-                      <span className="text-[10px] font-display font-black tracking-widest uppercase mt-1 italic text-white drop-shadow-[0_1.5px_1px_rgba(0,0,0,0.5)]">SNAP!</span>
+                      <span className="text-xs font-display font-black tracking-widest uppercase mt-1 italic text-white drop-shadow-[0_1.5px_1px_rgba(0,0,0,0.5)]">SNAP!</span>
                     </div>
                   )}
                 </div>
@@ -1023,7 +1023,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
             )}>
               <Filter className="w-5 h-5 text-current" />
             </div>
-            <span className="font-mono text-[8px] uppercase tracking-wider font-semibold">Filters</span>
+            <span className="font-mono text-xs uppercase tracking-wider font-semibold">Filters</span>
           </button>
         </div>
 
@@ -1037,7 +1037,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
               className="skin-viewfinder-panel absolute bottom-40 inset-x-8 bg-black/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 z-40"
             >
               <div className="flex items-center justify-between mb-4">
-                <span className="font-mono text-[10px] text-brand-orange uppercase tracking-tighter">Viewfinder Grader // V.0.4</span>
+                <span className="font-mono text-xs text-brand-orange uppercase tracking-tighter">Viewfinder Grader // V.0.4</span>
                 <Sparkles className="w-3 h-3 text-brand-orange" />
               </div>
               <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
@@ -1058,7 +1058,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
                       />
                     </div>
                     <span className={cn(
-                      "font-mono text-[7px] uppercase tracking-tighter w-16 text-center leading-tight",
+                      "font-mono text-xs uppercase tracking-tighter w-16 text-center leading-tight",
                       selectedFilter === f.id ? "text-white" : "text-white/40"
                     )}>
                       {f.name}

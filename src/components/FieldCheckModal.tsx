@@ -149,7 +149,7 @@ export function FieldCheckModal({
                       required
                       className="w-full bg-paper-dark border-4 border-on-surface p-4 font-serif text-lg focus:ring-4 focus:ring-brand-lime/30 min-h-[120px] resize-none"
                     />
-                    <p className="text-[10px] uppercase font-bold text-on-surface/40 italic">
+                    <p className="text-xs uppercase font-bold text-on-surface/60 italic">
                       MIN_LENGTH: 5_CHARS
                     </p>
                   </div>
@@ -160,7 +160,7 @@ export function FieldCheckModal({
                     className={cn(
                       "w-full py-4 font-display text-xl uppercase italic font-black border-4 border-on-surface shadow-[8px_8px_0px_black] transition-all flex items-center justify-center gap-3",
                       (isSubmitting || !reason || note.length < 5)
-                        ? "bg-on-surface/20 text-on-surface/40 cursor-not-allowed shadow-none translate-x-1 translate-y-1"
+                        ? "bg-on-surface/20 text-on-surface/60 cursor-not-allowed shadow-none translate-x-1 translate-y-1"
                         : "bg-brand-lime text-on-surface hover:bg-white active:shadow-none active:translate-x-2 active:translate-y-2"
                     )}
                   >

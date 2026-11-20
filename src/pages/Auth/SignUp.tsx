@@ -226,7 +226,7 @@ export default function SignUp({ accessCode, onSuccess, onBack }: SignUpProps) {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="text-[10px] uppercase font-black tracking-tighter text-error mt-1 ml-1"
+                className="text-xs uppercase font-black tracking-tighter text-error mt-1 ml-1"
               >
                 {usernameError}
               </motion.p>
@@ -260,7 +260,7 @@ export default function SignUp({ accessCode, onSuccess, onBack }: SignUpProps) {
               <button 
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-10 text-on-surface/40 hover:text-on-surface"
+                className="absolute right-3 top-10 text-on-surface/60 hover:text-on-surface"
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
@@ -291,7 +291,7 @@ export default function SignUp({ accessCode, onSuccess, onBack }: SignUpProps) {
                         {met && <Check className="w-3 h-3 text-black" />}
                       </div>
                       <span className={cn(
-                        "text-[9px] uppercase font-black tracking-widest transition-colors",
+                        "text-xs uppercase font-black tracking-widest transition-colors",
                         met ? "text-on-surface" : "opacity-30"
                       )}>
                         {req.label}
@@ -308,7 +308,7 @@ export default function SignUp({ accessCode, onSuccess, onBack }: SignUpProps) {
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="flex items-center gap-3 p-4 bg-error text-white font-black text-[10px] uppercase tracking-widest border-4 border-on-surface shadow-[8px_8px_0px_black]"
+            className="flex items-center gap-3 p-4 bg-error text-white font-black text-xs uppercase tracking-widest border-4 border-on-surface shadow-[8px_8px_0px_black]"
           >
             <AlertCircle className="w-5 h-5 shrink-0" />
             {error}
@@ -327,7 +327,7 @@ export default function SignUp({ accessCode, onSuccess, onBack }: SignUpProps) {
           <button 
             type="button"
             onClick={onBack}
-            className="w-full p-4 text-[10px] uppercase font-black tracking-[0.3em] opacity-40 hover:opacity-100 hover:text-brand-orange transition-all"
+            className="w-full p-4 text-xs uppercase font-black tracking-[0.3em] opacity-40 hover:opacity-100 hover:text-brand-orange transition-all"
           >
             &lt; {fc('Return Home', 'Back')}
           </button>

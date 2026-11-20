@@ -71,7 +71,7 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
             </div>
             <div>
               <h4 className="text-on-surface font-display text-xs font-black uppercase italic tracking-tighter leading-none">Evidence_Meter</h4>
-              <p className="text-[7px] font-mono text-brand-cyan font-black uppercase tracking-widest mt-0.5">UPLINK // ACTIVE</p>
+              <p className="text-xs font-mono text-on-surface font-black uppercase tracking-widest mt-0.5">UPLINK // ACTIVE</p>
             </div>
           </div>
           
@@ -79,7 +79,7 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
             <span className="text-sm font-display font-black italic tracking-tighter text-brand-lime">
               {displayStrength}
             </span>
-            <span className="text-[8px] font-mono font-black text-white/40 uppercase">/ {maxStrength} POTENTIAL</span>
+            <span className="text-xs font-mono font-black text-white/60 uppercase">/ {maxStrength} POTENTIAL</span>
           </div>
         </div>
 
@@ -105,8 +105,8 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
               chip.fulfilled 
                 ? "bg-brand-lime/10 border-on-surface text-on-surface shadow-[2px_2px_0px_black]" 
                 : chip.locked
-                ? "bg-on-surface/5 border-on-surface/10 text-on-surface/20"
-                : "bg-white border-on-surface/10 text-on-surface/30"
+                ? "bg-on-surface/5 border-on-surface/10 text-on-surface/60"
+                : "bg-white border-on-surface/10 text-on-surface/60"
             )}>
               <div className={cn(
                 "w-5 h-5 rounded-md flex items-center justify-center transition-colors",
@@ -114,7 +114,7 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
               )}>
                 {chip.icon}
               </div>
-              <span className="text-[7px] font-mono font-black uppercase tracking-tighter leading-none">{chip.pts}</span>
+              <span className="text-xs font-mono font-black uppercase tracking-tighter leading-none">{chip.pts}</span>
             </div>
           ))}
         </div>
@@ -138,7 +138,7 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
             <h4 className="text-on-surface font-display text-xl font-black uppercase italic tracking-tighter leading-none">Evidence Meter</h4>
             <div className="flex items-center gap-2 mt-1">
               <span className="flex h-2 w-2 rounded-full bg-brand-lime animate-pulse" />
-              <p className="text-[10px] font-mono text-on-surface/40 font-black uppercase tracking-widest leading-none">UPLINK_VERIFICATION // ACTIVE</p>
+              <p className="text-xs font-mono text-on-surface/60 font-black uppercase tracking-widest leading-none">UPLINK_VERIFICATION // ACTIVE</p>
             </div>
           </div>
         </div>
@@ -147,7 +147,7 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
           <span className="text-4xl font-display font-black italic tracking-tighter text-brand-lime leading-none">
             {displayStrength}
           </span>
-          <span className="text-[10px] font-mono font-black text-white/40 uppercase self-end mb-1">/ {maxStrength} POTENTIAL</span>
+          <span className="text-xs font-mono font-black text-white/60 uppercase self-end mb-1">/ {maxStrength} POTENTIAL</span>
         </div>
       </div>
 
@@ -166,7 +166,7 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
         {/* Locked segment marker */}
         {!detectedSubject && (
           <div className="absolute right-0 top-0 bottom-0 w-[10%] bg-on-surface/5 flex items-center justify-center border-l-4 border-dashed border-on-surface/10">
-             <Lock className="w-4 h-4 text-on-surface/20" />
+             <Lock className="w-4 h-4 text-on-surface/60" />
           </div>
         )}
       </div>
@@ -203,7 +203,7 @@ export const EvidenceMeter: React.FC<EvidenceMeterProps> = ({
              className="flex items-center justify-center gap-2 pt-6"
            >
              <span className="w-1.5 h-1.5 bg-brand-orange rounded-full animate-ping" />
-             <p className="text-[10px] font-mono text-on-surface/30 font-black uppercase tracking-[0.2em] italic">
+             <p className="text-xs font-mono text-on-surface/60 font-black uppercase tracking-[0.2em] italic">
                Awaiting satellite handshake...
              </p>
            </motion.div>
@@ -222,8 +222,8 @@ const StatusChip = ({ icon, label, pts, active, locked }: { icon: React.ReactNod
     active 
       ? "bg-brand-lime/10 border-on-surface text-on-surface shadow-[4px_4px_0px_black] rotate-[-1deg]" 
       : locked
-      ? "bg-on-surface/5 border-on-surface/5 text-on-surface/10 opacity-60"
-      : "bg-white border-on-surface/10 text-on-surface/30"
+      ? "bg-on-surface/5 border-on-surface/5 text-on-surface/60 opacity-60"
+      : "bg-white border-on-surface/10 text-on-surface/60"
   )}>
     <div className={cn(
       "w-10 h-10 rounded-xl flex items-center justify-center border-2 transition-all",
@@ -232,9 +232,9 @@ const StatusChip = ({ icon, label, pts, active, locked }: { icon: React.ReactNod
       {icon}
     </div>
     <div className="text-center flex flex-col items-center">
-      <p className="text-[9px] font-display font-black uppercase tracking-wider leading-none mb-1">{label}</p>
+      <p className="text-xs font-display font-black uppercase tracking-wider leading-none mb-1">{label}</p>
       <div className={cn(
-        "px-2 py-0.5 rounded-full border-2 text-[10px] font-mono font-black italic transition-all",
+        "px-2 py-0.5 rounded-full border-2 text-xs font-mono font-black italic transition-all",
         active ? "bg-on-surface text-white border-on-surface" : "bg-on-surface/5 border-transparent"
       )}>
         {pts}
@@ -242,7 +242,7 @@ const StatusChip = ({ icon, label, pts, active, locked }: { icon: React.ReactNod
     </div>
     {locked && (
       <div className="absolute inset-0 bg-transparent flex flex-col items-center justify-end pb-1.5">
-         <span className="text-[7px] font-mono font-black text-on-surface/40 uppercase tracking-tighter italic">LOCKED</span>
+         <span className="text-xs font-mono font-black text-on-surface/60 uppercase tracking-tighter italic">LOCKED</span>
       </div>
     )}
   </div>

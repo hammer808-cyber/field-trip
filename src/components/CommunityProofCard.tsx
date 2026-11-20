@@ -144,7 +144,7 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
         <FieldTape className="absolute -top-3 left-1/3 z-20 w-16 h-6" rotation={-5} />
 
         <div className="absolute top-2 left-2 z-20 pointer-events-none">
-          <div className="bg-brand-lime text-on-surface text-[8px] font-black px-2 py-1 border-2 border-on-surface shadow-[2px_2px_0px_black] -rotate-12 uppercase italic flex items-center gap-1">
+          <div className="bg-brand-lime text-on-surface text-xs font-black px-2 py-1 border-2 border-on-surface shadow-[2px_2px_0px_black] -rotate-12 uppercase italic flex items-center gap-1">
             <CheckCircle2 className="w-3 h-3" />
             Approved Receipt
           </div>
@@ -152,7 +152,7 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
 
         <div className="photo-image-slot relative overflow-hidden aspect-square border-[2.5px] border-on-surface bg-[#ECE9E0] flex items-center justify-center m-1 shadow-[inset_0_2px_4px_rgba(0,0,0,0.15)]">
           {!hasImageReference ? (
-            <div className="flex flex-col items-center gap-2 text-on-surface/35 font-mono text-[9px] font-black uppercase">
+            <div className="flex flex-col items-center gap-2 text-on-surface/60 font-mono text-xs font-black uppercase">
               <ImageOff className="w-8 h-8" />
               Image Missing
             </div>
@@ -165,7 +165,7 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
               showDiagnosticsOverlay={false}
             />
           )}
-          <span className="absolute bottom-2 right-2 bg-[#FFFDF6] text-on-surface font-mono text-[7px] font-black tracking-widest px-1.5 py-0.5 border border-on-surface/40 rotate-[1.5deg]">
+          <span className="absolute bottom-2 right-2 bg-[#FFFDF6] text-on-surface font-mono text-xs font-black tracking-widest px-1.5 py-0.5 border border-on-surface/40 rotate-[1.5deg]">
             {formattedDate}
           </span>
         </div>
@@ -175,15 +175,15 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
                 <AvatarPreview avatar={proof.userAvatar || DEFAULT_AVATAR} size="xs" className="w-5 h-5 rounded-full border-2 border-on-surface shadow-[1px_1px_0px_black]" />
-                <span className="text-[9px] font-mono font-black uppercase tracking-widest text-on-surface truncate">{displayName}</span>
+                <span className="text-xs font-mono font-black uppercase tracking-widest text-on-surface truncate">{displayName}</span>
               </div>
               {hasXpDisplay && (
                 <div
-                  className="bg-brand-magenta text-black text-[8px] font-black px-2 py-0.5 rounded border border-on-surface shadow-[1px_1.5px_0px_black] shrink-0"
+                  className="bg-brand-magenta text-black text-xs font-black px-2 py-0.5 rounded border border-on-surface shadow-[1px_1.5px_0px_black] shrink-0"
                   title={hasClassifiedReserve ? 'Not every signal is visible yet. Some Fieldtrip points remain reserved for future discoveries, special conditions, and seasonal surprises.' : undefined}
                 >
                   {awardedXp} / {maxUiPotentialXp} XP
-                  {hasClassifiedReserve && <span className="block text-[6px] leading-tight">{reservedPotentialXp} XP classified</span>}
+                  {hasClassifiedReserve && <span className="block text-xs leading-tight">{reservedPotentialXp} XP classified</span>}
                 </div>
               )}
             </div>
@@ -193,27 +193,27 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
                 {missionTitle}
               </h4>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[7px] font-mono font-black uppercase text-on-surface/45 bg-on-surface/5 px-1.5 py-0.5 rounded-sm">
+                <span className="text-xs font-mono font-black uppercase text-on-surface/60 bg-on-surface/5 px-1.5 py-0.5 rounded-sm">
                   {deckLabel}
                 </span>
-                <span className="text-[7px] font-mono font-black uppercase text-on-surface bg-brand-cyan/15 px-1.5 py-0.5 rounded-sm">
+                <span className="text-xs font-mono font-black uppercase text-on-surface bg-brand-cyan/15 px-1.5 py-0.5 rounded-sm">
                   {proof.cardType || 'Signal'}
                 </span>
-                <span className="text-[7px] font-mono font-black uppercase text-on-surface bg-brand-lime/10 px-1.5 py-0.5 rounded-sm">
+                <span className="text-xs font-mono font-black uppercase text-on-surface bg-brand-lime/10 px-1.5 py-0.5 rounded-sm">
                   {statusLabel === 'approved' ? 'Verified' : 'Hidden'}
                 </span>
                 {explorerType && (
-                  <span className="text-[7px] font-mono font-black uppercase text-on-surface bg-brand-magenta/10 px-1.5 py-0.5 rounded-sm">
+                  <span className="text-xs font-mono font-black uppercase text-on-surface bg-brand-magenta/10 px-1.5 py-0.5 rounded-sm">
                     {explorerType}
                   </span>
                 )}
                 {crewName && (
-                  <span className="inline-flex items-center gap-1 text-[7px] font-mono font-black uppercase text-on-surface/55 bg-on-surface/5 px-1.5 py-0.5 rounded-sm">
+                  <span className="inline-flex items-center gap-1 text-xs font-mono font-black uppercase text-on-surface/55 bg-on-surface/5 px-1.5 py-0.5 rounded-sm">
                     <Users className="w-2.5 h-2.5" /> {crewName}
                   </span>
                 )}
                 {weeklyVotingEligible && (
-                  <span className="inline-flex items-center gap-1 text-[7px] font-mono font-black uppercase text-on-surface bg-brand-cyan/20 px-1.5 py-0.5 rounded-sm">
+                  <span className="inline-flex items-center gap-1 text-xs font-mono font-black uppercase text-on-surface bg-brand-cyan/20 px-1.5 py-0.5 rounded-sm">
                     <Vote className="w-2.5 h-2.5" /> Ballot eligible
                   </span>
                 )}
@@ -231,7 +231,7 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
               onClick={handleLike}
               disabled={isLiking}
               className={cn(
-                "flex items-center justify-center gap-2 px-3 py-2 border-2 border-on-surface text-[8px] font-mono font-black uppercase tracking-widest shadow-[2px_2px_0px_black] transition-transform active:translate-y-0.5 active:shadow-none disabled:opacity-50",
+                "flex items-center justify-center gap-2 px-3 py-2 border-2 border-on-surface text-xs font-mono font-black uppercase tracking-widest shadow-[2px_2px_0px_black] transition-transform active:translate-y-0.5 active:shadow-none disabled:opacity-50",
                 liked ? "bg-brand-orange text-white" : "bg-white text-on-surface hover:bg-brand-yellow"
               )}
             >
@@ -245,7 +245,7 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
                 if (canShowSus) setSusOpen(true);
               }}
               disabled={!canShowSus || isReportingSus}
-              className="flex items-center justify-center gap-2 px-3 py-2 border-2 border-on-surface/25 bg-white text-on-surface/60 hover:text-error hover:border-error hover:bg-error/5 disabled:opacity-45 disabled:hover:text-on-surface/60 disabled:hover:border-on-surface/25 disabled:hover:bg-white transition-colors text-[8px] font-mono font-black uppercase tracking-widest"
+              className="flex items-center justify-center gap-2 px-3 py-2 border-2 border-on-surface/25 bg-white text-on-surface/60 hover:text-error hover:border-error hover:bg-error/5 disabled:opacity-45 disabled:hover:text-on-surface/60 disabled:hover:border-on-surface/25 disabled:hover:bg-white transition-colors text-xs font-mono font-black uppercase tracking-widest"
               title="Privately send this receipt for Signal Check"
             >
               <ShieldAlert className="w-3.5 h-3.5" />
@@ -258,7 +258,7 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
               event.stopPropagation();
               setDetailOpen(true);
             }}
-            className="min-h-11 w-full flex items-center justify-center gap-2 border-2 border-on-surface bg-on-surface text-white font-mono text-[9px] font-black uppercase tracking-widest shadow-[2px_2px_0px_var(--color-brand-orange)] focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan"
+            className="min-h-11 w-full flex items-center justify-center gap-2 border-2 border-on-surface bg-on-surface text-white font-mono text-xs font-black uppercase tracking-widest shadow-[2px_2px_0px_var(--color-brand-orange)] focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan"
           >
             <ExternalLink className="w-3.5 h-3.5" /> Open receipt
           </button>
@@ -323,10 +323,10 @@ function ReceiptDetailModal({
             <X className="w-4 h-4" />
           </button>
           <div>
-            <p className="font-mono text-[9px] font-black uppercase tracking-widest text-brand-orange">Community Receipt</p>
+            <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface">Community Receipt</p>
             <h3 className="font-display text-4xl sm:text-5xl font-black uppercase italic leading-none">{missionTitle}</h3>
           </div>
-          <div className="grid grid-cols-2 gap-2 font-mono text-[10px] uppercase font-black">
+          <div className="grid grid-cols-2 gap-2 font-mono text-xs uppercase font-black">
             <span className="bg-white border border-on-surface/20 p-2">Agent: {displayName}</span>
             <span className="bg-white border border-on-surface/20 p-2">Posted: {formattedDate}</span>
             <span className="bg-white border border-on-surface/20 p-2 col-span-2">Deck: {deckLabel}</span>
@@ -356,7 +356,7 @@ function SignalCheckModal({ reason, details, busy, onReason, onDetails, onSubmit
       <motion.div className="skin-modal bg-paper w-full max-w-lg border-4 border-on-surface shadow-[10px_10px_0px_var(--color-brand-magenta)] p-5 space-y-5" initial={{ y: 24 }} animate={{ y: 0 }} exit={{ y: 24, opacity: 0 }} onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="font-mono text-[9px] font-black uppercase tracking-widest text-brand-orange">Private Signal Check</p>
+            <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface">Private Signal Check</p>
             <h3 className="font-display text-3xl font-black uppercase italic">Something feel off?</h3>
           </div>
           <button type="button" onClick={onClose} className="p-2 bg-white border-2 border-on-surface shadow-[2px_2px_0px_black]">
@@ -372,7 +372,7 @@ function SignalCheckModal({ reason, details, busy, onReason, onDetails, onSubmit
               key={item}
               type="button"
               onClick={() => onReason(item)}
-              className={cn("w-full text-left px-3 py-2 border-2 font-mono text-[10px] font-black uppercase", reason === item ? "bg-brand-lime border-on-surface" : "bg-white border-on-surface/20")}
+              className={cn("w-full text-left px-3 py-2 border-2 font-mono text-xs font-black uppercase", reason === item ? "bg-brand-lime border-on-surface" : "bg-white border-on-surface/20")}
             >
               {item}
             </button>

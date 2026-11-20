@@ -89,7 +89,7 @@ export function PlayerLevelUpFeedback() {
             className="skin-card w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto border-4 border-on-surface bg-paper p-5 sm:p-7 shadow-[14px_14px_0px_var(--color-brand-cyan)]"
           >
             <div className="space-y-5 text-center">
-              <div className="flex items-center justify-center gap-2 font-mono text-[10px] font-black uppercase tracking-[0.25em] text-brand-orange">
+              <div className="flex items-center justify-center gap-2 font-mono text-xs font-black uppercase tracking-[0.25em] text-brand-orange">
                 <Award className="h-4 w-4" aria-hidden="true" />
                 Field Status Updated
               </div>
@@ -105,7 +105,7 @@ export function PlayerLevelUpFeedback() {
               )}
 
               <div className="space-y-2">
-                <p className="font-mono text-[10px] font-black uppercase tracking-[0.18em] opacity-50">
+                <p className="font-mono text-xs font-black uppercase tracking-[0.18em] opacity-50">
                   Level {event.fromLevel} to Level {event.toLevel}
                 </p>
                 <h2 id="level-up-title" className="font-display text-3xl font-black uppercase italic leading-none tracking-tight text-on-surface">
@@ -117,13 +117,13 @@ export function PlayerLevelUpFeedback() {
               </div>
 
               {event.unlockedLevels.length > 1 && (
-                <p className="border-2 border-dashed border-on-surface/30 bg-white/60 p-3 font-mono text-[10px] font-bold uppercase">
+                <p className="border-2 border-dashed border-on-surface/30 bg-white/60 p-3 font-mono text-xs font-bold uppercase">
                   Multi-level jump confirmed: {event.unlockedLevels.map(level => `L${level}`).join(' / ')}
                 </p>
               )}
 
               <div className="border-3 border-on-surface bg-white p-4 text-left shadow-[5px_5px_0px_black]">
-                <p className="mb-3 font-mono text-[10px] font-black uppercase tracking-widest">Benefits Include</p>
+                <p className="mb-3 font-mono text-xs font-black uppercase tracking-widest">Benefits Include</p>
                 <ul className="space-y-2 text-sm font-bold">
                   {event.unlockedRewards.map(rewardId => {
                     const reward = rewardLookup.get(rewardId);

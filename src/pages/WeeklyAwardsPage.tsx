@@ -115,13 +115,13 @@ export default function WeeklyAwardsPage() {
                           <div className="p-3 bg-on-surface border-2 border-on-surface shadow-[3px_3px_0px_black] rounded-lg text-brand-lime">
                             <Icon className="w-6 h-6 stroke-[2.5]" />
                           </div>
-                          <span className="font-mono text-[9px] font-bold bg-brand-orange text-white border-2 border-on-surface px-2.5 py-0.5 uppercase tracking-widest rotate-6">
+                          <span className="font-mono text-xs font-bold bg-brand-orange text-white border-2 border-on-surface px-2.5 py-0.5 uppercase tracking-widest rotate-6">
                             CAT_{idx + 1}
                           </span>
                         </div>
 
                         <div className="space-y-1">
-                          <p className="text-[10px] font-mono opacity-50 uppercase tracking-widest leading-none mb-1">{cat.label.toUpperCase()}</p>
+                          <p className="text-xs font-mono opacity-50 uppercase tracking-widest leading-none mb-1">{cat.label.toUpperCase()}</p>
                           <h4 className="font-display text-2xl font-black uppercase text-on-surface italic tracking-tight">{winner.userName}</h4>
                         </div>
 
@@ -133,12 +133,12 @@ export default function WeeklyAwardsPage() {
                         )}
 
                         <div className="p-3 bg-paper-dark border-2 border-on-surface/10 rounded-lg space-y-1">
-                          <p className="font-mono text-[8px] font-bold text-on-surface/40 leading-none">COMMUNITY_PROOF_ENTRY</p>
+                          <p className="font-mono text-xs font-bold text-on-surface/60 leading-none">COMMUNITY_PROOF_ENTRY</p>
                           <p className="text-xs font-serif italic text-on-surface/80">"{winner.fieldNote || 'No field note submitted.'}"</p>
                         </div>
 
                         <div className="pt-4 border-t border-on-surface/10 flex justify-between items-center">
-                          <span className="font-mono text-[9px] opacity-40 uppercase tracking-widest truncate max-w-[120px]">{winner.tripTitle}</span>
+                          <span className="font-mono text-xs opacity-40 uppercase tracking-widest truncate max-w-[120px]">{winner.tripTitle}</span>
                           <span className="font-display text-sm font-black italic text-brand-orange shrink-0">{winner.count} votes</span>
                         </div>
                       </div>
@@ -156,7 +156,7 @@ export default function WeeklyAwardsPage() {
                         {phase === 'awards' ? <Trophy className="w-8 h-8 stroke-[2.5]" /> : <Lock className="w-8 h-8 stroke-[2.5]" />}
                       </div>
                       <div>
-                        <p className="text-[10px] font-black tracking-widest text-[#B5A585] uppercase">
+                        <p className="text-xs font-black tracking-widest text-[#B5A585] uppercase">
                           {phase === 'awards' ? 'CONSENSUS_PENDING' : 'BROADCAST_STANDBY'}
                         </p>
                         <h2 className="font-display text-3xl sm:text-5xl uppercase tracking-tighter leading-[0.9] font-black italic">
@@ -188,7 +188,7 @@ export default function WeeklyAwardsPage() {
                       <div key={cat.id} className="bg-white border-4 border-on-surface p-5 shadow-[6px_6px_0px_black] rounded-[1.25rem] space-y-3">
                         <div className="flex items-center justify-between gap-3">
                           <Icon className="w-6 h-6 text-brand-orange" />
-                          <span className="font-mono text-[8px] font-black uppercase text-on-surface/35">CAT_{idx + 1}</span>
+                          <span className="font-mono text-xs font-black uppercase text-on-surface/60">CAT_{idx + 1}</span>
                         </div>
                         <h3 className="font-display text-xl font-black uppercase italic leading-none">{cat.label}</h3>
                         <p className="text-xs font-serif italic text-on-surface/60 leading-relaxed">{cat.description}</p>

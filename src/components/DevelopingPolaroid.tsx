@@ -183,7 +183,7 @@ export function DevelopingPolaroid({
         <button
           type="button"
           onClick={skip}
-          className="absolute top-3 right-3 z-30 min-w-11 min-h-11 px-3 inline-flex items-center justify-center gap-2 bg-white text-on-surface border-2 border-on-surface shadow-[3px_3px_0px_var(--color-brand-orange)] font-mono text-[9px] font-black uppercase focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan"
+          className="absolute top-3 right-3 z-30 min-w-11 min-h-11 px-3 inline-flex items-center justify-center gap-2 bg-white text-on-surface border-2 border-on-surface shadow-[3px_3px_0px_var(--color-brand-orange)] font-mono text-xs font-black uppercase focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan"
         >
           <FastForward className="w-4 h-4" /> Skip
         </button>
@@ -237,7 +237,7 @@ export function DevelopingPolaroid({
               ) : (
                 <div className="bg-white border-2 border-on-surface shadow-[3px_3px_0px_black] p-2 max-w-24 text-center">
                   <span className="block text-2xl" aria-hidden="true">{selectedSticker.emoji}</span>
-                  <span className="block font-mono text-[6px] font-black uppercase leading-none mt-1">{selectedSticker.name}</span>
+                  <span className="block font-mono text-xs font-black uppercase leading-none mt-1">{selectedSticker.name}</span>
                 </div>
               )}
               <button
@@ -257,7 +257,7 @@ export function DevelopingPolaroid({
         </div>
         <div className="absolute left-4 right-4 bottom-4 text-center">
           <p className="font-display text-lg font-black uppercase italic leading-none line-clamp-2">{missionTitle}</p>
-          <p className="font-mono text-[7px] font-black uppercase tracking-[0.2em] text-on-surface/35 mt-2" aria-live="polite">{STAGE_LABELS[stage]}</p>
+          <p className="font-mono text-xs font-black uppercase tracking-[0.2em] text-on-surface/60 mt-2" aria-live="polite">{STAGE_LABELS[stage]}</p>
         </div>
       </motion.div>
 
@@ -291,14 +291,14 @@ export function DevelopingPolaroid({
             <button
               type="button"
               onClick={onRetake}
-              className="min-h-12 bg-white text-on-surface border-2 border-on-surface shadow-[3px_3px_0px_black] inline-flex items-center justify-center gap-2 font-mono text-[10px] font-black uppercase focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan"
+              className="min-h-12 bg-white text-on-surface border-2 border-on-surface shadow-[3px_3px_0px_black] inline-flex items-center justify-center gap-2 font-mono text-xs font-black uppercase focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan"
             >
               <RefreshCw className="w-4 h-4" /> Retake
             </button>
             <button
               type="button"
               onClick={onAccept}
-              className="min-h-12 bg-brand-lime text-on-surface border-2 border-on-surface shadow-[3px_3px_0px_var(--color-brand-orange)] inline-flex items-center justify-center gap-2 font-mono text-[10px] font-black uppercase focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan"
+              className="min-h-12 bg-brand-lime text-on-surface border-2 border-on-surface shadow-[3px_3px_0px_var(--color-brand-orange)] inline-flex items-center justify-center gap-2 font-mono text-xs font-black uppercase focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan"
             >
               <Check className="w-4 h-4" /> Use This Receipt
             </button>
@@ -307,7 +307,7 @@ export function DevelopingPolaroid({
             <button
               type="button"
               onClick={() => setStickerTrayOpen(open => !open)}
-              className="min-h-11 w-full bg-transparent text-white border border-white/35 inline-flex items-center justify-center gap-2 font-mono text-[9px] font-black uppercase focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan"
+              className="min-h-11 w-full bg-transparent text-white border border-white/35 inline-flex items-center justify-center gap-2 font-mono text-xs font-black uppercase focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan"
             >
               <Sticker className="w-4 h-4" /> {selectedStickerId ? 'Change sticker' : 'Add a sticker'}
             </button>

@@ -39,14 +39,14 @@ export function FeaturedStickerShowcase({ userId, onManage }: FeaturedStickerSho
       <div className="flex items-center justify-between gap-3 px-1">
         <div className="flex items-center gap-2">
           <Star className="h-4 w-4 text-brand-orange" aria-hidden="true" />
-          <h3 id="featured-stickers-title" className="text-[10px] font-black uppercase tracking-[0.2em] text-on-surface/40">
+          <h3 id="featured-stickers-title" className="text-xs font-black uppercase tracking-[0.2em] text-on-surface/60">
             Featured Stickers
           </h3>
         </div>
         <button
           type="button"
           onClick={onManage}
-          className="min-h-11 px-2 font-mono text-[9px] font-black uppercase text-brand-orange underline decoration-2 underline-offset-4"
+          className="min-h-11 px-2 font-mono text-xs font-black uppercase text-brand-orange underline decoration-2 underline-offset-4"
         >
           Manage
         </button>

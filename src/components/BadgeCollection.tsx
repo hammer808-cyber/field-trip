@@ -60,7 +60,7 @@ export const BadgeCollection: React.FC<BadgeCollectionProps> = ({ progress }) =>
                 {/* Badge Icon */}
                 <div className={cn(
                   "w-16 h-16 rounded-3xl flex items-center justify-center shrink-0 relative",
-                  status === 'unlocked' ? "bg-brand-orange text-white" : "bg-on-surface/10 text-on-surface/30",
+                  status === 'unlocked' ? "bg-brand-orange text-white" : "bg-on-surface/10 text-on-surface/60",
                   isBaja && status === 'unlocked' && "bg-baja-pink",
                   isDiamond && status === 'unlocked' && "bg-white text-black",
                   isHeat && status === 'unlocked' && "bg-heat-pink"
@@ -95,7 +95,7 @@ export const BadgeCollection: React.FC<BadgeCollectionProps> = ({ progress }) =>
                   </p>
 
                   <div className="space-y-1.5">
-                    <div className="flex justify-between items-center text-[10px] uppercase font-mono">
+                    <div className="flex justify-between items-center text-xs uppercase font-mono">
                       <span>{badge.fragmentFlavor}</span>
                       <span className={cn(status === 'unlocked' && "text-brand-orange")}>
                         {userProg.fragmentCount} OF {badge.requiredFragments}

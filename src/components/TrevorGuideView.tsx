@@ -88,7 +88,7 @@ export function TrevorGuideView({
             <div className="mb-4 flex items-center gap-3">
               <TrevorAvatar size="large" />
               <div className="min-w-0">
-                <p className="font-display text-[10px] font-black uppercase leading-none tracking-normal text-on-surface/45">
+                <p className="font-display text-xs font-black uppercase leading-none tracking-normal text-on-surface/60">
                   Field Guide Assist
                 </p>
                 <p className={cn(
@@ -102,7 +102,7 @@ export function TrevorGuideView({
                 type="button"
                 onClick={onCollapse}
                 aria-label="Collapse Trevor guide"
-                className="ml-auto flex min-h-11 min-w-11 items-center justify-center rounded-full text-on-surface/45 hover:bg-on-surface/5 hover:text-on-surface focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand-cyan"
+                className="ml-auto flex min-h-11 min-w-11 items-center justify-center rounded-full text-on-surface/60 hover:bg-on-surface/5 hover:text-on-surface focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand-cyan"
               >
                 <ChevronDown aria-hidden="true" size={20} />
               </button>
@@ -135,7 +135,7 @@ export function TrevorGuideView({
                   onClick={() => {
                     if (recommendation.secondaryAction) onAction(recommendation.secondaryAction);
                   }}
-                  className="min-h-11 w-full border-2 border-transparent px-4 py-2.5 font-mono text-[9px] font-black uppercase tracking-widest text-on-surface/65 transition-colors hover:border-on-surface/15 hover:text-on-surface focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand-cyan"
+                  className="min-h-11 w-full border-2 border-transparent px-4 py-2.5 font-mono text-xs font-black uppercase tracking-widest text-on-surface/65 transition-colors hover:border-on-surface/15 hover:text-on-surface focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand-cyan"
                 >
                   {recommendation.secondaryAction.label}
                 </button>
@@ -145,7 +145,7 @@ export function TrevorGuideView({
             <button
               type="button"
               onClick={onSuppress}
-              className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 font-mono text-[9px] font-bold uppercase tracking-widest text-on-surface/40 hover:text-on-surface focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand-cyan"
+              className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 font-mono text-xs font-bold uppercase tracking-widest text-on-surface/60 hover:text-on-surface focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand-cyan"
             >
               <EyeOff aria-hidden="true" size={14} />
               Hide for this session
@@ -155,7 +155,7 @@ export function TrevorGuideView({
               <button
                 type="button"
                 onClick={onDisable}
-                className="flex min-h-11 w-full items-center justify-center gap-2 font-mono text-[9px] font-bold uppercase tracking-widest text-on-surface/40 hover:text-error focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand-cyan"
+                className="flex min-h-11 w-full items-center justify-center gap-2 font-mono text-xs font-bold uppercase tracking-widest text-on-surface/60 hover:text-error focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand-cyan"
               >
                 <EyeOff aria-hidden="true" size={14} />
                 Stop showing these tips
@@ -192,12 +192,12 @@ export function TrevorGuideView({
               <TrevorAvatar size="small" />
               <span className={cn(
                 'truncate font-display font-black uppercase italic leading-none tracking-normal text-on-surface',
-                isWarning ? 'max-w-[220px] text-[11px]' : 'max-w-[160px] text-[10px]',
+                isWarning ? 'max-w-[220px] text-xs' : 'max-w-[160px] text-xs',
               )}>
                 {recommendation.primaryAction.label}
               </span>
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-on-surface/5">
-                <ChevronUp aria-hidden="true" size={14} className="text-on-surface/45 group-hover:text-on-surface" />
+                <ChevronUp aria-hidden="true" size={14} className="text-on-surface/60 group-hover:text-on-surface" />
               </span>
             </button>
           </motion.div>

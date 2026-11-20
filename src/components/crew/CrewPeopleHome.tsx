@@ -62,7 +62,7 @@ function PlayerCard({
         </div>
         <div className="min-w-0">
           <p className="font-display font-black uppercase italic text-xl truncate">{player.displayName}</p>
-          <p className="font-mono text-[10px] uppercase tracking-widest opacity-55 truncate">
+          <p className="font-mono text-xs uppercase tracking-widest opacity-55 truncate">
             {player.username ? `@${player.username}` : 'Field agent'}
             {player.fieldTypeName ? ` / ${player.fieldTypeName}` : ''}
             {player.levelTitle ? ` / ${player.levelTitle}` : ''}
@@ -71,25 +71,25 @@ function PlayerCard({
       </button>
       <div className="flex flex-wrap gap-2">
         {relationship === 'none' && onAdd && (
-          <button type="button" disabled={busy} onClick={onAdd} className="bureau-btn bg-brand-lime text-on-surface text-[10px]">
+          <button type="button" disabled={busy} onClick={onAdd} className="bureau-btn bg-brand-lime text-on-surface text-xs">
             <UserPlus className="w-4 h-4" /> Add to Crew
           </button>
         )}
         {relationship === 'outgoing_request' && (
-          <span className="font-mono text-[10px] font-black uppercase tracking-widest border-2 border-on-surface px-3 py-2">Request Sent</span>
+          <span className="font-mono text-xs font-black uppercase tracking-widest border-2 border-on-surface px-3 py-2">Request Sent</span>
         )}
         {relationship === 'incoming_request' && (
           <>
-            <button type="button" disabled={busy} onClick={onAccept} className="bureau-btn bg-brand-lime text-on-surface text-[10px]">
+            <button type="button" disabled={busy} onClick={onAccept} className="bureau-btn bg-brand-lime text-on-surface text-xs">
               <Check className="w-4 h-4" /> Accept
             </button>
-            <button type="button" disabled={busy} onClick={onDecline} className="bureau-btn bg-white text-on-surface text-[10px]">
+            <button type="button" disabled={busy} onClick={onDecline} className="bureau-btn bg-white text-on-surface text-xs">
               <X className="w-4 h-4" /> Decline
             </button>
           </>
         )}
         {relationship === 'accepted' && onRemove && (
-          <button type="button" disabled={busy} onClick={onRemove} className="bureau-btn bg-white text-on-surface text-[10px]">
+          <button type="button" disabled={busy} onClick={onRemove} className="bureau-btn bg-white text-on-surface text-xs">
             <UserMinus className="w-4 h-4" /> Remove
           </button>
         )}
@@ -165,7 +165,7 @@ export function CrewPeopleHome() {
   return (
     <section className="space-y-10">
       <header className="space-y-3">
-        <p className="font-mono text-[10px] font-black uppercase tracking-[0.22em] opacity-45">My Crew</p>
+        <p className="font-mono text-xs font-black uppercase tracking-[0.22em] opacity-45">My Crew</p>
         <h1 className="font-display text-5xl sm:text-6xl font-black uppercase italic leading-none">Your people</h1>
         <p className="font-serif italic text-sm opacity-70 max-w-xl">
           Fieldtrip starts solo. Add the players you actually want to play with.
@@ -179,7 +179,7 @@ export function CrewPeopleHome() {
       {incomingPeople.length > 0 && (
         <div className="space-y-3">
           <h2 className="font-display text-2xl font-black uppercase italic">Incoming requests</h2>
-          <p className="font-mono text-[10px] uppercase tracking-widest opacity-50">{incomingPeople.length} Crew request{incomingPeople.length === 1 ? '' : 's'}</p>
+          <p className="font-mono text-xs uppercase tracking-widest opacity-50">{incomingPeople.length} Crew request{incomingPeople.length === 1 ? '' : 's'}</p>
           {incomingPeople.map(player => (
             <PlayerCard
               key={player.userId}
@@ -270,7 +270,7 @@ export function CrewPeopleHome() {
         <h2 className="font-display text-2xl font-black uppercase italic">Community Spotlight</h2>
         <p className="font-serif italic text-sm opacity-65">A few public players. This is not your Crew and does not add them to your feed.</p>
         {spotlight.length === 0 ? (
-          <div className="border-4 border-dashed border-on-surface/20 p-6 font-mono text-[10px] uppercase opacity-50">No public spotlight yet.</div>
+          <div className="border-4 border-dashed border-on-surface/20 p-6 font-mono text-xs uppercase opacity-50">No public spotlight yet.</div>
         ) : spotlight.map(player => (
           <PlayerCard
             key={player.userId}

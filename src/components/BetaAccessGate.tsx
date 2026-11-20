@@ -90,7 +90,7 @@ export function BetaAccessGate({ userId, onAccepted, showWelcome = false }: Beta
             className="relative w-full max-w-md bg-white border-4 border-on-surface p-6 sm:p-9 shadow-[12px_12px_0px_black] rounded-2xl"
             aria-labelledby="onboarding-welcome-title"
           >
-            <div className="absolute -top-4 -right-2 bg-brand-lime border-2 border-on-surface px-3 py-1 font-mono text-[10px] font-black uppercase tracking-widest rotate-2">
+            <div className="absolute -top-4 -right-2 bg-brand-lime border-2 border-on-surface px-3 py-1 font-mono text-xs font-black uppercase tracking-widest rotate-2">
               Less than 1 minute
             </div>
 
@@ -100,7 +100,7 @@ export function BetaAccessGate({ userId, onAccepted, showWelcome = false }: Beta
               </div>
 
               <div className="space-y-3">
-                <p className="font-mono text-[10px] font-black uppercase tracking-[0.24em] text-brand-orange">
+                <p className="font-mono text-xs font-black uppercase tracking-[0.24em] text-brand-orange">
                   Welcome to Fieldtrip
                 </p>
                 <h1 id="onboarding-welcome-title" className="font-display text-5xl sm:text-6xl font-black italic uppercase leading-[0.9]">
@@ -126,7 +126,7 @@ export function BetaAccessGate({ userId, onAccepted, showWelcome = false }: Beta
                 <ArrowRight className="w-6 h-6" aria-hidden="true" />
               </button>
 
-              <p className="font-mono text-[9px] uppercase tracking-widest text-on-surface/40">
+              <p className="font-mono text-xs uppercase tracking-widest text-on-surface/60">
                 Age and legal confirmation comes next
               </p>
             </div>
@@ -179,14 +179,14 @@ export function BetaAccessGate({ userId, onAccepted, showWelcome = false }: Beta
 
           {/* Policy Links Grid */}
           <div className="border-t border-b border-on-surface/10 py-4">
-            <p className="text-[10px] uppercase font-mono tracking-wider text-on-surface/40 text-center mb-3">
+            <p className="text-xs uppercase font-mono tracking-wider text-on-surface/60 text-center mb-3">
               Review Official Documents
             </p>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setModalContent({ title: 'Terms & Conditions', content: BETA_TERMS })}
-                className="py-2.5 px-3 border border-on-surface/10 bg-on-surface/[0.02] hover:bg-on-surface/5 hover:border-on-surface/25 text-left rounded-lg text-[10px] font-mono uppercase tracking-wider text-on-surface flex items-center justify-between transition-all"
+                className="py-2.5 px-3 border border-on-surface/10 bg-on-surface/[0.02] hover:bg-on-surface/5 hover:border-on-surface/25 text-left rounded-lg text-xs font-mono uppercase tracking-wider text-on-surface flex items-center justify-between transition-all"
               >
                 <span>Terms & T&C</span>
                 <ChevronRight className="w-3   h-3 text-brand-orange" />
@@ -194,7 +194,7 @@ export function BetaAccessGate({ userId, onAccepted, showWelcome = false }: Beta
               <button
                 type="button"
                 onClick={() => setModalContent({ title: 'Privacy Policy', content: PRIVACY_SUMMARY })}
-                className="py-2.5 px-3 border border-on-surface/10 bg-on-surface/[0.02] hover:bg-on-surface/5 hover:border-on-surface/25 text-left rounded-lg text-[10px] font-mono uppercase tracking-wider text-on-surface flex items-center justify-between transition-all"
+                className="py-2.5 px-3 border border-on-surface/10 bg-on-surface/[0.02] hover:bg-on-surface/5 hover:border-on-surface/25 text-left rounded-lg text-xs font-mono uppercase tracking-wider text-on-surface flex items-center justify-between transition-all"
               >
                 <span>Privacy Policy</span>
                 <ChevronRight className="w-3   h-3 text-brand-orange" />
@@ -202,7 +202,7 @@ export function BetaAccessGate({ userId, onAccepted, showWelcome = false }: Beta
               <button
                 type="button"
                 onClick={() => setModalContent({ title: 'Community Rules', content: COMMUNITY_RULES })}
-                className="py-2.5 px-3 border border-on-surface/10 bg-on-surface/[0.02] hover:bg-on-surface/5 hover:border-on-surface/25 text-left rounded-lg text-[10px] font-mono uppercase tracking-wider text-on-surface flex items-center justify-between transition-all"
+                className="py-2.5 px-3 border border-on-surface/10 bg-on-surface/[0.02] hover:bg-on-surface/5 hover:border-on-surface/25 text-left rounded-lg text-xs font-mono uppercase tracking-wider text-on-surface flex items-center justify-between transition-all"
               >
                 <span>Community Rules</span>
                 <ChevronRight className="w-3   h-3 text-brand-orange" />
@@ -210,7 +210,7 @@ export function BetaAccessGate({ userId, onAccepted, showWelcome = false }: Beta
               <button
                 type="button"
                 onClick={() => setModalContent({ title: 'Safety & Participation', content: SAFETY_RULES })}
-                className="py-2.5 px-3 border border-on-surface/10 bg-on-surface/[0.02] hover:bg-on-surface/5 hover:border-on-surface/25 text-left rounded-lg text-[10px] font-mono uppercase tracking-wider text-on-surface flex items-center justify-between transition-all"
+                className="py-2.5 px-3 border border-on-surface/10 bg-on-surface/[0.02] hover:bg-on-surface/5 hover:border-on-surface/25 text-left rounded-lg text-xs font-mono uppercase tracking-wider text-on-surface flex items-center justify-between transition-all"
               >
                 <span>Safety Notice</span>
                 <ChevronRight className="w-3   h-3 text-brand-orange" />
@@ -273,7 +273,7 @@ export function BetaAccessGate({ userId, onAccepted, showWelcome = false }: Beta
             <CheckCircle2 className="w-5 h-5" />
           </button>
           {!allChecked && (
-            <p className="text-center font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/50">
+            <p className="text-center font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">
               Check both boxes to continue.
             </p>
           )}

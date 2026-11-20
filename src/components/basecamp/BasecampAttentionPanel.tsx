@@ -16,7 +16,7 @@ export function BasecampAttentionPanel({ model, onAction }: BasecampAttentionPan
       <span className="basecamp-pushpin" aria-hidden="true" />
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="font-mono text-[8px] font-black uppercase tracking-[0.22em] text-[var(--skin-text-muted)]">Proof desk</p>
+          <p className="font-mono text-xs font-black uppercase tracking-[0.22em] text-[var(--skin-text-muted)]">Proof desk</p>
           <h2 id="basecamp-attention-heading" className="mt-1 font-display text-2xl font-black uppercase italic tracking-normal text-[var(--skin-text)]">
             Needs Attention
           </h2>
@@ -29,12 +29,12 @@ export function BasecampAttentionPanel({ model, onAction }: BasecampAttentionPan
       {item ? (
         <div className="mt-5 border-t-2 border-[var(--skin-border)] pt-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="inline-flex min-h-7 items-center gap-2 border-2 border-[var(--skin-border)] bg-[var(--skin-warning)] px-2 py-1 font-mono text-[8px] font-black uppercase tracking-widest text-[var(--skin-text)]">
+            <span className="inline-flex min-h-7 items-center gap-2 border-2 border-[var(--skin-border)] bg-[var(--skin-warning)] px-2 py-1 font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-text)]">
               <RotateCcw size={12} aria-hidden="true" />
               {item.statusLabel}
             </span>
             {model.actionableCount > 1 && (
-              <span className="font-mono text-[8px] font-black uppercase tracking-widest text-[var(--skin-text-muted)]">
+              <span className="font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-text-muted)]">
                 {model.actionableCount} records need attention
               </span>
             )}
@@ -44,7 +44,7 @@ export function BasecampAttentionPanel({ model, onAction }: BasecampAttentionPan
           <button
             type="button"
             onClick={onAction}
-            className="skin-button mt-4 min-h-11 border-2 border-[var(--skin-border)] bg-[var(--skin-surface)] px-4 py-2 font-mono text-[9px] font-black uppercase tracking-widest text-[var(--skin-text)] shadow-[3px_3px_0_var(--skin-border)] focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)]"
+            className="skin-button mt-4 min-h-11 border-2 border-[var(--skin-border)] bg-[var(--skin-surface)] px-4 py-2 font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-text)] shadow-[3px_3px_0_var(--skin-border)] focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)]"
           >
             {item.action.label}
           </button>
@@ -61,7 +61,7 @@ export function BasecampAttentionPanel({ model, onAction }: BasecampAttentionPan
       )}
 
       {model.pendingCount > 0 && item && (
-        <p className="mt-4 flex items-center gap-2 border-t border-[var(--skin-border-muted)] pt-3 font-mono text-[8px] font-bold uppercase tracking-wider text-[var(--skin-text-muted)]">
+        <p className="mt-4 flex items-center gap-2 border-t border-[var(--skin-border-muted)] pt-3 font-mono text-xs font-bold uppercase tracking-wider text-[var(--skin-text-muted)]">
           <Clock3 size={13} aria-hidden="true" />
           {model.pendingCount} proof{model.pendingCount === 1 ? '' : 's'} also in review
         </p>

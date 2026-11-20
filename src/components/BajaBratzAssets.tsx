@@ -32,7 +32,7 @@ export const GlossOverlay = ({ opacity = 0.5 }: { opacity?: number }) => (
 );
 
 export const BeachTag = ({ children, className }: { children: React.ReactNode, className?: string }) => (
-  <div className={cn("inline-flex items-center gap-1 bg-white/80 border-2 border-baja-pink/30 px-3 py-1 rounded-full text-[10px] font-display text-baja-pink rotate-[-2deg]", className)}>
+  <div className={cn("inline-flex items-center gap-1 bg-white/80 border-2 border-baja-pink/30 px-3 py-1 rounded-full text-xs font-display text-baja-pink rotate-[-2deg]", className)}>
     <span className="w-1.5 h-1.5 rounded-full bg-baja-pink" />
     {children}
   </div>

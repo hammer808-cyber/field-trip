@@ -14,7 +14,7 @@ export function LocalEmulatorBanner() {
       className="fixed top-0 left-0 right-0 z-[10000] pointer-events-none flex justify-center"
       aria-live="polite"
     >
-      <div className="mt-2 px-3 py-1 bg-brand-orange text-white text-[10px] font-mono font-black uppercase tracking-[0.2em] border-2 border-on-surface shadow-[3px_3px_0px_black]">
+      <div className="mt-2 px-3 py-1 bg-brand-orange text-white text-xs font-mono font-black uppercase tracking-[0.2em] border-2 border-on-surface shadow-[3px_3px_0px_black]">
         Local emulator
       </div>
     </div>

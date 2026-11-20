@@ -176,7 +176,7 @@ export function StickerMachine() {
         </div>
         <div className="relative flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="font-mono text-[9px] font-black uppercase tracking-[0.2em] opacity-50">Prize counter // Collection 01</p>
+            <p className="font-mono text-xs font-black uppercase tracking-[0.2em] opacity-50">Prize counter // Collection 01</p>
             <h2 id="sticker-machine-title" className="mt-2 font-display text-2xl font-black uppercase leading-none sm:text-3xl">
               Sticker Machine
             </h2>
@@ -216,7 +216,7 @@ export function StickerMachine() {
           })}
         </div>
 
-        <div className="relative mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 font-mono text-[9px] font-black uppercase">
+        <div className="relative mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 font-mono text-xs font-black uppercase">
           <span>{unlocks.length} / {ALL_STICKERS.length} unlocked</span>
           <span>{featuredUnlocks.length} / {MAX_FEATURED_STICKERS} featured</span>
           {unseenCount > 0 && (
@@ -236,10 +236,10 @@ export function StickerMachine() {
       <StickerFilterTabs activeFilter={activeFilter} onChange={setActiveFilter} />
 
       <div className="flex items-center justify-between gap-3">
-        <p className="font-mono text-[9px] font-black uppercase opacity-55">
+        <p className="font-mono text-xs font-black uppercase opacity-55">
           Showing {visibleStickerCount} stickers
         </p>
-        <p className="font-mono text-[9px] font-black uppercase opacity-55">
+        <p className="font-mono text-xs font-black uppercase opacity-55">
           Tap one for details
         </p>
       </div>

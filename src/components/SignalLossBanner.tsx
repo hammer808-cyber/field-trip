@@ -34,7 +34,7 @@ export function SignalLossBanner() {
           animate={{ y: 0 }}
           exit={{ y: -100 }}
           className={cn(
-            "fixed top-0 left-0 right-0 z-[9999] p-2 flex items-center justify-center gap-3 font-mono text-[10px] uppercase tracking-widest",
+            "fixed top-0 left-0 right-0 z-[9999] p-2 flex items-center justify-center gap-3 font-mono text-xs uppercase tracking-widest",
             isReconnecting ? "bg-brand-orange text-white" : "bg-error text-white"
           )}
         >

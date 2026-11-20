@@ -68,7 +68,7 @@ export const CrewArtifactsGallery: React.FC<ArtifactGalleryProps> = ({ artifacts
                   )}>
                     <IconComponent className="w-8 h-8" />
                   </div>
-                  <p className="font-display text-[10px] uppercase text-center tracking-tighter leading-none px-2 line-clamp-2">
+                  <p className="font-display text-xs uppercase text-center tracking-tighter leading-none px-2 line-clamp-2">
                     {art.title}
                   </p>
                   
@@ -138,7 +138,7 @@ export const CrewArtifactsGallery: React.FC<ArtifactGalleryProps> = ({ artifacts
                 <div className="space-y-2">
                   <p className="micro-label opacity-40">OBSERVATION</p>
                   <div className="bg-brand-orange/5 border-l-2 border-brand-orange p-3">
-                    <p className="text-[11px] font-mono leading-relaxed opacity-80">
+                    <p className="text-xs font-mono leading-relaxed opacity-80">
                       // {selectedArtifact.flavorCaption}
                     </p>
                   </div>
@@ -149,7 +149,7 @@ export const CrewArtifactsGallery: React.FC<ArtifactGalleryProps> = ({ artifacts
                     <p className="micro-label opacity-40 flex items-center gap-1">
                       <Calendar className="w-2.5 h-2.5" /> RECOVERED
                     </p>
-                    <p className="font-mono text-[9px]">
+                    <p className="font-mono text-xs">
                       {formatSafeDateOnly(selectedArtifact.createdAt)}
                     </p>
                   </div>
@@ -157,7 +157,7 @@ export const CrewArtifactsGallery: React.FC<ArtifactGalleryProps> = ({ artifacts
                     <p className="micro-label opacity-40 flex items-center gap-1">
                       <User className="w-2.5 h-2.5" /> AGENT
                     </p>
-                    <p className="font-mono text-[9px] truncate">
+                    <p className="font-mono text-xs truncate">
                       {selectedArtifact.earnedByUserName || 'Unknown'}
                     </p>
                   </div>

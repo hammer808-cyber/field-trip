@@ -315,19 +315,19 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
           <div className="space-y-3">
             <div className="inline-flex items-center gap-2 bg-on-surface text-brand-lime px-3 py-1 border-2 border-on-surface shadow-[3px_3px_0px_var(--color-brand-orange)]">
               <Ticket className="h-4 w-4" />
-              <span className="font-mono text-[9px] font-black uppercase tracking-[0.22em]">Week {currentWeekNumber} Dispatches</span>
+              <span className="font-mono text-xs font-black uppercase tracking-[0.22em]">Week {currentWeekNumber} Dispatches</span>
             </div>
             <div>
               <h2 className="font-display text-5xl sm:text-8xl uppercase tracking-tighter leading-[0.8] font-black italic">Field Awards</h2>
               <p className="mt-3 font-serif text-lg sm:text-2xl italic text-on-surface/70">Hand out glory. Mildly judge your peers.</p>
             </div>
-            <p className="font-mono text-[10px] sm:text-xs font-black uppercase tracking-widest text-brand-orange">
+            <p className="font-mono text-xs sm:text-xs font-black uppercase tracking-widest text-brand-orange">
               {phase === 'voting' ? 'Voting closes Saturday at 11:59 PM Pacific' : phase === 'awards' ? 'Ballot box sealed. Results are being processed.' : 'The receipts are in. Ballot building is underway.'}
             </p>
           </div>
 
           <div className="relative bg-white border-4 border-on-surface p-4 shadow-[8px_8px_0px_black] rotate-[-1deg] min-w-[250px]">
-            <p className="font-mono text-[9px] font-black uppercase tracking-widest text-on-surface/40">Ballot Progress</p>
+            <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">Ballot Progress</p>
             <p className="font-display text-4xl font-black italic uppercase leading-none mt-1">{displayedVoteCount} / {displayedVoteLimit}</p>
             <p className="font-serif italic text-sm text-on-surface/60 mt-1">
               {displayedRemainingCount === 0 ? 'Your ballot is ready.' : `${displayedRemainingCount} more legend${displayedRemainingCount === 1 ? '' : 's'} to recognize.`}
@@ -358,7 +358,7 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
                     type="button"
                     onClick={() => setSelectedCategory(category.id)}
                     className={cn(
-                      "h-10 border-2 border-on-surface shadow-[2px_2px_0px_black] font-mono text-[8px] font-black",
+                      "h-10 border-2 border-on-surface shadow-[2px_2px_0px_black] font-mono text-xs font-black",
                       filed ? "bg-brand-lime" : drafted ? "bg-brand-yellow" : "bg-paper"
                     )}
                     aria-label={`${getCategoryMeta(category.id).awardLabel}: ${filed ? 'filed' : drafted ? 'selected' : 'not selected'}`}
@@ -398,7 +398,7 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
         ) : (
         <section className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
           <aside className="space-y-3">
-            <p className="font-mono text-[10px] font-black uppercase tracking-[0.25em] text-on-surface/40">Award Booths</p>
+            <p className="font-mono text-xs font-black uppercase tracking-[0.25em] text-on-surface/60">Award Booths</p>
             {CATEGORIES.map((category, idx) => {
               const filed = !!getVoteForCategory(category.id);
               const drafted = !!draftVotes[category.id];
@@ -423,7 +423,7 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
                     </div>
                     <div className="min-w-0">
                       <p className="font-display text-lg font-black italic uppercase leading-none truncate">{category.awardLabel}</p>
-                      <p className={cn("mt-1 text-[10px] leading-snug", isActive ? "text-white/70" : "text-on-surface/55")}>{category.label}</p>
+                      <p className={cn("mt-1 text-xs leading-snug", isActive ? "text-white/70" : "text-on-surface/55")}>{category.label}</p>
                     </div>
                   </div>
                 </button>
@@ -435,7 +435,7 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
             <div className="relative border-4 border-on-surface bg-paper p-5 shadow-[8px_8px_0px_black] overflow-hidden">
               <div className="absolute right-6 top-4 h-8 w-24 rotate-3 bg-brand-magenta/30 border border-brand-magenta/30" />
               <div className="relative z-10">
-                <p className="font-mono text-[9px] font-black uppercase tracking-[0.25em] text-brand-orange">Now Judging</p>
+                <p className="font-mono text-xs font-black uppercase tracking-[0.25em] text-brand-orange">Now Judging</p>
                 <h3 className="mt-2 font-display text-4xl sm:text-6xl font-black italic uppercase tracking-tighter leading-none">{selectedCategoryMeta.awardLabel}</h3>
                 <p className="mt-2 font-serif italic text-on-surface/65">{selectedCategoryMeta.awardCopy}</p>
               </div>
@@ -501,7 +501,7 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
         <footer className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {SUPERLATIVES.map((copy, idx) => (
             <div key={copy} className={cn("border-2 border-on-surface bg-white p-3 shadow-[3px_3px_0px_black] rotate-[-1deg]", idx === 1 && "rotate-[1deg]", idx === 2 && "sm:col-span-1 rotate-0")}>
-              <p className="font-mono text-[8px] font-black uppercase tracking-widest text-brand-orange">Field Superlative</p>
+              <p className="font-mono text-xs font-black uppercase tracking-widest text-brand-orange">Field Superlative</p>
               <p className="font-serif italic text-sm font-bold text-on-surface/75 mt-1">{copy}</p>
             </div>
           ))}
@@ -580,12 +580,12 @@ function CanonicalWeeklyBallot({
       <div className="relative overflow-hidden border-4 border-on-surface bg-paper p-5 shadow-[8px_8px_0px_black]">
         <div className="absolute right-6 top-4 h-8 w-24 rotate-3 border border-brand-magenta/30 bg-brand-magenta/30" />
         <div className="relative z-10 max-w-3xl">
-          <p className="font-mono text-[9px] font-black uppercase tracking-[0.25em] text-brand-orange">Community Weekly Ballot</p>
+          <p className="font-mono text-xs font-black uppercase tracking-[0.25em] text-brand-orange">Community Weekly Ballot</p>
           <h3 className="mt-2 font-display text-4xl font-black italic uppercase leading-none tracking-tighter sm:text-6xl">Choose up to {model.maxVotesPerVoter}</h3>
           <p className="mt-2 font-serif italic text-on-surface/65">
             Pick different approved receipts. You can update this ballot until Saturday at 11:59 PM Pacific. Self-votes are removed before display and rejected by the server.
           </p>
-          <p className="mt-3 font-mono text-[9px] font-black uppercase tracking-widest text-on-surface/40">
+          <p className="mt-3 font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">
             Cycle {model.lookup.cycleId} // {model.nominees.length} frozen nominee{model.nominees.length === 1 ? '' : 's'}
           </p>
         </div>
@@ -615,7 +615,7 @@ function CanonicalWeeklyBallot({
 
         <aside className="sticky top-4 space-y-4">
           <div className="border-4 border-on-surface bg-[#fff7e8] p-4 shadow-[8px_8px_0px_black]">
-            <p className="font-mono text-[9px] font-black uppercase tracking-[0.25em] text-brand-orange">Ballot Review</p>
+            <p className="font-mono text-xs font-black uppercase tracking-[0.25em] text-brand-orange">Ballot Review</p>
             <h4 className="mt-2 font-display text-4xl font-black italic uppercase leading-none">Your picks</h4>
             <div className="mt-4 space-y-2">
               {Array.from({ length: model.maxVotesPerVoter }, (_, index) => {
@@ -627,7 +627,7 @@ function CanonicalWeeklyBallot({
                       {entry ? <Check className="h-5 w-5" /> : <Ticket className="h-5 w-5 opacity-40" />}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-mono text-[8px] font-black uppercase tracking-widest text-on-surface/40">Pick {index + 1}</p>
+                      <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">Pick {index + 1}</p>
                       <p className="truncate font-display text-sm font-black italic uppercase">{entry ? getEntryDisplayName(entry) : 'Open slot'}</p>
                     </div>
                   </div>
@@ -640,7 +640,7 @@ function CanonicalWeeklyBallot({
               disabled={selectedProofIds.length === 0 || !hasChanges || isFilingVotes}
               className={cn(
                 "mt-5 min-h-12 w-full border-4 border-on-surface px-4 py-3 font-display text-xl font-black italic uppercase shadow-[5px_5px_0px_black]",
-                selectedProofIds.length > 0 && hasChanges ? "bg-brand-lime text-on-surface" : "bg-white text-on-surface/35"
+                selectedProofIds.length > 0 && hasChanges ? "bg-brand-lime text-on-surface" : "bg-white text-on-surface/60"
               )}
             >
               {isFilingVotes ? 'Filing...' : hasExistingBallot ? 'Update My Ballot' : 'Submit My Ballot'}
@@ -717,7 +717,7 @@ function VoteReceiptCard({
         )}
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 text-white">
           <p className="font-display text-3xl font-black italic uppercase leading-none">{displayName}</p>
-          <p className="mt-1 flex items-center gap-1.5 font-mono text-[10px] font-black uppercase tracking-widest text-white/75">
+          <p className="mt-1 flex items-center gap-1.5 font-mono text-xs font-black uppercase tracking-widest text-white/75">
             <MapPin className="h-3 w-3 text-brand-orange" />
             <span className="truncate">{missionTitle}</span>
           </p>
@@ -733,7 +733,7 @@ function VoteReceiptCard({
             >
               <div className="rounded-full border-[7px] border-brand-lime bg-white/80 px-7 py-5 text-center shadow-[6px_6px_0px_black]">
                 <p className="font-display text-3xl font-black italic uppercase tracking-tighter text-on-surface">{getStampFor(category)}</p>
-                <p className="font-mono text-[8px] font-black uppercase tracking-widest text-brand-orange">{filed ? 'Filed' : 'Draft Pick'}</p>
+                <p className="font-mono text-xs font-black uppercase tracking-widest text-brand-orange">{filed ? 'Filed' : 'Draft Pick'}</p>
               </div>
             </motion.div>
           )}
@@ -742,9 +742,9 @@ function VoteReceiptCard({
 
       <div className="p-4 space-y-4">
         <div className="flex flex-wrap gap-2">
-          <span className="bg-brand-yellow border-2 border-on-surface px-2 py-1 font-mono text-[8px] font-black uppercase shadow-[2px_2px_0px_black]">Receipt #{index + 1}</span>
-          <span className="bg-white border-2 border-on-surface px-2 py-1 font-mono text-[8px] font-black uppercase shadow-[2px_2px_0px_black]">Approved Proof</span>
-          {reaction && <span className="bg-brand-cyan border-2 border-on-surface px-2 py-1 font-mono text-[8px] font-black uppercase shadow-[2px_2px_0px_black]">{reaction}</span>}
+          <span className="bg-brand-yellow border-2 border-on-surface px-2 py-1 font-mono text-xs font-black uppercase shadow-[2px_2px_0px_black]">Receipt #{index + 1}</span>
+          <span className="bg-white border-2 border-on-surface px-2 py-1 font-mono text-xs font-black uppercase shadow-[2px_2px_0px_black]">Approved Proof</span>
+          {reaction && <span className="bg-brand-cyan border-2 border-on-surface px-2 py-1 font-mono text-xs font-black uppercase shadow-[2px_2px_0px_black]">{reaction}</span>}
         </div>
 
         {note && (
@@ -758,7 +758,7 @@ function VoteReceiptCard({
               type="button"
               onClick={() => onReact(item)}
               className={cn(
-                "min-h-11 border-2 border-on-surface px-3 py-2 font-mono text-[8px] font-black uppercase shadow-[2px_2px_0px_black]",
+                "min-h-11 border-2 border-on-surface px-3 py-2 font-mono text-xs font-black uppercase shadow-[2px_2px_0px_black]",
                 reaction === item ? "bg-brand-lime" : "bg-white"
               )}
               aria-label={`Mark this receipt as ${item}`}
@@ -814,7 +814,7 @@ function BallotReviewPanel({
   return (
     <aside className="sticky top-4 space-y-4">
       <div className="border-4 border-on-surface bg-[#fff7e8] p-4 shadow-[8px_8px_0px_black]">
-        <p className="font-mono text-[9px] font-black uppercase tracking-[0.25em] text-brand-orange">Ballot Review</p>
+        <p className="font-mono text-xs font-black uppercase tracking-[0.25em] text-brand-orange">Ballot Review</p>
         <h4 className="mt-2 font-display text-4xl font-black italic uppercase leading-none">Check the stamps before filing.</h4>
         <div className="mt-4 space-y-2">
           {CATEGORIES.map(category => {
@@ -825,7 +825,7 @@ function BallotReviewPanel({
                   {selectedEntry ? <Check className="h-5 w-5" /> : <Ticket className="h-5 w-5 opacity-40" />}
                 </div>
                 <div className="min-w-0">
-                  <p className="font-mono text-[8px] font-black uppercase tracking-widest text-on-surface/40">{getCategoryMeta(category.id).awardLabel}</p>
+                  <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">{getCategoryMeta(category.id).awardLabel}</p>
                   <p className="truncate font-display text-sm font-black italic uppercase">{selectedEntry ? getEntryDisplayName(selectedEntry) : 'No pick yet'}</p>
                 </div>
               </div>
@@ -838,7 +838,7 @@ function BallotReviewPanel({
           disabled={!isReady || !hasDraftVotes || isFilingVotes}
           className={cn(
             "mt-5 w-full min-h-12 border-4 border-on-surface px-4 py-3 font-display text-xl font-black italic uppercase shadow-[5px_5px_0px_black]",
-            isReady && hasDraftVotes ? "bg-brand-lime text-on-surface" : "bg-white text-on-surface/35"
+            isReady && hasDraftVotes ? "bg-brand-lime text-on-surface" : "bg-white text-on-surface/60"
           )}
         >
           {isFilingVotes ? 'Filing...' : hasDraftVotes ? 'File My Votes' : 'Votes Filed'}
@@ -871,7 +871,7 @@ function ClosedState({ phase, filedVoteCount }: { phase: string; filedVoteCount:
           ? 'The ballots are being counted by extremely serious people.'
           : 'Approved receipts are still collecting on the table. Come back when voting opens.'}
       </p>
-      <p className="mt-4 font-mono text-[10px] font-black uppercase tracking-widest text-brand-orange">
+      <p className="mt-4 font-mono text-xs font-black uppercase tracking-widest text-brand-orange">
         Completed votes on record: {filedVoteCount}
       </p>
     </div>
@@ -882,8 +882,8 @@ function EmptyState({ reason }: { reason?: WeeklyBallotEmptyReason }) {
   const copy = getWeeklyBallotEmptyCopy(reason);
   return (
     <div className="border-4 border-dashed border-on-surface/20 bg-on-surface/[0.03] p-10 text-center">
-      <Award className="mx-auto h-12 w-12 text-on-surface/25" />
-      <p className="mt-4 font-display text-2xl font-black italic uppercase text-on-surface/45">{copy.title}</p>
+      <Award className="mx-auto h-12 w-12 text-on-surface/60" />
+      <p className="mt-4 font-display text-2xl font-black italic uppercase text-on-surface/60">{copy.title}</p>
       <p className="mt-2 font-serif italic text-on-surface/55">{copy.body}</p>
     </div>
   );
@@ -905,7 +905,7 @@ function ResultsState({
   const winnerImageEntry = winnerEntry || (winner ? { id: winner.entryId, photoUrl: winner.proofImage } : null);
   return (
     <div className="border-4 border-on-surface bg-brand-cyan/10 p-5 shadow-[8px_8px_0px_black]">
-      <p className="font-mono text-[9px] font-black uppercase tracking-[0.25em] text-brand-orange">Stamp Reveal</p>
+      <p className="font-mono text-xs font-black uppercase tracking-[0.25em] text-brand-orange">Stamp Reveal</p>
       <h3 className="mt-2 font-display text-4xl sm:text-6xl font-black italic uppercase tracking-tighter leading-none">{getCategoryMeta(selectedCategory).awardLabel}</h3>
       <div className="mt-5 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_240px] gap-5 items-stretch">
         <div className="border-4 border-on-surface bg-white p-3 shadow-[5px_5px_0px_black]">
@@ -916,7 +916,7 @@ function ResultsState({
           <p className="mt-4 font-display text-3xl font-black italic uppercase leading-none">
             {winner.userName || (winnerEntry ? getEntryDisplayName(winnerEntry) : 'Winning Agent')}
           </p>
-          <p className="mt-2 font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/45">{winner.tripTitle || (winnerEntry ? getEntryMissionTitle(winnerEntry) : 'Field Receipt')}</p>
+          <p className="mt-2 font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">{winner.tripTitle || (winnerEntry ? getEntryMissionTitle(winnerEntry) : 'Field Receipt')}</p>
           <p className="mt-5 font-display text-5xl font-black italic text-brand-orange">{winner.count} votes</p>
         </div>
       </div>

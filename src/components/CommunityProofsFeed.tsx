@@ -98,7 +98,7 @@ export function CommunityProofsFeed() {
               type="button"
               onClick={() => setFeedFilter(id as FeedFilter)}
               className={cn(
-                "px-4 py-2 border-2 border-on-surface font-mono text-[10px] font-black uppercase tracking-widest shadow-[3px_3px_0px_black] transition-transform active:translate-y-0.5 active:shadow-none",
+                "px-4 py-2 border-2 border-on-surface font-mono text-xs font-black uppercase tracking-widest shadow-[3px_3px_0px_black] transition-transform active:translate-y-0.5 active:shadow-none",
                 feedFilter === id ? "bg-brand-lime text-on-surface" : "bg-white text-on-surface/60 hover:text-on-surface"
               )}
             >
@@ -110,7 +110,7 @@ export function CommunityProofsFeed() {
 
       {communityFeedProofs.length === 0 && !loadingMore ? (
         <div className="max-w-xl mx-auto py-16 text-center space-y-4 bg-white border-4 border-on-surface p-8 rounded-[1.5rem] shadow-[8px_8px_0px_black] relative">
-          <div className="absolute top-2 right-2 text-on-surface/5 font-mono text-[9px] font-black uppercase tracking-widest">
+          <div className="absolute top-2 right-2 text-on-surface/5 font-mono text-xs font-black uppercase tracking-widest">
             COMMUNITY_EMPTY
           </div>
           <div className="inline-flex items-center justify-center w-12 h-12 bg-brand-yellow/10 border-4 border-on-surface rounded-full shadow-[3px_3px_0px_black]">
@@ -139,12 +139,12 @@ export function CommunityProofsFeed() {
           onRequestMore={loadMore}
         />
       ) : (
-        <div className="min-h-64 flex items-center justify-center font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/45" aria-live="polite">
+        <div className="min-h-64 flex items-center justify-center font-mono text-xs font-black uppercase tracking-widest text-on-surface/60" aria-live="polite">
           Loading approved receipts...
         </div>
       )}
       {queryErrors.length > 0 && (import.meta.env.DEV || profile?.role === 'admin') && (
-        <p className="font-mono text-[9px] text-error" role="status">Feed query diagnostics: {queryErrors.join(', ')}</p>
+        <p className="font-mono text-xs text-error" role="status">Feed query diagnostics: {queryErrors.join(', ')}</p>
       )}
     </section>
   );

@@ -124,7 +124,7 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
     <div className="space-y-3 p-1">
       {catalogSections.map(section => (
         <section key={section.id} className="space-y-2">
-          <h3 className="px-1 pt-2 font-mono text-[9px] font-black uppercase tracking-[0.2em] text-on-surface/45">
+          <h3 className="px-1 pt-2 font-mono text-xs font-black uppercase tracking-[0.2em] text-on-surface/60">
             {section.label}
           </h3>
           <div className="space-y-2">
@@ -183,7 +183,7 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
 
               <p className="text-[13px] md:text-[14.5px] text-on-surface/85 font-medium leading-[1.4] font-sans break-words whitespace-normal leading-relaxed">
                 {locked ? (
-                  <span className="text-error/80 font-semibold font-mono text-[11px] uppercase tracking-wide">
+                  <span className="text-error/80 font-semibold font-mono text-xs uppercase tracking-wide">
                     {reason || "This dossier is currently locked. Complete previous field signals or requirements to unlock this file."}
                   </span>
                 ) : (
@@ -193,7 +193,7 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
 
               {bypassed && (
                 <div className="inline-block">
-                  <span className="text-[10px] font-mono font-bold tracking-wider text-brand-orange bg-brand-orange/10 border border-brand-orange/25 px-2 py-0.5 uppercase rounded-none">
+                  <span className="text-xs font-mono font-bold tracking-wider text-on-surface bg-brand-orange/10 border border-brand-orange/25 px-2 py-0.5 uppercase rounded-none">
                     Active via Dev-Bypass
                   </span>
                 </div>
@@ -201,26 +201,26 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
 
               {/* Metadata pills */}
               <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
-                <span className="px-2.5 py-0.5 bg-on-surface/5 text-on-surface/85 border border-on-surface/20 rounded-full text-[10.5px] font-mono font-extrabold tracking-wider uppercase inline-flex items-center">
+                <span className="px-2.5 py-0.5 bg-on-surface/5 text-on-surface/85 border border-on-surface/20 rounded-full text-xs font-mono font-extrabold tracking-wider uppercase inline-flex items-center">
                   {missionCount} SIGNALS
                 </span>
                 
-                <span className="px-2.5 py-0.5 bg-brand-lime/10 text-brand-lime border border-brand-lime/30 rounded-full text-[10.5px] font-mono font-extrabold tracking-wider uppercase inline-flex items-center">
+                <span className="px-2.5 py-0.5 bg-brand-lime/10 text-on-surface border border-brand-lime/30 rounded-full text-xs font-mono font-extrabold tracking-wider uppercase inline-flex items-center">
                   {deckProgress.approvedCount}/{deckProgress.totalCards} APPROVED
                 </span>
                 {deckProgress.pendingCount > 0 && (
-                  <span className="px-2.5 py-0.5 bg-brand-orange/10 text-brand-orange border border-brand-orange/30 rounded-full text-[10.5px] font-mono font-extrabold tracking-wider uppercase inline-flex items-center">
+                  <span className="px-2.5 py-0.5 bg-brand-orange/10 text-on-surface border border-brand-orange/30 rounded-full text-xs font-mono font-extrabold tracking-wider uppercase inline-flex items-center">
                     {deckProgress.pendingCount} PENDING
                   </span>
                 )}
 
                 {!locked && isSelected && (
-                  <span className="px-2.5 py-0.5 bg-[#FAF7F0] text-brand-orange border border-brand-orange/30 rounded-full text-[10.5px] font-mono font-extrabold tracking-wider uppercase inline-flex items-center">
+                  <span className="px-2.5 py-0.5 bg-[#FAF7F0] text-on-surface border border-brand-orange/30 rounded-full text-xs font-mono font-extrabold tracking-wider uppercase inline-flex items-center">
                     LOADED
                   </span>
                 )}
                 {pack.difficultyRange && (
-                  <span className="px-2.5 py-0.5 bg-on-surface/10 text-on-surface/90 border border-on-surface/20 rounded-full text-[10.5px] font-mono font-extrabold tracking-wider uppercase inline-flex items-center">
+                  <span className="px-2.5 py-0.5 bg-on-surface/10 text-on-surface/90 border border-on-surface/20 rounded-full text-xs font-mono font-extrabold tracking-wider uppercase inline-flex items-center">
                     {pack.difficultyRange.join(' / ')}
                   </span>
                 )}
@@ -278,7 +278,7 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
           <div className="flex-grow min-w-0">
             <div className="flex items-center gap-2 mb-1.5">
               <div className="h-2 w-2 rounded-full bg-brand-lime shadow-[0_0_8px_var(--color-brand-lime)]" />
-              <span className="text-[8px] font-mono tracking-[0.2em] font-black text-on-surface/40 uppercase">
+              <span className="text-xs font-mono tracking-[0.2em] font-black text-on-surface/60 uppercase">
                 LOADED_CARTRIDGE
               </span>
             </div>
@@ -289,7 +289,7 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
             
             <div className="flex items-center gap-2">
               <Zap className="w-3 h-3 text-brand-orange" />
-              <p className="text-[10px] font-mono uppercase tracking-widest font-black text-on-surface/50">
+              <p className="text-xs font-mono uppercase tracking-widest font-black text-on-surface/60">
                 {currentPack.missionIds.length} SIGNALS
               </p>
             </div>
@@ -297,7 +297,7 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
           
           <div className="flex flex-col items-center gap-1 opacity-20 group-hover:opacity-100 transition-opacity translate-x-2">
             <ChevronDown className={cn("w-6 h-6 transition-transform duration-500", isOpen && "rotate-180")} />
-            <span className="text-[7px] font-black uppercase tracking-tighter font-mono -mt-1">DISK</span>
+            <span className="text-xs font-black uppercase tracking-tighter font-mono -mt-1">DISK</span>
           </div>
         </div>
 
@@ -360,7 +360,7 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
                 {/* Bottom Footer Intel - Goal 8 */}
                 <div className="p-4 sm:p-5 bg-[#FFEFE5] border-t-[3px] border-on-surface flex gap-3 items-center justify-center select-none shrink-0">
                   <Info className="w-4 h-4 text-brand-orange shrink-0" />
-                  <p className="text-[11px] sm:text-[12px] font-mono font-extrabold tracking-wide text-[#C23C00] leading-tight uppercase text-center">
+                  <p className="text-xs sm:text-[12px] font-mono font-extrabold tracking-wide text-[#C23C00] leading-tight uppercase text-center">
                     MISSION DRAW FROM SLOTTED PACK. FALLBACK: HEATWAVE RECEIPTS FEED.
                   </p>
                 </div>

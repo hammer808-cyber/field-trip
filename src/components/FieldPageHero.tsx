@@ -115,7 +115,7 @@ export function FieldPageHero({
                   type="button"
                   onClick={handleBack}
                   className={cn(
-                    'skin-button mb-4 flex min-h-11 items-center gap-2 border-2 px-4 py-2 font-mono text-[9px] font-black uppercase tracking-widest shadow-[3px_3px_0_var(--skin-primary)] focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[var(--skin-focus)]',
+                    'skin-button mb-4 flex min-h-11 items-center gap-2 border-2 px-4 py-2 font-mono text-xs font-black uppercase tracking-widest shadow-[3px_3px_0_var(--skin-primary)] focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[var(--skin-focus)]',
                     chrome
                       ? 'border-white bg-white text-[#141414]'
                       : 'border-[var(--skin-border)] bg-[var(--skin-text)] text-[var(--skin-surface)]',
@@ -128,7 +128,7 @@ export function FieldPageHero({
               <div className="flex items-center gap-2">
                 <span className={cn('h-2.5 w-2.5 shadow-[2px_2px_0_var(--skin-border)]', chrome ? 'bg-brand-lime' : 'bg-[var(--skin-secondary)]')} />
                 <p className={cn(
-                  'font-mono text-[9px] font-black uppercase tracking-[0.24em]',
+                  'font-mono text-xs font-black uppercase tracking-[0.24em]',
                   chrome ? 'text-white/70' : 'text-[var(--skin-text-muted)]',
                 )}>{eyebrow}</p>
               </div>
@@ -148,8 +148,8 @@ export function FieldPageHero({
               )}
               {seasonLine && (
                 <p className={cn(
-                  'mt-2 font-mono text-[9px] font-black uppercase tracking-[0.22em]',
-                  chrome ? 'text-brand-lime' : 'text-[var(--skin-primary)]',
+                  'mt-2 font-mono text-xs font-black uppercase tracking-[0.22em]',
+                  chrome ? 'text-brand-lime' : 'text-[var(--skin-text)]',
                 )}>
                   {seasonLine}
                 </p>
@@ -163,12 +163,12 @@ export function FieldPageHero({
               )}>
                 <span className={cn('h-3 w-3 border-2 border-[var(--skin-border)]', accentColors[infoCardAccent])} aria-hidden="true" />
                 <div>
-                  <p className={cn('font-mono text-[7px] font-black uppercase tracking-[0.2em]', chrome ? 'text-white/60' : 'text-[var(--skin-text-muted)]')}>{infoCardLabel}</p>
+                  <p className={cn('font-mono text-xs font-black uppercase tracking-[0.2em]', chrome ? 'text-white/60' : 'text-[var(--skin-text-muted)]')}>{infoCardLabel}</p>
                   <div className={cn(
                     'mt-0.5 font-display text-lg font-black uppercase italic leading-none tracking-normal',
                     chrome ? 'text-white' : 'text-[var(--skin-text)]',
                   )}>{infoCardValue}</div>
-                  {infoCardSubtext && <p className={cn('mt-1 font-mono text-[7px] font-bold uppercase tracking-wider', chrome ? 'text-white/55' : 'text-[var(--skin-text-muted)]')}>{infoCardSubtext}</p>}
+                  {infoCardSubtext && <p className={cn('mt-1 font-mono text-xs font-bold uppercase tracking-wider', chrome ? 'text-white/55' : 'text-[var(--skin-text-muted)]')}>{infoCardSubtext}</p>}
                 </div>
               </div>
             )}
@@ -236,7 +236,7 @@ export function FieldPageHero({
                 className="group flex items-center gap-2 bg-on-surface text-brand-lime px-5 py-2 rounded-none transition-all border-[3px] border-on-surface hover:bg-brand-orange hover:text-white active:scale-95 shadow-[6px_6px_0px_black]"
               >
                 <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform stroke-[3]" />
-                <span className="text-[11px] font-black uppercase tracking-[0.2em] font-mono">{backLabel}</span>
+                <span className="text-xs font-black uppercase tracking-[0.2em] font-mono">{backLabel}</span>
               </button>
             </div>
           )}
@@ -244,7 +244,7 @@ export function FieldPageHero({
           <div className={cn("space-y-4", backLabel ? "pt-14" : "")}>
             <div className="flex items-center gap-3">
               <div className="h-6 w-1.5 bg-on-surface shadow-[2px_2px_0px_black]" />
-              <p className="text-on-surface font-mono text-[10px] font-black uppercase tracking-[0.4em]">{eyebrow}</p>
+              <p className="text-on-surface font-mono text-xs font-black uppercase tracking-[0.4em]">{eyebrow}</p>
             </div>
             
             <div className="space-y-4">
@@ -260,7 +260,7 @@ export function FieldPageHero({
                 </div>
               )}
               {seasonLine && (
-                <p className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-brand-orange">
+                <p className="font-mono text-xs font-black uppercase tracking-[0.22em] text-brand-orange">
                   {seasonLine}
                 </p>
               )}
@@ -282,7 +282,7 @@ export function FieldPageHero({
                 </div>
 
                 <div className="flex items-center justify-between w-full mb-2 select-none pointer-events-none">
-                   <span className="bg-brand-cyan text-on-surface border-2 border-on-surface text-[9px] font-black px-2.5 py-0.5 uppercase tracking-widest flex items-center gap-1.5 shadow-[2px_2px_0px_black] cursor-default">
+                   <span className="bg-brand-cyan text-on-surface border-2 border-on-surface text-xs font-black px-2.5 py-0.5 uppercase tracking-widest flex items-center gap-1.5 shadow-[2px_2px_0px_black] cursor-default">
                       <span className="w-1.5 h-1.5 bg-on-surface rounded-full block animate-pulse"></span>
                       {infoCardLabel}
                    </span>
@@ -297,7 +297,7 @@ export function FieldPageHero({
                 </div>
                 
                 <div className="mt-3 pt-3 border-t-[3px] border-dashed border-on-surface/20 w-full text-left">
-                   <p className="text-[10px] font-mono font-black uppercase tracking-widest text-[#4A473E] leading-relaxed">
+                   <p className="text-xs font-mono font-black uppercase tracking-widest text-[#4A473E] leading-relaxed">
                      {infoCardSubtext}
                    </p>
                 </div>
@@ -319,7 +319,7 @@ export function FieldPageHero({
                     
                     {/* Label */}
                     <div className="mt-1 z-20">
-                       <span className="bg-on-surface text-white text-[7px] font-black px-1.5 py-0.5 uppercase italic tracking-tight rounded-none border border-white/20">
+                       <span className="bg-on-surface text-white text-xs font-black px-1.5 py-0.5 uppercase italic tracking-tight rounded-none border border-white/20">
                           {infoCardLabel}
                        </span>
                     </div>
@@ -352,7 +352,7 @@ export function FieldPageHero({
                 "px-5 py-4 sm:px-10 sm:py-6 transition-all relative shrink-0 border-t-[4px] border-x-[4px] rounded-t-3xl font-display text-xl sm:text-3xl font-black uppercase italic tracking-tight leading-none cursor-pointer border-on-surface select-none flex items-center gap-2",
                 activeTab === tab.id 
                   ? "bg-white text-on-surface z-30 shadow-[0_-8px_0px_white,6px_0px_0px_black]" 
-                  : "bg-[#E8E2D2] text-on-surface/40 hover:bg-white/50 hover:text-on-surface/80"
+                  : "bg-[#E8E2D2] text-on-surface/60 hover:bg-white/50 hover:text-on-surface/80"
               )}
             >
               {tab.label}

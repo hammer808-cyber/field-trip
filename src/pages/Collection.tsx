@@ -259,8 +259,8 @@ export default function CollectionPage() {
                       type="button"
                       onClick={() => setMemoriesView(id as MemoriesView)}
                       className={cn(
-                        "px-4 py-2 font-mono text-[10px] font-black uppercase tracking-widest",
-                        memoriesView === id ? "bg-brand-lime text-on-surface" : "text-on-surface/45 hover:text-on-surface"
+                        "px-4 py-2 font-mono text-xs font-black uppercase tracking-widest",
+                        memoriesView === id ? "bg-brand-lime text-on-surface" : "text-on-surface/60 hover:text-on-surface"
                       )}
                     >
                       {label}
@@ -304,11 +304,11 @@ export default function CollectionPage() {
                           />
                           <div className="flex flex-wrap gap-2 px-2">
                              <div className={cn(
-                               "px-3 py-1.5 rounded-xl border-[2.5px] text-[9px] font-black uppercase tracking-widest flex items-center gap-2",
+                               "px-3 py-1.5 rounded-xl border-[2.5px] text-xs font-black uppercase tracking-widest flex items-center gap-2",
                                card.status === 'active' ? "bg-brand-orange text-white border-on-surface shadow-[4px_4px_0px_black]" :
                                card.status === 'approved' ? "bg-brand-lime text-on-surface border-on-surface shadow-[4px_4px_0px_black]" :
                                card.status === 'pending_review' ? "bg-yellow-400 text-on-surface border-on-surface shadow-[4px_4px_0px_black]" :
-                               "bg-white text-on-surface/40 border-on-surface/10"
+                               "bg-white text-on-surface/60 border-on-surface/10"
                              )}>
                                {card.status === 'active' && <div className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />}
                                {card.status === 'active' ? 'In progress' : card.status === 'pending_review' ? 'Pending' : card.status === 'approved' ? 'Approved' : card.status.replace('_', ' ')}
@@ -318,21 +318,21 @@ export default function CollectionPage() {
                              {card.status === 'drawn' || card.status === 'saved_for_later' ? (
                                <button 
                                  onClick={() => navigate(`/mission-briefing?id=${mission.id}`)}
-                                 className="px-4 py-1.5 bg-on-surface text-brand-lime border-[2.5px] border-on-surface text-[9px] font-black uppercase tracking-widest shadow-[4px_4px_0px_black] active:shadow-none active:translate-y-1 transition-all flex items-center gap-1.5"
+                                 className="px-4 py-1.5 bg-on-surface text-brand-lime border-[2.5px] border-on-surface text-xs font-black uppercase tracking-widest shadow-[4px_4px_0px_black] active:shadow-none active:translate-y-1 transition-all flex items-center gap-1.5"
                                >
                                  Do This Mission <ArrowRight className="w-3.5 h-3.5" />
                                </button>
                              ) : card.status === 'active' ? (
                                <button 
                                  onClick={() => navigate(`/capture?id=${mission.id}`)}
-                                 className="px-4 py-1.5 bg-brand-orange text-white border-[2.5px] border-on-surface text-[9px] font-black uppercase tracking-widest shadow-[4px_4px_0px_black] active:shadow-none active:translate-y-1 transition-all flex items-center gap-1.5"
+                                 className="px-4 py-1.5 bg-brand-orange text-white border-[2.5px] border-on-surface text-xs font-black uppercase tracking-widest shadow-[4px_4px_0px_black] active:shadow-none active:translate-y-1 transition-all flex items-center gap-1.5"
                                >
                                  Resume Mission <ArrowRight className="w-3.5 h-3.5" />
                                </button>
                              ) : card.status === 'approved' ? (
                                <button 
                                  onClick={() => navigate('/profile?tab=logbook')}
-                                 className="px-4 py-1.5 bg-white text-on-surface border-[2.5px] border-on-surface text-[9px] font-black uppercase tracking-widest shadow-[4px_4px_0px_black] active:shadow-none active:translate-y-1 transition-all flex items-center gap-1.5"
+                                 className="px-4 py-1.5 bg-white text-on-surface border-[2.5px] border-on-surface text-xs font-black uppercase tracking-widest shadow-[4px_4px_0px_black] active:shadow-none active:translate-y-1 transition-all flex items-center gap-1.5"
                                >
                                  View Logbook <ArrowRight className="w-3.5 h-3.5" />
                                </button>
@@ -404,7 +404,7 @@ export default function CollectionPage() {
                     )}
 
                     <div className="flex justify-between items-center w-full">
-                       <div className="bg-on-surface text-white px-3 py-1 font-mono text-[9px] font-black uppercase tracking-widest rounded-lg">
+                       <div className="bg-on-surface text-white px-3 py-1 font-mono text-xs font-black uppercase tracking-widest rounded-lg">
                           {pack.shortName || 'DOSSIER'}
                        </div>
                        {!locked && completedCount === missionsInPack.length && missionsInPack.length > 0 && (
@@ -412,20 +412,20 @@ export default function CollectionPage() {
                             <Star className="w-4 h-4 text-on-surface fill-on-surface" />
                          </div>
                        )}
-                       {locked && <Lock className="w-4 h-4 text-on-surface/20" />}
+                       {locked && <Lock className="w-4 h-4 text-on-surface/60" />}
                     </div>
 
                     <div className="space-y-1.5 text-left">
                        <h4 className="font-display text-2xl sm:text-3.5xl font-black uppercase italic tracking-tighter text-on-surface leading-none">
                          {pack.packName}
                        </h4>
-                       <p className="text-xs sm:text-sm font-serif italic text-on-surface/50">
+                       <p className="text-xs sm:text-sm font-serif italic text-on-surface/60">
                          {locked ? reason : (pack.deckSubtitle || pack.description)}
                        </p>
                     </div>
 
                     <div className="mt-auto space-y-3 pt-2">
-                       <div className="flex justify-between items-center text-[9px] font-mono font-black uppercase tracking-wider text-on-surface/40">
+                       <div className="flex justify-between items-center text-xs font-mono font-black uppercase tracking-wider text-on-surface/60">
                           <span>SYNC PROGRESS</span>
                           <span className={progress === 100 ? "text-brand-lime font-black" : ""}>{completedCount}/{missionsInPack.length}</span>
                        </div>
@@ -443,7 +443,7 @@ export default function CollectionPage() {
                           localStorage.setItem('active_deck_pack_id', pack.packId);
                           navigate(`/missions?pack=${pack.packId}`);
                         }}
-                        className="w-full py-2 bg-on-surface/5 hover:bg-on-surface/10 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
+                        className="w-full py-2 bg-on-surface/5 hover:bg-on-surface/10 rounded-xl text-xs font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
                       >
                         Select Deck
                         <ArrowRight className="w-3 h-3" />

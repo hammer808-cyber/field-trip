@@ -68,18 +68,18 @@ function SkinPreviewCard({
             <h4 className="font-display text-xl font-black leading-none">{candidate.name}</h4>
             <p className="mt-2 text-xs leading-relaxed opacity-70">{candidate.description}</p>
           </div>
-          <span className="flex min-h-8 shrink-0 items-center gap-1 border border-current px-2 font-mono text-[8px] font-black uppercase">
+          <span className="flex min-h-8 shrink-0 items-center gap-1 border border-current px-2 font-mono text-xs font-black uppercase">
             {isSelected ? <Check className="h-3 w-3" /> : isUnlocked ? <ShieldCheck className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
             {isSelected ? 'Selected' : isUnlocked ? 'Available' : 'Locked'}
           </span>
         </div>
 
         <div className="mt-auto flex items-center justify-between gap-3">
-          <span className="font-mono text-[8px] font-black uppercase opacity-55">{candidate.unlockCondition}</span>
+          <span className="font-mono text-xs font-black uppercase opacity-55">{candidate.unlockCondition}</span>
           <button
             type="button"
             onClick={onPreview}
-            className="skin-button inline-flex min-h-11 items-center justify-center gap-2 border-2 border-current bg-[var(--preview-primary)] px-4 font-mono text-[9px] font-black uppercase text-[var(--preview-on-primary)] shadow-[2px_2px_0_var(--preview-border)]"
+            className="skin-button inline-flex min-h-11 items-center justify-center gap-2 border-2 border-current bg-[var(--preview-primary)] px-4 font-mono text-xs font-black uppercase text-[var(--preview-on-primary)] shadow-[2px_2px_0_var(--preview-border)]"
             aria-pressed={isPreviewing}
           >
             <Eye className="h-4 w-4" />
@@ -135,7 +135,7 @@ export function SkinSelector() {
       <section className="skin-card border-2 border-on-surface bg-white p-5 shadow-[5px_5px_0px_black]" aria-labelledby="skin-selector-title">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="font-mono text-[9px] font-black uppercase tracking-widest text-brand-orange">Application appearance</p>
+            <p className="font-mono text-xs font-black uppercase tracking-widest text-brand-orange">Application appearance</p>
             <h3 id="skin-selector-title" className="font-display text-3xl font-black leading-none">Choose a Field Kit</h3>
             <p className="mt-2 max-w-lg text-sm text-on-surface/65">
               Preview changes the app temporarily. Apply saves it to your account.
@@ -144,13 +144,13 @@ export function SkinSelector() {
           <button
             type="button"
             onClick={handleReset}
-            className="skin-button inline-flex min-h-11 items-center justify-center gap-2 border-2 border-on-surface bg-white px-4 font-mono text-[9px] font-black uppercase shadow-[3px_3px_0px_black]"
+            className="skin-button inline-flex min-h-11 items-center justify-center gap-2 border-2 border-on-surface bg-white px-4 font-mono text-xs font-black uppercase shadow-[3px_3px_0px_black]"
           >
             <RotateCcw className="h-4 w-4" /> Reset Default
           </button>
         </div>
         {selectionDisabled && (
-          <p className="mt-4 border-l-4 border-brand-orange bg-brand-orange/10 p-3 font-mono text-[9px] font-black uppercase">
+          <p className="mt-4 border-l-4 border-brand-orange bg-brand-orange/10 p-3 font-mono text-xs font-black uppercase">
             Skin selection is currently locked by an administrator. Preview remains available.
           </p>
         )}
@@ -162,7 +162,7 @@ export function SkinSelector() {
             <div className="flex items-center gap-3">
               <Palette className="h-6 w-6 text-brand-orange" />
               <div>
-                <p className="font-mono text-[8px] font-black uppercase tracking-widest">Temporary preview</p>
+                <p className="font-mono text-xs font-black uppercase tracking-widest">Temporary preview</p>
                 <p className="font-display text-xl font-black leading-none">{previewedSkin.name}</p>
               </div>
             </div>
@@ -170,7 +170,7 @@ export function SkinSelector() {
               <button
                 type="button"
                 onClick={cancelPreview}
-                className="skin-button inline-flex min-h-11 items-center justify-center gap-2 border-2 border-on-surface bg-white px-4 font-mono text-[9px] font-black uppercase"
+                className="skin-button inline-flex min-h-11 items-center justify-center gap-2 border-2 border-on-surface bg-white px-4 font-mono text-xs font-black uppercase"
               >
                 <X className="h-4 w-4" /> Cancel
               </button>
@@ -178,7 +178,7 @@ export function SkinSelector() {
                 type="button"
                 onClick={handleApply}
                 disabled={!previewCanApply || selectionDisabled}
-                className="skin-button inline-flex min-h-11 items-center justify-center gap-2 border-2 border-on-surface bg-brand-orange px-4 font-mono text-[9px] font-black uppercase text-white shadow-[3px_3px_0px_black] disabled:cursor-not-allowed disabled:opacity-45"
+                className="skin-button inline-flex min-h-11 items-center justify-center gap-2 border-2 border-on-surface bg-brand-orange px-4 font-mono text-xs font-black uppercase text-white shadow-[3px_3px_0px_black] disabled:cursor-not-allowed disabled:opacity-45"
                 title={!previewCanApply ? 'Unlock this skin before applying it.' : undefined}
               >
                 {previewCanApply ? <Check className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
@@ -212,7 +212,7 @@ export function SkinSelector() {
       <section className="skin-card border-2 border-on-surface bg-white p-5 shadow-[5px_5px_0px_black]">
         <div className="flex items-center justify-between gap-5">
           <div>
-            <p className="font-mono text-[9px] font-black uppercase tracking-widest text-brand-orange">Accessibility</p>
+            <p className="font-mono text-xs font-black uppercase tracking-widest text-brand-orange">Accessibility</p>
             <h4 className="font-display text-2xl font-black leading-none">Simple Words &amp; Visual Calm</h4>
             <p className="mt-2 text-sm text-on-surface/65">This is the Simple Words switch (Frankie Mode). On: short, clear words on every card, calmer screens, fewer decorative effects.</p>
           </div>

@@ -193,7 +193,7 @@ export default function VotingHubPage() {
                           {clockInfo.phase === 'voting' ? <Vote className="w-7 h-7" /> : <Clock className="w-7 h-7" />}
                         </div>
                         <div className="space-y-1 text-left">
-                          <p className="font-mono text-[9px] font-black uppercase tracking-[0.24em] text-on-surface/40">Weekly Voting</p>
+                          <p className="font-mono text-xs font-black uppercase tracking-[0.24em] text-on-surface/60">Weekly Voting</p>
                           <h4 className="text-3xl sm:text-4xl font-display font-black uppercase italic tracking-tighter leading-none">
                             {clockInfo.phase === 'voting' ? 'Vote Now' : clockInfo.phase === 'submission' ? 'Ballot Building' : 'Results Ready'}
                           </h4>
@@ -255,7 +255,7 @@ export default function VotingHubPage() {
                        </div>
                        <div className="space-y-2">
                           <h3 className="font-display text-4xl uppercase italic font-black">Docket Locked</h3>
-                          <p className="font-serif italic text-xl text-on-surface/50 font-bold">Complete all 3 Starter Missions to access the Tribunal.</p>
+                          <p className="font-serif italic text-xl text-on-surface/60 font-bold">Complete all 3 Starter Missions to access the Tribunal.</p>
                        </div>
                        <button onClick={() => navigate('/missions')} className="px-8 py-3 bg-on-surface text-white rounded-xl font-display text-xl font-black uppercase italic shadow-[6px_6px_0px_var(--color-brand-orange)] active:shadow-none hover:bg-brand-magenta transition-all">Go to Missions</button>
                     </div>
@@ -272,11 +272,11 @@ export default function VotingHubPage() {
                          <Card key={c.id} className="bg-white border-4 border-on-surface p-8 rounded-[2.5rem] shadow-[12px_12px_0px_black] flex flex-col space-y-6 text-left relative overflow-hidden group">
                              <div className="flex items-start justify-between">
                                 <div className="space-y-1">
-                                   <div className="bg-brand-magenta text-white px-2 py-0.5 text-[8px] font-mono font-black uppercase tracking-widest border border-on-surface shadow-[2px_2px_0px_black] mb-2 inline-block">
+                                   <div className="bg-brand-magenta text-white px-2 py-0.5 text-xs font-mono font-black uppercase tracking-widest border border-on-surface shadow-[2px_2px_0px_black] mb-2 inline-block">
                                       OPEN_CASE_{c.id.slice(-4).toUpperCase()}
                                    </div>
                                    <h3 className="text-2xl font-display font-black uppercase italic text-on-surface leading-none truncate">{c.title}</h3>
-                                   <p className="text-[10px] font-mono font-black text-on-surface/40 uppercase">Operative: {c.playerName}</p>
+                                   <p className="text-xs font-mono font-black text-on-surface/60 uppercase">Operative: {c.playerName}</p>
                                 </div>
                                 <div className="w-12 h-12 bg-paper-dark border-2 border-on-surface rounded-xl flex items-center justify-center shrink-0">
                                    <Gavel className="w-6 h-6 text-on-surface opacity-30" />
@@ -291,7 +291,7 @@ export default function VotingHubPage() {
                              </div>
 
                              <div className="space-y-4">
-                                <p className="text-[10px] font-mono font-bold uppercase text-on-surface/40 tracking-widest">CAST YOUR VERDICT</p>
+                                <p className="text-xs font-mono font-bold uppercase text-on-surface/60 tracking-widest">CAST YOUR VERDICT</p>
                                 <div className="grid grid-cols-2 gap-4">
                                    <button 
                                      onClick={() => handleTribunalVote(c.id, 'valid')}
@@ -361,18 +361,18 @@ export default function VotingHubPage() {
                                 <div className="flex items-center gap-3 mb-1">
                                    <h4 className="text-xl font-display font-black uppercase italic text-on-surface truncate">{c.title}</h4>
                                    <span className={cn(
-                                      "px-3 py-1 text-[8px] font-black uppercase tracking-widest rounded-full border-2 border-on-surface shadow-[2px_2px_0px_black]",
+                                      "px-3 py-1 text-xs font-black uppercase tracking-widest rounded-full border-2 border-on-surface shadow-[2px_2px_0px_black]",
                                       c.outcome === 'called_out' || c.outcome === 'community_sus_recommendation' ? "bg-brand-magenta text-white" : "bg-brand-lime text-on-surface"
                                    )}>
                                       {c.outcome === 'called_out' || c.outcome === 'community_sus_recommendation' ? 'SUS' : 'VALID'}
                                    </span>
                                 </div>
-                                <p className="text-xs font-serif italic text-on-surface/50 font-bold">
+                                <p className="text-xs font-serif italic text-on-surface/60 font-bold">
                                    Verdict: {c.outcome === 'called_out' ? 'Called out by the field.' : 'Upheld by the field.'}
                                 </p>
                              </div>
                              <div className="shrink-0 text-right space-y-1">
-                                <p className="text-[10px] font-mono font-black text-on-surface/40 uppercase">VOTES</p>
+                                <p className="text-xs font-mono font-black text-on-surface/60 uppercase">VOTES</p>
                                 <p className="text-lg font-display font-black text-on-surface leading-none">{Number(c.totalVotes ?? 0)}</p>
                              </div>
                          </div>
@@ -404,7 +404,7 @@ export default function VotingHubPage() {
                <div className="p-10 space-y-8 text-left">
                   <div className="flex justify-between items-start">
                      <div className="space-y-1">
-                        <span className="text-[10px] font-mono font-black text-brand-orange uppercase tracking-[0.3em]">FIELD_RULES_V4.2</span>
+                        <span className="text-xs font-mono font-black text-brand-orange uppercase tracking-[0.3em]">FIELD_RULES_V4.2</span>
                         <h2 className="text-6xl font-display font-black uppercase italic tracking-tighter text-on-surface drop-shadow-[4px_4px_0px_var(--color-brand-cyan)]">THE RULES</h2>
                      </div>
                      <button onClick={() => setShowFullRules(false)} className="p-3 bg-on-surface text-brand-lime hover:bg-brand-magenta hover:text-white transition-colors border-2 border-on-surface"><X className="w-6 h-6" /></button>

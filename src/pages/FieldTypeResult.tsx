@@ -165,7 +165,7 @@ export default function FieldTypeResult() {
         )}>{isBaja || isDiamond || isHeat ? 'Field Trip' : 'Your Explorer Type'}</h1>
         {!isBaja && !isDiamond && !isHeat && (
           <div className="flex flex-col items-end">
-            <span className="text-[10px] font-mono font-black text-brand-orange uppercase tracking-[0.2em] italic">Almost ready</span>
+            <span className="text-xs font-mono font-black text-brand-orange uppercase tracking-[0.2em] italic">Almost ready</span>
             <div className="h-1 w-20 bg-brand-orange mt-1" />
           </div>
         )}
@@ -232,7 +232,7 @@ export default function FieldTypeResult() {
             
             {!isBaja && !isDiamond && !isHeat && (
               <div className="absolute top-0 left-0 w-full bg-on-surface text-brand-lime px-6 py-2 flex justify-center items-center z-10 italic">
-                <span className="text-[10px] font-black tracking-[0.2em] uppercase">Your Explorer Type</span>
+                <span className="text-xs font-black tracking-[0.2em] uppercase">Your Explorer Type</span>
               </div>
             )}
 
@@ -243,8 +243,8 @@ export default function FieldTypeResult() {
                 {imageFailed || !data.image ? (
                   <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-on-surface text-brand-lime">
                     <span className="font-display text-7xl font-black italic leading-none">{data.name.charAt(0)}</span>
-                    <span className="font-mono text-[10px] font-black uppercase tracking-[0.3em]">{data.name}</span>
-                    <span className="font-mono text-[9px] uppercase tracking-widest text-white/50">Portrait incoming</span>
+                    <span className="font-mono text-xs font-black uppercase tracking-[0.3em]">{data.name}</span>
+                    <span className="font-mono text-xs uppercase tracking-widest text-white/50">Portrait incoming</span>
                   </div>
                 ) : (
                   <img
@@ -267,7 +267,7 @@ export default function FieldTypeResult() {
               <>
                 <div className="absolute bottom-6 left-6 right-6 flex flex-col items-center">
                    <div className="w-full h-[2px] bg-brand-lime shadow-[0_0_8px_var(--color-brand-lime)]" />
-                   <p className="text-[10px] font-black uppercase tracking-[0.4em] mt-3 text-on-surface italic">That’s you</p>
+                   <p className="text-xs font-black uppercase tracking-[0.4em] mt-3 text-on-surface italic">That’s you</p>
                 </div>
                 {/* Decorative bits */}
                 <div className="absolute bottom-10 right-4 flex flex-col gap-1.5">
@@ -333,7 +333,7 @@ export default function FieldTypeResult() {
              {!isBaja && !isDiamond && !isHeat && (
                <div className="absolute top-0 right-0 p-4">
                  <div className="w-12 h-12 rounded-full border-2 border-on-surface/10 flex items-center justify-center opacity-20">
-                   <span className="font-mono text-[10px]">#01</span>
+                   <span className="font-mono text-xs">#01</span>
                  </div>
                </div>
              )}
@@ -349,7 +349,7 @@ export default function FieldTypeResult() {
                    then the plain line, then the flavor. The guided view
                    used to hide all three and show only the how-to. */}
                <div className="relative z-10">
-                 <p className="font-mono text-[10px] font-black uppercase tracking-[0.3em] text-brand-orange not-italic">Trevor says</p>
+                 <p className="font-mono text-xs font-black uppercase tracking-[0.3em] text-brand-orange not-italic">Trevor says</p>
                  <p className={cn("mt-2 text-2xl leading-tight font-medium", isDiamond ? "font-mono text-white/80" : "font-serif text-on-surface")}>
                    {`“${trevorLine}”`}
                  </p>
@@ -379,13 +379,13 @@ export default function FieldTypeResult() {
                    <div className="space-y-3">
                       <div className="flex items-center gap-3">
                          <div className="w-6 h-1 bg-brand-orange" />
-                         <span className="text-[11px] font-bold uppercase text-on-surface/50 tracking-wider italic">Instinct</span>
+                         <span className="text-xs font-bold uppercase text-on-surface/60 tracking-wider italic">Instinct</span>
                       </div>
                       <p className="text-xl font-bold uppercase tracking-tight text-on-surface italic border-b-4 border-brand-lime pb-3 leading-tight">{data.coreInstinct.replace(' / ', ' ')}</p>
                    </div>
                    <div className="space-y-3 text-right">
                       <div className="flex items-center gap-3 justify-end">
-                         <span className="text-[11px] font-bold uppercase text-on-surface/50 tracking-wider italic">Your stamp</span>
+                         <span className="text-xs font-bold uppercase text-on-surface/60 tracking-wider italic">Your stamp</span>
                          <div className="w-6 h-1 bg-brand-lime" />
                       </div>
                       {/* The stamp renders as an actual stamp now (Nov 17,
@@ -398,14 +398,14 @@ export default function FieldTypeResult() {
                 <div className="grid grid-cols-1 gap-8">
                    <div className="p-6 bg-white border-2 border-on-surface shadow-[10px_10px_0px_var(--color-brand-cyan)] relative overflow-hidden group/metrics">
                       <div className="absolute top-0 right-0 w-24 h-24 prism-bg opacity-5 -translate-y-10 translate-x-10 rotate-45" />
-                      <span className="text-[10px] font-black uppercase text-on-surface/40 tracking-[0.3em] italic mb-4 block">Your field report</span>
+                      <span className="text-xs font-black uppercase text-on-surface/60 tracking-[0.3em] italic mb-4 block">Your field report</span>
                       <div className="flex justify-between mt-4 gap-4">
                         <div className="flex-1 text-center py-4 bg-on-surface text-brand-lime shadow-[4px_4px_0px_black]">
-                           <p className="text-[9px] opacity-60 uppercase font-black tracking-widest">Superpower</p>
+                           <p className="text-xs opacity-60 uppercase font-black tracking-widest">Superpower</p>
                            <p className="text-lg font-black uppercase italic">{data.fieldStrength}</p>
                         </div>
                         <div className="flex-1 text-center py-4 border-2 border-on-surface bg-white shadow-[4px_4px_0px_var(--color-brand-orange)]">
-                           <p className="text-[9px] opacity-40 uppercase font-black tracking-widest">Watch out for</p>
+                           <p className="text-xs opacity-40 uppercase font-black tracking-widest">Watch out for</p>
                            <p className="text-lg font-black uppercase text-brand-orange italic">{data.fieldRisk}</p>
                         </div>
                       </div>
@@ -414,7 +414,7 @@ export default function FieldTypeResult() {
 
                 {!isGuidedActive && (
                   <div className="p-8 border-2 border-on-surface bg-paper-dark relative shadow-inner">
-                    <div className="absolute -top-4 left-8 px-4 bg-on-surface text-brand-lime border-2 border-on-surface text-[11px] font-black uppercase italic shadow-[3px_3px_0px_black]">Trevor’s field notes</div>
+                    <div className="absolute -top-4 left-8 px-4 bg-on-surface text-brand-lime border-2 border-on-surface text-xs font-black uppercase italic shadow-[3px_3px_0px_black]">Trevor’s field notes</div>
                     <p className={cn(
                       "text-lg leading-relaxed font-medium pt-4 italic",
                       isDiamond ? "text-white/60 font-mono" : "text-on-surface/90 font-serif"
@@ -425,12 +425,12 @@ export default function FieldTypeResult() {
                 <div className="pt-8 border-t-4 border-on-surface/10 space-y-4">
                    <div className="flex items-center gap-3">
                       <div className="w-10 h-[2px] bg-brand-orange" />
-                      <span className="text-[11px] font-black uppercase opacity-60 tracking-[0.4em] italic">Your vibe</span>
+                      <span className="text-xs font-black uppercase opacity-60 tracking-[0.4em] italic">Your vibe</span>
                    </div>
                    <div className="flex flex-wrap gap-3">
                       {data.recommendedChallengeTags.map(tag => (
                         <span key={tag} className={cn(
-                          "px-4 py-1.5 text-[11px] font-black border-2 uppercase italic shadow-[4px_4px_0px_rgba(0,0,0,0.05)] hover:shadow-[4px_4px_0px_black] transition-all",
+                          "px-4 py-1.5 text-xs font-black border-2 uppercase italic shadow-[4px_4px_0px_rgba(0,0,0,0.05)] hover:shadow-[4px_4px_0px_black] transition-all",
                           isDiamond ? "border-white/20 text-white/60 font-mono" : "border-on-surface bg-white text-on-surface hover:bg-brand-lime"
                         )}>
                           #{tag.toUpperCase()}
@@ -459,7 +459,7 @@ export default function FieldTypeResult() {
                     <img src={photoPreview} alt="Your profile photo preview" className="w-28 h-28 rounded-full object-cover border-[3px] border-on-surface shadow-[4px_4px_0px_black]" />
                   ) : (
                     <div className="w-28 h-28 rounded-full border-[3px] border-dashed border-on-surface/30 flex items-center justify-center">
-                      <span className="font-display text-4xl font-black italic text-on-surface/30">{data.name.charAt(0)}</span>
+                      <span className="font-display text-4xl font-black italic text-on-surface/60">{data.name.charAt(0)}</span>
                     </div>
                   )}
                 </div>
@@ -520,14 +520,14 @@ export default function FieldTypeResult() {
               straight to Basecamp and the line would be wrong. */}
           {isGuidedActive && !profile?.photoURL && (
              <div className="flex flex-col items-center gap-4 md:pb-10">
-                <p className="text-[10px] font-mono font-black uppercase text-on-surface/30 tracking-widest italic">
+                <p className="text-xs font-mono font-black uppercase text-on-surface/60 tracking-widest italic">
                   Next: add a photo if you want, then your first mission on Basecamp.
                 </p>
              </div>
           )}
           {!isGuidedActive && !profile?.photoURL && (
              <div className="flex flex-col items-center gap-4 md:pb-10">
-                <p className="text-[10px] font-mono font-black uppercase text-on-surface/30 tracking-widest italic">
+                <p className="text-xs font-mono font-black uppercase text-on-surface/60 tracking-widest italic">
                   Next: add a photo if you want one, then Basecamp.
                 </p>
              </div>
@@ -549,7 +549,7 @@ export default function FieldTypeResult() {
             {isNavigating ? 'Opening Basecamp...' : 'Start my first mission'}
           </button>
           {!profile?.photoURL && (
-            <p className="mt-2 text-center text-[10px] font-mono font-black uppercase text-on-surface/40 tracking-widest italic">
+            <p className="mt-2 text-center text-xs font-mono font-black uppercase text-on-surface/60 tracking-widest italic">
               Photo first if you want it, then your first mission.
             </p>
           )}

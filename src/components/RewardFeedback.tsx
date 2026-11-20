@@ -145,7 +145,7 @@ const MajorReveal: React.FC<MajorRevealProps> = ({ reward, onDismiss, skinConfig
 
           <div className="space-y-4">
             <div className="flex flex-col items-center gap-2">
-              <span className="text-[10px] font-mono font-black text-brand-orange uppercase tracking-[0.4em] mb-1">Trevor confirms it</span>
+              <span className="text-xs font-mono font-black text-brand-orange uppercase tracking-[0.4em] mb-1">Trevor confirms it</span>
               <h2 className={cn(
                 "font-display text-4xl uppercase tracking-tighter leading-[0.9] font-black italic",
                 isBaja ? "text-baja-pink" : isDiamond ? "text-white" : "text-on-surface"
@@ -154,7 +154,7 @@ const MajorReveal: React.FC<MajorRevealProps> = ({ reward, onDismiss, skinConfig
               </h2>
               {reward.rarity && (
                 <span className={cn(
-                  "mt-2 inline-block border-2 border-on-surface px-3 py-1 text-[10px] font-mono font-black uppercase tracking-[0.25em]",
+                  "mt-2 inline-block border-2 border-on-surface px-3 py-1 text-xs font-mono font-black uppercase tracking-[0.25em]",
                   reward.rarity === 'legendary' ? "bg-brand-orange text-white" : "bg-white text-on-surface"
                 )}>
                   {reward.rarity}
@@ -174,7 +174,7 @@ const MajorReveal: React.FC<MajorRevealProps> = ({ reward, onDismiss, skinConfig
               isBaja ? "bg-baja-sand" : "bg-white relative overflow-hidden group"
             )}>
               <div className="absolute top-0 right-0 w-full h-full bg-brand-orange/5 translate-x-full group-hover:translate-x-0 transition-transform duration-500" />
-              <p className="text-[10px] font-mono font-black uppercase text-on-surface/40 mb-2 mt-[-4px] tracking-widest relative z-10">{reward.type === 'sticker' ? 'Sticker secured' : 'You earned this'}</p>
+              <p className="text-xs font-mono font-black uppercase text-on-surface/60 mb-2 mt-[-4px] tracking-widest relative z-10">{reward.type === 'sticker' ? 'Sticker secured' : 'You earned this'}</p>
               <p className="font-display text-4xl font-black uppercase italic tracking-tighter text-brand-orange relative z-10 animate-pulse">{reward.rewardText}</p>
             </div>
           )}
@@ -196,7 +196,7 @@ const MajorReveal: React.FC<MajorRevealProps> = ({ reward, onDismiss, skinConfig
               </button>
               <button
                 onClick={onDismiss}
-                className="w-full py-2 text-[10px] font-mono font-black uppercase tracking-[0.2em] text-on-surface/40 hover:text-on-surface transition-colors"
+                className="w-full py-2 text-xs font-mono font-black uppercase tracking-[0.2em] text-on-surface/60 hover:text-on-surface transition-colors"
               >
                 Keep Exploring
               </button>
@@ -289,7 +289,7 @@ const RewardToast: React.FC<RewardToastProps> = ({ reward, onDismiss, skinConfig
       <div className="flex-grow min-w-0 flex flex-col items-start text-left">
         <div className="flex items-center gap-2">
           <p className={cn(
-            "text-[8px] font-mono font-black uppercase tracking-[0.2em] leading-none opacity-40",
+            "text-xs font-mono font-black uppercase tracking-[0.2em] leading-none opacity-40",
             !isMedium && "text-brand-lime opacity-100"
           )}>
             Trevor noticed
@@ -303,7 +303,7 @@ const RewardToast: React.FC<RewardToastProps> = ({ reward, onDismiss, skinConfig
           {reward.title}
         </h4>
         {isMedium && reward.rewardText && (
-          <p className="text-[10px] font-mono text-brand-orange font-black uppercase mt-1.5 flex items-center gap-2">
+          <p className="text-xs font-mono text-brand-orange font-black uppercase mt-1.5 flex items-center gap-2">
             <span className="w-1.5 h-1.5 bg-brand-orange rounded-full animate-pulse" />
             + {reward.rewardText}
           </p>

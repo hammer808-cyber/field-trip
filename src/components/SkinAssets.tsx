@@ -60,7 +60,7 @@ export function PalmTree({ className }: { className?: string }) {
 
 export function BeachTag({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-heat-aqua text-heat-pink px-3 py-1 rounded-full font-display text-[10px] uppercase tracking-widest shadow-sm">
+    <div className="bg-heat-aqua text-heat-pink px-3 py-1 rounded-full font-display text-xs uppercase tracking-widest shadow-sm">
       {children}
     </div>
   );

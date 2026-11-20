@@ -62,7 +62,7 @@ export const StickerBackground: React.FC<StickerBackgroundProps> = ({
           className="flex flex-col items-center bg-white border-2 border-on-surface p-2 shadow-[2px_2px_0px_black] rotate-2"
         >
           <span className="text-2xl sm:text-3xl filter drop-shadow-[0_2px_2px_rgba(0,0,0,0.15)]">{item.sticker.emoji}</span>
-          <span className="text-[6px] font-mono font-black uppercase text-on-surface/30 mt-1 tracking-widest">{item.sticker.label}</span>
+          <span className="text-xs font-mono font-black uppercase text-on-surface/60 mt-1 tracking-widest">{item.sticker.label}</span>
         </div>
       ))}
     </div>

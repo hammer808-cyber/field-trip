@@ -102,26 +102,26 @@ export default function CrewInvitePage() {
               <Users className="h-8 w-8" aria-hidden="true" />
             </div>
             <div>
-              <p className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-on-surface/45">Crew invite</p>
+              <p className="font-mono text-xs font-black uppercase tracking-[0.22em] text-on-surface/60">Crew invite</p>
               <h2 className="font-display text-3xl font-black uppercase italic leading-none">{crew.name}</h2>
             </div>
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-3">
             <div className="border-2 border-on-surface/15 p-3">
-              <p className="font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/45">Mode</p>
+              <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">Mode</p>
               <p className="mt-1 font-sans text-sm font-bold">{crew.mode}</p>
             </div>
             <div className="border-2 border-on-surface/15 p-3">
-              <p className="font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/45">Privacy</p>
+              <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">Privacy</p>
               <p className="mt-1 font-sans text-sm font-bold">{crew.privacy}</p>
             </div>
             <div className="border-2 border-on-surface/15 p-3">
-              <p className="font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/45">Members</p>
+              <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">Members</p>
               <p className="mt-1 font-sans text-sm font-bold">{crew.memberCount} / {crew.memberLimit}</p>
             </div>
             <div className="border-2 border-on-surface/15 p-3">
-              <p className="font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/45">Expires</p>
+              <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">Expires</p>
               <p className="mt-1 font-sans text-sm font-bold">{formatSafeDateOnly(state.invite?.expiresAt)}</p>
             </div>
           </div>

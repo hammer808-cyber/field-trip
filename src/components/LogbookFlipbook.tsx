@@ -97,12 +97,12 @@ function LogbookCover({ displayName, seasonName, explorerTypeName, counts }: any
   return (
     <div className="h-full min-h-[30rem] flex flex-col justify-between border-[3px] border-on-surface bg-[#183B32] text-white p-6 sm:p-8 shadow-[inset_0_0_0_6px_rgba(255,255,255,0.08)]">
       <div>
-        <p className="font-mono text-[9px] font-black uppercase tracking-[0.3em] text-brand-lime">Personal field archive</p>
+        <p className="font-mono text-xs font-black uppercase tracking-[0.3em] text-brand-lime">Personal field archive</p>
         <h3 className="font-display text-5xl sm:text-6xl font-black uppercase italic leading-[0.82] mt-4 break-words">{displayName}</h3>
         <div className="w-20 h-2 bg-brand-orange mt-6" />
       </div>
       <div className="space-y-5">
-        <div className="grid grid-cols-2 gap-2 font-mono text-[9px] uppercase">
+        <div className="grid grid-cols-2 gap-2 font-mono text-xs uppercase">
           <div className="border border-white/25 p-3"><span className="block opacity-55">Season</span><strong>{seasonName}</strong></div>
           <div className="border border-white/25 p-3"><span className="block opacity-55">Explorer Type</span><strong>{explorerTypeName}</strong></div>
           <div className="border border-white/25 p-3"><span className="block opacity-55">Submitted</span><strong>{counts.totalSubmitted}</strong></div>
@@ -137,7 +137,7 @@ function LogbookProofPage({ entry, proofStickerAssignments, onRepair }: { entry:
           showMetadataStamp={false}
           showDiagnosticsOverlay={false}
         />
-        <div className={cn('absolute top-3 left-3 px-2.5 py-1.5 border-2 shadow-[2px_2px_0px_black] flex items-center gap-1.5 font-mono text-[8px] font-black uppercase', STATUS_STYLES[presentation.tone])}>
+        <div className={cn('absolute top-3 left-3 px-2.5 py-1.5 border-2 shadow-[2px_2px_0px_black] flex items-center gap-1.5 font-mono text-xs font-black uppercase', STATUS_STYLES[presentation.tone])}>
           <StatusIcon className="w-3.5 h-3.5" aria-hidden="true" />
           {presentation.label}
         </div>
@@ -145,11 +145,11 @@ function LogbookProofPage({ entry, proofStickerAssignments, onRepair }: { entry:
 
       <div className="space-y-3 text-left flex-1">
         <div>
-          <p className="font-mono text-[8px] uppercase font-black tracking-widest text-brand-orange">{getEntryChallengeId(entry) || 'FIELD RECEIPT'}</p>
+          <p className="font-mono text-xs uppercase font-black tracking-widest text-brand-orange">{getEntryChallengeId(entry) || 'FIELD RECEIPT'}</p>
           <h3 className="font-display text-2xl sm:text-3xl uppercase italic font-black leading-none">{title}</h3>
         </div>
 
-        <div className="flex flex-wrap gap-x-4 gap-y-2 text-[9px] font-mono font-black uppercase text-on-surface/60">
+        <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs font-mono font-black uppercase text-on-surface/60">
           <span className="inline-flex items-center gap-1"><CalendarDays className="w-3.5 h-3.5" />{getLogbookEntryDate(entry)}</span>
           {location && <span className="inline-flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{location}</span>}
           <span className="inline-flex items-center gap-1"><Heart className="w-3.5 h-3.5" />{reactionCount} reactions</span>
@@ -162,24 +162,24 @@ function LogbookProofPage({ entry, proofStickerAssignments, onRepair }: { entry:
 
         <div className="flex flex-wrap items-center gap-2">
           {presentation.status === 'approved' && (
-            <span className="inline-flex items-center gap-1 bg-brand-magenta text-white border-2 border-on-surface px-2 py-1 font-mono text-[9px] font-black uppercase shadow-[2px_2px_0px_black]">
+            <span className="inline-flex items-center gap-1 bg-brand-magenta text-white border-2 border-on-surface px-2 py-1 font-mono text-xs font-black uppercase shadow-[2px_2px_0px_black]">
               <Sparkles className="w-3 h-3" /> {xp} XP awarded
             </span>
           )}
           {stickers.map(stickerId => (
-            <span key={stickerId} className="inline-flex items-center gap-1 bg-white border border-on-surface/25 px-2 py-1 font-mono text-[8px] font-black uppercase">
+            <span key={stickerId} className="inline-flex items-center gap-1 bg-white border border-on-surface/25 px-2 py-1 font-mono text-xs font-black uppercase">
               <Sticker className="w-3 h-3" /> {getRewardMetadata(stickerId).label}
             </span>
           ))}
         </div>
 
-        <p className="font-mono text-[9px] leading-relaxed text-on-surface/55">{presentation.detail}</p>
+        <p className="font-mono text-xs leading-relaxed text-on-surface/55">{presentation.detail}</p>
 
         {presentation.status === 'needs_more_proof' && (
           <div className="border-2 border-brand-orange bg-brand-orange/5 p-3 space-y-3">
-            <p className="font-mono text-[9px] font-black uppercase text-brand-orange">Reviewer request</p>
+            <p className="font-mono text-xs font-black uppercase text-brand-orange">Reviewer request</p>
             <p className="text-sm font-serif italic">{getNeedsMoreProofInstructions(entry)}</p>
-            <button type="button" onClick={onRepair} className="min-h-11 w-full bg-brand-orange text-white border-2 border-on-surface shadow-[3px_3px_0px_black] font-mono text-[10px] font-black uppercase">
+            <button type="button" onClick={onRepair} className="min-h-11 w-full bg-brand-orange text-white border-2 border-on-surface shadow-[3px_3px_0px_black] font-mono text-xs font-black uppercase">
               Add requested proof
             </button>
           </div>
@@ -198,10 +198,10 @@ function LogbookFallbackCard({ entry, onRepair }: { entry: any; onRepair: () => 
         <ProofImage entry={entry} alt={`${title} proof`} showMetadataStamp={false} showDiagnosticsOverlay={false} />
       </div>
       <div className="text-left min-w-0 space-y-2">
-        <span className={cn('inline-block px-2 py-1 border font-mono text-[8px] font-black uppercase', STATUS_STYLES[presentation.tone])}>{presentation.label}</span>
+        <span className={cn('inline-block px-2 py-1 border font-mono text-xs font-black uppercase', STATUS_STYLES[presentation.tone])}>{presentation.label}</span>
         <h3 className="font-display text-xl font-black uppercase italic leading-none">{title}</h3>
         <p className="font-serif italic text-xs line-clamp-2">{getEntryFieldNote(entry) || 'No field note attached.'}</p>
-        {presentation.status === 'needs_more_proof' && <button type="button" onClick={onRepair} className="min-h-11 px-3 border-2 border-on-surface bg-brand-orange text-white font-mono text-[9px] font-black uppercase">Add proof</button>}
+        {presentation.status === 'needs_more_proof' && <button type="button" onClick={onRepair} className="min-h-11 px-3 border-2 border-on-surface bg-brand-orange text-white font-mono text-xs font-black uppercase">Add proof</button>}
       </div>
     </article>
   );

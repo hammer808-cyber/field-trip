@@ -183,10 +183,10 @@ export function StickerBook() {
     <section className="space-y-5" aria-label="Sticker book">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="font-mono text-[9px] font-black uppercase tracking-widest text-brand-orange">Persistent field binder</p>
+          <p className="font-mono text-xs font-black uppercase tracking-widest text-brand-orange">Persistent field binder</p>
           <h2 className="font-display text-3xl sm:text-4xl font-black uppercase italic leading-none">Sticker Book</h2>
         </div>
-        <span className="font-mono text-[9px] font-black uppercase text-on-surface/45" aria-live="polite">
+        <span className="font-mono text-xs font-black uppercase text-on-surface/60" aria-live="polite">
           {saveState === 'saving' ? 'Saving placement...' : saveState === 'saved' ? 'Sheet saved' : `${stickerIds.length} earned`}
         </span>
       </div>
@@ -200,7 +200,7 @@ export function StickerBook() {
             aria-selected={activeSheet === option.id}
             onClick={() => setActiveSheet(option.id)}
             className={cn(
-              'min-h-11 shrink-0 px-4 border-r-2 border-on-surface font-mono text-[9px] font-black uppercase focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan',
+              'min-h-11 shrink-0 px-4 border-r-2 border-on-surface font-mono text-xs font-black uppercase focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan',
               activeSheet === option.id ? 'bg-brand-lime text-on-surface' : 'bg-white text-on-surface/55',
             )}
           >
@@ -215,10 +215,10 @@ export function StickerBook() {
           <p className="text-xs text-on-surface/55">{sheet.description}</p>
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={() => commit(resetStickerSheet(placements, activeSheet))} className="min-h-11 px-3 border-2 border-on-surface bg-white inline-flex items-center gap-2 font-mono text-[8px] font-black uppercase shadow-[2px_2px_0px_black]">
+          <button type="button" onClick={() => commit(resetStickerSheet(placements, activeSheet))} className="min-h-11 px-3 border-2 border-on-surface bg-white inline-flex items-center gap-2 font-mono text-xs font-black uppercase shadow-[2px_2px_0px_black]">
             <RefreshCw className="w-3.5 h-3.5" /> Reset Sheet
           </button>
-          <button type="button" onClick={() => commit(autoArrangeStickerSheet(placements, activeSheet))} className="min-h-11 px-3 border-2 border-on-surface bg-on-surface text-white inline-flex items-center gap-2 font-mono text-[8px] font-black uppercase shadow-[2px_2px_0px_var(--color-brand-orange)]">
+          <button type="button" onClick={() => commit(autoArrangeStickerSheet(placements, activeSheet))} className="min-h-11 px-3 border-2 border-on-surface bg-on-surface text-white inline-flex items-center gap-2 font-mono text-xs font-black uppercase shadow-[2px_2px_0px_var(--color-brand-orange)]">
             <Sparkles className="w-3.5 h-3.5" /> Auto Arrange
           </button>
         </div>
@@ -232,7 +232,7 @@ export function StickerBook() {
         <div className="absolute inset-0 opacity-40 pointer-events-none bg-[linear-gradient(rgba(62,109,157,0.18)_1px,transparent_1px),linear-gradient(90deg,rgba(62,109,157,0.18)_1px,transparent_1px)] bg-[size:22px_22px]" />
         <div className="absolute top-0 bottom-0 left-8 border-l-2 border-red-300/50 pointer-events-none" />
         {sheetPlacements.length === 0 && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 text-on-surface/40">
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 text-on-surface/60">
             <Move className="w-8 h-8 mb-3" />
             <p className="font-display text-xl font-black uppercase italic">Nothing stuck here yet</p>
             <p className="text-xs max-w-xs mt-2">Earn or move a sticker into this sheet. Secret finds stay invisible until unlocked.</p>
@@ -264,7 +264,7 @@ export function StickerBook() {
 
       {lockedDiscoverable.length > 0 && (
         <details className="border-2 border-on-surface/20 bg-white p-4">
-          <summary className="cursor-pointer font-mono text-[9px] font-black uppercase">Discovery index: {lockedDiscoverable.length} silhouettes</summary>
+          <summary className="cursor-pointer font-mono text-xs font-black uppercase">Discovery index: {lockedDiscoverable.length} silhouettes</summary>
           <div className="grid grid-cols-4 sm:grid-cols-8 gap-3 pt-4">
             {lockedDiscoverable.map(reward => (
               <div key={reward.id} className="aspect-square border border-dashed border-on-surface/20 bg-on-surface/5 rounded-full flex items-center justify-center" title="Undiscovered sticker">
@@ -300,7 +300,7 @@ function StickerBookVisual({ stickerId }: { stickerId: string }) {
   return (
     <span className="w-full h-full flex flex-col items-center justify-center bg-[#FFFDF6] border-[3px] border-on-surface rounded-2xl shadow-[4px_4px_0px_black] p-2">
       <span className="text-3xl" aria-hidden="true">{meta?.emoji || reward.fallbackEmoji || '★'}</span>
-      <span className="font-mono text-[6px] sm:text-[7px] font-black uppercase leading-none mt-1 line-clamp-2">{reward.label}</span>
+      <span className="font-mono text-xs sm:text-xs font-black uppercase leading-none mt-1 line-clamp-2">{reward.label}</span>
     </span>
   );
 }
@@ -312,12 +312,12 @@ function StickerDetail({ placement, entries, onClose, onUpdate, onMoveFront, onA
     <div className="fixed inset-0 z-[140] bg-black/70 p-4 flex items-center justify-center" onClick={onClose}>
       <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-[#FFFDF6] border-4 border-on-surface shadow-[10px_10px_0px_var(--color-brand-orange)] p-5 space-y-5" onClick={event => event.stopPropagation()} role="dialog" aria-modal="true" aria-label={`${reward.label} sticker details`}>
         <div className="flex items-start justify-between gap-4">
-          <div><p className="font-mono text-[8px] font-black uppercase text-brand-orange">Sticker detail</p><h3 className="font-display text-3xl font-black uppercase italic">{reward.label}</h3></div>
+          <div><p className="font-mono text-xs font-black uppercase text-brand-orange">Sticker detail</p><h3 className="font-display text-3xl font-black uppercase italic">{reward.label}</h3></div>
           <button type="button" onClick={onClose} className="min-w-11 min-h-11 border-2 border-on-surface bg-white flex items-center justify-center"><X className="w-4 h-4" /></button>
         </div>
         <p className="font-serif italic text-on-surface/70">{reward.description}</p>
 
-        <label className="block space-y-1 font-mono text-[9px] font-black uppercase">
+        <label className="block space-y-1 font-mono text-xs font-black uppercase">
           Move to sheet
           <select value={placement.sheetId} onChange={event => onUpdate({ sheetId: event.target.value as StickerSheetId })} className="min-h-11 w-full border-2 border-on-surface bg-white px-3">
             {STICKER_SHEETS.map(sheet => <option key={sheet.id} value={sheet.id}>{sheet.label}</option>)}
@@ -333,25 +333,25 @@ function StickerDetail({ placement, entries, onClose, onUpdate, onMoveFront, onA
           <ControlButton label="Move right" onClick={() => nudge(3, 0)}><ArrowRight /></ControlButton>
         </div>
 
-        <label className="block font-mono text-[9px] font-black uppercase">
+        <label className="block font-mono text-xs font-black uppercase">
           Sticker size
           <input type="range" min="0.7" max="1.4" step="0.05" value={placement.scale} onChange={event => onUpdate({ scale: Number(event.target.value) })} className="w-full min-h-11" />
         </label>
 
         <div className="grid grid-cols-3 gap-2">
-          <button type="button" onClick={() => onUpdate({ rotation: placement.rotation - 5 })} className="min-h-11 border-2 border-on-surface bg-white font-mono text-[8px] font-black uppercase inline-flex items-center justify-center gap-1"><RotateCcw className="w-3.5 h-3.5" /> Left</button>
-          <button type="button" onClick={onMoveFront} className="min-h-11 border-2 border-on-surface bg-brand-lime font-mono text-[8px] font-black uppercase inline-flex items-center justify-center gap-1"><BringToFront className="w-3.5 h-3.5" /> Front</button>
-          <button type="button" onClick={() => onUpdate({ rotation: placement.rotation + 5 })} className="min-h-11 border-2 border-on-surface bg-white font-mono text-[8px] font-black uppercase inline-flex items-center justify-center gap-1"><RotateCcw className="w-3.5 h-3.5 scale-x-[-1]" /> Right</button>
+          <button type="button" onClick={() => onUpdate({ rotation: placement.rotation - 5 })} className="min-h-11 border-2 border-on-surface bg-white font-mono text-xs font-black uppercase inline-flex items-center justify-center gap-1"><RotateCcw className="w-3.5 h-3.5" /> Left</button>
+          <button type="button" onClick={onMoveFront} className="min-h-11 border-2 border-on-surface bg-brand-lime font-mono text-xs font-black uppercase inline-flex items-center justify-center gap-1"><BringToFront className="w-3.5 h-3.5" /> Front</button>
+          <button type="button" onClick={() => onUpdate({ rotation: placement.rotation + 5 })} className="min-h-11 border-2 border-on-surface bg-white font-mono text-xs font-black uppercase inline-flex items-center justify-center gap-1"><RotateCcw className="w-3.5 h-3.5 scale-x-[-1]" /> Right</button>
         </div>
 
-        <label className="block space-y-1 font-mono text-[9px] font-black uppercase">
+        <label className="block space-y-1 font-mono text-xs font-black uppercase">
           Add to an owned proof
           <select defaultValue="" onChange={event => { if (event.target.value) void onAttach(event.target.value); event.target.value = ''; }} className="min-h-11 w-full border-2 border-on-surface bg-white px-3">
             <option value="">Choose a Logbook receipt</option>
             {entries.map((entry: any) => <option key={entry.id} value={entry.id}>{entry.tripTitle || entry.challengeTitle || entry.id}</option>)}
           </select>
         </label>
-        <p className="font-mono text-[8px] uppercase text-on-surface/45">Earned stickers are eligible for zine pages. Adding one here customizes your private Logbook receipt.</p>
+        <p className="font-mono text-xs uppercase text-on-surface/60">Earned stickers are eligible for zine pages. Adding one here customizes your private Logbook receipt.</p>
       </div>
     </div>
   );

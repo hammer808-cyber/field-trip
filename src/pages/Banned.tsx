@@ -24,7 +24,7 @@ export default function Banned() {
               <ShieldAlert className="h-7 w-7" aria-hidden="true" />
             </div>
             <div>
-              <p className="font-mono text-[10px] font-black uppercase tracking-[0.22em] text-on-surface/45">Account closed</p>
+              <p className="font-mono text-xs font-black uppercase tracking-[0.22em] text-on-surface/60">Account closed</p>
               <h1 className="mt-1 font-display text-4xl font-black uppercase italic leading-none">Access revoked</h1>
             </div>
           </div>
@@ -35,13 +35,13 @@ export default function Banned() {
 
           <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="border-2 border-on-surface/15 bg-paper p-4">
-              <p className="flex items-center gap-2 font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/45">
+              <p className="flex items-center gap-2 font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">
                 <Mail className="h-4 w-4" aria-hidden="true" /> Support
               </p>
               <p className="mt-1 text-sm font-bold">support@fieldtrip.zone</p>
             </div>
             <div className="border-2 border-on-surface/15 bg-paper p-4">
-              <p className="flex items-center gap-2 font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/45">
+              <p className="flex items-center gap-2 font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">
                 <ShieldAlert className="h-4 w-4" aria-hidden="true" /> Status
               </p>
               <p className="mt-1 text-sm font-bold">Permanent suspension</p>

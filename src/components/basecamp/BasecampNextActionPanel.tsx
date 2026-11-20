@@ -31,11 +31,11 @@ export function BasecampNextActionPanel({ model, pack, onAction, onSecondaryActi
       <span className="basecamp-tape basecamp-tape--right" aria-hidden="true" />
       <div className="pointer-events-none absolute inset-0 opacity-[var(--skin-texture-opacity)] [background-image:var(--skin-surface-texture)]" />
       <div className="relative flex min-h-10 items-center justify-between gap-3 border-b-2 border-[var(--skin-border)] bg-[var(--skin-text)] px-4 py-2 text-[var(--skin-surface)]">
-        <span className="flex items-center gap-2 font-mono text-[8px] font-black uppercase tracking-[0.22em]">
+        <span className="flex items-center gap-2 font-mono text-xs font-black uppercase tracking-[0.22em]">
           <Radio size={13} className="text-[var(--skin-secondary)]" aria-hidden="true" />
           Today at Basecamp
         </span>
-        <span className="font-mono text-[8px] font-black uppercase tracking-widest text-[var(--skin-secondary)]">
+        <span className="font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-secondary)]">
           {model.statusLabel}
         </span>
       </div>
@@ -57,7 +57,7 @@ export function BasecampNextActionPanel({ model, pack, onAction, onSecondaryActi
                 {pack?.deckSubtitle || pack?.description || 'Open Missions to choose your next assignment.'}
               </p>
               {model.mission?.rewardXp !== null && model.mission?.rewardXp !== undefined && (
-                <span className="mt-2 inline-flex w-fit items-center gap-1.5 border-2 border-[var(--skin-border)] bg-[var(--skin-secondary)] px-2 py-1 font-mono text-[8px] font-black uppercase tracking-widest text-[var(--skin-on-secondary)] shadow-[2px_2px_0_var(--skin-border)]">
+                <span className="mt-2 inline-flex w-fit items-center gap-1.5 border-2 border-[var(--skin-border)] bg-[var(--skin-secondary)] px-2 py-1 font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-on-secondary)] shadow-[2px_2px_0_var(--skin-border)]">
                   <Zap size={12} aria-hidden="true" />
                   {model.mission.rewardXp} base XP
                 </span>
@@ -82,7 +82,7 @@ export function BasecampNextActionPanel({ model, pack, onAction, onSecondaryActi
             <button
               type="button"
               onClick={onSecondaryAction}
-              className="min-h-10 w-full px-2 text-center font-mono text-[10px] font-black uppercase tracking-widest text-[var(--skin-text-muted)] hover:text-[var(--skin-text)] sm:w-fit"
+              className="min-h-10 w-full px-2 text-center font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-text-muted)] hover:text-[var(--skin-text)] sm:w-fit"
             >
               {model.secondaryAction.label}
             </button>
@@ -94,7 +94,7 @@ export function BasecampNextActionPanel({ model, pack, onAction, onSecondaryActi
             ~160px of empty middle on a panel whose content is ~150px. */}
         <div className="flex flex-col justify-start gap-6 p-5 sm:p-7 lg:p-8">
           <div className="space-y-4">
-            <p className="font-mono text-[9px] font-black uppercase tracking-[0.24em] text-[var(--skin-primary)]">
+            <p className="font-mono text-xs font-black uppercase tracking-[0.24em] text-[var(--skin-text)]">
               {model.eyebrow}
             </p>
             <h2
@@ -125,7 +125,7 @@ export function BasecampNextActionPanel({ model, pack, onAction, onSecondaryActi
               <button
                 type="button"
                 onClick={onSecondaryAction}
-                className="min-h-10 w-full px-2 text-center font-mono text-[10px] font-black uppercase tracking-widest text-[var(--skin-text-muted)] hover:text-[var(--skin-text)] sm:w-fit"
+                className="min-h-10 w-full px-2 text-center font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-text-muted)] hover:text-[var(--skin-text)] sm:w-fit"
               >
                 {model.secondaryAction.label}
               </button>

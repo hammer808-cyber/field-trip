@@ -19,7 +19,7 @@ export function FieldSection({
       <header className="flex items-end justify-between gap-3">
         <div className="min-w-0">
           {eyebrow && (
-            <p className="font-mono text-[9px] font-black uppercase tracking-[0.22em] text-[var(--skin-text-muted)]">
+            <p className="font-mono text-xs font-black uppercase tracking-[0.22em] text-[var(--skin-text-muted)]">
               {eyebrow}
             </p>
           )}

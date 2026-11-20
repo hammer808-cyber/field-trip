@@ -31,7 +31,7 @@ export function LockedViewfinder({ reason, nextSteps, seasonDate, onboardingRema
         <p className="text-xs font-mono">{nextSteps}</p>
         
         {reason === 'onboarding_required' && (
-          <Link to="/missions" className="flex items-center justify-center gap-2 text-brand-orange font-bold uppercase text-[10px] hover:underline">
+          <Link to="/missions" className="flex items-center justify-center gap-2 text-brand-orange font-bold uppercase text-xs hover:underline">
             Go to Mission Deck <ArrowRight className="w-3 h-3" />
           </Link>
         )}
@@ -40,7 +40,7 @@ export function LockedViewfinder({ reason, nextSteps, seasonDate, onboardingRema
       {seasonDate && (
         <div className="flex items-center justify-center gap-2">
           <Calendar className="w-4 h-4 opacity-20" />
-          <span className="font-mono text-[10px] opacity-40">RESUME_SIGNAL: {seasonDate}</span>
+          <span className="font-mono text-xs opacity-40">RESUME_SIGNAL: {seasonDate}</span>
         </div>
       )}
     </Card>

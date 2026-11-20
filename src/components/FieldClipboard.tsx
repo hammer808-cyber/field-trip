@@ -181,9 +181,9 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
         <div className="bg-on-surface text-brand-lime py-1 px-4 flex justify-between items-center relative z-20 border-b-2 border-on-surface">
            <div className="flex items-center gap-2">
              <div className="w-1 h-1 rounded-full bg-current animate-pulse shadow-[0_0_8px_currentColor]" />
-             <span className="font-mono text-[7px] font-black uppercase tracking-[0.2em]">MISSION_SIGNAL</span>
+             <span className="font-mono text-xs font-black uppercase tracking-[0.2em]">MISSION_SIGNAL</span>
            </div>
-           <span className="font-mono text-[7px] font-black uppercase opacity-60">REF: {mission.id.slice(0, 8)}</span>
+           <span className="font-mono text-xs font-black uppercase opacity-60">REF: {mission.id.slice(0, 8)}</span>
         </div>
 
         <div className="h-36 relative bg-on-surface flex flex-col group p-4 border-b-2 border-on-surface overflow-hidden">
@@ -201,16 +201,16 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
           {/* Metadata Badges (STICKERS) */}
           <div className="flex justify-between items-start mb-2 relative z-20 w-full">
             <div className="flex flex-wrap gap-1.5 max-w-[70%]">
-              <div className="bg-[#2EE7F0] text-on-surface text-[8px] font-black px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase italic leading-none whitespace-nowrap">
+              <div className="bg-[#2EE7F0] text-on-surface text-xs font-black px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase italic leading-none whitespace-nowrap">
                 {cardType}
               </div>
-              <div className="bg-brand-lime text-on-surface text-[8px] font-black px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase italic leading-none rotate-[-1deg] whitespace-nowrap">
+              <div className="bg-brand-lime text-on-surface text-xs font-black px-2 py-0.5 border-2 border-on-surface shadow-[2px_2px_0px_black] uppercase italic leading-none rotate-[-1deg] whitespace-nowrap">
                 {mission.deckName || 'ADVENTURE'}
               </div>
             </div>
 
             <div className="flex flex-col items-end gap-1.5 shrink-0">
-              <div className="bg-brand-orange text-white px-2 py-1 text-[10px] font-black uppercase italic border-2 border-on-surface shadow-[2px_2px_0px_black]">
+              <div className="bg-brand-orange text-white px-2 py-1 text-xs font-black uppercase italic border-2 border-on-surface shadow-[2px_2px_0px_black]">
                 +{missionMaximum} XP MAX
               </div>
             </div>
@@ -222,7 +222,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               {mission.title}
             </h1>
             {mission.deckSubtitle && (
-              <p className="mt-1 line-clamp-2 font-mono text-[7px] font-bold leading-tight text-white/65">
+              <p className="mt-1 line-clamp-2 font-mono text-xs font-bold leading-tight text-white/65">
                 {mission.deckSubtitle}
               </p>
             )}
@@ -233,7 +233,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
             here so nobody has to discover the brief toggle to know the job. */}
         {missionPrompt && (
           <div className="border-b-2 border-on-surface bg-white px-4 py-3 text-left relative z-30">
-            <p className="font-mono text-[8px] font-black uppercase tracking-[0.2em] text-brand-orange">What to do</p>
+            <p className="font-mono text-xs font-black uppercase tracking-[0.2em] text-brand-orange">What to do</p>
             <p className="mt-1 font-sans text-sm font-bold leading-snug text-on-surface">{missionPrompt}</p>
           </div>
         )}
@@ -243,18 +243,18 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
           <button 
             onClick={() => setShowBrief(!showBrief)} 
             className={cn(
-              "flex-1 px-4 py-2 flex items-center justify-center gap-2 font-mono text-[9px] font-black uppercase tracking-wider transition-all",
+              "flex-1 px-4 py-2 flex items-center justify-center gap-2 font-mono text-xs font-black uppercase tracking-wider transition-all",
               showBrief ? "bg-on-surface text-white" : "hover:bg-on-surface/5"
             )}
           >
-            <Info className={cn("w-3 h-3", showBrief ? "text-brand-cyan" : "text-on-surface/40")} />
+            <Info className={cn("w-3 h-3", showBrief ? "text-brand-cyan" : "text-on-surface/60")} />
             <span>{showBrief ? 'HIDE BRIEF' : 'SEE FULL BRIEF'}</span>
           </button>
           {state === 'brief' && (
             <button
               type="button"
               onClick={scrollToCamera}
-              className="flex-1 px-4 py-2 flex items-center justify-center gap-2 text-brand-orange font-mono text-[9px] font-black uppercase tracking-wider transition-all hover:bg-brand-orange/5"
+              className="flex-1 px-4 py-2 flex items-center justify-center gap-2 text-brand-orange font-mono text-xs font-black uppercase tracking-wider transition-all hover:bg-brand-orange/5"
             >
               <ArrowRight className="w-3 h-3 animate-pulse" />
               <span>READY TO START</span>
@@ -296,27 +296,27 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                  </div>
                  <div className="min-w-0">
                    <span className="block font-display font-black uppercase italic text-xl tracking-tighter text-on-surface leading-none">Receipt Checklist</span>
-                   <span className="block font-mono text-[9px] font-black uppercase tracking-widest text-on-surface/35 mt-1">Three things to finish this mission.</span>
+                   <span className="block font-mono text-xs font-black uppercase tracking-widest text-on-surface/60 mt-1">Three things to finish this mission.</span>
                  </div>
                </div>
 
                <div className="grid grid-cols-1 gap-3 relative z-10">
                  <div className="flex gap-3 items-center group rounded-xl bg-on-surface/[0.025] border border-on-surface/5 px-3 py-3">
-                   <div className="w-7 h-7 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-[10px] font-black shadow-[2px_2px_0px_black]">1</div>
+                   <div className="w-7 h-7 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-xs font-black shadow-[2px_2px_0px_black]">1</div>
                    <div className="min-w-0">
                      <p className="font-display uppercase italic text-base font-black leading-none text-on-surface">Find it</p>
                      <p className="text-xs text-on-surface/55 font-sans mt-1">Spot something that fits the mission.</p>
                    </div>
                  </div>
                  <div className="flex gap-3 items-center group rounded-xl bg-on-surface/[0.025] border border-on-surface/5 px-3 py-3">
-                   <div className="w-7 h-7 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-[10px] font-black shadow-[2px_2px_0px_black]">2</div>
+                   <div className="w-7 h-7 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-xs font-black shadow-[2px_2px_0px_black]">2</div>
                    <div className="min-w-0">
                      <p className="font-display uppercase italic text-base font-black leading-none text-on-surface">Snap it</p>
                      <p className="text-xs text-on-surface/55 font-sans mt-1">Take one clear proof photo.</p>
                    </div>
                  </div>
                  <div className="flex gap-3 items-center group rounded-xl bg-on-surface/[0.025] border border-on-surface/5 px-3 py-3">
-                   <div className="w-7 h-7 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-[10px] font-black shadow-[2px_2px_0px_black]">3</div>
+                   <div className="w-7 h-7 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-xs font-black shadow-[2px_2px_0px_black]">3</div>
                    <div className="min-w-0">
                      <p className="font-display uppercase italic text-base font-black leading-none text-on-surface">Say why</p>
                      <p className="text-xs text-on-surface/55 font-sans mt-1">Add a short field note explaining the moment.</p>
@@ -329,7 +329,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                    type="button"
                    onClick={() => !missionAttempt?.hintUsed && dispatchHintFlow('open')}
                    disabled={!missionAttempt || isAttemptLoading || missionAttempt.hintUsed || hintFlow === 'revealing'}
-                   className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-on-surface bg-white px-4 py-3 font-mono text-[10px] font-black uppercase tracking-widest transition-colors hover:bg-on-surface/5 disabled:cursor-not-allowed disabled:opacity-60"
+                   className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-on-surface bg-white px-4 py-3 font-mono text-xs font-black uppercase tracking-widest transition-colors hover:bg-on-surface/5 disabled:cursor-not-allowed disabled:opacity-60"
                  >
                    {hintFlow === 'revealing' ? <Loader2 className="h-4 w-4 animate-spin" /> : <HelpCircle className="h-4 w-4" />}
                    {missionAttempt?.hintUsed ? 'Hint Used' : isAttemptLoading ? 'Preparing Hint' : 'Need a Hint?'}
@@ -337,7 +337,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
 
                  {missionAttempt?.hintUsed && (
                    <div className="rounded-xl border-2 border-brand-orange/30 bg-brand-orange/5 p-4">
-                     <div className="flex items-center gap-2 font-mono text-[9px] font-black uppercase tracking-widest text-brand-orange">
+                     <div className="flex items-center gap-2 font-mono text-xs font-black uppercase tracking-widest text-brand-orange">
                        <Lightbulb className="h-4 w-4" /> Hint Used
                      </div>
                      <p className="mt-2 text-sm font-semibold leading-relaxed text-on-surface/80">
@@ -348,7 +348,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                          Example: {missionAttempt.hint.example}
                        </p>
                      )}
-                     <p className="mt-3 font-mono text-[9px] font-black uppercase text-brand-orange">
+                     <p className="mt-3 font-mono text-xs font-black uppercase text-brand-orange">
                        Maximum score reduced to {missionAttempt.maxScoreAfterHint} XP
                      </p>
                    </div>
@@ -358,7 +358,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                    <div className="rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs text-rose-700">
                      <p>{attemptError}</p>
                      {onRetryAttempt && (
-                       <button type="button" onClick={() => void onRetryAttempt()} className="mt-2 min-h-11 font-mono text-[9px] font-black uppercase underline">
+                       <button type="button" onClick={() => void onRetryAttempt()} className="mt-2 min-h-11 font-mono text-xs font-black uppercase underline">
                          Retry mission setup
                        </button>
                      )}
@@ -368,16 +368,16 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
 
                {trevorLine && (
                  <div className="rounded-2xl border border-on-surface/10 bg-on-surface/[0.025] p-4">
-                   <p className="font-mono text-[9px] font-black uppercase tracking-widest text-on-surface/45">Trevor's Take</p>
+                   <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">Trevor's Take</p>
                    <p className="mt-1 text-xs font-semibold leading-relaxed text-on-surface/75">{trevorLine}</p>
-                   <p className="mt-2 font-mono text-[8px] font-black uppercase text-on-surface/40">Optional advice. No extra points.</p>
+                   <p className="mt-2 font-mono text-xs font-black uppercase text-on-surface/60">Optional advice. No extra points.</p>
                  </div>
                )}
 
                {appliedBonus && (
                  <div className="relative overflow-hidden rounded-2xl border-2 border-dashed border-brand-lime bg-brand-lime/10 p-4">
                    <Sparkles className="absolute right-3 top-3 h-10 w-10 text-brand-lime opacity-15" />
-                   <p className="font-mono text-[9px] font-black uppercase tracking-widest text-on-surface">
+                   <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface">
                      {appliedBonus.type === 'time_window' ? 'Time Bonus' : 'Random Bonus'} · {appliedBonus.multiplier}× XP
                    </p>
                    <p className="mt-1 font-display text-lg font-black uppercase italic">{appliedBonus.label}</p>
@@ -457,7 +457,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                    {data.photoUrl ? (
                      <img src={data.photoUrl} alt="Captured Proof" className="w-full h-full object-cover" style={{ height: '100%', width: '100%' }} />
                    ) : (
-                     <div className="w-full h-full flex flex-col items-center justify-center text-on-surface/20">
+                     <div className="w-full h-full flex flex-col items-center justify-center text-on-surface/60">
                        <Camera size={48} strokeWidth={1} />
                        <p className="font-display text-sm font-black uppercase mt-2">PHOTO_MISSING</p>
                      </div>
@@ -477,7 +477,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                        ) : (
                          <div className="bg-white border-2 border-on-surface shadow-[3px_3px_0px_black] p-2 max-w-24 text-center">
                            <span className="block text-2xl">{reviewingSticker.emoji}</span>
-                           <span className="block font-mono text-[6px] font-black uppercase leading-none mt-1">{reviewingSticker.name}</span>
+                           <span className="block font-mono text-xs font-black uppercase leading-none mt-1">{reviewingSticker.name}</span>
                          </div>
                        )}
                      </div>
@@ -491,7 +491,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                    <RefreshCw size={12} />
                  </button>
 
-                 <div className="mt-3 font-mono text-[8px] font-black uppercase tracking-widest text-on-surface/30 text-center">
+                 <div className="mt-3 font-mono text-xs font-black uppercase tracking-widest text-on-surface/60 text-center">
                     EVIDENCE_ID: {data.photoUrl?.split('/').pop()?.substring(0, 12) || 'UNKNOWN'}
                  </div>
               </div>
@@ -514,8 +514,8 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                 </div>
                 {!isFrankie && (
                 <div className={cn(
-                  "font-mono text-[9px] font-black uppercase",
-                  data.note.length >= 10 ? "text-brand-lime" : "text-on-surface/30"
+                  "font-mono text-xs font-black uppercase",
+                  data.note.length >= 10 ? "text-on-surface" : "text-on-surface/60"
                 )}>
                   {data.note.length} / 10 Min
                 </div>
@@ -586,7 +586,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                    <Info size={14} className="text-brand-orange" />
                    Add a short note before submitting.
                  </p>
-                 <p className="font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/50">
+                 <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">
                    {data.note.length} / 10 characters
                  </p>
               </div>
@@ -601,7 +601,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                 "w-full py-6 border-4 border-on-surface rounded-2xl font-display text-2xl sm:text-3xl font-black uppercase italic tracking-widest shadow-[10px_10px_0px_black] active:translate-y-2 active:shadow-none transition-all",
                 canSubmit 
                   ? "bg-brand-orange text-white hover:bg-on-surface hover:text-brand-lime" 
-                  : "bg-on-surface/5 text-on-surface/35 border-on-surface/15 cursor-not-allowed shadow-none"
+                  : "bg-on-surface/5 text-on-surface/60 border-on-surface/15 cursor-not-allowed shadow-none"
               )}
             >
               {canSubmit
@@ -618,7 +618,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               </p>
             )}
             
-            <p className="text-[10px] font-serif italic text-on-surface/40 pt-2 pb-12">
+            <p className="text-xs font-serif italic text-on-surface/60 pt-2 pb-12">
               "TRANSMISSION READY — keep it honest."
             </p>
           </motion.div>
@@ -648,7 +648,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                     className="h-full w-1/3 bg-brand-cyan"
                   />
                </div>
-               <div className="flex justify-between font-mono text-[8px] opacity-30">
+               <div className="flex justify-between font-mono text-xs opacity-60">
                   <span>PACKET_07_B</span>
                   <span>UPLOADING...</span>
                </div>
@@ -726,7 +726,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               <p className="mt-3 text-sm leading-relaxed text-on-surface/70">
                 Trevor can explain the mission, but using a hint lowers the highest score available for this attempt.
               </p>
-              <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-on-surface/5 p-4 font-mono text-[10px] font-black uppercase">
+              <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-on-surface/5 p-4 font-mono text-xs font-black uppercase">
                 <div><dt className="opacity-45">Current maximum</dt><dd className="mt-1 text-lg">{missionAttempt.maxScoreBeforeHint} XP</dd></div>
                 <div><dt className="opacity-45">After hint</dt><dd className="mt-1 text-lg text-brand-orange">{missionAttempt.potentialMaxScoreAfterHint} XP</dd></div>
               </dl>

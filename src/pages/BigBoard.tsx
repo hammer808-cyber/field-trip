@@ -307,7 +307,7 @@ function StickerStatCard({
         {/* Top Header Row with Title and Sticker Icon Badge */}
         <div className="flex justify-between items-start gap-3 relative z-10">
           <div className="flex flex-col gap-1 text-left">
-            <span className="font-mono text-[9px] font-black uppercase tracking-wider text-on-surface/40 leading-none">
+            <span className="font-mono text-xs font-black uppercase tracking-wider text-on-surface/60 leading-none">
               FIELD_METRIC_OPR
             </span>
             <div className="mt-1 font-display font-black text-sm sm:text-base text-on-surface uppercase tracking-tight leading-tight">
@@ -334,7 +334,7 @@ function StickerStatCard({
               </span>
             </div>
           </div>
-          <div className="text-[8px] font-mono font-bold text-on-surface/30 uppercase tracking-widest leading-none mr-1 mb-1">
+          <div className="text-xs font-mono font-bold text-on-surface/60 uppercase tracking-widest leading-none mr-1 mb-1">
             STAT_FIELD_A
           </div>
         </div>
@@ -343,7 +343,7 @@ function StickerStatCard({
         {subtext && (
           <div className="relative z-10 border-t-2 border-dashed border-on-surface/10 pt-2 flex items-center gap-1.5">
             <div className={cn("w-1.5 h-1.5 rounded-full shrink-0 animate-pulse", theme.dotColor)} />
-            <span className="text-[10px] font-mono font-black text-on-surface/60 uppercase tracking-wider truncate leading-none">
+            <span className="text-xs font-mono font-black text-on-surface/60 uppercase tracking-wider truncate leading-none">
               {subtext}
             </span>
           </div>
@@ -394,7 +394,7 @@ function ProgressStickerCard({
         {/* Top Header Row with Title and Hero Icon Sticker */}
         <div className="flex justify-between items-start gap-3 relative z-10 w-full">
           <div className="flex flex-col gap-1 text-left">
-            <span className="font-mono text-[9px] font-black uppercase tracking-wider text-on-surface/40 leading-none">
+            <span className="font-mono text-xs font-black uppercase tracking-wider text-on-surface/60 leading-none">
               OPERATIVE_MOMENTUM
             </span>
             <div className="mt-1 font-display font-black text-sm sm:text-base text-on-surface uppercase tracking-tight leading-tight">
@@ -424,9 +424,9 @@ function ProgressStickerCard({
           </div>
 
           <div className="space-y-1.5 w-full">
-            <div className="flex justify-between text-[9px] font-mono font-bold text-on-surface/50 uppercase tracking-widest leading-none">
+            <div className="flex justify-between text-xs font-mono font-bold text-on-surface/60 uppercase tracking-widest leading-none">
               <span className="truncate">{subtext}</span>
-              <span className="text-on-surface/30">MOM_SCALE_DEC</span>
+              <span className="text-on-surface/60">MOM_SCALE_DEC</span>
             </div>
             
             {/* Segmented fluorescent LED grid layout but retro-brutalist custom scale */}
@@ -518,8 +518,8 @@ function WeeklyAwardsSection({ currentWeekNumber }: WeeklyAwardsSectionProps) {
   if (ballotState === "locked") {
     buttonText = "Ballot Locked";
     buttonStyle =
-      "bg-on-surface/10 border-on-surface/20 text-on-surface/35 cursor-not-allowed shadow-none";
-    buttonIcon = <Lock className="w-4 h-4 text-on-surface/30 shrink-0" />;
+      "bg-on-surface/10 border-on-surface/20 text-on-surface/60 cursor-not-allowed shadow-none";
+    buttonIcon = <Lock className="w-4 h-4 text-on-surface/60 shrink-0" />;
     buttonDisabled = true;
   } else if (ballotState === "stamped") {
     buttonText = "Ballot Stamped!";
@@ -532,7 +532,7 @@ function WeeklyAwardsSection({ currentWeekNumber }: WeeklyAwardsSectionProps) {
   } else if (!hasNomineesSelected) {
     buttonText = "Pick Nominees First";
     buttonStyle =
-      "bg-[#EAE5D8] text-on-surface/45 border-4 border-on-surface shadow-[4px_4px_0px_rgba(0,0,0,0.15)] cursor-not-allowed opacity-90";
+      "bg-[#EAE5D8] text-on-surface/60 border-4 border-on-surface shadow-[4px_4px_0px_rgba(0,0,0,0.15)] cursor-not-allowed opacity-90";
     buttonIcon = (
       <Lock className="w-4 h-4 text-brand-orange shrink-0 animate-pulse" />
     );
@@ -591,7 +591,7 @@ function WeeklyAwardsSection({ currentWeekNumber }: WeeklyAwardsSectionProps) {
               ? "Lock Ballot Demo View"
               : "Simulate voting ballot live preview"
           }
-          className="text-[9px] font-mono font-black uppercase tracking-widest bg-white hover:bg-brand-lime hover:text-on-surface border-2 border-on-surface px-3 py-1.5 flex items-center gap-1 shrink-0 self-end sm:self-auto transition-all shadow-[2px_2px_0px_black] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+          className="text-xs font-mono font-black uppercase tracking-widest bg-white hover:bg-brand-lime hover:text-on-surface border-2 border-on-surface px-3 py-1.5 flex items-center gap-1 shrink-0 self-end sm:self-auto transition-all shadow-[2px_2px_0px_black] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
         >
           {simulationActive ? "🔒 " + getDisplayLabel('VOTE_ACCESS') : "🔓 " + getDisplayLabel('VIEW_DEMO_OPS')}
         </button>
@@ -599,7 +599,7 @@ function WeeklyAwardsSection({ currentWeekNumber }: WeeklyAwardsSectionProps) {
 
       {!simulationActive ? (
         <div className="py-8 text-center space-y-4 bg-on-surface/[0.02] border-4 border-dashed border-on-surface/20 p-6 rounded-none relative">
-          <div className="absolute top-2 right-2 text-on-surface/5 font-mono text-[9px] font-black uppercase">
+          <div className="absolute top-2 right-2 text-on-surface/5 font-mono text-xs font-black uppercase">
             {getDisplayLabel('BALLOT_BOX_CLOSED')}
           </div>
           <div className="inline-flex items-center justify-center w-12 h-12 bg-[#FCF9F2] border-4 border-on-surface rounded-full shadow-[3px_3px_0px_black]">
@@ -617,7 +617,7 @@ function WeeklyAwardsSection({ currentWeekNumber }: WeeklyAwardsSectionProps) {
               items and check back soon!
             </p>
           </div>
-          <div className="inline-flex items-center gap-2 bg-brand-orange text-white px-3 py-1 text-[10px] font-mono font-black uppercase tracking-widest leading-none shadow-[3px_3px_0px_black] border-2 border-on-surface rotate-[1deg]">
+          <div className="inline-flex items-center gap-2 bg-brand-orange text-white px-3 py-1 text-xs font-mono font-black uppercase tracking-widest leading-none shadow-[3px_3px_0px_black] border-2 border-on-surface rotate-[1deg]">
             <span className="w-2 h-2 bg-white rounded-full animate-ping" />
             VOTE OPENS SOON
           </div>
@@ -642,7 +642,7 @@ function WeeklyAwardsSection({ currentWeekNumber }: WeeklyAwardsSectionProps) {
 
           {/* Stamped Warning Tape Alert banner */}
           <div className="relative inline-block bg-brand-orange/10 border-4 border-dashed border-brand-orange text-brand-orange p-4 text-xs sm:text-sm font-bold uppercase tracking-wide rounded-none mt-2 w-full rotate-[-0.5deg]">
-            <div className="absolute -top-3 -left-2 bg-brand-orange text-white font-mono text-[10px] px-2 py-0.5 font-bold uppercase rotate-[-2deg] border border-on-surface shadow-[2px_2px_0px_black]">
+            <div className="absolute -top-3 -left-2 bg-brand-orange text-white font-mono text-xs px-2 py-0.5 font-bold uppercase rotate-[-2deg] border border-on-surface shadow-[2px_2px_0px_black]">
               DEMO MODE
             </div>
             <p className="font-mono text-xs font-black tracking-wider leading-tight">
@@ -718,10 +718,10 @@ function WeeklyAwardsSection({ currentWeekNumber }: WeeklyAwardsSectionProps) {
                           </span>
                           <div
                             className={cn(
-                              "text-[10px] font-black uppercase tracking-wider px-1.5 py-1 mt-2 border-t w-full leading-none",
+                              "text-xs font-black uppercase tracking-wider px-1.5 py-1 mt-2 border-t w-full leading-none",
                               isVoted
                                 ? "border-on-surface/20 bg-black/5 text-on-surface"
-                                : "border-transparent text-on-surface/40",
+                                : "border-transparent text-on-surface/60",
                             )}
                           >
                             {isVoted ? "ENDORSED" : "SELECT"}
@@ -770,7 +770,7 @@ function WeeklyAwardsSection({ currentWeekNumber }: WeeklyAwardsSectionProps) {
               <div className="w-full bg-brand-lime/10 border border-brand-lime/20 p-2.5 text-left border-dashed mt-1">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <div>
-                    <span className="inline-block bg-brand-lime text-on-surface text-[10px] font-black uppercase px-1.5 py-0.5 tracking-wider border border-on-surface mb-1 select-none">
+                    <span className="inline-block bg-brand-lime text-on-surface text-xs font-black uppercase px-1.5 py-0.5 tracking-wider border border-on-surface mb-1 select-none">
                       DEMO OK
                     </span>
                     <p className="text-xs font-mono leading-tight text-brand-lime-700">
@@ -778,14 +778,14 @@ function WeeklyAwardsSection({ currentWeekNumber }: WeeklyAwardsSectionProps) {
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0 mt-1 sm:mt-0">
-                    <span className="text-[7px] font-mono text-on-surface/30 uppercase tracking-widest leading-none block mb-1">
+                    <span className="text-xs font-mono text-on-surface/60 uppercase tracking-widest leading-none block mb-1">
                       Demo sandbox tools
                     </span>
                     <div className="flex gap-1.5 justify-end">
                       <button
                         type="button"
                         onClick={() => setBallotState("locked")}
-                        className="text-[8px] font-mono font-black uppercase tracking-wider bg-on-surface text-white hover:bg-brand-orange hover:text-white transition-colors px-2 py-1 border border-on-surface"
+                        className="text-xs font-mono font-black uppercase tracking-wider bg-on-surface text-white hover:bg-brand-orange hover:text-white transition-colors px-2 py-1 border border-on-surface"
                       >
                         🔒 Demo Lock
                       </button>
@@ -795,7 +795,7 @@ function WeeklyAwardsSection({ currentWeekNumber }: WeeklyAwardsSectionProps) {
                           setBallotState("idle");
                           setVotes({});
                         }}
-                        className="text-[8px] font-mono font-bold uppercase tracking-wider bg-white hover:bg-on-surface/10 hover:text-on-surface text-on-surface/80 transition-colors px-2 py-1 border border-on-surface/20"
+                        className="text-xs font-mono font-bold uppercase tracking-wider bg-white hover:bg-on-surface/10 hover:text-on-surface text-on-surface/80 transition-colors px-2 py-1 border border-on-surface/20"
                       >
                         🔄 Demo Reset
                       </button>
@@ -809,16 +809,16 @@ function WeeklyAwardsSection({ currentWeekNumber }: WeeklyAwardsSectionProps) {
               <div className="w-full bg-on-surface/5 border border-on-surface/10 p-2.5 text-left mt-1">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <div>
-                    <span className="inline-block bg-on-surface text-white text-[8px] font-black uppercase px-1.5 py-0.5 tracking-wider border border-on-surface mb-1 select-none">
+                    <span className="inline-block bg-on-surface text-white text-xs font-black uppercase px-1.5 py-0.5 tracking-wider border border-on-surface mb-1 select-none">
                       LOCKED
                     </span>
-                    <p className="text-[10px] font-mono leading-tight text-on-surface/50">
+                    <p className="text-xs font-mono leading-tight text-on-surface/60">
                       Demo ballot locked in. Ballot selections locked until
                       reset.
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0 mt-1 sm:mt-0">
-                    <span className="text-[7px] font-mono text-on-surface/30 uppercase tracking-widest leading-none block mb-1">
+                    <span className="text-xs font-mono text-on-surface/60 uppercase tracking-widest leading-none block mb-1">
                       Demo sandbox tools
                     </span>
                     <button
@@ -827,7 +827,7 @@ function WeeklyAwardsSection({ currentWeekNumber }: WeeklyAwardsSectionProps) {
                         setBallotState("idle");
                         setVotes({});
                       }}
-                      className="text-[8px] font-mono font-bold uppercase tracking-wider bg-white hover:bg-on-surface/10 hover:text-on-surface text-on-surface/80 transition-colors px-2 py-1 border border-on-surface/25"
+                      className="text-xs font-mono font-bold uppercase tracking-wider bg-white hover:bg-on-surface/10 hover:text-on-surface text-on-surface/80 transition-colors px-2 py-1 border border-on-surface/25"
                     >
                       🔄 Demo Unlock & Reset
                     </button>
@@ -1376,7 +1376,7 @@ export default function BigBoardPage() {
                     <div className="text-left space-y-2 sm:space-y-3 min-w-0">
                       <div className="flex items-center gap-3 mb-1">
                         <div className="inline-flex items-center gap-2 px-3 py-1 bg-brand-magenta text-white border-2 border-on-surface shadow-[3px_3px_0px_black]">
-                          <span className="text-[8px] sm:text-[10px] font-mono font-black uppercase tracking-[0.2em]">GLOBAL_RANKINGS</span>
+                          <span className="text-xs sm:text-xs font-mono font-black uppercase tracking-[0.2em]">GLOBAL_RANKINGS</span>
                         </div>
                         {isAdmin && (
                           <button 
@@ -1384,7 +1384,7 @@ export default function BigBoardPage() {
                              className="inline-flex items-center gap-2 px-3 py-1 bg-on-surface text-white border-2 border-on-surface shadow-[3px_3px_0px_var(--color-brand-orange)] hover:bg-brand-orange transition-all animate-in fade-in"
                           >
                              <LucideIcons.Shield className="w-3 h-3 sm:w-4 sm:h-4" />
-                             <span className="text-[8px] sm:text-[10px] font-mono font-black uppercase tracking-widest italic">Bureau Desk</span>
+                             <span className="text-xs sm:text-xs font-mono font-black uppercase tracking-widest italic">Bureau Desk</span>
                           </button>
                         )}
                       </div>
@@ -1425,7 +1425,7 @@ export default function BigBoardPage() {
                             <div className="flex items-center gap-3 sm:gap-6 min-w-0">
                               <span className={cn(
                                 "text-xl sm:text-4xl font-display font-black italic w-8 sm:w-16 shrink-0",
-                                rank <= 3 ? "text-brand-orange" : "text-on-surface/20"
+                                rank <= 3 ? "text-brand-orange" : "text-on-surface/60"
                               )}>
                                 #{rank}
                               </span>
@@ -1437,18 +1437,18 @@ export default function BigBoardPage() {
                               <div className="text-left min-w-0">
                                 <h4 className="text-sm sm:text-2xl font-display font-black uppercase italic text-on-surface truncate">
                                   {player.name}
-                                  {isMe && <span className="ml-1 text-[8px] sm:text-xs font-mono text-brand-orange uppercase">(YOU)</span>}
+                                  {isMe && <span className="ml-1 text-xs sm:text-xs font-mono text-brand-orange uppercase">(YOU)</span>}
                                 </h4>
                                 <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
-                                  <span className="border border-on-surface bg-white px-1.5 py-0.5 text-[7px] sm:text-[9px] font-mono font-black uppercase text-on-surface">
+                                  <span className="border border-on-surface bg-white px-1.5 py-0.5 text-xs sm:text-xs font-mono font-black uppercase text-on-surface">
                                     Level {playerLevel.level}
                                   </span>
-                                  <span className="max-w-full truncate text-[8px] sm:text-[10px] font-mono font-black uppercase text-on-surface/60">
+                                  <span className="max-w-full truncate text-xs sm:text-xs font-mono font-black uppercase text-on-surface/60">
                                     {playerTitle}
                                   </span>
                                   {rank === 1 && <LucideIcons.Crown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-brand-orange" />}
                                 </div>
-                                <p className="mt-1 truncate text-[7px] font-mono font-bold uppercase tracking-wide text-on-surface/30 sm:text-[9px]">
+                                <p className="mt-1 truncate text-xs font-mono font-bold uppercase tracking-wide text-on-surface/60 sm:text-xs">
                                   {player.fieldTypeName || 'Explorer'}
                                 </p>
                               </div>
@@ -1460,7 +1460,7 @@ export default function BigBoardPage() {
                               </div>
                               <div className="flex items-center gap-1 px-1 opacity-40">
                                  <LucideIcons.TrendingUp className="w-2 h-2 sm:w-3 sm:h-3" />
-                                 <span className="text-[7px] sm:text-[9px] font-mono font-black uppercase">Weekly Rank #{rank}</span>
+                                 <span className="text-xs sm:text-xs font-mono font-black uppercase">Weekly Rank #{rank}</span>
                               </div>
                             </div>
                           </div>
@@ -1483,7 +1483,7 @@ export default function BigBoardPage() {
             >
               <div className="bg-white border-[4px] border-on-surface rounded-[2rem] p-6 sm:p-10 shadow-[10px_10px_0px_black] space-y-6">
                 <div className="space-y-2">
-                  <p className="font-mono text-[10px] font-black uppercase tracking-[0.25em] text-brand-orange">Weekly Outcomes</p>
+                  <p className="font-mono text-xs font-black uppercase tracking-[0.25em] text-brand-orange">Weekly Outcomes</p>
                   <h2 className="text-4xl sm:text-6xl font-display font-black uppercase italic tracking-tighter text-on-surface leading-none">
                     Results Desk
                   </h2>
@@ -1536,7 +1536,7 @@ export default function BigBoardPage() {
             >
               <div className="text-center space-y-2 sm:space-y-4">
                 <h2 className="text-3xl sm:text-7xl font-display font-black uppercase italic tracking-tighter text-on-surface leading-tight">Community Feed</h2>
-                <p className="font-serif italic text-base sm:text-xl text-on-surface/50 px-4 leading-relaxed">Approved receipts from people who went outside and found something.</p>
+                <p className="font-serif italic text-base sm:text-xl text-on-surface/60 px-4 leading-relaxed">Approved receipts from people who went outside and found something.</p>
                 <div className="flex flex-wrap items-center justify-center gap-2 pt-4">
                   {[
                     ['latest', 'Latest'],
@@ -1550,7 +1550,7 @@ export default function BigBoardPage() {
                       type="button"
                       onClick={() => setFeedFilter(id as typeof feedFilter)}
                       className={cn(
-                        "px-4 py-2 border-2 border-on-surface font-mono text-[10px] font-black uppercase tracking-widest shadow-[3px_3px_0px_black] transition-transform active:translate-y-0.5 active:shadow-none",
+                        "px-4 py-2 border-2 border-on-surface font-mono text-xs font-black uppercase tracking-widest shadow-[3px_3px_0px_black] transition-transform active:translate-y-0.5 active:shadow-none",
                         feedFilter === id ? "bg-brand-lime text-on-surface" : "bg-white text-on-surface/60 hover:text-on-surface"
                       )}
                     >
@@ -1562,7 +1562,7 @@ export default function BigBoardPage() {
 
               {communityFeedProofs.length === 0 ? (
                 <div className="max-w-xl mx-auto py-16 text-center space-y-4 bg-white border-4 border-on-surface p-8 rounded-[1.5rem] shadow-[8px_8px_0px_black] relative">
-                  <div className="absolute top-2 right-2 text-on-surface/5 font-mono text-[9px] font-black uppercase tracking-widest">
+                  <div className="absolute top-2 right-2 text-on-surface/5 font-mono text-xs font-black uppercase tracking-widest">
                     COMMUNITY_EMPTY
                   </div>
                   <div className="inline-flex items-center justify-center w-12 h-12 bg-brand-yellow/10 border-4 border-on-surface rounded-full shadow-[3px_3px_0px_black]">
@@ -1643,7 +1643,7 @@ export default function BigBoardPage() {
                          
                          <div className="flex justify-between items-start">
                            <div className="space-y-1">
-                             <span className="text-[9px] font-mono font-black uppercase text-brand-magenta tracking-widest leading-none bg-brand-magenta/15 border border-brand-magenta/30 px-2.5 py-0.5 rounded">ACTIVE_WEEKLY_CATALYST</span>
+                             <span className="text-xs font-mono font-black uppercase text-brand-magenta tracking-widest leading-none bg-brand-magenta/15 border border-brand-magenta/30 px-2.5 py-0.5 rounded">ACTIVE_WEEKLY_CATALYST</span>
                              <h4 className="text-xl font-display font-black uppercase italic text-on-surface leading-tight">{catalyst.title}</h4>
                              <p className="text-xs font-serif italic text-on-surface/65 leading-relaxed pr-8">{catalyst.description}</p>
                            </div>
@@ -1663,7 +1663,7 @@ export default function BigBoardPage() {
                        </div>
                        
                        <div className="space-y-3">
-                         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-brand-cyan/15 border-2 border-brand-cyan text-on-surface text-[10px] font-mono font-black uppercase tracking-wider rounded-md rotate-[-1deg]">
+                         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-brand-cyan/15 border-2 border-brand-cyan text-on-surface text-xs font-mono font-black uppercase tracking-wider rounded-md rotate-[-1deg]">
                            <span className={cn("w-1.5 h-1.5 rounded-full block", phase === 'voting' ? "bg-brand-lime animate-ping" : "bg-on-surface/40")} />
                            {phase === 'submission' ? 'Adventure Phase' : phase === 'voting' ? 'Ballot Live' : 'Awards Active'}
                          </div>
@@ -1676,7 +1676,7 @@ export default function BigBoardPage() {
                          </p>
                        </div>
                        
-                       <div className="mt-6 pt-4 border-t-2 border-dashed border-on-surface/10 text-[9px] font-mono text-on-surface/50 uppercase font-black leading-none flex justify-between font-extrabold">
+                       <div className="mt-6 pt-4 border-t-2 border-dashed border-on-surface/10 text-xs font-mono text-on-surface/60 uppercase font-black leading-none flex justify-between font-extrabold">
                          <span>Timeline Node</span>
                          <span className="text-brand-orange font-extrabold bg-brand-orange/10 border border-brand-orange/20 px-1.5 py-0.5 rounded leading-none">
                            {phase === 'submission' ? 'Saturday Close' : 'Sunday Launch'}

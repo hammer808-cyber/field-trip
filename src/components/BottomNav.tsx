@@ -179,7 +179,7 @@ export function BottomNav() {
                 )}
               </div>
               <div className={cn(
-                "ft-nav-dex-name absolute -bottom-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 text-[10px] uppercase tracking-[0.2em] shadow-[3px_3px_0px_black] transition-all font-black border-2 border-on-surface whitespace-nowrap",
+                "ft-nav-dex-name absolute -bottom-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 text-xs uppercase tracking-[0.2em] shadow-[3px_3px_0px_black] transition-all font-black border-2 border-on-surface whitespace-nowrap",
                 isBaja ? "bg-baja-aqua text-white rounded-full font-display" :
                 isDiamond ? "bg-white text-black font-mono skew-x-0" :
                 isHeat ? "bg-heat-yellow text-heat-pink rounded-full font-display skew-x-0" :
@@ -192,7 +192,7 @@ export function BottomNav() {
               {dexPresentation.showHere && (
                 <span
                   data-dex-marker="here"
-                  className="ft-nav-dex-marker ft-nav-dex-marker--here absolute -bottom-7 left-1/2 -translate-x-1/2 z-[60] border-2 border-on-surface bg-brand-yellow px-2 py-0.5 font-mono text-[8px] font-black uppercase tracking-widest text-on-surface shadow-[2px_2px_0_black] whitespace-nowrap"
+                  className="ft-nav-dex-marker ft-nav-dex-marker--here absolute -bottom-7 left-1/2 -translate-x-1/2 z-[60] border-2 border-on-surface bg-brand-yellow px-2 py-0.5 font-mono text-xs font-black uppercase tracking-widest text-on-surface shadow-[2px_2px_0_black] whitespace-nowrap"
                 >
                   Here
                 </span>
@@ -229,10 +229,10 @@ export function BottomNav() {
               isActive
                 ? (isBaja ? "text-baja-pink scale-105" : isDiamond ? "text-white scale-105" : isHeat ? "text-white scale-105" : "text-on-surface")
                 : isLockedTab
-                  ? (isBaja ? "text-baja-pink/55" : isDiamond ? "text-white/45" : isHeat ? "text-white/55" : "text-on-surface/55")
+                  ? (isBaja ? "text-baja-pink/55" : isDiamond ? "text-white/60" : isHeat ? "text-white/55" : "text-on-surface/55")
                 : isHighlightedDestination
                   ? (isBaja ? "text-baja-pink" : isDiamond ? "text-white" : isHeat ? "text-white" : "text-on-surface")
-                : (isBaja ? "text-baja-pink/55 hover:text-baja-pink" : isDiamond ? "text-white/45 hover:text-white" : isHeat ? "text-white/55 hover:text-white" : "text-on-surface/60 hover:text-on-surface")
+                : (isBaja ? "text-baja-pink/55 hover:text-baja-pink" : isDiamond ? "text-white/60 hover:text-white" : isHeat ? "text-white/55 hover:text-white" : "text-on-surface/60 hover:text-on-surface")
             )}
           >
             {isActive && !isBaja && !isDiamond && !isHeat ? (
@@ -248,10 +248,10 @@ export function BottomNav() {
                 )}
               >
                 <item.icon className="w-5 h-5 sm:w-[22px] sm:h-[22px] mb-0.5 stroke-[4px]" />
-                <span className="font-display text-[10px] sm:text-[11px] uppercase tracking-tighter font-black italic leading-none truncate">
+                <span className="font-display text-xs sm:text-xs uppercase tracking-tighter font-black italic leading-none truncate">
                   {item.label}
                 </span>
-                <span className="mt-0.5 font-mono text-[7px] font-black uppercase tracking-widest opacity-70">Here</span>
+                <span className="mt-0.5 font-mono text-xs font-black uppercase tracking-widest opacity-70">Here</span>
               </div>
             ) : (
               <>
@@ -270,7 +270,7 @@ export function BottomNav() {
                   )}
                 </div>
                 <span className={cn(
-                  "font-mono text-[10px] sm:text-[11px] uppercase tracking-tighter font-bold transition-all flex items-center gap-0.5 leading-none",
+                  "font-mono text-xs sm:text-xs uppercase tracking-tighter font-bold transition-all flex items-center gap-0.5 leading-none",
                   isActive && (
                     isBaja ? "bg-baja-pink text-white px-2 py-0.5 rounded-full" :
                     isDiamond ? "bg-white text-black px-2 py-0.5" :
@@ -285,10 +285,10 @@ export function BottomNav() {
                   <span className="ft-nav-now-label">Now</span>
                 )}
                 {isLockedTab && (
-                  <span className="mt-0.5 font-mono text-[8px] font-black uppercase tracking-widest opacity-80">Locked</span>
+                  <span className="mt-0.5 font-mono text-xs font-black uppercase tracking-widest opacity-80">Locked</span>
                 )}
                 {isActive && (isBaja || isDiamond || isHeat) && (
-                  <span className="mt-0.5 font-mono text-[8px] font-black uppercase tracking-widest">Here</span>
+                  <span className="mt-0.5 font-mono text-xs font-black uppercase tracking-widest">Here</span>
                 )}
               </>
             )}

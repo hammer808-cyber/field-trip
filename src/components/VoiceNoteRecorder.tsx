@@ -119,7 +119,7 @@ export function VoiceNoteRecorder({ value, onChange, prompt, frankieMode }: Voic
 
   return (
     <div className="rounded-xl border-2 border-on-surface bg-[#FAF9F6] p-4">
-      <p className="font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/50">
+      <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">
         {frankieMode ? 'Or say it instead' : 'Voice note instead'}
       </p>
       {prompt && (
@@ -128,7 +128,7 @@ export function VoiceNoteRecorder({ value, onChange, prompt, frankieMode }: Voic
 
       {value && !recording ? (
         <div className="mt-3 space-y-2">
-          <div className="flex items-center gap-2 font-mono text-[10px] font-black uppercase tracking-widest text-brand-lime">
+          <div className="flex items-center gap-2 font-mono text-xs font-black uppercase tracking-widest text-brand-lime">
             <Play size={14} /> Voice note saved — {value.durationSec}s
           </div>
           {playbackUrl && (
@@ -168,7 +168,7 @@ export function VoiceNoteRecorder({ value, onChange, prompt, frankieMode }: Voic
         <p className="mt-2 font-sans text-xs font-bold text-red-600">{error}</p>
       )}
       {!value && !recording && !error && (
-        <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-on-surface/45">
+        <p className="mt-2 font-mono text-xs uppercase tracking-widest text-on-surface/60">
           At least {MIN_VOICE_NOTE_SECONDS} seconds — it counts as your field note.
         </p>
       )}

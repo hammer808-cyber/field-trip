@@ -28,7 +28,7 @@ export function ZineStickerPicker({
 
   if (unlockedStickers.length === 0) {
     return (
-      <div className="border-2 border-dashed border-on-surface/25 p-4 font-mono text-[9px] font-black uppercase text-on-surface/45">
+      <div className="border-2 border-dashed border-on-surface/25 p-4 font-mono text-xs font-black uppercase text-on-surface/60">
         No unlocked stickers are available yet.
       </div>
     );
@@ -37,8 +37,8 @@ export function ZineStickerPicker({
   return (
     <section className="sm:col-span-2 space-y-3" aria-label="Zine sticker picker">
       <div className="flex items-center justify-between gap-3">
-        <span className="font-mono text-[8px] font-black uppercase">Stickers</span>
-        <span className="font-mono text-[8px] font-black uppercase opacity-45">
+        <span className="font-mono text-xs font-black uppercase">Stickers</span>
+        <span className="font-mono text-xs font-black uppercase opacity-45">
           {placements.length} / {MAX_ZINE_PAGE_STICKERS} placed
         </span>
       </div>
@@ -61,7 +61,7 @@ export function ZineStickerPicker({
               title={isPlaced ? `${sticker.name} is already on this page` : `Add ${sticker.name}`}
             >
               <img src={sticker.imageUrl} alt="" className="h-12 w-12 object-contain" />
-              <span className="line-clamp-2 font-mono text-[7px] font-black uppercase leading-tight">
+              <span className="line-clamp-2 font-mono text-xs font-black uppercase leading-tight">
                 {isPlaced ? 'Placed' : sticker.name}
               </span>
             </button>
@@ -77,7 +77,7 @@ export function ZineStickerPicker({
             return (
               <div key={placement.stickerId} className="flex min-h-12 items-center gap-2 border border-on-surface/20 bg-white p-2">
                 <img src={sticker.imageUrl} alt="" className="h-9 w-9 shrink-0 object-contain" />
-                <span className="min-w-0 flex-1 truncate font-mono text-[8px] font-black uppercase">{sticker.name}</span>
+                <span className="min-w-0 flex-1 truncate font-mono text-xs font-black uppercase">{sticker.name}</span>
                 <button
                   type="button"
                   disabled={disabled}
