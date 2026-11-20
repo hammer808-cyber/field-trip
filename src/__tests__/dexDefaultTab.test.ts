@@ -59,3 +59,15 @@ test('P1-8: legacy aliases still fall back to decks, not a blank page', () => {
   // Any other unknown ?tab= value falls back to decks too.
   assert.match(source, /DEX_TABS\.includes\(rawInitialTab as CollectionTab\) \? \(rawInitialTab as CollectionTab\) : 'decks'/);
 });
+
+test('P1-8 regression guard: /dex/decks is a real route in App.tsx', () => {
+  // Coordinator follow-up, Nov 20: Collection.tsx navigates to /dex/decks
+  // on Decks-tab taps, but App.tsx had no such route — the path fell to the
+  // catch-all redirect to /. Decks was only reachable before because it was
+  // the default; with the default flipped to stickers the tab would be dead.
+  const app = read('src/App.tsx');
+  assert.match(
+    app,
+    /<Route path="\/dex\/decks" element=\{<StarterGate requiredFeature="memories"><Collection \/><\/StarterGate>\} \/>/
+  );
+});
