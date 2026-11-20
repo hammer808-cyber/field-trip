@@ -433,5 +433,8 @@ export default function VotingHubPage() {
 }
 
 function VotingLockedPanel({ approvedCount: _approvedCount }: { approvedCount: number }) {
-  return <GatedFeaturePanel featureName="Voting" />;
+  // P1-12 (Nov 20, 2026): Voting is parked behind its kill switch, not
+  // behind the starter — the bare panel's default reason ('starter') would
+  // wrongly blame the starter if this fallback is ever reached.
+  return <GatedFeaturePanel featureName="Voting" reason="coming_soon" />;
 }

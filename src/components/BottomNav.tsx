@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Trophy, Home, Target, LayoutGrid, Lock, Users, Vote, type LucideIcon } from 'lucide-react';
+import { Trophy, Home, Target, LayoutGrid, Lock, Users, Vote, X, type LucideIcon } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTheme } from '../context/ThemeContext';
 import { useApp } from '../context/AppContext';
@@ -17,6 +17,9 @@ export function BottomNav() {
 
   const [isNavActive, setIsNavActive] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // P1-1 (Nov 20, 2026): tapping a locked tab shows its reason inline
+  // instead of navigating to a lock panel. Cleared on navigation.
+  const [lockedNotice, setLockedNotice] = useState<{ label: string; reason: string } | null>(null);
 
   const triggerTimedActive = () => {
     setIsNavActive(true);
@@ -30,6 +33,7 @@ export function BottomNav() {
 
   useEffect(() => {
     triggerTimedActive();
+    setLockedNotice(null);
     window.scrollTo(0, 0);
     return () => {
       if (timeoutRef.current) {
@@ -88,13 +92,37 @@ export function BottomNav() {
   }> = [
     { icon: Home, label: 'BASECAMP', path: '/basecamp', locked: basecampLocked, lockedReason: 'Finish the three starter missions to unlock Basecamp.' },
     { icon: Target, label: 'MISSIONS', path: '/missions' },
-    { icon: LayoutGrid, label: 'DEX', path: '/dex', locked: !dexUnlocked },
-    { icon: Users, label: 'CREWS', path: '/crew', locked: !crewUnlocked },
-    { icon: Vote, label: 'VOTING', path: '/voting', locked: !votingUnlocked },
+    { icon: LayoutGrid, label: 'DEX', path: '/dex', locked: !dexUnlocked, lockedReason: 'Finish the three starter missions to unlock the Dex.' },
+    { icon: Users, label: 'CREWS', path: '/crew', locked: !crewUnlocked, lockedReason: 'Finish the three starter missions to unlock Crews.' },
+    { icon: Vote, label: 'VOTING', path: '/voting', locked: !votingUnlocked, lockedReason: 'Voting is coming soon. It is still in the works.' },
     { icon: Trophy, label: 'BIG BOARD', path: '/big-board' }
   ];
 
   return (
+    <>
+      {lockedNotice && (
+        <div
+          role="status"
+          data-testid="locked-nav-notice"
+          className="fixed bottom-[calc(88px+env(safe-area-inset-bottom,0px))] left-0 z-[95] w-full px-3 md:bottom-32 md:left-1/2 md:w-full md:max-w-xl md:-translate-x-1/2"
+        >
+          <div className="flex items-start gap-2 border-4 border-on-surface bg-brand-yellow px-3 py-2.5 shadow-[4px_4px_0px_black]">
+            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-on-surface" aria-hidden="true" />
+            <p className="min-w-0 flex-1 font-sans text-sm font-bold leading-snug text-on-surface">
+              <span className="font-mono text-xs font-black uppercase tracking-widest">{lockedNotice.label} is locked. </span>
+              {lockedNotice.reason}
+            </p>
+            <button
+              type="button"
+              onClick={() => setLockedNotice(null)}
+              aria-label="Dismiss locked message"
+              className="flex h-8 w-8 shrink-0 items-center justify-center text-on-surface"
+            >
+              <X className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      )}
     <nav
       onTouchStart={handleInteraction}
       onMouseDown={handleInteraction}
@@ -211,30 +239,26 @@ export function BottomNav() {
 
         const navState = isLockedTab ? 'locked' : isActive ? 'current' : isHighlightedDestination ? 'attention' : 'normal';
 
-        return (
-          <Link
-            key={item.path}
-            to={item.path}
-            data-onboarding={dataOnboarding}
-            data-nav-item={itemPathname}
-            data-active={isActive ? 'true' : 'false'}
-            data-nav-locked={isLockedTab ? 'true' : 'false'}
-            data-nav-state={navState}
-            aria-current={isActive ? 'page' : undefined}
-            aria-label={isLockedTab ? (item.lockedReason ? `${item.label}, locked. ${item.lockedReason}` : `${item.label}, locked`) : isHighlightedDestination ? `${item.label}, go here next` : isActive ? `${item.label}, you are here` : item.label}
-            title={isLockedTab && item.lockedReason ? item.lockedReason : undefined}
-            data-nav-attention={isHighlightedDestination ? 'true' : 'false'}
-            className={cn(
-              "flex flex-col items-center justify-center flex-1 h-full py-1 relative select-none min-h-11",
-              isActive
-                ? (isBaja ? "text-baja-pink scale-105" : isDiamond ? "text-white scale-105" : isHeat ? "text-white scale-105" : "text-on-surface")
-                : isLockedTab
-                  ? (isBaja ? "text-baja-pink/55" : isDiamond ? "text-white/60" : isHeat ? "text-white/55" : "text-on-surface/55")
-                : isHighlightedDestination
-                  ? (isBaja ? "text-baja-pink" : isDiamond ? "text-white" : isHeat ? "text-white" : "text-on-surface")
-                : (isBaja ? "text-baja-pink/55 hover:text-baja-pink" : isDiamond ? "text-white/60 hover:text-white" : isHeat ? "text-white/55 hover:text-white" : "text-on-surface/60 hover:text-on-surface")
-            )}
-          >
+        // BIG BOARD carries no `lockedReason` on the item — its lock comes
+        // from `leaderboardUnlocked` (Nov 17 key split), so resolve it here.
+        const lockedReason = item.lockedReason
+          ?? (itemPathname === '/big-board'
+            ? 'Finish the three starter missions to unlock the Big Board.'
+            : undefined);
+
+        const tabClassName = cn(
+          "flex flex-col items-center justify-center flex-1 h-full py-1 relative select-none min-h-11",
+          isActive
+            ? (isBaja ? "text-baja-pink scale-105" : isDiamond ? "text-white scale-105" : isHeat ? "text-white scale-105" : "text-on-surface")
+            : isLockedTab
+              ? (isBaja ? "text-baja-pink/55" : isDiamond ? "text-white/60" : isHeat ? "text-white/55" : "text-on-surface/55")
+            : isHighlightedDestination
+              ? (isBaja ? "text-baja-pink" : isDiamond ? "text-white" : isHeat ? "text-white" : "text-on-surface")
+            : (isBaja ? "text-baja-pink/55 hover:text-baja-pink" : isDiamond ? "text-white/60 hover:text-white" : isHeat ? "text-white/55 hover:text-white" : "text-on-surface/60 hover:text-on-surface")
+        );
+
+        const tabInner = (
+          <>
             {isActive && !isBaja && !isDiamond && !isHeat ? (
               <div
                 className={cn(
@@ -292,9 +316,58 @@ export function BottomNav() {
                 )}
               </>
             )}
+          </>
+        );
+
+        // P1-1: a locked tab is a button, not a link — tapping it shows the
+        // reason inline (lockedNotice) and never navigates. Admins never
+        // reach this branch: every lock above passes { isAdmin }.
+        if (isLockedTab && lockedReason) {
+          return (
+            <button
+              type="button"
+              key={item.path}
+              data-onboarding={dataOnboarding}
+              data-nav-item={itemPathname}
+              data-active={isActive ? 'true' : 'false'}
+              data-nav-locked="true"
+              data-nav-state="locked"
+              aria-current={isActive ? 'page' : undefined}
+              aria-disabled="true"
+              aria-label={`${item.label}, locked. ${lockedReason}`}
+              title={lockedReason}
+              onClick={() =>
+                setLockedNotice((current) =>
+                  current?.label === item.label ? null : { label: item.label, reason: lockedReason },
+                )
+              }
+              className={tabClassName}
+            >
+              {tabInner}
+            </button>
+          );
+        }
+
+        return (
+          <Link
+            key={item.path}
+            to={item.path}
+            data-onboarding={dataOnboarding}
+            data-nav-item={itemPathname}
+            data-active={isActive ? 'true' : 'false'}
+            data-nav-locked={isLockedTab ? 'true' : 'false'}
+            data-nav-state={navState}
+            aria-current={isActive ? 'page' : undefined}
+            aria-label={isLockedTab ? (lockedReason ? `${item.label}, locked. ${lockedReason}` : `${item.label}, locked`) : isHighlightedDestination ? `${item.label}, go here next` : isActive ? `${item.label}, you are here` : item.label}
+            title={isLockedTab && lockedReason ? lockedReason : undefined}
+            data-nav-attention={isHighlightedDestination ? 'true' : 'false'}
+            className={tabClassName}
+          >
+            {tabInner}
           </Link>
         );
       })}
     </nav>
+    </>
   );
 }

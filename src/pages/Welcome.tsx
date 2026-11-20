@@ -288,7 +288,7 @@ export default function WelcomePage() {
                         { step: "02", title: "GET A PHOTO MISSION", text: "Draw a mission card and see what to photograph." },
                         { step: "03", title: "TAKE PHOTO", text: "Capture one clear photo and add a short note." },
                         { step: "04", title: "SEND IT IN", text: "Submit your proof. Approval unlocks more of the game." },
-                        { step: "05", title: "KEEP PLAYING", text: "Collect receipts, vote, and climb the board with your crew." }
+                        { step: "05", title: "KEEP PLAYING", text: "Collect receipts, earn stickers, and climb the board with your crew." }
                       ].map((item, idx) => (
                         <div key={idx} className="flex gap-4 items-start p-3 bg-white border-2 border-on-surface/10 rounded-lg hover:border-brand-orange/40 transition-colors">
                           <span className="font-sans font-black text-xs px-2 py-0.5 bg-brand-orange text-white rounded-sm">{item.step}</span>
