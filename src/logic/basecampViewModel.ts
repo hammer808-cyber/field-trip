@@ -8,6 +8,7 @@ import {
   getDeckProgress,
   getStarterProgress,
   getUserXp,
+  VOTING_ENABLED,
 } from '../services/canonicalProgress';
 import { getLevelProgress } from './playerLevel';
 import { isArchivedEntry, normalizeEntryStatus } from './entryLogic';
@@ -19,6 +20,8 @@ import {
   proofReviewDecisionCopy,
   proofSubmittedCopy,
   stickerAwardedCopy,
+  votingOpenCopy,
+  weeklyWinnerCopy,
   type PlayerNotification,
 } from './playerNotifications';
 import {
@@ -125,7 +128,7 @@ export interface BasecampQuickLink {
   href: string;
 }
 
-export type BasecampNotificationKind = 'decision' | 'sticker' | 'submission' | 'power_hour' | 'crew';
+export type BasecampNotificationKind = 'decision' | 'sticker' | 'submission' | 'power_hour' | 'crew' | 'voting';
 
 /**
  * One row of the Basecamp Notifications section (Nov 17, 2026): the full
@@ -480,6 +483,37 @@ function buildNotifications(input: BuildBasecampViewModelInput): BasecampNotific
           href: '/crew',
         }];
       }
+      // Weekly voting (Slice 3, Nov 21, 2026): the voting-open
+      // announcement taps through to the ballot; a win taps through
+      // to the Awards page where the win is shown.
+      if (notification.type === 'voting_open') {
+        const copy = votingOpenCopy();
+        return [{
+          id: `notification-${notification.id}`,
+          notificationId: notification.id,
+          kind: 'voting' as const,
+          title: copy.title,
+          detail: copy.detail,
+          timestamp,
+          timeLabel,
+          unread,
+          href: '/voting',
+        }];
+      }
+      if (notification.type === 'weekly_winner') {
+        const copy = weeklyWinnerCopy(notification);
+        return [{
+          id: `notification-${notification.id}`,
+          notificationId: notification.id,
+          kind: 'voting' as const,
+          title: copy.title,
+          detail: copy.detail,
+          timestamp,
+          timeLabel,
+          unread,
+          href: '/voting/awards',
+        }];
+      }
       const copy = proofReviewDecisionCopy(notification);
       return [{
         id: `notification-${notification.id}`,
@@ -595,7 +629,13 @@ export function buildBasecampViewModel(input: BuildBasecampViewModelInput): Base
       href: '/voting',
     },
   ];
-  const quickLinks = allQuickLinks.filter(link => !panelDestinations.has(link.href));
+  // Voting is parked behind VOTING_ENABLED (Slice 3, Nov 21, 2026):
+  // while the flag is off the Voting card must not render as a live
+  // link to the coming-soon panel — it is dropped outright, the same
+  // way the BottomNav voting tab is hidden while parked. After the
+  // flag flip it routes to /voting.
+  const gatedQuickLinks = allQuickLinks.filter(link => link.id !== 'voting' || VOTING_ENABLED);
+  const quickLinks = gatedQuickLinks.filter(link => !panelDestinations.has(link.href));
 
   return {
     nextAction,

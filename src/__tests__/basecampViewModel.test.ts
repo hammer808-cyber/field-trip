@@ -161,7 +161,10 @@ test('a Quick Link that duplicates the next action is dropped, not repeated', ()
   assert.equal(preStarter.nextAction.guidanceState, 'DRAW_STARTER_MISSION');
   assert.equal(preStarter.quickLinks.some(link => link.id === 'missions'), false);
   assert.equal(preStarter.quickLinks.some(link => link.id === 'logbook'), true);
-  assert.equal(preStarter.quickLinks.some(link => link.id === 'voting'), true);
+  // Slice 3 (Nov 21, 2026): VOTING_ENABLED is false, so the Voting
+  // quick link is dropped outright — while parked it must not render
+  // as a live link to the coming-soon panel.
+  assert.equal(preStarter.quickLinks.some(link => link.id === 'voting'), false);
   const postStarter = buildBasecampViewModel(input({ entries: starterApprovals() }));
   assert.equal(postStarter.nextAction.guidanceState, 'DECK_COMPLETE');
   assert.equal(postStarter.quickLinks.some(link => link.id === 'missions'), false);

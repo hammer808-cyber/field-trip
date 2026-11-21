@@ -36,7 +36,11 @@
  * announced when the app opens inside the Afternoon Power Hour window),
  * crew_comment (a comment on your crew photo), crew_chat_mention (an
  * @-mention in the crew chat), and crew_member_joined (a new member joined
- * your crew). Notifications is the single home for all of them; Updates no
+ * your crew). Two voting types joined in Slice 3 (Nov 21, 2026): voting_open
+ * (ballots are open for the week, fanned out once per cycle by
+ * POST /api/voting/weekly/notify-open-if-due) and weekly_winner (you won
+ * an award, written by runCanonicalWeeklyFinalize — one doc per award
+ * won). Notifications is the single home for all of them; Updates no
  * longer renders notification rows.
  */
 
@@ -131,7 +135,51 @@ export type PlayerNotification =
   | PowerHourLiveNotification
   | CrewCommentNotification
   | CrewChatMentionNotification
-  | CrewMemberJoinedNotification;
+  | CrewMemberJoinedNotification
+  | VotingOpenNotification
+  | WeeklyWinnerNotification;
+
+/**
+ * A weekly-voting-open announcement (Slice 3, Nov 21, 2026). Written
+ * server-side by POST /api/voting/weekly/notify-open-if-due, fanned out
+ * once per cycle to every player with a profile. One doc per player per
+ * cycle (deterministic id `voting_open_{cycleId}`), so a second trigger
+ * in the same window writes nothing new.
+ */
+export interface VotingOpenNotification {
+  id: string;
+  type: 'voting_open';
+  cycleId: string;
+  seasonId: string;
+  read: boolean;
+  /** Milliseconds since epoch. */
+  createdAt: number;
+}
+
+/**
+ * A weekly-award win (Slice 3, Nov 21, 2026). Written server-side by
+ * runCanonicalWeeklyFinalize, after the winners are determined — one
+ * doc per award won (deterministic id
+ * `weekly_winner_{cycleId}_{ballotId}`), so a player winning two
+ * category ballots gets two rows and a re-finalize writes none.
+ * `awardLabel` is denormalized at write time (see
+ * src/logic/weeklyNotifications.ts) so the row names the award without
+ * a lookup; `missionTitle` is the winning photo's mission.
+ */
+export interface WeeklyWinnerNotification {
+  id: string;
+  type: 'weekly_winner';
+  cycleId: string;
+  ballotId: string;
+  category: string | null;
+  awardLabel: string;
+  entryId: string;
+  missionTitle: string;
+  xpAwarded: number;
+  read: boolean;
+  /** Milliseconds since epoch. */
+  createdAt: number;
+}
 
 /**
  * A comment on your crew feed photo (Nov 20, 2026 — crew clubhouse).
@@ -340,5 +388,38 @@ export function crewMemberJoinedCopy(notification: {
   return {
     title: `${member} joined ${crew}`,
     detail: 'Say hi in the crew chat.',
+  };
+}
+
+/**
+ * The Notifications-section copy for a weekly-voting-open announcement
+ * (Slice 3). The window is Saturday only, so the detail names the
+ * close — a player opening Basecamp on Sunday should not be sent to a
+ * ballot that already closed.
+ */
+export function votingOpenCopy(): { title: string; detail: string } {
+  return {
+    title: 'Weekly voting is open',
+    detail: 'Ballots are open — cast your votes before the ballot closes Saturday night.',
+  };
+}
+
+/**
+ * The Notifications-section copy for a weekly-award win (Slice 3).
+ * The award is the headline (it is what the player won); the detail
+ * carries the winning photo's mission and the winner XP, like the
+ * proof-decision rows carry theirs.
+ */
+export function weeklyWinnerCopy(notification: {
+  awardLabel: string;
+  missionTitle: string;
+  xpAwarded: number;
+}): { title: string; detail: string } {
+  const award = String(notification.awardLabel || '').trim() || 'Weekly award';
+  const mission = String(notification.missionTitle || '').trim();
+  const xp = Number(notification.xpAwarded || 0);
+  return {
+    title: `You won ${award}`,
+    detail: mission ? `${mission} · +${xp} XP` : `+${xp} XP`,
   };
 }

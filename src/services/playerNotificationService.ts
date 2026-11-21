@@ -21,8 +21,10 @@ import type { PlayerNotification, ProofReviewDecision } from '../logic/playerNot
  *
  * Two more types joined in the Nov 17, 2026 Notifications split:
  * 'proof_submitted' (POST /api/entries/:id/notify-submitted) and
- * 'power_hour_live' (POST /api/notifications/power-hour-live). All four
- * map here; anything unrecognized still falls back to the decision shape.
+ * 'power_hour_live' (POST /api/notifications/power-hour-live). Two
+ * voting types joined in Slice 3 (Nov 21, 2026): 'voting_open'
+ * (once-per-cycle fan-out) and 'weekly_winner' (finalize). All map
+ * here; anything unrecognized still falls back to the decision shape.
  *
  * A plain single-field orderBy on the owner's subcollection — no composite
  * index needed. The rules allow the owner (or an admin) to read; clients
@@ -162,6 +164,35 @@ export function subscribeToPlayerNotifications(
               crewName: String(data.crewName || 'your crew'),
               memberId: String(data.memberId || ''),
               memberName: String(data.memberName || 'Someone'),
+              read: data.read === true,
+              createdAt: toMillis(data.createdAt),
+            } as PlayerNotification;
+          }
+          // Weekly voting (Slice 3, Nov 21, 2026): the once-per-cycle
+          // voting-open announcement, and a win from finalize. Both
+          // need explicit branches — the fallthrough below would map
+          // them to a bogus proof-review decision row.
+          if (data.type === 'voting_open') {
+            return {
+              id: docSnap.id,
+              type: 'voting_open',
+              cycleId: String(data.cycleId || ''),
+              seasonId: String(data.seasonId || ''),
+              read: data.read === true,
+              createdAt: toMillis(data.createdAt),
+            } as PlayerNotification;
+          }
+          if (data.type === 'weekly_winner') {
+            return {
+              id: docSnap.id,
+              type: 'weekly_winner',
+              cycleId: String(data.cycleId || ''),
+              ballotId: String(data.ballotId || ''),
+              category: data.category ? String(data.category) : null,
+              awardLabel: String(data.awardLabel || 'Weekly award'),
+              entryId: String(data.entryId || ''),
+              missionTitle: String(data.missionTitle || 'Field proof'),
+              xpAwarded: Number(data.xpAwarded || 0),
               read: data.read === true,
               createdAt: toMillis(data.createdAt),
             } as PlayerNotification;

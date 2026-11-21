@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileCheck2, Send, Sparkles, Users, Zap } from 'lucide-react';
+import { FileCheck2, Send, Sparkles, Users, Vote, Zap } from 'lucide-react';
 import type { BasecampNotificationItem, BasecampNotificationKind } from '../../logic/basecampViewModel';
 import { cn } from '../../lib/utils';
 
@@ -14,6 +14,7 @@ const notificationIcons: Record<BasecampNotificationKind, typeof FileCheck2> = {
   submission: Send,
   power_hour: Zap,
   crew: Users,
+  voting: Vote,
 };
 
 /**
@@ -28,6 +29,7 @@ export const notificationTileColors: Record<BasecampNotificationKind, string> = 
   submission: 'bg-brand-orange text-on-surface',
   power_hour: 'bg-heat-yellow text-on-surface',
   crew: 'bg-brand-purple text-white',
+  voting: 'bg-brand-magenta text-white',
 };
 
 /** How many rows show before the Show more button (Nov 20, 2026, Zach's
@@ -68,7 +70,7 @@ export function BasecampNotifications({ items, onOpen }: BasecampNotificationsPr
         <div className="mt-5 border-t-2 border-[var(--skin-border)] pt-4">
           <p className="text-sm font-bold text-[var(--skin-text)]">No notifications yet.</p>
           <p className="mt-1 text-xs leading-relaxed text-[var(--skin-text-muted)]">
-            Proof submissions and decisions, sticker awards, and Power Hour notices will show up here — tap one to open it.
+            Proof submissions and decisions, sticker awards, Power Hour notices, and weekly voting notices will show up here — tap one to open it.
           </p>
         </div>
       ) : (

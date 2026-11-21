@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { FileCheck2, Send, Sparkles, Users, X, Zap } from 'lucide-react';
+import { FileCheck2, Send, Sparkles, Users, Vote, X, Zap } from 'lucide-react';
 import type { BasecampNotificationItem, BasecampNotificationKind } from '../../logic/basecampViewModel';
 import { cn } from '../../lib/utils';
 import { notificationTileColors } from './BasecampNotifications';
@@ -17,6 +17,7 @@ const notificationIcons: Record<BasecampNotificationKind, typeof FileCheck2> = {
   submission: Send,
   power_hour: Zap,
   crew: Users,
+  voting: Vote,
 };
 
 const notificationKindLabels: Record<BasecampNotificationKind, string> = {
@@ -25,6 +26,7 @@ const notificationKindLabels: Record<BasecampNotificationKind, string> = {
   submission: 'Proof submitted',
   power_hour: 'Power Hour',
   crew: 'Crew',
+  voting: 'Weekly voting',
 };
 
 /**
