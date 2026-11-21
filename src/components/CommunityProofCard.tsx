@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { FieldCard, FieldTape } from './UI';
-import { ExternalLink, Flame, ShieldAlert, X, CheckCircle2, ImageOff, Users, Vote } from 'lucide-react';
+import { ExternalLink, Flame, MessageSquare, ShieldAlert, X, CheckCircle2, ImageOff, Users, Vote } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { ProofImage } from './ProofImage';
+import { CommunityReceiptComments } from './CommunityReceiptComments';
 import { AvatarPreview } from './AvatarPreview';
 import { checkIfLiked, toggleLikeEntry } from '../services/proofService';
 import { getSusReportStatus, submitSusReport } from '../services/moderationService';
@@ -258,6 +259,19 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
               event.stopPropagation();
               setDetailOpen(true);
             }}
+            className="flex w-full items-center justify-center gap-2 font-mono text-xs font-black uppercase tracking-widest text-on-surface/60 hover:text-on-surface"
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            {Number(proof.commentCount || 0) === 0
+              ? 'Be the first to comment'
+              : `${Number(proof.commentCount || 0)} comment${Number(proof.commentCount || 0) === 1 ? '' : 's'}`}
+          </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setDetailOpen(true);
+            }}
             className="min-h-11 w-full flex items-center justify-center gap-2 border-2 border-on-surface bg-on-surface text-white font-mono text-xs font-black uppercase tracking-widest shadow-[2px_2px_0px_var(--color-brand-orange)] focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan"
           >
             <ExternalLink className="w-3.5 h-3.5" /> Open receipt
@@ -344,6 +358,7 @@ function ReceiptDetailModal({
               {susButtonLabel}
             </button>
           </div>
+          <CommunityReceiptComments entryId={proof.id} />
         </div>
       </motion.div>
     </motion.div>

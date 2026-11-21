@@ -13,6 +13,7 @@ import {
 import { getLevelProgress } from './playerLevel';
 import { isArchivedEntry, normalizeEntryStatus } from './entryLogic';
 import {
+  communityCommentCopy,
   crewChatMentionCopy,
   crewCommentCopy,
   crewMemberJoinedCopy,
@@ -453,6 +454,23 @@ function buildNotifications(input: BuildBasecampViewModelInput): BasecampNotific
           timeLabel,
           unread,
           href: '/crew?tab=feed',
+        }];
+      }
+      // Community feed (Nov 21, 2026, Option C): a comment on your
+      // community receipt. Same social kind as a crew comment; taps
+      // through to the community feed.
+      if (notification.type === 'community_comment') {
+        const copy = communityCommentCopy(notification);
+        return [{
+          id: `notification-${notification.id}`,
+          notificationId: notification.id,
+          kind: 'crew' as const,
+          title: copy.title,
+          detail: copy.detail,
+          timestamp,
+          timeLabel,
+          unread,
+          href: '/dex/memories/community',
         }];
       }
       if (notification.type === 'crew_chat_mention') {

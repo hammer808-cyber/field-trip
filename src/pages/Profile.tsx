@@ -638,7 +638,7 @@ export default function ProfilePage() {
                         <div className="space-y-3">
                            <fieldset className="space-y-2">
                               <legend className="font-display text-lg font-black uppercase">Who can see my receipts?</legend>
-                              <p className="text-xs opacity-55">The feed defaults to your Crew. Public discovery is reserved for a deliberate future discovery surface.</p>
+                              <p className="text-xs opacity-55">The feed defaults to your Crew. Public discovery puts your approved receipts in front of every player, and flips your past receipts public too.</p>
                               {[
                                  ['crew_only', 'Crew only'],
                                  ['followers_only', 'People I add'],
@@ -646,7 +646,7 @@ export default function ProfilePage() {
                                  ['private', 'Private'],
                               ].map(([value, label]) => {
                                  const selected = (profile?.preferences?.feedVisibility || (profile?.preferences?.privateApprovedPhotos ? 'private' : 'crew_only')) === value;
-                                 const available = value === 'crew_only' || value === 'private';
+                                 const available = value !== 'followers_only';
                                  return <button key={value} type="button" disabled={!available} onClick={async () => {
                                     await updateFeedPrivacy(value as 'crew_only' | 'followers_only' | 'public_discovery' | 'private');
                                  }} className={cn("w-full p-3 flex items-center justify-between font-mono text-xs uppercase font-black tracking-wider rounded-xl border-2 text-left disabled:opacity-40", selected ? "bg-brand-lime text-on-surface border-on-surface shadow-[2px_2px_0px_black]" : "bg-white text-on-surface/60 border-on-surface")}>

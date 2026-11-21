@@ -2894,7 +2894,7 @@ async function startServer() {
     res.json({ success: true, feedVisibility: visibility, updatedEntries: entriesSnap.size });
   });
 
-  async function canViewerAccessSocialEntry(viewerId: string, entry: any, interaction?: 'hype' | 'sus'): Promise<boolean> {
+  async function canViewerAccessSocialEntry(viewerId: string, entry: any, interaction?: 'hype' | 'sus' | 'comment'): Promise<boolean> {
     const ownerId = getCommunityFeedOwnerId(entry);
     if (!ownerId || !isCommunityFeedEligible(entry)) return false;
     if (ownerId === viewerId) return true;
@@ -2913,6 +2913,12 @@ async function startServer() {
       ? 'private'
       : owner.preferences?.feedVisibility || owner.feedVisibility || 'crew_only';
     if (visibility === 'private') return false;
+    // Community social (Nov 21, 2026, Option C): public discovery is a
+    // real audience, not just a read flag. A stranger may hype, report,
+    // or comment on a photo that is public by the photo itself or by
+    // the owner's profile. Anything else still needs the same crew.
+    const entryFeedVisibility = getBackendString(entry.feedVisibility);
+    if (entryFeedVisibility === 'public_discovery' || visibility === 'public_discovery') return true;
     const viewerCrewId = getBackendString(viewer.activeCrewId || viewer.crewId);
     const entryCrewId = getBackendString(entry.crewId || entry.activeCrewId || entry.crewContext?.crewId);
     if (!viewerCrewId || viewerCrewId !== entryCrewId) return false;
@@ -6790,6 +6796,80 @@ async function startServer() {
     } catch (error: any) {
       console.error("[CREW_FEED_COMMENT] Failed:", error);
       res.status(500).json({ error: "CREW_FEED_COMMENT_FAILED", message: error.message || String(error) });
+    }
+  });
+
+  // Community feed comments (Nov 21, 2026 — Option C). Same shape as the
+  // crew endpoint, minus the crew: the gate is the shared social-scope
+  // check (public discovery or same crew), and the comment count on the
+  // entry is maintained here so the card renders it with no extra query.
+  // Deletes go through the server (unlike crew deletes, which are direct
+  // client writes) so the count stays exact with a single writer.
+  app.post("/api/community/comments", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const uid = req.user.uid;
+    const entryId = String(req.body?.entryId || '').trim();
+    const check = validateCrewCommentText(req.body?.text);
+    if (!entryId) return res.status(400).json({ error: "MISSING_ENTRY" });
+    if (!check.ok) return res.status(400).json({ error: check.code === 'EMPTY' ? "COMMENT_EMPTY" : "COMMENT_TOO_LONG" });
+    try {
+      const entrySnap = await dbAdmin.collection('entries').doc(entryId).get();
+      if (!entrySnap.exists) return res.status(404).json({ error: "ENTRY_NOT_FOUND" });
+      const entry = { id: entrySnap.id, ...entrySnap.data() };
+      if (!(await canViewerAccessSocialEntry(uid, entry, 'comment'))) return res.status(403).json({ error: "ENTRY_OUTSIDE_SOCIAL_SCOPE" });
+      const authorSnap = await dbAdmin.collection('users').doc(uid).get();
+      const authorName = displayNameFromProfile(authorSnap.data() || {}, uid);
+      const ownerId = String((entry as any).userId || (entry as any).uid || '');
+      const commentRef = dbAdmin.collection('communityFeedComments').doc();
+      await dbAdmin.runTransaction(async (tx) => {
+        tx.set(commentRef, {
+          entryId, authorId: uid, authorName, text: check.text,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+        tx.update(entrySnap.ref, { commentCount: FieldValue.increment(1) });
+      });
+      // Notify the photo's owner (not yourself) — best effort.
+      if (ownerId && ownerId !== uid) {
+        await writeCrewPlayerNotification(ownerId, {
+          type: 'community_comment', entryId,
+          missionTitle: String((entry as any).challengeTitle || (entry as any).missionTitle || (entry as any).tripTitle || 'your receipt'),
+          actorId: uid, actorName: authorName, preview: crewSocialPreview(check.text),
+        }).catch((err) => console.error('[COMMUNITY_COMMENT] notify failed:', err));
+      }
+      res.json({ success: true, comment: { id: commentRef.id, entryId, authorId: uid, authorName, text: check.text } });
+    } catch (error: any) {
+      console.error("[COMMUNITY_COMMENT] Failed:", error);
+      res.status(500).json({ error: "COMMUNITY_COMMENT_FAILED", message: error.message || String(error) });
+    }
+  });
+
+  app.delete("/api/community/comments/:commentId", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const uid = req.user.uid;
+    const commentId = String(req.params?.commentId || '').trim();
+    if (!commentId) return res.status(400).json({ error: "MISSING_COMMENT" });
+    try {
+      const commentSnap = await dbAdmin.collection('communityFeedComments').doc(commentId).get();
+      if (!commentSnap.exists) return res.status(404).json({ error: "COMMENT_NOT_FOUND" });
+      const comment = commentSnap.data() || {};
+      const isAdminUser = await checkIsAdmin(req.user);
+      if (String(comment.authorId || '') !== uid && !isAdminUser) return res.status(403).json({ error: "COMMENT_DELETE_FORBIDDEN" });
+      const entryId = String(comment.entryId || '');
+      await dbAdmin.runTransaction(async (tx) => {
+        tx.delete(commentSnap.ref);
+        if (entryId) {
+          const entryRef = dbAdmin!.collection('entries').doc(entryId);
+          const entrySnap = await tx.get(entryRef);
+          if (entrySnap.exists) {
+            const current = Number((entrySnap.data() as any)?.commentCount || 0);
+            tx.update(entryRef, { commentCount: Math.max(0, current - 1) });
+          }
+        }
+      });
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("[COMMUNITY_COMMENT_DELETE] Failed:", error);
+      res.status(500).json({ error: "COMMUNITY_COMMENT_DELETE_FAILED", message: error.message || String(error) });
     }
   });
 

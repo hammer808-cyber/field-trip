@@ -978,6 +978,7 @@ export default function BigBoardPage() {
         infoCardAccent="lime"
         tabs={[
           { id: "standings", label: "Live Board" },
+          { id: "proofs", label: "Community Feed" },
           { id: "results", label: "Results" },
           { id: "pulse", label: "Field Conditions" },
         ]}

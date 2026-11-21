@@ -134,6 +134,7 @@ export type PlayerNotification =
   | ProofSubmittedNotification
   | PowerHourLiveNotification
   | CrewCommentNotification
+  | CommunityCommentNotification
   | CrewChatMentionNotification
   | CrewMemberJoinedNotification
   | VotingOpenNotification
@@ -191,6 +192,26 @@ export interface CrewCommentNotification {
   id: string;
   type: 'crew_comment';
   crewId: string;
+  entryId: string;
+  missionTitle: string;
+  actorId: string;
+  actorName: string;
+  /** First 120 chars of the comment, so the row reads without a tap. */
+  preview: string;
+  read: boolean;
+  /** Milliseconds since epoch. */
+  createdAt: number;
+}
+
+/**
+ * A comment on your community feed photo (Nov 21, 2026 — Option C).
+ * Written server-side by POST /api/community/comments, in the same call
+ * as the comment itself. One doc per comment (no dedupe id — a photo can
+ * collect many comments).
+ */
+export interface CommunityCommentNotification {
+  id: string;
+  type: 'community_comment';
   entryId: string;
   missionTitle: string;
   actorId: string;
@@ -354,6 +375,25 @@ export function crewCommentCopy(notification: {
 }): { title: string; detail: string } {
   const actor = String(notification.actorName || 'A crewmate').trim() || 'A crewmate';
   const title = String(notification.missionTitle || 'your crew photo').trim() || 'your crew photo';
+  const preview = String(notification.preview || '').trim();
+  return {
+    title: `${actor} commented on ${title}`,
+    detail: preview || 'View the comment.',
+  };
+}
+
+/**
+ * The Notifications-section copy for a comment on your community photo.
+ * Same shape as the crew copy; the actor is the headline and the preview
+ * is the comment itself, so the row reads without a tap.
+ */
+export function communityCommentCopy(notification: {
+  actorName: string;
+  missionTitle: string;
+  preview: string;
+}): { title: string; detail: string } {
+  const actor = String(notification.actorName || 'A player').trim() || 'A player';
+  const title = String(notification.missionTitle || 'your receipt').trim() || 'your receipt';
   const preview = String(notification.preview || '').trim();
   return {
     title: `${actor} commented on ${title}`,

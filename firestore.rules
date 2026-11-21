@@ -149,6 +149,16 @@ service cloud.firestore {
         )
       );
     }
+    function canReadCommunityComment(data) {
+      // A community comment is readable exactly when its receipt is:
+      // the entry doc decides, so a comment can never leak a photo the
+      // viewer cannot see. The exists() guard keeps a missing entry
+      // from erroring the get().
+      let entryId = data.get('entryId', '');
+      return entryId is string && entryId.size() > 0 &&
+             exists(/databases/$(database)/documents/entries/$(entryId)) &&
+             canReadSocialEntry(get(/databases/$(database)/documents/entries/$(entryId)).data);
+    }
     function canReadCrewArchive(data) {
       return isAdmin() ||
              isActiveCrewMemberOf(data.get('crewId', '')) ||
@@ -1122,6 +1132,18 @@ service cloud.firestore {
       allow read: if isApproved() && (isAdmin() || isActiveCrewMemberOf(resource.data.get('crewId', '')));
       allow create, update: if false;
       allow delete: if isSignedIn() && (resource.data.get('authorId', '') == request.auth.uid || isCrewCaptainOf(resource.data.get('crewId', '')));
+    }
+
+    // COMMUNITY FEED COMMENTS (Nov 21, 2026 — Option C). Writes are
+    // server-only (Admin SDK bypasses rules) so the server can keep
+    // the entry's commentCount exact and fan the owner's notification
+    // out in the same call; deletes go through the server too, for
+    // the same count reason. Clients read comments only on receipts
+    // they can already see. No edits: a wrong comment is deleted and
+    // re-posted.
+    match /communityFeedComments/{commentId} {
+      allow read: if isApproved() && canReadCommunityComment(resource.data);
+      allow create, update, delete: if false;
     }
 
     match /crews/{crewId}/messages/{messageId} {

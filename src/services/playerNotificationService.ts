@@ -143,6 +143,21 @@ export function subscribeToPlayerNotifications(
               createdAt: toMillis(data.createdAt),
             } as PlayerNotification;
           }
+          // Community feed (Nov 21, 2026, Option C): a comment on your
+          // community receipt. Same shape as a crew comment, no crew.
+          if (data.type === 'community_comment') {
+            return {
+              id: docSnap.id,
+              type: 'community_comment',
+              entryId: String(data.entryId || ''),
+              missionTitle: String(data.missionTitle || 'your receipt'),
+              actorId: String(data.actorId || ''),
+              actorName: String(data.actorName || 'A player'),
+              preview: String(data.preview || ''),
+              read: data.read === true,
+              createdAt: toMillis(data.createdAt),
+            } as PlayerNotification;
+          }
           if (data.type === 'crew_chat_mention') {
             return {
               id: docSnap.id,
