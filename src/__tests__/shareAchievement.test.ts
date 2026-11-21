@@ -129,7 +129,7 @@ test('share: index.html carries description + OG + Twitter tags', () => {
   assert.ok(html.includes('property="og:url" content="https://field-trip-hn2e.onrender.com/"'), 'no og:url');
   assert.ok(html.includes('name="twitter:card" content="summary_large_image"'), 'no twitter card');
   assert.ok(html.includes('name="twitter:image"'), 'no twitter:image');
-  assert.ok(html.includes('<title>Fieldtrip — Go outside. Do the thing.</title>'), 'title not enriched');
+  assert.ok(html.includes('<title>Fieldtrip — Grab your people. Get the proof. Turn today into a field trip.</title>'), 'title not enriched');
 });
 
 test('share: the OG image exists and is a real JPEG', () => {

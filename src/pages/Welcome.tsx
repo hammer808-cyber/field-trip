@@ -204,11 +204,11 @@ export default function WelcomePage() {
               </h1>
 
               <p className="skin-welcome-tagline mt-5 max-w-[660px] font-display text-[clamp(2rem,8vw,5.5rem)] font-black italic uppercase leading-[0.9] tracking-normal text-on-surface">
-                Get outside. Cause a scene. Get Receipts.
+                Grab your people. Get the proof. Turn today into a field trip.
               </p>
 
               <p className="mt-5 max-w-md font-sans text-base font-black leading-snug text-on-surface/75 sm:text-lg">
-                Your real-world photo game starts here.
+                Your real-world photo game starts with a card and your friends.
               </p>
 
               <div className="order-2 my-6 w-full lg:hidden">
@@ -288,7 +288,7 @@ export default function WelcomePage() {
                         { step: "02", title: "GET A PHOTO MISSION", text: "Draw a mission card and see what to photograph." },
                         { step: "03", title: "TAKE PHOTO", text: "Capture one clear photo and add a short note." },
                         { step: "04", title: "SEND IT IN", text: "Submit your proof. Approval unlocks more of the game." },
-                        { step: "05", title: "KEEP PLAYING", text: "Collect receipts, earn stickers, and climb the board with your crew." }
+                        { step: "05", title: "KEEP PLAYING", text: "Get the proof, earn stickers, and turn today into a field trip with your crew." }
                       ].map((item, idx) => (
                         <div key={idx} className="flex gap-4 items-start p-3 bg-white border-2 border-on-surface/10 rounded-lg hover:border-brand-orange/40 transition-colors">
                           <span className="font-sans font-black text-xs px-2 py-0.5 bg-brand-orange text-white rounded-sm">{item.step}</span>

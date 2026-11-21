@@ -110,7 +110,7 @@ export function BetaAccessGate({ userId, onAccepted, showWelcome = false }: Beta
 
               <div className="space-y-3 text-left border-y-2 border-dashed border-on-surface/20 py-5">
                 <p className="font-serif text-lg font-bold italic leading-relaxed">
-                  Go outside, complete photo missions, and bring back the receipts.
+                  Grab your people, get the proof, and turn today into a field trip.
                 </p>
                 <p className="text-sm leading-relaxed text-on-surface/65">
                   Three quick choices assign your Explorer Type and shape how Fieldtrip responds to your style.
