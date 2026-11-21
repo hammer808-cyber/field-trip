@@ -171,6 +171,7 @@ import {
   VOICE_NOTE_TRANSCRIPT_MODEL,
   type TranscribeAudioFn
 } from "./src/server/voiceNoteTranscription";
+import { createResolvePlaceHandler } from "./src/server/placeResolver";
 import {
   createMarkNotificationReadHandler,
   createNotifySubmittedHandler,
@@ -9769,6 +9770,24 @@ async function startServer() {
       () => (dbAdmin ? createAdminVoiceNoteTranscriptStore(dbAdmin, storageAdmin.bucket()) : null),
       { transcribeAudio: transcribeAudioWithGemini, isAdminUser: (req: any) => req.user?.isAdmin === true }
     )
+  );
+
+  // --- URBAN RECON (Nov 21, 2026): LOCATION-ADAPTIVE PLACE RESOLUTION ---
+  // POST /api/places/resolve — the caller's own draw only (auth, no
+  // ownership check beyond the session). Reverse-geocodes once, then a
+  // tiered Places search (5 / 15 / 35 mi); no match degrades to the
+  // card's generic default, never an error. Key: GOOGLE_PLACES_API_KEY.
+  // See src/server/placeResolver.ts.
+  app.post(
+    "/api/places/resolve",
+    authRateLimiter,
+    authenticate,
+    createResolvePlaceHandler({
+      getApiKey: () => {
+        const key = process.env.GOOGLE_PLACES_API_KEY;
+        return key && key.trim() ? key.trim() : null;
+      },
+    }),
   );
 
   app.post("/api/admin/slot-orphan-proof-reviews", adminRateLimiter, authenticate, async (req: any, res) => {

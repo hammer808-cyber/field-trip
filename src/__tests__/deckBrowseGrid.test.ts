@@ -63,12 +63,15 @@ test('DeckLibrary: each card face shows its mission, not just its title', () => 
   const source = read('src/components/DeckLibrary.tsx');
 
   // Normal mode shows the short prompt (what the card asks you to do);
-  // Frankie Mode already showed the plain description.
+  // Frankie Mode already showed the plain description. Urban Recon
+  // (Nov 21, 2026) renders through displayText so the {place} slot
+  // shows the resolved place (or the generic default), never the raw
+  // placeholder.
   assert.match(
     source,
-    /\{!frankieMode && \(challenge\.shortPrompt \|\| \(challenge as any\)\.mission\) && \(/,
+    /\{!frankieMode && \(displayText\.shortPrompt \|\| displayText\.mission\) && \(/,
   );
-  assert.match(source, /\{challenge\.shortPrompt \|\| \(challenge as any\)\.mission\}/);
+  assert.match(source, /\{displayText\.shortPrompt \|\| displayText\.mission\}/);
 });
 
 test('DeckLibrary: choosing a card still starts it like a draw', () => {

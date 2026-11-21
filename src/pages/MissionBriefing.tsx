@@ -5,12 +5,13 @@ import { MissionCard } from '../components/ChallengeCard';
 import { ChevronLeft, Camera, Bookmark, Clock, Compass, CheckCircle2 } from 'lucide-react';
 import { getDisplayLabel } from '../utils/labelUtils';
 import { SAVE_FOR_LATER_RECOVERY_HINT } from '../components/bottomNavPresentation';
+import { getTierLabel, isLocationAdaptiveCard, renderCardText } from '../logic/placeResolution';
 
 export default function MissionBriefingPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const missionId = searchParams.get('id');
-  const { trips, setActiveMissionCard, updateMissionCardStatus } = useApp();
+  const { trips, setActiveMissionCard, updateMissionCardStatus, drawnMissionCards } = useApp();
   const [savedConfirmation, setSavedConfirmation] = React.useState(false);
 
   const mission = trips.find(t => t.id === missionId);
@@ -25,6 +26,15 @@ export default function MissionBriefingPage() {
       </div>
     );
   }
+
+  // Urban Recon (Nov 21, 2026): the drawn card's resolved place fills
+  // the {place} slot; before the background resolver lands, the generic
+  // text shows.
+  const resolvedPlace = drawnMissionCards?.find(c => c.missionId === mission.id)?.resolvedPlace ?? null;
+  const displayMission = (() => {
+    const text = renderCardText(mission, resolvedPlace);
+    return { ...mission, mission: text.mission, description: text.description, shortPrompt: text.shortPrompt };
+  })();
 
   const handleStartMission = async () => {
     try {
@@ -98,17 +108,25 @@ export default function MissionBriefingPage() {
         <div className="relative">
           <div className="absolute -inset-4 bg-brand-cyan/5 rounded-[3rem] -rotate-1 -z-10" />
           <MissionCard 
-            challenge={mission} 
+            challenge={displayMission} 
             onStart={handleStartMission}
             className="shadow-[16px_16px_0px_black] rounded-[2.5rem] border-4 border-on-surface"
           />
+          {/* Urban Recon (Nov 21, 2026): which place the card resolved
+              to, and how far the net went. Shows once the background
+              resolver lands. */}
+          {resolvedPlace && mission && isLocationAdaptiveCard(mission) && (
+            <p className="text-center font-mono text-xs font-black uppercase tracking-[0.2em] text-on-surface/60">
+              {resolvedPlace.name} — {getTierLabel(resolvedPlace)}
+            </p>
+          )}
         </div>
 
         <div className="space-y-6">
           <div className="bg-white border-3 border-on-surface p-6 rounded-[2rem] shadow-[8px_8px_0px_black] space-y-4">
             <h3 className="font-display text-xl font-black uppercase italic">The Objective</h3>
             <p className="font-serif italic text-on-surface/70 leading-relaxed">
-              {mission.description || "Follow field instructions to capture the required evidence. Ensure lighting is optimal and the subject is clearly visible in frame."}
+              {displayMission.description || "Follow field instructions to capture the required evidence. Ensure lighting is optimal and the subject is clearly visible in frame."}
             </p>
           </div>
 

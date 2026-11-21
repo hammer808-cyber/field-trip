@@ -40,6 +40,7 @@ import { resolveMissionById } from '../logic/missionResolver';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 import { buildScoreBreakdownEvents, calculateMissionScore, MIN_VOICE_NOTE_SECONDS, resolveParticipationSignals, toScoringSnapshot } from '../logic/missionScoring';
 import { getLocationTagLabel, matchesLocationTag, pickCoords } from '../logic/locationTags';
+import { getResolvedPlaceTag, renderCardText, type ResolvedPlace } from '../logic/placeResolution';
 import { hasHonestLocationCheck } from '../logic/checkIn';
 import { uploadBase64Audio } from '../services/storageService';
 import { revokeTemporaryPreviewUrls } from '../logic/polaroidDevelopment';
@@ -72,6 +73,7 @@ export default function CapturePage() {
     entries,
     trips, 
     activeTrip,
+    drawnMissionCards,
     incomingFieldCheck, 
     resolveIncomingFieldCheck, 
     isLocked, 
@@ -195,6 +197,20 @@ export default function CapturePage() {
   }, [resolvedUrlTrip, tripIdParam, activeTrip, trips]);
 
   const [currentTrip, setCurrentTrip] = useState<any>(resolvedTrip);
+
+  // Urban Recon (Nov 21, 2026): the drawn card's resolved place fills
+  // the {place} slot for display, the location tag, the photo check,
+  // and the entry. Before the background resolver lands, the generic
+  // text shows — the card is always submittable either way.
+  const drawnCardResolvedPlace: ResolvedPlace | null = React.useMemo(() => {
+    if (!currentTrip?.id) return null;
+    return drawnMissionCards?.find((c: any) => c.missionId === currentTrip.id)?.resolvedPlace ?? null;
+  }, [drawnMissionCards, currentTrip?.id]);
+  const resolvedCurrentTrip = React.useMemo(() => {
+    if (!currentTrip) return currentTrip;
+    const text = renderCardText(currentTrip, drawnCardResolvedPlace);
+    return { ...currentTrip, mission: text.mission, description: text.description, shortPrompt: text.shortPrompt };
+  }, [currentTrip, drawnCardResolvedPlace]);
   const [loading, setLoading] = useState(true);
   const [missionAttempt, setMissionAttempt] = useState<MissionAttemptRecord | null>(null);
   const [missionAttemptLoading, setMissionAttemptLoading] = useState(false);
@@ -670,14 +686,25 @@ export default function CapturePage() {
         const base64Img = captureData.originalImageUrl || captureData.filteredImageUrl || '';
         if (!base64Img) return;
 
-        const reqSubjects = currentTrip.proofRequirements?.requiredSubjects || 
-                             currentTrip.requiredProof || 
-                             [];
+        const reqSubjects = [
+          ...(currentTrip.proofRequirements?.requiredSubjects ||
+            currentTrip.requiredProof ||
+            []),
+          // Urban Recon (Nov 21, 2026): the token + the resolved place
+          // name are what the photo check verifies against, on top of
+          // the card's static subjects.
+          ...((currentTrip as any)?.locationAdaptive?.token
+            ? [(currentTrip as any).locationAdaptive.token]
+            : []),
+          ...(drawnCardResolvedPlace?.tier !== 'generic' && drawnCardResolvedPlace?.name
+            ? [drawnCardResolvedPlace.name]
+            : []),
+        ];
 
         const detectionResult = await analyzeSubmissionImage(
           base64Img,
           currentTrip.title || '',
-          currentTrip.description || currentTrip.theAsk || '',
+          resolvedCurrentTrip.description || currentTrip.description || currentTrip.theAsk || '',
           reqSubjects,
           captureData.proofId,
           currentTrip.id,
@@ -857,7 +884,11 @@ export default function CapturePage() {
   // back to the trip progress location when there is no photo yet.
   // Nov 20, 2026: the row lights only after a real GPS read (or an
   // honest prior check-in) — no longer on arrival alone.
-  const locationTag = (currentTrip as any)?.locationTag ?? null;
+  // Urban Recon (Nov 21, 2026): the tag is per-draw. A resolved place
+  // builds a dynamic place tag (tier radius, or 35 mi around the draw
+  // point for the generic tier); unslotted cards keep the static tag
+  // (none) and the old any-location behavior.
+  const locationTag = (currentTrip as any)?.locationTag ?? getResolvedPlaceTag(drawnCardResolvedPlace);
   const submissionCoords = pickCoords(
     captureData?.metadata,
     (missionProgress as any)?.location,
@@ -1414,6 +1445,10 @@ export default function CapturePage() {
           fieldNote: fcData.note || 'A successful field trip entry.',
           fieldNoteRaw: fcData.note,
           locationVerified: isLocationLayerEarned,
+          // Urban Recon (Nov 21, 2026): the place this card resolved to,
+          // so admin review, the photo check, and the evaluator all verify
+          // against the same place.
+          resolvedPlace: drawnCardResolvedPlace ?? null,
           voiceNoteUrl: voiceNoteUpload?.url ?? null,
           voiceNoteStoragePath: voiceNoteUpload?.path ?? null,
           voiceNoteDurationSec: voiceNotePresent ? (fcData.voiceNote?.durationSec ?? null) : null,
@@ -1701,7 +1736,7 @@ export default function CapturePage() {
             )}
 
             <FieldClipboard
-              mission={currentTrip}
+              mission={resolvedCurrentTrip}
               onStartCapture={proceedToCapture}
               onRetakeCapture={handleRetakeCapture}
               onSubmit={() => handleSubmit()}

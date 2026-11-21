@@ -454,6 +454,14 @@ export async function evaluateStickerTriggers(
           addAward('desert_state_approval', resolveEventStickers('desert_state_approval', fieldArchetype, eventDeckId, entryMissionId).map(s => s.id));
         }
       }
+      // Urban Recon (Nov 21, 2026): the card carries no static tag —
+      // the tag is per-draw. A resolved place on the entry + Capture's
+      // tag-aware locationVerified verdict earns Outside Person the
+      // same way. The desert check stays tag-only.
+      const entryLike = event.entry as { resolvedPlace?: { tier?: unknown } | null; locationVerified?: unknown } | null;
+      if (!tag && entryLike?.resolvedPlace && entryLike.locationVerified === true) {
+        addAward('location_verified', resolveEventStickers('location_verified', fieldArchetype, eventDeckId, entryMissionId).map(s => s.id));
+      }
     }
     if (snapshot) {
       const approvedCount = getEffectiveApprovedCount(snapshot, entryMissionId);

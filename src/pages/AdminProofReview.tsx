@@ -1155,6 +1155,15 @@ function SwipeView({ entry, onAction, busy }: any) {
                 <p className="text-[10px] font-mono font-black uppercase tracking-widest text-on-surface/40">
                    Mission: <span className="text-on-surface">{entry.tripTitle || entry.missionTitle || 'Undefined'}</span>
                 </p>
+                {/* Urban Recon (Nov 21, 2026): the place this card resolved
+                    to at draw time, so the reviewer can tell at a glance
+                    whether the photo matches the place the card named. */}
+                {(entry as any).resolvedPlace && (
+                  <p className="text-[10px] font-mono font-black uppercase tracking-widest text-on-surface/40">
+                     Resolved place: <span className="text-on-surface">{(entry as any).resolvedPlace.name}</span>
+                     {' '}· {(entry as any).resolvedPlace.tier === 'generic' ? 'generic fallback' : `${(entry as any).resolvedPlace.label}`}
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-2 pt-1 font-mono text-[9px] font-black uppercase tracking-wider">
                   <span className="border border-on-surface/20 bg-white px-2 py-1 text-on-surface/65">
                     {entry.deckName || entry.deckId || 'Unknown deck'}

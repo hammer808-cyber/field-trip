@@ -301,6 +301,13 @@ export interface DrawnMissionCard {
   status: DrawnMissionCardStatus;
   isActive?: boolean;
   attemptNumber?: number;
+  /**
+   * Urban Recon (Nov 21, 2026): the place this card resolved to at draw
+   * time, or the generic fallback when resolution found nothing. Written
+   * by the background resolver after the draw saves; the briefing,
+   * capture, and admin review read it from here.
+   */
+  resolvedPlace?: import('../logic/placeResolution').ResolvedPlace | null;
 }
 
 export interface Entry {
@@ -453,6 +460,13 @@ export interface Entry {
   voiceNoteTranscript?: string | null;
   voiceNoteTranscriptAt?: any;
   voiceNoteTranscriptModel?: string | null;
+  /**
+   * Urban Recon (Nov 21, 2026): the place the drawn card resolved to,
+   * copied onto the entry at submit so admin review, the photo check,
+   * and the location layer all verify against the same place. Null on
+   * non-Urban-Recon entries.
+   */
+  resolvedPlace?: import('../logic/placeResolution').ResolvedPlace | null;
   adminNotes?: string;
   imagePurged?: boolean;
   rejectedAt?: any;

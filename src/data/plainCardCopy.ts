@@ -13,7 +13,7 @@
  * - plainFieldNotePrompt: one short, simple prompt.
  *
  * Coverage is enforced by src/__tests__/frankieMode.test.ts — every card in
- * the eight banks must have an entry here, and there must be no orphans.
+ * the nine banks must have an entry here, and there must be no orphans.
  */
 export interface PlainCardCopy {
   plainTitle: string;
@@ -825,5 +825,128 @@ export const PLAIN_CARD_COPY: Record<string, PlainCardCopy> = {
     plainDescription: 'Take a photo of your crew skating at the Pershing Square rink.',
     plainDirections: 'Go to the Pershing Square rink with your crew.\nTake one clear photo of everyone on the ice.\nTap Send.',
     plainFieldNotePrompt: 'In a few words: did anyone fall?',
+  },
+  // Urban Recon (Nov 21, 2026): plain copy names no specific place — the
+  // place resolves at draw time, so the copy points at "the place on
+  // your card" and the token instead.
+  'urban-01': {
+    plainTitle: 'City Hall Steps',
+    plainDescription: 'Take a photo of the front steps and the name on the building.',
+    plainDirections: 'Go to the place on your card.\nStand on the front steps.\nTake one clear photo of the steps and the name.',
+    plainFieldNotePrompt: 'In a few words: what is the building called?',
+  },
+  'urban-02': {
+    plainTitle: 'Lights on a Building',
+    plainDescription: 'Take a photo of the brightest lights on the building.',
+    plainDirections: 'Go to the building on your card.\nFind the brightest lights.\nTake one clear photo of them.',
+    plainFieldNotePrompt: 'In a few words: what made these lights the brightest?',
+  },
+  'urban-03': {
+    plainTitle: 'Something From the Market',
+    plainDescription: 'Take a photo of the one thing you bought at the market.',
+    plainDirections: 'Go to the market on your card.\nBuy one thing.\nTake one clear photo of what you bought.',
+    plainFieldNotePrompt: 'In a few words: what did you buy?',
+  },
+  'urban-04': {
+    plainTitle: 'A Book From the Library',
+    plainDescription: 'Take a photo of the book you picked at the library, held up at the door.',
+    plainDirections: 'Go to the library on your card.\nPick a book off a shelf.\nHold it up and take one clear photo of it.',
+    plainFieldNotePrompt: 'In a few words: what book did you pick?',
+  },
+  'urban-05': {
+    plainTitle: 'A Busy Transit Stop',
+    plainDescription: 'Take a photo of the departure board at the busiest time.',
+    plainDirections: 'Go to any transit stop near you at rush hour.\nFind the departure board.\nTake one clear photo of it.',
+    plainFieldNotePrompt: 'In a few words: how busy was it?',
+  },
+  'urban-06': {
+    plainTitle: 'The Biggest Mural',
+    plainDescription: 'Take a photo of the biggest mural near you, and its smallest detail.',
+    plainDirections: 'Find the biggest mural near you.\nLook for the smallest detail in it.\nTake one clear photo of it.',
+    plainFieldNotePrompt: 'In a few words: what is the smallest detail?',
+  },
+  'urban-07': {
+    plainTitle: 'The View From a Bench',
+    plainDescription: 'Take a photo of the view from the bench with the best view.',
+    plainDirections: 'Go to the park on your card.\nFind the bench with the best view.\nSit down and take one clear photo of the view.',
+    plainFieldNotePrompt: 'In a few words: what can you see from the bench?',
+  },
+  'urban-08': {
+    plainTitle: 'The Best Thing in the Store',
+    plainDescription: 'Take a photo of the one thing the corner store sells best.',
+    plainDirections: 'Go to the store on your card.\nAsk what it sells best, or watch the regulars.\nBuy it and take one clear photo of it.',
+    plainFieldNotePrompt: 'In a few words: what did the store sell best?',
+  },
+  'urban-09': {
+    plainTitle: 'Light on the Water',
+    plainDescription: 'Take a photo of the light on the water at golden hour.',
+    plainDirections: 'Go to the water on your card at golden hour.\nLook at the light on the water.\nTake one clear photo of it.',
+    plainFieldNotePrompt: 'In a few words: where did you find the water?',
+  },
+  'urban-10': {
+    plainTitle: 'A Busy Crossing',
+    plainDescription: 'Take a photo of the busiest crossing in the crowd.',
+    plainDirections: 'Go downtown at a busy time.\nFind the busiest crossing.\nTake one clear photo of the crowd crossing.',
+    plainFieldNotePrompt: 'In a few words: how busy was the crossing?',
+  },
+  'urban-11': {
+    plainTitle: 'The Highest View',
+    plainDescription: 'Take a photo of the view from the highest place you can reach.',
+    plainDirections: 'Go to the place on your card.\nGet to the highest view you can.\nTake one clear photo of the view.',
+    plainFieldNotePrompt: 'In a few words: what could you see from the top?',
+  },
+  'urban-12': {
+    plainTitle: 'A Dish at the Night Market',
+    plainDescription: 'Take a photo of the one dish you ate at the night market.',
+    plainDirections: 'Go to the night market on your card with your crew.\nEat one thing.\nTake one clear photo of the dish.',
+    plainFieldNotePrompt: 'In a few words: what dish did you eat?',
+  },
+  'urban-13': {
+    plainTitle: 'A Hidden Staircase',
+    plainDescription: 'Take a photo of the staircase most people walk past.',
+    plainDirections: 'Go to the park on your card.\nFind the staircase people walk past.\nClimb it and take one clear photo of what is at the top.',
+    plainFieldNotePrompt: 'In a few words: what was at the top?',
+  },
+  'urban-14': {
+    plainTitle: 'A Drink at a Taco Truck',
+    plainDescription: 'Take a photo of the special drink you bought, with the truck’s name in the shot.',
+    plainDirections: 'Go to the taco truck on your card with friends.\nBuy a special drink.\nTake one clear photo of the drink and the truck’s name.',
+    plainFieldNotePrompt: 'In a few words: what drink did you get?',
+  },
+  'urban-15': {
+    plainTitle: 'The Oldest Dish',
+    plainDescription: 'Take a photo of the oldest dish on the menu.',
+    plainDirections: 'Go to the diner on your card.\nOrder the oldest dish on the menu.\nTake one clear photo of the dish.',
+    plainFieldNotePrompt: 'In a few words: what was the oldest dish?',
+  },
+  'urban-16': {
+    plainTitle: 'A Postcard',
+    plainDescription: 'Take a photo of the postcard you bought.',
+    plainDirections: 'Go to the gift shop on your card.\nBuy a postcard.\nTake one clear photo of it.',
+    plainFieldNotePrompt: 'In a few words: what is on the postcard?',
+  },
+  'urban-17': {
+    plainTitle: 'A Street Performer',
+    plainDescription: 'Take a photo of the street performer you tipped.',
+    plainDirections: 'Find a street performer at the transit station.\nTip them and stay for the song.\nTake one clear photo of them.',
+    plainFieldNotePrompt: 'In a few words: what song did they play?',
+  },
+  'urban-18': {
+    plainTitle: 'Lights After Dark',
+    plainDescription: 'Take a photo of the landmark’s lights after dark.',
+    plainDirections: 'Go to the place on your card after 6 PM.\nFind the lights.\nTake one clear photo of them.',
+    plainFieldNotePrompt: 'In a few words: what time did you go?',
+  },
+  'urban-19': {
+    plainTitle: 'The Famous View',
+    plainDescription: 'Take a photo of the view your city is known for.',
+    plainDirections: 'Go to the place on your card.\nFrame the view everyone knows.\nTake one clear photo of it.',
+    plainFieldNotePrompt: 'In a few words: what is the view?',
+  },
+  'urban-20': {
+    plainTitle: 'First Light at Sunrise',
+    plainDescription: 'Take a photo of the first light hitting the landmark at sunrise.',
+    plainDirections: 'Go to the place on your card between 5 and 8 AM.\nWatch for the first light.\nTake one clear photo of it.',
+    plainFieldNotePrompt: 'In a few words: what time did the light arrive?',
   },
 };

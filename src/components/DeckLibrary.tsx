@@ -21,6 +21,7 @@ import {
   getFrankieDirectionsArray,
   getFrankieFieldNotePrompt,
 } from '../logic/frankieModeLogic';
+import { renderCardText } from '../logic/placeResolution';
 
 interface DeckLibraryProps {
   allChallenges: TripCard[];
@@ -36,7 +37,8 @@ export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
     isHeatwaveDeckUnlocked: isSummerDeckUnlocked,
     isSocalSummerUnlocked,
     isAdmin,
-    getDeckAccessForPack
+    getDeckAccessForPack,
+    drawnMissionCards
   } = useApp();
   const { fc } = useTheme();
   const [selectedChallenge, setSelectedChallenge] = useState<TripCard | null>(null);
@@ -220,7 +222,14 @@ export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
       <AnimatePresence>
         {selectedChallenge && (
           <ChallengePreviewModal 
-            challenge={selectedChallenge} 
+            challenge={(() => {
+              // Urban Recon (Nov 21, 2026): the preview shows the resolved
+              // place when this card was drawn, else the generic text —
+              // never the raw {place} placeholder.
+              const resolvedPlace = drawnMissionCards?.find(c => c.missionId === selectedChallenge.id)?.resolvedPlace ?? null;
+              const text = renderCardText(selectedChallenge, resolvedPlace);
+              return { ...selectedChallenge, mission: text.mission, description: text.description, shortPrompt: text.shortPrompt };
+            })()} 
             uiStatus={challengesWithStatus.find(c => c.id === selectedChallenge.id)?.uiStatus || 'eligible'}
             lockReason={challengesWithStatus.find(c => c.id === selectedChallenge.id)?.lockReason}
             onClose={() => setSelectedChallenge(null)}
@@ -242,10 +251,17 @@ export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
 }
 
 function MissionCardItem({ challenge, onClick, idx }: { challenge: TripCard & { uiStatus: any }, onClick: () => void, idx: number }) {
-  const { profile } = useApp();
+  const { profile, drawnMissionCards } = useApp();
   const { frankieMode } = useTheme();
   const fPref = { frankieMode };
   const displayTitle = getFrankieTitle(challenge, fPref);
+  // Urban Recon (Nov 21, 2026): the grid shows the resolved place when
+  // this card was drawn, else the generic text — never the raw {place}
+  // placeholder from the bank.
+  const displayText = React.useMemo(() => {
+    const resolvedPlace = drawnMissionCards?.find(c => c.missionId === challenge.id)?.resolvedPlace ?? null;
+    return renderCardText(challenge, resolvedPlace);
+  }, [challenge, drawnMissionCards]);
   const isLocked = challenge.uiStatus === 'locked';
   const isCompleted = challenge.uiStatus === 'completed';
   const isInProgress = challenge.uiStatus === 'in-progress';
@@ -341,8 +357,8 @@ function MissionCardItem({ challenge, onClick, idx }: { challenge: TripCard & { 
           {frankieMode && (
             <p className="mt-2 text-sm font-sans font-semibold leading-snug text-white/90 line-clamp-2">{getFrankieDescription(challenge, fPref)}</p>
           )}
-          {!frankieMode && (challenge.shortPrompt || (challenge as any).mission) && (
-            <p className="mt-2 text-sm font-sans font-semibold leading-snug text-white/90 line-clamp-2">{challenge.shortPrompt || (challenge as any).mission}</p>
+          {!frankieMode && (displayText.shortPrompt || displayText.mission) && (
+            <p className="mt-2 text-sm font-sans font-semibold leading-snug text-white/90 line-clamp-2">{displayText.shortPrompt || displayText.mission}</p>
           )}
         </div>
       </div>

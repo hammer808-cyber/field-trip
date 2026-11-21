@@ -16,12 +16,12 @@ import { isStarterScoringMission } from '../logic/proofRubric';
  */
 const CARDS = [...ALL_CHALLENGE_CARDS];
 
-test('registry holds 133 unique cards across the eight decks', () => {
-  assert.equal(CARDS.length, 133, `expected 133 cards, got ${CARDS.length}`);
+test('registry holds 153 unique cards across the nine decks', () => {
+  assert.equal(CARDS.length, 153, `expected 153 cards, got ${CARDS.length}`);
   const ids = CARDS.map(card => String(card.id));
   assert.equal(new Set(ids).size, ids.length, 'duplicate card ids in registry');
   const decks = new Set(CARDS.map(card => String(card.deckId)));
-  assert.equal(decks.size, 8, `expected 8 decks, got ${[...decks].join(', ')}`);
+  assert.equal(decks.size, 9, `expected 9 decks, got ${[...decks].join(', ')}`);
 });
 
 test('every card carries the full canonical shape', () => {

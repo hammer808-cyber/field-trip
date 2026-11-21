@@ -45,6 +45,7 @@ import { getWeeklyBonusForWeek } from '../data/weeklyBonuses';
 import { StickerBackground } from '../components/StickerBackground';
 import { StickerDecal, StickerCorner, StickerScatter } from '../components/StickerDecals';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
+import { getTierLabel, isLocationAdaptiveCard, renderCardText } from '../logic/placeResolution';
 import { pickTextOnBackground, skinVarHex } from '../logic/contrast';
 import { DEFAULT_APP_SKIN } from '../skins/registry';
 import { FEATURE_FLAGS } from '../config/featureFlags';
@@ -849,6 +850,19 @@ export default function DeckPage() {
 
 
   const displayedMission = drawnTrip || activeTrip;
+  // Urban Recon (Nov 21, 2026): the drawn card's resolved place fills
+  // the {place} slot for display. The bank card is never mutated; the
+  // resolved copy is what the poster renders. Before the background
+  // resolver lands, the generic text shows.
+  const displayedResolvedPlace = displayedMission
+    ? drawnMissionCards.find(c => c.missionId === displayedMission.id)?.resolvedPlace ?? null
+    : null;
+  const displayedMissionResolved = displayedMission
+    ? (() => {
+        const text = renderCardText(displayedMission, displayedResolvedPlace);
+        return { ...displayedMission, mission: text.mission, description: text.description, shortPrompt: text.shortPrompt };
+      })()
+    : displayedMission;
   const displayedMissionStatus = displayedMission
     ? getChallengeStatus(canonicalProgress, displayedMission.id, activeTrip?.id || null)
     : null;
@@ -1272,7 +1286,7 @@ export default function DeckPage() {
                     }}
                   >
                     <MissionDecodedCard 
-                      mission={drawnTrip || activeTrip} 
+                      mission={displayedMissionResolved} 
                       progress={profile?.tripProgress?.[(drawnTrip || activeTrip)?.id]}
                       onStart={() => navigate(`/capture?id=${(drawnTrip || activeTrip)?.id}`)}
                       isRedrawable={false}
@@ -1280,6 +1294,15 @@ export default function DeckPage() {
                       className="skin-mission-card shadow-[var(--skin-card-shadow)]"
                     />
                   </motion.div>
+
+                  {/* Urban Recon (Nov 21, 2026): which place the card
+                      resolved to, and how far the net went. Shows once
+                      the background resolver lands. */}
+                  {displayedResolvedPlace && isLocationAdaptiveCard(displayedMission) && (
+                    <p className="mt-4 text-center font-mono text-xs font-black uppercase tracking-[0.2em] text-on-surface/60">
+                      {displayedResolvedPlace.name} — {getTierLabel(displayedResolvedPlace)}
+                    </p>
+                  )}
 
                   {/* Decorative Labels */}
                   <div className="absolute -top-3 -right-2 z-20 flex flex-col items-end gap-1 pointer-events-none">
@@ -1378,7 +1401,7 @@ export default function DeckPage() {
       <MissionDetailsModal
         isOpen={isDetailsOpen}
         onClose={() => setIsDetailsOpen(false)}
-        mission={drawnTrip || activeTrip}
+        mission={displayedMissionResolved}
         // Nov 17, 2026: the modal used to blank progress for a drawn trip
         // ({}), so it always said START even when the trip already had a
         // photo/note — while the poster beside it said RESUME. Feed the

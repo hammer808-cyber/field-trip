@@ -84,6 +84,26 @@ export interface TripCard {
    */
   locationTag?: LocationTag;
 
+  /**
+   * Location-adaptive skeleton (Urban Recon, Nov 21, 2026): the card
+   * resolves its {place} slot to a real named place near the player at
+   * draw time. `action` is the verb, `token` the memorable thing the
+   * photo/note must show, `genericDefault` the completable-anywhere
+   * fallback. No placeQuery = unslotted: any instance counts (Transit
+   * Rush, Mural Hunt) and the card never touches the resolver.
+   */
+  locationAdaptive?: {
+    action: string;
+    token: string;
+    genericDefault: string;
+    placeQuery?: {
+      googleType?: string;
+      keyword?: string;
+      osmTags?: string;
+      preferTopRated?: boolean;
+    };
+  };
+
   // --- ARTIFACTS & PROOF ---
   /** The primary photo/note evidence types required */
   proofType: ProofType[];

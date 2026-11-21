@@ -74,6 +74,29 @@ export async function updateMissionCardStatus(
 }
 
 /**
+ * Merges extra fields onto an existing drawn card doc (Urban Recon
+ * place resolution, Nov 21, 2026). Unlike saveDrawnMissionCard it
+ * never touches drawnAt — the draw time stays the draw time.
+ */
+export async function updateDrawnMissionCard(
+  uid: string,
+  missionId: string,
+  extraData: Partial<DrawnMissionCard> = {}
+): Promise<void> {
+  const cardRef = doc(db, USERS_COLLECTION, uid, MISSION_CARDS_SUBCOLLECTION, missionId);
+
+  try {
+    await updateDoc(cardRef, {
+      ...extraData,
+      updatedAt: serverTimestamp()
+    });
+  } catch (error: any) {
+    logFirestoreError(error, OperationType.UPDATE, `${USERS_COLLECTION}/${uid}/${MISSION_CARDS_SUBCOLLECTION}`);
+    throw error;
+  }
+}
+
+/**
  * Subscribes to a user's drawn mission cards.
  */
 export function subscribeToUserMissionCards(uid: string, callback: (cards: DrawnMissionCard[]) => void) {

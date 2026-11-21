@@ -4,6 +4,7 @@ import { SOCAL_SUMMER_CHALLENGE_BANK } from './socalSummerChallengeBank';
 import { JET_SETTER_CHALLENGE_BANK } from './jetSetterChallengeBank';
 import { ERRAND_DECK_CHALLENGE_BANK } from './errandDeckChallengeBank';
 import { TEXAS_CHALLENGE_BANK } from './texasChallengeBank';
+import { URBAN_RECON_CHALLENGE_BANK } from './urbanReconChallengeBank';
 import { HOLIDAY_CHALLENGE_BANK } from './holidayChallengeBank';
 import { WINTER_CHALLENGE_BANK } from './winterChallengeBank';
 import type { ChallengeCard } from '../types/challenges';
@@ -404,18 +405,43 @@ export const DECK_PACKS: DeckPack[] = [
   {
     packId: 'urban-recon',
     id: 'urban-recon',
+    title: 'Urban Recon',
+    deckCode: 'FT-09',
+    artworkKey: 'urban-recon',
+    isEvergreen: true,
+    seasonId: 'evergreen',
     packName: 'Urban Recon',
     shortName: 'Recon',
-    description: 'Future drop. Tactical navigation of the concrete jungle.',
+    description: 'All things to do in your city. Generic skeletons that resolve to real places near you — city hall steps, taco trucks, night markets — wherever you actually are.',
     theme: 'diamond',
-    missionIds: [],
-    unlockRule: 'immediate',
+    season: 'Evergreen',
+    missionIds: URBAN_RECON_CHALLENGE_BANK.map(m => m.id as string),
+    unlockRule: 'starter-complete',
     visibility: 'public',
+    requiredCompletedDeckIds: ['starter-signals'],
     isActive: true,
     fallbackIcon: 'Navigation',
     sortOrder: 5,
-    isFutureDrop: true,
+    difficultyRange: ['easy', 'medium', 'hard'],
+    tags: ['urban-recon', 'location-adaptive', 'evergreen', 'city', 'crew-friendly'],
     catalogSection: 'local-fieldtrips',
+
+    // Canonical properties
+    deckId: 'urban-recon',
+    deckSubtitle: 'A Location-Adaptive Fieldtrip Deck',
+    status: 'active',
+    deckType: 'regional',
+    requiredUnlock: 'starter-complete',
+    requiredStarterApprovals: 3,
+    totalCards: 20,
+
+    defaultFindingTypes: [
+      "City Clue",
+      "Urban Signal",
+      "Street Evidence",
+      "Local Flavor",
+      "Downtown Receipt"
+    ]
   },
   {
     packId: 'wildlife-witness',

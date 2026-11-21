@@ -144,9 +144,11 @@ import {
   subscribeToUserMissionCards, 
   saveDrawnMissionCard, 
   updateMissionCardStatus,
+  updateDrawnMissionCard,
   archiveMissionCard,
   setActiveMissionCard
 } from '../services/missionCardService';
+import { resolvePlaceForDraw } from '../services/placeResolutionService';
 
 import { watchGlobalConfig, getGlobalConfig, GlobalConfig } from '../services/configService';
 import { getEligibleDrawPool as getCanonicalPool, ExclusionAnalysis, EligibleDrawPoolResult } from '../logic/deckLogic';
@@ -2224,6 +2226,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const drawTrip = async (tripId?: string, packId?: string): Promise<TripType | null> => {
     if (!user || trips.length === 0) return null;
 
+    // Urban Recon (Nov 21, 2026): resolve the drawn card's place AFTER
+    // the draw saves, so resolution latency (GPS + Places) can never
+    // stall or fail a draw. The resolved place merges onto the drawn
+    // card doc; the briefing and capture read it from the live
+    // subscription, showing the generic text until it lands. Never
+    // throws; unslotted and non-adaptive cards resolve to null and
+    // write nothing.
+    const resolveDrawnCardPlace = (card: TripType) => {
+      void resolvePlaceForDraw(card as never).then((resolvedPlace) => {
+        if (!resolvedPlace || !user) return;
+        void updateDrawnMissionCard(user.uid, card.id, { resolvedPlace }).catch(() => {});
+      }).catch(() => {});
+    };
+
     // Earn-audit fix #3 (Nov 20, 2026 — Zach's call, Q2): Scene Starter
     // is a separate first-draw moment, not stacked on first_submission.
     // First draw = no drawn mission cards yet — captured BEFORE any save
@@ -2279,6 +2295,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             status: 'active',
             isActive: true
           });
+          resolveDrawnCardPlace(specific);
           maybeAwardFirstDraw();
           return specific;
         }
@@ -2394,6 +2411,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (newTrip) maybeAwardFirstDraw();
+    if (newTrip) resolveDrawnCardPlace(newTrip);
     return newTrip;
   };
 
