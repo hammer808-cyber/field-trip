@@ -16,6 +16,9 @@
 // now derive their icon color per skin (pickTextOnBackground) instead
 // of hardcoded white — white failed on arcade warning (1.25:1) and
 // arcade error (3.28:1). The freeze stands for everything else.
+// ONE-OFF LIFT (Nov 21, 2026, Zach's word): deck meter restyle — the
+// ticket-stub meter lives in DeckProgressMeter; this comment is the only
+// change to this file.
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import { useApp } from '../context/AppContext';
