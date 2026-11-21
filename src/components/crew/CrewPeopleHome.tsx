@@ -2,8 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, Search, UserMinus, UserPlus, Users, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { AvatarPreview } from '../AvatarPreview';
-import { DEFAULT_AVATAR } from '../../constants/avatarAssets';
+import { FIELD_TYPES, FIELD_TYPE_ALIASES, type FieldTypeId } from '../../constants/fieldTypes';
 import {
   acceptCrewRequest,
   declineCrewRequest,
@@ -35,6 +34,34 @@ function identityFromConnection(connection: any, viewerUserId: string): PublicPl
   };
 }
 
+function PlayerAvatar({ player }: { player: PublicPlayerIdentity }) {
+  // The layered-avatar SVGs (AvatarPreview / AVATAR_MANIFEST) were never
+  // shipped — public/assets/avatars/ does not exist in the repo or on the
+  // live build (the asset URL returns the SPA fallback), so AvatarPreview
+  // renders a blank white box for every player. Show the player's real
+  // photo when the snapshot has one, otherwise the persona character art
+  // for their field type — both exist, so the box is never blank.
+  const fieldTypeId = (FIELD_TYPE_ALIASES[player.fieldType || ''] || player.fieldType || 'unclassified') as FieldTypeId;
+  const character = FIELD_TYPES[fieldTypeId] || FIELD_TYPES.unclassified;
+  const src = player.photoURL || character.avatarPath;
+  return (
+    <span className="block h-10 w-10 shrink-0 overflow-hidden border-2 border-on-surface bg-[var(--skin-surface-muted)]">
+      <img
+        src={src}
+        alt=""
+        className="h-full w-full object-cover"
+        onError={(event) => {
+          const img = event.currentTarget;
+          if (!img.dataset.fallback) {
+            img.dataset.fallback = '1';
+            img.src = character.avatarPath;
+          }
+        }}
+      />
+    </span>
+  );
+}
+
 function PlayerCard({
   player,
   relationship,
@@ -55,45 +82,43 @@ function PlayerCard({
   onOpen: () => void;
 }) {
   return (
-    <div className="border-4 border-on-surface bg-white p-4 shadow-[4px_4px_0px_black] flex flex-col sm:flex-row sm:items-center gap-4">
+    <div className="border-[3px] border-on-surface bg-white px-3 py-2.5 shadow-[3px_3px_0px_black] flex items-center gap-3">
       <button type="button" onClick={onOpen} className="flex items-center gap-3 text-left min-w-0 flex-1">
-        <div className="w-14 h-14 border-2 border-on-surface overflow-hidden bg-brand-yellow/20 shrink-0">
-          <AvatarPreview avatar={player.avatar || DEFAULT_AVATAR} />
-        </div>
-        <div className="min-w-0">
-          <p className="font-display font-black uppercase italic text-xl truncate">{player.displayName}</p>
-          <p className="font-mono text-xs uppercase tracking-widest opacity-55 truncate">
+        <PlayerAvatar player={player} />
+        <span className="min-w-0">
+          <span className="font-display font-black uppercase italic text-base leading-tight truncate block">{player.displayName}</span>
+          <span className="font-mono text-xs uppercase tracking-widest opacity-55 truncate block">
             {player.username ? `@${player.username}` : 'Field agent'}
             {player.fieldTypeName ? ` / ${player.fieldTypeName}` : ''}
             {player.levelTitle ? ` / ${player.levelTitle}` : ''}
-          </p>
-        </div>
+          </span>
+        </span>
       </button>
-      <div className="flex flex-wrap gap-2">
+      <span className="flex flex-wrap items-center justify-end gap-2 shrink-0">
         {relationship === 'none' && onAdd && (
-          <button type="button" disabled={busy} onClick={onAdd} className="bureau-btn bg-brand-lime text-on-surface text-xs">
+          <button type="button" disabled={busy} onClick={onAdd} className="bureau-btn-sm bg-brand-lime text-on-surface">
             <UserPlus className="w-4 h-4" /> Add to Crew
           </button>
         )}
         {relationship === 'outgoing_request' && (
-          <span className="font-mono text-xs font-black uppercase tracking-widest border-2 border-on-surface px-3 py-2">Request Sent</span>
+          <span className="font-mono text-xs font-black uppercase tracking-widest border-2 border-on-surface px-2.5 py-1.5">Request Sent</span>
         )}
         {relationship === 'incoming_request' && (
           <>
-            <button type="button" disabled={busy} onClick={onAccept} className="bureau-btn bg-brand-lime text-on-surface text-xs">
+            <button type="button" disabled={busy} onClick={onAccept} className="bureau-btn-sm bg-brand-lime text-on-surface">
               <Check className="w-4 h-4" /> Accept
             </button>
-            <button type="button" disabled={busy} onClick={onDecline} className="bureau-btn bg-white text-on-surface text-xs">
+            <button type="button" disabled={busy} onClick={onDecline} className="bureau-btn-sm bg-white text-on-surface">
               <X className="w-4 h-4" /> Decline
             </button>
           </>
         )}
         {relationship === 'accepted' && onRemove && (
-          <button type="button" disabled={busy} onClick={onRemove} className="bureau-btn bg-white text-on-surface text-xs">
+          <button type="button" disabled={busy} onClick={onRemove} className="bureau-btn-sm bg-white text-on-surface">
             <UserMinus className="w-4 h-4" /> Remove
           </button>
         )}
-      </div>
+      </span>
     </div>
   );
 }

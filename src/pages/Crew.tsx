@@ -524,6 +524,8 @@ export default function CrewPage() {
             </div>
           )}
         </form>
+        {/* Bottom clearance: same Trevor-pill clearance as the crew branch. */}
+        <div aria-hidden="true" className="h-16" />
         </PlayerPageBody>
       </PlayerPageShell>
     );
@@ -834,15 +836,24 @@ export default function CrewPage() {
             {/* Today in the crew — live, from the crew's approved receipts.
                 (Nov 20, 2026: this replaces the old hardcoded Season 1 card.) */}
             <section className="space-y-6">
-              <div className="flex items-center gap-6">
-                <h3 className="font-display text-4xl italic uppercase tracking-tighter text-on-surface font-black">Today_In_The_Crew</h3>
-                <div className="h-2 flex-grow bg-on-surface/10" />
+              <div className="flex items-center gap-4">
+                <div className="h-2 flex-1 bg-on-surface/10" />
+                <h3 className="text-center font-display text-4xl italic uppercase tracking-tighter text-on-surface font-black">Today_In_The_Crew</h3>
+                <div className="h-2 flex-1 bg-on-surface/10" />
               </div>
-              <div className="bg-white border-4 border-on-surface p-6 sm:p-8 shadow-[12px_12px_0px_var(--color-brand-cyan)] space-y-6">
+              {/* The paper on top of the clipboard paper: a taped sheet
+                  holding today's crew, centred with breathing room. */}
+              <div className="relative bg-white border-4 border-on-surface p-6 pt-8 sm:p-8 sm:pt-10 text-center shadow-[12px_12px_0px_var(--color-brand-cyan)] space-y-6">
+                <span aria-hidden="true" className="pointer-events-none absolute -top-3 left-6 z-10">
+                  <span className="field-tape block" aria-hidden="true" />
+                </span>
+                <span aria-hidden="true" className="pointer-events-none absolute -top-3 right-6 z-10" style={{ transform: 'rotate(5deg)' }}>
+                  <span className="field-tape block" aria-hidden="true" />
+                </span>
                 {outTodayMembers.length > 0 ? (
                   <div className="space-y-2">
                     <p className="micro-label font-black opacity-40 uppercase tracking-widest">Out in the field today</p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap justify-center gap-2">
                       {outTodayMembers.map(member => (
                         <span key={member.userId} className="inline-flex items-center gap-2 border-2 border-on-surface bg-brand-lime px-3 py-1.5 font-display font-black uppercase italic text-sm shadow-[3px_3px_0px_black]">
                           {member.displayName}
@@ -851,7 +862,7 @@ export default function CrewPage() {
                     </div>
                   </div>
                 ) : (
-                  <p className="font-serif italic text-sm opacity-60">Nobody has brought back a receipt yet today. Be the first.</p>
+                  <p className="font-serif italic text-sm opacity-60 max-w-md mx-auto">Nobody has brought back a receipt yet today. Be the first.</p>
                 )}
                 {latestPhotos.length > 0 ? (
                   <div>
@@ -876,20 +887,21 @@ export default function CrewPage() {
                     </div>
                   </div>
                 ) : (
-                  <p className="font-serif italic text-sm opacity-60">No approved crew photos yet — the feed fills up as missions come back.</p>
+                  <p className="font-serif italic text-sm opacity-60 max-w-md mx-auto">No approved crew photos yet — the feed fills up as missions come back.</p>
                 )}
-                <div className="flex flex-wrap gap-3 pt-2">
-                  <button type="button" onClick={() => navigate('/missions')} className="bureau-btn bg-brand-lime text-on-surface">Draw a Mission</button>
-                  <button type="button" onClick={() => setActiveTab('feed')} className="bureau-btn bg-white text-on-surface">Open the Feed</button>
-                  <button type="button" onClick={() => setActiveTab('chat')} className="bureau-btn bg-white text-on-surface">Open the Chat</button>
+                <div className="flex flex-col items-center gap-3 pt-2">
+                  <button type="button" onClick={() => navigate('/missions')} className="bureau-btn bg-brand-lime text-on-surface w-full max-w-sm">Draw a Mission</button>
+                  <button type="button" onClick={() => setActiveTab('feed')} className="bureau-btn bg-white text-on-surface w-full max-w-sm">Open the Feed</button>
+                  <button type="button" onClick={() => setActiveTab('chat')} className="bureau-btn bg-white text-on-surface w-full max-w-sm">Open the Chat</button>
                 </div>
               </div>
             </section>
 
             <section className="space-y-6">
-              <div className="flex items-center gap-6">
-                <h3 className="font-display text-4xl italic uppercase tracking-tighter text-on-surface font-black">This_Week</h3>
-                <div className="h-2 flex-grow bg-on-surface/10" />
+              <div className="flex items-center gap-4">
+                <div className="h-2 flex-1 bg-on-surface/10" />
+                <h3 className="text-center font-display text-4xl italic uppercase tracking-tighter text-on-surface font-black">This_Week</h3>
+                <div className="h-2 flex-1 bg-on-surface/10" />
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-white border-4 border-on-surface p-5 text-center shadow-[6px_6px_0px_black]">
@@ -1103,6 +1115,13 @@ export default function CrewPage() {
         )}
       </div>
       </CrewClipboard>
+      {/* Bottom clearance (Nov 21, 2026): the Trevor pill floats at
+          100px + safe-area above the viewport bottom and its top edge
+          sits ~150px up; the app shell only pads 110px, so the last
+          cards and stat boxes scrolled under it. This spacer lifts the
+          page's tail clear of the pill and the bottom nav at any scroll
+          position. The pill and nav themselves are untouched. */}
+      <div aria-hidden="true" className="h-16" />
       </PlayerPageBody>
     </PlayerPageShell>
   );
