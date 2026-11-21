@@ -1,7 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Archive, CalendarDays, CheckCircle2, Clock3, Heart, MapPin, RotateCcw, Sparkles, Sticker, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getRewardMetadata } from '../data/rewardRegistry';
+import { DEFAULT_FIELD_NOTE_TEXT } from '../logic/missionScoring';
+import { requestVoiceNoteTranscript } from '../services/voiceNoteTranscriptService';
 import { isArchivedOrDeletedProof, getEntryEarnedXp, getEntryFieldNote, getEntryChallengeId, getProofLogbookCounts } from '../logic/proofDistribution';
 import {
   getAttachedStickerIds,
@@ -127,6 +129,34 @@ function LogbookProofPage({ entry, proofStickerAssignments, onRepair }: { entry:
   const xp = getEntryEarnedXp(entry);
   const title = entry.tripTitle || entry.challengeTitle || entry.missionTitle || getEntryChallengeId(entry) || 'Field Mission';
 
+  // Voice-note text, Option A (Nov 20, 2026): a server-side Gemini
+  // transcript renders here when present. The stamped default
+  // ("A successful field trip entry.") is not a real note, so it never
+  // renders as one — a voice-note-only entry shows its transcript (once
+  // transcribed) or its audio player, not the canned sentence.
+  const transcript = typeof entry.voiceNoteTranscript === 'string' ? entry.voiceNoteTranscript.trim() : '';
+  const writtenNote = fieldNote && fieldNote !== DEFAULT_FIELD_NOTE_TEXT ? fieldNote : '';
+  const hasVoiceNote = entry.voiceNotePresent === true;
+  const [transcribing, setTranscribing] = useState(false);
+  const transcribedForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!hasVoiceNote || transcript || !entry.id) return;
+    if (transcribedForRef.current === entry.id) return;
+    transcribedForRef.current = entry.id;
+    let cancelled = false;
+    setTranscribing(true);
+    requestVoiceNoteTranscript(entry.id)
+      .then((result) => {
+        if (!result) transcribedForRef.current = null;
+      })
+      .finally(() => {
+        if (!cancelled) setTranscribing(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [entry.id, hasVoiceNote, transcript]);
+
   return (
     <div className="h-full flex flex-col gap-4">
       <div className="relative h-64 sm:h-72 border-[3px] border-on-surface bg-on-surface/5 overflow-hidden shadow-[4px_4px_0px_rgba(0,0,0,0.15)]">
@@ -156,9 +186,30 @@ function LogbookProofPage({ entry, proofStickerAssignments, onRepair }: { entry:
           <span className="inline-flex items-center gap-1"><Archive className="w-3.5 h-3.5" />{getProofZineState(entry)}</span>
         </div>
 
-        <blockquote className="border-l-4 border-brand-cyan pl-3 font-serif italic text-sm leading-relaxed text-on-surface/75">
-          {fieldNote || 'No field note was attached to this receipt.'}
-        </blockquote>
+        {transcript ? (
+          <div className="space-y-1">
+            <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">Voice note — transcribed</p>
+            <blockquote className="border-l-4 border-brand-cyan pl-3 font-serif italic text-sm leading-relaxed text-on-surface/75">
+              {transcript}
+            </blockquote>
+          </div>
+        ) : (
+          <blockquote className="border-l-4 border-brand-cyan pl-3 font-serif italic text-sm leading-relaxed text-on-surface/75">
+            {writtenNote || 'No field note was attached to this receipt.'}
+          </blockquote>
+        )}
+
+        {hasVoiceNote && entry.voiceNoteUrl && (
+          <div className="rounded-xl border-2 border-on-surface bg-white p-3">
+            <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">
+              Voice note ({entry.voiceNoteDurationSec ?? '?'}s)
+            </p>
+            <audio controls src={entry.voiceNoteUrl} className="mt-2 w-full" />
+            {transcribing && (
+              <p className="mt-2 font-mono text-xs uppercase tracking-widest text-on-surface/60">Transcribing voice note…</p>
+            )}
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-2">
           {presentation.status === 'approved' && (
@@ -192,6 +243,13 @@ function LogbookProofPage({ entry, proofStickerAssignments, onRepair }: { entry:
 function LogbookFallbackCard({ entry, onRepair }: { entry: any; onRepair: () => void }) {
   const presentation = getLogbookStatusPresentation(entry);
   const title = entry.tripTitle || entry.challengeTitle || entry.missionTitle || getEntryChallengeId(entry) || 'Field Mission';
+  // Same text rule as the full page: transcript first, then a real written
+  // note, never the stamped default.
+  const fallbackTranscript = typeof entry.voiceNoteTranscript === 'string' ? entry.voiceNoteTranscript.trim() : '';
+  const fallbackNote = getEntryFieldNote(entry);
+  const fallbackText = fallbackTranscript
+    || (fallbackNote && fallbackNote !== DEFAULT_FIELD_NOTE_TEXT ? fallbackNote : '')
+    || (entry.voiceNotePresent === true ? 'Voice note attached.' : 'No field note attached.');
   return (
     <article className="grid grid-cols-[7rem_1fr] gap-4 bg-white border-2 border-on-surface p-3 shadow-[4px_4px_0px_black] min-h-36">
       <div className="h-28 border-2 border-on-surface overflow-hidden">
@@ -200,7 +258,7 @@ function LogbookFallbackCard({ entry, onRepair }: { entry: any; onRepair: () => 
       <div className="text-left min-w-0 space-y-2">
         <span className={cn('inline-block px-2 py-1 border font-mono text-xs font-black uppercase', STATUS_STYLES[presentation.tone])}>{presentation.label}</span>
         <h3 className="font-display text-xl font-black uppercase italic leading-none">{title}</h3>
-        <p className="font-serif italic text-xs line-clamp-2">{getEntryFieldNote(entry) || 'No field note attached.'}</p>
+        <p className="font-serif italic text-xs line-clamp-2">{fallbackText}</p>
         {presentation.status === 'needs_more_proof' && <button type="button" onClick={onRepair} className="min-h-11 px-3 border-2 border-on-surface bg-brand-orange text-white font-mono text-xs font-black uppercase">Add proof</button>}
       </div>
     </article>

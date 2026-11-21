@@ -41,12 +41,14 @@ import {
 } from '../logic/proofRubric';
 import {
   calculateMissionScore,
+  DEFAULT_FIELD_NOTE_TEXT,
   DEFAULT_HINT_PENALTY_PERCENT,
   resolveParticipationSignals,
   toScoringSnapshot,
   type ScoreCalculationResult,
   type ScoringSnapshot,
 } from '../logic/missionScoring';
+import { requestVoiceNoteTranscript } from '../services/voiceNoteTranscriptService';
 import {
   aiConfidencePercent,
   extractAiAnalysis,
@@ -913,7 +915,36 @@ function SwipeView({ entry, onAction, busy }: any) {
   }));
   const [reviewNote, setReviewNote] = React.useState(entry.reviewNotes || entry.adminNotes || '');
 
-  // Explicit judgments (Q9): which categories a human has actually rated.
+  // Voice-note text, Option A (Nov 20, 2026): the transcript lives on the
+  // entry doc (server-written). Local state mirrors it so the button below
+  // shows the result without waiting for the queue to refresh.
+  const [transcript, setTranscript] = React.useState<string>(
+    typeof entry.voiceNoteTranscript === 'string' ? entry.voiceNoteTranscript.trim() : ''
+  );
+  const [transcribing, setTranscribing] = React.useState(false);
+  const [transcribeError, setTranscribeError] = React.useState<string | null>(null);
+
+  const handleTranscribe = async () => {
+    if (transcribing || !entry.id) return;
+    setTranscribing(true);
+    setTranscribeError(null);
+    const result = await requestVoiceNoteTranscript(entry.id);
+    setTranscribing(false);
+    if (result) {
+      setTranscript(result.transcript);
+    } else {
+      setTranscribeError('Transcription failed — the audio is still playable above. Nothing was saved.');
+    }
+  };
+
+  // The swipe view reuses this component across entries (no key), so sync
+  // the transcript when the entry changes; the queue view remounts per
+  // entry via its key.
+  React.useEffect(() => {
+    setTranscript(typeof entry.voiceNoteTranscript === 'string' ? entry.voiceNoteTranscript.trim() : '');
+    setTranscribeError(null);
+    setTranscribing(false);
+  }, [entry.id]);
   // The numeric ratings below start at the all-2s display defaults so the
   // live score updates as the admin rates, but the 2s are NOT judgments —
   // Approve stays disabled until all five categories are explicit. A stored
@@ -1069,6 +1100,21 @@ function SwipeView({ entry, onAction, busy }: any) {
                    Voice note ({(entry as any).voiceNoteDurationSec ?? '?'}s)
                  </p>
                  <audio controls src={(entry as any).voiceNoteUrl} className="mt-2 w-full" />
+                 {(entry as any).voiceNotePresent === true && !transcript && (
+                   <div className="mt-3 space-y-2">
+                     <button
+                       type="button"
+                       onClick={handleTranscribe}
+                       disabled={transcribing || !entry.id}
+                       className="min-h-11 px-4 py-2 bg-on-surface text-brand-lime border-2 border-on-surface font-mono text-xs font-black uppercase tracking-widest shadow-[4px_4px_0px_black] active:shadow-none active:translate-y-1 transition-all disabled:opacity-50"
+                     >
+                       {transcribing ? 'Transcribing…' : 'Transcribe voice note'}
+                     </button>
+                     {transcribeError && (
+                       <p className="font-mono text-xs font-bold text-red-700">{transcribeError}</p>
+                     )}
+                   </div>
+                 )}
                </div>
              )}
              {!entryResolved && (
@@ -1116,9 +1162,18 @@ function SwipeView({ entry, onAction, busy }: any) {
              </div>
 
              <div className="bg-white border-2 border-on-surface p-6 rounded-2xl shadow-[6px_6px_0px_black]">
-                <h4 className="text-[9px] font-mono font-black uppercase opacity-40 mb-3">Field_Note_Transcription</h4>
+                {/* Voice-note text, Option A (Nov 20, 2026): this box used to
+                    be headed "Field_Note_Transcription" while showing the
+                    WRITTEN note — for voice-note-only entries that meant the
+                    stamped default "A successful field trip entry." presented
+                    as a transcription. Now the heading says what the text
+                    actually is: the Gemini transcript when one exists, the
+                    written field note otherwise, and neither is faked. */}
+                <h4 className="text-[9px] font-mono font-black uppercase opacity-40 mb-3">
+                  {transcript ? 'Voice_Note_Transcription' : 'Field_Note'}
+                </h4>
                 <p className="font-mono text-xs leading-relaxed italic border-l-4 border-brand-orange pl-4 bg-brand-orange/5 py-4">
-                  "{entry.fieldNote || 'No verbal identification provided.'}"
+                  "{transcript || (entry.fieldNote && entry.fieldNote !== DEFAULT_FIELD_NOTE_TEXT ? entry.fieldNote : 'No written note — voice note only.')}"
                 </p>
              </div>
 

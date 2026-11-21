@@ -141,6 +141,12 @@ import {
   createStickerBackfillHandler
 } from "./src/server/stickerEvaluate";
 import {
+  createAdminVoiceNoteTranscriptStore,
+  createTranscribeVoiceNoteHandler,
+  VOICE_NOTE_TRANSCRIPT_MODEL,
+  type TranscribeAudioFn
+} from "./src/server/voiceNoteTranscription";
+import {
   createMarkNotificationReadHandler,
   createNotifySubmittedHandler,
   createPowerHourLiveHandler,
@@ -9016,6 +9022,42 @@ async function startServer() {
   // backfill of missing `sticker_awarded` notifications for all players
   // (Zach's pick, Nov 20, 2026). Idempotent: re-running writes nothing.
   app.post("/api/admin/stickers/backfill-notifications", adminRateLimiter, authenticate, createStickerBackfillHandler(() => (dbAdmin ? createAdminStickerBackfillStore(dbAdmin) : null), { requireAdminUser, writeAdminAudit }));
+
+  // --- VOICE-NOTE TEXT, OPTION A (Nov 20, 2026): GEMINI TRANSCRIPTION ---
+  // POST /api/entries/:id/transcribe — owner-or-admin. The server downloads
+  // the stored voice-note audio, sends it to Gemini as inline audio, and
+  // writes voiceNoteTranscript onto the entry. A missing key or failed call
+  // returns 503 and saves nothing — never a faked transcript. See
+  // src/server/voiceNoteTranscription.ts.
+  const transcribeAudioWithGemini: TranscribeAudioFn = async ({ audioBase64, mimeType }) => {
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY.trim() === "") {
+      throw new Error("GEMINI_API_KEY is not set.");
+    }
+    const response = await ai.models.generateContent({
+      model: VOICE_NOTE_TRANSCRIPT_MODEL,
+      contents: {
+        parts: [
+          { text: "Transcribe this voice note verbatim. Return only the transcription, no commentary, no quotation marks, no labels." },
+          {
+            inlineData: {
+              data: audioBase64,
+              mimeType
+            }
+          }
+        ]
+      }
+    });
+    return response.text || null;
+  };
+  app.post(
+    "/api/entries/:id/transcribe",
+    authRateLimiter,
+    authenticate,
+    createTranscribeVoiceNoteHandler(
+      () => (dbAdmin ? createAdminVoiceNoteTranscriptStore(dbAdmin, storageAdmin.bucket()) : null),
+      { transcribeAudio: transcribeAudioWithGemini, isAdminUser: (req: any) => req.user?.isAdmin === true }
+    )
+  );
 
   app.post("/api/admin/slot-orphan-proof-reviews", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });

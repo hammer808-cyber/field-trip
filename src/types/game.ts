@@ -441,6 +441,13 @@ export interface Entry {
   voiceNoteStoragePath?: string | null;
   voiceNoteDurationSec?: number | null;
   voiceNotePresent?: boolean | null;
+  // Voice-note text, Option A (Nov 20, 2026): server-side Gemini
+  // transcription writes these onto the entry. The Logbook and admin
+  // review render voiceNoteTranscript when present; nothing is ever
+  // written here by the client.
+  voiceNoteTranscript?: string | null;
+  voiceNoteTranscriptAt?: any;
+  voiceNoteTranscriptModel?: string | null;
   adminNotes?: string;
   imagePurged?: boolean;
   rejectedAt?: any;
