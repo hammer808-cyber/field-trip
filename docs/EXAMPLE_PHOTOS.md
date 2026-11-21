@@ -469,7 +469,7 @@ CC0, or public domain). Attribution:
 | Card | File | Source | License |
 | --- | --- | --- | --- |
 | winter-01 — Paper Snowflakes | `winter-01.jpg` | [File:Paper snowflakes (Unsplash).jpg](https://commons.wikimedia.org/wiki/File%3APaper_snowflakes_%28Unsplash%29.jpg) | CC0 |
-| winter-02 — Ugliest Ornament | `winter-02.jpg` | [File:Alpaca Christmas ornament - November 2023 - Sarah Stierch.jpg](https://commons.wikimedia.org/wiki/File%3AAlpaca_Christmas_ornament_-_November_2023_-_Sarah_Stierch.jpg) | CC BY 4.0 |
+| winter-02 — Ugliest Ornament | `winter-02.jpg` | [File:Disco Santa.jpg](https://commons.wikimedia.org/wiki/File%3ADisco_Santa.jpg) | CC0 |
 | winter-03 — Soup Weather | `winter-03.jpg` | [File:DFC 3982 A steaming bowl of homemade vegetable soup garnished with chopped parsley served with a slice of rustic brown bread.jpg](https://commons.wikimedia.org/wiki/File%3ADFC_3982_A_steaming_bowl_of_homemade_vegetable_soup_garnished_with_chopped_parsley_served_with_a_slice_of_rustic_brown_bread.jpg) | CC BY-SA 4.0 |
 | winter-04 — Bare Branches | `winter-04.jpg` | [File:Bare tree against a winter sky - geograph.org.uk - 6716344.jpg](https://commons.wikimedia.org/wiki/File%3ABare_tree_against_a_winter_sky_-_geograph.org.uk_-_6716344.jpg) | CC BY-SA 2.0 |
 | winter-05 — Winter Layers | `winter-05.jpg` | [File:Child walking along a snow-covered path beside a fence in winter.jpg](https://commons.wikimedia.org/wiki/File%3AChild_walking_along_a_snow-covered_path_beside_a_fence_in_winter.jpg) | CC BY 2.0 |
@@ -514,9 +514,11 @@ Two first picks failed that check and were replaced:
 
 The judgment-call cards, noted here so the next pass can revisit them:
 
-- Ugliest Ornament (02) is a grey fuzzy alpaca ornament hanging on a tree —
-  odd and offbeat rather than gaudy; "ugliest" is the player's call, and a
-  single strange ornament is the subject.
+- Ugliest Ornament (02) is a glittery pink sequined Santa holding a silver
+  tinsel tree and a pink disco ball (File:Disco Santa.jpg, CC0) — swapped
+  Nov 21, 2026 for the grey alpaca ornament, which read as cute, not ugly.
+  The pickle-ornament candidates were rejected (busy store display / a
+  tree with a pickle on it, not a single ugly subject).
 - Soup Weather (03) is a bowl of vegetable soup with bread; no steam is
   visible in the still. Steam rarely survives a still photo; the soup is
   the subject.

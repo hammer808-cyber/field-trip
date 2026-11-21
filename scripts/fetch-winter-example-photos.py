@@ -49,7 +49,7 @@ QUERIES = {
 
 PICK_TITLES = {
     "winter-01": "File:Paper snowflakes (Unsplash).jpg",
-    "winter-02": "File:Alpaca Christmas ornament - November 2023 - Sarah Stierch.jpg",
+    "winter-02": "File:Disco Santa.jpg",  # swapped Nov 21, 2026 (was the grey alpaca ornament — read as cute, not ugly)
     "winter-03": "File:DFC 3982 A steaming bowl of homemade vegetable soup garnished with chopped parsley served with a slice of rustic brown bread.jpg",
     "winter-04": "File:Bare tree against a winter sky - geograph.org.uk - 6716344.jpg",
     "winter-05": "File:Child walking along a snow-covered path beside a fence in winter.jpg",
