@@ -551,6 +551,15 @@ service cloud.firestore {
                  data.source.size() > 0 &&
                  data.source.size() <= 200 &&
                  isValidStickerTrigger(data.trigger) &&
+                 // Nov 20, 2026 — admin-grant hole, rules-only close
+                 // (Zach's call): 'admin_grant' is server-only. The
+                 // client evaluator never writes it (real grants go
+                 // through POST /api/admin/stickers/grant and the
+                 // Admin SDK bypasses rules), so an owner create with
+                 // this trigger is a self-issue by definition. Admins
+                 // bypass this whole check via isAdmin() on the
+                 // allow line below.
+                 data.trigger != 'admin_grant' &&
                  data.seen == false &&
                  data.equipped == false;
         }

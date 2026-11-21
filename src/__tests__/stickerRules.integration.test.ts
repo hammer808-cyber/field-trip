@@ -105,6 +105,31 @@ test('owners cannot mark a seen sticker unseen or delete unlock history', async 
   await assertFails(deleteDoc(stickerRef));
 });
 
+// Nov 20, 2026 — admin-grant hole, rules-only close (Zach's call).
+// The rules used to accept any trigger in the list on an owner create,
+// including 'admin_grant', so any player could self-mint the 42
+// admin-grant-only stickers from the console. Owner creates with that
+// trigger are now denied; admins can still create them (and the real
+// grant endpoint writes via the Admin SDK, bypassing rules).
+test('owners cannot self-grant with trigger admin_grant; admins can', async () => {
+  const db = authedDb('owner');
+  const stickerRef = doc(db, 'users', 'owner', 'stickers', STICKER_ID);
+  await assertFails(setDoc(stickerRef, {
+    ...validUnlockData(),
+    trigger: 'admin_grant',
+    source: 'admin_grant'
+  }));
+  // Control: the same doc with a legit trigger still succeeds.
+  await assertSucceeds(setDoc(stickerRef, validUnlockData()));
+
+  // Admins bypass the owner-create check (hardcoded dev UID in isAdmin()).
+  const adminDb = testEnv.authenticatedContext('oae0GwP7mpcUX7i93AeDGd22VNu2').firestore();
+  await assertSucceeds(setDoc(
+    doc(adminDb, 'users', 'owner', 'stickers', STICKER_ID),
+    { ...validUnlockData(), trigger: 'admin_grant', source: 'admin_grant' }
+  ));
+});
+
 // STAGE 2 (Nov 15, 2026) — legacy-spoof rejection case.
 // Audit finding (docs/sticker-system-audit.md §3.2): the legacy users/{uid}
 // sticker fields (unlockedRewards.stickers, earnedStickers,
