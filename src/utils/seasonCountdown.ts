@@ -1,4 +1,5 @@
 import { HEATWAVE_SEASON } from '../constants';
+import { getCurrentSeason, getDaysRemainingInSeason, getNextSeason, type CalendarSeason } from '../data/seasons';
 import { getSeasonTiming } from '../logic/weeklyLogic';
 import type { Season } from '../types/game';
 
@@ -73,4 +74,33 @@ export function getSeasonCountdown(season: Season, today: Date = new Date()): Se
 
 export function getSummerCountdown(today: Date = new Date(), season: Season = HEATWAVE_SEASON): SeasonState {
   return getSeasonCountdown(season, today);
+}
+
+export interface CalendarSeasonHeader {
+  currentSeason: CalendarSeason;
+  nextSeason: CalendarSeason;
+  /** Whole days left in the current season after today (0 on the last day). */
+  daysRemaining: number;
+  /** e.g. "Fall ends in 9d · Winter next", or "Fall ends today · Winter next". */
+  label: string;
+  status: 'active';
+}
+
+/**
+ * Basecamp header season line, backed by the meteorological calendar
+ * (src/data/seasons.ts) — the single authority (decided Nov 21, 2026).
+ * The Firestore `activeSeason` doc is NOT consulted: when the old
+ * Firestore-based getSeasonCountdown above and the calendar disagree,
+ * the calendar wins. Same copy shape as the old header ("<Season> ends
+ * in <n>d"), plus the next season. The calendar always has a current
+ * season, so this never returns null.
+ */
+export function getCalendarSeasonHeader(now: Date = new Date()): CalendarSeasonHeader {
+  const currentSeason = getCurrentSeason(now);
+  const nextSeason = getNextSeason(now);
+  const daysRemaining = getDaysRemainingInSeason(now);
+  const label = daysRemaining === 0
+    ? `${currentSeason.name} ends today · ${nextSeason.name} next`
+    : `${currentSeason.name} ends in ${daysRemaining}d · ${nextSeason.name} next`;
+  return { currentSeason, nextSeason, daysRemaining, label, status: 'active' };
 }

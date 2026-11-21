@@ -20,6 +20,7 @@ import {
   type WeeklyCategoryBallotsReadModel,
 } from '../services/weeklyVotingService';
 import { getProofImageReference } from '../logic/proofDistribution';
+import { getSeasonLabelForWeekStart } from '../logic/weeklySeasons';
 import type { WeeklyVoteCategory } from '../logic/weeklyVoting';
 
 const CATEGORIES = [
@@ -113,6 +114,11 @@ export default function WeeklyAwardsPage() {
   const hasLegacyWinners = Boolean(weeklySummary?.isLocked && weeklySummary?.voteWinners && Object.keys(weeklySummary.voteWinners).length > 0);
   const hasWinnersReleased = phase === 'awards' && (hasCanonicalResults || hasLegacyWinners);
 
+  // Season label (Nov 21, 2026): the voting week belongs to the season
+  // its Monday falls in (Monday rule, calendar-backed). The cycle number
+  // shown stays the existing season-week number — only the season is new.
+  const weekSeasonLabel = getSeasonLabelForWeekStart(getCurrentVotingCycle(getServerDate()).weekStart);
+
   const statusLabel = hasWinnersReleased
     ? 'Results Released'
     : phase === 'awards'
@@ -132,7 +138,7 @@ export default function WeeklyAwardsPage() {
         backgroundIcon={<Trophy className="h-64 w-64" />}
         infoCardLabel="Release"
         infoCardValue={statusLabel}
-        infoCardSubtext={`Cycle ${currentWeekNumber || '—'}`}
+        infoCardSubtext={`${weekSeasonLabel} · Cycle ${currentWeekNumber || '—'}`}
         infoCardAccent={hasWinnersReleased ? 'lime' : 'orange'}
       />
       <PlayerPageBody>

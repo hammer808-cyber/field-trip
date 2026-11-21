@@ -22,7 +22,7 @@ import {
 } from '../logic/basecampViewModel';
 import { acknowledgeDeckCompleteSeen } from '../services/deckCompleteAck';
 import { markNotificationRead } from '../services/playerNotificationService';
-import { getSeasonCountdown } from '../utils/seasonCountdown';
+import { getCalendarSeasonHeader } from '../utils/seasonCountdown';
 import './Basecamp.css';
 
 export default function Basecamp() {
@@ -112,14 +112,11 @@ export default function Basecamp() {
   // countdown, linking out to the shelf in DEX.
   // The season countdown lives in the header now (Nov 17, 2026): the same
   // fact shown once — it used to sit in the Active Deck row below.
-  const seasonCountdown = activeSeason
-    ? getSeasonCountdown(activeSeason, currentDate)
-    : null;
-  const headerSeasonLine = seasonCountdown
-    ? seasonCountdown.status === 'active'
-      ? `${seasonCountdown.label} · Week ${currentWeekNumber}`
-      : seasonCountdown.label
-    : null;
+  // Calendar-backed (Nov 21, 2026): the meteorological calendar is the
+  // authority for what the header says — the Firestore activeSeason doc
+  // no longer decides it. Same shape as before, plus the next season.
+  const seasonHeader = getCalendarSeasonHeader(currentDate);
+  const headerSeasonLine = `${seasonHeader.label} · Week ${currentWeekNumber}`;
 
   React.useEffect(() => {
     if (!import.meta.env.DEV || !(profile?.id || user?.uid)) return;
