@@ -44,6 +44,7 @@ import {
 import { activateSabotageShield, deploySabotage, getWeeklySabotages, resolveSabotage } from '../services/sabotageService';
 import { SABOTAGE_CARDS } from '../constants';
 import { canRequestFieldCheck } from '../logic/fieldCheckLogic';
+import { resolveFieldKitReady } from '../logic/fieldKit';
 import { useDev } from './DevContext';
 import { 
   isViewfinderLocked as checkViewfinderLocked,
@@ -680,7 +681,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const now = new Date().toISOString();
     await handleUpdateProfile(user.uid, { 
       hasCompletedFieldKitOnboarding: true,
-      fieldKitReady: true,
+      // Nov 20, 2026 (P0-6 follow-up): ready means both permissions
+      // actually granted — the skip path used to write true here too.
+      fieldKitReady: resolveFieldKitReady(cameraPermissionReady, locationPermissionReady),
       permissionsPrompted: true,
       cameraPermissionGranted: cameraPermissionReady,
       locationPermissionGranted: locationPermissionReady,
