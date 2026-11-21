@@ -87,7 +87,7 @@ export function BasecampTicketMeter({
         <span className="font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-text)]">
           {rounded}% completed
         </span>
-        <span className="font-mono text-xs font-bold uppercase tracking-wider text-[var(--skin-text-muted)]">
+        <span className="font-mono text-xs font-bold uppercase tracking-wider text-[var(--skin-text)]">
           {xpToNextLevel.toLocaleString()} XP to level {nextLevel}
         </span>
       </div>

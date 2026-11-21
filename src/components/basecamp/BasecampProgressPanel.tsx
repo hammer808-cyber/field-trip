@@ -46,7 +46,7 @@ export function BasecampProgressPanel({ model, onOpenProfile, markerStickerId }:
           <span className="basecamp-tape basecamp-tape--right" aria-hidden="true" />
           <div className="flex flex-wrap items-end justify-between gap-2">
             <div>
-              <p className="font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-secondary)]">Level {model.level}</p>
+              <p className="font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-text)]">Level {model.level}</p>
               <p className="mt-1 text-sm font-bold">{model.levelTitle}</p>
             </div>
             <p className="font-mono text-xs font-black uppercase tracking-wider">{model.xp.toLocaleString()} XP</p>

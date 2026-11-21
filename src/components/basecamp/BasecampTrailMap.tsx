@@ -28,7 +28,7 @@ export function BasecampTrailMap({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <p className="font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-text-muted)]">
+        <p className="font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-text)]">
           Level trail · Stage {trail.currentLevel} of 15
         </p>
         {trail.isComplete && <FieldStamp label="Done" tone="primary" />}
