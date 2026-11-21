@@ -31,6 +31,18 @@ test('trail map shows all 15 levels with the marker on the current one', () => {
   assert.match(html, /👣/);
 });
 
+test('trail container is tall enough to hold the nodes (Nov 21 overlap fix)', () => {
+  // The nodes are absolutely positioned at top 28px inside a 32px row,
+  // so the container needs an explicit 60px height: with only padding
+  // the container collapsed to 28px and the nodes ran through the
+  // Next stop footer underneath.
+  const source = read('src/components/basecamp/BasecampTrailMap.tsx');
+  assert.match(source, /className="relative h-\[60px\]"/);
+  const html = renderToStaticMarkup(<BasecampTrailMap xp={314} />);
+  assert.match(html, /relative h-\[60px\]/);
+  assert.match(html, /Next stop: Junior Field Nuisance/);
+});
+
 test('trail map honours the chosen marker sticker and the finished trail', () => {
   const owlHtml = renderToStaticMarkup(<BasecampTrailMap xp={314} markerStickerId="night-owl" />);
   assert.match(owlHtml, /🦉/);

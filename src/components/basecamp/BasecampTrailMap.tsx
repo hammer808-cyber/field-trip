@@ -44,7 +44,7 @@ export function BasecampTrailMap({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(trail.progressPercent)}
-        className="relative pt-7"
+        className="relative h-[60px]"
       >
         {/* Dashed trail line, inset so the end nodes never clip. */}
         <div
