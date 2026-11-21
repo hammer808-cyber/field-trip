@@ -6,8 +6,7 @@ import { useApp } from '../context/AppContext';
 import { FIELD_TYPES } from '../constants';
 import { cn } from '../lib/utils';
 import { LEVEL_MILESTONE_REWARDS } from '../logic/playerLevel';
-import { evaluateStickerTriggers } from '../logic/stickerEvaluator';
-import { runStickerAwardNonBlocking } from '../services/stickerService';
+import { requestStickerEvaluation, runStickerAwardNonBlocking } from '../services/stickerService';
 import {
   acknowledgeLevelUpEvent,
   subscribeToPendingLevelUpEvents,
@@ -45,11 +44,13 @@ export function PlayerLevelUpFeedback() {
     for (const levelUpEvent of events) {
       if (evaluatedLevelUpEventsRef.current.has(levelUpEvent.id)) continue;
       evaluatedLevelUpEventsRef.current.add(levelUpEvent.id);
+      // Option B (Nov 20, 2026): the server checks the level-up event
+      // doc exists for this player before it awards Level Up.
       runStickerAwardNonBlocking('level_up', () =>
-        evaluateStickerTriggers({
-          event: { type: 'level_up', source: `level_up:${levelUpEvent.id}` },
-          userId: user.uid,
-          fieldType: profile?.fieldType ?? null
+        requestStickerEvaluation({
+          eventType: 'level_up',
+          eventId: levelUpEvent.id,
+          source: `level_up:${levelUpEvent.id}`
         })
       );
     }

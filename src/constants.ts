@@ -55,11 +55,18 @@ export type { TripCard } from './types/challenges';
 export type Trip = TripCard;
 export type Challenge = TripCard;
 
-export const HEATWAVE_SEASON_START_DATE = '2026-06-06T00:00:00Z'; // Launch date
-export const HEATWAVE_SEASON_END_DATE = '2026-09-06T23:59:59Z';
-
-export const HOLIDAY_SEASON_START_DATE = '2026-11-01T00:00:00Z'; // Gobble & Glow opens
-export const HOLIDAY_SEASON_END_DATE = '2027-01-11T23:59:59Z';
+import {
+  HEATWAVE_SEASON_START_DATE,
+  HEATWAVE_SEASON_END_DATE,
+  HOLIDAY_SEASON_START_DATE,
+  HOLIDAY_SEASON_END_DATE
+} from './data/seasonDates';
+export {
+  HEATWAVE_SEASON_START_DATE,
+  HEATWAVE_SEASON_END_DATE,
+  HOLIDAY_SEASON_START_DATE,
+  HOLIDAY_SEASON_END_DATE
+};
 
 export const HEATWAVE_SEASON: Season = {
   id: 'heatwave-receipts',

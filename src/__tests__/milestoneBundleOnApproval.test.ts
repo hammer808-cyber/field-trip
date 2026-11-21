@@ -203,16 +203,24 @@ test('admin approval: archetype_milestone catches up past 5 (audit fix #2)', asy
   assert.equal(callsForTrigger(fake.calls, 'mission_count_milestone').length, 0);
 });
 
-test('wiring: both admin review paths use evaluateAdminApprovalStickers and read the player profile', () => {
+test('wiring: both admin review paths post first_approval to the server evaluate endpoint', () => {
+  // Option B (Nov 20, 2026): the review paths no longer run the evaluator
+  // client-side. They post a first_approval event; the server reads the
+  // entry + profile, runs evaluateAdminApprovalStickers, and writes the
+  // award + notification in one transaction.
   for (const rel of ['src/services/proofService.ts', 'src/services/submissionService.ts']) {
     const source = read(rel);
     assert.ok(
-      source.includes('evaluateAdminApprovalStickers'),
-      `${rel} must evaluate admin approvals through the shared helper`
+      source.includes('requestStickerEvaluation'),
+      `${rel} must post the approval to the server evaluate endpoint`
     );
     assert.ok(
-      source.includes("doc(db, 'users'"),
-      `${rel} must read the player's profile doc for the milestone snapshot`
+      source.includes("eventType: 'first_approval'"),
+      `${rel} must post a first_approval event`
+    );
+    assert.ok(
+      !source.includes('evaluateAdminApprovalStickers'),
+      `${rel} must not run the evaluator client-side anymore`
     );
     assert.ok(
       !source.includes("re-check on the player's next AppContext approval"),
@@ -226,5 +234,9 @@ test('wiring: both admin review paths use evaluateAdminApprovalStickers and read
   assert.ok(
     read('src/logic/stickerEvaluator.ts').includes('export async function evaluateAdminApprovalStickers'),
     'stickerEvaluator must export the admin-approval helper'
+  );
+  assert.ok(
+    read('src/server/stickerEvaluate.ts').includes("db.collection('users').doc(uid).get()"),
+    'the server evaluate module must read the player profile for the milestone snapshot'
   );
 });

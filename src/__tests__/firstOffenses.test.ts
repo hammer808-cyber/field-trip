@@ -123,10 +123,15 @@ test('first offenses: wired triggers resolve through the evaluator, including cr
 });
 
 test('first offenses: the level_up trigger is wired at the level-up observation point', () => {
+  // Option B (Nov 20, 2026): the observation point posts a level_up event
+  // to POST /api/stickers/evaluate; the server runs the evaluator and
+  // writes the award + notification. No client-side unlock remains here.
   const feedback = fs.readFileSync('src/components/PlayerLevelUpFeedback.tsx', 'utf8');
-  assert.match(feedback, /evaluateStickerTriggers/);
-  assert.match(feedback, /type: 'level_up'/);
-  assert.match(feedback, /runStickerAwardNonBlocking\('level_up'/);
+  assert.match(feedback, /requestStickerEvaluation/);
+  assert.match(feedback, /eventType: 'level_up'/);
+  assert.match(feedback, /eventId: levelUpEvent\.id/);
+  assert.doesNotMatch(feedback, /evaluateStickerTriggers/);
+  assert.doesNotMatch(feedback, /unlockStickersForUser/);
 });
 
 test('first offenses: firestore.rules whitelists the nine ids and the two repaired triggers', () => {

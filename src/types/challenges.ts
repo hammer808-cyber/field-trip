@@ -1,4 +1,4 @@
-import { FieldTypeId } from '../constants';
+import type { FieldTypeId } from '../constants';
 import type { LocationTag } from '../logic/locationTags';
 
 /**

@@ -4,21 +4,33 @@ import {
   doc,
   getDoc,
   getDocs,
-  limit,
-  query,
-  runTransaction,
-  serverTimestamp,
-  where
+  runTransaction
 } from 'firebase/firestore';
 import {
   getStickerById as getRegistryStickerById,
-  getStarterPackForArchetype as getRegistryStarterPackForArchetype,
-  type StickerArchetype,
   type StickerAwardTrigger
 } from '../data/stickers';
 import { db } from '../lib/firebase';
-import { canonicalizeId } from './canonicalProgress';
+import { authenticatedFetch } from '../lib/api';
 import { UserProfile } from './userService';
+import {
+  isStickerAwardTrigger,
+  validateUserId,
+  type StickerUnlockResult
+} from '../logic/stickerAwardCore';
+
+// Option B (Nov 20, 2026): the pure award definitions moved to
+// `src/logic/stickerAwardCore.ts` (importable from the server without
+// the client Firestore module). Re-exported here so existing importers
+// do not churn; new code imports from the core directly.
+export {
+  getStickerArchetypeForFieldType,
+  isStickerAwardTrigger,
+  normalizeSource,
+  STICKER_EVENT_AWARD_IDS,
+  type StickerUnlockResult,
+  type StickerUnlockStatus
+} from '../logic/stickerAwardCore';
 
 export interface StickerRecord {
   id: string;
@@ -58,51 +70,6 @@ export function canSetStickerFeatured(
   return featuredCount < MAX_FEATURED_STICKERS;
 }
 
-export type StickerUnlockStatus =
-  | 'unlocked'
-  | 'already_unlocked'
-  | 'invalid_sticker'
-  | 'failed';
-
-export interface StickerUnlockResult {
-  stickerId: string;
-  status: StickerUnlockStatus;
-  unlocked: boolean;
-  error?: string;
-}
-
-export const STICKER_EVENT_AWARD_IDS = {
-  firstSubmission: 'mall_rat_receipt_curl',
-  firstApproval: 'captain_clipboard_checkmark_seal',
-  fieldNoteAdded: 'captain_clipboard_pen_sparkle',
-  photoProofAdded: 'mall_rat_food_court_tray',
-  weeklyVoteCast: 'mascota_foam_finger',
-  crewCreated: 'captain_clipboard_whistle_lanyard',
-  crewJoined: 'bigfoot_peace_sign',
-  zinePageAdded: 'captain_clipboard_flying_papers'
-} as const;
-
-const FIELD_TYPE_TO_STICKER_ARCHETYPE: Readonly<Record<string, StickerArchetype>> = {
-  captainclipboard: 'captainClipboard',
-  mallrat: 'mallRat',
-  mascota: 'mascota',
-  themascot: 'mascota',
-  elondra: 'elondra',
-  homecomingqueen: 'elondra',
-  lostcamper: 'lostCamper',
-  thegobbler: 'lostCamper',
-  evidencegoblin: 'lostCamper',
-  bigfoot: 'bigfoot',
-  explorer: 'bigfoot'
-};
-
-export function getStickerArchetypeForFieldType(
-  fieldType: string | null | undefined
-): StickerArchetype | null {
-  if (!fieldType) return null;
-  const normalized = fieldType.trim().replace(/[\s_-]+/g, '').toLowerCase();
-  return FIELD_TYPE_TO_STICKER_ARCHETYPE[normalized] ?? null;
-}
 
 type StickerAwardOperationResult = StickerUnlockResult | StickerUnlockResult[];
 
@@ -124,72 +91,6 @@ export function runStickerAwardNonBlocking(
     });
 }
 
-const STICKER_AWARD_TRIGGERS: readonly StickerAwardTrigger[] = [
-  'starter_pack',
-  'first_submission',
-  'first_approval',
-  'field_note_added',
-  'photo_proof_added',
-  'challenge_approved',
-  'weekly_vote_cast',
-  'weekly_winner',
-  'crew_joined',
-  'crew_created',
-  'zine_page_added',
-  'archetype_milestone',
-  'season_milestone',
-  'mission_count_milestone',
-  'level_up',
-  'repair_approved',
-  'admin_grant'
-];
-
-/**
- * Pure check (earn-audit fix #3): is this proof-review doc a
- * needs-more-proof decision for this mission? Reviews carry the mission
- * under `challengeId` or `missionId` (either may hold it — see the admin
- * queue's `missionId: reviewData.missionId || reviewData.challengeId`).
- */
-export function isNeedsMoreReviewForMission(
-  review: { status?: unknown; challengeId?: unknown; missionId?: unknown },
-  missionId: string | null
-): boolean {
-  if (!missionId) return false;
-  if (review?.status !== 'needs_more_proof') return false;
-  return canonicalizeId(review.challengeId ?? review.missionId) === canonicalizeId(missionId);
-}
-
-/**
- * Repair detection (earn-audit fix #3, Plot Twist): was this mission sent
- * back for more proof before this approval? Each submission is a NEW entry
- * doc (`entry_<mission>_<user>_<timestamp>`), so the current entry never
- * carries the history — the needs-more decision lives on the earlier
- * proofReview for the same mission.
- *
- * Single equality filter (`userId`) on the last 50 reviews, filtered in
- * code — no composite index needed. Best-effort by design: a failed read
- * returns false and Plot Twist simply never fires for that approval (the
- * admin-grant path still works). The call runs inside the non-blocking
- * sticker callback, so it never holds up the review UI.
- */
-export async function wasMissionSentBackForMoreProof(
-  userId: string,
-  missionId: string | null
-): Promise<boolean> {
-  if (!userId || !missionId) return false;
-  try {
-    const snap = await getDocs(
-      query(collection(db, 'proofReviews'), where('userId', '==', userId), limit(50))
-    );
-    return snap.docs.some(doc => isNeedsMoreReviewForMission(doc.data() as any, missionId));
-  } catch {
-    return false;
-  }
-}
-
-function isStickerAwardTrigger(value: unknown): value is StickerAwardTrigger {
-  return typeof value === 'string' && STICKER_AWARD_TRIGGERS.includes(value as StickerAwardTrigger);
-}
 
 function getStickerCollection(userId: string) {
   return collection(db, 'users', userId, 'stickers');
@@ -216,15 +117,6 @@ function reportStickerServiceError(
   return message;
 }
 
-function validateUserId(userId: string): boolean {
-  return typeof userId === 'string' && userId.trim().length > 0;
-}
-
-function normalizeSource(source: string): string | null {
-  if (typeof source !== 'string') return null;
-  const normalized = source.trim();
-  return normalized.length > 0 && normalized.length <= 200 ? normalized : null;
-}
 
 function normalizeUnlockedSticker(
   documentId: string,
@@ -296,126 +188,6 @@ export async function hasUserUnlockedSticker(userId: string, stickerId: string):
   } catch (error) {
     reportStickerServiceError('hasUserUnlockedSticker', error, { userId, stickerId });
     return false;
-  }
-}
-
-export async function unlockStickerForUser(
-  userId: string,
-  stickerId: string,
-  source: string,
-  trigger: StickerAwardTrigger
-): Promise<StickerUnlockResult> {
-  const results = await unlockStickersForUser(userId, [stickerId], source, trigger);
-  return results[0] ?? {
-    stickerId,
-    status: 'failed',
-    unlocked: false,
-    error: 'Sticker unlock returned no result.'
-  };
-}
-
-export async function unlockStickersForUser(
-  userId: string,
-  stickerIds: string[],
-  source: string,
-  trigger: StickerAwardTrigger
-): Promise<StickerUnlockResult[]> {
-  const uniqueStickerIds = [...new Set(stickerIds.filter(Boolean))];
-  if (uniqueStickerIds.length === 0) return [];
-
-  const normalizedSource = normalizeSource(source);
-  if (!validateUserId(userId) || !normalizedSource || !isStickerAwardTrigger(trigger)) {
-    const error = !validateUserId(userId)
-      ? 'A valid userId is required.'
-      : !normalizedSource
-        ? 'Source must be between 1 and 200 characters.'
-        : `Unknown sticker trigger: ${String(trigger)}`;
-    reportStickerServiceError('unlockStickersForUser', error, { userId });
-    return uniqueStickerIds.map(stickerId => ({
-      stickerId,
-      status: 'failed',
-      unlocked: false,
-      error
-    }));
-  }
-
-  const invalidResults: StickerUnlockResult[] = [];
-  const validStickerIds = uniqueStickerIds.filter(stickerId => {
-    if (getRegistryStickerById(stickerId)) return true;
-    const error = `Unknown stickerId: ${stickerId}`;
-    reportStickerServiceError('unlockStickersForUser', error, { userId, stickerId });
-    invalidResults.push({
-      stickerId,
-      status: 'invalid_sticker',
-      unlocked: false,
-      error
-    });
-    return false;
-  });
-
-  if (validStickerIds.length === 0) return invalidResults;
-
-  try {
-    const transactionResults = await runTransaction(db, async transaction => {
-      const stickerRefs = validStickerIds.map(stickerId => getStickerDocument(userId, stickerId));
-      const snapshots = [];
-      for (const stickerRef of stickerRefs) {
-        snapshots.push(await transaction.get(stickerRef));
-      }
-
-      return snapshots.map((snapshot, index): StickerUnlockResult => {
-        const stickerId = validStickerIds[index];
-        if (snapshot.exists()) {
-          return {
-            stickerId,
-            status: 'already_unlocked',
-            unlocked: false
-          };
-        }
-
-        transaction.set(stickerRefs[index], {
-          stickerId,
-          unlockedAt: serverTimestamp(),
-          source: normalizedSource,
-          trigger,
-          seen: false,
-          equipped: false
-        });
-
-        return {
-          stickerId,
-          status: 'unlocked',
-          unlocked: true
-        };
-      });
-    });
-
-    const resultsById = new Map(
-      [...transactionResults, ...invalidResults].map(result => [result.stickerId, result])
-    );
-    return uniqueStickerIds.map(stickerId => resultsById.get(stickerId) ?? ({
-      stickerId,
-      status: 'failed',
-      unlocked: false,
-      error: 'Sticker unlock result was not recorded.'
-    } satisfies StickerUnlockResult));
-  } catch (error) {
-    const message = reportStickerServiceError('unlockStickersForUser', error, { userId });
-    const failedResults = validStickerIds.map(stickerId => ({
-      stickerId,
-      status: 'failed' as const,
-      unlocked: false,
-      error: message
-    }));
-    const resultsById = new Map(
-      [...failedResults, ...invalidResults].map(result => [result.stickerId, result])
-    );
-    return uniqueStickerIds.map(stickerId => resultsById.get(stickerId) ?? ({
-      stickerId,
-      status: 'failed',
-      unlocked: false,
-      error: message
-    } satisfies StickerUnlockResult));
   }
 }
 
@@ -503,25 +275,64 @@ export async function getFeaturedStickers(userId: string): Promise<UserUnlockedS
     .slice(0, MAX_FEATURED_STICKERS);
 }
 
-export async function unlockStarterPackForArchetype(
-  userId: string,
-  archetype: StickerArchetype
+/**
+ * Option B (Nov 20, 2026): the client-side award path. The evaluator no
+ * longer writes sticker docs from the phone — this posts the event to
+ * `POST /api/stickers/evaluate` and the server verifies the event,
+ * runs the evaluator, and writes the sticker doc + ledger row +
+ * notification in one transaction. Returns the evaluator's results
+ * (same shape as the old client unlock), or [] when the request fails —
+ * call sites stay fire-and-forget via `runStickerAwardNonBlocking`,
+ * which logs any `failed` / `invalid_sticker` results.
+ *
+ * Verification (server-side, see `src/server/stickerEvaluate.ts`):
+ * entry-based events must name a real, approved entry owned by the
+ * awardee; starter packs must match the profile's archetype; crew
+ * events must name a real crew the player belongs to; level-ups must
+ * name a real level-up event. A player asking for someone else's award
+ * needs admin.
+ */
+export interface StickerEvaluationRequest {
+  eventType: StickerAwardTrigger;
+  /** Entry doc id, for entry-based events (approval, submission, note, photo, late-night). */
+  entryId?: string;
+  /** Source string recorded on the unlock (1–200 chars). */
+  source: string;
+  /** The submitting device's local hour (0–23), for `late_night_submission`. */
+  localHour?: number;
+  /** Quiz archetype, for `starter_pack`. */
+  archetype?: string;
+  /** Crew doc id, for `crew_created` / `crew_joined` / `crew_survived_week`. */
+  crewId?: string;
+  /** Level-up event doc id, for `level_up`. */
+  eventId?: string;
+  /** Vote season/week, for `weekly_vote_cast`. */
+  seasonId?: string;
+  weekNumber?: number;
+}
+
+export async function requestStickerEvaluation(
+  input: StickerEvaluationRequest
 ): Promise<StickerUnlockResult[]> {
   try {
-    const starterPack = getRegistryStarterPackForArchetype(archetype);
-    return await unlockStickersForUser(
-      userId,
-      starterPack.map(sticker => sticker.id),
-      `starter_pack:${archetype}`,
-      'starter_pack'
-    );
+    const response = await authenticatedFetch('/api/stickers/evaluate', {
+      method: 'POST',
+      body: JSON.stringify(input)
+    });
+    if (!response.ok) {
+      console.error('[StickerService] Sticker evaluation request failed', {
+        status: response.status,
+        eventType: input.eventType
+      });
+      return [];
+    }
+    const data = await response.json();
+    return Array.isArray(data?.awarded) ? (data.awarded as StickerUnlockResult[]) : [];
   } catch (error) {
-    const message = reportStickerServiceError('unlockStarterPackForArchetype', error, { userId });
-    return [{
-      stickerId: `starter_pack:${archetype}`,
-      status: 'failed',
-      unlocked: false,
-      error: message
-    }];
+    console.error('[StickerService] Sticker evaluation request failed', {
+      eventType: input.eventType,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return [];
   }
 }

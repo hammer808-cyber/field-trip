@@ -13,9 +13,9 @@ import { Crew, CrewLore, CrewDispatch, CrewInvite, CrewJoinRequest, CrewMembersh
 import { Entry } from '../constants';
 import type { CrewMode, CrewPrivacy } from '../logic/crewSystem';
 import {
+  requestStickerEvaluation,
   runStickerAwardNonBlocking,
 } from './stickerService';
-import { evaluateStickerTriggers } from '../logic/stickerEvaluator';
 
 const CREWS_COLLECTION = 'crews';
 const LORE_COLLECTION = 'crewLore';
@@ -64,14 +64,16 @@ export function crewSurvivedWeek(createdAt: unknown, now: Date = new Date()): bo
 
 function awardCurrentUserCrewSticker(
   trigger: 'crew_created' | 'crew_joined' | 'crew_survived_week',
-  source: string
+  crewId: string
 ): void {
-  const userId = auth.currentUser?.uid;
-  if (!userId) return;
+  // Option B (Nov 20, 2026): the server checks the crew exists and the
+  // player belongs to it (and, for crew_survived_week, that it is a week
+  // old) before it awards.
   runStickerAwardNonBlocking(trigger, () =>
-    evaluateStickerTriggers({
-      event: { type: trigger, source },
-      userId
+    requestStickerEvaluation({
+      eventType: trigger,
+      crewId,
+      source: `${trigger}:${crewId}`
     })
   );
 }
@@ -88,7 +90,7 @@ async function maybeAwardCrewSurvivedWeek(crewId: string): Promise<void> {
   try {
     const crew = await getCrew(crewId);
     if (crew && crewSurvivedWeek(crew.createdAt)) {
-      awardCurrentUserCrewSticker('crew_survived_week', `crew_survived_week:${crew.id}`);
+      awardCurrentUserCrewSticker('crew_survived_week', crew.id);
     }
   } catch {
     // Best effort — the bar just doesn't award on this check.
@@ -108,10 +110,7 @@ export async function getCurrentCrewMembership(): Promise<CrewMembershipState> {
   const membership = await readCrewResponse<CrewMembershipState>(response, `Crew membership lookup failed with HTTP ${response.status}`);
   if (membership.membership?.crewId) {
     // Idempotent reconciliation covers joins approved while the member was offline.
-    awardCurrentUserCrewSticker(
-      'crew_joined',
-      `crew_joined:${membership.membership.crewId}`
-    );
+    awardCurrentUserCrewSticker('crew_joined', membership.membership.crewId);
     // Accomplice bar (earn-audit fix #3, Q11): reconciliation runs on
     // the Crew page, so a crew that ages into a week awards on the
     // member's next visit there (the unlock dedupes re-checks).
@@ -134,10 +133,7 @@ export async function createCrew(input: {
   const membership = await readCrewResponse<CrewMembershipState>(response, `Crew creation failed with HTTP ${response.status}`);
   if (membership.crew?.id) {
     // Crew creation succeeded server-side; its reward is independent from membership writes.
-    awardCurrentUserCrewSticker(
-      'crew_created',
-      `crew_created:${membership.crew.id}`
-    );
+    awardCurrentUserCrewSticker('crew_created', membership.crew.id);
   }
   return membership;
 }
@@ -194,7 +190,7 @@ export async function acceptCrewInvite(inviteId: string): Promise<{ success: boo
   const result = await readCrewResponse<{ success: boolean; crewId: string }>(response, `Crew invite accept failed with HTTP ${response.status}`);
   if (result.success && result.crewId) {
     // Direct invite acceptance is a completed membership event, not a join request.
-    awardCurrentUserCrewSticker('crew_joined', `crew_joined:${result.crewId}`);
+    awardCurrentUserCrewSticker('crew_joined', result.crewId);
     // Joining a crew that is already a week old qualifies at once.
     void maybeAwardCrewSurvivedWeek(result.crewId);
   }
@@ -216,7 +212,7 @@ export async function joinCrewByInviteToken(token: string): Promise<any> {
   const result = await readCrewResponse<any>(response, `Crew invite join failed with HTTP ${response.status}`);
   if (result?.joined === true && result?.crewId) {
     // Share-link requests earn nothing until the server confirms membership was joined.
-    awardCurrentUserCrewSticker('crew_joined', `crew_joined:${result.crewId}`);
+    awardCurrentUserCrewSticker('crew_joined', result.crewId);
     // Joining a crew that is already a week old qualifies at once.
     void maybeAwardCrewSurvivedWeek(result.crewId);
   }

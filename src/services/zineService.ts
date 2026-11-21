@@ -1,19 +1,18 @@
 import { authenticatedFetch } from '../lib/api';
-import { auth } from '../lib/firebase';
 import type { ZineEdition, ZineLayoutId, ZineProofSnapshot, ZineStickerPlacement, ZineWorkspaceState } from '../types/zine';
 import { getZinePageStickerPlacements } from '../logic/zineStickerPlacements';
 import {
+  requestStickerEvaluation,
   runStickerAwardNonBlocking,
 } from './stickerService';
-import { evaluateStickerTriggers } from '../logic/stickerEvaluator';
 
 function awardCurrentUserZineSticker(source: string): void {
-  const userId = auth.currentUser?.uid;
-  if (!userId) return;
+  // Option B (Nov 20, 2026): Zines are parked, so the server has no zine
+  // state to verify — the claim is accepted and the sticker dedupes.
   runStickerAwardNonBlocking('zine_page_added', () =>
-    evaluateStickerTriggers({
-      event: { type: 'zine_page_added', source },
-      userId
+    requestStickerEvaluation({
+      eventType: 'zine_page_added',
+      source
     })
   );
 }

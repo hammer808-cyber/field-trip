@@ -77,9 +77,9 @@ import { authenticatedFetch } from '../lib/api';
 import { DISCOVERY_STICKERS, DiscoverySticker } from '../constants/discoveryStickers';
 import {
   hasEarnedSticker,
+  requestStickerEvaluation,
   runStickerAwardNonBlocking,
 } from '../services/stickerService';
-import { evaluateStickerTriggers } from '../logic/stickerEvaluator';
 import { getStickerById, COLLECTION_META } from '../data/stickers';
 import {
   celebrationIntensityForRarity,
@@ -2231,11 +2231,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const isFirstDraw = drawnMissionCards.length === 0;
     const maybeAwardFirstDraw = () => {
       if (!isFirstDraw) return;
+      // Option B (Nov 20, 2026): the server checks a drawn card exists
+      // before it awards Scene Starter.
       runStickerAwardNonBlocking('draw_first_draw', () =>
-        evaluateStickerTriggers({
-          event: { type: 'first_draw', source: `first_draw:${user.uid}` },
-          userId: user.uid,
-          fieldType: profile?.fieldType ?? null
+        requestStickerEvaluation({
+          eventType: 'first_draw',
+          source: `first_draw:${user.uid}`
         })
       );
     };
@@ -2548,18 +2549,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // The evaluator archetype-matches the award (Stage 3): the player's own
     // variant when one exists, else the trigger's default.
     runStickerAwardNonBlocking('proof_first_submission', () =>
-      evaluateStickerTriggers({
-        event: { type: 'first_submission', source: `proof_submission:${entryId}` },
-        userId: user.uid,
-        fieldType: profile.fieldType
+      requestStickerEvaluation({
+        eventType: 'first_submission',
+        entryId,
+        source: `proof_submission:${entryId}`
       })
     );
     if (entryData.fieldNote?.trim()) {
       runStickerAwardNonBlocking('proof_field_note', () =>
-        evaluateStickerTriggers({
-          event: { type: 'field_note_added', source: `proof_submission:${entryId}` },
-          userId: user.uid,
-          fieldType: profile.fieldType
+        requestStickerEvaluation({
+          eventType: 'field_note_added',
+          entryId,
+          source: `proof_submission:${entryId}`
         })
       );
     }
@@ -2571,10 +2572,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
     if (hasPhotoProof) {
       runStickerAwardNonBlocking('proof_photo_added', () =>
-        evaluateStickerTriggers({
-          event: { type: 'photo_proof_added', source: `proof_submission:${entryId}` },
-          userId: user.uid,
-          fieldType: profile.fieldType
+        requestStickerEvaluation({
+          eventType: 'photo_proof_added',
+          entryId,
+          source: `proof_submission:${entryId}`
         })
       );
     }
@@ -2583,29 +2584,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // (9 PM–midnight, midnight–5 AM); the evaluator filters by the
     // stickers' `hourWindow`. Runs on every submit — the hour decides.
     runStickerAwardNonBlocking('proof_late_night', () =>
-      evaluateStickerTriggers({
-        event: { type: 'late_night_submission', localHour: new Date().getHours(), source: `proof_submission:${entryId}` },
-        userId: user.uid,
-        fieldType: profile.fieldType
+      requestStickerEvaluation({
+        eventType: 'late_night_submission',
+        entryId,
+        localHour: new Date().getHours(),
+        source: `proof_submission:${entryId}`
       })
     );
     if (status === 'approved') {
       // Immediate approval runs the full approval bundle: first_approval +
       // challenge_approved + count/milestone re-check, from the snapshot.
       runStickerAwardNonBlocking('proof_first_approval', () =>
-        evaluateStickerTriggers({
-          event: {
-            type: 'first_approval',
-            entry: {
-              missionId: (entryData as any).missionId,
-              challengeId: (entryData as any).challengeId,
-              tripId: entryData.tripId ?? currentTrip.id
-            },
-            source: `proof_approval:${entryId}`
-          },
-          userId: user.uid,
-          snapshot: canonicalProgress,
-          fieldType: profile.fieldType
+        requestStickerEvaluation({
+          eventType: 'first_approval',
+          entryId,
+          source: `proof_approval:${entryId}`
         })
       );
     }

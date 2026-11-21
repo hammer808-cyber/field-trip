@@ -344,8 +344,8 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
   // with pink hair, not the raccoon, and mall-map.png was a tiny receipt-like
   // slip, not a map. The other 8 land below as new entries, all trigger-pending
   // (admin_grant): no existing event fits them. Do NOT give new entries
-  // awardTrigger 'starter_pack' — unlockStarterPackForArchetype grants all
-  // starter_pack entries at quiz time with no backfill for existing players.
+  // awardTrigger 'starter_pack' — the server awards the whole starter pack at quiz
+  // time (POST /api/stickers/evaluate, starter_pack) with no backfill for existing players.
   {
     id: 'mall_rat_mascot',
     name: 'Mall Rat Mascot',
@@ -654,8 +654,8 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
   // counterparts as distinct stickers: loafers vs the stiletto pump,
   // a full vanity kit vs the single compact). All trigger-pending
   // (admin_grant): no existing event fits them. Do NOT give new entries
-  // awardTrigger 'starter_pack' — unlockStarterPackForArchetype grants all
-  // starter_pack entries at quiz time with no backfill for existing players.
+  // awardTrigger 'starter_pack' — the server awards the whole starter pack at quiz
+  // time (POST /api/stickers/evaluate, starter_pack) with no backfill for existing players.
   // Files were 1.2–2.2 MB each (1254x1254, 01 portrait 1024x1536); shrunk
   // to ~400px max dimension with PIL (LANCZOS, RGBA, transparency kept)
   // before import — 01 stays portrait (267x400) and letterboxes on the
@@ -815,8 +815,8 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
   // Seal as a distinct sticker (stamp tool + prohibition vs green seal +
   // checkmark). All trigger-pending (admin_grant): no existing event fits
   // them. Do NOT give new entries awardTrigger 'starter_pack' —
-  // unlockStarterPackForArchetype grants all starter_pack entries at quiz
-  // time with no backfill for existing players. Files are 1024x1024,
+  // the server awards the whole starter pack at quiz
+  // time (POST /api/stickers/evaluate, starter_pack) with no backfill for existing players. Files are 1024x1024,
   // 104–156 KB each — batch-1 size class, imported as-is, no shrink
   // needed. Originals live in the ZIP
   // captain_clipboard_10_unique_stickers_68_wdru.zip, not in the repo.
@@ -1632,8 +1632,8 @@ export const STICKER_DEFINITIONS: readonly StickerDefinition[] = [
     rarity: 'rare',
     // Earn-audit fix #3 (Nov 20, 2026): new `repair_approved` trigger.
     // Fires when an approval is a repair — the mission was sent back for
-    // more proof and came back approved. See `wasMissionSentBackForMoreProof`
-    // in stickerService.ts and the `wasRepair` flag on the admin event.
+    // more proof and came back approved. See the server `wasRepair` computation in
+    // `src/server/stickerEvaluate.ts`.
     awardTrigger: 'repair_approved',
     unlockReason: 'Earned when a proof sent back for more evidence comes back and gets approved.',
     tags: ['side-quests', 'plot-twist', 'map', 'ufo']

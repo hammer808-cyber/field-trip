@@ -14,9 +14,10 @@ import { Vote, VoteCategory, Entry, BallotCandidate } from '../types/game';
 import { getAppConfig, getActiveSeason } from './seasonService';
 import { authenticatedFetch } from '../lib/api';
 import {
+  requestStickerEvaluation,
   runStickerAwardNonBlocking,
 } from './stickerService';
-import { evaluateStickerTriggers } from '../logic/stickerEvaluator';
+
 
 const VOTES_COLLECTION = 'votes';
 
@@ -41,10 +42,14 @@ export const castVote = async (userId: string, entryId: string, weekNumber: numb
 
     // A successful server-authoritative vote unlocks participation without delaying the ballot UI.
     // weekly_vote_cast has a single sticker, so no field type is needed here.
+    // Option B (Nov 20, 2026): the server checks the vote doc exists
+    // for this player + season + week before it awards.
     runStickerAwardNonBlocking('weekly_vote_cast', () =>
-      evaluateStickerTriggers({
-        event: { type: 'weekly_vote_cast', source: `weekly_vote:${seasonId}:${weekNumber}:${category}` },
-        userId
+      requestStickerEvaluation({
+        eventType: 'weekly_vote_cast',
+        seasonId,
+        weekNumber,
+        source: `weekly_vote:${seasonId}:${weekNumber}:${category}`
       })
     );
   } catch (error: any) {

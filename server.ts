@@ -134,6 +134,12 @@ import { createAdminStickerAwardStore, createStickerAwardHandler } from "./src/s
 import { awardWeeklyWinnerStickers, createAdminCanonicalStickerAwardStore, type WeeklyWinnerInput } from "./src/server/canonicalStickerAwards";
 import { createAdminStickerGrantStore, createStickerGrantHandler } from "./src/server/stickerGrants";
 import {
+  createAdminStickerBackfillStore,
+  createAdminStickerEvalStore,
+  createEvaluateStickersHandler,
+  createStickerBackfillHandler
+} from "./src/server/stickerEvaluate";
+import {
   createMarkNotificationReadHandler,
   createNotifySubmittedHandler,
   createPowerHourLiveHandler,
@@ -8995,6 +9001,20 @@ async function startServer() {
   // to any player, with a required reason. Grant-only, no revoke; the grant
   // bypasses the starter gate by design (see src/server/stickerGrants.ts).
   app.post("/api/admin/stickers/grant", adminRateLimiter, authenticate, createStickerGrantHandler(() => (dbAdmin ? createAdminStickerGrantStore(dbAdmin) : null), { requireAdminUser, writeAdminAudit }));
+
+  // --- OPTION B (Nov 20, 2026): SERVER-SIDE EVALUATOR AWARDS ---
+  // POST /api/stickers/evaluate — the single funnel for evaluator awards
+  // (approval bundle, one-shots, starter pack, crew, level-up, votes).
+  // The server verifies the event, runs the evaluator, and writes the
+  // sticker doc + ledger row + notification in one transaction, so every
+  // evaluator award reaches Basecamp Notifications. See
+  // src/server/stickerEvaluate.ts.
+  app.post("/api/stickers/evaluate", authRateLimiter, authenticate, createEvaluateStickersHandler(() => (dbAdmin ? createAdminStickerEvalStore(dbAdmin) : null), { requireAdminUser }));
+
+  // POST /api/admin/stickers/backfill-notifications — admin-only, one-time
+  // backfill of missing `sticker_awarded` notifications for all players
+  // (Zach's pick, Nov 20, 2026). Idempotent: re-running writes nothing.
+  app.post("/api/admin/stickers/backfill-notifications", adminRateLimiter, authenticate, createStickerBackfillHandler(() => (dbAdmin ? createAdminStickerBackfillStore(dbAdmin) : null), { requireAdminUser, writeAdminAudit }));
 
   app.post("/api/admin/slot-orphan-proof-reviews", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });

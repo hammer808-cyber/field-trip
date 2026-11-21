@@ -35,8 +35,8 @@ function assertPng(filePath: string): void {
  * 09 (Rules Stamp) sits alongside the Checkmark Seal as a distinct
  * sticker (stamp tool + prohibition vs green seal + checkmark). All 10 are
  * trigger-pending (admin_grant); do NOT give new entries awardTrigger
- * 'starter_pack' — unlockStarterPackForArchetype grants all starter_pack
- * entries at quiz time with no backfill for existing players.
+ * 'starter_pack' — the server awards the whole starter pack at quiz
+ * time (POST /api/stickers/evaluate, starter_pack) with no backfill for existing players.
  *
  * Files are 1024x1024, 104–156 KB each — batch-1 size class, imported
  * byte-identical to the ZIP, no shrink needed. Originals live in the ZIP,

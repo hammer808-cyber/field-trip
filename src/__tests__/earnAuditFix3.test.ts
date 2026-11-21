@@ -7,8 +7,8 @@ import {
 } from '../logic/stickerEvaluator';
 import {
   isNeedsMoreReviewForMission
-} from '../services/stickerService';
-import type { StickerUnlockResult } from '../services/stickerService';
+} from '../logic/stickerAwardCore';
+import type { StickerUnlockResult } from '../logic/stickerAwardCore';
 
 /**
  * Earn-audit fix #3 (Nov 20, 2026): the three clear ones — the Side
@@ -21,8 +21,8 @@ import type { StickerUnlockResult } from '../services/stickerService';
  *   rides along on every crew join).
  * - Plot Twist → new `repair_approved` trigger: the approval is a repair
  *   (the mission was sent back for more proof and came back approved).
- *   The admin call sites set `wasRepair` from the proof-review history
- *   (`wasMissionSentBackForMoreProof`); the bundle awards it even when
+ *   The server computes `wasRepair` from the proof-review history
+ *   (`src/server/stickerEvaluate.ts`); the bundle awards it even when
  *   the profile read failed, because it needs no snapshot.
  *
  * The other 8 Side Quests stay admin_grant — see

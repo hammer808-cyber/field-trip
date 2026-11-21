@@ -43,10 +43,9 @@ import {
   type QueueSortDirection,
 } from '../logic/adminQueueStats';
 import {
+  requestStickerEvaluation,
   runStickerAwardNonBlocking,
-  wasMissionSentBackForMoreProof,
 } from './stickerService';
-import { evaluateAdminApprovalStickers, getEntryMissionId } from '../logic/stickerEvaluator';
 
 // COLLECTION NAMES
 const ENTRIES_COLLECTION = 'entries';
@@ -761,46 +760,15 @@ async function submitAdminProofReviewAction(
   }
   if (action === 'approve' && payload?.userId) {
     // Approval is already committed; sticker failure must not roll back proof status or XP.
-    // The server payload carries no mission id or field type, so read the entry
-    // doc for them; a failed read still evaluates first_approval (default variant).
-    // Milestone bundle (Nov 19, 2026, fix #1): the player's profile doc is
-    // read too, and the snapshot is built from it — the server maintains the
-    // profile's approval caches on every approval, so the count/set rules
-    // run on this approval instead of waiting for a next AppContext approval
-    // that never comes (submit always returns pending_review). A failed or
-    // missing profile read degrades to the old behavior: event rules only,
-    // bundle skipped for this call.
-    runStickerAwardNonBlocking('admin_proof_first_approval', async () => {
-      const entryData = await getDoc(doc(db, ENTRIES_COLLECTION, String(payload.entryId || submissionId)))
-        .then(snap => (snap.exists() ? snap.data() : null))
-        .catch(() => null);
-      const profileData = await getDoc(doc(db, 'users', String(payload.userId)))
-        .then(snap => (snap.exists() ? snap.data() : null))
-        .catch(() => null);
-      // Earn-audit fix #3 (Plot Twist): was this mission sent back for
-      // more proof before this approval? Each submission is a new entry
-      // doc, so the history lives on the earlier proofReview.
-      const entryMissionId = entryData
-        ? getEntryMissionId({
-            missionId: (entryData as any).missionId,
-            challengeId: (entryData as any).challengeId,
-            tripId: (entryData as any).tripId
-          })
-        : null;
-      const wasRepair = await wasMissionSentBackForMoreProof(String(payload.userId), entryMissionId);
-      return evaluateAdminApprovalStickers({
-        userId: String(payload.userId),
-        entry: entryData ? {
-          missionId: (entryData as any).missionId,
-          challengeId: (entryData as any).challengeId,
-          tripId: (entryData as any).tripId
-        } : null,
-        source: `proof_approval:${payload.entryId || submissionId}`,
-        fieldType: (entryData as any)?.fieldType ?? null,
-        profile: profileData as any,
-        wasRepair
-      });
-    });
+    // Option B (Nov 20, 2026): the server verifies the entry is approved,
+    // runs the milestone bundle, and writes sticker + ledger + notification.
+    runStickerAwardNonBlocking('admin_proof_first_approval', () =>
+      requestStickerEvaluation({
+        eventType: 'first_approval',
+        entryId: String(payload.entryId || submissionId),
+        source: `proof_approval:${payload.entryId || submissionId}`
+      })
+    );
   }
   return payload;
 }

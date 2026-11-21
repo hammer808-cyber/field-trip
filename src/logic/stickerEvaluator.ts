@@ -1,5 +1,5 @@
 /**
- * Stage 3 — client rule evaluator for canonical sticker awards.
+ * Stage 3 — rule evaluator for canonical sticker awards.
  *
  * The old call sites awarded one hardcoded sticker per event
  * (`STICKER_EVENT_AWARD_IDS`), regardless of who the player is: a first
@@ -12,9 +12,14 @@
  * archetype), which belongs to all players.
  *
  * Evaluation timing is unchanged: only after the trusted event, only for
- * triggers relevant to that event. The evaluator's only writer is the
- * existing `unlockStickersForUser` transaction — re-evaluation is safe
- * (it returns `already_unlocked`), but it is not the trigger path.
+ * triggers relevant to that event. Option B (Nov 20, 2026): the
+ * evaluator's only writer is the `unlock` function passed in — on the
+ * server it is the Admin SDK unlock, which writes the sticker doc, the
+ * ledger row and the `sticker_awarded` notification in one transaction.
+ * The evaluator never imports a writer itself, so it stays importable
+ * from the server without pulling in the client Firestore module.
+ * Re-evaluation is safe (it returns `already_unlocked`), but it is not
+ * the trigger path.
  *
  * The evaluator makes no Firestore reads of its own. Its inputs are the
  * triggering event payload (which carries the entry, if any), the
@@ -64,9 +69,9 @@ import {
 import {
   getStickerArchetypeForFieldType,
   STICKER_EVENT_AWARD_IDS,
-  unlockStickersForUser,
+  type StickerUnlockFn,
   type StickerUnlockResult
-} from '../services/stickerService';
+} from './stickerAwardCore';
 
 /** The deck id of the starter pack. Season milestones ignore it. */
 export const STARTER_DECK_ID = 'starter-signals';
@@ -133,9 +138,9 @@ export const STICKER_RULES: Readonly<Record<StickerAwardTrigger, StickerRule>> =
   /**
    * Earn-audit fix #3 (Nov 20, 2026): fires when an approval is a repair —
    * the mission was sent back for more proof and came back approved. The
-   * admin call sites set `wasRepair` on the event (see
-   * `wasMissionSentBackForMoreProof` in stickerService.ts); the bundle
-   * below awards it alongside the rest of the approval bundle.
+   * server computes `wasRepair` from the proof-review history (see
+   * `src/server/stickerEvaluate.ts`); the bundle below awards it
+   * alongside the rest of the approval bundle.
    */
   repair_approved: { kind: 'event' },
   admin_grant: { kind: 'event' },
@@ -212,12 +217,9 @@ export interface StickerEvent {
   source: string;
 }
 
-export type StickerUnlockFn = (
-  userId: string,
-  stickerIds: string[],
-  source: string,
-  trigger: StickerAwardTrigger
-) => Promise<StickerUnlockResult[]>;
+// The unlock-function type lives in the pure core module (Option B);
+// re-exported here so existing importers of the evaluator keep working.
+export type { StickerUnlockFn } from './stickerAwardCore';
 
 export interface EvaluateStickerTriggersInput {
   event: StickerEvent;
@@ -226,8 +228,11 @@ export interface EvaluateStickerTriggersInput {
   snapshot?: CanonicalProgressSnapshot | null;
   /** Player's field type (profile.fieldType, or the entry's fieldType). */
   fieldType?: string | null;
-  /** Test seam — defaults to `unlockStickersForUser`. */
-  unlock?: StickerUnlockFn;
+  /**
+   * REQUIRED (Option B): the unlock function — the server's Admin SDK
+   * unlock, or a fake in tests. The evaluator never imports a writer.
+   */
+  unlock: StickerUnlockFn;
 }
 
 /** Canonical mission id for an entry, or null when the entry has none. */
@@ -396,7 +401,7 @@ export async function evaluateStickerTriggers(
   input: EvaluateStickerTriggersInput
 ): Promise<StickerUnlockResult[]> {
   const { event, userId, snapshot } = input;
-  const unlock = input.unlock ?? unlockStickersForUser;
+  const unlock = input.unlock;
   const fieldArchetype = getStickerArchetypeForFieldType(input.fieldType ?? null);
   const entryMissionId = getEntryMissionId(event.entry ?? null);
   const eventDeckId = getEntryDeckId(event.entry ?? null);
@@ -522,13 +527,13 @@ export interface AdminApprovalEvaluationInput {
   /**
    * True when this approval is a repair: the mission was sent back for
    * more proof and came back approved (earn-audit fix #3, Plot Twist).
-   * The admin call sites compute it from the proof-review history (see
-   * `wasMissionSentBackForMoreProof` in stickerService.ts). Defaults to
+   * The server computes it from the proof-review history (see
+   * `wasRepair` in `src/server/stickerEvaluate.ts`). Defaults to
    * false — a failed or skipped check simply never awards Plot Twist.
    */
   wasRepair?: boolean;
-  /** Test seam — defaults to `unlockStickersForUser`. */
-  unlock?: StickerUnlockFn;
+  /** REQUIRED (Option B): the unlock function — see `EvaluateStickerTriggersInput`. */
+  unlock: StickerUnlockFn;
 }
 
 /**

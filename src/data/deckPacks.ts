@@ -5,8 +5,8 @@ import { JET_SETTER_CHALLENGE_BANK } from './jetSetterChallengeBank';
 import { ERRAND_DECK_CHALLENGE_BANK } from './errandDeckChallengeBank';
 import { TEXAS_CHALLENGE_BANK } from './texasChallengeBank';
 import { HOLIDAY_CHALLENGE_BANK } from './holidayChallengeBank';
-import { ChallengeCard } from '../types/challenges';
-import { HEATWAVE_SEASON_START_DATE, HEATWAVE_SEASON_END_DATE, HOLIDAY_SEASON_START_DATE, HOLIDAY_SEASON_END_DATE } from '../constants';
+import type { ChallengeCard } from '../types/challenges';
+import { HEATWAVE_SEASON_START_DATE, HEATWAVE_SEASON_END_DATE, HOLIDAY_SEASON_START_DATE, HOLIDAY_SEASON_END_DATE } from './seasonDates';
 
 export const DECK_PACKS: DeckPack[] = [
   {

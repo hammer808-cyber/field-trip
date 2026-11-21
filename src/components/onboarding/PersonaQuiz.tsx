@@ -7,10 +7,10 @@ import { PERSONA_AVATAR_PRESETS } from '../../constants/avatarAssets';
 import { useApp } from '../../context/AppContext';
 import { useTheme } from '../../context/ThemeContext';
 import { assignFieldType, getScores } from '../../logic/fieldTypeLogic';
+import { getStickerArchetypeForFieldType } from '../../logic/stickerAwardCore';
 import {
-  getStickerArchetypeForFieldType,
+  requestStickerEvaluation,
   runStickerAwardNonBlocking,
-  unlockStarterPackForArchetype,
 } from '../../services/stickerService';
 
 interface PersonaQuizProps {
@@ -87,8 +87,14 @@ export const PersonaQuiz: React.FC<PersonaQuizProps> = ({ onComplete }) => {
       const stickerArchetype = getStickerArchetypeForFieldType(finalPersona);
       if (stickerArchetype) {
         // Sticker rewards are intentionally fire-and-forget so classification cannot be blocked.
+        // Option B (Nov 20, 2026): the server checks the archetype
+        // matches the profile's field type before it awards the pack.
         runStickerAwardNonBlocking('onboarding_starter_pack', () =>
-          unlockStarterPackForArchetype(profile.id, stickerArchetype)
+          requestStickerEvaluation({
+            eventType: 'starter_pack',
+            archetype: stickerArchetype,
+            source: `starter_pack:${stickerArchetype}`
+          })
         );
       }
 

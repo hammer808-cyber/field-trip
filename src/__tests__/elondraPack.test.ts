@@ -33,8 +33,8 @@ function assertPng(filePath: string): void {
  * Unlike the Mall Rat pack, the existing 7 all match their names — there is
  * no defect to fix — so all 10 land as NEW entries and the old art stays
  * put. All 10 are trigger-pending (admin_grant); do NOT give new entries
- * awardTrigger 'starter_pack' — unlockStarterPackForArchetype grants all
- * starter_pack entries at quiz time with no backfill for existing players.
+ * awardTrigger 'starter_pack' — the server awards the whole starter pack at quiz
+ * time (POST /api/stickers/evaluate, starter_pack) with no backfill for existing players.
  *
  * Files were 1.2–2.2 MB each (1254x1254, 01 portrait 1024x1536); shrunk to
  * ~400px max dimension with PIL (LANCZOS, RGBA, transparency kept) before

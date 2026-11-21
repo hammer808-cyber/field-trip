@@ -1,10 +1,10 @@
 import { getDeckPackById, getActiveDeckPacks } from '../data/deckPacks';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
-import { StarterCompletionState } from '../utils/starterHelper';
+import type { StarterCompletionState } from '../utils/starterHelper';
 import { buildCanonicalStarterDeckState, STARTER_SIGNAL_IDS } from '../logic/starterDeckState';
-import { Entry } from '../constants';
-import { TripCard } from '../types/challenges';
-import { UserProfile } from './userService';
+import type { Entry } from '../constants';
+import type { TripCard } from '../types/challenges';
+import type { UserProfile } from './userService';
 
 export type FeatureKey = 'starter' | 'crew' | 'memories' | 'voting' | 'tribunal' | 'heatwave-receipts' | 'socal-summer' | 'loteria' | 'zines' | 'leaderboard';
 

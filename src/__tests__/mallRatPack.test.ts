@@ -31,8 +31,8 @@ function assertPng(filePath: string): void {
  * art was a human girl with pink hair, not the raccoon; the map was a tiny
  * receipt-like slip). The other 8 land as new entries. All 8 new entries
  * are trigger-pending (admin_grant); do NOT give new entries
- * awardTrigger 'starter_pack' — unlockStarterPackForArchetype grants all
- * starter_pack entries at quiz time with no backfill for existing players.
+ * awardTrigger 'starter_pack' — the server awards the whole starter pack at quiz
+ * time (POST /api/stickers/evaluate, starter_pack) with no backfill for existing players.
  *
  * 18_mall_rat (Side Quests ZIP) is LEFT OUT by Zach's call and is nowhere
  * in this pack or the registry: 03 covers its exact scene.
