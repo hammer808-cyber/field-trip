@@ -61,6 +61,13 @@ import {
   getWeeklyWinnerAwardEventId,
   isWeeklyFinalizeDue,
 } from "./src/logic/weeklyFinalize";
+import {
+  buildVotingOpenNotificationDoc,
+  buildWeeklyWinnerNotificationDoc,
+  getVotingOpenNotificationId,
+  getWeeklyWinnerNotificationId,
+  isVotingOpenAnnounceDue,
+} from "./src/logic/weeklyNotifications";
 import { getDefaultWeeklyCatalystForWeek } from "./src/logic/weeklyCatalyst";
 import {
   FIRELIGHT_TRIBUNAL_COMPATIBILITY_NOTE,
@@ -900,6 +907,7 @@ async function startServer() {
     finalized: any[];
     awards: Array<{ awarded: boolean; duplicate: boolean; ledgerEventId: string }>;
     stickerAwards: Array<{ userId: string; awarded: string[] }>;
+    winnerNotifications: Array<{ userId: string; ballotId: string; notified: boolean }>;
   }> => {
     const { cycleId, seasonId, reason, actorId } = input;
     const cycleRef = dbAdmin!.collection('votingCycles').doc(cycleId);
@@ -911,6 +919,7 @@ async function startServer() {
     const finalized: any[] = [];
     const awardRequests: Array<Parameters<typeof awardWeeklyPointsOnce>[0]> = [];
     const stickerWinners: WeeklyWinnerInput[] = [];
+    const winnerNotifications: Array<{ userId: string; ballotId: string; category: string | null; entryId: string; missionTitle: string }> = [];
     let batch = dbAdmin!.batch();
     let writes = 0;
     const flush = async () => {
@@ -980,6 +989,27 @@ async function startServer() {
             userId: winnerUserId,
             entryId: winnerEntryId,
             scope: ballot.scope
+          });
+          // Slice 3: the winner notification needs the winning photo's
+          // mission title, which the stored result doc does not carry.
+          // Best-effort read of the ballot entry snapshot; a miss just
+          // leaves the title blank (the copy falls back to the award).
+          let alreadyFinalizedMissionTitle = '';
+          try {
+            const winnerEntrySnap = await ballotSnap.ref.collection('entries').doc(winnerEntryId).get();
+            if (winnerEntrySnap.exists) {
+              const winnerEntry = winnerEntrySnap.data() || {};
+              alreadyFinalizedMissionTitle = String(winnerEntry.missionTitle || winnerEntry.tripTitle || '');
+            }
+          } catch (winnerEntryError: any) {
+            console.warn('[WEEKLY_FINALIZE] Winner mission title lookup skipped:', winnerEntryError?.message || winnerEntryError);
+          }
+          winnerNotifications.push({
+            userId: winnerUserId,
+            ballotId,
+            category: getWeeklyCategoryFromBallotId(ballotId, cycleId),
+            entryId: winnerEntryId,
+            missionTitle: alreadyFinalizedMissionTitle,
           });
         }
         finalized.push({ ballotId, alreadyFinalized: true });
@@ -1086,6 +1116,13 @@ async function startServer() {
           entryId: winner.entryId,
           scope: ballot.scope
         });
+        winnerNotifications.push({
+          userId: winner.userId,
+          ballotId,
+          category: getWeeklyCategoryFromBallotId(ballotId, cycleId),
+          entryId: winner.entryId,
+          missionTitle: String(entriesById.get(winner.entryId)?.missionTitle || ''),
+        });
         for (const voterId of getWeeklyConsensusVoterIds(
           validVotes.map((vote: any) => ({ voterId: cleanServerId(vote.voterId || vote.userId || vote.id), selectedProofIds: cleanStringList(vote.selectedProofIds) })),
           winner.entryId,
@@ -1121,7 +1158,39 @@ async function startServer() {
       createAdminCanonicalStickerAwardStore(dbAdmin!),
       { cycleId, winners: stickerWinners }
     );
-    return { finalized, awards: awards.map(award => ({ awarded: award.awarded, duplicate: award.duplicate, ledgerEventId: award.ledgerEventId })), stickerAwards };
+    // Slice 3: winner notifications. Best-effort by design — a
+    // notification failure must never fail finalize or the XP/sticker
+    // awards above. One doc per award won (deterministic id
+    // weekly_winner_{cycle}_{ballot}), so a player winning two
+    // category ballots gets two rows; an existing doc (re-finalize)
+    // is left untouched, so a read flag is never reset.
+    const winnerNotificationResults: Array<{ userId: string; ballotId: string; notified: boolean }> = [];
+    for (const winnerNotification of winnerNotifications) {
+      try {
+        const notifRef = dbAdmin!.collection('users').doc(winnerNotification.userId).collection('notifications').doc(getWeeklyWinnerNotificationId(cycleId, winnerNotification.ballotId));
+        const existingNotif = await notifRef.get();
+        if (existingNotif.exists) {
+          winnerNotificationResults.push({ userId: winnerNotification.userId, ballotId: winnerNotification.ballotId, notified: false });
+          continue;
+        }
+        await notifRef.set({
+          ...buildWeeklyWinnerNotificationDoc({
+            cycleId,
+            ballotId: winnerNotification.ballotId,
+            category: winnerNotification.category,
+            entryId: winnerNotification.entryId,
+            missionTitle: winnerNotification.missionTitle,
+            xpAwarded: WEEKLY_WINNER_XP,
+          }),
+          createdAt: FieldValue.serverTimestamp(),
+        });
+        winnerNotificationResults.push({ userId: winnerNotification.userId, ballotId: winnerNotification.ballotId, notified: true });
+      } catch (notificationError: any) {
+        console.warn('[WEEKLY_FINALIZE] Winner notification skipped:', notificationError?.message || notificationError);
+        winnerNotificationResults.push({ userId: winnerNotification.userId, ballotId: winnerNotification.ballotId, notified: false });
+      }
+    }
+    return { finalized, awards: awards.map(award => ({ awarded: award.awarded, duplicate: award.duplicate, ledgerEventId: award.ledgerEventId })), stickerAwards, winnerNotifications: winnerNotificationResults };
   };
 
   const cleanStringList = (value: unknown): string[] => {
@@ -2308,6 +2377,112 @@ async function startServer() {
     } catch (error: any) {
       const message = error?.message || String(error);
       console.error("[WEEKLY_FINALIZE_IF_DUE] Failed:", error);
+      res.status(Number(error?.status) || 500).json({ error: message });
+    }
+  });
+
+  // Lazy voting-open announcement (Slice 3, Nov 21, 2026).
+  // There is no cron and nothing runs at Saturday lock, so the
+  // announcement needs a lazy trigger too. The client slice calls this
+  // from the same voting-page load it hooks finalize-if-due into: the
+  // first load inside Saturday's voting window fans the `voting_open`
+  // notification out once per cycle, to every users/{uid} with a
+  // profile doc (ensureApprovedRequester treats any existing profile
+  // doc as approved, and this is the same set). No test/seed marker
+  // exists on user profiles — only entries carry isTestEntry — so
+  // nothing is excluded; that is checked, not assumed.
+  //
+  // Once-per-cycle, three layers:
+  // - The marker field `votingOpenAnnouncedAt` on the cycle doc is the
+  //   fast-path skip: a second trigger in the same cycle returns
+  //   already_announced without touching users.
+  // - Each notification doc is written with create() under the
+  //   deterministic id `voting_open_{cycleId}` — atomic per doc — so a
+  //   concurrent trigger (or a retry after a crash) can never duplicate
+  //   a row or reset a read flag.
+  // - The marker is written only after a fully successful fan-out. A
+  //   partial fan-out returns announced:false with no marker, so the
+  //   next page load retries; create() skips the players already
+  //   notified. A crash of the whole process mid-fan-out is the one
+  //   hole (claimed marker never written is fine — the retry covers
+  //   it; a marker written by a concurrent trigger is also fine).
+  // Like finalize-if-due, announcing requires at least one built
+  // community category ballot — an empty ballot is not worth a nudge.
+  // The trigger is client-gated on VOTING_ENABLED (VotingHubPage only
+  // calls inside the window when the flag is on); the server never
+  // checks the flag, same as every other voting endpoint.
+  app.post("/api/voting/weekly/notify-open-if-due", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    const approval = await ensureApprovedRequester(req, res);
+    if (!approval.ok) return;
+    try {
+      const seasonId = cleanServerId(req.body.seasonId) || 'heatwave-receipts';
+      const requestedCycleId = cleanServerId(req.body.cycleId);
+      const now = new Date();
+      const cycle = getServerCycle(seasonId, now);
+      if (requestedCycleId && requestedCycleId !== cycle.id) {
+        return res.status(409).json({ error: "STALE_VOTING_CYCLE", expectedCycleId: cycle.id });
+      }
+      const cycleId = cycle.id;
+      const cycleRef = dbAdmin!.collection('votingCycles').doc(cycleId);
+      const cycleSnap = await cycleRef.get();
+      const alreadyAnnounced = cycleSnap.exists && Boolean(cycleSnap.data()?.votingOpenAnnouncedAt);
+      const due = isVotingOpenAnnounceDue({
+        nowMs: now.getTime(),
+        votingStartsAtMs: cycle.votingStart.getTime(),
+        votingEndsAtMs: cycle.votingEnd.getTime(),
+        alreadyAnnounced,
+      });
+      if (!due.due) {
+        return res.json({ success: true, cycleId, due: false, announced: false, reason: due.reason });
+      }
+      const ballotsSnap = await cycleRef.collection('ballots').get();
+      const communityBallotIds = ballotsSnap.docs
+        .filter((docSnap: any) => {
+          const data = docSnap.data() || {};
+          return data.scope === 'community_weekly' && getWeeklyCategoryFromBallotId(docSnap.id, cycleId) !== null;
+        })
+        .map((docSnap: any) => docSnap.id);
+      if (communityBallotIds.length === 0) {
+        return res.json({ success: true, cycleId, due: false, announced: false, reason: 'no_community_ballots' });
+      }
+      const usersSnap = await dbAdmin!.collection('users').get();
+      const userIds = usersSnap.docs.map((docSnap: any) => docSnap.id);
+      const docId = getVotingOpenNotificationId(cycleId);
+      let notified = 0;
+      let failed = 0;
+      const FANOUT_CHUNK = 25;
+      for (let i = 0; i < userIds.length; i += FANOUT_CHUNK) {
+        const chunk = userIds.slice(i, i + FANOUT_CHUNK);
+        const results = await Promise.all(chunk.map(async (uid: string) => {
+          try {
+            await dbAdmin!.collection('users').doc(uid).collection('notifications').doc(docId).create({
+              ...buildVotingOpenNotificationDoc({ cycleId, seasonId }),
+              createdAt: FieldValue.serverTimestamp(),
+            });
+            return 'notified';
+          } catch (error: any) {
+            // 6 ALREADY_EXISTS (or the message) — this player was
+            // notified by a concurrent trigger or an earlier partial
+            // fan-out. Anything else is a real failure: log it and
+            // keep going; the marker below is skipped, so the next
+            // page load retries the missed players.
+            if (Number(error?.code) === 6 || /already exists/i.test(String(error?.message || ''))) return 'already';
+            console.warn('[WEEKLY_NOTIFY_OPEN] Fan-out write failed for user:', uid, error?.message || error);
+            return 'failed';
+          }
+        }));
+        notified += results.filter(result => result === 'notified').length;
+        failed += results.filter(result => result === 'failed').length;
+      }
+      if (failed > 0) {
+        return res.json({ success: true, cycleId, due: true, announced: false, notified, failed, reason: 'partial_fanout' });
+      }
+      await cycleRef.set({ votingOpenAnnouncedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      return res.json({ success: true, cycleId, due: true, announced: true, notified, alreadyNotified: userIds.length - notified, reason: due.reason });
+    } catch (error: any) {
+      const message = error?.message || String(error);
+      console.error("[WEEKLY_NOTIFY_OPEN] Failed:", error);
       res.status(Number(error?.status) || 500).json({ error: message });
     }
   });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   Trophy, 
@@ -42,8 +42,9 @@ import {
   getDaysLeftInSubmissionWindow, 
   getVotingHoursLeft 
 } from '../services/votingCycleService';
-import { getStarterProgress } from '../services/canonicalProgress';
+import { getStarterProgress, VOTING_ENABLED } from '../services/canonicalProgress';
 import { FieldtripLoader } from '../components/FieldtripLoader';
+import { authenticatedFetch } from '../lib/api';
 
 type VotingTab = 'vote' | 'tribunal' | 'results';
 
@@ -114,6 +115,27 @@ export default function VotingHubPage() {
       loadTribunalData();
     }
   }, [user, activeSeason, currentWeekNumber]);
+
+  // Slice 3: lazy voting-open announcement — there is no cron and
+  // nothing runs at Saturday lock, so the first voting-page load inside
+  // the window asks the server to fan the voting-open notification out
+  // once per cycle (POST /api/voting/weekly/notify-open-if-due; the
+  // server owns the once-per-cycle marker, so this call is a no-op
+  // outside the window or after the fan-out). The client slice hooks
+  // finalize-if-due from this same load. Client-gated on
+  // VOTING_ENABLED: while parked, no announcement goes out at all.
+  // Best-effort and fire-and-forget — a failed call retries on the
+  // next player's load, and it must never block the page.
+  const notifyOpenFiredForSeasonRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!user || !activeSeason || !VOTING_ENABLED || clockInfo.phase !== 'voting') return;
+    if (notifyOpenFiredForSeasonRef.current === activeSeason.id) return;
+    notifyOpenFiredForSeasonRef.current = activeSeason.id;
+    authenticatedFetch('/api/voting/weekly/notify-open-if-due', {
+      method: 'POST',
+      body: JSON.stringify({ seasonId: activeSeason.id }),
+    }).catch((error) => console.warn('[VotingHubPage] Voting-open announcement failed:', error));
+  }, [user, activeSeason, clockInfo.phase]);
 
   const handleTribunalVote = async (caseId: string, vote: TribunalVerdict) => {
     if (!user || !activeSeason) return;
