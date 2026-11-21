@@ -45,7 +45,7 @@ export function MissionResultCard({
   newRewards,
 }: MissionResultCardProps) {
   const { frankieMode, fc } = useTheme();
-  const { canonicalProgress, isAdmin } = useApp();
+  const { canonicalProgress, isAdmin, profile } = useApp();
   const fPref = { frankieMode };
   const { scoring, ftBonus = 0, ftText = '', tokenAwarded, totalTokens } = scoringData;
   const isApproved = reviewStatus === 'approved';
@@ -342,15 +342,16 @@ export function MissionResultCard({
            )}
            
            <div className="space-y-1">
-             <button 
-               disabled
-               className="w-full py-4 border-4 border-on-surface/10 text-on-surface/60 font-black uppercase text-xs flex items-center justify-center gap-3 cursor-not-allowed group transition-all italic tracking-[0.25em] rounded-2xl"
+             <button
+               type="button"
+               onClick={() => window.print()}
+               className="w-full py-4 border-4 border-on-surface bg-white text-on-surface font-black uppercase text-xs flex items-center justify-center gap-3 italic tracking-[0.25em] rounded-2xl shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none transition-all hover:bg-brand-lime"
              >
-               <Download className="w-4 h-4 opacity-30" />
-               Print card (coming soon)
+               <Download className="w-4 h-4" />
+               Print card
              </button>
              <p className="text-center text-xs font-sans font-bold text-on-surface/60">
-               Printing isn't available yet.
+               Prints just this card.
              </p>
            </div>
            
@@ -364,6 +365,40 @@ export function MissionResultCard({
               )}
            </div>
         </motion.div>
+      </div>
+
+      {/* Print-only keepsake card (P3-9, Nov 21, 2026): hidden on
+          screen, the only thing @media print shows in index.css.
+          Black-on-white, paper friendly; no dark flood. */}
+      <div className="print-keepsake hidden print:block bg-white text-black border-4 border-black p-6 space-y-4">
+        <div className="flex items-baseline justify-between gap-4 border-b-2 border-black pb-3">
+          <p className="font-display text-2xl font-black uppercase italic">Fieldtrip</p>
+          <p className="font-mono text-xs font-bold uppercase">{new Date().toLocaleDateString()}</p>
+        </div>
+        {evidence.photo && (
+          <img src={evidence.photo} alt="Mission proof" className="w-full aspect-[4/3] object-cover border-2 border-black" />
+        )}
+        <h2 className="font-display text-3xl font-black uppercase italic leading-none">{getFrankieTitle(trip, fPref)}</h2>
+        <p className="font-mono text-xs font-bold uppercase">
+          {trip.deckId ? `${trip.deckId} // ` : ''}{currentMissionId}
+          {profile?.fieldTypeName ? ` // ${profile.fieldTypeName}` : ''}
+        </p>
+        {evidence.note && (
+          <p className="font-serif text-sm italic leading-relaxed">"{evidence.note}"</p>
+        )}
+        <div className="flex items-baseline justify-between gap-4 border-t-2 border-black pt-3">
+          <p className="font-mono text-xs font-bold uppercase">
+            {isApproved ? 'Approved' : 'Proof submitted'}
+          </p>
+          {showReceipt && (
+            <p className="font-display text-2xl font-black italic">+{totalXP} XP</p>
+          )}
+        </div>
+        {newRewards && newRewards.stickers.length > 0 && (
+          <p className="font-mono text-xs font-bold uppercase">
+            Sticker earned: {getRewardMetadata(newRewards.stickers[0]).label}
+          </p>
+        )}
       </div>
     </motion.div>
   );

@@ -41,6 +41,7 @@ import {
 import { updateFeedPrivacy } from '../services/userService';
 import { uploadBase64Image } from '../services/storageService';
 import { FieldPageHero } from '../components/FieldPageHero';
+import { StreakChip } from '../components/StreakChip';
 import { EmptyStatePanel } from '../components/FieldtripLoader';
 import { FieldButton, FieldSection, FieldStatusChip, PlayerPageBody, PlayerPageShell } from '../components/player';
 
@@ -59,6 +60,7 @@ export default function ProfilePage() {
     soloTripsCount,
     fieldTokens,
     approvedEntriesCount,
+    canonicalProgress,
     submittedPendingChallengeIds,
     needsMoreProofChallengeIds,
     fieldType,
@@ -427,6 +429,10 @@ export default function ProfilePage() {
                         <p className="text-3xl font-display font-black italic text-brand-orange leading-none tracking-tight">{fieldTokens}</p>
                       </div>
                     </div>
+
+                    {/* Daily approval streak (P3-8, Nov 21, 2026): same
+                        value as the Basecamp chip, from the profile. */}
+                    <StreakChip streakDays={canonicalProgress.approvalStreakDays} className="w-full" />
                   </div>
                 </FieldCard>
               </FieldSection>

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { AlertCircle, ArrowLeft, Check, RotateCcw } from 'lucide-react';
 import { QUIZ_QUESTIONS } from '../../data/personaQuiz';
+import { primaryPersonaForAnswer } from '../../data/personaQuiz';
 import { FieldTypeId, FIELD_TYPES } from '../../constants';
 import { PERSONA_AVATAR_PRESETS } from '../../constants/avatarAssets';
 import { useApp } from '../../context/AppContext';
@@ -231,6 +232,8 @@ export const PersonaQuiz: React.FC<PersonaQuizProps> = ({ onComplete }) => {
           <div className="grid grid-cols-1 gap-3" role="group" aria-label={`Answers for question ${questionIndex + 1}`}>
             {question.answers.map((answer, answerIndex) => {
               const isSelected = selectedAnswerId === answer.id || (!selectedAnswerId && answers[question.id] === answer.id);
+              const primaryPersona = primaryPersonaForAnswer(answer);
+              const primaryAvatar = primaryPersona ? FIELD_TYPES[primaryPersona]?.avatarPath : null;
               return (
                 <button
                   key={answer.id}
@@ -247,6 +250,14 @@ export const PersonaQuiz: React.FC<PersonaQuizProps> = ({ onComplete }) => {
                     <span className="mt-0.5 w-6 h-6 shrink-0 border-2 border-on-surface flex items-center justify-center font-black bg-white" aria-hidden="true">
                       {isSelected ? <Check className="w-4 h-4" /> : answerIndex + 1}
                     </span>
+                    {primaryAvatar && (
+                      <img
+                        src={primaryAvatar}
+                        alt=""
+                        aria-hidden="true"
+                        className="w-10 h-10 shrink-0 rounded-full border-2 border-on-surface object-cover bg-white"
+                      />
+                    )}
                     {answer.shortLead ? (
                       <span className="flex flex-col gap-0.5">
                         <span className="font-sans text-sm sm:text-base font-black leading-snug">{answer.shortLead}</span>

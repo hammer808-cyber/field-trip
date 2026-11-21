@@ -1,4 +1,4 @@
-import { QuizQuestion, PersonaRequirement } from '../types/quiz';
+import { QuizAnswer, QuizQuestion, PersonaRequirement } from '../types/quiz';
 import { FieldTypeId } from '../constants';
 
 export const PERSONAS: Record<FieldTypeId, PersonaRequirement> = {
@@ -9,7 +9,7 @@ export const PERSONAS: Record<FieldTypeId, PersonaRequirement> = {
     coreInstinct: 'Organize / Standardize',
     description: 'The primary curator of the Fieldtrip rulebook. Every mission is a masterpiece of documentation and every deviation is a note-in-waiting.',
     vibe: 'Organized, Methodical, Authoritative',
-    image: 'https://images.unsplash.com/photo-1517486808906-6ca8b3f04844?auto=format&fit=crop&q=80&w=400',
+    image: '/assets/characters/captainClipboard/results.jpg',
     quote: '"If it isn\'t documented, it never happened."'
   },
   mallRat: {
@@ -19,7 +19,7 @@ export const PERSONAS: Record<FieldTypeId, PersonaRequirement> = {
     coreInstinct: 'Loiter / Observe',
     description: 'You decode the sacred geometry of the shopping mall. You are a local oracle, finding high-signal metadata in the echo of the food court.',
     vibe: 'Social, Chill, Consumer-Adjacent',
-    image: 'https://images.unsplash.com/photo-1541411138264-9743aadc26d0?auto=format&fit=crop&q=80&w=400',
+    image: '/assets/characters/mallRat/results.jpg',
     quote: '"The signal is loudest where the Wi-Fi is public."'
   },
   mascota: {
@@ -29,7 +29,7 @@ export const PERSONAS: Record<FieldTypeId, PersonaRequirement> = {
     coreInstinct: 'Hype / Perform',
     description: 'You are the living, breathing hype-machine of the sector. You don\'t just complete missions—you perform them with maximum kitsch and unshakeable shimmer.',
     vibe: 'Performative, Energetic, Kitschy',
-    image: 'https://images.unsplash.com/photo-1531058020387-3be344556be6?auto=format&fit=crop&q=80&w=400',
+    image: '/assets/characters/mascota/results.jpg',
     quote: '"It\'s not a mission, it\'s a performance."'
   },
   elondra: {
@@ -39,7 +39,7 @@ export const PERSONAS: Record<FieldTypeId, PersonaRequirement> = {
     coreInstinct: 'Drama / Narrate',
     description: 'A main character by design and a critic by calling. You lead with a sharp eye and even sharper field notes, turning every audit into a dramatic event.',
     vibe: 'Sophisticated, Dramatic, Sharp',
-    image: 'https://images.unsplash.com/photo-1582213713303-9366e609748b?auto=format&fit=crop&q=80&w=400',
+    image: '/assets/characters/elondra/results.jpg',
     quote: '"Main character energy isn\'t an ego trip, it\'s a field requirement."'
   },
   theGobbler: {
@@ -49,7 +49,7 @@ export const PERSONAS: Record<FieldTypeId, PersonaRequirement> = {
     coreInstinct: 'Gobble / Hoard',
     description: 'Driven by an insatiable hunger for raw evidence. You swallow missions whole, hoarding proofs like glittering gems in your digital lair.',
     vibe: 'Voracious, Relentless, Chaotic',
-    image: 'https://images.unsplash.com/photo-1535663110197-e896ab19ee9f?auto=format&fit=crop&q=80&w=400',
+    image: '/assets/characters/theGobbler/results.jpg',
     quote: '"Your download speed is impressive, but your digital digestion is terrifying."'
   },
   bigfoot: {
@@ -59,7 +59,7 @@ export const PERSONAS: Record<FieldTypeId, PersonaRequirement> = {
     coreInstinct: 'Hide / Document',
     description: 'Silent, elusive, and perfectly framed in the shadows. You document the fringes of reality so the team doesn\'t have to look directly at them.',
     vibe: 'Solo, Elusive, Nature-First',
-    image: 'https://images.unsplash.com/photo-1555685812-4b943f1cb0eb?auto=format&fit=crop&q=80&w=400',
+    image: '/assets/characters/bigfoot/results.jpg',
     quote: '"The most important entries are the ones nobody ever sees."'
   },
   unclassified: {
@@ -69,7 +69,7 @@ export const PERSONAS: Record<FieldTypeId, PersonaRequirement> = {
     coreInstinct: 'Adapt',
     description: 'Awaiting classification. HQ is still processing your behavioral profile.',
     vibe: 'Neutral, observing, flexible',
-    image: 'https://api.dicebear.com/7.x/pixel-art/svg?seed=Unclassified&backgroundColor=b6e3f4',
+    image: '/assets/characters/unclassified/results.jpg',
     quote: '"I am the signal HQ hasn\'t named yet."'
   }
 };
@@ -133,3 +133,15 @@ export const TIE_BREAKER_PRIORITY: FieldTypeId[] = [
   'theGobbler',
   'bigfoot'
 ];
+
+/** The persona an answer leans toward hardest (its weight-3 entry).
+ *  Used to show that persona's real character art on the answer, so
+ *  the quiz sells the personas with the custom art instead of stock
+ *  photos (P3-5, Nov 21, 2026). Returns null when the answer
+ *  carries no weights. */
+export function primaryPersonaForAnswer(answer: QuizAnswer): FieldTypeId | null {
+  const entries = Object.entries(answer.personaWeights ?? {}) as [FieldTypeId, number][];
+  if (entries.length === 0) return null;
+  entries.sort((a, b) => b[1] - a[1]);
+  return entries[0][0];
+}

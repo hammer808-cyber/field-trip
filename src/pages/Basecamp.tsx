@@ -8,6 +8,7 @@ import { BasecampCrewSummary } from '../components/basecamp/BasecampCrewSummary'
 import { BasecampNextActionPanel } from '../components/basecamp/BasecampNextActionPanel';
 import { BasecampNotifications } from '../components/basecamp/BasecampNotifications';
 import { NotificationDetailModal } from '../components/basecamp/NotificationDetailModal';
+import { StreakChip } from '../components/StreakChip';
 import { BasecampProgressPanel } from '../components/basecamp/BasecampProgressPanel';
 import { BasecampQuickLinks } from '../components/basecamp/BasecampQuickLinks';
 import { FieldPageHero } from '../components/FieldPageHero';
@@ -200,6 +201,12 @@ export default function Basecamp() {
         infoCardSubtext={`LEVEL ${viewModel.progress.level} // ${fieldTypeName || viewModel.progress.levelTitle}`}
         infoCardAccent="lime"
       />
+
+      {/* Daily approval streak (P3-8, Nov 21, 2026): the return-hook
+          home shows the streak beside the season countdown above. */}
+      <div className="mx-auto w-full max-w-7xl px-4 pt-3 sm:px-6 lg:px-8">
+        <StreakChip streakDays={canonicalProgress.approvalStreakDays} />
+      </div>
 
       {/* Nov 17, 2026: the utility row holds only the admin-only console
           button, so it renders for admins only — for everyone else it was

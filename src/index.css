@@ -1213,3 +1213,26 @@ img, video, canvas, svg {
     scroll-behavior: auto !important;
   }
 }
+
+/* P3-9 print card (Nov 21, 2026): printing shows ONLY the keepsake
+   card inside MissionResultCard (class .print-keepsake). Everything
+   else is hidden via visibility, which the keepsake subtree overrides
+   back to visible; the keepsake is pulled to the top of the page. */
+@media print {
+  body {
+    background: white !important;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .print-keepsake,
+  .print-keepsake * {
+    visibility: visible;
+  }
+  .print-keepsake {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+}
