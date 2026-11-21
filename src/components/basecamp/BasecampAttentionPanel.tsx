@@ -49,13 +49,23 @@ export function BasecampAttentionPanel({ model, onAction }: BasecampAttentionPan
           </div>
           <h3 className="mt-4 font-display text-xl font-black uppercase italic tracking-normal text-[var(--skin-text)]">{item.title}</h3>
           <p className="mt-2 text-sm leading-relaxed text-[var(--skin-text-muted)]">{item.note}</p>
-          <button
-            type="button"
-            onClick={onAction}
-            className="skin-button mt-4 min-h-11 border-2 border-[var(--skin-border)] bg-[var(--skin-surface)] px-4 py-2 font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-text)] shadow-[3px_3px_0_var(--skin-border)] focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)]"
-          >
-            {item.action.label}
-          </button>
+          {item.duplicateOfNextAction ? (
+            // Single next-action (Nov 20, 2026, option A): this is the same
+            // mission the hero panel already routes to, so there is no
+            // second button here — the panel's button is the only capture
+            // route, and it is the one carrying the repair context.
+            <p className="mt-4 font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-text)]">
+              Use the button above for this one — it carries your proof context.
+            </p>
+          ) : (
+            <button
+              type="button"
+              onClick={onAction}
+              className="skin-button mt-4 min-h-11 border-2 border-[var(--skin-border)] bg-[var(--skin-surface)] px-4 py-2 font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-text)] shadow-[3px_3px_0_var(--skin-border)] focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)]"
+            >
+              {item.action.label}
+            </button>
+          )}
         </div>
       ) : (
         <div className="mt-5 border-t-2 border-[var(--skin-border)] pt-4">

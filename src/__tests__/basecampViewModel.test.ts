@@ -152,13 +152,29 @@ test('a new player receives the canonical Starter Signals next action', () => {
   assert.equal(model.notifications.length, 0);
 });
 
-test('the Missions quick link is always present — the deck is home pre-Starter', () => {
+test('a Quick Link that duplicates the next action is dropped, not repeated', () => {
+  // Single next-action (Nov 20, 2026, option A): a card whose href equals
+  // the panel's primary or secondary destination is a duplicate button,
+  // so it is dropped from the list. The cards return when they point
+  // somewhere the panel doesn't.
   const preStarter = buildBasecampViewModel(input({ profile: profile({ onboardingCompleted: false }) }));
-  assert.equal(preStarter.quickLinks.some(link => link.id === 'missions'), true);
-  assert.equal(preStarter.quickLinks[0].id, 'missions');
+  assert.equal(preStarter.nextAction.guidanceState, 'DRAW_STARTER_MISSION');
+  assert.equal(preStarter.quickLinks.some(link => link.id === 'missions'), false);
+  assert.equal(preStarter.quickLinks.some(link => link.id === 'logbook'), true);
+  assert.equal(preStarter.quickLinks.some(link => link.id === 'voting'), true);
   const postStarter = buildBasecampViewModel(input({ entries: starterApprovals() }));
-  assert.equal(postStarter.quickLinks.some(link => link.id === 'missions'), true);
-  assert.equal(postStarter.quickLinks[0].id, 'missions');
+  assert.equal(postStarter.nextAction.guidanceState, 'DECK_COMPLETE');
+  assert.equal(postStarter.quickLinks.some(link => link.id === 'missions'), false);
+  assert.equal(postStarter.quickLinks.some(link => link.id === 'logbook'), true);
+  // The card returns when it points somewhere the panel doesn't: with
+  // classification unfinished the panel routes to setup, so Missions
+  // survives — and it describes Missions, not the panel's action.
+  const unclassified = buildBasecampViewModel(input({ profile: profile({ fieldClassificationComplete: false }) }));
+  assert.equal(unclassified.nextAction.guidanceState, 'COMPLETE_ONBOARDING');
+  const missions = unclassified.quickLinks.find(link => link.id === 'missions');
+  assert.ok(missions);
+  assert.equal(missions.href, '/missions');
+  assert.equal(missions.description, 'Choose a deck.');
 });
 
 test('an active mission is surfaced with a direct continuation action', () => {
@@ -329,7 +345,11 @@ test('a published challenge definition status of approved does not mark a drawn 
   assert.equal(model.nextAction.guidanceState, 'RESUME_ACTIVE_MISSION');
   assert.doesNotMatch(model.nextAction.title, /cleared/i);
   assert.doesNotMatch(model.nextAction.action.label, /cleared/i);
-  assert.equal(model.quickLinks[0].description, model.nextAction.action.label);
+  // Single next-action (Nov 20, 2026, option A): the Missions card is
+  // dropped here — its href is the panel's briefing destination — so the
+  // first card is the Logbook, not a second route to the same mission.
+  assert.equal(model.quickLinks.some(link => link.id === 'missions'), false);
+  assert.equal(model.quickLinks[0].id, 'logbook');
 });
 
 function notification(overrides: Partial<ProofReviewNotification> = {}): ProofReviewNotification {
@@ -594,4 +614,137 @@ test('sticker awards render only in Notifications', () => {
     notifications: [stickerNotification()],
   }));
   assert.equal(model.notifications.length, 1);
+});
+
+// Single next-action (Nov 20, 2026, option A): one button per destination
+// on Basecamp, in every guidance state the view model can reach. The
+// matrix asserts the two invariants: no Quick Link repeats a panel
+// destination, and an Attention item for the panel's own mission carries
+// the duplicate flag (so the panel renders it without a second button).
+// NO_URGENT_ACTION and VOTE_AVAILABLE are not reachable through this
+// builder (every post-starter deck still has eligible missions, so the
+// acknowledged-starter fixture draws instead of idling; voting is
+// parked) — they run through the same filter and flag code, so the
+// reachable states pin the rule.
+test('state matrix: exactly one button per destination on Basecamp', () => {
+  const repairRecords = [
+    ...starterApprovals(),
+    entry({
+      id: 'needs-proof-entry',
+      entryId: 'needs-proof-entry',
+      challengeId: 'heat-1',
+      missionId: 'heat-1',
+      missionTitle: 'Find the Coolest Shadow',
+      status: 'needs_more_proof',
+      reviewerNote: 'Show the full shadow and its surroundings.',
+    }),
+  ];
+  const rejectedRecords = [
+    ...starterApprovals(),
+    entry({
+      id: 'rejected-entry',
+      entryId: 'rejected-entry',
+      challengeId: 'heat-1',
+      missionId: 'heat-1',
+      missionTitle: 'Find the Coolest Shadow',
+      status: 'rejected',
+    }),
+  ];
+  const active = trip({ status: 'in-progress' });
+  const pendingMission = trip({ status: 'submitted' });
+  const oneStarterSubmitted = [
+    entry({
+      id: 'starter-entry-1',
+      entryId: 'starter-entry-1',
+      challengeId: 'starter-1',
+      missionId: 'starter-1',
+      deckId: 'starter-signals',
+      status: 'pending_review',
+    }),
+  ];
+  const threeStarterSubmitted = ['starter-1', 'starter-2', 'starter-3'].map((missionId, index) => entry({
+    id: `starter-entry-${index + 1}`,
+    entryId: `starter-entry-${index + 1}`,
+    challengeId: missionId,
+    missionId,
+    deckId: 'starter-signals',
+    status: 'pending_review',
+  }));
+  const cases: Array<{ state: string; model: ReturnType<typeof buildBasecampViewModel> }> = [
+    {
+      state: 'REPAIR_PROOF',
+      model: buildBasecampViewModel(input({ entries: repairRecords, isHeatwaveDeckUnlocked: true })),
+    },
+    {
+      state: 'RETRY_REJECTED_PROOF',
+      model: buildBasecampViewModel(input({ entries: rejectedRecords, isHeatwaveDeckUnlocked: true })),
+    },
+    {
+      state: 'RESUME_ACTIVE_MISSION',
+      model: buildBasecampViewModel(input({
+        entries: starterApprovals(),
+        activeTrip: active,
+        activeSubmissionStatus: null,
+        trips: [active],
+        isHeatwaveDeckUnlocked: true,
+      })),
+    },
+    {
+      state: 'DRAW_STARTER_MISSION',
+      model: buildBasecampViewModel(input({ profile: profile({ onboardingCompleted: false }) })),
+    },
+    {
+      state: 'DRAW_NEXT_STARTER',
+      model: buildBasecampViewModel(input({ entries: oneStarterSubmitted })),
+    },
+    {
+      state: 'WAITING_FOR_STARTER_REVIEW',
+      model: buildBasecampViewModel(input({ entries: threeStarterSubmitted })),
+    },
+    {
+      state: 'DRAW_MISSION',
+      model: buildBasecampViewModel(input({
+        entries: starterApprovals(),
+        activeTrip: pendingMission,
+        activeSubmissionStatus: 'pending_review',
+        trips: [pendingMission],
+        isHeatwaveDeckUnlocked: true,
+      })),
+    },
+    {
+      state: 'DECK_COMPLETE',
+      model: buildBasecampViewModel(input({ entries: starterApprovals() })),
+    },
+    {
+      state: 'COMPLETE_ONBOARDING',
+      model: buildBasecampViewModel(input({ profile: profile({ fieldClassificationComplete: false }) })),
+    },
+  ];
+  for (const { state, model } of cases) {
+    assert.equal(model.nextAction.guidanceState, state, `${state}: wrong guidance state`);
+    const panelHrefs = new Set([
+      model.nextAction.action.href,
+      ...(model.nextAction.secondaryAction ? [model.nextAction.secondaryAction.href] : []),
+    ]);
+    for (const link of model.quickLinks) {
+      assert.ok(!panelHrefs.has(link.href), `${state}: Quick Link ${link.id} repeats a panel destination (${link.href})`);
+    }
+    const item = model.attention.item;
+    if (item) {
+      const sameMission = item.missionId !== null
+        && model.nextAction.action.missionId !== undefined
+        && item.missionId.toLowerCase() === model.nextAction.action.missionId.toLowerCase();
+      assert.equal(item.duplicateOfNextAction === true, sameMission, `${state}: duplicate flag must match the mission`);
+    }
+  }
+  // The repair states pin the point of the dedup: the panel's href — and
+  // only the panel's href — carries the repair context.
+  const repair = cases[0].model;
+  assert.equal(repair.attention.item?.duplicateOfNextAction, true);
+  assert.match(repair.nextAction.action.href, /mode=addMoreProof/);
+  assert.match(repair.nextAction.action.href, /entryId=needs-proof-entry/);
+  assert.doesNotMatch(repair.attention.item!.action.href, /mode=addMoreProof/);
+  const rejected = cases[1].model;
+  assert.equal(rejected.attention.item?.duplicateOfNextAction, true);
+  assert.match(rejected.nextAction.action.href, /isRetry=true/);
 });

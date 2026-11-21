@@ -80,6 +80,14 @@ export interface BasecampProofAttentionModel {
     statusLabel: string;
     note: string;
     action: BasecampPrimaryAction;
+    /**
+     * Single next-action (Nov 20, 2026, option A): true when this item is
+     * the same mission the next-action panel already routes to. The panel
+     * then renders the status without a second button — the panel's button
+     * is the only capture route, and it is the one that carries the repair
+     * context (mode + entryId). Absent/false keeps the button.
+     */
+    duplicateOfNextAction?: boolean;
   } | null;
 }
 
@@ -521,10 +529,73 @@ export function buildBasecampViewModel(input: BuildBasecampViewModelInput): Base
   const attention = buildAttention(input.entries);
   const mission = resolveMission(input);
   const nextAction = buildNextAction(guidance, mission);
+  // Single next-action (Nov 20, 2026, option A): when the Attention panel's
+  // item is the same mission the next-action panel already routes to, the
+  // panel's button is the only capture route — Attention becomes a status
+  // line (the panel renders it without a button). Compare against the
+  // panel action's missionId, not the lifecycle mission: in the repair
+  // states the lifecycle mission is null (no drawn card / active trip)
+  // while the panel still routes to the repair mission. The repair context
+  // (mode + entryId) lives in exactly one place: the panel's href.
+  if (
+    attention.item !== null
+    && attention.item.missionId !== null
+    && nextAction.action.missionId !== undefined
+    && attention.item.missionId.toLowerCase() === nextAction.action.missionId.toLowerCase()
+  ) {
+    attention.item.duplicateOfNextAction = true;
+  }
   const progress = buildProgress(input, nextAction.deckId);
   const activeEntries = getActiveEntries(input.entries);
   const approvedCount = activeEntries.filter(entry => normalizeEntryStatus(entry.status) === 'approved').length;
   const pendingCount = activeEntries.filter(entry => normalizeEntryStatus(entry.status) === 'pending_review').length;
+
+  // Single next-action (Nov 20, 2026, option A): a Quick Link that points
+  // where the next-action panel already points is a duplicate button, so
+  // it is dropped. The Missions card's description is the primary label
+  // and its href is the primary destination whenever the navigation target
+  // is missions; the Logbook card repeats a "View Proof Status" secondary;
+  // the Voting card repeats a "Vote Now" primary. The cards return when
+  // they point somewhere the panel doesn't — e.g. Logbook and Voting stay
+  // while the panel draws a mission. (Side effect worth knowing: in the
+  // WAITING_FOR_STARTER_REVIEW state the old Missions card was labeled
+  // "Missions" but linked to the Logbook — the filter hides it too.)
+  const panelDestinations = new Set([
+    nextAction.action.href,
+    ...(nextAction.secondaryAction ? [nextAction.secondaryAction.href] : []),
+  ]);
+  const allQuickLinks: BasecampQuickLink[] = [
+    {
+      id: 'missions' as const,
+      label: 'Missions',
+      // Single next-action (Nov 20, 2026, option A): the description used
+      // to mirror the panel's action label — that only made sense while
+      // the card WAS the next action. A surviving card points elsewhere,
+      // so it describes Missions itself. (The duplicate case is filtered
+      // out below, so this text only ever renders on a distinct card.)
+      description: 'Choose a deck.',
+      href: guidance.navigationTarget === 'missions' ? guidance.primaryActionDestination : '/missions',
+    },
+    {
+      id: 'logbook',
+      label: 'Logbook',
+      description: activeEntries.length > 0
+        ? `${approvedCount} approved · ${pendingCount} in review`
+        : 'Your submitted field proofs will appear here.',
+      href: '/profile?tab=logbook',
+    },
+    {
+      id: 'voting',
+      label: 'Voting',
+      description: input.userVotes.length > 0
+        ? 'Your ballot activity is recorded for this cycle.'
+        : input.isVotingOpen
+          ? 'Weekly voting is open.'
+          : 'Check the current weekly voting state.',
+      href: '/voting',
+    },
+  ];
+  const quickLinks = allQuickLinks.filter(link => !panelDestinations.has(link.href));
 
   return {
     nextAction,
@@ -533,33 +604,6 @@ export function buildBasecampViewModel(input: BuildBasecampViewModelInput): Base
     crew: buildCrew(input.profile, input.entries, input.crewGraph),
     notifications: buildNotifications(input),
     guidance,
-    // Missions is always in the quick links: the deck is the pre-Starter
-    // home, and Basecamp is the locked room until the Starter set is done.
-    quickLinks: [
-      {
-        id: 'missions' as const,
-        label: 'Missions',
-        description: guidance.primaryActionLabel,
-        href: guidance.navigationTarget === 'missions' ? guidance.primaryActionDestination : '/missions',
-      },
-      {
-        id: 'logbook',
-        label: 'Logbook',
-        description: activeEntries.length > 0
-          ? `${approvedCount} approved · ${pendingCount} in review`
-          : 'Your submitted field proofs will appear here.',
-        href: '/profile?tab=logbook',
-      },
-      {
-        id: 'voting',
-        label: 'Voting',
-        description: input.userVotes.length > 0
-          ? 'Your ballot activity is recorded for this cycle.'
-          : input.isVotingOpen
-            ? 'Weekly voting is open.'
-            : 'Check the current weekly voting state.',
-        href: '/voting',
-      },
-    ],
+    quickLinks,
   };
 }

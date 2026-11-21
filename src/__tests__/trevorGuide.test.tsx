@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { fileURLToPath } from 'node:url';
 import {
   reduceTrevorPanelState,
   TrevorGuideView,
@@ -160,4 +163,20 @@ test('mock context changes replace the recommendation without changing the launc
   assert.equal(ordinary.id, 'fallback_draw');
   assert.equal(voting.id, 'voting_open');
   assert.equal(voting.primaryAction.route, '/voting');
+});
+
+test('Trevor does not auto-open on Basecamp — the next-action panel owns it there', () => {
+  // Single next-action (Nov 20, 2026, option A): the auto-open effect
+  // stands down on /basecamp. The launcher still shows its cyan dot
+  // (hasNewState) and auto-open fires if the player navigates elsewhere
+  // while the state is still live — so the effect must re-evaluate on a
+  // route change, not just on a guidance change.
+  const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+  const source = readFileSync(join(repoRoot, 'src/components/TrevorGuide.tsx'), 'utf8');
+  const effectAt = source.indexOf('guidance.autoOpenTrevor');
+  const effect = source.slice(effectAt, source.indexOf('}, [', effectAt));
+  assert.match(effect, /location\.pathname === '\/basecamp'/);
+  const depsAt = source.indexOf('}, [', effectAt);
+  const deps = source.slice(depsAt, source.indexOf(']);', depsAt));
+  assert.match(deps, /location\.pathname/);
 });

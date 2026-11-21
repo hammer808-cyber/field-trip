@@ -83,6 +83,35 @@ test('proof attention distinguishes an actionable retry from pending review', ()
   assert.match(actionableHtml, /Retry Mission/i);
   assert.match(actionableHtml, /2 proofs also in review/i);
 
+  // Single next-action (Nov 20, 2026, option A): when the item is the
+  // same mission the hero panel already routes to, Attention renders the
+  // status with no second button — the panel's button is the only
+  // capture route.
+  const duplicateHtml = renderToStaticMarkup(
+    <BasecampAttentionPanel
+      model={{
+        actionableCount: 1,
+        pendingCount: 0,
+        item: {
+          entryId: 'entry-1',
+          missionId: 'mission-1',
+          deckId: 'heatwave-receipts',
+          title: 'Night Receipt',
+          status: 'needs_more_proof',
+          statusLabel: 'Needs more proof',
+          note: 'Show the whole object.',
+          action: { label: 'Retry Mission', href: '/capture?id=mission-1', intent: 'retry-proof', missionId: 'mission-1' },
+          duplicateOfNextAction: true,
+        },
+      }}
+      onAction={noop}
+    />,
+  );
+  assert.match(duplicateHtml, /Needs more proof/i);
+  assert.match(duplicateHtml, /Night Receipt/i);
+  assert.match(duplicateHtml, /Use the button above/i);
+  assert.doesNotMatch(duplicateHtml, /<button/i);
+
   const pendingHtml = renderToStaticMarkup(
     <BasecampAttentionPanel model={{ actionableCount: 0, pendingCount: 1, item: null }} onAction={noop} />,
   );

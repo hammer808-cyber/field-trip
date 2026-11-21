@@ -129,6 +129,13 @@ export function TrevorGuide() {
 
   useEffect(() => {
     if (!guidance.autoOpenTrevor) return;
+    // Single next-action (Nov 20, 2026, option A): on Basecamp the
+    // next-action panel owns the next action, so Trevor does not auto-open
+    // over it — the launcher still shows its cyan dot (hasNewState) and
+    // auto-open fires if the player navigates elsewhere while the state
+    // is still live. location.pathname is a dependency so leaving Basecamp
+    // re-evaluates instead of silently losing the one-shot.
+    if (location.pathname === '/basecamp') return;
     // Auto-open is keyed per deck finish, not just per state: two decks
     // finished in one session must each pop once (Nov 20, 2026).
     const autoOpenKey = guidance.finishedDeckId
@@ -157,6 +164,7 @@ export function TrevorGuide() {
     guidance.autoOpenTrevor,
     guidance.state,
     guidance.finishedDeckId,
+    location.pathname,
     app.user?.uid,
     app.starterState.starterComplete,
     app.starterState.starterApprovedCount,
