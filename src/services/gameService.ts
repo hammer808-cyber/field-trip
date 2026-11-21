@@ -68,6 +68,11 @@ export async function submitTripEntry(
     
     // Viewfinder Meta
     uploadSource?: 'camera' | 'cameraRoll' | 'upload';
+    // Share-to-community toggle (Nov 21, 2026): the per-photo choice from
+    // Capture. False/absent keeps the old private-by-default behavior.
+    showInCommunityFeed?: boolean;
+    isPublic?: boolean;
+    communityVisible?: boolean;
     photoTakenAt?: string | null;
     fileLastModifiedAt?: string | null;
     submittedAt?: string;
@@ -323,9 +328,12 @@ export async function submitTripEntry(
       reviewedBy: null,            // Legacy reviewer id
       reviewerId: null,            // Canonical reviewer id
       showInUserLogbook: true,
-      showInCommunityFeed: false,
-      isPublic: false,             // Sync with showInCommunityFeed for beginning
-      communityVisible: false,      // Legacy
+      // Share-to-community toggle (Nov 21, 2026): read the per-photo choice
+      // instead of the old hardcoded private default. isPublic /
+      // communityVisible stay in sync with it.
+      showInCommunityFeed: entryData.showInCommunityFeed ?? false,
+      isPublic: entryData.isPublic ?? entryData.showInCommunityFeed ?? false,
+      communityVisible: entryData.communityVisible ?? entryData.showInCommunityFeed ?? false,
 
       // Profile Context
       fieldType: entryData.fieldType || fieldType || null,

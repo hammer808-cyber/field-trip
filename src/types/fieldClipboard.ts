@@ -24,4 +24,10 @@ export interface FieldClipboardData {
   isRepair?: boolean;
   /** A recorded voice note (5+ seconds earns the note layer). */
   voiceNote?: VoiceNoteValue | null;
+  /**
+   * Share-to-community toggle (Nov 21, 2026): ON means this photo may
+   * appear in the community feed and on a weekly voting ballot.
+   * Undefined at init resolves to the profile-derived default in Capture.
+   */
+  shareWithCommunity?: boolean;
 }

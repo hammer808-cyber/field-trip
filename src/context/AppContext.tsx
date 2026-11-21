@@ -2492,6 +2492,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         detourCompleted: entryData.detourCompleted || false,
         crewId: entryData.crewId || activeCrewId,
         feedVisibility: (entryData as any).feedVisibility || (profile.preferences?.privateApprovedPhotos ? 'private' : profile.preferences?.feedVisibility || 'crew_only'),
+        // Share-to-community toggle (Nov 21, 2026): passed through so the
+        // entry doc carries the per-photo choice; gameService defaults false.
+        showInCommunityFeed: (entryData as any).showInCommunityFeed ?? false,
+        isPublic: (entryData as any).isPublic ?? (entryData as any).showInCommunityFeed ?? false,
+        communityVisible: (entryData as any).communityVisible ?? (entryData as any).showInCommunityFeed ?? false,
         crewContext,
         userAvatar: profile.avatar || undefined, 
         

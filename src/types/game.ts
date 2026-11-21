@@ -363,6 +363,11 @@ export interface Entry {
   detourCompleted?: boolean;
   archived?: boolean;
   showInUserLogbook?: boolean;
+  // Share-to-community toggle (Nov 21, 2026): per-photo choice at submit.
+  showInCommunityFeed?: boolean;
+  isPublic?: boolean;
+  communityVisible?: boolean;
+  feedVisibility?: 'crew_only' | 'followers_only' | 'public_discovery' | 'private';
   countsTowardLiveStats?: boolean;
   countsTowardStarter?: boolean;
   countsTowardFeed?: boolean;

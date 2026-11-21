@@ -51,6 +51,7 @@ import {
   type CaptureDraft,
 } from '../logic/captureDraft';
 import { mintSubmissionAttemptId, resolveSubmissionEntryId } from '../logic/submissionAttempt';
+import { resolveCommunityShareDefault } from '../logic/communityShare';
 import { bakeStickerIntoPhoto } from '../lib/photoUtils';
 import { DEFAULT_POLAROID_STICKER_PLACEMENT, resolvePolaroidSticker } from '../logic/polaroidSticker';
 
@@ -335,7 +336,15 @@ export default function CapturePage() {
     stickerId: initialDraft?.stickerId ?? undefined,
     stickerPlacement: initialDraft?.stickerPlacement ?? undefined,
     isRetry,
-    isRepair: isRepairMode || isNeedsMore
+    isRepair: isRepairMode || isNeedsMore,
+    // Share-to-community (Nov 21, 2026): a repair keeps the stored choice;
+    // a fresh capture restores the draft's choice, else the profile default.
+    shareWithCommunity: (repairEntry as any)?.showInCommunityFeed
+      ?? initialDraft?.shareWithCommunity
+      ?? resolveCommunityShareDefault({
+        feedVisibility: profile?.preferences?.feedVisibility,
+        privateApprovedPhotos: profile?.preferences?.privateApprovedPhotos,
+      }),
   });
   
   const [submissionStatus, setSubmissionStatus] = useState<'ready' | 'saving' | 'syncing' | 'submitted' | 'retry' | 'error'>(restoredState ? 'submitted' : 'ready');
@@ -994,6 +1003,7 @@ export default function CapturePage() {
     note: '',
     stickerId: undefined as string | undefined,
     stickerPlacement: undefined as FieldClipboardData['stickerPlacement'],
+    shareWithCommunity: undefined as boolean | undefined,
   });
   const draftMetaRef = useRef({
     photoTakenAt: null as string | null,
@@ -1004,6 +1014,7 @@ export default function CapturePage() {
     note: fcData.note,
     stickerId: fcData.stickerId,
     stickerPlacement: fcData.stickerPlacement,
+    shareWithCommunity: fcData.shareWithCommunity,
   };
   draftMetaRef.current = {
     photoTakenAt: captureData?.metadata?.photoTakenAt ?? initialDraft?.photoTakenAt ?? null,
@@ -1032,6 +1043,7 @@ export default function CapturePage() {
       trustLevel: draftMetaRef.current.trustLevel,
       stickerId: values.stickerId ?? null,
       stickerPlacement: values.stickerPlacement ?? null,
+      shareWithCommunity: values.shareWithCommunity ?? null,
       // P0-8 follow-up: keep the attempt id in the draft so a refresh
       // mid-submit retries the same entry instead of minting a new one.
       submissionAttemptId: submissionAttemptIdRef.current,
@@ -1405,7 +1417,15 @@ export default function CapturePage() {
           selectedCategory: selectedLevel,
           selectedLevel: selectedLevel,
           crewId: profile.crewId || undefined,
-          feedVisibility: profile.preferences?.privateApprovedPhotos ? 'private' : (profile.preferences?.feedVisibility || 'crew_only'),
+          // Share-to-community toggle (Nov 21, 2026): ON makes this photo
+          // community-visible and ballot-eligible; OFF keeps the profile's
+          // feed visibility. Undefined reads as ON, matching the init default.
+          feedVisibility: (fcData.shareWithCommunity ?? true)
+            ? 'public_discovery'
+            : (profile.preferences?.privateApprovedPhotos ? 'private' : (profile.preferences?.feedVisibility || 'crew_only')),
+          showInCommunityFeed: fcData.shareWithCommunity ?? true,
+          isPublic: fcData.shareWithCommunity ?? true,
+          communityVisible: fcData.shareWithCommunity ?? true,
           userId: user.uid,
           uploadSource: captureData.metadata.source || 'camera',
           photoTakenAt: captureData.metadata.photoTakenAt || null,

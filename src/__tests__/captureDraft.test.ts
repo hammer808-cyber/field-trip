@@ -54,6 +54,7 @@ const baseDraft = (overrides: Partial<CaptureDraft> = {}): CaptureDraft => ({
   stickerId: 'mall_rat_sunglasses',
   stickerPlacement: { x: 50, y: 50 },
   submissionAttemptId: null,
+  shareWithCommunity: null,
   ...overrides,
 });
 

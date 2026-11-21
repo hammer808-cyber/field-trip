@@ -592,6 +592,41 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               </div>
             )}
 
+            {/* SHARE WITH THE COMMUNITY — Nov 21, 2026 (Zach's pick B).
+                ON means this photo may appear in the community feed and on
+                a weekly voting ballot. OFF keeps it to the crew. Undefined
+                reads as ON, matching the profile-derived default in Capture. */}
+            <div className="rounded-xl border-2 border-on-surface bg-white px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-left">
+                  <p className="font-mono text-xs font-black uppercase tracking-widest">
+                    Share with the community <span className="text-on-surface/60">· {(data.shareWithCommunity ?? true) ? 'On' : 'Off'}</span>
+                  </p>
+                  <p className="font-sans text-xs font-bold text-on-surface/60">
+                    Your photo can appear in the weekly vote.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={data.shareWithCommunity ?? true}
+                  aria-label="Share this photo with the community"
+                  onClick={() => setData(prev => ({ ...prev, shareWithCommunity: !(prev.shareWithCommunity ?? true) }))}
+                  className={cn(
+                    'relative h-8 w-14 shrink-0 border-2 border-on-surface p-0.5 transition-colors',
+                    (data.shareWithCommunity ?? true) ? 'bg-brand-lime' : 'bg-on-surface/10'
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'block h-5 w-5 border-2 border-on-surface bg-white transition-transform',
+                      (data.shareWithCommunity ?? true) && 'translate-x-6'
+                    )}
+                  />
+                </button>
+              </div>
+            </div>
+
             {/* SUBMIT BUTTON */}
             <button
               data-tour="submit-proof"

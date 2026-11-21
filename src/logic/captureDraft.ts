@@ -44,6 +44,9 @@ export interface CaptureDraft {
   // updates the same entry instead of minting a duplicate; storing it in
   // the draft keeps the same attempt id across a refresh mid-submit.
   submissionAttemptId?: string | null;
+  // Share-to-community toggle (Nov 21, 2026): the per-photo choice at
+  // submit. Null/undefined means "no choice recorded yet" (profile default).
+  shareWithCommunity?: boolean | null;
 }
 
 export function captureDraftKey(userId: string, missionId: string): string {
@@ -72,6 +75,7 @@ export function loadCaptureDraft(userId: string, missionId: string): CaptureDraf
       stickerId: typeof parsed.stickerId === 'string' ? parsed.stickerId : null,
       stickerPlacement: parsed.stickerPlacement ?? null,
       submissionAttemptId: typeof parsed.submissionAttemptId === 'string' ? parsed.submissionAttemptId : null,
+      shareWithCommunity: typeof parsed.shareWithCommunity === 'boolean' ? parsed.shareWithCommunity : null,
     };
   } catch {
     return null;
