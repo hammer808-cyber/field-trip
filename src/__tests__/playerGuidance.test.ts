@@ -476,17 +476,18 @@ test('10. Approved player entry is completed, not resume', () => {
   );
 });
 
-test('11. Vote available does not win while Voting is parked', () => {
-  // Nov 17, 2026: VOTING_ENABLED = false. Trevor must not send players
-  // to a locked section, however voteAvailable is set.
+test('11. Vote available wins now that Voting is live', () => {
+  // Nov 21, 2026: VOTING_ENABLED = true (global weekly voting shipped).
+  // With the starter set done, no pending proof, and no just-finished
+  // deck ahead of it, an open voting window is the next action.
   const snapshot = resolvePlayerGuidance(input({
     entries: starterApprovals(),
     isHeatwaveDeckUnlocked: true,
     voteAvailable: true,
   }));
-  assert.notEqual(snapshot.state, 'VOTE_AVAILABLE');
-  assert.notEqual(snapshot.navigationTarget, 'voting');
-  assert.notEqual(snapshot.primaryActionDestination, '/voting');
+  assert.equal(snapshot.state, 'VOTE_AVAILABLE');
+  assert.equal(snapshot.navigationTarget, 'voting');
+  assert.equal(snapshot.primaryActionDestination, '/voting');
 });
 
 test('12. locked destination cannot become the attention target', () => {
@@ -859,7 +860,7 @@ test('fix2: unseen starter unlock → DECK_COMPLETE; acknowledged → not DECK_C
   assert.equal(seen.autoOpenTrevor, false);
 });
 
-test('fix2: after acknowledgement, active mission resumes and vote does not win when idle while Voting is parked', () => {
+test('fix2: after acknowledgement, active mission resumes and vote wins when idle now that Voting is live', () => {
   const resume = resolvePlayerGuidance(input({
     entries: starterApprovals(),
     activeTrip: trip({ status: 'approved' }),
@@ -877,9 +878,10 @@ test('fix2: after acknowledgement, active mission resumes and vote does not win 
     hasUnseenStarterUnlock: false,
     voteAvailable: true,
   }), { 'heatwave-receipts': 0, 'starter-signals': 0 }));
-  // Nov 17, 2026: Voting is parked — vote never wins, however idle.
-  assert.notEqual(vote.state, 'VOTE_AVAILABLE');
-  assert.notEqual(vote.navigationTarget, 'voting');
+  // Nov 21, 2026: Voting is live — with nothing to resume and no deck
+  // to draw from, an open voting window is the next action.
+  assert.equal(vote.state, 'VOTE_AVAILABLE');
+  assert.equal(vote.navigationTarget, 'voting');
 });
 
 test('fix3: DECK_COMPLETE primary action draws the post-Starter pack, not starter-signals', () => {
@@ -965,7 +967,7 @@ test('fix4: one deck exhausted + another eligible → Draw Mission', () => {
   assert.match(snapshot.primaryActionDestination, /pack=extra-deck/);
 });
 
-test('fix4: all decks exhausted + vote available → no Vote primary while Voting is parked', () => {
+test('fix4: all decks exhausted + vote available → Vote primary now that Voting is live', () => {
   const base = input({
     entries: starterApprovals(),
     isHeatwaveDeckUnlocked: true,
@@ -976,10 +978,11 @@ test('fix4: all decks exhausted + vote available → no Vote primary while Votin
     Object.keys(base.canonicalProgress.deckProgressById).map(id => [id, 0]),
   );
   const snapshot = resolvePlayerGuidance(withDeckEligibility(base, zeroed));
-  // Nov 17, 2026: with every deck exhausted and Voting parked, the
-  // guidance falls through to No Urgent Action — same as vote off.
-  assert.equal(snapshot.state, 'NO_URGENT_ACTION');
-  assert.notEqual(snapshot.navigationTarget, 'voting');
+  // Nov 21, 2026: with every deck exhausted and Voting live, an open
+  // voting window is the next action — unlike vote off, which falls
+  // through to No Urgent Action.
+  assert.equal(snapshot.state, 'VOTE_AVAILABLE');
+  assert.equal(snapshot.navigationTarget, 'voting');
 });
 
 test('fix4: all decks exhausted + nothing urgent → No Urgent Action', () => {

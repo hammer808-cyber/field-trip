@@ -146,10 +146,11 @@ test('first offenses: firestore.rules whitelists the nine ids and the two repair
   assert.ok(rules.includes("'level_up'"));
 });
 
-test('first offenses: democracy is messy cannot fire while voting is parked', () => {
-  // Tripwire: VOTING_ENABLED is false (Nov 17, 2026), so no weekly vote
-  // can be cast and the weekly_vote_cast event cannot fire. When voting
-  // unparks, this test fails on purpose — the sticker becomes earnable.
-  assert.equal(VOTING_ENABLED, false);
+test('first offenses: democracy is messy can fire now that voting is live', () => {
+  // Tripwire (flipped Nov 21, 2026): VOTING_ENABLED is true, so weekly
+  // votes can be cast and the weekly_vote_cast event can fire — the
+  // sticker is earnable. If voting is ever re-parked, this test fails
+  // on purpose.
+  assert.equal(VOTING_ENABLED, true);
   assert.equal(getStickerById('first_offenses_democracy_is_messy')?.awardTrigger, 'weekly_vote_cast');
 });

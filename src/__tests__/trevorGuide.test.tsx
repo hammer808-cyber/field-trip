@@ -161,13 +161,11 @@ test('mock context changes replace the recommendation without changing the launc
   const ordinary = recommendation();
   const voting = recommendation({ votingPhase: 'voting', hasVotedThisCycle: false });
   assert.equal(ordinary.id, 'fallback_draw');
-  // Slice 3 (Nov 21, 2026): VOTING_ENABLED is false, so the voting
-  // phase no longer surfaces a voting recommendation — the mock
-  // context change leaves the fallback in place instead of swapping
-  // in a dead 'Vote Now' action. (The old test asserted voting_open
-  // here; the audit flagged the missing flag check on open_voting.)
-  assert.equal(voting.id, 'fallback_draw');
-  assert.notEqual(voting.id, 'voting_open');
+  // Nov 21, 2026: VOTING_ENABLED is true (global weekly voting shipped),
+  // so the voting phase surfaces a voting recommendation — the mock
+  // context change swaps in the live 'Vote Now' action. (Slice 3 gated
+  // open_voting on the flag, so while parked this stayed fallback_draw.)
+  assert.equal(voting.id, 'voting_open');
 });
 
 test('Trevor does not auto-open on Basecamp — the next-action panel owns it there', () => {

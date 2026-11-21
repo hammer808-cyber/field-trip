@@ -7,12 +7,13 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (rel: string) => readFileSync(join(repoRoot, rel), 'utf8');
 
-test('zines and voting: parked behind kill switches, players see coming soon', () => {
+test('zines parked behind its kill switch; voting shipped (flag true), players pass the gate', () => {
   const progress = read('src/services/canonicalProgress.ts');
-  // Nov 17, 2026: both sections are parked until they are figured out.
-  // Flip the flag when one ships; the gate below is what shows the panel.
+  // Nov 17, 2026: both sections were parked until figured out. Voting
+  // SHIPPED Nov 21, 2026 (global weekly voting) — flip the flag back to
+  // false to re-park it; the gate below is what shows the panel.
   assert.match(progress, /export const ZINES_ENABLED = false;/);
-  assert.match(progress, /export const VOTING_ENABLED = false;/);
+  assert.match(progress, /export const VOTING_ENABLED = true;/);
   assert.match(progress, /if \(featureKey === 'zines'\) return ZINES_ENABLED;/);
   assert.match(progress, /if \(featureKey === 'voting'\) return VOTING_ENABLED;/);
 

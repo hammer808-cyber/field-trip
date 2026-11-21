@@ -82,10 +82,13 @@ test('Big Board stays locked before the starters are complete', () => {
   assert.equal(canAccessFeature(freshSnapshot(), 'leaderboard'), false);
 });
 
-test('Voting stays blocked while parked, even at 3/3 starters', () => {
-  // The board's fix must not leak into Voting: parking Voting still bars it.
+test('Voting is open at 3/3 starters now that it has shipped', () => {
+  // The board's fix must not leak into Voting: the two gates are
+  // independent. Nov 21, 2026: VOTING_ENABLED flipped true (global weekly
+  // voting shipped), so voting is open here — re-park it by flipping
+  // the flag back, and this test fails on purpose.
   const snapshot = starterCompleteSnapshot();
-  assert.equal(canAccessFeature(snapshot, 'voting'), false);
+  assert.equal(canAccessFeature(snapshot, 'voting'), true);
   assert.equal(canAccessFeature(snapshot, 'leaderboard'), true);
 });
 

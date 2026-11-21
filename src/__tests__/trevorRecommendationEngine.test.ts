@@ -171,19 +171,16 @@ test('a meaningful verified weekly rank gap is surfaced', () => {
   assert.equal(recommendation?.secondaryAction?.id, 'open_standings');
 });
 
-test('voting is not recommended while VOTING_ENABLED is false', () => {
-  // Slice 3 (Nov 21, 2026): open_voting honors VOTING_ENABLED, so the
-  // voting_open rule's primary action is unavailable while parked and
-  // Trevor never sends a player to a coming-soon panel — even in the
-  // voting phase with no vote cast. (The old test asserted the
-  // opposite; the audit flagged the missing flag check.) The
-  // prioritization of voting over level progress is re-verified when
-  // the flag flips; until then the level rule wins.
+test('voting is recommended while the window is open and no vote is cast', () => {
+  // Slice 3 (Nov 21, 2026) gated open_voting on VOTING_ENABLED; the flag
+  // flipped Nov 21, 2026 (global weekly voting shipped), so the
+  // voting_open rule's primary action is available in the voting phase
+  // with no vote cast — Trevor sends the player to vote.
   const recommendation = getTrevorRecommendation(context({
     votingPhase: 'voting',
     hasVotedThisCycle: false,
   }));
-  assert.notEqual(recommendation?.id, 'voting_open');
+  assert.equal(recommendation?.id, 'voting_open');
 });
 
 test('completed voting is not recommended again', () => {
@@ -263,17 +260,17 @@ test('recommendation cooldown skips a recently displayed noncritical rule', () =
   assert.notEqual(recommendation?.id, 'near_level');
 });
 
-test('when voting and level rules both match, the level rule wins while voting is parked', () => {
-  // Slice 3 (Nov 21, 2026): voting would win by priority (800) when
-  // live, but VOTING_ENABLED is false, so its primary action is
-  // unavailable and the near-level rule surfaces instead.
+test('when voting and level rules both match, voting wins now that it is live', () => {
+  // Slice 3 (Nov 21, 2026): voting wins by priority (800) when live.
+  // The flag flipped Nov 21, 2026, so its primary action is available
+  // and the voting rule surfaces instead of near-level.
   const recommendation = getTrevorRecommendation(context({
     votingPhase: 'voting',
     hasVotedThisCycle: false,
     xpForNextLevel: 500,
     xpToNextLevel: 20,
   }));
-  assert.equal(recommendation?.id, 'near_level');
+  assert.equal(recommendation?.id, 'voting_open');
 });
 
 test('rejected proof retry uses the current Capture query contract', () => {

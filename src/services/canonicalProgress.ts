@@ -25,12 +25,13 @@ export const LOTERIA_ENABLED = false;
 export const ZINES_ENABLED = false;
 
 /**
- * Voting kill switch (Nov 17, 2026). The voting section is still being
- * figured out, so it stays barred for players behind a "coming soon"
- * panel. Admins bypass the gate (StarterGate) so it can still be
- * worked on and previewed. Flip to true when Voting ships.
+ * Voting kill switch (Nov 17, 2026). The voting section stayed barred for
+ * players behind a "coming soon" panel while it was figured out. SHIPPED
+ * Nov 21, 2026 — global weekly voting, six accolades, one winner per award
+ * (docs/voting-system-audit.md). Admins bypass the gate (StarterGate) so
+ * it can still be previewed. Flip back to false to re-park it.
  */
-export const VOTING_ENABLED = false;
+export const VOTING_ENABLED = true;
 
 export type CanonicalChallengeStatus =
   | 'available'
