@@ -450,11 +450,126 @@ is missing. The fetch script `scripts/fetch-starter-example-photos.py`
 re-downloads from Commons with the recorded queries (Wikimedia rate-limits
 hard — expect HTTP 429s on back-to-back runs; the script retries).
 
+## Winter deck — example photos
+
+Every Winter card (`Winter`, FT-08) carries a real example photo in
+`public/assets/challenges/winter-XX.jpg`, wired in via the card's `image`
+field in `src/data/winterChallengeBank.ts`, the same way the Texas,
+Heatwave, and Jet Setter decks got theirs. Cards with a photo show an
+"Example photo" chip in the deck library and the card detail modal, so
+players know it's a sample, not the target itself. The deck cover
+(`public/assets/decks/winter.jpg`) reuses the winter-19 exemplar (Mission
+Inn lights at night) until dedicated cover art lands.
+
+### Sources and licenses
+
+All photos are from Wikimedia Commons and are freely licensed (CC BY, CC BY-SA,
+CC0, or public domain). Attribution:
+
+| Card | File | Source | License |
+| --- | --- | --- | --- |
+| winter-01 — Paper Snowflakes | `winter-01.jpg` | [File:Paper snowflakes (Unsplash).jpg](https://commons.wikimedia.org/wiki/File%3APaper_snowflakes_%28Unsplash%29.jpg) | CC0 |
+| winter-02 — Ugliest Ornament | `winter-02.jpg` | [File:Alpaca Christmas ornament - November 2023 - Sarah Stierch.jpg](https://commons.wikimedia.org/wiki/File%3AAlpaca_Christmas_ornament_-_November_2023_-_Sarah_Stierch.jpg) | CC BY 4.0 |
+| winter-03 — Soup Weather | `winter-03.jpg` | [File:DFC 3982 A steaming bowl of homemade vegetable soup garnished with chopped parsley served with a slice of rustic brown bread.jpg](https://commons.wikimedia.org/wiki/File%3ADFC_3982_A_steaming_bowl_of_homemade_vegetable_soup_garnished_with_chopped_parsley_served_with_a_slice_of_rustic_brown_bread.jpg) | CC BY-SA 4.0 |
+| winter-04 — Bare Branches | `winter-04.jpg` | [File:Bare tree against a winter sky - geograph.org.uk - 6716344.jpg](https://commons.wikimedia.org/wiki/File%3ABare_tree_against_a_winter_sky_-_geograph.org.uk_-_6716344.jpg) | CC BY-SA 2.0 |
+| winter-05 — Winter Layers | `winter-05.jpg` | [File:Child walking along a snow-covered path beside a fence in winter.jpg](https://commons.wikimedia.org/wiki/File%3AChild_walking_along_a_snow-covered_path_beside_a_fence_in_winter.jpg) | CC BY 2.0 |
+| winter-06 — Foggy Morning | `winter-06.jpg` | [File:Bidwell Park on a foggy winter morning (2025)-L1000379.jpg](https://commons.wikimedia.org/wiki/File%3ABidwell_Park_on_a_foggy_winter_morning_%282025%29-L1000379.jpg) | CC BY-SA 4.0 |
+| winter-07 — Winter Citrus | `winter-07.jpg` | [File:Citrus Trees heavily laden with ripe fruit.jpg](https://commons.wikimedia.org/wiki/File%3ACitrus_Trees_heavily_laden_with_ripe_fruit.jpg) | CC BY-SA 4.0 |
+| winter-08 — Palm Tree Lights | `winter-08.jpg` | [File:Christmas lights on palm trees.jpg](https://commons.wikimedia.org/wiki/File%3AChristmas_lights_on_palm_trees.jpg) | CC BY-SA 3.0 |
+| winter-09 — Beach in Winter | `winter-09.jpg` | [File:Empty beach at Waxham, Norfolk - geograph.org.uk - 319596.jpg](https://commons.wikimedia.org/wiki/File%3AEmpty_beach_at_Waxham%2C_Norfolk_-_geograph.org.uk_-_319596.jpg) | CC BY-SA 2.0 |
+| winter-10 — Puddle Reflection | `winter-10.jpg` | [File:Simple serene beauty of sky captured as a reflection in roadside puddle.jpg](https://commons.wikimedia.org/wiki/File%3ASimple_serene_beauty_of_sky_captured_as_a_reflection_in_roadside_puddle.jpg) | CC BY-SA 4.0 |
+| winter-11 — Gingerbread House | `winter-11.jpg` | [File:Gingerbread house with candy.jpg](https://commons.wikimedia.org/wiki/File%3AGingerbread_house_with_candy.jpg) | CC BY 4.0 |
+| winter-12 — Carolers | `winter-12.jpg` | [File:Christmas carolers, Charlois, Rotterdam (2022) 01.jpg](https://commons.wikimedia.org/wiki/File%3AChristmas_carolers%2C_Charlois%2C_Rotterdam_%282022%29_01.jpg) | CC BY-SA 4.0 |
+| winter-13 — Fireside Story | `winter-13.jpg` | [File:Fireplace-RM.jpg](https://commons.wikimedia.org/wiki/File%3AFireplace-RM.jpg) | CC BY 2.0 |
+| winter-14 — Snowball Fight | `winter-14.jpg` | [File:Snowball fight.jpg](https://commons.wikimedia.org/wiki/File%3ASnowball_fight.jpg) | CC BY-SA 4.0 |
+| winter-15 — White Elephant | `winter-15.jpg` | [File:Christmas wrap.jpg](https://commons.wikimedia.org/wiki/File%3AChristmas_wrap.jpg) | CC BY 2.0 |
+| winter-16 — Ski Day | `winter-16.jpg` | [File:Skier and snowboarder come down Aiguille slope, Saint-Sorlin-d'Arves, 2023.jpg](https://commons.wikimedia.org/wiki/File%3ASkier_and_snowboarder_come_down_Aiguille_slope%2C_Saint-Sorlin-d%27Arves%2C_2023.jpg) | CC0 |
+| winter-17 — Lodge Fire | `winter-17.jpg` | [File:(Do not use this image until after Jan 25, 2014) FS Cabin2 fire and living room sofa Virginia State Parks (10873549344).jpg](https://commons.wikimedia.org/wiki/File%3A%28Do_not_use_this_image_until_after_Jan_25%2C_2014%29_FS_Cabin2_fire_and_living_room_sofa_Virginia_State_Parks_%2810873549344%29.jpg) | CC BY 2.0 |
+| winter-18 — Snowman at the Summit | `winter-18.jpg` | [File:Snowman at Dunstall - geograph.org.uk - 1152841.jpg](https://commons.wikimedia.org/wiki/File%3ASnowman_at_Dunstall_-_geograph.org.uk_-_1152841.jpg) | CC BY-SA 2.0 |
+| winter-19 — Lights After Dark | `winter-19.jpg` | [File:Mission Inn Lights 12-13-14i (16022035145).jpg](https://commons.wikimedia.org/wiki/File%3AMission_Inn_Lights_12-13-14i_%2816022035145%29.jpg) | CC BY-SA 2.0 |
+| winter-20 — Rink Crew Skate | `winter-20.jpg` | [File:Ice skating rink - Rockefeller center.jpg](https://commons.wikimedia.org/wiki/File%3AIce_skating_rink_-_Rockefeller_center.jpg) | CC0 |
+
+Per-card creator names live in `scripts/winter-example-photos-manifest.json`
+(the `creator` field, alongside source URL, page, license, and bytes).
+
+### How they were chosen
+
+Each photo was checked by eye against the card's required subjects before wiring.
+Two first picks failed that check and were replaced:
+
+- Winter Layers (05): the first pick was a person in an orange parka, back
+  to camera, in a snowy forest — a hooded coat, but no scarf, beanie, or
+  gloves visible. A second candidate ("Girl in winter 2009") was also
+  rejected: a light cardigan and a thin scarf, no beanie or gloves, and not
+  bundled up at all. The winner is a small child in a pink snowsuit walking
+  down a snowy path, beanie and scarf both visible. A further search round
+  for a shot showing all three items (scarf, beanie, gloves) returned
+  nothing but scanned books, so the winner stands as the best available —
+  the glove is the one item not visible.
+- Winter Citrus (07), Ski Day (16), Lodge Fire (17), and Lights After Dark
+  (19) all needed second-round queries: the first searches returned market
+  fruit instead of fruit on the tree, empty slopes with no skiers, lodge
+  exteriors with no fireplace, and generic Christmas lights instead of the
+  Mission Inn. See the QUERIES in `scripts/fetch-winter-example-photos.py`.
+
+The judgment-call cards, noted here so the next pass can revisit them:
+
+- Ugliest Ornament (02) is a grey fuzzy alpaca ornament hanging on a tree —
+  odd and offbeat rather than gaudy; "ugliest" is the player's call, and a
+  single strange ornament is the subject.
+- Soup Weather (03) is a bowl of vegetable soup with bread; no steam is
+  visible in the still. Steam rarely survives a still photo; the soup is
+  the subject.
+- Fireside Story (13) is flames filling the frame against black — no hearth
+  or room visible. The card says "a fire, any fire", and the fire is the
+  whole photo.
+- White Elephant (15) is a single wrapped gift with a gold bow and gift
+  tag — no people, no swap, nothing gag about the gift itself. No candidate
+  showed a swap in progress; the wrapped gift is the artifact and the swap
+  is the moment the player captures.
+- Beach in Winter (09) is an empty beach in Norfolk, England, not Southern
+  California; Rockefeller Center (20) is New York, not Pershing Square;
+  the snowman (18) is on a roadside in England, not at Snow Summit; the
+  carolers (12) are in Rotterdam and the skier (16) in the French Alps.
+  The subjects — empty winter sand, a night rink full of skaters, a built
+  snowman, singers in costume, skis on a slope — are generic, and no
+  SoCal-specific Commons photo of the same quality turned up. Same
+  precedent as the SoCal Summer deck's non-SoCal photos. Lights After Dark
+  (19), by contrast, is the actual Mission Inn Festival of Lights.
+
+Files were recompressed into the ~87–200 KB class of the earlier decks
+(PIL, max width 1024, JPEG quality 78) — the deck adds ~2.7 MB total.
+The outliers are the fine-detail shots that don't compress further without
+visible loss: winter-07 (orange grove, 219 KB at quality 65) and
+winter-19 (Mission Inn lights, 263 KB at quality 65, also the deck cover).
+Six files land under the band — winter-01 (29 KB), winter-09 (47 KB),
+winter-13 (49 KB), winter-03 (77 KB), winter-05 (77 KB), and winter-20
+(82 KB) — smooth skies, dark backgrounds, and low-detail scenes compress
+well, nothing wrong with the files.
+
+Wikimedia rate-limit note (Nov 21, 2026): upload.wikimedia.org (unscaled
+originals) returned HTTP 429 persistently from this machine, even after
+multi-minute waits, while thumb.wikimedia.org (1280px thumbs) kept working.
+New wrinkle this round: for originals narrower than 1280px the API returns
+the unscaled original as `thumburl`, so the first winter-04 fetch 429'd
+even though it looked like a thumb request. The fix, in both the fetch
+script and the download pass, is `thumb_url()`: rebuild the URL as a
+thumb.wikimedia.org 1280px thumb from the original's hash path — thumbor
+serves it fine. winter-09 and winter-18 needed the same rebuild.
+
+To replace a photo: drop a new file in `public/assets/challenges/` and update
+the card's `image` field in `src/data/winterChallengeBank.ts` (or the
+manifest entry). The gate test `src/__tests__/winterExamplePhotos.test.ts`
+fails if a Winter card's photo is missing. The fetch script
+`scripts/fetch-winter-example-photos.py` re-downloads from Commons with
+the recorded queries (Wikimedia rate-limits hard — expect HTTP 429s on
+back-to-back runs; the script retries, and fetches are spaced 90s apart).
+
 ## Next decks
 
 The same pattern extends to any deck: add an `image` field to the card, drop the
 file in `public/assets/challenges/`, and the photo shows everywhere the card art
 renders (library, detail modal, capture flow) with the "Example photo" chip where
-the surface shows it. Record the source and license here. Texas, Heatwave, Jet Setter, SoCal Summer, Errand Deck, and the starter cards
+the surface shows it. Record the source and license here. Texas, Heatwave, Jet Setter, SoCal Summer, Errand Deck, Winter, and the starter cards
 are all done; every live deck now carries real example photos except Gobble &
 Glow, which stays on SVG badges by design.

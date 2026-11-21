@@ -502,7 +502,7 @@ export const WINTER_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     difficulty: "medium",
     baseXP: 125,
     tags: ["winter", "ski", "snow", "mountain", "evidence"],
-    locationTag: { kind: 'place', latitude: 34.3757, longitude: -117.68606, radiusMeters: 12000, label: 'Mountain High, Wrightwood' },
+    locationTag: { kind: 'place', latitude: 34.37472, longitude: -117.69323, radiusMeters: 6000, label: 'Mountain High, Wrightwood' },
     proofRequirements: {
       requiredSubjects: ["skis", "snowboard", "slope", "snow", "lift"],
       minConfidence: 0.4,

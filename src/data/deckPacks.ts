@@ -5,6 +5,7 @@ import { JET_SETTER_CHALLENGE_BANK } from './jetSetterChallengeBank';
 import { ERRAND_DECK_CHALLENGE_BANK } from './errandDeckChallengeBank';
 import { TEXAS_CHALLENGE_BANK } from './texasChallengeBank';
 import { HOLIDAY_CHALLENGE_BANK } from './holidayChallengeBank';
+import { WINTER_CHALLENGE_BANK } from './winterChallengeBank';
 import type { ChallengeCard } from '../types/challenges';
 import { HEATWAVE_SEASON_START_DATE, HEATWAVE_SEASON_END_DATE, HOLIDAY_SEASON_START_DATE, HOLIDAY_SEASON_END_DATE } from './seasonDates';
 
@@ -239,6 +240,55 @@ export const DECK_PACKS: DeckPack[] = [
       "Winter Clue",
       "Gift Evidence",
       "Gratitude Note"
+    ]
+  },
+  {
+    packId: 'winter',
+    id: 'winter',
+    title: 'Winter',
+    deckCode: 'FT-08',
+    artworkKey: 'winter',
+    coverImage: '/assets/decks/winter.jpg',
+    isSeasonal: true,
+    // Meteorological winter (Dec 1–Feb 28/29 PT) per the seasonal calendar —
+    // gating reads seasonId, not a startsAt/endsAt window (see
+    // src/logic/deckAccess.ts). Cover art reuses the winter-19 exemplar
+    // photo (Mission Inn lights at night) until dedicated art lands.
+    seasonId: 'winter',
+    packName: 'Winter',
+    shortName: 'Winter',
+    description: 'A winter seasonal deck for snowflakes, soup weather, bare branches, foggy mornings, and real SoCal winter spots — Mountain High, Lake Arrowhead, Snow Summit, the Mission Inn lights, and the Pershing Square rink.',
+    theme: 'cosmic',
+    season: 'Winter 2026',
+    missionIds: WINTER_CHALLENGE_BANK.map(m => m.id as string),
+    unlockRule: 'seasonal',
+    visibility: 'public',
+    requiredCompletedDeckIds: ['starter-signals'],
+    isActive: true,
+    fallbackIcon: 'Snowflake',
+    sortOrder: 2,
+    difficultyRange: ['easy', 'medium', 'hard'],
+    tags: ['winter', 'seasonal', 'crew-friendly'],
+    catalogSection: 'featured-seasonal',
+
+    // Canonical properties
+    deckId: 'winter',
+    deckSubtitle: 'A Winter Fieldtrip Deck',
+    status: 'active',
+    deckType: 'seasonal',
+    requiredUnlock: 'starter-complete',
+    requiredStarterApprovals: 3,
+    totalCards: 20,
+
+    defaultFindingTypes: [
+      "Winter Clue",
+      "Snow Evidence",
+      "Light Display",
+      "Fire Evidence",
+      "Cold Weather Signal",
+      "Holiday Signal",
+      "Mountain Evidence",
+      "Crew Lore"
     ]
   },
   {

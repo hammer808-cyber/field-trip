@@ -3,6 +3,8 @@ import test from 'node:test';
 
 import { ALL_CHALLENGE_CARDS } from '../data/allChallengeBanks';
 import { WINTER_CHALLENGE_BANK } from '../data/winterChallengeBank';
+import { getDeckPackById } from '../data/deckPacks';
+import { getDeckAccess, getSeasonalLockCopy } from '../logic/deckAccess';
 import { validateChallengeBrandFit } from '../services/brandService';
 
 const WINTER = [...WINTER_CHALLENGE_BANK];
@@ -16,6 +18,53 @@ const EXPECTED_IDS = Array.from({ length: 20 }, (_, i) => `winter-${String(i + 1
  * (deckPacks.ts, FT-08, cover art) is a separate slice and is NOT
  * asserted here.
  */
+test('winter deck is registered as FT-08 with all 20 cards', () => {
+  const pack = getDeckPackById('winter');
+  assert.ok(pack, 'winter pack not registered');
+  assert.equal(pack!.title, 'Winter');
+  assert.equal(pack!.deckCode, 'FT-08');
+  assert.equal(pack!.totalCards, 20);
+  assert.equal(pack!.deckType, 'seasonal');
+  assert.equal(pack!.isSeasonal, true);
+  assert.equal(pack!.seasonId, 'winter');
+  assert.equal(pack!.unlockRule, 'seasonal');
+  assert.equal(pack!.catalogSection, 'featured-seasonal');
+  assert.equal(pack!.missionIds.length, 20);
+  const bankIds = new Set(WINTER_CHALLENGE_BANK.map(card => String(card.id)));
+  assert.equal(bankIds.size, 20, 'duplicate ids in winter bank');
+  for (const id of pack!.missionIds) {
+    assert.ok(bankIds.has(String(id)), `pack mission ${id} missing from winter bank`);
+  }
+});
+
+/** A Date on the given PT calendar day at noon PT (19:00 UTC). */
+function ptDate(year: number, month: number, day: number): Date {
+  return new Date(Date.UTC(year, month - 1, day, 19, 0, 0));
+}
+
+test('winter deck is locked in fall with the derived copy, playable Dec 1–Feb 28', () => {
+  const pack = getDeckPackById('winter');
+  assert.ok(pack, 'winter pack not registered');
+  const starterComplete = { profile: { id: 'u1', completedDeckIds: ['starter-signals'] } as any };
+  // Fall (today, Nov 21, 2026): locked, visible teaser, derived copy.
+  const fall = getDeckAccess(pack, { ...starterComplete, now: ptDate(2026, 11, 21) });
+  assert.equal(fall.playable, false, 'winter should be locked in fall');
+  assert.equal(fall.locked, true);
+  assert.equal(fall.visible, true, 'locked seasonal deck must stay visible as a teaser');
+  assert.equal(fall.privateReason, 'season_locked');
+  assert.equal(fall.reason, 'Coming winter 2026');
+  assert.equal(getSeasonalLockCopy('winter', ptDate(2026, 11, 21)), 'Coming winter 2026');
+  // Inside the season: playable (Dec 1, Jan 15, Feb 28 boundary days).
+  for (const date of [ptDate(2026, 12, 1), ptDate(2027, 1, 15), ptDate(2027, 2, 28)]) {
+    const access = getDeckAccess(pack, { ...starterComplete, now: date });
+    assert.equal(access.playable, true, `expected playable on ${date.toISOString()}, got ${access.reason}`);
+    assert.equal(access.locked, false);
+  }
+  // Mar 1: the season is over, locked again with next year's copy.
+  const spring = getDeckAccess(pack, { ...starterComplete, now: ptDate(2027, 3, 1) });
+  assert.equal(spring.playable, false);
+  assert.equal(spring.reason, 'Coming winter 2027');
+});
 test('winter bank holds exactly winter-01 through winter-20', () => {
   assert.deepEqual(WINTER.map(card => String(card.id)), EXPECTED_IDS);
   assert.equal(new Set(WINTER.map(card => String(card.id))).size, 20, 'duplicate ids in winter bank');
