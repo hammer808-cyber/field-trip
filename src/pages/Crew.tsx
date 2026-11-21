@@ -574,11 +574,11 @@ export default function CrewPage() {
         onTabChange={(id) => setActiveTab(id as typeof activeTab)}
       />
       <PlayerPageBody>
-      <CrewPeopleHome />
       <CrewClipboard>
       <div className="min-h-[40vh]">
         {activeTab === 'members' && (
           <div className="space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-500">
+            <CrewPeopleHome />
             <section className="bg-white border-8 border-on-surface p-6 sm:p-8 shadow-[12px_12px_0px_black] space-y-8">
               <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
                 <div>
