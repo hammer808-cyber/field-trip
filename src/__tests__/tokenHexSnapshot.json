@@ -191,12 +191,6 @@
     "src/components/missions/MissionActionPanel.tsx": [
       "#00a6b2"
     ],
-    "src/components/missions/MissionLogbookPanel.tsx": [
-      "#000000",
-      "#a7611d",
-      "#f6ea38",
-      "#ffffff"
-    ],
     "src/components/player/FieldButton.tsx": [
       "#c52233"
     ],
@@ -272,6 +266,10 @@
       "#fff5e6",
       "#fff9f2",
       "#fffdfb",
+      "#ffffff"
+    ],
+    "src/logic/contrast.ts": [
+      "#000000",
       "#ffffff"
     ],
     "src/pages/AdminArchive.tsx": [

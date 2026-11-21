@@ -11,6 +11,11 @@
 // (FrankieModeCard) switch moved from above the deck to a slim
 // always-visible row at the very bottom of this page — it used to hide
 // when on, so it couldn't be turned back off from here.
+// ONE-OFF LIFT (Nov 20, 2026, Zach's bug report — contrast): the
+// NEEDS_MORE_PROOF warning chip and the adjacent REJECTED error chip
+// now derive their icon color per skin (pickTextOnBackground) instead
+// of hardcoded white — white failed on arcade warning (1.25:1) and
+// arcade error (3.28:1). The freeze stands for everything else.
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import { useApp } from '../context/AppContext';
@@ -40,6 +45,8 @@ import { getWeeklyBonusForWeek } from '../data/weeklyBonuses';
 import { StickerBackground } from '../components/StickerBackground';
 import { StickerDecal, StickerCorner, StickerScatter } from '../components/StickerDecals';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
+import { pickTextOnBackground, skinVarHex } from '../logic/contrast';
+import { DEFAULT_APP_SKIN } from '../skins/registry';
 import { FEATURE_FLAGS } from '../config/featureFlags';
 import { StarterCompletionState } from '../utils/starterHelper';
 import { MARKER_STICKERS } from '../data/markers';
@@ -198,6 +205,13 @@ export default function DeckPage() {
   const demoteMissionBrowsing = stripRole === 'dominant';
   const [savedForLaterNotice, setSavedForLaterNotice] = useState<string | null>(null);
   const { frankieMode, skin, fc } = useTheme();
+
+  // Nov 20, 2026 (contrast fix): the REJECTED / NEEDS_MORE_PROOF icon
+  // chips sit on skin error/warning backgrounds, so their icon color is
+  // derived per skin — hardcoded white failed on arcade warning (1.25:1)
+  // and arcade error (3.28:1). Same pickTextOnBackground pattern as P0-2.
+  const warningText = pickTextOnBackground(skinVarHex('--skin-warning', DEFAULT_APP_SKIN.designTokens.warning));
+  const errorText = pickTextOnBackground(skinVarHex('--skin-error', DEFAULT_APP_SKIN.designTokens.error));
 
   const [activePackId, setActivePackId] = useState<string>(() => {
     if (!isOnboardingComplete && !isAdmin) return 'starter-signals';
@@ -1090,8 +1104,8 @@ export default function DeckPage() {
                 </div>
               ) : isStarter && starterState.status === 'REJECTED_RETRY_AVAILABLE' ? (
                 <div className="w-full animate-fade-in space-y-5 py-4 text-center">
-                  <div className="mx-auto flex h-20 w-20 -rotate-3 items-center justify-center rounded-[var(--skin-badge-radius)] border-2 border-[var(--skin-border)] bg-[var(--skin-error)] text-white shadow-[4px_4px_0_var(--skin-border)]">
-                    <RotateCcw className="w-10 h-10 text-white" />
+                  <div className="mx-auto flex h-20 w-20 -rotate-3 items-center justify-center rounded-[var(--skin-badge-radius)] border-2 border-[var(--skin-border)] bg-[var(--skin-error)] shadow-[4px_4px_0_var(--skin-border)]" style={{ color: errorText }}>
+                    <RotateCcw className="w-10 h-10" />
                   </div>
                   <div className="space-y-2">
                     <h2 className="font-display text-4xl font-black uppercase italic tracking-tight text-on-surface">Mission Rejected</h2>
@@ -1114,8 +1128,8 @@ export default function DeckPage() {
                 </div>
               ) : isStarter && starterState.status === 'NEEDS_MORE_PROOF' ? (
                 <div className="w-full animate-fade-in space-y-5 py-4 text-center">
-                  <div className="mx-auto flex h-20 w-20 -rotate-3 items-center justify-center rounded-[var(--skin-badge-radius)] border-2 border-[var(--skin-border)] bg-[var(--skin-warning)] text-white shadow-[4px_4px_0_var(--skin-border)]">
-                    <AlertTriangle className="w-10 h-10 text-white animate-pulse" />
+                  <div className="mx-auto flex h-20 w-20 -rotate-3 items-center justify-center rounded-[var(--skin-badge-radius)] border-2 border-[var(--skin-border)] bg-[var(--skin-warning)] shadow-[4px_4px_0_var(--skin-border)]" style={{ color: warningText }}>
+                    <AlertTriangle className="w-10 h-10 animate-pulse" />
                   </div>
                   <div className="space-y-2">
                     <h2 className="font-display text-4xl font-black uppercase italic tracking-tight text-on-surface">More proof needed</h2>

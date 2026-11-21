@@ -108,3 +108,63 @@ test('P1-9: the logbook panel pairs every warning background with derived text, 
   assert.match(panel, /style=\{\{ color: warningText \}\}/);
   assert.match(panel, /style=\{\{ color: statusText\[item\.status\] \}\}/);
 });
+
+// Nov 20, 2026 follow-ups, same class as P1-9 (reported as two contrast
+// bugs): the Missions NEEDS_MORE_PROOF warning chip hardcoded white on
+// the warning background (arcade 1.25:1, classic 4.13:1), and the
+// Basecamp attention pill used the skin text color on the same background
+// (fails in 4 of 5 skins). Both now derive the color per skin.
+
+test('contrast follow-up: the Missions warning chip derives its color per skin, never hardcoded white', () => {
+  const deck = read('src/pages/Deck.tsx');
+  // The warning chip (NEEDS_MORE_PROOF) and the adjacent error chip
+  // (REJECTED_RETRY_AVAILABLE, white-on-error failed in arcade at 3.28:1)
+  // both derive their icon color now.
+  assert.match(deck, /pickTextOnBackground\(skinVarHex\('--skin-warning'/);
+  assert.match(deck, /pickTextOnBackground\(skinVarHex\('--skin-error'/);
+  assert.match(deck, /style=\{\{ color: warningText \}\}/);
+  assert.match(deck, /style=\{\{ color: errorText \}\}/);
+  // Neither chip may carry a hardcoded white again.
+  assert.doesNotMatch(deck, /bg-\[var\(--skin-warning\)\] text-white/);
+  assert.doesNotMatch(deck, /bg-\[var\(--skin-error\)\] text-white/);
+  assert.doesNotMatch(deck, /AlertTriangle className="[^"]*text-white/);
+});
+
+test('contrast follow-up: the old Missions white-on-warning pair failed in classic and arcade (documents the bug)', () => {
+  assert.ok(contrastRatio('#ffffff', '#b96900') < AA_NORMAL); // classic, 4.13
+  assert.ok(contrastRatio('#ffffff', '#f6ea38') < AA_NORMAL); // arcade, 1.25
+  assert.ok(contrastRatio('#ffffff', '#ff4a61') < AA_NORMAL); // arcade error, 3.28
+});
+
+test('contrast follow-up: the Basecamp attention pill derives its warning text per skin', () => {
+  const panel = read('src/components/basecamp/BasecampAttentionPanel.tsx');
+  assert.match(panel, /pickTextOnBackground\(skinVarHex\('--skin-warning'/);
+  assert.match(panel, /style=\{\{ color: warningText \}\}/);
+  // The pill's text must not come from the skin text token anymore.
+  assert.doesNotMatch(panel, /bg-\[var\(--skin-warning\)\][^>]*text-\[var\(--skin-text\)\]/);
+});
+
+test('contrast follow-up: the old skin-text-on-warning pair failed in 4 of 5 skins (documents the bug)', () => {
+  // Token values from the registry, recomputed here.
+  assert.ok(contrastRatio('#ffffff', '#f6ea38') < AA_NORMAL); // arcade skin text, 1.25
+  assert.ok(contrastRatio('#202621', '#a7611d') < AA_NORMAL); // journal skin text, 3.21
+  assert.ok(contrastRatio('#171717', '#b94c09') < AA_NORMAL); // clubhouse skin text, 3.50
+  assert.ok(contrastRatio('#073f4d', '#a85f00') < AA_NORMAL); // baja skin text, 2.35
+  // Only classic passed with the skin text color.
+  assert.ok(contrastRatio('#111111', '#b96900') >= AA_NORMAL); // classic, 4.57
+});
+
+test('contrast follow-up: the helpers live in src/logic/contrast, so Deck can use them without naming the logbook panel', () => {
+  // Nov 20, 2026: the first version of the Missions fix imported the
+  // helpers from MissionLogbookPanel and tripped the missions-bare pin
+  // (Deck.tsx must not mention that module at all). The helpers are pure
+  // logic; Deck and the attention panel import them from here.
+  const deck = read('src/pages/Deck.tsx');
+  assert.doesNotMatch(deck, /MissionLogbookPanel/);
+  assert.match(deck, /from '\.\.\/logic\/contrast'/);
+  const panel = read('src/components/basecamp/BasecampAttentionPanel.tsx');
+  assert.match(panel, /from '\.\.\/\.\.\/logic\/contrast'/);
+  // The panel keeps re-exporting them so its existing importers are untouched.
+  const logbook = read('src/components/missions/MissionLogbookPanel.tsx');
+  assert.match(logbook, /export \{ contrastRatio, pickTextOnBackground, relativeLuminance, skinVarHex \} from '\.\.\/\.\.\/logic\/contrast'/);
+});

@@ -1,5 +1,7 @@
 import { AlertTriangle, CheckCircle2, Clock3, RotateCcw } from 'lucide-react';
 import type { BasecampProofAttentionModel } from '../../logic/basecampViewModel';
+import { pickTextOnBackground, skinVarHex } from '../../logic/contrast';
+import { DEFAULT_APP_SKIN } from '../../skins/registry';
 
 interface BasecampAttentionPanelProps {
   model: BasecampProofAttentionModel;
@@ -8,6 +10,12 @@ interface BasecampAttentionPanelProps {
 
 export function BasecampAttentionPanel({ model, onAction }: BasecampAttentionPanelProps) {
   const item = model.item;
+  // Nov 20, 2026 (contrast fix): the status pill sits on the skin warning
+  // background, so its text color is derived per skin — the skin text
+  // color failed on it in 4 of 5 skins (arcade 1.25:1, journal 3.21:1,
+  // clubhouse 3.50:1, baja 2.35:1; only classic passed at 4.57:1).
+  // Same pickTextOnBackground pattern as P0-2 / P1-9.
+  const warningText = pickTextOnBackground(skinVarHex('--skin-warning', DEFAULT_APP_SKIN.designTokens.warning));
   return (
     <section
       aria-labelledby="basecamp-attention-heading"
@@ -29,7 +37,7 @@ export function BasecampAttentionPanel({ model, onAction }: BasecampAttentionPan
       {item ? (
         <div className="mt-5 border-t-2 border-[var(--skin-border)] pt-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="inline-flex min-h-7 items-center gap-2 border-2 border-[var(--skin-border)] bg-[var(--skin-warning)] px-2 py-1 font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-text)]">
+            <span className="inline-flex min-h-7 items-center gap-2 border-2 border-[var(--skin-border)] bg-[var(--skin-warning)] px-2 py-1 font-mono text-xs font-black uppercase tracking-widest" style={{ color: warningText }}>
               <RotateCcw size={12} aria-hidden="true" />
               {item.statusLabel}
             </span>
