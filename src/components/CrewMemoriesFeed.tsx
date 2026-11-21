@@ -438,19 +438,26 @@ export function CrewMemoriesFeed({ crewCaptainId = null }: { crewCaptainId?: str
                   </p>
                 </div>
 
-                {/* Polaroid Main Image Area */}
-                <div className="bg-black/5 aspect-square border-[3px] border-on-surface overflow-hidden relative group/img">
-                  <ProofImage 
-                    entry={entry} 
-                    alt={entry.tripTitle || "Crew Memory Snapshot"}
-                    className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-500 ease-out"
-                  />
-                  
-                  {/* Watermark Sticker */}
-                  <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm border border-on-surface px-2 py-0.5 rounded font-mono text-xs uppercase tracking-widest pointer-events-none select-none text-on-surface/80">
-                    🔒 APPROVED EVIDENCE
+                {/* Polaroid Main Image Area — taped polaroid, Field Manual
+                    chrome round 2 (Nov 21, 2026): the same tape + white
+                    frame treatment as Trevor's Log. */}
+                <figure className="relative border-[3px] border-[var(--skin-border)] bg-[var(--skin-surface)] p-2 pb-1 shadow-[4px_4px_0_var(--skin-border)]">
+                  <span aria-hidden="true" className="pointer-events-none absolute -top-3 left-1/2 z-10 -translate-x-1/2">
+                    <span className="field-tape block" aria-hidden="true" />
+                  </span>
+                  <div className="bg-black/5 aspect-square border-[3px] border-on-surface overflow-hidden relative group/img">
+                    <ProofImage 
+                      entry={entry} 
+                      alt={entry.tripTitle || "Crew Memory Snapshot"}
+                      className="w-full h-full object-cover group-hover/img:scale-105 transition-transform duration-500 ease-out"
+                    />
+                    
+                    {/* Watermark Sticker */}
+                    <div className="absolute bottom-3 right-3 bg-white/90 backdrop-blur-sm border border-on-surface px-2 py-0.5 rounded font-mono text-xs uppercase tracking-widest pointer-events-none select-none text-on-surface/80">
+                      🔒 APPROVED EVIDENCE
+                    </div>
                   </div>
-                </div>
+                </figure>
 
                 {/* Field Notes Section */}
                 {entry.fieldNote && (

@@ -13,7 +13,8 @@ import {
   Trophy,
   Vote,
   BookOpen,
-  UserPlus
+  UserPlus,
+  Check
 } from 'lucide-react';
 import { cn, formatSafeDateOnly } from '../lib/utils';
 import { db } from '../lib/firebase';
@@ -53,6 +54,8 @@ import { Crew, CrewChatMessage, CrewLore, CrewInvite, CrewJoinRequest, CrewMembe
 import { CrewArtifactsGallery } from '../components/CrewArtifactsGallery';
 import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
 import { CrewChat } from '../components/crew/CrewChat';
+import { CrewClipboard } from '../components/crew/CrewClipboard';
+import { FieldTicket } from '../components/FieldTicket';
 import { ZineWorkspace } from '../components/ZineWorkspace';
 import { CrewPeopleHome } from '../components/crew/CrewPeopleHome';
 import { FieldPageHero } from '../components/FieldPageHero';
@@ -570,6 +573,7 @@ export default function CrewPage() {
       />
       <PlayerPageBody>
       <CrewPeopleHome />
+      <CrewClipboard>
       <div className="min-h-[40vh]">
         {activeTab === 'members' && (
           <div className="space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-500">
@@ -727,8 +731,19 @@ export default function CrewPage() {
                 </div>
               )}
 
+              {/* Sign-in sheet: ruled lines, one checkmark per active
+                  member. The checkmark means active membership only —
+                  the list is already filtered to active members, so no
+                  invented presence status is shown. */}
               <div className="space-y-3">
-                <h4 className="font-display font-black italic text-2xl uppercase">Active Roster</h4>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h4 className="font-display font-black italic text-2xl uppercase">Active Roster</h4>
+                  <FieldTicket label="Sign-in sheet" tone="secondary" />
+                </div>
+                <div
+                  className="space-y-3 border-t-2 border-dashed border-[var(--skin-border)] pt-3"
+                  style={{ backgroundImage: 'repeating-linear-gradient(0deg, color-mix(in srgb, var(--skin-border) 12%, transparent) 0 1px, transparent 1px 44px)' }}
+                >
                 {(rosterState?.members || []).filter(member => member.status === 'active').length === 0 ? (
                   <p className="font-mono text-xs uppercase opacity-50">Roster is loading.</p>
                 ) : (rosterState?.members || [])
@@ -748,6 +763,10 @@ export default function CrewPage() {
                     return (
                       <div key={member.userId} className="bg-white border-4 border-on-surface p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4 shadow-[5px_5px_0px_black]">
                         <div className="flex items-center gap-4">
+                          <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center border-2 border-[var(--skin-border)] bg-[var(--skin-surface)]">
+                            <Check className="h-5 w-5 text-[var(--skin-text)]" />
+                          </span>
+                          <span className="sr-only">Signed in</span>
                           <div className={cn('w-12 h-12 border-2 border-on-surface flex items-center justify-center font-display font-black', isCaptain ? 'bg-brand-orange text-white' : 'bg-brand-lime')}>
                             {(member.displayNameSnapshot || member.displayName || member.userId).slice(0, 2).toUpperCase()}
                           </div>
@@ -765,6 +784,7 @@ export default function CrewPage() {
                       </div>
                     );
                   })}
+                </div>
               </div>
             </section>
           </div>
@@ -836,14 +856,21 @@ export default function CrewPage() {
                 {latestPhotos.length > 0 ? (
                   <div>
                     <p className="micro-label font-black opacity-40 uppercase tracking-widest mb-3">Latest from the feed</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {latestPhotos.map(photo => (
-                        <button key={photo.id} type="button" onClick={() => setActiveTab('feed')} className="group text-left">
-                          <div className="aspect-square border-2 border-on-surface overflow-hidden bg-black/5">
-                            <img src={photo.imageUrl} alt={photo.tripTitle} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                          </div>
-                          <p className="mt-1 font-mono text-xs font-black uppercase truncate">{photo.tripTitle}</p>
-                          <p className="font-mono text-xs uppercase opacity-50 truncate">{photo.displayName}</p>
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                      {latestPhotos.map((photo, index) => (
+                        <button key={photo.id} type="button" onClick={() => setActiveTab('feed')} className="group relative text-left">
+                          <span aria-hidden="true" className="pointer-events-none absolute -top-3 left-1/2 z-10 -translate-x-1/2">
+                            <span className="field-tape block" aria-hidden="true" />
+                          </span>
+                          <span className={cn('relative block border-[3px] border-[var(--skin-border)] bg-[var(--skin-surface)] p-2 pb-1 shadow-[4px_4px_0_var(--skin-border)]', index % 2 === 0 ? '-rotate-2' : 'rotate-1')}>
+                            <span className="block aspect-square overflow-hidden bg-black/5">
+                              <img src={photo.imageUrl} alt={photo.tripTitle} className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
+                            </span>
+                            <span className="block py-1.5 font-mono text-xs font-black uppercase tracking-wider text-[var(--skin-text)]">
+                              <span className="block truncate">{photo.tripTitle}</span>
+                              <span className="block truncate font-bold text-[var(--skin-text-muted)]">{photo.displayName}</span>
+                            </span>
+                          </span>
                         </button>
                       ))}
                     </div>
@@ -1075,6 +1102,7 @@ export default function CrewPage() {
           </div>
         )}
       </div>
+      </CrewClipboard>
       </PlayerPageBody>
     </PlayerPageShell>
   );
