@@ -33,6 +33,7 @@ import {
   getWeeklyBallotEmptyReason,
   getWeeklyEntryCrewId,
   getWeeklyEntryMediaRef,
+  getWeeklyEntryOwnerId,
   getWeeklyVoteId,
   getWeeklyProofExclusionReasons,
   getWeeklyVotingRestriction,
@@ -44,6 +45,22 @@ import {
   normalizeWeeklyCandidateCategories,
 } from "./src/logic/weeklyVoting";
 import { getSeasonTiming } from "./src/logic/weeklyLogic";
+import {
+  assignWeeklyCategories,
+  buildWeeklyCategoryBallotPlan,
+  getWeeklyCategoryBallotId,
+  getWeeklyCategoryFromBallotId,
+  type WeeklyCategoryPlayerContext,
+} from "./src/logic/weeklyCategories";
+import {
+  WEEKLY_CONSENSUS_XP,
+  WEEKLY_WINNER_XP,
+  getLegacyWeeklyWinnerAwardEventId,
+  getWeeklyConsensusAwardEventId,
+  getWeeklyConsensusVoterIds,
+  getWeeklyWinnerAwardEventId,
+  isWeeklyFinalizeDue,
+} from "./src/logic/weeklyFinalize";
 import { getDefaultWeeklyCatalystForWeek } from "./src/logic/weeklyCatalyst";
 import {
   FIRELIGHT_TRIBUNAL_COMPATIBILITY_NOTE,
@@ -680,10 +697,15 @@ async function startServer() {
     return millis ? new Date(millis) : null;
   };
 
-  const publicWeeklyCandidateSnapshot = (entry: any, entryId: string, seasonId: string, cycleId: string, scope: BallotScope, crewId?: string | null) => {
+  // Slice 1 (Nov 21, 2026): `categories` is the entry's explicit
+  // per-ballot category list from the rules module
+  // (src/logic/weeklyCategories.ts) — one category per category ballot.
+  // Omit the key entirely when not provided: Firestore rejects
+  // undefined field values, and legacy snapshots carry no categories.
+  const publicWeeklyCandidateSnapshot = (entry: any, entryId: string, seasonId: string, cycleId: string, scope: BallotScope, crewId?: string | null, categories?: string[]) => {
     const missionId = entry.tripId || entry.challengeId || entry.missionId || '';
     const mediaRef = getWeeklyEntryMediaRef(entry);
-    return {
+    const snapshot: Record<string, any> = {
       id: entryId,
       entryId,
       proofId: entryId,
@@ -707,19 +729,399 @@ async function startServer() {
       fieldNote: entry.fieldNote || entry.note || '',
       deckId: entry.deckId || null,
       approvedAt: entry.approvedAt || entry.reviewedAt || null,
-      adminScore: Number(entry.scoring?.weightedRubricScore || entry.adminScore || entry.rubricScore || 0),
+      // Slice 1 fix: scoring.normalizedRubricScore is the field the
+      // approval flow actually writes (0-100); weightedRubricScore is
+      // never written anywhere, so snapshots resolved adminScore to 0
+      // and cleanest_completion / finalize tie-breaking never saw a
+      // real score. Keep the legacy fallbacks after it.
+      adminScore: Number(entry.scoring?.normalizedRubricScore || entry.scoring?.weightedRubricScore || entry.adminScore || entry.rubricScore || 0),
       likeCount: Number(entry.likeCount || entry.reactionCount || 0),
       isEligible: true,
       isDisqualified: false,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     };
+    if (categories) snapshot.categories = categories;
+    return snapshot;
   };
 
   const getDefaultMaxVotes = async () => {
     const configSnap = await dbAdmin!.collection('appConfig').doc('main').get();
     const config = configSnap.exists ? configSnap.data() || {} : {};
     return Math.max(1, Math.min(10, Number(config.weeklyVoting?.maxVotesPerVoter || config.voting?.maxVotesPerVoter || 3)));
+  };
+
+  // ---- Weekly voting Slice 1 (Nov 21, 2026): category ballots ----
+  // Six canonical ballots per week, one per accolade, ids
+  // `{cycleId}_community_weekly_{category}` (see
+  // src/logic/weeklyCategories.ts). The helpers below are the only
+  // writers for the auto-populate path; the manual build endpoint is
+  // the repair path when a week is locked or a ballot needs a rebuild.
+
+  /** Player context for the category rules, resolved from live Firestore. */
+  const resolveWeeklyCategoryPlayerContext = async (ownerId: string): Promise<WeeklyCategoryPlayerContext> => {
+    const profileSnap = await dbAdmin!.collection('users').doc(ownerId).get();
+    const profile = profileSnap.exists ? profileSnap.data() || {} : {};
+    const xp = Number(profile.xp ?? profile.points ?? 0) || 0;
+    // approvedCount is the player's career approved entries. Entries
+    // store the owner under `userId` or `uid` depending on age, so
+    // query both and union the ids; filter to approved statuses in
+    // code (no composite index needed for a single-field query).
+    const [byUserId, byUid] = await Promise.all([
+      dbAdmin!.collection('entries').where('userId', '==', ownerId).get(),
+      dbAdmin!.collection('entries').where('uid', '==', ownerId).get(),
+    ]);
+    const approvedIds = new Set<string>();
+    for (const docSnap of [...byUserId.docs, ...byUid.docs]) {
+      const data = docSnap.data() || {};
+      if (isApprovedWeeklyProofStatus(data.status || data.reviewStatus || data.submissionStatus || data.proofStatus)) {
+        approvedIds.add(docSnap.id);
+      }
+    }
+    return { approvedCount: approvedIds.size, xp };
+  };
+
+  /**
+   * Auto-populate hook: add one freshly approved entry to THIS week's
+   * draft category ballots in its rule-assigned categories, creating
+   * the draft ballots when they do not exist yet. Best-effort by
+   * design — callers must catch failures and never fail the approval.
+   * Returns 'added' | 'skipped_locked' | 'skipped_ineligible' so the
+   * caller can log the outcome. Skips silently when the week's
+   * ballots are already locked (the manual build endpoint is the
+   * repair path for those) or the entry fails ballot eligibility.
+   */
+  const addApprovedEntryToWeeklyDraftBallots = async (entryId: string): Promise<'added' | 'skipped_locked' | 'skipped_ineligible'> => {
+    if (!dbAdmin) return 'skipped_ineligible';
+    const entrySnap = await dbAdmin.collection('entries').doc(entryId).get();
+    if (!entrySnap.exists) return 'skipped_ineligible';
+    const entry = { id: entrySnap.id, ...entrySnap.data() } as any;
+    const ownerId = getWeeklyEntryOwnerId(entry);
+    if (!ownerId) return 'skipped_ineligible';
+    const seasonId = cleanServerId(entry.seasonId) || 'heatwave-receipts';
+    const now = new Date();
+    const cycle = getServerCycle(seasonId, now);
+    // Ballots freeze at Saturday 00:00 PT (ballotLocksAt). After that
+    // the week's ballots are read-only for this hook.
+    if (now.getTime() >= cycle.ballotLocksAt.getTime()) return 'skipped_locked';
+    const exclusionReasons = getWeeklyProofExclusionReasons(entry, {
+      seasonId,
+      scope: 'community_weekly',
+      submissionStartsAt: cycle.submissionStart,
+      submissionEndsAt: cycle.submissionEnd,
+      ballotLocksAt: cycle.ballotLocksAt,
+    });
+    if (exclusionReasons.length > 0) return 'skipped_ineligible';
+    const playerContext = await resolveWeeklyCategoryPlayerContext(ownerId);
+    const categories = assignWeeklyCategories(entry, playerContext);
+    const cycleId = cycle.id;
+    await dbAdmin.runTransaction(async (transaction) => {
+      const batchCycleRef = dbAdmin!.collection('votingCycles').doc(cycleId);
+      transaction.set(batchCycleRef, {
+        id: cycleId,
+        seasonId,
+        timezone: 'America/Los_Angeles',
+        status: cycle.status,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      for (const category of categories) {
+        const ballotId = getWeeklyCategoryBallotId(cycleId, category);
+        const ballotRef = batchCycleRef.collection('ballots').doc(ballotId);
+        const ballotSnap = await transaction.get(ballotRef);
+        if (ballotSnap.exists && String(ballotSnap.data()?.status || '') !== 'draft') {
+          continue;
+        }
+        transaction.set(ballotRef, {
+          id: ballotId,
+          ballotId,
+          cycleId,
+          seasonId,
+          scope: 'community_weekly',
+          crewId: null,
+          category,
+          status: 'draft',
+          eligibleProofIds: FieldValue.arrayUnion(entryId),
+          maxVotesPerVoter: 1,
+          allowSelfVote: false,
+          opensAt: toAdminTimestamp(cycle.votingStart),
+          closesAt: toAdminTimestamp(cycle.votingEnd),
+          lockedAt: null,
+          createdAt: ballotSnap.exists ? ballotSnap.data()?.createdAt || FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+        transaction.set(
+          ballotRef.collection('entries').doc(entryId),
+          publicWeeklyCandidateSnapshot(entry, entryId, seasonId, cycleId, 'community_weekly', null, [category]),
+          { merge: true },
+        );
+      }
+    });
+    return 'added';
+  };
+
+  /**
+   * Canonical finalize for one voting cycle (extracted from the
+   * finalize-week handler, Slice 1, Nov 21, 2026, so the admin endpoint
+   * and the lazy finalize-if-due endpoint run the same code). Winner
+   * selection is UNCHANGED (voteTotal desc -> adminScore -> likeCount
+   * -> earliest approvedAt -> deterministic SHA-256 seed); only the XP
+   * changed: winner 25 -> WEEKLY_WINNER_XP (100, per
+   * src/logic/weeklyCycleLogic.ts config), and the canonical path now
+   * pays the consensus +20 XP the legacy path always paid
+   * (WEEKLY_CONSENSUS_XP) — before Slice 1 the canonical path paid
+   * winners only, no consensus.
+   *
+   * Idempotency (verified, not assumed):
+   * - A ballot whose result doc already has isFinal=true is never
+   *   recomputed; the branch re-pushes its winner (+ consensus) awards
+   *   and stickers, which dedupe below.
+   * - XP awards dedupe on the ledger event id
+   *   (awardTrustedXpInTransaction returns duplicate:true when the
+   *   scoreEvents/{eventId} row exists). Event ids include the ballot
+   *   id, so one user winning two category ballots is paid twice
+   *   (the pre-Slice-1 id had no ballot id and the second win
+   *   silently deduped). Transition: winners paid under the old
+   *   no-ballot id are detected via the legacy id and not paid again.
+   * - Winner stickers dedupe on users/{uid}/weeklyWins/{cycleId}
+   *   (one win record per cycle; a second ballot win in the same
+   *   cycle counts as one win for stickers, by design).
+   * Two concurrent finalizes therefore converge: identical
+   * deterministic results, identical award attempts, at-most-once XP.
+   * The lazy endpoint additionally re-checks isFinal before calling
+   * this, so the overlap window is one already-finalized read.
+   */
+  const runCanonicalWeeklyFinalize = async (input: {
+    cycleId: string;
+    seasonId: string;
+    reason: string;
+    actorId: string;
+    ballotIds?: string[];
+  }): Promise<{
+    finalized: any[];
+    awards: Array<{ awarded: boolean; duplicate: boolean; ledgerEventId: string }>;
+    stickerAwards: Array<{ userId: string; awarded: string[] }>;
+  }> => {
+    const { cycleId, seasonId, reason, actorId } = input;
+    const cycleRef = dbAdmin!.collection('votingCycles').doc(cycleId);
+    const cycleSnap = await cycleRef.get();
+    if (!cycleSnap.exists) throw Object.assign(new Error('CYCLE_NOT_FOUND'), { status: 404 });
+    const ballotsSnap = input.ballotIds
+      ? { docs: (await Promise.all(input.ballotIds.map(async (id) => cycleRef.collection('ballots').doc(id).get()))).filter(snap => snap.exists) } as any
+      : await cycleRef.collection('ballots').get();
+    const finalized: any[] = [];
+    const awardRequests: Array<Parameters<typeof awardWeeklyPointsOnce>[0]> = [];
+    const stickerWinners: WeeklyWinnerInput[] = [];
+    let batch = dbAdmin!.batch();
+    let writes = 0;
+    const flush = async () => {
+      if (writes > 0) {
+        await batch.commit();
+        batch = dbAdmin!.batch();
+        writes = 0;
+      }
+    };
+
+    for (const ballotSnap of ballotsSnap.docs) {
+      const ballot = ballotSnap.data() || {};
+      const ballotId = ballotSnap.id;
+      const resultRef = cycleRef.collection('results').doc(ballotId);
+      const existingResult = await resultRef.get();
+      if (existingResult.exists && existingResult.data()?.isFinal === true) {
+        const existingWinner = existingResult.data()?.winner;
+        if (existingWinner?.userId) {
+          const winnerUserId = existingWinner.userId;
+          const winnerEntryId = existingWinner.entryId || existingWinner.proofId;
+          // Transition (Slice 1): winners paid before the ballot-scoped
+          // event ids shipped were recorded under the legacy id. If
+          // that ledger row exists, the winner was already paid — do
+          // not pay them again under the new id. (They keep the old
+          // 25 XP; topping up to 100 is a separate Zach decision.)
+          const legacyEventId = getLegacyWeeklyWinnerAwardEventId(cycleId, winnerUserId, ballot.scope, ballot.crewId);
+          const legacyLedgerSnap = await dbAdmin!.collection('scoreEvents').doc(legacyEventId).get();
+          if (!legacyLedgerSnap.exists) {
+            awardRequests.push({
+              eventId: getWeeklyWinnerAwardEventId(cycleId, ballotId, winnerUserId),
+              userId: winnerUserId,
+              userName: existingWinner.displayName || 'Agent',
+              points: WEEKLY_WINNER_XP,
+              entryId: winnerEntryId,
+              description: `Weekly award: ${ballot.scope} ${cycleId}`,
+            });
+          }
+          // Consensus repair: a fresh finalize pays consensus voters
+          // in the same awards loop; if it crashed between winner and
+          // consensus awards, the re-finalize re-pushes them. Ledger
+          // dedupe makes re-pushes no-ops. Best-effort: a votes-read
+          // failure must not fail the re-finalize.
+          try {
+            const reVotesSnap = await ballotSnap.ref.collection('votes').get();
+            const consensusVoters = getWeeklyConsensusVoterIds(
+              reVotesSnap.docs.map((voteDoc: any) => {
+                const vote = voteDoc.data() || {};
+                return { voterId: cleanServerId(vote.voterId || vote.userId || voteDoc.id), selectedProofIds: cleanStringList(vote.selectedProofIds) };
+              }),
+              winnerEntryId,
+            );
+            for (const voterId of consensusVoters) {
+              awardRequests.push({
+                eventId: getWeeklyConsensusAwardEventId(cycleId, ballotId, voterId, winnerEntryId),
+                userId: voterId,
+                userName: 'Agent',
+                points: WEEKLY_CONSENSUS_XP,
+                entryId: winnerEntryId,
+                description: `Weekly consensus: ${ballot.scope} ${cycleId}`,
+                sourceType: 'weekly_consensus',
+              });
+            }
+          } catch (consensusError: any) {
+            console.warn('[WEEKLY_FINALIZE] Consensus re-push skipped:', consensusError?.message || consensusError);
+          }
+          stickerWinners.push({
+            userId: winnerUserId,
+            entryId: winnerEntryId,
+            scope: ballot.scope
+          });
+        }
+        finalized.push({ ballotId, alreadyFinalized: true });
+        continue;
+      }
+
+      const [entriesSnap, votesSnap] = await Promise.all([
+        ballotSnap.ref.collection('entries').get(),
+        ballotSnap.ref.collection('votes').get()
+      ]);
+      const entriesById = new Map<string, any>(entriesSnap.docs.map((docSnap: any) => [docSnap.id, { id: docSnap.id, ...docSnap.data() } as any]));
+      const eligibleProofIds = new Set<string>(Array.isArray(ballot.eligibleProofIds) ? ballot.eligibleProofIds.map((id: any) => String(id)) : entriesSnap.docs.map((docSnap: any) => String(docSnap.id)));
+      const validVotes: any[] = [];
+      const rejectedVotes: any[] = [];
+      for (const voteDoc of votesSnap.docs) {
+        const vote = { id: voteDoc.id, ...voteDoc.data() } as any;
+        const selections = cleanStringList(vote.selectedProofIds);
+        const voterId = cleanServerId(vote.voterId || vote.userId || voteDoc.id);
+        const duplicateSelections = new Set(selections).size !== selections.length;
+        const tooManySelections = selections.length > Number(ballot.maxVotesPerVoter || 3);
+        const outsideBallot = selections.some(id => !eligibleProofIds.has(id));
+        const selfVote = selections.some(id => {
+          const entry = entriesById.get(id) || {};
+          return (entry.userId || entry.uid || entry.ownerId) === voterId;
+        });
+        const submittedAt = vote.submittedAt?.toDate?.() || vote.updatedAt?.toDate?.() || new Date(0);
+        const closesAt = ballot.closesAt?.toDate?.() || cycleSnap.data()?.votingEndsAt?.toDate?.();
+        if (vote.status === 'voided' || duplicateSelections || tooManySelections || outsideBallot || selfVote || (closesAt && submittedAt > closesAt)) {
+          rejectedVotes.push({ voteId: voteDoc.id, reasons: [
+            vote.status === 'voided' ? 'voided' : '',
+            duplicateSelections ? 'duplicate_proof_ids' : '',
+            tooManySelections ? 'too_many_selections' : '',
+            outsideBallot ? 'proof_not_in_ballot' : '',
+            selfVote ? 'self_vote' : '',
+            closesAt && submittedAt > closesAt ? 'after_deadline' : ''
+          ].filter(Boolean) });
+          continue;
+        }
+        validVotes.push(vote);
+      }
+
+      const counts = new Map<string, number>();
+      validVotes.forEach(vote => cleanStringList(vote.selectedProofIds).forEach(id => counts.set(id, (counts.get(id) || 0) + 1)));
+      const ranked = Array.from(eligibleProofIds).map((proofId: string) => {
+        const entry = entriesById.get(proofId) || {};
+        return {
+          proofId,
+          entryId: proofId,
+          userId: entry.userId || entry.uid || entry.ownerId || null,
+          displayName: entry.displayName || entry.userName || 'Agent',
+          voteTotal: counts.get(proofId) || 0,
+          adminScore: Number(entry.adminScore || 0),
+          likeCount: Number(entry.likeCount || 0),
+          approvedAtMillis: getWeeklyApprovedAtMillis(entry),
+          deterministicSeed: crypto.createHash('sha256').update(`${cycleId}:${proofId}`).digest('hex')
+        };
+      }).sort((a, b) => {
+        if (b.voteTotal !== a.voteTotal) return b.voteTotal - a.voteTotal;
+        if (b.adminScore !== a.adminScore) return b.adminScore - a.adminScore;
+        if (b.likeCount !== a.likeCount) return b.likeCount - a.likeCount;
+        if (a.approvedAtMillis !== b.approvedAtMillis) return a.approvedAtMillis - b.approvedAtMillis;
+        return a.deterministicSeed.localeCompare(b.deterministicSeed);
+      });
+      const winner = ranked[0] || null;
+
+      batch.set(resultRef, {
+        id: ballotId,
+        resultId: ballotId,
+        cycleId,
+        ballotId,
+        seasonId: ballot.seasonId || seasonId,
+        scope: ballot.scope,
+        crewId: ballot.crewId || null,
+        rankedResults: ranked,
+        winner,
+        validVoteCount: validVotes.length,
+        rejectedVoteCount: rejectedVotes.length,
+        rejectedVotes: rejectedVotes.slice(0, 100),
+        calculatedBy: actorId,
+        calculatedReason: reason,
+        calculatedAt: FieldValue.serverTimestamp(),
+        publishedAt: FieldValue.serverTimestamp(),
+        isFinal: true
+      }, { merge: true });
+      batch.set(ballotSnap.ref, {
+        status: 'published',
+        calculatedAt: FieldValue.serverTimestamp(),
+        publishedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      }, { merge: true });
+      writes += 2;
+
+      if (winner?.userId) {
+        awardRequests.push({
+          eventId: getWeeklyWinnerAwardEventId(cycleId, ballotId, winner.userId),
+          userId: winner.userId,
+          userName: winner.displayName || 'Agent',
+          points: WEEKLY_WINNER_XP,
+          entryId: winner.entryId,
+          description: `Weekly award: ${ballot.scope} ${cycleId}`,
+        });
+        stickerWinners.push({
+          userId: winner.userId,
+          entryId: winner.entryId,
+          scope: ballot.scope
+        });
+        for (const voterId of getWeeklyConsensusVoterIds(
+          validVotes.map((vote: any) => ({ voterId: cleanServerId(vote.voterId || vote.userId || vote.id), selectedProofIds: cleanStringList(vote.selectedProofIds) })),
+          winner.entryId,
+        )) {
+          awardRequests.push({
+            eventId: getWeeklyConsensusAwardEventId(cycleId, ballotId, voterId, winner.entryId),
+            userId: voterId,
+            userName: 'Agent',
+            points: WEEKLY_CONSENSUS_XP,
+            entryId: winner.entryId,
+            description: `Weekly consensus: ${ballot.scope} ${cycleId}`,
+            sourceType: 'weekly_consensus',
+          });
+        }
+      }
+
+      finalized.push({ ballotId, validVotes: validVotes.length, rejectedVotes: rejectedVotes.length, winner: winner?.entryId || null });
+      if (writes >= 440) await flush();
+    }
+
+    batch.set(cycleRef, {
+      status: 'results_published',
+      awardsDistributedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+    writes++;
+    await flush();
+    const awards = [];
+    for (const awardRequest of awardRequests) {
+      awards.push(await awardWeeklyPointsOnce(awardRequest));
+    }
+    const stickerAwards = await awardWeeklyWinnerStickers(
+      createAdminCanonicalStickerAwardStore(dbAdmin!),
+      { cycleId, winners: stickerWinners }
+    );
+    return { finalized, awards: awards.map(award => ({ awarded: award.awarded, duplicate: award.duplicate, ledgerEventId: award.ledgerEventId })), stickerAwards };
   };
 
   const cleanStringList = (value: unknown): string[] => {
@@ -1380,6 +1782,16 @@ async function startServer() {
     }
   });
 
+  // LEGACY WEEKLY BALLOT COPIES — FENCED OFF (Slice 1, Nov 21, 2026).
+  // The build endpoint used to write three copies at once (canonical
+  // votingCycles ballots + legacy weeklyBallots + flat
+  // ballotCandidates), which drifted (see docs/voting-system-audit.md).
+  // The canonical six category ballots are now the only writes. The
+  // legacy writers below are kept, not deleted, so old data stays
+  // readable and the writers can be re-enabled by flipping this flag —
+  // but while it is false the build path writes nothing legacy.
+  const WRITE_LEGACY_WEEKLY_BALLOT_COPIES = false;
+
   app.post("/api/admin/voting/build-weekly-ballot", adminRateLimiter, authenticate, async (req: any, res) => {
     if (!assertAdminReady(res)) return;
     if (!(await checkIsAdmin(req.user))) return res.status(403).json({ error: "ADMIN_ONLY" });
@@ -1436,13 +1848,32 @@ async function startServer() {
       const generatedBallots: Array<{ ballotId: string; scope: BallotScope; crewId: string | null; candidates: number; excluded: number }> = [];
       let legacyEligibleEntries: any[] = [];
 
-      for (const target of ballotScopes) {
-        const canonicalBallotId = getCanonicalBallotId(cycleId, target.scope, target.crewId);
-        const ballotRef = dbAdmin!.collection('votingCycles').doc(cycleId).collection('ballots').doc(canonicalBallotId);
-        const existingBallotSnap = await ballotRef.get();
-        if (existingBallotSnap.exists && now.getTime() >= cycle.ballotLocksAt.getTime()) {
-          throw Object.assign(new Error('BALLOT_ALREADY_FROZEN'), { status: 409 });
+      // Slice 1: player context for the category rules, resolved once
+      // per build. approvedCount is the career approved-entry count
+      // (allEntries is every approved entry, all seasons); xp comes
+      // from the profile. Crew builds skip this entirely.
+      let communityPlayerContexts: Map<string, WeeklyCategoryPlayerContext> | null = null;
+      const getCommunityPlayerContexts = async (): Promise<Map<string, WeeklyCategoryPlayerContext>> => {
+        if (communityPlayerContexts) return communityPlayerContexts;
+        const approvedCountByOwner = new Map<string, number>();
+        for (const entry of allEntries) {
+          const owner = getWeeklyEntryOwnerId(entry);
+          if (owner) approvedCountByOwner.set(owner, (approvedCountByOwner.get(owner) || 0) + 1);
         }
+        const xpByOwner = new Map<string, number>();
+        await Promise.all([...approvedCountByOwner.keys()].map(async (owner) => {
+          const snap = await dbAdmin!.collection('users').doc(owner).get();
+          const data = snap.exists ? snap.data() || {} : {};
+          xpByOwner.set(owner, Number(data.xp ?? data.points ?? 0) || 0);
+        }));
+        communityPlayerContexts = new Map([...approvedCountByOwner.keys()].map((owner) => [owner, {
+          approvedCount: approvedCountByOwner.get(owner) || 0,
+          xp: xpByOwner.get(owner) || 0,
+        }]));
+        return communityPlayerContexts;
+      };
+
+      for (const target of ballotScopes) {
         const eligibleEntries: any[] = [];
         const excludedEntries: Array<{ entryId: string; reasons: string[] }> = [];
         for (const entry of allEntries) {
@@ -1457,7 +1888,75 @@ async function startServer() {
           if (reasons.length === 0) eligibleEntries.push(entry);
           else if (reasons.some(reason => reason === 'approved_after_ballot_lock' || reason === 'approved_after_submission_window')) excludedEntries.push({ entryId: entry.id, reasons });
         }
-        if (target.scope === 'community_weekly') legacyEligibleEntries = eligibleEntries;
+        if (target.scope === 'community_weekly') {
+          legacyEligibleEntries = eligibleEntries;
+          // Slice 1: SIX canonical ballots, one per accolade. Each
+          // entry lands in 1-2 of them by rule (see
+          // src/logic/weeklyCategories.ts); the ballot id encodes the
+          // category, each ballot has its own eligibleProofIds, and
+          // maxVotesPerVoter is 1 (one pick per voter per accolade).
+          const playerContexts = await getCommunityPlayerContexts();
+          const categoryPlans = buildWeeklyCategoryBallotPlan({
+            cycleId,
+            entries: eligibleEntries.map((entry) => ({
+              id: entry.id,
+              entry,
+              playerContext: playerContexts.get(getWeeklyEntryOwnerId(entry)) || { approvedCount: 0, xp: 0 },
+            })),
+          });
+          // Frozen guard across all six: refuse the rebuild once the
+          // Saturday lock has passed and any ballot already exists.
+          // Checked before writing anything, so a frozen week is
+          // all-or-nothing, never half rebuilt.
+          for (const categoryPlan of categoryPlans) {
+            const existingSnap = await dbAdmin!.collection('votingCycles').doc(cycleId).collection('ballots').doc(categoryPlan.ballotId).get();
+            if (existingSnap.exists && now.getTime() >= cycle.ballotLocksAt.getTime()) {
+              throw Object.assign(new Error('BALLOT_ALREADY_FROZEN'), { status: 409 });
+            }
+          }
+          const entryById = new Map(eligibleEntries.map((entry) => [entry.id, entry]));
+          for (const categoryPlan of categoryPlans) {
+            const ballotRef = dbAdmin!.collection('votingCycles').doc(cycleId).collection('ballots').doc(categoryPlan.ballotId);
+            batch.set(ballotRef, {
+              id: categoryPlan.ballotId,
+              ballotId: categoryPlan.ballotId,
+              cycleId,
+              seasonId,
+              scope: target.scope,
+              crewId: null,
+              category: categoryPlan.category,
+              status: canonicalBallotStatus,
+              eligibleProofIds: categoryPlan.eligibleProofIds,
+              maxVotesPerVoter: 1,
+              allowSelfVote: false,
+              opensAt: toAdminTimestamp(cycle.votingStart),
+              closesAt: toAdminTimestamp(cycle.votingEnd),
+              createdAt: FieldValue.serverTimestamp(),
+              lockedAt: canonicalBallotStatus === 'draft' ? null : toAdminTimestamp(cycle.ballotLocksAt),
+              updatedAt: FieldValue.serverTimestamp(),
+              excludedLateProofs: excludedEntries.slice(0, 50),
+              diagnostics: {
+                excludedCount: excludedEntries.length,
+                fewerThanTwoEligible: categoryPlan.eligibleProofIds.length < 2
+              }
+            }, { merge: true });
+            for (const entryId of categoryPlan.eligibleProofIds) {
+              const entry = entryById.get(entryId);
+              if (!entry) continue;
+              batch.set(ballotRef.collection('entries').doc(entryId), publicWeeklyCandidateSnapshot(entry, entryId, seasonId, cycleId, target.scope, target.crewId, [categoryPlan.category]), { merge: true });
+            }
+            generatedBallots.push({ ballotId: categoryPlan.ballotId, scope: target.scope, crewId: target.crewId, candidates: categoryPlan.eligibleProofIds.length, excluded: excludedEntries.length });
+          }
+          continue;
+        }
+        // Crew / tribunal scopes keep the single-ballot shape (out of
+        // Slice 1 scope — global only, do not touch crew ballots).
+        const canonicalBallotId = getCanonicalBallotId(cycleId, target.scope, target.crewId);
+        const ballotRef = dbAdmin!.collection('votingCycles').doc(cycleId).collection('ballots').doc(canonicalBallotId);
+        const existingBallotSnap = await ballotRef.get();
+        if (existingBallotSnap.exists && now.getTime() >= cycle.ballotLocksAt.getTime()) {
+          throw Object.assign(new Error('BALLOT_ALREADY_FROZEN'), { status: 409 });
+        }
         const eligibleProofIds = eligibleEntries.map(entry => entry.id);
         batch.set(ballotRef, {
           id: canonicalBallotId,
@@ -1487,6 +1986,14 @@ async function startServer() {
         generatedBallots.push({ ballotId: canonicalBallotId, scope: target.scope, crewId: target.crewId, candidates: eligibleEntries.length, excluded: excludedEntries.length });
       }
 
+      // LEGACY COMPATIBILITY WRITES — FENCED OFF, see
+      // WRITE_LEGACY_WEEKLY_BALLOT_COPIES above. Kept for old-data
+      // reads; the build path no longer writes weeklyBallots,
+      // weeklyBallots/{id}/candidates, or flat ballotCandidates. The
+      // old code also assigned every entry to every category
+      // (categoryCandidateMap) — the rules module
+      // (src/logic/weeklyCategories.ts) replaces that.
+      if (WRITE_LEGACY_WEEKLY_BALLOT_COPIES) {
       const legacyBallotRef = dbAdmin!.collection('weeklyBallots').doc(ballotId);
       const eligibleEntries = legacyEligibleEntries.length > 0
         ? legacyEligibleEntries
@@ -1566,10 +2073,11 @@ async function startServer() {
           addedAt: FieldValue.serverTimestamp()
         }, { merge: true });
       }
+      } // end WRITE_LEGACY_WEEKLY_BALLOT_COPIES fence
 
       await batch.commit();
-      await writeAdminAudit(req.user.uid, cycleId, 'weeklyVotingCycle', 'build_weekly_ballot', { seasonId, weekNumber, generatedBallots, legacyCandidates: eligibleEntries.length, reason });
-      res.json({ success: true, cycleId, legacyBallotId: ballotId, generatedBallots, candidates: eligibleEntries.length });
+      await writeAdminAudit(req.user.uid, cycleId, 'weeklyVotingCycle', 'build_weekly_ballot', { seasonId, weekNumber, generatedBallots, legacyCandidates: legacyEligibleEntries.length, reason });
+      res.json({ success: true, cycleId, legacyBallotId: ballotId, generatedBallots, candidates: legacyEligibleEntries.length });
     } catch (error: any) {
       console.error("[WEEKLY_BALLOT_BUILD] Failed:", error);
       res.status(Number(error?.status) || 500).json({
@@ -1592,175 +2100,12 @@ async function startServer() {
       if (reason.length < 5) return res.status(400).json({ error: "ADMIN_REASON_REQUIRED" });
 
       if (cycleId) {
-        const cycleRef = dbAdmin!.collection('votingCycles').doc(cycleId);
-        const cycleSnap = await cycleRef.get();
-        if (!cycleSnap.exists) return res.status(404).json({ error: "CYCLE_NOT_FOUND" });
-        const ballotsSnap = requestedBallotId
-          ? { docs: [await cycleRef.collection('ballots').doc(requestedBallotId).get()].filter(snap => snap.exists) } as any
-          : await cycleRef.collection('ballots').get();
-        const finalized: any[] = [];
-        const awardRequests: Array<Parameters<typeof awardWeeklyPointsOnce>[0]> = [];
-        const stickerWinners: WeeklyWinnerInput[] = [];
-        let batch = dbAdmin!.batch();
-        let writes = 0;
-        const flush = async () => {
-          if (writes > 0) {
-            await batch.commit();
-            batch = dbAdmin!.batch();
-            writes = 0;
-          }
-        };
-
-        for (const ballotSnap of ballotsSnap.docs) {
-          const ballot = ballotSnap.data() || {};
-          const ballotId = ballotSnap.id;
-          const resultRef = cycleRef.collection('results').doc(ballotId);
-          const existingResult = await resultRef.get();
-          if (existingResult.exists && existingResult.data()?.isFinal === true) {
-            const existingWinner = existingResult.data()?.winner;
-            if (existingWinner?.userId) {
-              awardRequests.push({
-                eventId: `weekly_award_${cycleId}_${existingWinner.userId}_${ballot.scope}_${ballot.crewId || 'community'}`,
-                userId: existingWinner.userId,
-                userName: existingWinner.displayName || 'Agent',
-                points: 25,
-                entryId: existingWinner.entryId || existingWinner.proofId,
-                description: `Weekly award: ${ballot.scope} ${cycleId}`,
-              });
-              stickerWinners.push({
-                userId: existingWinner.userId,
-                entryId: existingWinner.entryId || existingWinner.proofId,
-                scope: ballot.scope
-              });
-            }
-            finalized.push({ ballotId, alreadyFinalized: true });
-            continue;
-          }
-
-          const [entriesSnap, votesSnap] = await Promise.all([
-            ballotSnap.ref.collection('entries').get(),
-            ballotSnap.ref.collection('votes').get()
-          ]);
-          const entriesById = new Map<string, any>(entriesSnap.docs.map((docSnap: any) => [docSnap.id, { id: docSnap.id, ...docSnap.data() } as any]));
-          const eligibleProofIds = new Set<string>(Array.isArray(ballot.eligibleProofIds) ? ballot.eligibleProofIds.map((id: any) => String(id)) : entriesSnap.docs.map((docSnap: any) => String(docSnap.id)));
-          const validVotes: any[] = [];
-          const rejectedVotes: any[] = [];
-          for (const voteDoc of votesSnap.docs) {
-            const vote = { id: voteDoc.id, ...voteDoc.data() } as any;
-            const selections = cleanStringList(vote.selectedProofIds);
-            const voterId = cleanServerId(vote.voterId || vote.userId || voteDoc.id);
-            const duplicateSelections = new Set(selections).size !== selections.length;
-            const tooManySelections = selections.length > Number(ballot.maxVotesPerVoter || 3);
-            const outsideBallot = selections.some(id => !eligibleProofIds.has(id));
-            const selfVote = selections.some(id => {
-              const entry = entriesById.get(id) || {};
-              return (entry.userId || entry.uid || entry.ownerId) === voterId;
-            });
-            const submittedAt = vote.submittedAt?.toDate?.() || vote.updatedAt?.toDate?.() || new Date(0);
-            const closesAt = ballot.closesAt?.toDate?.() || cycleSnap.data()?.votingEndsAt?.toDate?.();
-            if (vote.status === 'voided' || duplicateSelections || tooManySelections || outsideBallot || selfVote || (closesAt && submittedAt > closesAt)) {
-              rejectedVotes.push({ voteId: voteDoc.id, reasons: [
-                vote.status === 'voided' ? 'voided' : '',
-                duplicateSelections ? 'duplicate_proof_ids' : '',
-                tooManySelections ? 'too_many_selections' : '',
-                outsideBallot ? 'proof_not_in_ballot' : '',
-                selfVote ? 'self_vote' : '',
-                closesAt && submittedAt > closesAt ? 'after_deadline' : ''
-              ].filter(Boolean) });
-              continue;
-            }
-            validVotes.push(vote);
-          }
-
-          const counts = new Map<string, number>();
-          validVotes.forEach(vote => cleanStringList(vote.selectedProofIds).forEach(id => counts.set(id, (counts.get(id) || 0) + 1)));
-          const ranked = Array.from(eligibleProofIds).map((proofId: string) => {
-            const entry = entriesById.get(proofId) || {};
-            return {
-              proofId,
-              entryId: proofId,
-              userId: entry.userId || entry.uid || entry.ownerId || null,
-              displayName: entry.displayName || entry.userName || 'Agent',
-              voteTotal: counts.get(proofId) || 0,
-              adminScore: Number(entry.adminScore || 0),
-              likeCount: Number(entry.likeCount || 0),
-              approvedAtMillis: getWeeklyApprovedAtMillis(entry),
-              deterministicSeed: crypto.createHash('sha256').update(`${cycleId}:${proofId}`).digest('hex')
-            };
-          }).sort((a, b) => {
-            if (b.voteTotal !== a.voteTotal) return b.voteTotal - a.voteTotal;
-            if (b.adminScore !== a.adminScore) return b.adminScore - a.adminScore;
-            if (b.likeCount !== a.likeCount) return b.likeCount - a.likeCount;
-            if (a.approvedAtMillis !== b.approvedAtMillis) return a.approvedAtMillis - b.approvedAtMillis;
-            return a.deterministicSeed.localeCompare(b.deterministicSeed);
-          });
-          const winner = ranked[0] || null;
-
-          batch.set(resultRef, {
-            id: ballotId,
-            resultId: ballotId,
-            cycleId,
-            ballotId,
-            seasonId: ballot.seasonId || seasonId,
-            scope: ballot.scope,
-            crewId: ballot.crewId || null,
-            rankedResults: ranked,
-            winner,
-            validVoteCount: validVotes.length,
-            rejectedVoteCount: rejectedVotes.length,
-            rejectedVotes: rejectedVotes.slice(0, 100),
-            calculatedBy: req.user.uid,
-            calculatedReason: reason,
-            calculatedAt: FieldValue.serverTimestamp(),
-            publishedAt: FieldValue.serverTimestamp(),
-            isFinal: true
-          }, { merge: true });
-          batch.set(ballotSnap.ref, {
-            status: 'published',
-            calculatedAt: FieldValue.serverTimestamp(),
-            publishedAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp()
-          }, { merge: true });
-          writes += 2;
-
-          if (winner?.userId) {
-            const awardId = `weekly_award_${cycleId}_${winner.userId}_${ballot.scope}_${ballot.crewId || 'community'}`;
-            awardRequests.push({
-              eventId: awardId,
-              userId: winner.userId,
-              userName: winner.displayName || 'Agent',
-              points: 25,
-              entryId: winner.entryId,
-              description: `Weekly award: ${ballot.scope} ${cycleId}`,
-            });
-            stickerWinners.push({
-              userId: winner.userId,
-              entryId: winner.entryId,
-              scope: ballot.scope
-            });
-          }
-
-          finalized.push({ ballotId, validVotes: validVotes.length, rejectedVotes: rejectedVotes.length, winner: winner?.entryId || null });
-          if (writes >= 440) await flush();
-        }
-
-        batch.set(cycleRef, {
-          status: 'results_published',
-          awardsDistributedAt: FieldValue.serverTimestamp(),
-          updatedAt: FieldValue.serverTimestamp()
-        }, { merge: true });
-        writes++;
-        await flush();
-        const awards = [];
-        for (const awardRequest of awardRequests) {
-          awards.push(await awardWeeklyPointsOnce(awardRequest));
-        }
-        const stickerAwards = await awardWeeklyWinnerStickers(
-          createAdminCanonicalStickerAwardStore(dbAdmin!),
-          { cycleId, winners: stickerWinners }
-        );
-        await writeAdminAudit(req.user.uid, cycleId, 'weeklyVotingCycle', 'finalize_weekly_cycle_results', { seasonId, finalized, reason });
-        return res.json({ success: true, cycleId, finalized, awards: awards.map(award => ({ awarded: award.awarded, duplicate: award.duplicate, ledgerEventId: award.ledgerEventId })), stickerAwards });
+        // Canonical finalize lives in runCanonicalWeeklyFinalize
+        // (shared with the lazy finalize-if-due endpoint); this
+        // handler only audits and answers. Winner logic is unchanged.
+        const outcome = await runCanonicalWeeklyFinalize({ cycleId, seasonId, reason, actorId: req.user.uid, ballotIds: requestedBallotId ? [requestedBallotId] : undefined });
+        await writeAdminAudit(req.user.uid, cycleId, 'weeklyVotingCycle', 'finalize_weekly_cycle_results', { seasonId, finalized: outcome.finalized, reason });
+        return res.json({ success: true, cycleId, ...outcome });
       }
 
       const summaryId = getWeeklyBallotId(seasonId, weekNumber);
@@ -1834,7 +2179,8 @@ async function startServer() {
           eventId: winnerEventId,
           userId: winnerUserId,
           userName: entry.userName || entry.displayName || 'Agent',
-          points: 25,
+          // Slice 1: winner XP 25 -> WEEKLY_WINNER_XP (100, config).
+          points: WEEKLY_WINNER_XP,
           entryId: winningEntryId,
           tripId: entry.tripId || entry.challengeId || entry.missionId || undefined,
           description: `Weekly winner: ${category} (Week ${weekNumber})`,
@@ -1848,7 +2194,7 @@ async function startServer() {
             eventId: consensusEventId,
             userId: vote.userId,
             userName: 'Agent',
-            points: 20,
+            points: WEEKLY_CONSENSUS_XP,
             entryId: winningEntryId,
             tripId: entry.tripId || entry.challengeId || entry.missionId || undefined,
             description: `Weekly consensus: ${category} (Week ${weekNumber})`,
@@ -1893,7 +2239,76 @@ async function startServer() {
         return res.status(409).json({ error: "FINALIZE_RETRY_NEEDED", message: "A score event was created by another finalize request. Retry to read the finalized state." });
       }
       console.error("[WEEKLY_FINALIZE] Failed:", error);
-      res.status(500).json({ error: "FAILED_TO_FINALIZE_WEEK", message: error.message || String(error) });
+      // Slice 1: runCanonicalWeeklyFinalize throws CYCLE_NOT_FOUND
+      // with status 404; surface it instead of a generic 500.
+      res.status(Number(error?.status) || 500).json({ error: "FAILED_TO_FINALIZE_WEEK", message: error.message || String(error) });
+    }
+  });
+
+  // Lazy finalize trigger (Slice 1, Nov 21, 2026).
+  // The voting page loads its ballots straight from Firestore
+  // (loadWeeklyBallot in src/services/weeklyVotingService.ts makes no
+  // server call), so there is no server read path to hook this into —
+  // this small endpoint IS the read path. The client slice calls it
+  // when the voting page loads (before rendering results): if now is
+  // past Saturday's voting-window close and any community category
+  // ballot still lacks a final result, it runs the same canonical
+  // finalize the admin endpoint runs. Safe under concurrent calls:
+  // the due check re-reads isFinal results, and finalize itself is
+  // idempotent (deterministic winners, ledger-deduped XP, cycle-keyed
+  // sticker wins — see runCanonicalWeeklyFinalize). Global scope only:
+  // only community_weekly category ballots are finalized here; crew /
+  // tribunal ballots still need the admin endpoint.
+  app.post("/api/voting/weekly/finalize-if-due", authRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    const approval = await ensureApprovedRequester(req, res);
+    if (!approval.ok) return;
+    try {
+      const seasonId = cleanServerId(req.body.seasonId) || 'heatwave-receipts';
+      const requestedCycleId = cleanServerId(req.body.cycleId);
+      const now = new Date();
+      const cycle = getServerCycle(seasonId, now);
+      if (requestedCycleId && requestedCycleId !== cycle.id) {
+        return res.status(409).json({ error: "STALE_VOTING_CYCLE", expectedCycleId: cycle.id });
+      }
+      const cycleId = cycle.id;
+      const cycleRef = dbAdmin!.collection('votingCycles').doc(cycleId);
+      const [ballotsSnap, resultsSnap] = await Promise.all([
+        cycleRef.collection('ballots').get(),
+        cycleRef.collection('results').get(),
+      ]);
+      const communityBallotIds = ballotsSnap.docs
+        .filter((docSnap: any) => {
+          const data = docSnap.data() || {};
+          return data.scope === 'community_weekly' && getWeeklyCategoryFromBallotId(docSnap.id, cycleId) !== null;
+        })
+        .map((docSnap: any) => docSnap.id);
+      const finalizedBallotIds = resultsSnap.docs
+        .filter((docSnap: any) => docSnap.data()?.isFinal === true)
+        .map((docSnap: any) => docSnap.id);
+      const due = isWeeklyFinalizeDue({
+        nowMs: now.getTime(),
+        votingEndsAtMs: cycle.votingEnd.getTime(),
+        existingBallotIds: communityBallotIds,
+        finalizedBallotIds,
+      });
+      if (!due.due) {
+        return res.json({ success: true, cycleId, due: false, reason: due.reason });
+      }
+      const missingBallotIds = communityBallotIds.filter((id) => !finalizedBallotIds.includes(id));
+      const outcome = await runCanonicalWeeklyFinalize({
+        cycleId,
+        seasonId,
+        reason: 'lazy_finalize_after_voting_window',
+        actorId: req.user.uid,
+        ballotIds: missingBallotIds,
+      });
+      await writeAdminAudit(req.user.uid, cycleId, 'weeklyVotingCycle', 'lazy_finalize_weekly_cycle_results', { seasonId, finalized: outcome.finalized, reason: due.reason, triggeredBy: 'voting_page_load' });
+      return res.json({ success: true, cycleId, due: true, reason: due.reason, ...outcome });
+    } catch (error: any) {
+      const message = error?.message || String(error);
+      console.error("[WEEKLY_FINALIZE_IF_DUE] Failed:", error);
+      res.status(Number(error?.status) || 500).json({ error: message });
     }
   });
 
@@ -1957,6 +2372,79 @@ async function startServer() {
     } catch (error: any) {
       const message = error.message || String(error);
       res.status(message === 'RESULTS_ALREADY_PUBLISHED' ? 409 : 500).json({ error: message });
+    }
+  });
+
+  // Move one candidate between category ballots in the same week
+  // (Slice 1, Nov 21, 2026). Small admin-only endpoint for the admin
+  // UI in a later slice; no client calls it yet. Removes the entry
+  // from the source ballot's eligibleProofIds + entries snapshot and
+  // adds it to the target ballot's, in one transaction. Guarded by the
+  // same lock rules as build: refuses once the Saturday lock has
+  // passed or either ballot is no longer a draft (locked / open /
+  // closed / calculated / published), and refuses non-community
+  // ballots (global scope only) or ballots from different cycles.
+  app.post("/api/admin/voting/move-candidate", adminRateLimiter, authenticate, async (req: any, res) => {
+    if (!assertAdminReady(res)) return;
+    if (!(await checkIsAdmin(req.user))) return res.status(403).json({ error: "ADMIN_ONLY" });
+    try {
+      const seasonId = cleanServerId(req.body.seasonId) || 'heatwave-receipts';
+      const cycleId = cleanServerId(req.body.cycleId);
+      const fromBallotId = cleanServerId(req.body.fromBallotId || req.body.sourceBallotId);
+      const toBallotId = cleanServerId(req.body.toBallotId || req.body.targetBallotId);
+      const entryId = cleanServerId(req.body.entryId || req.body.proofId);
+      const reason = cleanServerId(req.body.reason);
+      if (!cycleId || !fromBallotId || !toBallotId || !entryId) return res.status(400).json({ error: "CYCLE_BALLOTS_AND_ENTRY_REQUIRED" });
+      if (fromBallotId === toBallotId) return res.status(400).json({ error: "SAME_BALLOT" });
+      if (reason.length < 5) return res.status(400).json({ error: "ADMIN_REASON_REQUIRED" });
+      const fromCategory = getWeeklyCategoryFromBallotId(fromBallotId, cycleId);
+      const toCategory = getWeeklyCategoryFromBallotId(toBallotId, cycleId);
+      if (!fromCategory || !toCategory) return res.status(400).json({ error: "CATEGORY_BALLOT_REQUIRED" });
+      const now = new Date();
+      const cycle = getServerCycle(seasonId, now);
+      if (cycle.id !== cycleId) return res.status(409).json({ error: "STALE_VOTING_CYCLE", expectedCycleId: cycle.id });
+      if (now.getTime() >= cycle.ballotLocksAt.getTime()) {
+        return res.status(409).json({ error: "BALLOT_ALREADY_FROZEN" });
+      }
+      const cycleRef = dbAdmin!.collection('votingCycles').doc(cycleId);
+      const fromBallotRef = cycleRef.collection('ballots').doc(fromBallotId);
+      const toBallotRef = cycleRef.collection('ballots').doc(toBallotId);
+      await dbAdmin!.runTransaction(async (transaction) => {
+        const [fromSnap, toSnap, entrySnap] = await Promise.all([
+          transaction.get(fromBallotRef),
+          transaction.get(toBallotRef),
+          transaction.get(fromBallotRef.collection('entries').doc(entryId)),
+        ]);
+        if (!fromSnap.exists) throw new Error("SOURCE_BALLOT_NOT_FOUND");
+        if (!toSnap.exists) throw new Error("TARGET_BALLOT_NOT_FOUND");
+        const fromBallot = fromSnap.data() || {};
+        const toBallot = toSnap.data() || {};
+        if (fromBallot.scope !== 'community_weekly' || toBallot.scope !== 'community_weekly') throw new Error("COMMUNITY_BALLOT_REQUIRED");
+        if (String(fromBallot.status || '') !== 'draft' || String(toBallot.status || '') !== 'draft') throw new Error("BALLOT_ALREADY_FROZEN");
+        const fromIds = Array.isArray(fromBallot.eligibleProofIds) ? fromBallot.eligibleProofIds.map((id: any) => String(id)) : [];
+        const toIds = Array.isArray(toBallot.eligibleProofIds) ? toBallot.eligibleProofIds.map((id: any) => String(id)) : [];
+        if (!fromIds.includes(entryId) || !entrySnap.exists) throw new Error("CANDIDATE_NOT_IN_SOURCE_BALLOT");
+        if (toIds.includes(entryId)) throw new Error("CANDIDATE_ALREADY_IN_TARGET_BALLOT");
+        const snapshot = { ...(entrySnap.data() || {}), categories: [toCategory], updatedAt: FieldValue.serverTimestamp() };
+        transaction.set(fromBallotRef, {
+          eligibleProofIds: FieldValue.arrayRemove(entryId),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+        transaction.delete(fromBallotRef.collection('entries').doc(entryId));
+        transaction.set(toBallotRef, {
+          eligibleProofIds: FieldValue.arrayUnion(entryId),
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+        transaction.set(toBallotRef.collection('entries').doc(entryId), snapshot, { merge: true });
+      });
+      await writeAdminAudit(req.user.uid, `${cycleId}/${fromBallotId}/${entryId}`, 'weeklyBallotEntry', 'move_candidate_between_category_ballots', { cycleId, fromBallotId, fromCategory, toBallotId, toCategory, entryId, reason });
+      res.json({ success: true, cycleId, fromBallotId, fromCategory, toBallotId, toCategory, entryId });
+    } catch (error: any) {
+      const message = error.message || String(error);
+      const status = ['BALLOT_ALREADY_FROZEN', 'STALE_VOTING_CYCLE'].includes(message) ? 409
+        : ['SOURCE_BALLOT_NOT_FOUND', 'TARGET_BALLOT_NOT_FOUND', 'CANDIDATE_NOT_IN_SOURCE_BALLOT', 'CANDIDATE_ALREADY_IN_TARGET_BALLOT', 'CATEGORY_BALLOT_REQUIRED', 'COMMUNITY_BALLOT_REQUIRED', 'SAME_BALLOT'].includes(message) ? 400
+        : 500;
+      res.status(status).json({ error: message });
     }
   });
 
@@ -8905,6 +9393,19 @@ async function startServer() {
       });
       let zineArchiveSync: any = null;
       if (action === 'approve') {
+        // Slice 1 (Nov 21, 2026): auto-populate this week's draft
+        // category ballots with the freshly approved entry. Best-effort
+        // by design — a failure here must never fail the approval
+        // itself, and the manual build endpoint is the repair path for
+        // weeks the hook skips (locked ballots, ineligible entries).
+        try {
+          const ballotOutcome = await addApprovedEntryToWeeklyDraftBallots(result.entryId);
+          if (ballotOutcome !== 'added') {
+            console.info('[AdminProofReview] Weekly ballot auto-populate skipped:', ballotOutcome, result.entryId);
+          }
+        } catch (ballotError: any) {
+          console.warn('[AdminProofReview] Weekly ballot auto-populate failed (approval stands):', ballotError?.message || ballotError);
+        }
         try {
           zineArchiveSync = await syncApprovedEntryToZineArchives(result.entryId);
         } catch (syncError: any) {

@@ -308,6 +308,13 @@ export function isWeeklyCandidateEligible(candidate: WeeklyCandidateLike, catego
     categories.includes(category);
 }
 
+// Slice 1 (Nov 21, 2026): new category ballots carry an explicit
+// single-category `categories` list written by the rules module
+// (src/logic/weeklyCategories.ts), so this function returns it as-is
+// for them. The all-six default below is legacy-read compatibility
+// ONLY — old candidates stored no categories, and the old build
+// assigned every entry to every category. Do not use this default to
+// assign categories to new ballots.
 export function normalizeWeeklyCandidateCategories(value: unknown): WeeklyVoteCategory[] {
   if (!Array.isArray(value) || value.length === 0) return [...WEEKLY_VOTE_CATEGORIES];
   const canonical = value.filter(isWeeklyVoteCategory);
