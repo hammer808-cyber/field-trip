@@ -102,6 +102,12 @@
    grid paper, so each progress component reads as its own sheet instead
    of blending into the card. Tape reuses .basecamp-tape. */
 .skin-basecamp .basecamp-sheet { position:relative; padding:16px; border:2px solid var(--skin-border); border-radius:var(--skin-card-radius); background:var(--skin-surface); box-shadow:3px 3px 0 var(--skin-border); }
+/* Sticky-note variant (Nov 21, 2026, Zach's pick): amber note, no ink
+   border, soft lift shadow instead of the hard offset, and a curled
+   bottom-right corner. The amber is the :root --color-heat-yellow
+   token, so the note stays amber on every skin. */
+.skin-basecamp .basecamp-sheet--sticky { background:var(--color-heat-yellow); border:none; box-shadow:0 1px 2px color-mix(in srgb, var(--skin-text) 18%, transparent), 3px 6px 12px color-mix(in srgb, var(--skin-text) 22%, transparent); }
+.skin-basecamp .basecamp-sheet--sticky::after { content:""; position:absolute; right:0; bottom:0; width:26px; height:26px; background:linear-gradient(to bottom right, transparent 50%, color-mix(in srgb, var(--skin-text) 16%, var(--color-heat-yellow)) 50%); border-bottom-right-radius:var(--skin-card-radius); pointer-events:none; }
 .skin-basecamp .basecamp-commercial-cta { border-top:3px solid var(--skin-border); color:var(--skin-on-secondary); background:var(--skin-secondary); }
 .skin-basecamp .basecamp-crew-campaign { position:relative; min-height:116px; display:flex; align-items:flex-end; justify-content:space-between; gap:12px; padding:12px 14px; overflow:hidden; border-radius:var(--skin-card-radius); border:2px solid var(--skin-border); background:var(--skin-surface-muted); box-shadow:3px 3px 0 var(--skin-border); }
 .skin-basecamp .basecamp-crew-portraits { display:flex; align-items:flex-end; }

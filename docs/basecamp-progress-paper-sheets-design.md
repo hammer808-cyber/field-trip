@@ -45,10 +45,33 @@ Tests: the panel renders exactly two `basecamp-sheet` sections (trail
 sheet, ticket sheet), each with a tape strip; the CSS pin checks the
 sheet rule carries the surface, border, and shadow tokens.
 
+## Sticky-note variant (Nov 21, 2026, Zach's pick)
+
+Zach picked the sticky note over notebook and construction paper.
+
+- **Colour:** amber `var(--color-heat-yellow)` (`#FFB300`, a `:root`
+  token, so the note stays amber on every skin — real stickies do not
+  change colour with the board). `--color-paper` was NOT used: it is
+  skin-dependent (cream by default, yellow only on Heatwave), so it
+  would be invisible as a note on most skins.
+- **No ink border** on the sticky variant: colour, shadow, and the
+  curl carry the sheet, the way a real note has no printed border.
+- **Soft lift shadow** instead of the hard offset shadow
+  (`0 1px 2px` + `3px 6px 12px`, ink at low opacity via color-mix).
+- **Slight tilt:** trail sheet -1deg, ticket sheet +1deg. The tape
+  strips rotate with their sheets. Corners move ~3px, inside the
+  24px section gaps.
+- **Curled corner:** a `::after` triangle at the bottom-right, a
+  darker shade of the note colour (ink mixed into the yellow), 26px.
+- **Content untouched:** the lime fills stay. On amber the lime
+  separates by hue, and every lime element already carries a 2px ink
+  border, so the nodes, the ticket hatch, and the YOU ARE HERE tag
+  keep their definition. The browser live check is the judge of
+  whether the lime-on-amber reads clean.
+
 ## Verification
 
 tsc clean, full suite back to the 3 known failures, production build,
-curl deploy check, read-only browser live check as ELONDRA (Basecamp
-card: two distinct paper sheets with tape, trail and ticket each on
-their own sheet, tiles unchanged). Zach's phone eyeball is the final
-call on whether the separation reads.
+curl deploy check (Basecamp JS chunk + Basecamp CSS byte-identical to
+local), read-only browser live check as ELONDRA (sheets read as
+sticky notes, lime content legible on amber, curl visible).

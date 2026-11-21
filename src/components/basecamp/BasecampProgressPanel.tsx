@@ -37,12 +37,12 @@ export function BasecampProgressPanel({ model, onOpenProfile, markerStickerId }:
         {/* Paper sheets (Nov 21, 2026): each component sits on its own
             taped sheet so the trail and the ticket stop blending into
             the card's grid paper. Same trail, same ticket, same numbers. */}
-        <div className="basecamp-sheet">
+        <div className="basecamp-sheet basecamp-sheet--sticky -rotate-1">
           <span className="basecamp-tape basecamp-tape--left" aria-hidden="true" />
           <BasecampTrailMap xp={model.xp} markerStickerId={markerStickerId} />
         </div>
 
-        <div className="basecamp-sheet">
+        <div className="basecamp-sheet basecamp-sheet--sticky rotate-1">
           <span className="basecamp-tape basecamp-tape--right" aria-hidden="true" />
           <div className="flex flex-wrap items-end justify-between gap-2">
             <div>

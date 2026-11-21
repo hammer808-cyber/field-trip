@@ -132,16 +132,24 @@ test('progress components sit on their own taped paper sheets', () => {
     />,
   );
   // Exactly two sheets: trail sheet, ticket sheet. The stat tiles keep
-  // their own boxes and are not sheets.
-  assert.equal((html.match(/basecamp-sheet/g) || []).length, 2);
+  // their own boxes and are not sheets. (Count the class attribute:
+  // "basecamp-sheet" is a substring of "basecamp-sheet--sticky", so
+  // counting the bare class double-counts.)
+  assert.equal((html.match(/class="basecamp-sheet/g) || []).length, 2);
+  // Both sheets are sticky notes: amber, tilted opposite ways.
+  assert.equal((html.match(/basecamp-sheet--sticky/g) || []).length, 2);
+  assert.match(html, /basecamp-sheet--sticky -rotate-1/);
+  assert.match(html, /basecamp-sheet--sticky rotate-1/);
   // Three tape strips: the card's own plus one per sheet. (Count the
   // position modifiers: "basecamp-tape" is a substring of
   // "basecamp-tape--left", so counting the bare class double-counts.)
   assert.equal((html.match(/basecamp-tape--left/g) || []).length, 2);
   assert.equal((html.match(/basecamp-tape--right/g) || []).length, 1);
   // The trail lives on the first sheet, the ticket on the second.
-  const firstSheet = html.indexOf('basecamp-sheet');
-  const secondSheet = html.indexOf('basecamp-sheet', firstSheet + 1);
+  // (Search for the class attribute: "basecamp-sheet--sticky" also
+  // contains "basecamp-sheet", so a bare search lands in the same div.)
+  const firstSheet = html.indexOf('class="basecamp-sheet');
+  const secondSheet = html.indexOf('class="basecamp-sheet', firstSheet + 1);
   assert.ok(html.indexOf('Stage 3 of 15', firstSheet) !== -1);
   assert.ok(html.indexOf('Stage 3 of 15', firstSheet) < secondSheet);
   assert.ok(html.indexOf('20% completed', secondSheet) !== -1);
@@ -156,6 +164,23 @@ test('progress components sit on their own taped paper sheets', () => {
   assert.match(rule, /var\(--skin-border\)/);
   assert.match(rule, /box-shadow/);
   assert.doesNotMatch(rule, /#[0-9a-fA-F]{3,8}\b/);
+
+  // The sticky variant is amber with no ink border, a soft lift
+  // shadow, and a curled bottom-right corner — vars and color-mix
+  // only, no hard-coded hex in either rule.
+  const stickyAt = css.indexOf('.skin-basecamp .basecamp-sheet--sticky');
+  assert.ok(stickyAt !== -1, 'sticky rule must exist');
+  const stickyRule = css.slice(stickyAt, css.indexOf('}', stickyAt));
+  assert.match(stickyRule, /var\(--color-heat-yellow\)/);
+  assert.match(stickyRule, /border:none/);
+  assert.match(stickyRule, /box-shadow/);
+  assert.doesNotMatch(stickyRule, /#[0-9a-fA-F]{3,8}\b/);
+  const curlAt = css.indexOf('.skin-basecamp .basecamp-sheet--sticky::after');
+  assert.ok(curlAt !== -1, 'curl rule must exist');
+  const curlRule = css.slice(curlAt, css.indexOf('}', curlAt));
+  assert.match(curlRule, /linear-gradient\(to bottom right/);
+  assert.match(curlRule, /color-mix/);
+  assert.doesNotMatch(curlRule, /#[0-9a-fA-F]{3,8}\b/);
 });
 
 test('the new progress files carry no hard-coded hex', () => {
