@@ -20,6 +20,7 @@ import { db } from '../lib/firebase';
 import { collection, limit, onSnapshot, query, where } from 'firebase/firestore';
 import { countUnreadChatMessages, entryLocalDay, todayLocalDay } from '../logic/crewSocial';
 import { getCrewChatLastSeen, subscribeToCrewMessages } from '../services/crewChat';
+import { VOTING_ENABLED } from '../services/canonicalProgress';
 import {
   createCrew,
   acceptCrewInvite,
@@ -533,11 +534,17 @@ export default function CrewPage() {
     { id: 'feed', label: 'Feed', icon: FileText },
     { id: 'chat', label: (<>Chat {chatUnread > 0 && (<span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-orange px-1.5 font-mono text-xs font-black not-italic text-white">{chatUnread}</span>)}</>), icon: MessageSquare },
     { id: 'members', label: 'Members', icon: ShieldCheck },
-    // Voting and Zine are parked features (Nov 17, 2026) — their tabs only
-    // show for admins, who bypass the locks. Players get a clubhouse
-    // without dead ends.
+    // Weekly voting is a live GLOBAL ballot once VOTING_ENABLED flips
+    // (Slice 3, Nov 21, 2026) — crew members see the tab then; while
+    // parked nobody does, not even admins (admins preview the ballot
+    // from /voting via StarterGate). The old tab linked to a dead crew
+    // scope (/voting?scope=crew_weekly) the ballot page never read.
+    ...(VOTING_ENABLED ? [
+      { id: 'voting', label: 'Weekly Voting', icon: Vote },
+    ] : []),
+    // Zine is parked (Nov 17, 2026) — its tab only shows for admins,
+    // who bypass the locks. Players get a clubhouse without dead ends.
     ...(isAdmin ? [
-      { id: 'voting', label: 'Crew Voting', icon: Vote },
       { id: 'zine', label: 'Crew Zine', icon: BookOpen },
     ] : []),
     { id: 'stats', label: 'Stats', icon: BarChart3 },
@@ -788,11 +795,11 @@ export default function CrewPage() {
         {activeTab === 'voting' && (
           <div className="animate-in fade-in slide-in-from-bottom-6 duration-500 bg-white border-8 border-on-surface p-8 sm:p-12 shadow-[12px_12px_0px_black] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-8">
             <div className="space-y-3">
-              <p className="font-mono text-xs uppercase tracking-widest text-brand-orange">Crew weekly ballot</p>
-              <h2 className="font-display text-4xl font-black uppercase italic leading-none">Vote with your Crew</h2>
-              <p className="font-serif italic text-sm opacity-65 max-w-xl">Open the protected weekly ballot for this Crew. Eligibility and vote limits are checked by the server.</p>
+              <p className="font-mono text-xs uppercase tracking-widest text-brand-orange">Weekly ballot</p>
+              <h2 className="font-display text-4xl font-black uppercase italic leading-none">Vote for the week</h2>
+              <p className="font-serif italic text-sm opacity-65 max-w-xl">Voting is global — one community ballot for the whole week. Cast your votes for the photos that defined it.</p>
             </div>
-            <button type="button" onClick={() => navigate(`/voting?scope=crew_weekly&crewId=${encodeURIComponent(crew.id)}`)} className="bureau-btn bg-brand-lime text-on-surface shrink-0"><Vote className="w-4 h-4" /> Open Crew Voting</button>
+            <button type="button" onClick={() => navigate('/voting')} className="bureau-btn bg-brand-lime text-on-surface shrink-0"><Vote className="w-4 h-4" /> Open Weekly Voting</button>
           </div>
         )}
 

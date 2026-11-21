@@ -171,13 +171,19 @@ test('a meaningful verified weekly rank gap is surfaced', () => {
   assert.equal(recommendation?.secondaryAction?.id, 'open_standings');
 });
 
-test('open voting is prioritized when the user has not voted', () => {
+test('voting is not recommended while VOTING_ENABLED is false', () => {
+  // Slice 3 (Nov 21, 2026): open_voting honors VOTING_ENABLED, so the
+  // voting_open rule's primary action is unavailable while parked and
+  // Trevor never sends a player to a coming-soon panel — even in the
+  // voting phase with no vote cast. (The old test asserted the
+  // opposite; the audit flagged the missing flag check.) The
+  // prioritization of voting over level progress is re-verified when
+  // the flag flips; until then the level rule wins.
   const recommendation = getTrevorRecommendation(context({
     votingPhase: 'voting',
     hasVotedThisCycle: false,
   }));
-  assert.equal(recommendation?.id, 'voting_open');
-  assert.equal(recommendation?.primaryAction.route, '/voting');
+  assert.notEqual(recommendation?.id, 'voting_open');
 });
 
 test('completed voting is not recommended again', () => {
@@ -257,14 +263,17 @@ test('recommendation cooldown skips a recently displayed noncritical rule', () =
   assert.notEqual(recommendation?.id, 'near_level');
 });
 
-test('when voting and level rules both match, voting wins by priority', () => {
+test('when voting and level rules both match, the level rule wins while voting is parked', () => {
+  // Slice 3 (Nov 21, 2026): voting would win by priority (800) when
+  // live, but VOTING_ENABLED is false, so its primary action is
+  // unavailable and the near-level rule surfaces instead.
   const recommendation = getTrevorRecommendation(context({
     votingPhase: 'voting',
     hasVotedThisCycle: false,
     xpForNextLevel: 500,
     xpToNextLevel: 20,
   }));
-  assert.equal(recommendation?.id, 'voting_open');
+  assert.equal(recommendation?.id, 'near_level');
 });
 
 test('rejected proof retry uses the current Capture query contract', () => {

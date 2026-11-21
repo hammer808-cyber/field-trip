@@ -32,7 +32,7 @@ export default function VotingBallotPage() {
         {isVotingUnlocked ? (
           <VotingHub />
         ) : (
-          <GatedFeaturePanel featureName="Voting" primaryHref="/voting" primaryLabel="Back to Voting" />
+          <GatedFeaturePanel featureName="Voting" primaryHref="/voting" primaryLabel="Back to Voting" reason="coming_soon" />
         )}
       </PlayerPageBody>
     </PlayerPageShell>

@@ -1,4 +1,5 @@
 import type { TrevorContext } from '../services/trevorContextService';
+import { VOTING_ENABLED } from '../services/canonicalProgress';
 
 export type TrevorActionId =
   | 'finish_setup'
@@ -131,7 +132,7 @@ export const TREVOR_ACTION_REGISTRY: Readonly<Record<TrevorActionId, TrevorActio
   open_voting: {
     label: 'Vote Now',
     analyticsEventName: 'trevor_open_weekly_voting',
-    isAvailable: context => context.starterComplete && context.votingPhase === 'voting',
+    isAvailable: context => VOTING_ENABLED && context.starterComplete && context.votingPhase === 'voting',
     buildRoute: () => '/voting',
     safeFallback: 'open_standings',
   },
