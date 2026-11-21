@@ -31,6 +31,7 @@ import { LAUNCH_MISSION_ID } from '../data/specialMissions';
 import { getDisplayLabel } from '../utils/labelUtils';
 import { getMissionPhoto } from '../utils/missionImages';
 import { hasRealMissionProgress } from '../logic/playerGuidance';
+import { hasHonestLocationCheck } from '../logic/checkIn';
 
 interface MissionDecodedCardProps {
   mission: TripType;
@@ -88,7 +89,10 @@ export function MissionDecodedCard({
     { key: 'location', label: getFrankieEvidenceLabel(mission, 'location', fPref), icon: MapPin, required: (mission.proofRequirements?.requireLocation || mission.proofNeeded?.toLowerCase().includes('location') || (mission.tags || []).includes('location') || (mission.proofType || []).includes('location')) },
   ].filter(r => r.required);
 
-  const isCollected = (key: string) => !!progress[key === 'note' ? 'field_note' : key];
+  const isCollected = (key: string) =>
+    key === 'location'
+      ? hasHonestLocationCheck(progress)
+      : !!progress[key === 'note' ? 'field_note' : key];
 
   const directions = getFrankieDirectionsArray(mission, fPref);
 

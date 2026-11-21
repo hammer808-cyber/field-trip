@@ -1,6 +1,7 @@
 import React from 'react';
 import { TripCard as TripCardType, ProofType } from '../types/challenges';
 import { cn } from '../lib/utils';
+import { hasHonestLocationCheck } from '../logic/checkIn';
 import { 
   Zap, 
   MapPin, 
@@ -35,6 +36,8 @@ export interface EvidenceProgress {
   photo?: boolean;
   field_note?: boolean;
   location?: boolean;
+  /** ISO timestamp of the real GPS read that checked the player in. A bare `location: true` without this is a pre-fix auto-write and does not count (see src/logic/checkIn.ts). */
+  locationCheckedAt?: string;
   reaction?: boolean;
   vote?: boolean;
   time_window?: boolean;
@@ -95,7 +98,10 @@ export function MissionCard({
     { key: 'location', label: getFrankieEvidenceLabel(challenge, 'location', fPref), icon: MapPin, required: (challenge.proofRequirements?.requireLocation || challenge.proofNeeded?.toLowerCase().includes('location') || (challenge.tags || []).includes('location') || (challenge.proofType || []).includes('location')) },
   ].filter(req => req.required);
 
-  const isCollected = (key: string) => !!progress[key as keyof EvidenceProgress];
+  const isCollected = (key: string) =>
+    key === 'location'
+      ? hasHonestLocationCheck(progress)
+      : !!progress[key as keyof EvidenceProgress];
 
   if (challenge.status === 'locked') {
     return (

@@ -40,6 +40,7 @@ import { resolveMissionById } from '../logic/missionResolver';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 import { buildScoreBreakdownEvents, calculateMissionScore, MIN_VOICE_NOTE_SECONDS, resolveParticipationSignals, toScoringSnapshot } from '../logic/missionScoring';
 import { getLocationTagLabel, matchesLocationTag, pickCoords } from '../logic/locationTags';
+import { hasHonestLocationCheck } from '../logic/checkIn';
 import { uploadBase64Audio } from '../services/storageService';
 import { revokeTemporaryPreviewUrls } from '../logic/polaroidDevelopment';
 import {
@@ -788,17 +789,39 @@ export default function CapturePage() {
   const [localPhotoCaptured, setLocalPhotoCaptured] = useState(!!initialDraft?.photoDataUrl);
   const [localLocationChecked, setLocalLocationChecked] = useState(false);
 
+  // Nov 20, 2026: the check-in pill used to light here with no GPS behind
+  // it — this effect set local state to checked whenever the mission
+  // required location. It now runs a real GPS read (requestLocation) and
+  // lights the pill + persists the flag only when the read succeeds. A
+  // previous honest check-in (location + locationCheckedAt in trip
+  // progress) needs no re-read. One attempt per mission per visit.
+  const locationCheckMissionRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (currentTrip) {
-      const locationRequired = currentTrip.proofRequirements?.requireLocation || 
-                               currentTrip.proofNeeded?.toLowerCase().includes('location') || 
-                               (currentTrip.tags || []).includes('location') || 
-                               (currentTrip.proofType || []).includes('location');
-      if (locationRequired) {
-        setLocalLocationChecked(true);
-      }
+    const missionId = currentTrip?.id;
+    if (!missionId || missionId === 'unknown') return;
+    if (locationCheckMissionRef.current !== missionId) {
+      // New mission: the local check-in belongs to the previous one.
+      locationCheckMissionRef.current = missionId;
+      setLocalLocationChecked(false);
     }
-  }, [currentTrip]);
+    const locationRequired = currentTrip.proofRequirements?.requireLocation ||
+                             currentTrip.proofNeeded?.toLowerCase().includes('location') ||
+                             (currentTrip.tags || []).includes('location') ||
+                             (currentTrip.proofType || []).includes('location');
+    if (!locationRequired) return;
+    if (hasHonestLocationCheck(profile?.tripProgress?.[missionId] as any)) return;
+    let cancelled = false;
+    requestLocation().then((ok) => {
+      if (cancelled || !ok) return;
+      setLocalLocationChecked(true);
+      updateTripProgress(missionId, {
+        location: true,
+        locationCheckedAt: new Date().toISOString(),
+      }).catch(() => {});
+    });
+    return () => { cancelled = true; };
+  }, [currentTrip?.id]);
 
   const isPlain = frankieMode;
   const isReceipts = profile?.receiptsMode;
@@ -813,7 +836,7 @@ export default function CapturePage() {
   const voiceNoteReady = !!fcData.voiceNote && fcData.voiceNote.durationSec >= MIN_VOICE_NOTE_SECONDS;
   const isPhotoFulfilled = localPhotoCaptured || !!missionProgress.photo;
   const isNoteFulfilled = fcData.note.trim().length >= 10 || voiceNoteReady || !!missionProgress.field_note;
-  const isLocationFulfilled = localLocationChecked || !!missionProgress.location;
+  const isLocationFulfilled = localLocationChecked || hasHonestLocationCheck(missionProgress);
 
   // --- LOCATION TAG (tags earn the points) ---
   // The evidence row above is the submit gate and keeps its old meaning
@@ -823,6 +846,8 @@ export default function CapturePage() {
   // (Texas deck: inside Texas). Untouched cards keep the old rule.
   // Coords come from the photo itself (live-camera GPS or EXIF), falling
   // back to the trip progress location when there is no photo yet.
+  // Nov 20, 2026: the row lights only after a real GPS read (or an
+  // honest prior check-in) — no longer on arrival alone.
   const locationTag = (currentTrip as any)?.locationTag ?? null;
   const submissionCoords = pickCoords(
     captureData?.metadata,
@@ -1142,23 +1167,11 @@ export default function CapturePage() {
     }
   }, [fcData.note, currentTrip?.id]);
 
-  useEffect(() => {
-    // Initial progress sync for location and existing state
-    if (currentTrip?.id && currentTrip.id !== 'unknown') {
-      const updates: any = {};
-      
-      // If location is required, mark it as checked when they arrive at the capture screen
-      if (currentTrip.proofNeeded?.toLowerCase().includes('location') || (currentTrip.tags || []).includes('location') || currentTrip.proofRequirements?.requireLocation || (currentTrip.proofType || []).includes('location')) {
-        updates.location = true;
-      }
-      
-      if (Object.keys(updates).length > 0) {
-        updateTripProgress(currentTrip.id, updates).catch(err => {
-          console.warn("Firestore init updateTripProgress failed:", err);
-        });
-      }
-    }
-  }, [currentTrip?.id, currentTrip?.proofNeeded, currentTrip?.tags, currentTrip?.proofRequirements]);
+  // Nov 20, 2026: the mount sync that used to write `{ location: true }`
+  // into tripProgress for location-required missions was deleted here.
+  // That write lit the check-in pill with no GPS behind it. The flag is
+  // now written only by the GPS check effect above, after a real read
+  // succeeds (with locationCheckedAt).
 
   const handleCaptureClick = () => {
     if (isUploading) return;

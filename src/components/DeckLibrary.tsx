@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { StickerDecal, StickerCorner } from './StickerDecals';
 import { cn } from '../lib/utils';
+import { hasHonestLocationCheck } from '../logic/checkIn';
 import { Card } from './UI';
 import { getMissionImage } from '../utils/missionImages';
 import {
@@ -454,7 +455,9 @@ function ChallengePreviewModal({ challenge, uiStatus, onClose, onStart }: { chal
              </div>
              <div className="flex flex-wrap gap-2">
                {evidenceRequirements.map(req => {
-                 const isDone = !!progress[req.key as keyof typeof progress];
+                 const isDone = req.key === 'location'
+                  ? hasHonestLocationCheck(progress)
+                  : !!progress[req.key as keyof typeof progress];
                  const isHoveredOrTapped = activeObjectiveHint === req.key;
                  return (
                    <div 

@@ -200,10 +200,11 @@ const PLAYER_PROOF_STATUS_SET = new Set<string>(PLAYER_PROOF_STATUSES);
  * — a photo (`photo: true`) or a real field note (`field_note: true`).
  * Count truthy evidence, not keys: the capture screen's own syncs write
  * valueless entries — `{ field_note: false }` the moment it mounts with an
- * empty note, and `{ location: true }` on arrival for location-required
- * missions — and key-counting read both as progress (Nov 17, 2026: Basecamp
- * said RESUME for an untouched Park Oasis). A location auto-check alone is
- * not progress. Returns undefined when no tripProgress map was supplied
+ * empty note, and (before Nov 20, 2026) `{ location: true }` on arrival
+ * for location-required missions; the location flag is now written only
+ * after a real GPS read, with locationCheckedAt — and key-counting read
+ * both as progress (Nov 17, 2026: Basecamp said RESUME for an untouched
+ * Park Oasis). A location auto-check alone is not progress. Returns undefined when no tripProgress map was supplied
  * (unknown); the resolver treats unknown as no-progress, because both live
  * callers pass the profile's own map and an absent map means no evidence
  * was ever captured.
@@ -212,8 +213,9 @@ const PLAYER_PROOF_STATUS_SET = new Set<string>(PLAYER_PROOF_STATUSES);
  * Real-progress test for ONE mission's tripProgress record (Nov 17, 2026,
  * Zach's rule): only a captured photo or a real field note counts as
  * progress. Valueless entries the app writes itself — `{ field_note: false }`
- * from the note-sync effect, `{ location: true }` on arrival for
- * location-required missions — are NOT progress. Key-counting the record
+ * from the note-sync effect, and (before Nov 20, 2026) `{ location: true }`
+ * on arrival for location-required missions, now only after a real GPS
+ * read — are NOT progress. Key-counting the record
  * (Object.keys(progress).length >= 1) misreads those as "started".
  */
 export function hasRealMissionProgress(progress: Record<string, unknown> | null | undefined): boolean {
