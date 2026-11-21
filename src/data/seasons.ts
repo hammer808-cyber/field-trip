@@ -1,0 +1,197 @@
+/**
+ * Seasonal calendar — pure, no Firebase.
+ *
+ * Single authority for Fieldtrip seasons and events (decided Nov 21, 2026):
+ * - Seasons are METEOROLOGICAL, hard-coded, recurring every year:
+ *   spring Mar 1–May 31, summer Jun 1–Aug 31, fall Sep 1–Nov 30,
+ *   winter Dec 1–Feb 28/29 (leap-year aware).
+ * - Gobble & Glow is an EVENT, not a season. Its dates (Nov 1–Jan 11)
+ *   stay exactly as-is. Events are a separate list from seasons.
+ *
+ * All date math is in America/Los_Angeles. A plain `new Date('2026-06-01')`
+ * parses as UTC midnight, which is May 31 in PT, so season boundaries must
+ * never be built that way: every comparison here goes through PT calendar
+ * parts (year/month/day as seen in PT), reduced to a UTC day number.
+ * Returned Dates are noon UTC on the PT calendar day they name, so their
+ * PT calendar date is the date they claim to be.
+ */
+
+export const SEASON_TIME_ZONE = 'America/Los_Angeles';
+
+export type SeasonId = 'spring' | 'summer' | 'fall' | 'winter';
+
+export interface CalendarSeason {
+  id: SeasonId;
+  name: string;
+  /** 1-based month the season starts on (PT). */
+  startMonth: number;
+  startDay: number;
+  /** 1-based month the season ends on (PT). For winter this is 2 (Feb);
+   *  the end day is 28, or 29 in a leap year — see getSeasonEndDayNumber. */
+  endMonth: number;
+  endDay: number;
+}
+
+export const SEASONS: readonly CalendarSeason[] = [
+  { id: 'spring', name: 'Spring', startMonth: 3, startDay: 1, endMonth: 5, endDay: 31 },
+  { id: 'summer', name: 'Summer', startMonth: 6, startDay: 1, endMonth: 8, endDay: 31 },
+  { id: 'fall', name: 'Fall', startMonth: 9, startDay: 1, endMonth: 11, endDay: 30 },
+  { id: 'winter', name: 'Winter', startMonth: 12, startDay: 1, endMonth: 2, endDay: 28 },
+] as const;
+
+export function getSeasonById(id: SeasonId): CalendarSeason {
+  return SEASONS.find((season) => season.id === id) as CalendarSeason;
+}
+
+/** PT calendar parts (year, 1-based month, day) for a Date. */
+export function getPtDateParts(date: Date): { year: number; month: number; day: number } {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: SEASON_TIME_ZONE,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  }).formatToParts(date);
+  const byType = new Map(parts.map((part) => [part.type, part.value]));
+  return {
+    year: Number(byType.get('year')),
+    month: Number(byType.get('month')),
+    day: Number(byType.get('day')),
+  };
+}
+
+/** UTC day number for a PT calendar date — comparable across dates, DST-proof. */
+function ptDayNumber(year: number, month: number, day: number): number {
+  return Date.UTC(year, month - 1, day) / 86_400_000;
+}
+
+function ptDayNumberForDate(date: Date): number {
+  const { year, month, day } = getPtDateParts(date);
+  return ptDayNumber(year, month, day);
+}
+
+export function isLeapYear(year: number): boolean {
+  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+}
+
+/**
+ * The year a season starts in, for a date inside that season.
+ * Winter spans the year boundary: a Jan/Feb date belongs to the season
+ * that started the previous December.
+ */
+function getSeasonStartYear(season: CalendarSeason, date: Date): number {
+  const { year, month } = getPtDateParts(date);
+  if (season.id === 'winter' && month <= 2) return year - 1;
+  return year;
+}
+
+function getSeasonStartDayNumber(season: CalendarSeason, startYear: number): number {
+  return ptDayNumber(startYear, season.startMonth, season.startDay);
+}
+
+function getSeasonEndDayNumber(season: CalendarSeason, startYear: number): number {
+  if (season.id === 'winter') {
+    const endYear = startYear + 1;
+    return ptDayNumber(endYear, 2, isLeapYear(endYear) ? 29 : 28);
+  }
+  return ptDayNumber(startYear, season.endMonth, season.endDay);
+}
+
+/** A Date at noon UTC on the given PT calendar day. */
+function ptCalendarDate(year: number, month: number, day: number): Date {
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+}
+
+export function getSeasonForDate(date: Date): CalendarSeason {
+  const { month } = getPtDateParts(date);
+  if (month === 12 || month <= 2) return getSeasonById('winter');
+  if (month <= 5) return getSeasonById('spring');
+  if (month <= 8) return getSeasonById('summer');
+  return getSeasonById('fall');
+}
+
+export function getCurrentSeason(now: Date = new Date()): CalendarSeason {
+  return getSeasonForDate(now);
+}
+
+const SEASON_ORDER: readonly SeasonId[] = ['spring', 'summer', 'fall', 'winter'];
+
+/** The season that starts next after `now` (the season after the current one). */
+export function getNextSeason(now: Date = new Date()): CalendarSeason {
+  const current = getSeasonForDate(now);
+  const nextIndex = (SEASON_ORDER.indexOf(current.id) + 1) % SEASON_ORDER.length;
+  return getSeasonById(SEASON_ORDER[nextIndex]);
+}
+
+/**
+ * Whole days left in the current season after today: 0 on the season's
+ * last day, 1 the day before, and so on.
+ */
+export function getDaysRemainingInSeason(now: Date = new Date()): number {
+  const season = getSeasonForDate(now);
+  const startYear = getSeasonStartYear(season, now);
+  return getSeasonEndDayNumber(season, startYear) - ptDayNumberForDate(now);
+}
+
+/**
+ * Date of the next yearly occurrence of a season's start, strictly after
+ * today's PT date (so asking for summer's start on Jun 1 returns next
+ * year's Jun 1). The year is derived from the calendar, never hard-coded —
+ * e.g. from a fall date the next summer start is the following calendar year.
+ * Returned as noon UTC on that PT calendar day.
+ */
+export function getNextSeasonStart(seasonId: SeasonId, now: Date = new Date()): Date {
+  const season = getSeasonById(seasonId);
+  const { year } = getPtDateParts(now);
+  const today = ptDayNumberForDate(now);
+  let startYear = year;
+  if (getSeasonStartDayNumber(season, startYear) <= today) startYear += 1;
+  return ptCalendarDate(startYear, season.startMonth, season.startDay);
+}
+
+// ---------------------------------------------------------------------------
+// Events (separate list from seasons)
+// ---------------------------------------------------------------------------
+
+export interface CalendarEvent {
+  id: string;
+  name: string;
+  /** PT calendar date the event opens (inclusive). */
+  startYear: number;
+  startMonth: number;
+  startDay: number;
+  /** PT calendar date the event closes (inclusive). */
+  endYear: number;
+  endMonth: number;
+  endDay: number;
+}
+
+export const EVENTS: readonly CalendarEvent[] = [
+  {
+    id: 'gobble-and-glow',
+    name: 'Gobble & Glow',
+    startYear: 2026,
+    startMonth: 11,
+    startDay: 1,
+    endYear: 2027,
+    endMonth: 1,
+    endDay: 11,
+  },
+] as const;
+
+export function getEventById(eventId: string): CalendarEvent | undefined {
+  return EVENTS.find((event) => event.id === eventId);
+}
+
+/** True when `now`'s PT calendar date falls inside the event's window (inclusive both ends). */
+export function isEventActive(eventId: string, now: Date = new Date()): boolean {
+  const event = getEventById(eventId);
+  if (!event) return false;
+  const today = ptDayNumberForDate(now);
+  const start = ptDayNumber(event.startYear, event.startMonth, event.startDay);
+  const end = ptDayNumber(event.endYear, event.endMonth, event.endDay);
+  return today >= start && today <= end;
+}
+
+export function getActiveEvents(now: Date = new Date()): CalendarEvent[] {
+  return EVENTS.filter((event) => isEventActive(event.id, now));
+}
