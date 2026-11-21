@@ -142,6 +142,7 @@ import {
   subscribeToUserMissionCards, 
   saveDrawnMissionCard, 
   updateMissionCardStatus,
+  archiveMissionCard,
   setActiveMissionCard
 } from '../services/missionCardService';
 
@@ -204,6 +205,7 @@ interface AppContextType {
   drawnMissionCards: DrawnMissionCard[];
   saveMissionCard: (card: Partial<DrawnMissionCard>) => Promise<string>;
   updateMissionCardStatus: (missionId: string, status: DrawnMissionCardStatus, extraData?: Partial<DrawnMissionCard>) => Promise<void>;
+  unsaveMissionCard: (missionId: string) => Promise<void>;
   setActiveMissionCard: (missionId: string) => Promise<void>;
   xp: number;
   points: number;
@@ -2405,6 +2407,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return updateMissionCardStatus(user.uid, missionId, status, extraData);
   };
 
+  // Saved-missions list (Option A, Nov 20, 2026): unsave archives the
+  // card, which the subscription already filters out — no status change,
+  // no rules change, reversible by an admin clearing the flag.
+  const handleUnsaveMissionCard = async (missionId: string) => {
+    if (!user) return;
+    return archiveMissionCard(user.uid, missionId);
+  };
+
   const handleSetActiveMissionCard = async (missionId: string) => {
     if (!user) return;
     
@@ -3020,6 +3030,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       drawnMissionCards,
       saveMissionCard: handleSaveMissionCard,
       updateMissionCardStatus: handleUpdateMissionCardStatus,
+      unsaveMissionCard: handleUnsaveMissionCard,
       setActiveMissionCard: handleSetActiveMissionCard
     }}>
       {children}

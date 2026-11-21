@@ -1,7 +1,12 @@
 # Design: move evaluator sticker awards server-side (Option B)
 
-Status: BUILT Nov 20, 2026 — Zach said "Go" 4:47 PM PST; backfill
-decided: all players. Awaiting live check + backfill run. Date: Nov 20, 2026.
+Status: BUILT + LIVE Nov 20, 2026 — Zach said "Go" 4:47 PM PST; backfill
+decided: all players. Server routes verified live via curl (both POSTs
+401 unauthenticated; control 404 on a bogus path; live client chunk
+contains `/api/stickers/evaluate`, which the old source never had).
+Backfill itself is NOT run yet: it ships as a one-tap button on
+/admin/users (commit c240ac0) because this VM has no admin credential
+path — Zach taps "Run backfill" once the deploy lands. Date: Nov 20, 2026.
 
 Related: `docs/sticker-server-awards-design.md` (Nov 15, the LEGACY
 server-side move — Option A, shipped as `POST /api/stickers/award`).

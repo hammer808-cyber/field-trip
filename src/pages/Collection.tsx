@@ -30,8 +30,11 @@ import type { DeckPackSort } from '../logic/deckSort';
 import { ZineWorkspace } from '../components/ZineWorkspace';
 import { GatedFeaturePanel } from '../components/GatedFeaturePanel';
 import { StickerMachine } from '../components/stickers/StickerMachine';
+import { DecalShelf } from '../components/stickers/DecalShelf';
+import { DECALS, hasEarnedDecal } from '../data/decals';
 import { EmptyStatePanel } from '../components/FieldtripLoader';
 import { FieldButton, FieldStatusChip, PlayerPageBody, PlayerPageShell } from '../components/player';
+import { getSavedMissionCards } from '../logic/savedMissions';
 
 type CollectionTab = 'zines' | 'memories' | 'stickers' | 'decks' | 'missions' | 'crew_memories';
 
@@ -50,6 +53,7 @@ export default function CollectionPage() {
     isAdmin,
     currentDate,
     drawnMissionCards,
+    unsaveMissionCard,
     canonicalProgress,
     getDeckAccessForPack
   } = useApp();
@@ -83,8 +87,6 @@ export default function CollectionPage() {
   // decks float to the top of their section with a badge. Null until the
   // read resolves — the list renders in normal order meanwhile.
   const nearbyPackIds = useNearbyDeckPackIds();
-  const starterProgress = getStarterProgress(canonicalProgress);
-  const isStarterComplete = starterProgress.starterComplete;
   // Nov 20, 2026: Dex Decks-tab sort. The choice persists per device so
   // the catalog stays in the order the player picked.
   const [deckSort, setDeckSort] = useState<DeckPackSort>(() => {
@@ -107,6 +109,8 @@ export default function CollectionPage() {
     ...section,
     packs: sortDeckPacks(section.packs, deckSort, deckProgressById),
   }));
+  const starterProgress = getStarterProgress(canonicalProgress);
+  const isStarterComplete = starterProgress.starterComplete;
 
   const getPackLockState = (packId: string) => {
     const pack = activePacks.find(p => p.packId === packId);
@@ -176,8 +180,28 @@ export default function CollectionPage() {
       setActiveTab('zines');
     } else if (path.includes('/dex/stickers')) {
       setActiveTab('stickers');
+    } else if (path.includes('/dex/missions')) {
+      setActiveTab('missions');
     }
   }, [location.pathname]);
+
+  // Saved-missions list (Option A, Nov 20, 2026): only the missions the
+  // player put aside with Save for later. Done missions leave on their
+  // own when their status changes; the Logbook covers those.
+  const savedMissionCards = getSavedMissionCards(drawnMissionCards);
+  const [unsavingMissionId, setUnsavingMissionId] = useState<string | null>(null);
+
+  const handleUnsave = async (missionId: string) => {
+    if (unsavingMissionId) return;
+    setUnsavingMissionId(missionId);
+    try {
+      await unsaveMissionCard(missionId);
+    } catch (err: any) {
+      console.error('[Collection] Failed to unsave mission:', err?.message || err);
+    } finally {
+      setUnsavingMissionId(null);
+    }
+  };
 
   const handleTabChange = (id: CollectionTab) => {
     setActiveTab(id);
@@ -189,7 +213,8 @@ export default function CollectionPage() {
       decks: '/dex/decks',
       stickers: '/dex/stickers',
       zines: '/dex/zines',
-      memories: '/dex/memories'
+      memories: '/dex/memories',
+      missions: '/dex/missions'
     };
     const nextPath = tabPath[id];
     if (nextPath && location.pathname !== nextPath) {
@@ -204,8 +229,9 @@ export default function CollectionPage() {
   const unlockedBadges = new Set(profile?.unlockedRewards?.badges || []);
   const unlockedSkinsList = profile?.unlockedRewards?.skins || ['classic'];
   const unlockedSkins = new Set(unlockedSkinsList);
-  const totalRewards = stickers.length + badges.length + allSkins.length;
-  const totalUnlocked = unlockedStickers.size + unlockedBadges.size + unlockedSkins.size;
+  const totalRewards = stickers.length + badges.length + allSkins.length + DECALS.length;
+  const totalUnlocked = unlockedStickers.size + unlockedBadges.size + unlockedSkins.size
+    + DECALS.filter((decal) => hasEarnedDecal(profile, decal.id)).length;
 
   const currentPackId = normalizeDeckPackId(
     typeof window !== 'undefined' ? localStorage.getItem('active_deck_pack_id') || getDefaultDeckPack().packId : getDefaultDeckPack().packId
@@ -237,7 +263,8 @@ export default function CollectionPage() {
           { id: 'decks', label: 'Decks' },
           { id: 'stickers', label: 'Stickers' },
           { id: 'zines', label: 'Zines' },
-          { id: 'memories', label: 'Memories' }
+          { id: 'memories', label: 'Memories' },
+          { id: 'missions', label: 'Saved' }
         ]}
         activeTab={activeTab}
         onTabChange={(id) => handleTabChange(id as CollectionTab)}
@@ -257,6 +284,7 @@ export default function CollectionPage() {
               className="space-y-10"
             >
               <StickerMachine />
+              <DecalShelf profile={profile} />
             </motion.div>
           )}
 
@@ -314,7 +342,7 @@ export default function CollectionPage() {
               exit={{ opacity: 0, y: -15 }}
               className="space-y-12"
             >
-                  {drawnMissionCards.length === 0 ? (
+                  {savedMissionCards.length === 0 ? (
                 <EmptyStatePanel
                   title="No saved missions"
                   body="Saved missions will show up here."
@@ -324,54 +352,75 @@ export default function CollectionPage() {
                 />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {drawnMissionCards.map(card => {
+                  {savedMissionCards.map(card => {
                     const mission = trips.find(t => t.id === card.missionId);
-                    if (!mission) return null;
-                    
+                    // The mission left the deck catalog since it was saved.
+                    // The drawn card doc still holds its title and summary,
+                    // so the row renders from the doc instead of vanishing.
+                    if (!mission) {
                       return (
                         <div key={card.id} className="space-y-4 group">
-                          <MissionCard 
-                            challenge={mission} 
-                            className="shadow-[10px_10px_0px_black] rounded-[2rem] border-[4px] border-on-surface group-hover:-translate-y-1 group-hover:rotate-1 transition-all"
-                          />
+                          <div className="bg-white border-4 border-on-surface rounded-[2rem] p-6 shadow-[10px_10px_0px_black] space-y-3">
+                            <p className="text-xs font-mono font-black uppercase tracking-widest opacity-40">
+                              {card.deckId || 'Fieldtrip'}
+                            </p>
+                            <h3 className="font-display text-2xl font-black uppercase italic leading-none">
+                              {card.missionTitle || 'Saved mission'}
+                            </h3>
+                            {card.missionSummary && (
+                              <p className="font-serif italic text-on-surface/70 leading-relaxed">
+                                {card.missionSummary}
+                              </p>
+                            )}
+                            <p className="text-xs font-mono font-black uppercase tracking-widest text-on-surface/60">
+                              No longer in the deck — saved copy only
+                            </p>
+                          </div>
                           <div className="flex flex-wrap gap-2 px-2">
-                             <div className={cn(
-                               "px-3 py-1.5 rounded-xl border-[2.5px] text-xs font-black uppercase tracking-widest flex items-center gap-2",
-                               card.status === 'active' ? "bg-brand-orange text-white border-on-surface shadow-[4px_4px_0px_black]" :
-                               card.status === 'approved' ? "bg-brand-lime text-on-surface border-on-surface shadow-[4px_4px_0px_black]" :
-                               card.status === 'pending_review' ? "bg-yellow-400 text-on-surface border-on-surface shadow-[4px_4px_0px_black]" :
-                               "bg-white text-on-surface/60 border-on-surface/10"
-                             )}>
-                               {card.status === 'active' && <div className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />}
-                               {card.status === 'active' ? 'In progress' : card.status === 'pending_review' ? 'Pending' : card.status === 'approved' ? 'Approved' : card.status.replace('_', ' ')}
-                             </div>
-                             
-                             {/* CTAs */}
-                             {card.status === 'drawn' || card.status === 'saved_for_later' ? (
-                               <button 
-                                 onClick={() => navigate(`/mission-briefing?id=${mission.id}`)}
-                                 className="px-4 py-1.5 bg-on-surface text-brand-lime border-[2.5px] border-on-surface text-xs font-black uppercase tracking-widest shadow-[4px_4px_0px_black] active:shadow-none active:translate-y-1 transition-all flex items-center gap-1.5"
-                               >
-                                 Do This Mission <ArrowRight className="w-3.5 h-3.5" />
-                               </button>
-                             ) : card.status === 'active' ? (
-                               <button 
-                                 onClick={() => navigate(`/capture?id=${mission.id}`)}
-                                 className="px-4 py-1.5 bg-brand-orange text-white border-[2.5px] border-on-surface text-xs font-black uppercase tracking-widest shadow-[4px_4px_0px_black] active:shadow-none active:translate-y-1 transition-all flex items-center gap-1.5"
-                               >
-                                 Resume Mission <ArrowRight className="w-3.5 h-3.5" />
-                               </button>
-                             ) : card.status === 'approved' ? (
-                               <button 
-                                 onClick={() => navigate('/profile?tab=logbook')}
-                                 className="px-4 py-1.5 bg-white text-on-surface border-[2.5px] border-on-surface text-xs font-black uppercase tracking-widest shadow-[4px_4px_0px_black] active:shadow-none active:translate-y-1 transition-all flex items-center gap-1.5"
-                               >
-                                 View Logbook <ArrowRight className="w-3.5 h-3.5" />
-                               </button>
-                             ) : null}
+                            <button
+                              type="button"
+                              onClick={() => void handleUnsave(card.missionId)}
+                              disabled={unsavingMissionId === card.missionId}
+                              className="min-h-11 px-3 py-2 font-mono text-xs font-black uppercase tracking-widest text-on-surface/60 hover:text-on-surface disabled:opacity-50"
+                            >
+                              {unsavingMissionId === card.missionId ? 'Removing…' : 'Unsave'}
+                            </button>
                           </div>
                         </div>
                       );
+                    }
+
+                    return (
+                      <div key={card.id} className="space-y-4 group">
+                        <MissionCard
+                          challenge={mission}
+                          className="shadow-[10px_10px_0px_black] rounded-[2rem] border-[4px] border-on-surface group-hover:-translate-y-1 group-hover:rotate-1 transition-all"
+                        />
+                        <div className="flex flex-wrap gap-2 px-2">
+                           <div className={cn(
+                             "px-3 py-1.5 rounded-xl border-[2.5px] text-xs font-black uppercase tracking-widest flex items-center gap-2",
+                             "bg-white text-on-surface/60 border-on-surface/10"
+                           )}>
+                             Saved for later
+                           </div>
+
+                           <button
+                             onClick={() => navigate(`/mission-briefing?id=${mission.id}`)}
+                             className="px-4 py-1.5 bg-on-surface text-brand-lime border-[2.5px] border-on-surface text-xs font-black uppercase tracking-widest shadow-[4px_4px_0px_black] active:shadow-none active:translate-y-1 transition-all flex items-center gap-1.5"
+                           >
+                             Do This Mission <ArrowRight className="w-3.5 h-3.5" />
+                           </button>
+                           <button
+                             type="button"
+                             onClick={() => void handleUnsave(card.missionId)}
+                             disabled={unsavingMissionId === card.missionId}
+                             className="min-h-11 px-3 py-2 font-mono text-xs font-black uppercase tracking-widest text-on-surface/60 hover:text-on-surface disabled:opacity-50"
+                           >
+                             {unsavingMissionId === card.missionId ? 'Removing…' : 'Unsave'}
+                           </button>
+                        </div>
+                      </div>
+                    );
                   })}
                 </div>
               )}

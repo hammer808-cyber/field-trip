@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Lock, CheckCircle2, Play, Info, Timer, Zap, 
   MapPin, Camera, AlertTriangle, ShieldCheck, 
-  X, ChevronRight, Bookmark
+  X, ChevronRight
 } from 'lucide-react';
 import { StickerDecal, StickerCorner } from './StickerDecals';
 import { cn } from '../lib/utils';

@@ -91,6 +91,29 @@ export function subscribeToUserMissionCards(uid: string, callback: (cards: Drawn
 }
 
 /**
+ * Archives a mission card (unsave). Sets the `archived` flag the
+ * subscription already filters on (`missionCardService` subscribe drops
+ * `archived === true`), so the row leaves the Saved list immediately.
+ * No status change, no new status value, and the update passes the
+ * published rules — the resulting doc still carries its required keys
+ * (`uid`, `missionId`, `status`, `drawnAt`) with a valid status.
+ * Reversible: an admin clearing the flag brings the card back.
+ */
+export async function archiveMissionCard(uid: string, missionId: string): Promise<void> {
+  const cardRef = doc(db, USERS_COLLECTION, uid, MISSION_CARDS_SUBCOLLECTION, missionId);
+
+  try {
+    await updateDoc(cardRef, {
+      archived: true,
+      updatedAt: serverTimestamp()
+    });
+  } catch (error: any) {
+    logFirestoreError(error, OperationType.UPDATE, `${USERS_COLLECTION}/${uid}/${MISSION_CARDS_SUBCOLLECTION}`);
+    throw error;
+  }
+}
+
+/**
  * Marks a specific card as active and deactivates others if necessary.
  */
 export async function setActiveMissionCard(uid: string, missionId: string): Promise<void> {

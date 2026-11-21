@@ -619,6 +619,7 @@ export default function App() {
                     <Route path="/dex/stickers" element={<StarterGate requiredFeature="memories"><Collection /></StarterGate>} />
                     <Route path="/dex/zines" element={<StarterGate requiredFeature="memories"><Collection /></StarterGate>} />
                     <Route path="/dex/memories" element={<StarterGate requiredFeature="memories"><Collection /></StarterGate>} />
+                    <Route path="/dex/missions" element={<StarterGate requiredFeature="memories"><Collection /></StarterGate>} />
                     <Route path="/dex/memories/community" element={<StarterGate requiredFeature="memories"><Collection /></StarterGate>} />
                     <Route path="/memories" element={<StarterGate requiredFeature="memories"><Navigate to="/dex/memories" replace /></StarterGate>} />
                     <Route path="/big-board" element={<StarterGate requiredFeature="leaderboard"><BigBoard /></StarterGate>} />
