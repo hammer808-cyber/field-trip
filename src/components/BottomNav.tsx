@@ -18,7 +18,12 @@ export function BottomNav() {
   const [isNavActive, setIsNavActive] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // P1-1 (Nov 20, 2026): tapping a locked tab shows its reason inline
-  // instead of navigating to a lock panel. Cleared on navigation.
+  // instead of navigating to a lock panel. Nov 20 follow-up (locked-
+  // Basecamp explainer line): the notice persists across navigation —
+  // it used to clear on every route change, so a player who tapped
+  // locked Basecamp and then went to the deck arrived with no
+  // explanation left. It clears only on dismiss, or when the tab
+  // itself unlocks (see lockedNoticeTabStillLocked below).
   const [lockedNotice, setLockedNotice] = useState<{ label: string; reason: string } | null>(null);
 
   const triggerTimedActive = () => {
@@ -33,7 +38,6 @@ export function BottomNav() {
 
   useEffect(() => {
     triggerTimedActive();
-    setLockedNotice(null);
     window.scrollTo(0, 0);
     return () => {
       if (timeoutRef.current) {
@@ -98,9 +102,19 @@ export function BottomNav() {
     { icon: Trophy, label: 'BIG BOARD', path: '/big-board' }
   ];
 
+  // The notice hides once its tab unlocks (starter complete) — otherwise
+  // it stays visible across navigation until dismissed.
+  const lockedNoticeTabStillLocked = lockedNotice
+    ? navItems.some((item) => {
+        if (item.label !== lockedNotice.label) return false;
+        if (item.path === '/big-board') return !leaderboardUnlocked;
+        return !!item.locked;
+      })
+    : false;
+
   return (
     <>
-      {lockedNotice && (
+      {lockedNotice && lockedNoticeTabStillLocked && (
         <div
           role="status"
           data-testid="locked-nav-notice"

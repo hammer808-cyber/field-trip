@@ -63,16 +63,21 @@ test('P1-1: a locked tab renders as a button, not a link, and never navigates', 
   assert.match(n, /return \(\s*<Link\s*key=\{item\.path\}\s*to=\{item\.path\}/);
 });
 
-test('P1-1: the locked notice is a live region showing the reason, cleared on navigation', () => {
+test('locked-Basecamp explainer line (Nov 20, 2026): the locked notice persists across navigation', () => {
   const n = nav();
   assert.match(n, /role="status"/);
   assert.match(n, /data-testid="locked-nav-notice"/);
   assert.match(n, /\{lockedNotice\.label\} is locked\./);
   assert.match(n, /\{lockedNotice\.reason\}/);
   assert.match(n, /aria-label="Dismiss locked message"/);
-  // Navigation clears a stale notice (location effect).
+  // The old P1-1 behavior cleared the notice on every route change, so a
+  // player who tapped locked Basecamp and then went to the deck arrived
+  // with no explanation left. The location effect must not clear it now.
   const effect = n.slice(n.indexOf('useEffect(() => {'), n.indexOf('}, [location.pathname]);'));
-  assert.match(effect, /setLockedNotice\(null\);/);
+  assert.doesNotMatch(effect, /setLockedNotice\(null\);/);
+  // Instead the notice hides when its tab unlocks (starter complete).
+  assert.match(n, /lockedNoticeTabStillLocked/);
+  assert.match(n, /\{lockedNotice && lockedNoticeTabStillLocked && \(/);
 });
 
 test('P1-1: the locked-button branch runs after the special Dex treatment', () => {
