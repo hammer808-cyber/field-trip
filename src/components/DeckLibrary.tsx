@@ -156,7 +156,17 @@ export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
           <p className="micro-label opacity-40 font-bold tracking-widest uppercase italic text-brand-orange">{frankieMode ? 'Tap a card to see it. Tap Do This One to start.' : 'Beta: Submissions may require admin review before XP updates'}</p>
         </div>
         
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+        {/* Nov 21, 2026 (Zach's screenshot): this row used to be a
+            single non-wrapping line with overflow-x-auto and a hidden
+            scrollbar. The chips + SORT are ~650px of min-content, and
+            the page's .page-scroll container is a column flex — its
+            max-w-6xl flex item cannot shrink below that min-content, so
+            the whole Missions page laid out ~740px wide in a 390px
+            viewport and overflow-x-hidden clipped SORT off the page with
+            no way to reach it (the row never scrolled because its own
+            box was as wide as its content). Wrapping instead: every
+            filter and SORT stay on screen, no hidden scrolling. */}
+        <div className="flex flex-wrap gap-2">
           {(['all', 'eligible', 'completed', 'locked'] as const).map(f => (
             <button
               key={f}
