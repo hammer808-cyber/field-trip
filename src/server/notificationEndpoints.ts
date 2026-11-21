@@ -25,8 +25,14 @@
  * them against an in-memory fake instead of Firestore. `server.ts` wires
  * the real Admin SDK db via `getDb: () => dbAdmin`.
  *
- * Deliberately NOT built here: mark-as-read (still needs a rules change
- * or a server endpoint), and pagination past the 20-doc subscription cap.
+ * Mark-as-read (Nov 20, 2026, Zach's call): `POST
+ * /api/notifications/:id/read` sets `read: true` on one of the caller's
+ * own docs via the Admin SDK — the client rules are read-only there, so
+ * this endpoint is the only write path. The detail card calls it when it
+ * opens, so the red unread dot clears once the player has seen the
+ * notification. The list cap rose 20 → 50 the same day (see
+ * `PLAYER_NOTIFICATIONS_LIMIT`); the UI reveals 7 at a time with a
+ * Show more button instead of paging the subscription.
  */
 
 import { FieldValue } from 'firebase-admin/firestore';
@@ -75,7 +81,7 @@ export function getPowerHourAnnouncementId(localDate: string, timezone: string):
   return `${AFTERNOON_POWER_HOUR_ID}_${localDate}_${timezone.replaceAll('/', '_')}`;
 }
 
-function dbOr500(deps: NotificationEndpointDeps, res: any): NotificationDb | null {
+function dbOr500(deps: { getDb: () => NotificationDb | null }, res: any): NotificationDb | null {
   const db = deps.getDb();
   if (!db) res.status(500).json({ error: 'DB_ADMIN_NOT_READY' });
   return db;
@@ -179,5 +185,33 @@ export function createPowerHourLiveHandler(deps: NotificationEndpointDeps) {
       createdAt: FieldValue.serverTimestamp(),
     });
     return res.json({ ok: true, announced: true, assignmentId: docId });
+  };
+}
+
+/**
+ * Returns an Express handler for `POST /api/notifications/:id/read`.
+ * Marks one of the caller's own notification docs read. The doc lives
+ * under the caller's own `users/{uid}/notifications` path, so ownership
+ * is by path — the uid always comes from the authenticated token, never
+ * the body or the id. Idempotent: an already-read doc returns ok without
+ * a second write.
+ */
+export function createMarkNotificationReadHandler(deps: { getDb: () => NotificationDb | null }) {
+  return async (req: any, res: any) => {
+    const db = dbOr500(deps, res);
+    if (!db) return;
+    const uid = uidOr401(req, res);
+    if (!uid) return;
+    const notificationId = String(req.params?.id ?? '').trim();
+    if (!notificationId) return res.status(400).json({ error: 'MISSING_NOTIFICATION_ID' });
+
+    const notifRef = db.collection('users').doc(uid).collection('notifications').doc(notificationId);
+    const existing = await notifRef.get();
+    if (!existing.exists) return res.status(404).json({ error: 'NOTIFICATION_NOT_FOUND' });
+    const data = existing.data() || {};
+    if (data.read === true) return res.json({ ok: true, read: false, reason: 'already_read' });
+
+    await notifRef.set({ read: true }, { merge: true });
+    return res.json({ ok: true, read: true });
   };
 }

@@ -134,6 +134,7 @@ import { createAdminStickerAwardStore, createStickerAwardHandler } from "./src/s
 import { awardWeeklyWinnerStickers, createAdminCanonicalStickerAwardStore, type WeeklyWinnerInput } from "./src/server/canonicalStickerAwards";
 import { createAdminStickerGrantStore, createStickerGrantHandler } from "./src/server/stickerGrants";
 import {
+  createMarkNotificationReadHandler,
   createNotifySubmittedHandler,
   createPowerHourLiveHandler,
 } from "./src/server/notificationEndpoints";
@@ -5885,7 +5886,9 @@ async function startServer() {
 
   // Player notification endpoints (Nov 17, 2026, Notifications split):
   // a submission writes its own `proof_submitted` doc, and the app
-  // announces a live Afternoon Power Hour once a day. Both write into
+  // announces a live Afternoon Power Hour once a day. Mark-as-read
+  // (Nov 20, 2026) lets the detail card clear the red unread dot when
+  // the player opens a notification. All three write into
   // users/{uid}/notifications via the Admin SDK — the client rules are
   // read-only there, so there is no client write path for these.
   app.post("/api/entries/:id/notify-submitted", authRateLimiter, authenticate, createNotifySubmittedHandler({
@@ -5895,6 +5898,9 @@ async function startServer() {
   app.post("/api/notifications/power-hour-live", authRateLimiter, authenticate, createPowerHourLiveHandler({
     getDb: () => dbAdmin,
     getScoringConfig: getMissionScoringConfig,
+  }));
+  app.post("/api/notifications/:id/read", authRateLimiter, authenticate, createMarkNotificationReadHandler({
+    getDb: () => dbAdmin,
   }));
 
   app.get("/api/social/crew", authRateLimiter, authenticate, async (req: any, res) => {

@@ -488,6 +488,22 @@ test('Notifications section lists decisions and sticker awards, newest-first', (
   assert.equal(model.notifications[1].unread, true);
 });
 
+// Notification detail card (Nov 20, 2026): each item carries the raw doc
+// id for the mark-as-read endpoint, and sticker awards carry the art so
+// the card can show it large.
+test('Notification items carry the doc id and sticker art for the detail card', () => {
+  const model = buildBasecampViewModel(input({
+    entries: [entry({ status: 'approved' })],
+    notifications: [notification(), stickerNotification()],
+  }));
+  const sticker = model.notifications[0];
+  assert.equal(sticker.notificationId, 'notif-sticker-1');
+  assert.equal(sticker.imageUrl, '/assets/stickers/achievement/01_fresh_meat.png');
+  const decision = model.notifications[1];
+  assert.equal(decision.notificationId, 'notif-1');
+  assert.equal(decision.imageUrl, undefined);
+});
+
 // Crew clubhouse (Nov 20, 2026): comments, @-mentions, and new members
 // land in Notifications as 'crew' rows and tap through to the crew.
 function crewCommentNotification(overrides: Partial<CrewCommentNotification> = {}): CrewCommentNotification {

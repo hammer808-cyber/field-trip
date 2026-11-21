@@ -27,6 +27,7 @@ import {
   resolvePlayerMissionLifecycle,
   type PlayerGuidanceSnapshot,
 } from './playerGuidance';
+import { getStickerById } from '../data/stickers';
 
 export type BasecampActionIntent = 'navigate' | 'retry-proof';
 
@@ -129,6 +130,9 @@ export type BasecampNotificationKind = 'decision' | 'sticker' | 'submission' | '
  */
 export interface BasecampNotificationItem {
   id: string;
+  /** Raw notification doc id (without the `notification-` prefix) — the
+   * mark-as-read endpoint needs it. */
+  notificationId: string;
   kind: BasecampNotificationKind;
   title: string;
   detail: string;
@@ -136,6 +140,9 @@ export interface BasecampNotificationItem {
   timestamp: number;
   unread: boolean;
   href: string;
+  /** Sticker art for sticker awards, resolved from the registry — the
+   * detail card shows it large. Absent for every other kind. */
+  imageUrl?: string | null;
 }
 
 export interface BasecampViewModel {
@@ -382,6 +389,7 @@ function buildNotifications(input: BuildBasecampViewModelInput): BasecampNotific
         const copy = stickerAwardedCopy(notification);
         return [{
           id: `notification-${notification.id}`,
+          notificationId: notification.id,
           kind: 'sticker' as const,
           title: copy.title,
           detail: copy.detail,
@@ -389,12 +397,14 @@ function buildNotifications(input: BuildBasecampViewModelInput): BasecampNotific
           timeLabel,
           unread,
           href: '/dex/stickers',
+          imageUrl: getStickerById(notification.stickerId)?.imageUrl ?? null,
         }];
       }
       if (notification.type === 'proof_submitted') {
         const copy = proofSubmittedCopy(notification);
         return [{
           id: `notification-${notification.id}`,
+          notificationId: notification.id,
           kind: 'submission' as const,
           title: copy.title,
           detail: copy.detail,
@@ -408,6 +418,7 @@ function buildNotifications(input: BuildBasecampViewModelInput): BasecampNotific
         const copy = powerHourLiveCopy(notification);
         return [{
           id: `notification-${notification.id}`,
+          notificationId: notification.id,
           kind: 'power_hour' as const,
           title: copy.title,
           detail: copy.detail,
@@ -423,6 +434,7 @@ function buildNotifications(input: BuildBasecampViewModelInput): BasecampNotific
         const copy = crewCommentCopy(notification);
         return [{
           id: `notification-${notification.id}`,
+          notificationId: notification.id,
           kind: 'crew' as const,
           title: copy.title,
           detail: copy.detail,
@@ -436,6 +448,7 @@ function buildNotifications(input: BuildBasecampViewModelInput): BasecampNotific
         const copy = crewChatMentionCopy(notification);
         return [{
           id: `notification-${notification.id}`,
+          notificationId: notification.id,
           kind: 'crew' as const,
           title: copy.title,
           detail: copy.detail,
@@ -449,6 +462,7 @@ function buildNotifications(input: BuildBasecampViewModelInput): BasecampNotific
         const copy = crewMemberJoinedCopy(notification);
         return [{
           id: `notification-${notification.id}`,
+          notificationId: notification.id,
           kind: 'crew' as const,
           title: copy.title,
           detail: copy.detail,
@@ -461,6 +475,7 @@ function buildNotifications(input: BuildBasecampViewModelInput): BasecampNotific
       const copy = proofReviewDecisionCopy(notification);
       return [{
         id: `notification-${notification.id}`,
+        notificationId: notification.id,
         kind: 'decision' as const,
         title: copy.title,
         detail: copy.detail,

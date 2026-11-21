@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  createMarkNotificationReadHandler,
   createNotifySubmittedHandler,
   createPowerHourLiveHandler,
   getPowerHourAnnouncementId,
@@ -22,8 +23,11 @@ class FakeDoc {
     return { exists: this.store.has(this.path), data: () => this.store.get(this.path) };
   }
 
-  async set(data: DocData): Promise<void> {
-    this.store.set(this.path, data);
+  async set(data: DocData, options?: { merge?: boolean }): Promise<void> {
+    // Honor merge like Firestore: a merged set keeps the fields it does
+    // not name (the mark-read handler relies on this).
+    const existing = options?.merge === true ? this.store.get(this.path) : undefined;
+    this.store.set(this.path, { ...(existing || {}), ...data });
   }
 
   collection(name: string): FakeCollection {
@@ -267,5 +271,63 @@ test('power-hour-live: outside the window, bad dates, and bad timezones are refu
   );
   assert.equal(mismatch.statusCode, 400);
   assert.equal(mismatch.body.error, 'DATE_MISMATCH');
+  assert.equal(db.store.size, 0, 'nothing written on refusal');
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/notifications/:id/read (Nov 20, 2026 — detail card mark-as-read)
+// ---------------------------------------------------------------------------
+
+function seedNotification(db: FakeDb, id: string, overrides: DocData = {}): void {
+  db.seed(`users/${PLAYER_UID}/notifications/${id}`, {
+    type: 'proof_submitted',
+    entryId: ENTRY_ID,
+    missionTitle: 'Find the Coolest Shadow',
+    read: false,
+    ...overrides,
+  });
+}
+
+test('mark-read: sets read true and keeps the rest of the doc', async () => {
+  const db = new FakeDb();
+  seedNotification(db, 'notif-1');
+  const handler = createMarkNotificationReadHandler({ getDb: () => db });
+  const res = makeRes();
+  await handler({ user: { uid: PLAYER_UID }, params: { id: 'notif-1' } }, res);
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, { ok: true, read: true });
+  const doc = db.read(`users/${PLAYER_UID}/notifications/notif-1`);
+  assert.equal(doc?.read, true);
+  assert.equal(doc?.type, 'proof_submitted', 'merge keeps the other fields');
+  assert.equal(doc?.missionTitle, 'Find the Coolest Shadow');
+});
+
+test('mark-read: an already-read doc is a no-op, not a second write', async () => {
+  const db = new FakeDb();
+  seedNotification(db, 'notif-1', { read: true });
+  const handler = createMarkNotificationReadHandler({ getDb: () => db });
+  const res = makeRes();
+  await handler({ user: { uid: PLAYER_UID }, params: { id: 'notif-1' } }, res);
+  assert.deepEqual(res.body, { ok: true, read: false, reason: 'already_read' });
+});
+
+test('mark-read: missing doc, missing id, and unauthenticated calls are refused', async () => {
+  const db = new FakeDb();
+  const handler = createMarkNotificationReadHandler({ getDb: () => db });
+
+  const missing = makeRes();
+  await handler({ user: { uid: PLAYER_UID }, params: { id: 'nope' } }, missing);
+  assert.equal(missing.statusCode, 404);
+  assert.equal(missing.body.error, 'NOTIFICATION_NOT_FOUND');
+
+  const noId = makeRes();
+  await handler({ user: { uid: PLAYER_UID }, params: { id: '' } }, noId);
+  assert.equal(noId.statusCode, 400);
+  assert.equal(noId.body.error, 'MISSING_NOTIFICATION_ID');
+
+  const noAuth = makeRes();
+  await handler({ user: {}, params: { id: 'notif-1' } }, noAuth);
+  assert.equal(noAuth.statusCode, 401);
+  assert.equal(noAuth.body.error, 'NOT_AUTHENTICATED');
   assert.equal(db.store.size, 0, 'nothing written on refusal');
 });

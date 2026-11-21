@@ -7,6 +7,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 import { db, logFirestoreError, OperationType } from '../lib/firebase';
+import { authenticatedFetch } from '../lib/api';
 import type { PlayerNotification, ProofReviewDecision } from '../logic/playerNotifications';
 
 /**
@@ -27,8 +28,27 @@ import type { PlayerNotification, ProofReviewDecision } from '../logic/playerNot
  * index needed. The rules allow the owner (or an admin) to read; clients
  * never write here (the server writes via the Admin SDK, which bypasses
  * rules), so there is no client write path to guard.
+ *
+ * Mark-as-read (Nov 20, 2026, Zach's call) goes through the server too:
+ * `markNotificationRead` POSTs to /api/notifications/:id/read, which sets
+ * `read: true` via the Admin SDK. The detail card calls it when it opens.
  */
-export const PLAYER_NOTIFICATIONS_LIMIT = 20;
+export const PLAYER_NOTIFICATIONS_LIMIT = 50;
+
+/** Mark one of the caller's own notifications read. Never throws — the
+ * caller treats a failure as "dot stays", not an error to show. */
+export async function markNotificationRead(notificationId: string): Promise<boolean> {
+  const id = String(notificationId || '').trim();
+  if (!id) return false;
+  try {
+    const res = await authenticatedFetch(`/api/notifications/${encodeURIComponent(id)}/read`, {
+      method: 'POST',
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 
 function toMillis(value: unknown): number {
   if (!value) return 0;

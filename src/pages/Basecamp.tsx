@@ -7,6 +7,7 @@ import { BasecampCompanionBlock } from '../components/basecamp/BasecampCompanion
 import { BasecampCrewSummary } from '../components/basecamp/BasecampCrewSummary';
 import { BasecampNextActionPanel } from '../components/basecamp/BasecampNextActionPanel';
 import { BasecampNotifications } from '../components/basecamp/BasecampNotifications';
+import { NotificationDetailModal } from '../components/basecamp/NotificationDetailModal';
 import { BasecampProgressPanel } from '../components/basecamp/BasecampProgressPanel';
 import { BasecampQuickLinks } from '../components/basecamp/BasecampQuickLinks';
 import { FieldPageHero } from '../components/FieldPageHero';
@@ -20,6 +21,7 @@ import {
   type BasecampPrimaryAction,
 } from '../logic/basecampViewModel';
 import { acknowledgeDeckCompleteSeen } from '../services/deckCompleteAck';
+import { markNotificationRead } from '../services/playerNotificationService';
 import { getSeasonCountdown } from '../utils/seasonCountdown';
 import './Basecamp.css';
 
@@ -168,13 +170,19 @@ export default function Basecamp() {
   // Logbook, where the entry lives; a live Power Hour goes to Missions.
   // The Updates section was removed Nov 18, 2026 — Notifications is the
   // only feed on Basecamp now.
+  // Notification detail card (Nov 20, 2026, Zach's call): tapping a row
+  // opens the notification big instead of navigating straight to the
+  // destination — the card carries the "Take me there" button. Opening
+  // marks it read (server endpoint), so the red dot clears once seen.
+  const [selectedNotification, setSelectedNotification] = React.useState<BasecampNotificationItem | null>(null);
   const openNotification = React.useCallback((item: BasecampNotificationItem) => {
     if (item.href.startsWith('#')) {
       document.getElementById(item.href.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
-    navigate(item.href);
-  }, [navigate]);
+    if (item.unread) void markNotificationRead(item.notificationId);
+    setSelectedNotification(item);
+  }, []);
 
   return (
     <div className="skin-page skin-basecamp page-scroll min-h-screen bg-[var(--skin-background)] pb-32 text-[var(--skin-text)] [background-image:var(--skin-background-texture)]">
@@ -251,6 +259,14 @@ export default function Basecamp() {
                 the place to see a notice after its toast is gone. */}
             <div className={viewModel.nextAction.urgency === 'critical' || viewModel.nextAction.urgency === 'high' ? 'basecamp-secondary-quiet' : ''}>
               <BasecampNotifications items={viewModel.notifications} onOpen={openNotification} />
+              <NotificationDetailModal
+                item={selectedNotification}
+                onClose={() => setSelectedNotification(null)}
+                onTakeMeThere={item => {
+                  setSelectedNotification(null);
+                  navigate(item.href);
+                }}
+              />
             </div>
           </>
         )}
