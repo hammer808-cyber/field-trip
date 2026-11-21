@@ -1,7 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
-import { ChevronLeft, Lock } from 'lucide-react';
+import { FieldHeroTabs } from './FieldHeroTabs';
+import { ChevronLeft } from 'lucide-react';
 import type { PlayerDepartment } from './player/PlayerPageShell';
 
 export type FieldPageHeroTab = {
@@ -174,32 +175,14 @@ export function FieldPageHero({
             )}
           </div>
 
-          {tabs.length > 0 && (
-            <div className="flex gap-1 overflow-x-auto no-scrollbar" role="tablist" aria-label={`${title} sections`}>
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={activeTab === tab.id}
-                  aria-disabled={tab.locked || undefined}
-                  onClick={() => !tab.locked && onTabChange?.(tab.id)}
-                  disabled={tab.locked}
-                  className={cn(
-                    'inline-flex min-h-11 shrink-0 items-center gap-1.5 border-2 border-b-0 px-4 py-2 font-display text-sm font-black uppercase italic tracking-normal',
-                    chrome ? 'border-white/30' : 'border-[var(--skin-border)]',
-                    tab.locked && 'cursor-not-allowed opacity-45',
-                    activeTab === tab.id
-                      ? (chrome ? 'bg-brand-lime text-on-surface' : 'bg-[var(--skin-secondary)] text-[var(--skin-on-secondary)]')
-                      : (chrome ? 'bg-white/10 text-white/70' : 'bg-[var(--skin-surface-muted)] text-[var(--skin-text-muted)]'),
-                  )}
-                >
-                  {tab.label}
-                  {tab.locked && <Lock className="h-3.5 w-3.5" aria-hidden="true" />}
-                </button>
-              ))}
-            </div>
-          )}
+          <FieldHeroTabs
+            tabs={tabs}
+            activeTab={activeTab}
+            onTabChange={onTabChange}
+            variant="editorial"
+            chrome={chrome}
+            title={title}
+          />
         </div>
       </header>
     );
@@ -341,26 +324,13 @@ export function FieldPageHero({
       </div>
 
       {/* Tabs */}
-      {tabs.length > 0 && (
-        <div className="max-w-6xl mx-auto flex gap-1 pt-px overflow-x-auto no-scrollbar scroll-smooth translate-y-2 relative z-20">
-          {tabs.map((tab) => (
-            <button 
-              key={tab.id}
-              onClick={() => !tab.locked && onTabChange?.(tab.id)}
-              disabled={tab.locked}
-              className={cn(
-                "px-5 py-4 sm:px-10 sm:py-6 transition-all relative shrink-0 border-t-[4px] border-x-[4px] rounded-t-3xl font-display text-xl sm:text-3xl font-black uppercase italic tracking-tight leading-none cursor-pointer border-on-surface select-none flex items-center gap-2",
-                activeTab === tab.id 
-                  ? "bg-white text-on-surface z-30 shadow-[0_-8px_0px_white,6px_0px_0px_black]" 
-                  : "bg-[#E8E2D2] text-on-surface/60 hover:bg-white/50 hover:text-on-surface/80"
-              )}
-            >
-              {tab.label}
-              {tab.locked && <div className="p-0.5 bg-on-surface/10 rounded">🔒</div>}
-            </button>
-          ))}
-        </div>
-      )}
+      <FieldHeroTabs
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={onTabChange}
+        variant="card"
+        title={title}
+      />
     </header>
   );
 }

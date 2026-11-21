@@ -253,7 +253,7 @@ export function TrevorGuideView({
   );
 }
 
-function TrevorAvatar({ size }: { size: 'small' | 'large' }) {
+export function TrevorAvatar({ size }: { size: 'small' | 'large' }) {
   return (
     // NOTE (Nov 20, 2026): the `block` is load-bearing. This span used to be
     // a direct flex child of the launcher button, which blockified it so

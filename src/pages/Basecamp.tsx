@@ -11,6 +11,9 @@ import { NotificationDetailModal } from '../components/basecamp/NotificationDeta
 import { StreakChip } from '../components/StreakChip';
 import { BasecampProgressPanel } from '../components/basecamp/BasecampProgressPanel';
 import { BasecampQuickLinks } from '../components/basecamp/BasecampQuickLinks';
+import { TrevorsLogCard, type TrevorsLogEntry } from '../components/basecamp/TrevorsLogCard';
+import { normalizeEntryStatus } from '../logic/entryLogic';
+import { safeToDate } from '../lib/utils';
 import { FieldPageHero } from '../components/FieldPageHero';
 import { IOSHomeScreenPrompt } from '../components/profile/IOSHomeScreenPrompt';
 import { useApp } from '../context/AppContext';
@@ -108,6 +111,32 @@ export default function Basecamp() {
 
   const fieldTypeName = fieldType ? FIELD_TYPES[fieldType]?.name : null;
   const activePack = getDeckPackById(viewModel.nextAction.deckId);
+
+  // Trevor's Log (Nov 21, 2026): the latest approved proof, newest first
+  // by createdAt. Title resolution follows the Logbook's pattern
+  // (tripTitle / challengeTitle / missionTitle); no fake entry is ever
+  // invented — with no approved proof the card renders its empty state.
+  const latestApprovedLogEntry = React.useMemo<TrevorsLogEntry | null>(() => {
+    const approved = entries.filter(
+      (entry) => normalizeEntryStatus(entry.status) === 'approved',
+    );
+    if (approved.length === 0) return null;
+    const latest = [...approved].sort((a, b) => {
+      const aTime = safeToDate(a.createdAt)?.getTime() ?? 0;
+      const bTime = safeToDate(b.createdAt)?.getTime() ?? 0;
+      return bTime - aTime;
+    })[0];
+    const date = safeToDate(latest.createdAt);
+    return {
+      photoUrl: latest.photoUrl ?? null,
+      note: latest.note ?? null,
+      missionTitle:
+        latest.tripTitle || latest.challengeTitle || latest.missionTitle || 'Field Mission',
+      dateLabel: date
+        ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : 'Undated',
+    };
+  }, [entries]);
 
   // The deck info lives here now (Nov 17, 2026): Missions is bare — deck,
   // draw, card — so Basecamp carries the active deck and the season
@@ -239,6 +268,10 @@ export default function Basecamp() {
                 ? () => void runAction(viewModel.nextAction.secondaryAction!)
                 : undefined}
             />
+            {/* Trevor's Log (Nov 21, 2026): the latest approved proof as a
+                journal entry — taped polaroid + field note — under the next
+                action, not stacked with the guidance message above it. */}
+            <TrevorsLogCard latestApproved={latestApprovedLogEntry} />
             {/* Active deck row (Nov 17, 2026): the deck info moved here from
                 Missions. One slim line — deck, progress — tapping it opens
                 the shelf in DEX. The season countdown lives in the header

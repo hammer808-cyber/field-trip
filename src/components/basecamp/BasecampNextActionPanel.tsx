@@ -133,7 +133,7 @@ export function BasecampNextActionPanel({ model, pack, onAction, onSecondaryActi
           </div>
         </div>
 
-        <BasecampMissionSummary mission={model.mission} pack={pack} />
+        <BasecampMissionSummary mission={model.mission} pack={pack} panelDescription={model.description} />
       </div>
       )}
     </section>

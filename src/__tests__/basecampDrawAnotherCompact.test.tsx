@@ -133,7 +133,10 @@ test('other next-action states keep the old two-column layout', () => {
   );
   assert.match(html, /Find the Coolest Shadow/);
   assert.match(html, /Continue Mission/);
-  assert.match(html, /Active field card/);
+  // Mission Log (Nov 21, 2026): the summary's "Active field card"
+  // eyebrow became the journal-card header — ticket + sector line.
+  assert.match(html, /Mission log/);
+  assert.match(html, /Sector/);
   assert.match(html, /lg:grid-cols-\[minmax\(0,1\.45fr\)_minmax\(220px,0\.55fr\)\]/);
   assert.match(html, /class="flex flex-col justify-start gap-6 p-5 sm:p-7 lg:p-8"/);
 });

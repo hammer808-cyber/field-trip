@@ -50,9 +50,10 @@ const DEFERRED_HEX: Record<string, string[]> = {
   // identical to neither.
   // Editorial-variant chrome tone (#141414 vs ink #111111 — no
   // identical token) + the DEFAULT variant, which this batch does not
-  // touch (P2-2 hero unification is out of scope): #faf8f5, #4a473e,
-  // #e8e2d2.
-  'src/components/FieldPageHero.tsx': ['#141414', '#faf8f5', '#4a473e', '#e8e2d2'],
+  // touch (P2-2 hero unification is out of scope): #faf8f5, #4a473e.
+  // (Nov 21, 2026: the card tabs' #e8e2d2 left the deferred list —
+  // the Field Manual chrome kit moved it to var(--skin-surface-muted).)
+  'src/components/FieldPageHero.tsx': ['#141414', '#faf8f5', '#4a473e'],
   // Dark develop-stage backdrop (#141615 vs ink #111111).
   'src/components/DevelopingPolaroid.tsx': ['#141615'],
   // Canvas 2D API literals: fillStyle/strokeStyle cannot take a CSS

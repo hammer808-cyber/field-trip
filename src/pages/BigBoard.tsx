@@ -20,8 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { Card } from "../components/UI";
-import { AvatarPreview } from "../components/AvatarPreview";
-import { DEFAULT_AVATAR } from "../constants/avatarAssets";
+import { BigBoardStandingsTable } from "../components/BigBoardStandingsTable";
 import { FIELD_TYPES, Entry } from "../constants";
 import { getWeeklyLeaderboardPage, UserProfile } from "../services/userService";
 import { subscribeToRecentScoreEvents, subscribeToSocialProofs } from "../services/activityService";
@@ -51,7 +50,7 @@ import { DiamondStar, Sparkle, SunFlare } from "../components/SkinAssets";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import * as LucideIcons from "lucide-react";
 import { BADGE_DEFINITIONS, UserBadgeProgress } from "../types/badges";
-import { UNCLASSIFIED_LEVEL_TITLE, getExplorerTypeLevelTitle, getLevelProgress } from '../logic/playerLevel';
+import { getLevelProgress } from '../logic/playerLevel';
 import { MARKER_STICKERS } from "../data/markers";
 import { TabbedSection } from "../components/TabbedSection";
 import { SeasonTokenRaceCard } from "../components/TokenHatchGrid";
@@ -831,6 +830,11 @@ export default function BigBoardPage() {
               onboardingCompleted: userProfile?.onboardingCompleted === true,
               avatar: stats.userAvatar || userProfile?.avatar,
               progressionRewardIds: userProfile?.progressionRewardIds || [],
+              // Scoreboard table (Nov 21, 2026): the STREAKS column reads
+              // the server-maintained approval streak off the profile
+              // (cast: the shared UserProfile type does not declare it yet,
+              // the same cast canonicalProgress.ts uses).
+              approvalStreakDays: Number((userProfile as any)?.approvalStreakDays || 0),
             };
           })
           .sort((a, b) => b.weeklyXp - a.weeklyXp)
@@ -852,6 +856,7 @@ export default function BigBoardPage() {
           fieldClassificationComplete: profile.fieldClassificationComplete,
           onboardingCompleted: profile.onboardingCompleted,
           progressionRewardIds: profile.progressionRewardIds || [],
+          approvalStreakDays: Number((profile as any)?.approvalStreakDays || 0),
           avatar: profile.avatar || u.avatar,
         };
       }
@@ -1006,6 +1011,9 @@ export default function BigBoardPage() {
                     </div>
                   </div>
 
+                  {/* Match scoreboard (Nov 21, 2026): the stacked player
+                      cards became a ruled table — RANK / SCOUT / LEVEL /
+                      STREAKS / SCORE, leader row lime, 1ST stamp. */}
                   {playerRankings.length === 0 ? (
                     <EmptyStatePanel
                       title="Board is waiting"
@@ -1014,71 +1022,7 @@ export default function BigBoardPage() {
                       icon={<Trophy className="h-8 w-8" />}
                     />
                   ) : (
-                    <div className="space-y-3 sm:space-y-4 relative z-10">
-                      {playerRankings.map((player: any, idx: number) => {
-                        const isMe = player.id === user?.uid;
-                        const rank = idx + 1;
-                        const playerLevel = getLevelProgress(player.lifetimeXp || 0);
-                        const playerTitle = player.onboardingCompleted && player.fieldClassificationComplete
-                          ? getExplorerTypeLevelTitle(playerLevel.level, player.fieldType)
-                          : UNCLASSIFIED_LEVEL_TITLE;
-                        const hasMilestoneBorder = (player.progressionRewardIds || []).includes('level-4-big-board-border');
-                        return (
-                          <div 
-                            key={player.id}
-                            className={cn(
-                              "flex items-center justify-between p-3 sm:p-5 border-[3px] border-on-surface transition-all group overflow-hidden relative cursor-default",
-                              isMe 
-                                ? "bg-brand-yellow shadow-[6px_6px_0px_black] -translate-x-1 -translate-y-1" 
-                                : "bg-[#FCFBF8] shadow-[2px_2px_0px_rgba(0,0,0,0.05)]",
-                              hasMilestoneBorder && "ring-2 ring-brand-orange/30 ring-offset-2"
-                            )}
-                          >
-                            <div className="flex items-center gap-3 sm:gap-6 min-w-0">
-                              <span className={cn(
-                                "text-xl sm:text-4xl font-display font-black italic w-8 sm:w-16 shrink-0",
-                                rank <= 3 ? "text-brand-orange" : "text-on-surface/60"
-                              )}>
-                                #{rank}
-                              </span>
-                              <AvatarPreview 
-                                avatar={player.avatar || DEFAULT_AVATAR}
-                                size="sm"
-                                className="w-10 h-10 sm:w-16 sm:h-16 border-2 sm:border-4 border-on-surface rounded-xl sm:rounded-2xl transition-transform shrink-0"
-                              />
-                              <div className="text-left min-w-0">
-                                <h4 className="text-sm sm:text-2xl font-display font-black uppercase italic text-on-surface truncate">
-                                  {player.name}
-                                  {isMe && <span className="ml-1 text-xs sm:text-xs font-mono text-brand-orange uppercase">(YOU)</span>}
-                                </h4>
-                                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
-                                  <span className="border border-on-surface bg-white px-1.5 py-0.5 text-xs sm:text-xs font-mono font-black uppercase text-on-surface">
-                                    Level {playerLevel.level}
-                                  </span>
-                                  <span className="max-w-full truncate text-xs sm:text-xs font-mono font-black uppercase text-on-surface/60">
-                                    {playerTitle}
-                                  </span>
-                                  {rank === 1 && <LucideIcons.Crown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-brand-orange" />}
-                                </div>
-                                <p className="mt-1 truncate text-xs font-mono font-bold uppercase tracking-wide text-on-surface/60 sm:text-xs">
-                                  {player.fieldTypeName || 'Explorer'}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="flex flex-col items-end gap-1 sm:gap-2 shrink-0 ml-2">
-                              <div className="bg-on-surface text-white px-2 py-1 sm:px-5 sm:py-2 border-2 border-on-surface shadow-[2px_2px_0px_var(--color-brand-cyan)] sm:shadow-[4px_4px_0px_var(--color-brand-cyan)] font-display text-sm sm:text-2xl font-black italic">
-                                {player.weeklyXp} XP
-                              </div>
-                              <div className="flex items-center gap-1 px-1 opacity-40">
-                                 <LucideIcons.TrendingUp className="w-2 h-2 sm:w-3 sm:h-3" />
-                                 <span className="text-xs sm:text-xs font-mono font-black uppercase">Weekly Rank #{rank}</span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <BigBoardStandingsTable players={playerRankings} currentUserId={user?.uid} />
                   )}
                 </div>
               </div>
