@@ -25,6 +25,8 @@ import { MissionCard } from '../components/ChallengeCard';
 import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
 import { CommunityProofsFeed } from '../components/CommunityProofsFeed';
 import { getDeckProgress, getStarterProgress } from '../services/canonicalProgress';
+import { DECK_PACK_SORTS, isDeckPackSort, sortDeckPacks } from '../logic/deckSort';
+import type { DeckPackSort } from '../logic/deckSort';
 import { ZineWorkspace } from '../components/ZineWorkspace';
 import { GatedFeaturePanel } from '../components/GatedFeaturePanel';
 import { StickerMachine } from '../components/stickers/StickerMachine';
@@ -83,6 +85,28 @@ export default function CollectionPage() {
   const nearbyPackIds = useNearbyDeckPackIds();
   const starterProgress = getStarterProgress(canonicalProgress);
   const isStarterComplete = starterProgress.starterComplete;
+  // Nov 20, 2026: Dex Decks-tab sort. The choice persists per device so
+  // the catalog stays in the order the player picked.
+  const [deckSort, setDeckSort] = useState<DeckPackSort>(() => {
+    if (typeof window === 'undefined') return 'catalog';
+    const saved = window.localStorage.getItem('dex-deck-sort');
+    return isDeckPackSort(saved) ? saved : 'catalog';
+  });
+  const handleDeckSortChange = (value: string) => {
+    if (!isDeckPackSort(value)) return;
+    setDeckSort(value);
+    try { window.localStorage.setItem('dex-deck-sort', value); } catch { /* private mode: the sort still works for this visit */ }
+  };
+  // Progress per pack, so the Most/Least complete sorts have something to
+  // sort by. Sections keep their fixed order; packs reorder within them.
+  const deckProgressById: Record<string, number> = {};
+  for (const pack of activePacks) {
+    deckProgressById[pack.packId] = getDeckProgress(canonicalProgress, pack.packId).percent;
+  }
+  const deckSections = getDeckCatalogSections(activePacks, nearbyPackIds).map(section => ({
+    ...section,
+    packs: sortDeckPacks(section.packs, deckSort, deckProgressById),
+  }));
 
   const getPackLockState = (packId: string) => {
     const pack = activePacks.find(p => p.packId === packId);
@@ -373,7 +397,20 @@ export default function CollectionPage() {
               exit={{ opacity: 0, y: -15 }}
               className="space-y-10"
             >
-              {getDeckCatalogSections(activePacks, nearbyPackIds).map(section => (
+              <div className="flex items-center justify-end gap-2">
+                <label htmlFor="dex-deck-sort" className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">Sort</label>
+                <select
+                  id="dex-deck-sort"
+                  value={deckSort}
+                  onChange={(event) => handleDeckSortChange(event.target.value)}
+                  className="border-2 border-[var(--skin-border)] bg-[var(--skin-surface)] px-3 py-2 font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-text)] shadow-[3px_3px_0_var(--skin-border)] focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[var(--skin-focus)]"
+                >
+                  {DECK_PACK_SORTS.map(option => (
+                    <option key={option.id} value={option.id}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+              {deckSections.map(section => (
                 <section key={section.id} className="space-y-4">
                   <h2 className="font-display text-2xl sm:text-3xl font-black uppercase italic tracking-tight text-on-surface">
                     {section.label}
