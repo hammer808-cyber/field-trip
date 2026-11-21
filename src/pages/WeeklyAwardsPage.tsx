@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ChevronRight, Trophy, Sparkles, AlertCircle, Zap, Clock, Lock, BookOpen } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card } from '../components/UI';
@@ -10,6 +10,17 @@ import { WeeklySummary } from '../types/game';
 import { FieldPageHero } from '../components/FieldPageHero';
 import { EmptyStatePanel, FieldtripLoader } from '../components/FieldtripLoader';
 import { PlayerPageBody, PlayerPageShell } from '../components/player';
+import { WeeklyAwardsResults } from '../components/WeeklyAwardsResults';
+import { hasCanonicalWinners } from '../logic/weeklyCategoryBallots';
+import {
+  finalizeWeeklyResultsIfDue,
+  loadCanonicalWeeklyResults,
+  loadWeeklyCategoryBallots,
+  type CanonicalWeeklyResult,
+  type WeeklyCategoryBallotsReadModel,
+} from '../services/weeklyVotingService';
+import { getProofImageReference } from '../logic/proofDistribution';
+import type { WeeklyVoteCategory } from '../logic/weeklyVoting';
 
 const CATEGORIES = [
   { id: 'best_field_note', label: 'Best Story Note', description: 'A note that made the find feel weirdly important.', icon: BookOpen },
@@ -24,6 +35,28 @@ export default function WeeklyAwardsPage() {
   const { currentWeekNumber, activeSeason } = useApp();
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummary | null>(null);
   const [loading, setLoading] = useState(true);
+  // Slice 2: canonical results are the primary display for new weeks;
+  // the legacy weeklySummary stays as the fallback for old weeks.
+  const [canonicalResults, setCanonicalResults] = useState<Record<WeeklyVoteCategory, CanonicalWeeklyResult | null> | null>(null);
+  const [categoryBallots, setCategoryBallots] = useState<WeeklyCategoryBallotsReadModel | null>(null);
+  const finalizeAttemptedRef = useRef<Set<string>>(new Set());
+
+  const canonicalEntriesById = useMemo(() => {
+    const byId: Record<string, { entryId: string; tripTitle: string; fieldNote: string; proofImage: string }> = {};
+    for (const ballot of categoryBallots?.ballots || []) {
+      for (const nominee of ballot.nominees) {
+        const entryId = String(nominee.entryId || nominee.id || '');
+        if (!entryId || byId[entryId]) continue;
+        byId[entryId] = {
+          entryId,
+          tripTitle: String((nominee as any).tripTitle || (nominee as any).missionTitle || 'Field Receipt'),
+          fieldNote: String((nominee as any).fieldNote || (nominee as any).note || ''),
+          proofImage: getProofImageReference(nominee as any),
+        };
+      }
+    }
+    return byId;
+  }, [categoryBallots]);
 
   const [phase, setPhase] = useState(() => {
     const now = getServerDate();
@@ -50,6 +83,23 @@ export default function WeeklyAwardsPage() {
       try {
         const summary = await getWeeklySummary(activeSeason.id, currentWeekNumber);
         setWeeklySummary(summary);
+        // Slice 2: lazy finalize before rendering results, once per
+        // cycle per page load; a failed call never breaks the page.
+        const cycle = getCurrentVotingCycle(getServerDate(), undefined, activeSeason.id);
+        if (!finalizeAttemptedRef.current.has(cycle.id)) {
+          finalizeAttemptedRef.current.add(cycle.id);
+          await finalizeWeeklyResultsIfDue({ seasonId: activeSeason.id });
+        }
+        const [results, ballots] = await Promise.all([
+          loadCanonicalWeeklyResults(cycle.id),
+          loadWeeklyCategoryBallots({
+            seasonId: activeSeason.id,
+            weekNumber: currentWeekNumber,
+            now: getServerDate(),
+          }),
+        ]);
+        setCanonicalResults(results);
+        setCategoryBallots(ballots);
       } catch (err) {
         console.warn("[WeeklyAwardsPage] Failed to fetch weekly summary:", err);
       } finally {
@@ -59,7 +109,9 @@ export default function WeeklyAwardsPage() {
     loadData();
   }, [activeSeason?.id, currentWeekNumber]);
 
-  const hasWinnersReleased = phase === 'awards' && weeklySummary?.isLocked && weeklySummary?.voteWinners;
+  const hasCanonicalResults = canonicalResults ? hasCanonicalWinners(canonicalResults) : false;
+  const hasLegacyWinners = Boolean(weeklySummary?.isLocked && weeklySummary?.voteWinners && Object.keys(weeklySummary.voteWinners).length > 0);
+  const hasWinnersReleased = phase === 'awards' && (hasCanonicalResults || hasLegacyWinners);
 
   const statusLabel = hasWinnersReleased
     ? 'Results Released'
@@ -99,7 +151,17 @@ export default function WeeklyAwardsPage() {
             {loading ? (
               <FieldtripLoader variant="voting" label="Loading awards" showProgress />
             ) : hasWinnersReleased ? (
-              // Released View of Winners
+              // Slice 2: canonical results are the primary display for new
+              // weeks (one winner per award); the legacy grid below stays
+              // as the fallback for old weeks with only a weeklySummary.
+              hasCanonicalResults && canonicalResults ? (
+                <WeeklyAwardsResults
+                  results={canonicalResults}
+                  entriesById={canonicalEntriesById}
+                  legacyWinners={hasLegacyWinners ? (weeklySummary?.voteWinners as Record<string, { entryId?: unknown; userName?: unknown; tripTitle?: unknown; fieldNote?: unknown; proofImage?: unknown; count?: unknown }> | undefined) : null}
+                />
+              ) : (
+              // Released View of Winners (legacy)
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {CATEGORIES.map((cat, idx) => {
                   const winner = weeklySummary?.voteWinners?.[cat.id];
@@ -146,6 +208,7 @@ export default function WeeklyAwardsPage() {
                   );
                 })}
               </div>
+              )
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-6 items-stretch">
                 <Card className="p-6 sm:p-8 border-4 border-on-surface bg-white shadow-[8px_8px_0px_black] rounded-[1.5rem] relative overflow-hidden">

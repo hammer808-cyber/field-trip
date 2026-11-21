@@ -366,3 +366,84 @@ test('WeeklyCandidateMovePanel says so when no draft ballots exist yet', () => {
   );
   assert.match(html, /No draft ballots for the current week yet/);
 });
+
+// --- Wiring pins: the client actually calls the Slice 1 endpoints -----
+
+test('service: loadWeeklyCategoryBallots reads all six category ballots, one vote each', () => {
+  const service = read('src/services/weeklyVotingService.ts');
+  assert.match(service, /export async function loadWeeklyCategoryBallots/);
+  assert.match(service, /WEEKLY_VOTE_CATEGORIES\.map\(category =>/);
+  assert.match(service, /getWeeklyCategoryBallotId\(cycle\.id, category\)/);
+  assert.match(service, /`votingCycles\/\$\{cycleId\}\/ballots\/\$\{ballotId\}`/);
+  assert.match(service, /maxVotesPerVoter: 1/);
+});
+
+test('service: canonical results read votingCycles results docs, one winner per ballot', () => {
+  const service = read('src/services/weeklyVotingService.ts');
+  assert.match(service, /export async function loadCanonicalWeeklyResults/);
+  assert.match(service, /`votingCycles\/\$\{cycleId\}\/results\/\$\{ballotId\}`/);
+  assert.match(service, /isFinal: data\.isFinal === true/);
+});
+
+test('service: finalize-if-due never throws — a failed call logs and returns null', () => {
+  const service = read('src/services/weeklyVotingService.ts');
+  const fn = service.slice(
+    service.indexOf('export async function finalizeWeeklyResultsIfDue'),
+    service.indexOf('export interface MoveWeeklyCandidateInput'),
+  );
+  assert.match(fn, /\/api\/voting\/weekly\/finalize-if-due/);
+  assert.match(fn, /catch \(error\)/);
+  assert.match(fn, /return null/);
+  assert.ok(!fn.includes('throw new Error'), 'finalize-if-due must not throw on failure');
+});
+
+test('service: moveWeeklyCandidate posts to the admin move endpoint and throws the server error code', () => {
+  const service = read('src/services/weeklyVotingService.ts');
+  assert.match(service, /\/api\/admin\/voting\/move-candidate/);
+  assert.match(service, /export async function moveWeeklyCandidate/);
+});
+
+test('VotingHub: six per-award sections, canonical results, and finalize-if-due before results', () => {
+  const hub = read('src/components/VotingHub.tsx');
+  assert.match(hub, /loadWeeklyCategoryBallots\(\{/);
+  assert.match(hub, /finalizeWeeklyResultsIfDue\(\{ seasonId \}\)/);
+  assert.match(hub, /loadCanonicalWeeklyResults\(categoryModel\.cycleId\)/);
+  assert.match(hub, /WEEKLY_VOTE_CATEGORIES\.map\(category =>/);
+  assert.match(hub, /<WeeklyCategoryBallotSection/);
+  assert.match(hub, /<WeeklyAwardsResults/);
+  // Finalize runs before the results load in the same effect.
+  assert.ok(
+    hub.indexOf('finalizeWeeklyResultsIfDue') < hub.indexOf('loadCanonicalWeeklyResults'),
+    'finalize-if-due must run before results are read',
+  );
+  // Once per page load: a ref guards the call.
+  assert.match(hub, /finalizeAttemptedRef\.current/);
+  // One vote per award: the file call sends exactly the single pick.
+  assert.match(hub, /selectedProofIds: \[pick\]/);
+  // The legacy single-ballot load and its pinned calls stay intact as
+  // the fallback for weeks built before Slice 1.
+  assert.match(hub, /loadWeeklyBallot\(\{/);
+  assert.match(hub, /castCanonicalWeeklyVote\(\{/);
+});
+
+test('WeeklyAwardsPage: canonical results are primary, legacy summary stays as fallback', () => {
+  const page = read('src/pages/WeeklyAwardsPage.tsx');
+  assert.match(page, /loadCanonicalWeeklyResults\(cycle\.id\)/);
+  assert.match(page, /finalizeWeeklyResultsIfDue\(\{ seasonId: activeSeason\.id \}\)/);
+  assert.match(page, /<WeeklyAwardsResults/);
+  assert.match(page, /getWeeklySummary\(activeSeason\.id, currentWeekNumber\)/);
+  assert.match(page, /hasCanonicalResults && canonicalResults \?/);
+});
+
+test('AdminModeration: move UI extends the existing weekly-voting build section', () => {
+  const page = read('src/pages/AdminModeration.tsx');
+  assert.match(page, /<WeeklyCandidateMovePanel/);
+  assert.match(page, /moveWeeklyCandidate\(\{/);
+  assert.match(page, /getWeeklyCategoryBallotId\(cycleId, fromCategory\)/);
+  assert.match(page, /getWeeklyCategoryBallotId\(cycleId, toCategory\)/);
+  assert.match(page, /BALLOT_ALREADY_FROZEN/);
+  assert.match(page, /loadWeeklyCandidateBallots\(diagnostics\)/);
+  // No new admin page: the panel lives inside WeeklyVotingDiagnosticsPanel.
+  assert.match(page, /WeeklyVotingDiagnosticsPanel/);
+  assert.doesNotMatch(page, /function WeeklyCandidateMovePage/);
+});

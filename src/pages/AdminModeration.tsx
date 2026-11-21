@@ -13,9 +13,15 @@ import { getDisplayLabel } from '../utils/labelUtils';
 import { useLocation } from 'react-router-dom';
 import {
   buildCurrentWeeklyBallot,
+  loadWeeklyCategoryBallots,
+  moveWeeklyCandidate,
   previewWeeklyVotingDiagnostics,
+  type WeeklyCategoryBallotsReadModel,
   type WeeklyCycleDiagnostics,
 } from '../services/weeklyVotingService';
+import { getWeeklyCategoryBallotId } from '../logic/weeklyCategories';
+import type { WeeklyVoteCategory } from '../logic/weeklyVoting';
+import { WeeklyCandidateMovePanel } from '../components/WeeklyCandidateMovePanel';
 
 type AdminModerationView = 'reports' | 'sus' | 'fieldChecks' | 'communityFeedDiagnostics' | 'weeklyVotingDiagnostics' | 'tribunalDiagnostics' | 'audit';
 
@@ -56,6 +62,12 @@ export default function AdminModerationPage() {
   const [weeklyBallotBuildReason, setWeeklyBallotBuildReason] = useState('Generate current canonical weekly ballot');
   const [isScanningWeeklyVoting, setIsScanningWeeklyVoting] = useState(false);
   const [isBuildingWeeklyBallot, setIsBuildingWeeklyBallot] = useState(false);
+  // Slice 2: draft category ballots for the candidate move UI.
+  const [weeklyCategoryBallots, setWeeklyCategoryBallots] = useState<WeeklyCategoryBallotsReadModel | null>(null);
+  const [weeklyMoveReason, setWeeklyMoveReason] = useState('Move candidate to a better-fit award');
+  const [weeklyMoveMessage, setWeeklyMoveMessage] = useState<string | null>(null);
+  const [isMovingWeeklyCandidate, setIsMovingWeeklyCandidate] = useState(false);
+  const [isLoadingWeeklyCandidates, setIsLoadingWeeklyCandidates] = useState(false);
 
   useEffect(() => {
     setView(getRequestedView(location.search));
@@ -226,10 +238,27 @@ export default function AdminModerationPage() {
     }
   };
 
+  const loadWeeklyCandidateBallots = async (diagnostics: WeeklyCycleDiagnostics) => {
+    setIsLoadingWeeklyCandidates(true);
+    try {
+      setWeeklyCategoryBallots(await loadWeeklyCategoryBallots({
+        seasonId: diagnostics.seasonId,
+        weekNumber: diagnostics.weekNumber,
+        now: new Date(),
+      }));
+    } catch (err) {
+      console.warn('[AdminModeration] Weekly candidate ballots unavailable:', err);
+    } finally {
+      setIsLoadingWeeklyCandidates(false);
+    }
+  };
+
   const handlePreviewWeeklyVotingDiagnostics = async () => {
     setIsScanningWeeklyVoting(true);
     try {
-      setWeeklyVotingDiagnostics(await previewWeeklyVotingDiagnostics());
+      const diagnostics = await previewWeeklyVotingDiagnostics();
+      setWeeklyVotingDiagnostics(diagnostics);
+      await loadWeeklyCandidateBallots(diagnostics);
     } catch (err: any) {
       alert(`BUREAU_ERROR: Weekly Voting diagnostics failed. ${err.message || 'Unknown error'}`);
     } finally {
@@ -255,11 +284,50 @@ export default function AdminModerationPage() {
         reason: weeklyBallotBuildReason.trim(),
       });
       setWeeklyBallotBuildResult(result);
-      setWeeklyVotingDiagnostics(await previewWeeklyVotingDiagnostics());
+      const refreshed = await previewWeeklyVotingDiagnostics();
+      setWeeklyVotingDiagnostics(refreshed);
+      await loadWeeklyCandidateBallots(refreshed);
     } catch (err: any) {
       alert(`BUREAU_ERROR: Weekly ballot build failed. ${err.message || 'Unknown error'}`);
     } finally {
       setIsBuildingWeeklyBallot(false);
+    }
+  };
+
+  // Slice 2: move one candidate between two category ballots in the
+  // same week. Only while ballots are drafts — the server refuses once
+  // locked, and the refusal is surfaced plainly instead of swallowed.
+  const handleMoveWeeklyCandidate = async (
+    entryId: string,
+    fromCategory: WeeklyVoteCategory,
+    toCategory: WeeklyVoteCategory,
+  ) => {
+    if (!weeklyVotingDiagnostics) return;
+    if (weeklyMoveReason.trim().length < 5) {
+      setWeeklyMoveMessage('Add an admin reason of at least five characters before moving a candidate.');
+      return;
+    }
+    setIsMovingWeeklyCandidate(true);
+    setWeeklyMoveMessage(null);
+    try {
+      const cycleId = weeklyVotingDiagnostics.cycle.id;
+      await moveWeeklyCandidate({
+        seasonId: weeklyVotingDiagnostics.seasonId,
+        cycleId,
+        fromBallotId: getWeeklyCategoryBallotId(cycleId, fromCategory),
+        toBallotId: getWeeklyCategoryBallotId(cycleId, toCategory),
+        entryId,
+        reason: weeklyMoveReason.trim(),
+      });
+      setWeeklyMoveMessage(`Moved ${entryId} from ${fromCategory} to ${toCategory}.`);
+      await loadWeeklyCandidateBallots(weeklyVotingDiagnostics);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'WEEKLY_CANDIDATE_MOVE_FAILED';
+      setWeeklyMoveMessage(message === 'BALLOT_ALREADY_FROZEN'
+        ? 'Ballots are locked — moves are refused once the Saturday lock passes.'
+        : `Move failed: ${message}`);
+    } finally {
+      setIsMovingWeeklyCandidate(false);
     }
   };
 
@@ -340,6 +408,13 @@ export default function AdminModerationPage() {
           onBuildReasonChange={setWeeklyBallotBuildReason}
           onPreview={handlePreviewWeeklyVotingDiagnostics}
           onBuild={handleBuildCurrentWeeklyBallot}
+          categoryBallots={weeklyCategoryBallots}
+          isLoadingCandidates={isLoadingWeeklyCandidates}
+          moveReason={weeklyMoveReason}
+          moveMessage={weeklyMoveMessage}
+          isMovingCandidate={isMovingWeeklyCandidate}
+          onMoveReasonChange={setWeeklyMoveReason}
+          onMoveCandidate={handleMoveWeeklyCandidate}
         />
       ) : view === 'tribunalDiagnostics' ? (
         <TribunalDiagnosticsPanel
@@ -611,6 +686,13 @@ function WeeklyVotingDiagnosticsPanel({
   onBuildReasonChange,
   onPreview,
   onBuild,
+  categoryBallots,
+  isLoadingCandidates,
+  moveReason,
+  moveMessage,
+  isMovingCandidate,
+  onMoveReasonChange,
+  onMoveCandidate,
 }: {
   diagnostics: WeeklyCycleDiagnostics | null;
   buildResult: unknown;
@@ -620,6 +702,13 @@ function WeeklyVotingDiagnosticsPanel({
   onBuildReasonChange: (value: string) => void;
   onPreview: () => void;
   onBuild: () => void;
+  categoryBallots: WeeklyCategoryBallotsReadModel | null;
+  isLoadingCandidates: boolean;
+  moveReason: string;
+  moveMessage: string | null;
+  isMovingCandidate: boolean;
+  onMoveReasonChange: (value: string) => void;
+  onMoveCandidate: (entryId: string, fromCategory: WeeklyVoteCategory, toCategory: WeeklyVoteCategory) => void;
 }) {
   const formatPacific = (value: string | null) => value
     ? new Intl.DateTimeFormat('en-US', {
@@ -764,6 +853,22 @@ function WeeklyVotingDiagnosticsPanel({
               <p className="mb-2 text-[10px] font-black uppercase tracking-widest">Last server result</p>
               <pre className="whitespace-pre-wrap break-all bg-on-surface/[0.03] p-3 font-mono text-[10px]">{JSON.stringify(buildResult, null, 2)}</pre>
             </div>
+          )}
+
+          {/* Slice 2: move candidates between award ballots while drafts. */}
+          {isLoadingCandidates ? (
+            <div className="border-2 border-dashed border-on-surface/15 p-6 text-center">
+              <p className="font-mono text-xs uppercase tracking-widest opacity-50">Loading draft candidates…</p>
+            </div>
+          ) : (
+            <WeeklyCandidateMovePanel
+              ballots={categoryBallots?.ballots || []}
+              isMoving={isMovingCandidate}
+              moveReason={moveReason}
+              message={moveMessage}
+              onMoveReasonChange={onMoveReasonChange}
+              onMove={onMoveCandidate}
+            />
           )}
         </div>
       )}
