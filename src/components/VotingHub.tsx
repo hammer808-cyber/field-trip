@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Card } from './UI';
 import { FieldtripLoader } from './FieldtripLoader';
@@ -12,12 +12,24 @@ import { cn } from '../lib/utils';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { getServerDate } from '../services/timeService';
 import { getCurrentVotingCycle, getVotingPhase } from '../services/votingCycleService';
-import { getWeeklyBallotEmptyCopy, isWeeklyCandidateEligible, type WeeklyBallotEmptyReason } from '../logic/weeklyVoting';
+import { getWeeklyBallotEmptyCopy, isWeeklyCandidateEligible, WEEKLY_VOTE_CATEGORIES, type WeeklyBallotEmptyReason } from '../logic/weeklyVoting';
+import {
+  countCategoryPicks,
+  hasCategoryPickChanged,
+  replaceCategoryPick,
+} from '../logic/weeklyCategoryBallots';
 import {
   castCanonicalWeeklyVote,
+  finalizeWeeklyResultsIfDue,
+  loadCanonicalWeeklyResults,
   loadWeeklyBallot,
+  loadWeeklyCategoryBallots,
+  type CanonicalWeeklyResult,
   type WeeklyBallotReadModel,
+  type WeeklyCategoryBallotsReadModel,
 } from '../services/weeklyVotingService';
+import { WeeklyCategoryBallotSection } from './WeeklyCategoryBallotSection';
+import { WeeklyAwardsResults } from './WeeklyAwardsResults';
 import { getProofImageReference } from '../logic/proofDistribution';
 
 const CATEGORIES: { id: VoteCategory; label: string; description: string; awardLabel: string; awardCopy: string }[] = [
@@ -76,6 +88,15 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
   const [error, setError] = useState<string | null>(null);
   const [ballotReadModel, setBallotReadModel] = useState<WeeklyBallotReadModel | null>(null);
   const [canonicalDraftProofIds, setCanonicalDraftProofIds] = useState<string[]>([]);
+  // Slice 2: six per-award category ballots (one vote per award) and the
+  // canonical results for this cycle. The single-ballot model above stays
+  // as the legacy fallback for weeks built before Slice 1.
+  const [categoryBallots, setCategoryBallots] = useState<WeeklyCategoryBallotsReadModel | null>(null);
+  const [categoryDraftPicks, setCategoryDraftPicks] = useState<Partial<Record<VoteCategory, string>>>({});
+  const [categoryFiledPicks, setCategoryFiledPicks] = useState<Partial<Record<VoteCategory, string>>>({});
+  const [canonicalResults, setCanonicalResults] = useState<Record<VoteCategory, CanonicalWeeklyResult | null> | null>(null);
+  const finalizeAttemptedRef = useRef(false);
+  const categoryPicksCycleRef = useRef<string | null>(null);
 
   const mapCandidateToEntry = (candidate: any): Entry => {
     const tripId = candidate.tripId || candidate.missionId || candidate.challengeId || '';
@@ -146,6 +167,35 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
         }
 
         const seasonId = activeSeason?.id || 'heatwave-receipts';
+
+        // Slice 2: lazy finalize runs once per page load, before results
+        // render, so a closed voting window publishes on first view. The
+        // call never throws — a failure just leaves results unpublished.
+        if (user?.uid && !finalizeAttemptedRef.current) {
+          finalizeAttemptedRef.current = true;
+          await finalizeWeeklyResultsIfDue({ seasonId });
+        }
+
+        const categoryModel = await loadWeeklyCategoryBallots({
+          seasonId,
+          weekNumber: currentWeekNumber,
+          now: getServerDate(),
+          userId: user?.uid,
+        });
+        setCategoryBallots(categoryModel);
+        const filedPicks: Partial<Record<VoteCategory, string>> = {};
+        for (const ballot of categoryModel.ballots) {
+          const filed = ballot.existingSelectedProofIds[0];
+          if (filed) filedPicks[ballot.category] = filed;
+        }
+        setCategoryFiledPicks(filedPicks);
+        // Draft picks start from the filed picks for a new cycle; a
+        // re-load (phase change) must not wipe an in-progress draft.
+        if (categoryPicksCycleRef.current !== categoryModel.cycleId) {
+          categoryPicksCycleRef.current = categoryModel.cycleId;
+          setCategoryDraftPicks(filedPicks);
+        }
+
         const ballotModel = await loadWeeklyBallot({
           seasonId,
           weekNumber: currentWeekNumber,
@@ -159,6 +209,7 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
         setEligibleEntries(fetchedCandidates);
 
         if (isLocked) {
+          setCanonicalResults(await loadCanonicalWeeklyResults(categoryModel.cycleId));
           const userIsAdmin = user?.email?.includes('admin');
           if (Object.keys(winnerMap).length === 0 && userIsAdmin) {
             for (const cat of CATEGORIES) {
@@ -212,9 +263,80 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
   const canonicalVotableEntries = eligibleEntries.filter(entry => entry.userId !== user?.uid);
   const canonicalExistingProofIds = ballotReadModel?.existingSelectedProofIds || [];
   const canonicalHasChanges = [...canonicalDraftProofIds].sort().join('|') !== [...canonicalExistingProofIds].sort().join('|');
-  const displayedVoteCount = isCanonicalBallot ? canonicalDraftProofIds.length : filedOrDraftCount;
-  const displayedVoteLimit = isCanonicalBallot ? canonicalMaxVotes : CATEGORIES.length;
+
+  // Slice 2: six per-award ballots. When at least one category ballot
+  // exists, it is the ballot UI; the single-ballot and legacy branches
+  // below stay as the fallback for older weeks.
+  const isSixBallotMode = !!categoryBallots?.anyBallotExists;
+  const sixBallotEntries = useMemo(() => {
+    if (!categoryBallots) return [] as Entry[];
+    const seen = new Set<string>();
+    const entries: Entry[] = [];
+    for (const ballot of categoryBallots.ballots) {
+      for (const nominee of ballot.nominees) {
+        const entry = mapCandidateToEntry(nominee);
+        const id = String((entry as any).entryId || entry.id);
+        if (seen.has(id)) continue;
+        seen.add(id);
+        entries.push(entry);
+      }
+    }
+    return entries;
+  }, [categoryBallots]);
+  const sixBallotEntriesById = useMemo(
+    () => Object.fromEntries(sixBallotEntries.map(entry => [String((entry as any).entryId || entry.id), entry])),
+    [sixBallotEntries],
+  );
+  const sixBallotPickCount = countCategoryPicks(categoryDraftPicks);
+  const hasLegacyWinners = Object.keys(winners).length > 0;
+
+  const displayedVoteCount = isSixBallotMode ? sixBallotPickCount : isCanonicalBallot ? canonicalDraftProofIds.length : filedOrDraftCount;
+  const displayedVoteLimit = isSixBallotMode ? CATEGORIES.length : isCanonicalBallot ? canonicalMaxVotes : CATEGORIES.length;
   const displayedRemainingCount = Math.max(0, displayedVoteLimit - displayedVoteCount);
+
+  // Slice 2: one vote per award. Picking a different photo in the same
+  // award REPLACES the pick; filing sends the single pick to that
+  // award's canonical ballot (replaceable via merge-set on the server).
+  const selectCategoryPick = (categoryId: VoteCategory, entryId: string) => {
+    if (!isVotingOpen || !isSixBallotMode) return;
+    setCategoryDraftPicks(previous => replaceCategoryPick(previous, categoryId, entryId));
+    setFiledCelebration(false);
+  };
+
+  const fileCategoryVote = async (categoryId: VoteCategory) => {
+    const ballot = categoryBallots?.ballots.find(candidate => candidate.category === categoryId);
+    const pick = categoryDraftPicks[categoryId];
+    if (!user || !categoryBallots || !ballot || !pick || !isVotingOpen) return;
+    setIsFilingVotes(true);
+    setError(null);
+    try {
+      await castCanonicalWeeklyVote({
+        cycleId: categoryBallots.cycleId,
+        ballotId: ballot.ballotId,
+        selectedProofIds: [pick],
+      });
+      setCategoryFiledPicks(previous => ({ ...previous, [categoryId]: pick }));
+      setCategoryBallots(current => current ? {
+        ...current,
+        ballots: current.ballots.map(candidate => candidate.category === categoryId
+          ? { ...candidate, existingSelectedProofIds: [pick] }
+          : candidate),
+      } : current);
+      setFiledCelebration(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'WEEKLY_VOTE_FAILED';
+      console.error('Category ballot filing failed:', err);
+      setError(message === 'SELF_VOTE_PROHIBITED'
+        ? 'You cannot vote for your own receipt.'
+        : message === 'VOTING_WINDOW_CLOSED' || message === 'BALLOT_NOT_OPEN'
+          ? 'The voting window is closed.'
+          : message === 'PROOF_NOT_IN_BALLOT'
+            ? 'One selection is no longer eligible. Refresh the ballot and try again.'
+            : 'Your ballot did not file. Please try again.');
+    } finally {
+      setIsFilingVotes(false);
+    }
+  };
 
   const toggleCanonicalProof = (entryId: string) => {
     if (!isVotingOpen || !isCanonicalBallot) return;
@@ -333,10 +455,26 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
               {displayedRemainingCount === 0 ? 'Your ballot is ready.' : `${displayedRemainingCount} more legend${displayedRemainingCount === 1 ? '' : 's'} to recognize.`}
             </p>
             <div
-              className={cn("mt-4 grid gap-1.5", isCanonicalBallot ? "grid-cols-3" : "grid-cols-6")}
+              className={cn("mt-4 grid gap-1.5", isSixBallotMode || !isCanonicalBallot ? "grid-cols-6" : "grid-cols-3")}
               aria-label={`${displayedVoteCount} of ${displayedVoteLimit} ballot selections`}
             >
-              {isCanonicalBallot
+              {isSixBallotMode
+                ? CATEGORIES.map(category => {
+                  const picked = !!categoryDraftPicks[category.id];
+                  return (
+                    <div
+                      key={`six-ballot-slot-${category.id}`}
+                      className={cn(
+                        "h-10 border-2 border-on-surface shadow-[2px_2px_0px_black] flex items-center justify-center",
+                        picked ? "bg-brand-lime" : "bg-paper"
+                      )}
+                      aria-label={`${getCategoryMeta(category.id).awardLabel}: ${picked ? 'picked' : 'not picked'}`}
+                    >
+                      {picked ? <Check className="h-4 w-4" /> : <Ticket className="h-4 w-4 opacity-30" />}
+                    </div>
+                  );
+                })
+                : isCanonicalBallot
                 ? Array.from({ length: displayedVoteLimit }, (_, index) => (
                   <div
                     key={`canonical-slot-${index}`}
@@ -379,7 +517,76 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
           </div>
         )}
 
-        {isCanonicalBallot ? (
+        {isSixBallotMode ? (
+          <div className="space-y-8">
+            {loading ? (
+              <FieldtripLoader
+                variant="voting"
+                label="Opening Field Awards"
+                estimatedStep="BALLOT BOX"
+                compact
+                showProgress
+              />
+            ) : isLocked ? (
+              <section className="space-y-4">
+                <div className="relative overflow-hidden border-4 border-on-surface bg-paper p-5 shadow-[8px_8px_0px_black]">
+                  <p className="font-mono text-xs font-black uppercase tracking-[0.25em] text-brand-orange">Stamp Reveal</p>
+                  <h3 className="mt-2 font-display text-4xl font-black italic uppercase leading-none tracking-tighter sm:text-6xl">This Week&apos;s Winners</h3>
+                  <p className="mt-2 font-serif italic text-on-surface/65">One winner per award, from the canonical results.</p>
+                </div>
+                <WeeklyAwardsResults
+                  results={canonicalResults || {}}
+                  entriesById={sixBallotEntriesById}
+                  legacyWinners={hasLegacyWinners ? winners : null}
+                />
+              </section>
+            ) : !isVotingOpen ? (
+              <ClosedState phase={phase} filedVoteCount={sixBallotPickCount} />
+            ) : (
+              <>
+                <div className="border-4 border-on-surface bg-[#fff7e8] p-4 shadow-[8px_8px_0px_black]">
+                  <p className="font-serif italic text-on-surface/75">
+                    One vote per award — pick one photo in each booth. Changing your pick in an award replaces it;
+                    file each award to count it. You can update a filed vote until Saturday at 11:59 PM Pacific.
+                  </p>
+                </div>
+                {WEEKLY_VOTE_CATEGORIES.map(category => {
+                  const ballot = categoryBallots?.ballots.find(candidate => candidate.category === category);
+                  const nominees = (ballot?.nominees || [])
+                    .map(mapCandidateToEntry)
+                    .filter(entry => entry.userId !== user?.uid);
+                  if (ballot && ballot.reason !== 'ready' && nominees.length === 0) {
+                    return <EmptyState key={category} reason={ballot.reason} />;
+                  }
+                  return (
+                    <WeeklyCategoryBallotSection
+                      key={category}
+                      category={category}
+                      candidates={nominees}
+                      selectedEntryId={categoryDraftPicks[category] ?? null}
+                      filedEntryId={categoryFiledPicks[category] ?? null}
+                      isVotingOpen={isVotingOpen}
+                      isFiling={isFilingVotes}
+                      hasChanges={hasCategoryPickChanged(categoryDraftPicks, categoryFiledPicks, category)}
+                      onSelect={entryId => selectCategoryPick(category, entryId)}
+                      onFile={() => fileCategoryVote(category)}
+                    />
+                  );
+                })}
+                {filedCelebration && (
+                  <motion.div
+                    initial={{ y: -8, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    className="border-4 border-on-surface bg-on-surface p-4 text-white shadow-[6px_6px_0px_var(--color-brand-lime)]"
+                  >
+                    <p className="font-display text-3xl font-black italic uppercase leading-none">Ballot filed.</p>
+                    <p className="mt-2 font-serif italic text-white/70">Your pick is on record. You may update it until voting closes.</p>
+                  </motion.div>
+                )}
+              </>
+            )}
+          </div>
+        ) : isCanonicalBallot ? (
           <CanonicalWeeklyBallot
             model={ballotReadModel}
             entries={canonicalVotableEntries}

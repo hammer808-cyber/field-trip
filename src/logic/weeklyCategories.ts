@@ -231,3 +231,61 @@ export function buildWeeklyCategoryBallotPlan(input: {
     entryIds: byCategory.get(category)!,
   }));
 }
+
+/**
+ * Display metadata for the six accolades (Slice 2, Nov 21, 2026).
+ * Client-side labels only — the same copy VotingHub already used for
+ * its award booths, centralized here so the ballot sections, the
+ * results view, and the admin move UI all label the same award the
+ * same way. `label` is the category name, `awardLabel` is the
+ * booth/award headline, `awardCopy` is the one-line judging brief.
+ */
+export interface WeeklyCategoryDisplay {
+  label: string;
+  awardLabel: string;
+  description: string;
+  awardCopy: string;
+}
+
+export const WEEKLY_CATEGORY_DISPLAY: Record<WeeklyVoteCategory, WeeklyCategoryDisplay> = {
+  best_field_note: {
+    label: 'Best Field Note',
+    awardLabel: 'Best Supporting Evidence',
+    description: 'Profound or evocative field commentary.',
+    awardCopy: 'For a field note, photo, or tiny detail doing the most.',
+  },
+  best_photo_proof: {
+    label: 'Best Photo Proof',
+    awardLabel: 'Main Character Moment',
+    description: 'Exceptional visual composition and clarity.',
+    awardCopy: 'For the proof that understood the assignment.',
+  },
+  most_legendary_errand: {
+    label: 'Most Legendary Errand',
+    awardLabel: 'Off The Beaten Path',
+    description: 'Completing an errand of mythical proportions.',
+    awardCopy: 'For finding something nobody else would have noticed.',
+  },
+  goblin_energy_award: {
+    label: 'Goblin Energy Award',
+    awardLabel: 'Chaos With Intent',
+    description: 'Exceptional speed, chaotic creativity, or frantic vibes.',
+    awardCopy: 'For the beautifully unplanned receipt.',
+  },
+  cleanest_completion: {
+    label: 'Cleanest Completion',
+    awardLabel: 'Receipt Verified',
+    description: 'Peerless professionalism and absolute alignment with the rules.',
+    awardCopy: 'For the cleanest proof, sharpest details, and least suspicious paperwork.',
+  },
+  underdog_award: {
+    label: 'Underdog Award',
+    awardLabel: 'Crew Favorite',
+    description: 'Remarkable resilience or courage under pressure.',
+    awardCopy: 'For the one that made the group chat stop scrolling.',
+  },
+};
+
+export function getWeeklyCategoryDisplay(category: WeeklyVoteCategory): WeeklyCategoryDisplay {
+  return WEEKLY_CATEGORY_DISPLAY[category];
+}
