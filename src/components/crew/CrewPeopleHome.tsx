@@ -5,6 +5,7 @@ import { useApp } from '../../context/AppContext';
 import { FIELD_TYPES, FIELD_TYPE_ALIASES, type FieldTypeId } from '../../constants/fieldTypes';
 import {
   acceptCrewRequest,
+  cancelCrewRequest,
   declineCrewRequest,
   getCommunitySpotlight,
   removeCrewMemberConnection,
@@ -69,6 +70,7 @@ function PlayerCard({
   onAdd,
   onAccept,
   onDecline,
+  onCancel,
   onRemove,
   onOpen,
 }: {
@@ -78,6 +80,7 @@ function PlayerCard({
   onAdd?: () => void;
   onAccept?: () => void;
   onDecline?: () => void;
+  onCancel?: () => void;
   onRemove?: () => void;
   onOpen: () => void;
 }) {
@@ -101,7 +104,14 @@ function PlayerCard({
           </button>
         )}
         {relationship === 'outgoing_request' && (
-          <span className="font-mono text-xs font-black uppercase tracking-widest border-2 border-on-surface px-2.5 py-1.5">Request Sent</span>
+          <>
+            <span className="font-mono text-xs font-black uppercase tracking-widest border-2 border-on-surface px-2.5 py-1.5">Request Sent</span>
+            {onCancel && (
+              <button type="button" disabled={busy} onClick={onCancel} className="bureau-btn-sm bg-white text-on-surface">
+                <X className="w-4 h-4" /> Cancel
+              </button>
+            )}
+          </>
         )}
         {relationship === 'incoming_request' && (
           <>
@@ -249,7 +259,8 @@ export function CrewPeopleHome() {
               key={player.userId}
               player={player}
               relationship="outgoing_request"
-              busy={false}
+              busy={busyId === player.userId}
+              onCancel={() => run(player.userId, () => cancelCrewRequest(player.userId))}
               onOpen={() => navigate(`/players/${encodeURIComponent(player.username || player.userId)}`)}
             />
           ))}
@@ -284,6 +295,7 @@ export function CrewPeopleHome() {
               onAdd={() => run(player.userId, () => sendCrewRequest({ userId: player.userId, username: player.username || undefined }))}
               onAccept={() => run(player.userId, () => acceptCrewRequest(player.userId))}
               onDecline={() => run(player.userId, () => declineCrewRequest(player.userId))}
+              onCancel={() => run(player.userId, () => cancelCrewRequest(player.userId))}
               onRemove={() => run(player.userId, () => removeCrewMemberConnection(player.userId))}
               onOpen={() => navigate(`/players/${encodeURIComponent(player.username || player.userId)}`)}
             />
@@ -303,6 +315,7 @@ export function CrewPeopleHome() {
             relationship={relationshipFor(player.userId)}
             busy={busyId === player.userId}
             onAdd={() => run(player.userId, () => sendCrewRequest({ userId: player.userId, username: player.username || undefined }))}
+            onCancel={() => run(player.userId, () => cancelCrewRequest(player.userId))}
             onOpen={() => navigate(`/players/${encodeURIComponent(player.username || player.userId)}`)}
           />
         ))}
