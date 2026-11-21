@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { ALL_CHALLENGE_CARDS } from '../data/allChallengeBanks';
 import { PLAIN_CARD_COPY } from '../data/plainCardCopy';
@@ -53,4 +56,17 @@ test('plain titles stay short and concrete (max 6 words)', () => {
     const words = copy.plainTitle.trim().split(/\s+/);
     assert.ok(words.length <= 6, `${id}: plainTitle "${copy.plainTitle}" has ${words.length} words`);
   }
+});
+
+test('Missions page: the Simple Words switch is a slim row at the bottom, visible in both states', () => {
+  // Nov 20, 2026 (Zach's call): the switch used to sit above the deck and
+  // only render while off, so turning it on made it vanish and it could
+  // only be turned back off from Settings. It now lives at the very
+  // bottom as one slim row, always rendered.
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const deckSource = fs.readFileSync(path.join(__dirname, '../pages/Deck.tsx'), 'utf8');
+  assert.ok(deckSource.includes('<FrankieModeCard slim />'), 'expected the slim switch at the bottom of the Missions page');
+  assert.ok(!deckSource.includes('{!frankieMode && ('), 'the switch must not hide when Simple Words is on');
+  const cardSource = fs.readFileSync(path.join(__dirname, '../components/FrankieModeCard.tsx'), 'utf8');
+  assert.ok(cardSource.includes('slim'), 'expected a slim variant on FrankieModeCard');
 });

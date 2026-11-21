@@ -7,6 +7,10 @@
 // ONE-OFF LIFT (Nov 20, 2026, Zach's call — earn-audit fix #3, Q2):
 // Scene Starter's first_draw evaluation hook lives in AppContext
 // drawTrip, not this file; this comment is the only change here.
+// ONE-OFF LIFT (Nov 20, 2026, Zach's call): the Simple Words
+// (FrankieModeCard) switch moved from above the deck to a slim
+// always-visible row at the very bottom of this page — it used to hide
+// when on, so it couldn't be turned back off from here.
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import { useApp } from '../context/AppContext';
@@ -988,12 +992,6 @@ export default function DeckPage() {
           />
         </div>
 
-        {!frankieMode && (
-          <div className="mb-6">
-            <FrankieModeCard compact />
-          </div>
-        )}
-
         <main className="min-w-0 space-y-6">
             {savedForLaterNotice && (
               <div className="mb-4 border-2 border-[var(--skin-border)] bg-[var(--skin-secondary)] px-4 py-3 font-sans text-sm font-bold text-[var(--skin-text)]" role="status">
@@ -1351,6 +1349,14 @@ export default function DeckPage() {
             <DeckLibrary allChallenges={browseChallenges as any} />
           </section>
         )}
+
+        {/* Nov 20, 2026 (Zach's call): the Simple Words switch lives down
+            here as one slim row, always visible in both states — it used to
+            sit above the deck and only render while off, so turning it on
+            made it vanish and it couldn't be turned back off from this page. */}
+        <div className="mt-8">
+          <FrankieModeCard slim />
+        </div>
       </div>
 
 

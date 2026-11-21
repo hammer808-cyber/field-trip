@@ -13,8 +13,44 @@ import { cn } from '../lib/utils';
  * Turning it on: plain titles/descriptions/directions on every card (see
  * src/data/plainCardCopy.ts), calmer screens, fewer effects.
  */
-export function FrankieModeCard({ compact = false }: { compact?: boolean }) {
+export function FrankieModeCard({ compact = false, slim = false }: { compact?: boolean; slim?: boolean }) {
   const { frankieMode, setFrankieMode } = useTheme();
+
+  // Slim (Nov 20, 2026 — Zach's call): one small row for the bottom of the
+  // Missions page. It renders in both states, so it never vanishes when
+  // turned on and can be turned back off right there.
+  if (slim) {
+    return (
+      <section
+        aria-label="Simple words setting"
+        className="border-2 border-on-surface bg-white px-3 py-2 shadow-[3px_3px_0px_black]"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <p className="font-mono text-xs font-black uppercase tracking-widest">
+            Simple Words <span className="text-on-surface/60">· {frankieMode ? 'On' : 'Off'}</span>
+          </p>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={frankieMode}
+            aria-label="Turn Simple Words on or off"
+            onClick={() => setFrankieMode(!frankieMode)}
+            className={cn(
+              'relative h-8 w-14 shrink-0 border-2 border-on-surface p-0.5 transition-colors',
+              frankieMode ? 'bg-brand-lime' : 'bg-on-surface/10'
+            )}
+          >
+            <span
+              className={cn(
+                'block h-5 w-5 border-2 border-on-surface bg-white transition-transform',
+                frankieMode && 'translate-x-6'
+              )}
+            />
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section
