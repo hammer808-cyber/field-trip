@@ -35,6 +35,12 @@ export type FieldPageHeroProps = {
   /** Tighter hero padding, Basecamp-scoped (Nov 17, 2026): the hero is
    *  shared by a dozen pages, so the trim is a prop, not a global change. */
   compact?: boolean;
+  /** Folder attach (Nov 21, 2026, Dex): drop the hero's bottom border
+   *  so the tab strip meets the folder body below it with no gap —
+   *  the active tab reads as part of the folder, not a floating
+   *  strip. The page pairs this with a zero top padding on its body
+   *  (`.ft-dept-body--folder-tabs`). */
+  flushTabs?: boolean;
   department?: PlayerDepartment;
   tone?: "paper" | "chrome";
   className?: string;
@@ -59,6 +65,7 @@ export function FieldPageHero({
   onTabChange,
   variant = "default",
   compact = false,
+  flushTabs = false,
   department,
   tone = "paper",
   className
@@ -86,7 +93,8 @@ export function FieldPageHero({
   if (variant === 'editorial') {
     return (
       <header className={cn(
-        'ft-page-hero ft-page-hero--editorial relative overflow-hidden border-b-4 px-4 pt-7 sm:px-6 sm:pt-9',
+        'ft-page-hero ft-page-hero--editorial relative overflow-hidden px-4 pt-7 sm:px-6 sm:pt-9',
+        flushTabs ? 'border-b-0' : 'border-b-4',
         chrome
           ? 'border-[var(--skin-secondary)] bg-[#141414] text-white'
           : 'border-[var(--skin-border)] bg-[var(--skin-surface)] text-[var(--skin-text)]',

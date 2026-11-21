@@ -165,3 +165,84 @@ next-action panel) as the mock's taped journal card:
 - BADGES → LEVEL column swap (no per-player badge count exists).
 - Trevor's Log shows the latest approved proof, not a Trevor line
   (the line already shows on Basecamp).
+
+## Round 2 — Dex folder finish + stamps / pen-marks layer (Nov 21, 2026)
+
+### Piece 5 — Dex as file folders
+
+Round 1 did the tab strip; the strip floated — the hero's bottom
+border plus the body's 20px top padding left a gap between the tabs
+and the content panel, so nothing read as a folder. Now the Dex hero
+passes `flushTabs` (new `FieldPageHero` prop, editorial only,
+default off — every other page keeps its border) and the body uses
+`.ft-dept-body--folder-tabs` (`padding-top: 0`, in
+`departments.css`). The content panel is the folder body
+(`data-testid="dex-folder-body"`): the active tab's bottom edge
+meets the panel's top border directly. The active tab stays lime —
+a coloured tab on a manila folder, not a same-paper tab. No back
+panel peeking above the body was added: it would have covered the
+bottom of the (interactive) tab strip.
+
+### Piece 6 — FieldDoodles (`src/components/FieldDoodles.tsx`)
+
+Shared decorative layer: FieldStamps + hand-drawn pen marks
+(SVG only, no words), mounted on Basecamp, Dex, Profile, and Big
+Board. Deterministic placement: positions/rotations come from a
+tiny FNV-1a hash of the page key, never a random call at render.
+Pen marks are graphical only — a hand-drawn circle around the
+first stamp, a squiggle underline beneath the second, a checkmark
+and an arrow in the margins pointing at the content column. They
+circle/underline real content; they never invent words. No
+handwriting font is used: with no words to set, the marks are pure
+SVG paths; Kalam / Permanent Marker stay in the font stack for
+future use.
+
+Placement rule (no overlap with controls, by construction): the
+layer is `hidden lg:block`, absolute over the page, `aria-hidden`
++ `pointer-events-none`, and holds only two clusters. (1) The stamp
+cluster sits in the top-right corner (`right-3 top-3`): on all
+four pages the hero's top-right holds only the faint background
+icon (title left, back button left/in-flow, info card anchored to
+the hero's bottom edge). (2) The margin pen marks sit in the empty
+side gutters at mid-page (`hidden 2xl:block`): at 2xl every
+mounting page has a centred content column, so the gutters are
+>= 128px of empty paper and a ~24px mark cannot reach the content.
+There are deliberately NO bottom-corner elements: no mounting page
+guarantees empty bottom padding, so a bottom stamp could land on a
+real button.
+
+Stamps are passed in by the mounting page and must be true there:
+Basecamp `MISSION LOG` + `TREVOR'S LOG` (both cards render on the
+page); Dex `COLLECTED` (always >= 1 — the classic skin is unlocked
+by default) + `FILED` (the folder's own stamp); Profile `SCOUT` +
+`LEVEL n` (the real level, also in the info card — the kit's
+stamp-duplicates-plain-text pattern, as with 1ST); Big Board
+`RANKED` only when the board has anyone to rank, `1ST` only when
+the viewer is actually rank 1. Big Board mounts the `chrome`
+variant: dark hero, so pen strokes use `--skin-surface` and both
+stamps stay primary orange (dark-ink text would vanish on dark
+paper).
+
+Mounting notes: the three shell pages pass `relative` through
+`PlayerPageShell`'s `className` (per-page, no shared change);
+Basecamp's root div gets `relative` the same way. Checked before
+adding it: the four pages' own absolutely-positioned elements all
+sit inside `relative` parents (Profile's avatar badge and stat
+icons, Big Board's cards; Basecamp has none in its own source;
+Dex's live inside its `relative` main), so nothing re-anchors —
+except Big Board's `HibiscusDecor`, which is dead code (defined,
+never rendered).
+
+### Verification
+
+- Unit: `src/__tests__/fieldManualChromeRound2.test.tsx` (16
+  tests) — folder pins, seed/placement determinism and bounds, no
+  random call, no hex (P2-1), layer aria-hidden + pointer-events-
+  none + `hidden lg:block`, stamps reuse the kit, pen marks are
+  four SVGs and the layer's only text is the stamp labels, margin
+  marks gated to 2xl, chrome variant uses the surface token, all
+  four mounts with their true labels.
+- Live: browser + phone eyeball still owed — the layer is
+  `hidden` below lg, so phones see no doodles by design; the
+  desktop corner cluster and the Dex folder attach need eyes on.
+

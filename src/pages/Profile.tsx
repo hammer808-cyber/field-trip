@@ -41,6 +41,7 @@ import {
 import { updateFeedPrivacy } from '../services/userService';
 import { uploadBase64Image } from '../services/storageService';
 import { FieldPageHero } from '../components/FieldPageHero';
+import { FieldDoodles } from '../components/FieldDoodles';
 import { StreakChip } from '../components/StreakChip';
 import { LevelTrailMap } from '../components/LevelTrailMap';
 import { EmptyStatePanel } from '../components/FieldtripLoader';
@@ -243,7 +244,17 @@ export default function ProfilePage() {
   };
 
   return (
-    <PlayerPageShell department={activeTab === 'history' ? 'logbook' : activeTab === 'settings' ? 'settings' : 'profile'} className="skin-profile skin-logbook">
+    <PlayerPageShell department={activeTab === 'history' ? 'logbook' : activeTab === 'settings' ? 'settings' : 'profile'} className="skin-profile skin-logbook relative">
+      <FieldDoodles
+        pageKey="profile"
+        stamps={[
+          // SCOUT is what the app calls the player; LEVEL n is the
+          // real level, also shown in the info card below (the kit's
+          // stamp-duplicates-plain-text pattern, as with 1ST).
+          { label: 'SCOUT', tone: 'primary' },
+          { label: `LEVEL ${level}`, tone: 'text' },
+        ]}
+      />
       <FieldPageHero
         variant="editorial"
         department={activeTab === 'history' ? 'logbook' : activeTab === 'settings' ? 'settings' : 'profile'}

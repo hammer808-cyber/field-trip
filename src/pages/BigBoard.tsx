@@ -55,6 +55,7 @@ import { MARKER_STICKERS } from "../data/markers";
 import { TabbedSection } from "../components/TabbedSection";
 import { SeasonTokenRaceCard } from "../components/TokenHatchGrid";
 import { FieldPageHero } from "../components/FieldPageHero";
+import { FieldDoodles, type FieldDoodleStamp } from "../components/FieldDoodles";
 import { EmptyStatePanel } from "../components/FieldtripLoader";
 import { PlayerPageBody, PlayerPageShell } from "../components/player";
 import { StickerBackground } from "../components/StickerBackground";
@@ -897,6 +898,16 @@ export default function BigBoardPage() {
   const userWeeklyRank =
     playerRankings.findIndex((u: any) => u.id === user?.uid) + 1;
 
+  // Doodle stamps (Nov 21, 2026): only labels that are true on this
+  // page. RANKED when the board has anyone to rank; 1ST only when
+  // the viewer is actually rank 1. Chrome variant: dark hero, so the
+  // pen strokes use the light surface token and both stamps stay
+  // primary orange (dark-ink text would vanish on dark paper).
+  const boardDoodleStamps: FieldDoodleStamp[] = [
+    ...(playerRankings.length > 0 ? [{ label: 'RANKED', tone: 'primary' as const }] : []),
+    ...(userWeeklyRank === 1 ? [{ label: '1ST', tone: 'primary' as const }] : []),
+  ];
+
   const communityFeedProofs = useMemo(() => {
     let list = dedupeCommunityFeedProofs(publicProofs.filter(entry => isVisibleInSocialFeed(entry, {
       viewerUserId: user?.uid || '',
@@ -947,7 +958,8 @@ export default function BigBoardPage() {
   }, [communityFeedProofs.length, canonicalProgress, user?.uid]);
 
   return (
-    <PlayerPageShell department="board" className="skin-board">
+    <PlayerPageShell department="board" className="skin-board relative">
+      <FieldDoodles pageKey="board" variant="chrome" stamps={boardDoodleStamps} />
       <FieldPageHero
         variant="editorial"
         department="board"

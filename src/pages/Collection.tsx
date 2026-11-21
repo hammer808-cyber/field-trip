@@ -17,6 +17,7 @@ import {
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { FieldBadge } from '../components/UI';
+import { FieldDoodles } from '../components/FieldDoodles';
 import { useTheme } from '../context/ThemeContext';
 import { getDeckCatalogSections, getDeckPackById, getDefaultDeckPack, getActiveDeckPacks, normalizeDeckPackId } from '../data/deckPacks';
 import { useNearbyDeckPackIds } from '../hooks/useNearbyDeckPackIds';
@@ -247,9 +248,20 @@ export default function CollectionPage() {
   );
 
   return (
-    <PlayerPageShell department="dex" className="skin-memories">
+    <PlayerPageShell department="dex" className="skin-memories relative">
+      <FieldDoodles
+        pageKey="dex"
+        stamps={[
+          // COLLECTED is data-true: the classic skin is unlocked by
+          // default, so totalUnlocked is always >= 1. FILED is the
+          // folder's own stamp — the Dex is the collection file.
+          { label: 'COLLECTED', tone: 'primary' },
+          { label: 'FILED', tone: 'text' },
+        ]}
+      />
       <FieldPageHero
         variant="editorial"
+        flushTabs
         department="dex"
         eyebrow="Collector cabinet"
         title="DEX"
@@ -270,8 +282,13 @@ export default function CollectionPage() {
         onTabChange={(id) => handleTabChange(id as CollectionTab)}
       />
 
-      <PlayerPageBody>
-        <main className="relative min-h-[45vh] border-4 border-[var(--skin-border)] bg-[var(--skin-surface)] p-4 shadow-[8px_8px_0_var(--skin-border)] sm:p-8">
+      <PlayerPageBody className="ft-dept-body--folder-tabs">
+        {/* Folder body (Nov 21, 2026): the tab content sits inside this
+            manila-folder back panel, and the hero's tab strip attaches
+            straight to its top edge (flushTabs on the hero + zero top
+            padding on the body) — the active tab reads as part of the
+            folder instead of a floating strip. */}
+        <main data-testid="dex-folder-body" className="relative min-h-[45vh] border-4 border-[var(--skin-border)] bg-[var(--skin-surface)] p-4 shadow-[8px_8px_0_var(--skin-border)] sm:p-8">
          <div className="absolute inset-0 bg-[radial-gradient(rgba(0,0,0,0.015)_1.5px,transparent_0)] bg-[size:16px_16px] pointer-events-none" />
          <div className="relative z-10">
         <AnimatePresence mode="wait">

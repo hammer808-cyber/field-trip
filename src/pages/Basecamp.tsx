@@ -14,6 +14,7 @@ import { BasecampQuickLinks } from '../components/basecamp/BasecampQuickLinks';
 import { TrevorsLogCard, type TrevorsLogEntry } from '../components/basecamp/TrevorsLogCard';
 import { normalizeEntryStatus } from '../logic/entryLogic';
 import { safeToDate } from '../lib/utils';
+import { FieldDoodles } from '../components/FieldDoodles';
 import { FieldPageHero } from '../components/FieldPageHero';
 import { IOSHomeScreenPrompt } from '../components/profile/IOSHomeScreenPrompt';
 import { useApp } from '../context/AppContext';
@@ -216,7 +217,16 @@ export default function Basecamp() {
   }, []);
 
   return (
-    <div className="skin-page skin-basecamp page-scroll min-h-screen bg-[var(--skin-background)] pb-32 text-[var(--skin-text)] [background-image:var(--skin-background-texture)]">
+    <div className="skin-page skin-basecamp relative page-scroll min-h-screen bg-[var(--skin-background)] pb-32 text-[var(--skin-text)] [background-image:var(--skin-background-texture)]">
+      <FieldDoodles
+        pageKey="basecamp"
+        stamps={[
+          // Both labels name cards that render on this page: the
+          // MISSION LOG ticket card and TREVOR'S LOG, below.
+          { label: 'MISSION LOG', tone: 'primary' },
+          { label: "TREVOR'S LOG", tone: 'text' },
+        ]}
+      />
       <FieldPageHero
         variant="editorial"
         compact

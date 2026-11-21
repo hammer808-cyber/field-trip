@@ -28,6 +28,14 @@
   gap: var(--ft-section-gap);
 }
 
+/* Dex folder tabs (Nov 21, 2026): the tab strip in the hero attaches
+   straight to the folder body below it — no gap, so the active tab
+   reads as part of the folder instead of a floating strip. Pairs with
+   FieldPageHero's flushTabs (which drops the hero's bottom border). */
+.ft-dept-body--folder-tabs {
+  padding-top: 0;
+}
+
 .ft-dept-dex { --dept-accent: #7a3cff; }
 .ft-dept-profile,
 .ft-dept-identity { --dept-accent: #ff2daa; }
