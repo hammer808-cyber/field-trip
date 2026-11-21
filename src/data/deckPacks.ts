@@ -408,6 +408,7 @@ export const DECK_PACKS: DeckPack[] = [
     title: 'Urban Recon',
     deckCode: 'FT-09',
     artworkKey: 'urban-recon',
+    coverImage: '/assets/decks/urban-recon.jpg',
     isEvergreen: true,
     seasonId: 'evergreen',
     packName: 'Urban Recon',
