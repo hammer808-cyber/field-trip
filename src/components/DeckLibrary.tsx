@@ -12,6 +12,7 @@ import {
 import { StickerDecal, StickerCorner } from './StickerDecals';
 import { cn } from '../lib/utils';
 import { hasHonestLocationCheck } from '../logic/checkIn';
+import { getDeckPackById } from '../data/deckPacks';
 import { Card } from './UI';
 import { getMissionImage } from '../utils/missionImages';
 import {
@@ -34,7 +35,8 @@ export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
     activeSeason, isWeekLocked, completedChallengeIds, drawTrip,
     isHeatwaveDeckUnlocked: isSummerDeckUnlocked,
     isSocalSummerUnlocked,
-    isAdmin
+    isAdmin,
+    getDeckAccessForPack
   } = useApp();
   const { fc } = useTheme();
   const [selectedChallenge, setSelectedChallenge] = useState<TripCard | null>(null);
@@ -42,6 +44,33 @@ export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
   // Sort for the browse grid: deck order is the deck's own order; difficulty
   // is the challenge level (easiest first); title is A-Z.
   const [sort, setSort] = useState<'deck' | 'difficulty' | 'title'>('deck');
+
+  // Calendar gate per deck (seasonal/event decks only): the deck-access
+  // verdict for the deck's own season/event window, so a locked deck's
+  // missions show the derived lock copy ("Coming summer 2027"). Only the
+  // calendar privateReasons count here — prerequisite/visibility locks are
+  // not this gate's business. Evergreen decks never appear here.
+  const seasonGateByDeckId = useMemo(() => {
+    const gates: Record<string, { locked: boolean; reason: string }> = {};
+    const seen = new Set<string>();
+    for (const challenge of allChallenges) {
+      const deckId = challenge.deckId || '';
+      if (!deckId || seen.has(deckId)) continue;
+      seen.add(deckId);
+      const pack = getDeckPackById(deckId);
+      if (!pack || (!pack.seasonId && !pack.eventId)) continue;
+      const access = getDeckAccessForPack(pack);
+      if (
+        access.locked &&
+        (access.privateReason === 'season_locked' ||
+          access.privateReason === 'access_window_not_started' ||
+          access.privateReason === 'access_window_ended')
+      ) {
+        gates[deckId] = { locked: true, reason: access.reason };
+      }
+    }
+    return gates;
+  }, [allChallenges, getDeckAccessForPack]);
 
   const challengesWithStatus = useMemo(() => {
     return allChallenges.map(challenge => {
@@ -52,12 +81,23 @@ export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
       
       // Determine if locked
       let isLocked = false;
+      let lockReason: string | undefined;
 
       // 1. Deck Gating
       if (challenge.deckId === 'heatwave-receipts' && !isSummerDeckUnlocked && !isAdmin) {
         isLocked = true;
       } else if (challenge.deckId === 'socal-summer' && !isSocalSummerUnlocked && !isAdmin) {
         isLocked = true;
+      }
+
+      // 1b. Calendar gate: a seasonal/event deck locks its missions outside
+      // its season/event window, and the gate carries the derived copy
+      // ("Coming summer 2027"). Locking never touches progress — it only
+      // hides the start button.
+      const calendarGate = seasonGateByDeckId[challenge.deckId || ''];
+      if (calendarGate) {
+        isLocked = true;
+        lockReason = calendarGate.reason;
       }
 
       // 2. Weekly Gating (only if not already locked by deck)
@@ -81,9 +121,9 @@ export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
       else if (isCued) uiStatus = 'cued';
       else if (isInProgress) uiStatus = 'in-progress';
 
-      return { ...challenge, uiStatus };
+      return { ...challenge, uiStatus, lockReason };
     });
-  }, [allChallenges, activeTrip, profile?.tripProgress, completedChallengeIds, isWeekLocked, activeSeason, isSummerDeckUnlocked, isSocalSummerUnlocked, isAdmin]);
+  }, [allChallenges, activeTrip, profile?.tripProgress, completedChallengeIds, isWeekLocked, activeSeason, isSummerDeckUnlocked, isSocalSummerUnlocked, isAdmin, seasonGateByDeckId]);
 
   const filteredChallenges = useMemo(() => {
     if (filter === 'all') return challengesWithStatus;
@@ -172,6 +212,7 @@ export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
           <ChallengePreviewModal 
             challenge={selectedChallenge} 
             uiStatus={challengesWithStatus.find(c => c.id === selectedChallenge.id)?.uiStatus || 'eligible'}
+            lockReason={challengesWithStatus.find(c => c.id === selectedChallenge.id)?.lockReason}
             onClose={() => setSelectedChallenge(null)}
             onStart={() => {
               if (selectedChallenge) {
@@ -315,7 +356,7 @@ function MissionCardItem({ challenge, onClick, idx }: { challenge: TripCard & { 
   );
 }
 
-function ChallengePreviewModal({ challenge, uiStatus, onClose, onStart }: { challenge: TripCard, uiStatus: any, onClose: () => void, onStart: () => void }) {
+function ChallengePreviewModal({ challenge, uiStatus, lockReason, onClose, onStart }: { challenge: TripCard, uiStatus: any, lockReason?: string, onClose: () => void, onStart: () => void }) {
   const { profile, updateTripProgress } = useApp();
   const { frankieMode } = useTheme();
   const fPref = { frankieMode };
@@ -390,6 +431,9 @@ function ChallengePreviewModal({ challenge, uiStatus, onClose, onStart }: { chal
             <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-black/40 backdrop-blur-[2px]">
               <Lock className="w-12 h-12 mb-2 opacity-40" />
               <h3 className="font-display text-xl uppercase font-black italic">{frankieMode ? 'LOCKED' : 'TEMPORAL_LOCK'}</h3>
+              {lockReason && (
+                <p className="mt-2 px-4 text-center font-mono text-xs font-bold uppercase tracking-widest text-white/90">{lockReason}</p>
+              )}
             </div>
           )}
           {isCompleted && (
@@ -524,7 +568,7 @@ function ChallengePreviewModal({ challenge, uiStatus, onClose, onStart }: { chal
             </button>
           ) : (
             <div className="flex-grow bg-on-surface/10 text-on-surface/30 border-2 border-dashed border-on-surface/20 py-3 sm:py-4 font-display text-lg uppercase italic font-black tracking-widest flex items-center justify-center gap-3">
-              {isLocked ? (frankieMode ? 'LOCKED — FINISH STARTER FIRST' : 'LOCKED') : (frankieMode ? 'DONE' : 'COMPLETE')}
+              {isLocked ? (lockReason || (frankieMode ? 'LOCKED — FINISH STARTER FIRST' : 'LOCKED')) : (frankieMode ? 'DONE' : 'COMPLETE')}
             </div>
           )}
           <button 

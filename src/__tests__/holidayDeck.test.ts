@@ -46,8 +46,8 @@ test('holiday deck carries the 11/1–1/11 seasonal gate', () => {
   const pack = getDeckPackById('gobble-and-glow');
   assert.equal(pack!.startsAt, HOLIDAY_SEASON_START_DATE);
   assert.equal(pack!.endsAt, HOLIDAY_SEASON_END_DATE);
-  assert.equal(HOLIDAY_SEASON_START_DATE, '2026-11-01T00:00:00Z');
-  assert.equal(HOLIDAY_SEASON_END_DATE, '2027-01-11T23:59:59Z');
+  assert.equal(HOLIDAY_SEASON_START_DATE, '2026-11-01T12:00:00Z');
+  assert.equal(HOLIDAY_SEASON_END_DATE, '2027-01-12T07:59:59Z');
 });
 
 test('holiday deck is playable inside its window for starter-complete players', () => {
@@ -65,7 +65,9 @@ test('holiday deck is locked outside its window', () => {
   assert.equal(before.playable, false);
   assert.equal(before.locked, true);
   assert.equal(before.privateReason, 'access_window_not_started');
-  const after = getDeckAccess(pack, { ...starterComplete, now: new Date('2027-01-12T00:00:00Z') });
+  // Jan 12 00:00 UTC is still Jan 11 16:00 PT (inside the event), so the
+  // "after" instant has to be a true Jan 12 PT time.
+  const after = getDeckAccess(pack, { ...starterComplete, now: new Date('2027-01-12T12:00:00Z') });
   assert.equal(after.playable, false);
   assert.equal(after.locked, true);
   assert.equal(after.privateReason, 'access_window_ended');

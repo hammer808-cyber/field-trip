@@ -1,3 +1,5 @@
+import type { SeasonId } from '../data/seasons';
+
 export type UnlockRule = 'immediate' | 'rank_limit' | 'archetype_match' | 'beta_only' | 'seasonal' | 'starter-complete';
 
 export type DeckVisibility =
@@ -43,6 +45,16 @@ export interface DeckPack {
   season?: string;
   missionIds: string[];
   
+  // Seasonal calendar (Nov 21, 2026): which season this deck belongs to.
+  // 'evergreen' decks are always on; a seasonal deck is playable only
+  // inside its season. The old display label lives in `season` above and
+  // is untouched. A deck without seasonId/eventId keeps the legacy
+  // startsAt/endsAt window behaviour in deckAccess.
+  seasonId?: 'evergreen' | SeasonId;
+  /** Event decks (e.g. Gobble & Glow) are playable only inside their event
+   * dates in the calendar, not via the season table. */
+  eventId?: string;
+
   // Rules & Scaffolding
   unlockRule: UnlockRule;
   visibility: DeckVisibility;

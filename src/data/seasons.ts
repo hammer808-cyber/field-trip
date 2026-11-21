@@ -195,3 +195,22 @@ export function isEventActive(eventId: string, now: Date = new Date()): boolean 
 export function getActiveEvents(now: Date = new Date()): CalendarEvent[] {
   return EVENTS.filter((event) => isEventActive(event.id, now));
 }
+
+/**
+ * Where `now` sits relative to an event's PT window (inclusive both ends).
+ * 'unknown' when the event id is not in the calendar — callers treat that
+ * as "no event gate applies" rather than locking the deck.
+ */
+export function getEventStatus(
+  eventId: string,
+  now: Date = new Date(),
+): 'not-started' | 'active' | 'ended' | 'unknown' {
+  const event = getEventById(eventId);
+  if (!event) return 'unknown';
+  const today = ptDayNumberForDate(now);
+  const start = ptDayNumber(event.startYear, event.startMonth, event.startDay);
+  const end = ptDayNumber(event.endYear, event.endMonth, event.endDay);
+  if (today < start) return 'not-started';
+  if (today > end) return 'ended';
+  return 'active';
+}

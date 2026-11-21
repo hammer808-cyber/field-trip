@@ -10,7 +10,8 @@ import {
   onSnapshot 
 } from 'firebase/firestore';
 import { onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, User } from 'firebase/auth';
-import { FieldTypeId, FIELD_TYPES, Entry, ProductPersonaLensId, DEV_SEASON, DEV_APP_CONFIG, HEATWAVE_SEASON_START_DATE, HEATWAVE_SEASON_END_DATE } from '../constants';
+import { FieldTypeId, FIELD_TYPES, Entry, ProductPersonaLensId, DEV_SEASON, DEV_APP_CONFIG } from '../constants';
+import { getSeasonForDate } from '../data/seasons';
 import { MemoryEntry } from '../types/memories';
 import { AvatarData } from '../types/avatar';
 import { TripCard as TripType } from '../types/challenges';
@@ -788,20 +789,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     currentDate: seasonClockNow,
   };
 
-  // Hard Gating: isHeatwaveDeckUnlocked requires ALL approved starter missions AND current date >= season start
+  // Hard Gating: isHeatwaveDeckUnlocked requires ALL approved starter missions AND current date in summer.
+  // Seasonal calendar (Nov 21, 2026): Heatwave is playable only in
+  // meteorological summer (Jun 1–Aug 31 PT) — not from its Jun 6 launch
+  // date onward with no end. There is deliberately no "has progress, stay
+  // unlocked" escape hatch anymore: the deck LOCKS at season end, progress
+  // is SAVED (never wiped by the lock), and the deck reopens next summer
+  // with the player continuing where they left off.
   const isHeatwaveDeckUnlocked = React.useMemo(() => {
     if (isAdmin || overrides.forceUnlocked) return true;
-    
-    // Safety: If the user already has any approved heatwave missions, it must remain unlocked to prevent state-locking
-    const hasHeatwaveProgress = Array.from(completedChallengeIds).some(id => {
-      const mission = trips.find(t => t.id.toLowerCase() === id.toLowerCase());
-      return (mission?.deckId || '').toLowerCase() === 'heatwave-receipts';
-    });
-    if (hasHeatwaveProgress) return true;
-
     if (!isOnboardingComplete) return false;
-    return gameState.currentDate >= new Date(HEATWAVE_SEASON_START_DATE);
-  }, [isAdmin, overrides.forceUnlocked, isOnboardingComplete, gameState.currentDate, completedChallengeIds, trips]);
+    return getSeasonForDate(gameState.currentDate).id === 'summer';
+  }, [isAdmin, overrides.forceUnlocked, isOnboardingComplete, gameState.currentDate]);
 
   const isSocalSummerUnlocked = React.useMemo(() => {
     if (isAdmin || overrides.forceUnlocked) return true;
@@ -1690,7 +1689,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isOnboardingComplete && !starterRewardShown && user) {
-      const isSeasonStarted = gameState.currentDate >= new Date(HEATWAVE_SEASON_START_DATE);
+      const isSeasonStarted = getSeasonForDate(gameState.currentDate).id === 'summer';
       
       queueReward({
         type: 'milestone',

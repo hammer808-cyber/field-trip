@@ -18,6 +18,7 @@ export const DECK_PACKS: DeckPack[] = [
     coverImage: '/assets/decks/starter-signals.jpg',
     isStarter: true,
     isEvergreen: true,
+    seasonId: 'evergreen',
     packName: 'Starter: First Signals',
     shortName: 'Starter',
     description: 'Your first three tiny adventures. Snap a pic, tell Trevor what happened, and unlock the bigger map.',
@@ -53,6 +54,9 @@ export const DECK_PACKS: DeckPack[] = [
     artworkKey: 'summer-socal',
     coverImage: '/assets/decks/socal-summer.jpg',
     isSeasonal: true,
+    // Evergreen per the Nov 21, 2026 calendar decision (always on) — the
+    // isSeasonal flag above is legacy metadata; gating reads seasonId.
+    seasonId: 'evergreen',
     packName: 'SoCal Summer',
     shortName: 'SoCal',
     description: 'A sun-baked Southern California field deck for beach days, neighborhood walks, boardwalk snacks, golden hour sightings, local landmarks, and summer micro-adventures.',
@@ -99,6 +103,7 @@ export const DECK_PACKS: DeckPack[] = [
     coverImage: '/assets/decks/texas-get-it-yall.jpg',
     artPosition: 'center',
     isEvergreen: true,
+    seasonId: 'evergreen',
     packName: "Get It, Y'all",
     shortName: 'Texas',
     description: 'A Texas field deck for big skies, taco trucks, bluebonnets, BBQ smoke, and Friday night lights. Unmistakably Texas, photographable anywhere in the state.',
@@ -147,6 +152,9 @@ export const DECK_PACKS: DeckPack[] = [
     artworkKey: 'heatwave-receipts',
     coverImage: '/assets/decks/heatwave-receipts.jpg',
     isSeasonal: true,
+    // Meteorological summer (Jun 1–Aug 31 PT) per the seasonal calendar —
+    // not the old Jun 6–Sep 6 launch window.
+    seasonId: 'summer',
     packName: 'Heatwave Receipts',
     shortName: 'Heatwave',
     description: 'Everyday thermal surveillance and hot transactions. Locate heat signatures, protective gear, group oases, and financial cooling logs.',
@@ -192,6 +200,9 @@ export const DECK_PACKS: DeckPack[] = [
     artworkKey: 'gobble-and-glow',
     coverImage: '/assets/decks/gobble-and-glow.jpg',
     isSeasonal: true,
+    // Event deck: playable Nov 1, 2026–Jan 11, 2027 PT per the calendar —
+    // Gobble & Glow is an event, not a season.
+    eventId: 'gobble-and-glow',
     packName: 'Gobble & Glow',
     shortName: 'Holidays',
     description: 'Thanksgiving and winter holidays in one deck. Long tables, pie evidence, ugly sweaters, light hunts, and three generations in one frame.',
@@ -239,6 +250,7 @@ export const DECK_PACKS: DeckPack[] = [
     coverImage: '/assets/decks/jet-setter.jpg',
     artPosition: 'center',
     isEvergreen: true,
+    seasonId: 'evergreen',
     packName: 'Jet Setter',
     shortName: 'Jet Setter',
     description: 'A breezy beach-vacation deck for pools, resorts, coastal stays, travel days, snack stops, sunset walks, and camera-roll-worthy crew lore.',
@@ -285,6 +297,7 @@ export const DECK_PACKS: DeckPack[] = [
     coverImage: '/assets/decks/errand-deck.jpg',
     artPosition: 'center',
     isEvergreen: true,
+    seasonId: 'evergreen',
     packName: 'The Errand Deck',
     shortName: 'Errands',
     description: 'A Fieldtrip Deck for Quick Stops, Side Quests, and Bags of Consequences',

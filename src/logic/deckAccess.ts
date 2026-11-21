@@ -1,4 +1,34 @@
 import { DeckPack, DeckVisibility } from '../types/deckPacks';
+import {
+  SEASON_TIME_ZONE,
+  getEventById,
+  getEventStatus,
+  getNextSeasonStart,
+  getPtDateParts,
+  getSeasonById,
+  getSeasonForDate,
+  type SeasonId,
+} from '../data/seasons';
+
+/**
+ * "Coming summer 2027" — the year comes from the calendar (the next start
+ * of that season), never hard-coded.
+ */
+export function getSeasonalLockCopy(seasonId: SeasonId, now: Date = new Date()): string {
+  const season = getSeasonById(seasonId);
+  const nextStart = getNextSeasonStart(seasonId, now);
+  return `Coming ${season.name.toLowerCase()} ${getPtDateParts(nextStart).year}`;
+}
+
+/** "Nov 1, 2026" for a PT calendar date. */
+function formatPtDate(year: number, month: number, day: number): string {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: SEASON_TIME_ZONE,
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date(Date.UTC(year, month - 1, day, 12, 0, 0)));
+}
 
 export interface DeckAccessUser {
   id?: string;
@@ -96,8 +126,53 @@ export function getDeckAccess(deck: DeckPack | null | undefined, context: DeckAc
     return { deckId, visibility, visible: true, playable: true, locked: false, reason: '' };
   }
 
-  const startsAt = normalizeDate(deck.accessStartsAt || deck.startsAt);
-  const endsAt = normalizeDate(deck.accessEndsAt || deck.endsAt);
+  // Seasonal calendar (Nov 21, 2026): a deck that declares a season or an
+  // event is gated by the calendar (src/data/seasons.ts), not by its legacy
+  // startsAt/endsAt window. A lock is only a verdict — this function never
+  // touches progress (drawn/active missions, completed counts), so a locked
+  // deck's progress survives until the deck reopens and the player
+  // continues where they left off. A calendar-locked public deck stays
+  // visible so the shelf/selector can show its "Coming summer 2027" state.
+  if (deck.eventId) {
+    const status = getEventStatus(deck.eventId, now);
+    if (status === 'not-started' || status === 'ended') {
+      const event = getEventById(deck.eventId);
+      const reason = event
+        ? status === 'not-started'
+          ? `${event.name} opens ${formatPtDate(event.startYear, event.startMonth, event.startDay)}`
+          : `${event.name} ended ${formatPtDate(event.endYear, event.endMonth, event.endDay)}`
+        : 'Deck unavailable';
+      return {
+        deckId,
+        visibility,
+        visible: visibility === 'public' || showLockedTeaser,
+        playable: false,
+        locked: true,
+        reason,
+        privateReason: status === 'not-started' ? 'access_window_not_started' : 'access_window_ended'
+      };
+    }
+  } else if (deck.seasonId && deck.seasonId !== 'evergreen') {
+    if (getSeasonForDate(now).id !== deck.seasonId) {
+      return {
+        deckId,
+        visibility,
+        visible: visibility === 'public' || showLockedTeaser,
+        playable: false,
+        locked: true,
+        reason: getSeasonalLockCopy(deck.seasonId, now),
+        privateReason: 'season_locked'
+      };
+    }
+  }
+
+  // Legacy access window: only for decks WITHOUT a calendar declaration.
+  // A deck with seasonId/eventId is gated by the calendar above — running
+  // the old instant window as well would re-lock the opening/closing PT
+  // days (e.g. Nov 1 01:00 PT is inside Gobble & Glow but before its
+  // noon-UTC startsAt instant).
+  const startsAt = deck.eventId || deck.seasonId ? null : normalizeDate(deck.accessStartsAt || deck.startsAt);
+  const endsAt = deck.eventId || deck.seasonId ? null : normalizeDate(deck.accessEndsAt || deck.endsAt);
   if (startsAt && now < startsAt) {
     return {
       deckId,
