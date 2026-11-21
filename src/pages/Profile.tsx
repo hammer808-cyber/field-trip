@@ -42,6 +42,7 @@ import { updateFeedPrivacy } from '../services/userService';
 import { uploadBase64Image } from '../services/storageService';
 import { FieldPageHero } from '../components/FieldPageHero';
 import { StreakChip } from '../components/StreakChip';
+import { LevelTrailMap } from '../components/LevelTrailMap';
 import { EmptyStatePanel } from '../components/FieldtripLoader';
 import { FieldButton, FieldSection, FieldStatusChip, PlayerPageBody, PlayerPageShell } from '../components/player';
 
@@ -390,28 +391,12 @@ export default function ProfilePage() {
                       </p>
                     </div>
 
-                    <div className="space-y-2">
-                       <div
-                         className="h-6 bg-on-surface/5 border-[3px] border-on-surface rounded-full overflow-hidden p-1 shadow-inner flex"
-                         role="progressbar"
-                         aria-label="Progress to next player level"
-                         aria-valuemin={0}
-                         aria-valuemax={100}
-                         aria-valuenow={Math.round(levelProgress.progressPercent)}
-                       >
-                         <motion.div 
-                           initial={{ width: 0 }}
-                           animate={{ width: `${levelProgress.progressPercent}%` }}
-                           className="h-full bg-brand-lime rounded-full shadow-[inset_0_2px_4px_rgba(255,255,255,0.4)]"
-                         />
-                       </div>
-                       <div className="flex justify-between px-1">
-                          <span className="text-xs font-mono font-black uppercase text-on-surface/60">Current_Echelon</span>
-                          <span className="text-xs font-mono font-black uppercase text-on-surface/60">
-                            {levelProgress.xpToNextLevel.toLocaleString()} XP to level {levelProgress.nextLevel.level}
-                          </span>
-                       </div>
-                    </div>
+                    {/* Trail Map levels (Nov 21, 2026): the straight bar is
+                        now a winding trail with one node per level. */}
+                    <LevelTrailMap
+                      xp={levelProgress.xp}
+                      markerStickerId={profile?.preferences?.selectedMarkerStickerId}
+                    />
 
                     <div className="grid grid-cols-2 gap-6 pt-2">
                       <div className="p-4 bg-on-surface/5 border-[2px] border-on-surface/10 rounded-2xl relative overflow-hidden group">
