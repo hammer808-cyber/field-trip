@@ -54,6 +54,7 @@ import { BADGE_DEFINITIONS, UserBadgeProgress } from "../types/badges";
 import { UNCLASSIFIED_LEVEL_TITLE, getExplorerTypeLevelTitle, getLevelProgress } from '../logic/playerLevel';
 import { MARKER_STICKERS } from "../data/markers";
 import { TabbedSection } from "../components/TabbedSection";
+import { SeasonTokenRaceCard } from "../components/TokenHatchGrid";
 import { FieldPageHero } from "../components/FieldPageHero";
 import { EmptyStatePanel } from "../components/FieldtripLoader";
 import { PlayerPageBody, PlayerPageShell } from "../components/player";
@@ -1266,6 +1267,23 @@ export default function BigBoardPage() {
                      )}
                    </div>
 
+                   {/* Season Token Race (Column 3): the trail members'
+                       token race as a 10x10 hatch grid. Field Momentum
+                       above is level progress, not this race, and is
+                       left alone. */}
+                   <div className="flex flex-col">
+                     <SeasonTokenRaceCard
+                       goal={SEASON_TOKEN_GOAL}
+                       members={activeTrailMembers.map((member) => ({
+                         id: member.id,
+                         name: member.name,
+                         tokens: member.tokens,
+                         markerEmoji: member.marker?.emoji,
+                         markerLabel: member.marker?.label,
+                         isMe: member.isMe,
+                       }))}
+                     />
+                   </div>
 
                 </div>
               </div>
