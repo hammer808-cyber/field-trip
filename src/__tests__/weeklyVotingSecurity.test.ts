@@ -150,7 +150,14 @@ test('server builds canonical cycle ballots and result snapshots without deletin
   assert.match(server, /getCanonicalBallotId\(cycleId, target\.scope, target\.crewId\)/);
   assert.match(server, /excludedLateProofs/);
   assert.match(server, /collection\('results'\)\.doc\(ballotId\)/);
-  assert.match(server, /weekly_award_\$\{cycleId\}_\$\{winner\.userId\}/);
+  // Slice 1 (Nov 21, 2026): winner award event ids are ballot-scoped
+  // now (getWeeklyWinnerAwardEventId in src/logic/weeklyFinalize.ts),
+  // so one user winning two category ballots is paid twice instead of
+  // the second win deduping as a "duplicate". The old literal
+  // `weekly_award_${cycleId}_${winner.userId}` had no ballot id.
+  assert.match(server, /getWeeklyWinnerAwardEventId\(cycleId, ballotId, /);
+  const weeklyFinalize = fs.readFileSync('src/logic/weeklyFinalize.ts', 'utf8');
+  assert.match(weeklyFinalize, /`weekly_award_\$\{cycleId\}_\$\{ballotId\}_\$\{userId\}`/);
   assert.match(server, /\/api\/admin\/voting\/void-vote/);
   assert.match(server, /\/api\/admin\/voting\/remove-proof/);
 });
