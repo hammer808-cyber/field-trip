@@ -12,6 +12,7 @@ import fs from 'fs';
 import crypto from 'crypto';
 import rateLimit from "express-rate-limit";
 import { buildCanonicalStarterDeckState, toStarterProfileMirrors, STARTER_SIGNAL_IDS } from "./src/logic/starterDeckState";
+import { isWithinTimeWindow, formatTimeWindow } from "./src/logic/timeWindow";
 import { parseChatMentions, validateCrewChatText, validateCrewCommentText } from "./src/logic/crewSocial";
 import {
   FIELDTRIP_FIRESTORE_DATABASE_ID,
@@ -9248,6 +9249,31 @@ async function startServer() {
         const ownerId = getBackendUserId(entry);
         const challengeId = getBackendChallengeId(entry);
         const currentStatus = normalizeStatusBackend(entry.status || entry.reviewStatus || entry.submissionStatus || entry.proofStatus);
+        // Time-of-day window (Nov 21, 2026): a card with proofRequirements
+        // .timeWindow only counts submissions inside its hours. The client
+        // gate (FieldClipboard) and addEntry enforce it at submit; this is
+        // the backstop for a forged or pre-gate entry — an approval of a
+        // submission made outside the window is refused outright. The hour
+        // is the player's stamped local hour when present, else the
+        // submittedAt hour in America/Los_Angeles.
+        if (action === "approve") {
+          const approvalMission = resolveMissionById(getBackendString(entry.tripId ?? entry.missionId ?? entry.challengeId));
+          const approvalWindow = (approvalMission as any)?.proofRequirements?.timeWindow;
+          if (approvalWindow) {
+            const stampedHour = typeof entry.submittedLocalHour === "number" ? entry.submittedLocalHour : null;
+            const submittedAtRaw = entry.submittedAt || entry.createdAt;
+            const submittedDate = submittedAtRaw?.toDate ? submittedAtRaw.toDate() : submittedAtRaw ? new Date(submittedAtRaw) : null;
+            const ptHour = submittedDate && !Number.isNaN(submittedDate.getTime())
+              ? Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", hour: "numeric", hourCycle: "h23" }).format(submittedDate))
+              : null;
+            const approvalHour = stampedHour ?? ptHour;
+            if (approvalHour === null || !isWithinTimeWindow(approvalHour, approvalWindow)) {
+              const error: any = new Error(`TIME_WINDOW_CLOSED: this card only counts ${formatTimeWindow(approvalWindow)}`);
+              error.status = 400;
+              throw error;
+            }
+          }
+        }
         const attemptId = getBackendString(entry.missionAttemptId || entry.missionAttempt?.attemptId);
         const attemptRef = attemptId ? dbAdmin!.collection('missionAttempts').doc(attemptId) : null;
         const attemptSnap = attemptRef ? await transaction.get(attemptRef) : null;

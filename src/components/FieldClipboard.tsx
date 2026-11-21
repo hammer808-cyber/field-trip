@@ -22,6 +22,7 @@ import { TripCard as TripCardType } from '../types/challenges';
 import { EvidenceMeter } from './EvidenceMeter';
 import { EvidenceDetector, DetectorStatus } from './EvidenceDetector';
 import { getMissionImage } from '../utils/missionImages';
+import { getTimeWindowStatus, formatHour } from '../logic/timeWindow';
 import { ActionButton } from './UIUtilities';
 import { inferMissionCardType } from '../logic/missionSubmission';
 import type { MissionAttemptRecord } from '../services/missionAttemptService';
@@ -152,7 +153,14 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
     ? 'analyzing' 
     : (aiAnalysisResult?.status || 'idle');
 
-  const canSubmit = data.photoCaptured && noteSatisfied && !isSubmitting && !isAiAnalyzing;
+  // Time-of-day window (Nov 21, 2026): a card with proofRequirements
+  // .timeWindow only accepts submissions inside its hours (player's local
+  // time) — e.g. Lights After Dark is 6 PM–6 AM. The same rule is enforced
+  // in AppContext.addEntry and on the server approve route, so this is
+  // the friendly face of the gate, not the only copy of it.
+  const timeWindowStatus = getTimeWindowStatus(mission);
+
+  const canSubmit = data.photoCaptured && noteSatisfied && timeWindowStatus.open && !isSubmitting && !isAiAnalyzing;
 
   // The sticker placed on the developing Polaroid, shown again on the
   // reviewing Polaroid so what-you-see is what-you-submit (it gets baked
@@ -641,12 +649,19 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
             >
               {canSubmit
                 ? (isFrankie ? 'Send It In' : 'Submit Proof')
-                : !data.photoUrl
-                  ? 'Add a photo first'
-                  : data.note.length < 10
-                    ? `Submit Proof (${data.note.length}/10)`
-                    : 'Submit Proof'}
+                : !timeWindowStatus.open && timeWindowStatus.window
+                  ? `Opens at ${formatHour(timeWindowStatus.window.startHour)}`
+                  : !data.photoUrl
+                    ? 'Add a photo first'
+                    : data.note.length < 10
+                      ? `Submit Proof (${data.note.length}/10)`
+                      : 'Submit Proof'}
             </button>
+            {!timeWindowStatus.open && timeWindowStatus.closedMessage && (
+              <p className="text-center text-xs font-sans font-bold text-on-surface/55 -mt-2">
+                {timeWindowStatus.closedMessage}
+              </p>
+            )}
             {!isFrankie && !canSubmit && data.photoUrl && data.note.length < 10 && (
               <p className="text-center text-xs font-sans font-bold text-on-surface/55 -mt-2">
                 Write a little more, then submit.

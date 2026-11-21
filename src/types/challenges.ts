@@ -93,6 +93,14 @@ export interface TripCard {
     minConfidence: number;
     requireLocation: boolean;
     requireTimestamp: boolean;
+    /**
+     * Time-of-day window the submission must fall inside (player's LOCAL
+     * hours, 0–23). endHour <= startHour means the window wraps midnight
+     * (e.g. { startHour: 18, endHour: 6 } = 6 PM–6 AM). Absent = any time.
+     * Enforced at Capture (submit disabled), in addEntry, and on the
+     * server approve route — see src/logic/timeWindow.ts.
+     */
+    timeWindow?: { startHour: number; endHour: number };
   };
   /** Starter text to help the user write their field note */
   fieldNoteStarter?: string;

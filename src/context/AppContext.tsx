@@ -103,6 +103,7 @@ import { CrewArtifact } from '../types/artifacts';
 import { subscribeToPlayerNotifications } from '../services/playerNotificationService';
 import type { PlayerNotification } from '../logic/playerNotifications';
 import { getLocalTimeSnapshot, isWithinAfternoonPowerHour } from '../logic/missionBonuses';
+import { getTimeWindowStatus } from '../logic/timeWindow';
 import { subscribeToObservations, generateObservation, dismissObservation } from '../services/observationService';
 import { Observation } from '../types/observations';
 import { getProofRequirement } from '../services/proofService';
@@ -2457,8 +2458,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       throw new Error('DECK_ACCESS_RESTRICTED');
     }
 
+    // Time-of-day window (Nov 21, 2026): a card with proofRequirements
+    // .timeWindow only accepts submissions inside its hours (player's
+    // local time) — e.g. Lights After Dark is 6 PM–6 AM. Same rule as the
+    // FieldClipboard submit gate and the server approve route.
+    if (!getTimeWindowStatus(currentTrip as any).open) {
+      throw new Error('TIME_WINDOW_CLOSED');
+    }
+
     const activeCrewId = profile.activeCrewId || profile.crewId || undefined;
     const submittedAt = (entryData as any).submittedAt || new Date().toISOString();
+    // The player's local hour at submit, stamped on the entry so the server
+    // approve route can check the time window against the hour the player
+    // actually submitted in.
+    const submittedLocalHour = new Date().getHours();
     const crewContext = activeCrewId ? {
       crewId: activeCrewId,
       crewNameSnapshot: (profile as any).crewName || (profile as any).activeCrewName || null,
@@ -2497,6 +2510,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         isPublic: (entryData as any).isPublic ?? (entryData as any).showInCommunityFeed ?? false,
         communityVisible: (entryData as any).communityVisible ?? (entryData as any).showInCommunityFeed ?? false,
         crewContext,
+        submittedLocalHour,
         userAvatar: profile.avatar || undefined, 
         
         // Pass through viewfinder meta

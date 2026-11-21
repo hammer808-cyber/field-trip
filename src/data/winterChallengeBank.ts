@@ -603,7 +603,11 @@ export const WINTER_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
       requiredSubjects: ["lights", "mission inn", "festival", "night", "building"],
       minConfidence: 0.4,
       requireLocation: true,
-      requireTimestamp: true
+      requireTimestamp: true,
+      // Night-only (Zach, Nov 21, 2026): 6 PM–6 AM local. The Festival of
+      // Lights is a dusk show — a daytime photo does not count, and the
+      // submit gate enforces it (see src/logic/timeWindow.ts).
+      timeWindow: { startHour: 18, endHour: 6 }
     },
     proofNeeded: "Photo evidence or field note.",
     levels: {

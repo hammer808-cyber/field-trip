@@ -66,6 +66,14 @@ test('every card has proofRequirements the AI check can actually use', () => {
     );
     assert.equal(typeof reqs!.requireLocation, 'boolean', `${id}: requireLocation not a boolean`);
     assert.equal(typeof reqs!.requireTimestamp, 'boolean', `${id}: requireTimestamp not a boolean`);
+    // Time-of-day window (Nov 21, 2026): when present, start/end are
+    // integer local hours 0–23; end <= start wraps midnight.
+    const timeWindow = (reqs as { timeWindow?: { startHour: number; endHour: number } }).timeWindow;
+    if (timeWindow !== undefined) {
+      for (const hour of [timeWindow.startHour, timeWindow.endHour]) {
+        assert.ok(Number.isInteger(hour) && hour >= 0 && hour <= 23, `${id}: bad timeWindow hour ${String(hour)}`);
+      }
+    }
   }
 });
 

@@ -76,6 +76,10 @@ export async function submitTripEntry(
     photoTakenAt?: string | null;
     fileLastModifiedAt?: string | null;
     submittedAt?: string;
+    // Player's LOCAL hour (0–23) at submit, stamped by AppContext.addEntry
+    // so the server approve route can check a card's time window against
+    // the hour the player actually submitted in (Nov 21, 2026).
+    submittedLocalHour?: number;
     metadataStatus?: 'verified' | 'missing' | 'mismatch' | 'unverified' | 'suspicious';
     captureTrustLevel?: 'live' | 'verifiedCameraRoll' | 'unverifiedCameraRoll';
     filterUsed?: string;
@@ -347,6 +351,9 @@ export async function submitTripEntry(
       uploadSource: entryData.uploadSource,
       photoTakenAt: entryData.photoTakenAt,
       fileLastModifiedAt: entryData.fileLastModifiedAt,
+      // Player's local hour at submit (see entryData type): the server
+      // approve route checks it against a card's time window.
+      submittedLocalHour: entryData.submittedLocalHour ?? null,
       latitude: entryData.latitude !== undefined ? entryData.latitude : null,
       longitude: entryData.longitude !== undefined ? entryData.longitude : null,
       // Location + voice-note proof signals (Q3): stored so the admin
