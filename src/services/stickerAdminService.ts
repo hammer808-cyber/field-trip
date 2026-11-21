@@ -125,6 +125,34 @@ export async function lookupPlayers(searchQuery: string): Promise<AdminLookupPla
   return Array.isArray(body?.users) ? (body.users as AdminLookupPlayer[]) : [];
 }
 
+export interface BackfillStickerNotificationsResponse {
+  usersScanned: number;
+  stickersChecked: number;
+  notificationsWritten: number;
+  alreadyHad: number;
+}
+
+/**
+ * Backfills missing `sticker_awarded` notifications for every player.
+ * One-shot for the Option B move (Nov 20, 2026): evaluator awards made
+ * before the server endpoint existed wrote the sticker doc but no
+ * notification. The server matches by stickerId, writes only the missing
+ * ones, and preserves each sticker's unlockedAt as the notification's
+ * createdAt. Idempotent — running it twice writes nothing the second time.
+ * Throws on any error response, with the server's error code in the message.
+ */
+export async function backfillStickerNotifications(): Promise<BackfillStickerNotificationsResponse> {
+  const res = await authenticatedFetch('/api/admin/stickers/backfill-notifications', {
+    method: 'POST',
+    body: JSON.stringify({})
+  });
+  if (!res.ok) {
+    const code = await readErrorCode(res);
+    throw new Error(code ? `Backfill failed: ${code}` : `Backfill failed (HTTP ${res.status}).`);
+  }
+  return (await res.json()) as BackfillStickerNotificationsResponse;
+}
+
 /**
  * Grants one sticker to one player. Returns the server's response shape
  * (success or already-owned). Throws on any error response, with the

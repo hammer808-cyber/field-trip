@@ -10,6 +10,7 @@ import {
 } from '../data/stickers';
 import { getUserUnlockedStickers } from '../services/stickerService';
 import {
+  backfillStickerNotifications,
   filterGrantPickerStickers,
   getGrantableStickers,
   getGrantHistory,
@@ -18,6 +19,7 @@ import {
   lookupPlayers,
   MAX_GRANT_REASON_LENGTH,
   type AdminLookupPlayer,
+  type BackfillStickerNotificationsResponse,
   type GrantHistoryEntry
 } from '../services/stickerAdminService';
 
@@ -66,6 +68,9 @@ export default function AdminUsers() {
   const [granting, setGranting] = useState(false);
   const [grantResult, setGrantResult] = useState<{ awarded: boolean; stickerName: string } | null>(null);
   const [grantError, setGrantError] = useState<string | null>(null);
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillResult, setBackfillResult] = useState<BackfillStickerNotificationsResponse | null>(null);
+  const [backfillError, setBackfillError] = useState<string | null>(null);
   const [history, setHistory] = useState<GrantHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
@@ -173,6 +178,23 @@ export default function AdminUsers() {
     }
   };
 
+  // Option B one-shot (Nov 20, 2026): evaluator awards made before the
+  // server endpoint existed wrote the sticker but no notification. This
+  // writes the missing ones for every player. Idempotent — safe to run
+  // twice; the second run writes nothing.
+  const runBackfill = async () => {
+    if (backfilling) return;
+    setBackfilling(true);
+    setBackfillError(null);
+    try {
+      setBackfillResult(await backfillStickerNotifications());
+    } catch (error) {
+      setBackfillError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
   return (
     <AdminLayout
       title="User & Progress Control"
@@ -210,6 +232,36 @@ export default function AdminUsers() {
           }}
         />
       </div>
+
+      <Card className="mt-8 p-6">
+        <h3 className="font-display text-xl uppercase">Sticker notification backfill</h3>
+        <p className="mt-2 text-sm opacity-80">
+          One-shot for the Nov 20 server-side awards move: writes the missing &ldquo;sticker unlocked&rdquo;
+          notifications for every player whose stickers were awarded before the server started writing
+          them. Safe to run twice — the second run writes nothing.
+        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => void runBackfill()}
+            disabled={backfilling}
+            className="rounded bg-brand-lime px-4 py-2 text-sm font-black uppercase text-black disabled:opacity-50"
+          >
+            {backfilling ? 'Running…' : 'Run backfill'}
+          </button>
+          {backfillResult && (
+            <p className="text-sm font-bold">
+              {backfillResult.notificationsWritten} written · {backfillResult.alreadyHad} already had one ·{' '}
+              {backfillResult.stickersChecked} stickers checked across {backfillResult.usersScanned} players.
+            </p>
+          )}
+          {backfillError && (
+            <p className="flex items-center gap-2 text-sm font-bold text-error">
+              <AlertTriangle className="w-4 h-4 shrink-0" /> {backfillError}
+            </p>
+          )}
+        </div>
+      </Card>
 
       {grantOpen && (
         <div ref={grantModuleRef} className="mt-12">
