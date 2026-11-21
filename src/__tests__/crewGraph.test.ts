@@ -7,6 +7,7 @@ import {
   getCrewConnectionId,
   getCrewSocialExclusionReasons,
   isAcceptedCrewWith,
+  isFreshPendingCrewRequest,
   isPermittedInCrewSocialFeed,
   isValidPlayerSearchQuery,
   pendingRequestIsNotAcceptedCrew,
@@ -126,6 +127,81 @@ test('accept and decline only work for the addressee', () => {
   });
   assert.equal(decline.ok, true);
   assert.equal(decline.next?.status, 'declined');
+});
+
+test('cancel only voids the requester\'s own pending request', () => {
+  // The requester cancels their pending request: the connection lands
+  // in 'removed', which reads as 'none' for both players.
+  const cancelled = resolveCrewConnectionWrite({
+    actorId: 'player-a',
+    targetId: 'player-b',
+    action: 'cancel_request',
+    existing: connection(),
+  });
+  assert.equal(cancelled.ok, true);
+  assert.equal(cancelled.idempotent, false);
+  assert.equal(cancelled.next?.status, 'removed');
+  assert.equal(deriveCrewRelationshipState({ viewerUserId: 'player-a', connection: connection({ status: 'removed' }) }), 'none');
+  assert.equal(deriveCrewRelationshipState({ viewerUserId: 'player-b', connection: connection({ status: 'removed' }) }), 'none');
+
+  // A re-cancel after the request is already gone is a no-op.
+  const recancel = resolveCrewConnectionWrite({
+    actorId: 'player-a',
+    targetId: 'player-b',
+    action: 'cancel_request',
+    existing: connection({ status: 'removed' }),
+  });
+  assert.equal(recancel.ok, true);
+  assert.equal(recancel.idempotent, true);
+
+  // The addressee cannot cancel — they decline instead.
+  const addresseeCannotCancel = resolveCrewConnectionWrite({
+    actorId: 'player-b',
+    targetId: 'player-a',
+    action: 'cancel_request',
+    existing: connection(),
+  });
+  assert.equal(addresseeCannotCancel.ok, false);
+  assert.equal(addresseeCannotCancel.error, 'CANCEL_NOT_ALLOWED');
+
+  // An accepted connection is never cancelled — that is what remove is for.
+  const acceptedCannotCancel = resolveCrewConnectionWrite({
+    actorId: 'player-a',
+    targetId: 'player-b',
+    action: 'cancel_request',
+    existing: connection({ status: 'accepted' }),
+  });
+  assert.equal(acceptedCannotCancel.ok, false);
+  assert.equal(acceptedCannotCancel.error, 'CANCEL_NOT_ALLOWED');
+
+  // Nothing to cancel.
+  const nothingToCancel = resolveCrewConnectionWrite({
+    actorId: 'player-a',
+    targetId: 'player-b',
+    action: 'cancel_request',
+    existing: null,
+  });
+  assert.equal(nothingToCancel.ok, false);
+  assert.equal(nothingToCancel.error, 'CANCEL_NOT_ALLOWED');
+
+  // A cancelled request can be sent again.
+  const rerequest = resolveCrewConnectionWrite({
+    actorId: 'player-a',
+    targetId: 'player-b',
+    action: 'send_request',
+    existing: connection({ status: 'removed' }),
+  });
+  assert.equal(rerequest.ok, true);
+  assert.equal(rerequest.next?.status, 'pending');
+});
+
+test('only a fresh pending send notifies the addressee', () => {
+  assert.equal(isFreshPendingCrewRequest({ status: 'pending', idempotent: false }), true);
+  assert.equal(isFreshPendingCrewRequest({ status: 'pending' }), true);
+  // A duplicate re-send is idempotent: no second notification.
+  assert.equal(isFreshPendingCrewRequest({ status: 'pending', idempotent: true }), false);
+  // A mutual send lands as an accept, not a pending request: no request notification.
+  assert.equal(isFreshPendingCrewRequest({ status: 'accepted', idempotent: false }), false);
 });
 
 test('remove clears accepted Crew and declined/removed can be requested again', () => {

@@ -183,6 +183,44 @@ export function subscribeToPlayerNotifications(
               createdAt: toMillis(data.createdAt),
             } as PlayerNotification;
           }
+          // Crew requests and invites (Nov 21, 2026): a request or
+          // invite used to live only in the Crews tab, so nobody saw
+          // it. The server now writes a doc for each fresh send, and
+          // these branches map them to their own shapes.
+          if (data.type === 'crew_request') {
+            return {
+              id: docSnap.id,
+              type: 'crew_request',
+              actorId: String(data.actorId || ''),
+              actorName: String(data.actorName || 'A player'),
+              read: data.read === true,
+              createdAt: toMillis(data.createdAt),
+            } as PlayerNotification;
+          }
+          if (data.type === 'crew_invite') {
+            return {
+              id: docSnap.id,
+              type: 'crew_invite',
+              crewId: String(data.crewId || ''),
+              crewName: String(data.crewName || 'a crew'),
+              actorId: String(data.actorId || ''),
+              actorName: String(data.actorName || 'A player'),
+              read: data.read === true,
+              createdAt: toMillis(data.createdAt),
+            } as PlayerNotification;
+          }
+          if (data.type === 'crew_join_request') {
+            return {
+              id: docSnap.id,
+              type: 'crew_join_request',
+              crewId: String(data.crewId || ''),
+              crewName: String(data.crewName || 'your crew'),
+              actorId: String(data.actorId || ''),
+              actorName: String(data.actorName || 'A player'),
+              read: data.read === true,
+              createdAt: toMillis(data.createdAt),
+            } as PlayerNotification;
+          }
           // Weekly voting (Slice 3, Nov 21, 2026): the once-per-cycle
           // voting-open announcement, and a win from finalize. Both
           // need explicit branches — the fallthrough below would map

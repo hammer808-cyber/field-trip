@@ -16,7 +16,10 @@ import {
   communityCommentCopy,
   crewChatMentionCopy,
   crewCommentCopy,
+  crewInviteCopy,
+  crewJoinRequestCopy,
   crewMemberJoinedCopy,
+  crewRequestCopy,
   powerHourLiveCopy,
   proofReviewDecisionCopy,
   proofSubmittedCopy,
@@ -489,6 +492,50 @@ function buildNotifications(input: BuildBasecampViewModelInput): BasecampNotific
       }
       if (notification.type === 'crew_member_joined') {
         const copy = crewMemberJoinedCopy(notification);
+        return [{
+          id: `notification-${notification.id}`,
+          notificationId: notification.id,
+          kind: 'crew' as const,
+          title: copy.title,
+          detail: copy.detail,
+          timestamp,
+          timeLabel,
+          unread,
+          href: '/crew',
+        }];
+      }
+      // Crew requests and invites (Nov 21, 2026): all three tap through
+      // to the Crew tab, where the Accept / Decline / Approve lives.
+      if (notification.type === 'crew_request') {
+        const copy = crewRequestCopy(notification);
+        return [{
+          id: `notification-${notification.id}`,
+          notificationId: notification.id,
+          kind: 'crew' as const,
+          title: copy.title,
+          detail: copy.detail,
+          timestamp,
+          timeLabel,
+          unread,
+          href: '/crew',
+        }];
+      }
+      if (notification.type === 'crew_invite') {
+        const copy = crewInviteCopy(notification);
+        return [{
+          id: `notification-${notification.id}`,
+          notificationId: notification.id,
+          kind: 'crew' as const,
+          title: copy.title,
+          detail: copy.detail,
+          timestamp,
+          timeLabel,
+          unread,
+          href: '/crew',
+        }];
+      }
+      if (notification.type === 'crew_join_request') {
+        const copy = crewJoinRequestCopy(notification);
         return [{
           id: `notification-${notification.id}`,
           notificationId: notification.id,

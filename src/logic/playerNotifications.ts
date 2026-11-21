@@ -40,8 +40,12 @@
  * (ballots are open for the week, fanned out once per cycle by
  * POST /api/voting/weekly/notify-open-if-due) and weekly_winner (you won
  * an award, written by runCanonicalWeeklyFinalize — one doc per award
- * won). Notifications is the single home for all of them; Updates no
- * longer renders notification rows.
+ * won). Three crew-request types joined Nov 21, 2026: crew_request (a
+ * player wants to add you to their crew), crew_invite (a direct invite
+ * to a named crew), and crew_join_request (a player asked to join a
+ * crew you captain) — requests used to live only in the Crews tab, so
+ * nobody saw them. Notifications is the single home for all of them;
+ * Updates no longer renders notification rows.
  */
 
 /** The three review decisions. All three notify; only the copy differs. */
@@ -137,6 +141,9 @@ export type PlayerNotification =
   | CommunityCommentNotification
   | CrewChatMentionNotification
   | CrewMemberJoinedNotification
+  | CrewRequestNotification
+  | CrewInviteNotification
+  | CrewJoinRequestNotification
   | VotingOpenNotification
   | WeeklyWinnerNotification;
 
@@ -255,6 +262,58 @@ export interface CrewMemberJoinedNotification {
   crewName: string;
   memberId: string;
   memberName: string;
+  read: boolean;
+  /** Milliseconds since epoch. */
+  createdAt: number;
+}
+
+/**
+ * A player wants to add you to their crew (Nov 21, 2026). Written
+ * server-side by POST /api/social/crew/request, only when a genuinely
+ * new pending request is created — a duplicate re-send and a mutual
+ * send that lands as an accept write nothing. One doc per fresh send.
+ */
+export interface CrewRequestNotification {
+  id: string;
+  type: 'crew_request';
+  actorId: string;
+  actorName: string;
+  read: boolean;
+  /** Milliseconds since epoch. */
+  createdAt: number;
+}
+
+/**
+ * A direct invite to a named crew (Nov 21, 2026). Written server-side
+ * by POST /api/crew/invites/direct, only for a genuinely new invite —
+ * a duplicate pending invite is rejected before this write. One doc
+ * per invite.
+ */
+export interface CrewInviteNotification {
+  id: string;
+  type: 'crew_invite';
+  crewId: string;
+  crewName: string;
+  actorId: string;
+  actorName: string;
+  read: boolean;
+  /** Milliseconds since epoch. */
+  createdAt: number;
+}
+
+/**
+ * A player asked to join a crew you captain (Nov 21, 2026). Written
+ * server-side by POST /api/crew/join-requests, to the captain only —
+ * join approval is captain-only. A duplicate pending request is
+ * rejected before this write, so one doc per fresh request.
+ */
+export interface CrewJoinRequestNotification {
+  id: string;
+  type: 'crew_join_request';
+  crewId: string;
+  crewName: string;
+  actorId: string;
+  actorName: string;
   read: boolean;
   /** Milliseconds since epoch. */
   createdAt: number;
@@ -428,6 +487,54 @@ export function crewMemberJoinedCopy(notification: {
   return {
     title: `${member} joined ${crew}`,
     detail: 'Say hi in the crew chat.',
+  };
+}
+
+/**
+ * The Notifications-section copy for a crew request (Nov 21, 2026).
+ * The actor is the headline; the detail says where to answer it, since
+ * the accept lives on the Crew tab, not in the notification itself.
+ */
+export function crewRequestCopy(notification: {
+  actorName: string;
+}): { title: string; detail: string } {
+  const actor = String(notification.actorName || 'A player').trim() || 'A player';
+  return {
+    title: `${actor} wants to add you to their crew`,
+    detail: 'Accept or decline on the Crew tab.',
+  };
+}
+
+/**
+ * The Notifications-section copy for a direct crew invite (Nov 21, 2026).
+ * The crew is named so the row reads without a tap.
+ */
+export function crewInviteCopy(notification: {
+  actorName: string;
+  crewName: string;
+}): { title: string; detail: string } {
+  const actor = String(notification.actorName || 'A player').trim() || 'A player';
+  const crew = String(notification.crewName || 'a crew').trim() || 'a crew';
+  return {
+    title: `${actor} invited you to ${crew}`,
+    detail: 'Accept or decline on the Crew tab.',
+  };
+}
+
+/**
+ * The Notifications-section copy for a join request to a crew you
+ * captain (Nov 21, 2026). The applicant is the headline; the detail
+ * says where the approve lives.
+ */
+export function crewJoinRequestCopy(notification: {
+  actorName: string;
+  crewName: string;
+}): { title: string; detail: string } {
+  const actor = String(notification.actorName || 'A player').trim() || 'A player';
+  const crew = String(notification.crewName || 'your crew').trim() || 'your crew';
+  return {
+    title: `${actor} asked to join ${crew}`,
+    detail: 'Approve or decline on the Crew tab.',
   };
 }
 

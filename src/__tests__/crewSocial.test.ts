@@ -24,7 +24,10 @@ import {
 import {
   crewChatMentionCopy,
   crewCommentCopy,
+  crewInviteCopy,
+  crewJoinRequestCopy,
   crewMemberJoinedCopy,
+  crewRequestCopy,
 } from '../logic/playerNotifications';
 
 const members = [
@@ -115,6 +118,26 @@ test('crew notification copy reads like a person talking to you', () => {
   assert.equal(crewCommentCopy({ actorName: '', missionTitle: '', preview: '' }).title, 'A crewmate commented on your crew photo');
 });
 
+test('crew request and invite copy names the person and where to answer', () => {
+  // Nov 21, 2026: requests used to live only in the Crews tab, so the
+  // notification row has to say where the accept lives.
+  assert.deepEqual(
+    crewRequestCopy({ actorName: 'Mascota' }),
+    { title: 'Mascota wants to add you to their crew', detail: 'Accept or decline on the Crew tab.' },
+  );
+  assert.deepEqual(
+    crewInviteCopy({ actorName: 'Zach Hammer', crewName: 'The Parking Lot Legends' }),
+    { title: 'Zach Hammer invited you to The Parking Lot Legends', detail: 'Accept or decline on the Crew tab.' },
+  );
+  assert.deepEqual(
+    crewJoinRequestCopy({ actorName: 'Elondra', crewName: 'The Parking Lot Legends' }),
+    { title: 'Elondra asked to join The Parking Lot Legends', detail: 'Approve or decline on the Crew tab.' },
+  );
+  assert.equal(crewRequestCopy({ actorName: '' }).title, 'A player wants to add you to their crew');
+  assert.equal(crewInviteCopy({ actorName: '', crewName: '' }).title, 'A player invited you to a crew');
+  assert.equal(crewJoinRequestCopy({ actorName: '', crewName: '' }).title, 'A player asked to join your crew');
+});
+
 test('firestore.rules gates the clubhouse collections', () => {
   const rules = fs.readFileSync('firestore.rules', 'utf8');
   assert.match(rules, /match \/crewFeedComments\/\{commentId\}/);
@@ -131,4 +154,46 @@ test('server exposes the clubhouse endpoints', () => {
   assert.match(server, /app\.post\("\/api\/crew\/feed\/comments"/);
   assert.match(server, /app\.post\("\/api\/crew\/chat\/messages"/);
   assert.match(server, /notifyCrewMemberJoined/);
+});
+
+test('server notifies on crew requests and invites, and exposes the people cancel', () => {
+  // Nov 21, 2026: a request that only lives in the Crews tab is never
+  // seen, so the send paths notify through the shared crew helper.
+  const server = fs.readFileSync('server.ts', 'utf8');
+  // People request: only a genuinely new pending request notifies.
+  const requestRoute = server.slice(server.indexOf('"/api/social/crew/request"'));
+  assert.ok(requestRoute.includes('isFreshPendingCrewRequest(result)'), 'request route guards on fresh pending send');
+  assert.ok(requestRoute.includes("type: 'crew_request'"), 'request route writes a crew_request notification');
+  // Direct named-crew invite: a duplicate pending invite throws above,
+  // so the write below only fires for a new invite.
+  assert.ok(server.includes("type: 'crew_invite'"), 'direct invite route writes a crew_invite notification');
+  // Join request: approval is captain-only, so the captain is notified.
+  const joinRoute = server.slice(server.indexOf('"/api/crew/join-requests"'));
+  assert.ok(joinRoute.includes("type: 'crew_join_request'"), 'join-request route writes a crew_join_request notification');
+  assert.ok(joinRoute.includes('getCanonicalCrewCaptainId(crew)'), 'join-request notification goes to the captain');
+  // People cancel: a dedicated endpoint through the connection writer.
+  assert.match(server, /app\.post\("\/api\/social\/crew\/cancel"/);
+  assert.ok(server.includes("writeCrewConnection(req.user.uid, player.id, 'cancel_request')"));
+  const service = fs.readFileSync('src/services/crewGraphService.ts', 'utf8');
+  assert.match(service, /export async function cancelCrewRequest/);
+  assert.ok(service.includes("'/api/social/crew/cancel'"), 'cancel service hits the cancel endpoint');
+  // The PlayerCard button wiring is a separate step (CrewPeopleHome.tsx
+  // is frozen for a polish pass) — the endpoint and service land here.
+});
+
+test('named-crew cancel and invite revoke already existed — no duplicate work', () => {
+  // Nov 21, 2026: the join-request cancel and the invite revoke were
+  // already built and wired; this slice adds only the people-request
+  // cancel and the three notifications.
+  const service = fs.readFileSync('src/services/crewService.ts', 'utf8');
+  assert.match(service, /export async function cancelCrewJoinRequest/);
+  assert.match(service, /export async function revokeCrewInviteLink/);
+  const crew = fs.readFileSync('src/pages/Crew.tsx', 'utf8');
+  assert.ok(crew.includes('cancelCrewJoinRequest(request.id)'), 'join-request Cancel button is wired');
+  assert.ok(crew.includes('revokeCrewInviteLink(invite.id)'), 'invite Revoke button is wired');
+  // Notifications need no rules change: the docs are server-written
+  // via the Admin SDK and read from the existing owner-read rule.
+  const rules = fs.readFileSync('firestore.rules', 'utf8');
+  assert.ok(rules.includes('match /notifications/{notificationId}'));
+  assert.ok(!rules.includes('crew_request'), 'no per-type rules: notifications share one owner-read match');
 });

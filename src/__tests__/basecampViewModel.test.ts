@@ -4,7 +4,7 @@ import { Timestamp } from 'firebase/firestore';
 import type { TripCard } from '../types/challenges';
 import type { Entry, Vote } from '../types/game';
 import type { Observation } from '../types/observations';
-import type { CrewChatMentionNotification, CrewCommentNotification, CrewMemberJoinedNotification, PlayerNotification, PowerHourLiveNotification, ProofReviewNotification, ProofSubmittedNotification, StickerAwardedNotification } from '../logic/playerNotifications';
+import type { CrewChatMentionNotification, CrewCommentNotification, CrewInviteNotification, CrewJoinRequestNotification, CrewMemberJoinedNotification, CrewRequestNotification, PlayerNotification, PowerHourLiveNotification, ProofReviewNotification, ProofSubmittedNotification, StickerAwardedNotification } from '../logic/playerNotifications';
 import type { UserProfile } from '../services/userService';
 import { buildCanonicalProgress } from '../services/canonicalProgress';
 import {
@@ -656,6 +656,70 @@ test('Crew notifications render as crew rows with the right destinations', () =>
   assert.equal(model.notifications[2].title, 'Mascota commented on The Park Oasis');
   assert.equal(model.notifications[2].detail, 'That bench is legendary.');
   assert.equal(model.notifications[2].href, '/crew?tab=feed');
+});
+
+// Crew requests and invites (Nov 21, 2026): all three render as crew
+// rows on Basecamp and tap through to the Crew tab, where the
+// Accept / Decline / Approve lives.
+function crewRequestNotification(overrides: Partial<CrewRequestNotification> = {}): CrewRequestNotification {
+  return {
+    id: 'notif-crew-request-1',
+    type: 'crew_request',
+    actorId: 'u-mascota',
+    actorName: 'Mascota',
+    read: false,
+    createdAt: new Date('2026-11-21T14:35:00.000Z').getTime(),
+    ...overrides,
+  };
+}
+
+function crewInviteNotification(overrides: Partial<CrewInviteNotification> = {}): CrewInviteNotification {
+  return {
+    id: 'notif-crew-invite-1',
+    type: 'crew_invite',
+    crewId: 'crew-1',
+    crewName: 'The Parking Lot Legends',
+    actorId: 'u-zach',
+    actorName: 'Zach Hammer',
+    read: false,
+    createdAt: new Date('2026-11-21T14:36:00.000Z').getTime(),
+    ...overrides,
+  };
+}
+
+function crewJoinRequestNotification(overrides: Partial<CrewJoinRequestNotification> = {}): CrewJoinRequestNotification {
+  return {
+    id: 'notif-crew-join-request-1',
+    type: 'crew_join_request',
+    crewId: 'crew-1',
+    crewName: 'The Parking Lot Legends',
+    actorId: 'u-elondra',
+    actorName: 'Elondra',
+    read: false,
+    createdAt: new Date('2026-11-21T14:37:00.000Z').getTime(),
+    ...overrides,
+  };
+}
+
+test('Crew request and invite notifications render as crew rows to the Crew tab', () => {
+  const model = buildBasecampViewModel(input({
+    entries: [entry({ status: 'approved' })],
+    notifications: [crewRequestNotification(), crewInviteNotification(), crewJoinRequestNotification()],
+  }));
+  assert.equal(model.notifications.length, 3);
+  // Newest first: join request (14:37), invite (14:36), request (14:35).
+  assert.equal(model.notifications[0].kind, 'crew');
+  assert.equal(model.notifications[0].title, 'Elondra asked to join The Parking Lot Legends');
+  assert.equal(model.notifications[0].detail, 'Approve or decline on the Crew tab.');
+  assert.equal(model.notifications[0].href, '/crew');
+  assert.equal(model.notifications[1].kind, 'crew');
+  assert.equal(model.notifications[1].title, 'Zach Hammer invited you to The Parking Lot Legends');
+  assert.equal(model.notifications[1].detail, 'Accept or decline on the Crew tab.');
+  assert.equal(model.notifications[1].href, '/crew');
+  assert.equal(model.notifications[2].kind, 'crew');
+  assert.equal(model.notifications[2].title, 'Mascota wants to add you to their crew');
+  assert.equal(model.notifications[2].detail, 'Accept or decline on the Crew tab.');
+  assert.equal(model.notifications[2].href, '/crew');
 });
 
 test('Notifications section has no 5-item cap, and read rows are not unread', () => {

@@ -81,6 +81,21 @@ export async function declineCrewRequest(peerUserId: string): Promise<{ relation
   return readSocialResponse(response, `Crew decline failed with HTTP ${response.status}`);
 }
 
+/**
+ * Unsending a people request (Nov 21, 2026). Only the requester can
+ * cancel their own pending request; the server rejects cancelling an
+ * accepted connection or someone else's request. The PlayerCard button
+ * wiring lands separately (CrewPeopleHome.tsx is frozen for a polish
+ * pass); this is the service half.
+ */
+export async function cancelCrewRequest(peerUserId: string): Promise<{ relationship: string }> {
+  const response = await authenticatedFetch('/api/social/crew/cancel', {
+    method: 'POST',
+    body: JSON.stringify({ userId: peerUserId }),
+  });
+  return readSocialResponse(response, `Crew cancel failed with HTTP ${response.status}`);
+}
+
 export async function removeCrewMemberConnection(peerUserId: string): Promise<{ relationship: string }> {
   const response = await authenticatedFetch('/api/social/crew/remove', {
     method: 'POST',

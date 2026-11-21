@@ -96,6 +96,19 @@ test('sticker awards: the client read maps the sticker shape, not a decision', (
   assert.match(service, /stickerName: String\(data\.stickerName/);
 });
 
+test('crew requests and invites: the client read maps the three new shapes', () => {
+  // Nov 21, 2026: crew_request, crew_invite, and crew_join_request join
+  // the collection. Without explicit branches the fallthrough would map
+  // them to bogus proof-review decision rows.
+  const service = read('src/services/playerNotificationService.ts');
+  for (const type of ['crew_request', 'crew_invite', 'crew_join_request']) {
+    assert.match(service, new RegExp(`data\\.type === '${type}'`));
+  }
+  assert.match(service, /actorId: String\(data\.actorId/);
+  assert.match(service, /actorName: String\(data\.actorName/);
+  assert.match(service, /crewName: String\(data\.crewName/);
+});
+
 test('Q11: the server writes the notification in the decision transaction', () => {
   const server = read('server.ts');
   // Exactly four notification writes in the whole server: the decision

@@ -23,6 +23,7 @@ export const CREW_CONNECTION_ACTIONS = [
   'decline',
   'remove',
   'block',
+  'cancel_request',
 ] as const;
 export type CrewConnectionAction = typeof CREW_CONNECTION_ACTIONS[number];
 
@@ -167,6 +168,16 @@ export function pendingRequestIsNotAcceptedCrew(connection: CrewConnectionRecord
   return !connection || connection.status !== 'accepted';
 }
 
+/**
+ * The fresh-send rule for crew-request notifications (Nov 21, 2026):
+ * notify the addressee only when a genuinely new pending request was
+ * just created. A duplicate re-send is idempotent, and a mutual send
+ * lands as an accept, not a pending request — neither notifies.
+ */
+export function isFreshPendingCrewRequest(result: { status: CrewConnectionStatus; idempotent?: boolean }): boolean {
+  return result.status === 'pending' && result.idempotent !== true;
+}
+
 export function resolveCrewConnectionWrite(input: ResolveCrewWriteInput): ResolveCrewWriteResult {
   const actorId = String(input.actorId || '').trim();
   const targetId = String(input.targetId || '').trim();
@@ -268,6 +279,35 @@ export function resolveCrewConnectionWrite(input: ResolveCrewWriteInput): Resolv
       };
     }
     return { ok: false, idempotent: false, error: 'REMOVE_NOT_ALLOWED' };
+  }
+
+  if (input.action === 'cancel_request') {
+    // Unsending a people request (Nov 21, 2026): only the requester can
+    // void their own pending request, and only while it is still pending.
+    // An accepted connection is never cancelled this way (use remove);
+    // the addressee declines instead of cancelling. A re-cancel after
+    // the request is already gone is a no-op, so a double tap cannot
+    // error. The terminal state is 'removed', which reads as 'none'
+    // for both players, so a cancelled request leaves no trace in
+    // either person's graph.
+    if (existing?.status === 'pending' && existing.requesterId === actorId) {
+      return {
+        ok: true,
+        idempotent: false,
+        next: { requesterId: existing.requesterId, addresseeId: existing.addresseeId, status: 'removed' },
+      };
+    }
+    if (
+      (existing?.status === 'removed' || existing?.status === 'declined') &&
+      existing.requesterId === actorId
+    ) {
+      return {
+        ok: true,
+        idempotent: true,
+        next: { requesterId: existing.requesterId, addresseeId: existing.addresseeId, status: existing.status },
+      };
+    }
+    return { ok: false, idempotent: false, error: 'CANCEL_NOT_ALLOWED' };
   }
 
   if (input.action === 'block') {

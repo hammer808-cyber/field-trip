@@ -96,6 +96,7 @@ import {
   CREW_CONNECTIONS_COLLECTION,
   deriveCrewRelationshipState,
   getCrewConnectionId,
+  isFreshPendingCrewRequest,
   isValidPlayerSearchQuery,
   normalizeUsernameQuery,
   publicPlayerIdentityHasPrivateLeak,
@@ -5292,7 +5293,7 @@ async function startServer() {
     };
   };
 
-  const writeCrewConnection = async (actorId: string, targetId: string, action: 'send_request' | 'accept' | 'decline' | 'remove' | 'block') => {
+  const writeCrewConnection = async (actorId: string, targetId: string, action: 'send_request' | 'accept' | 'decline' | 'remove' | 'block' | 'cancel_request') => {
     if (!dbAdmin) throw new Error('DB_ADMIN_NOT_READY');
     const [low, high] = sortUserIds(actorId, targetId);
     const connectionId = getCrewConnectionId(actorId, targetId);
@@ -6607,6 +6608,18 @@ async function startServer() {
       const player = await resolvePlayerByUsernameOrId({ userId: req.body?.userId, username: req.body?.username });
       if (!player) return res.status(404).json({ error: "PLAYER_NOT_FOUND" });
       const result = await writeCrewConnection(req.user.uid, player.id, 'send_request');
+      // Crew-request notification (Nov 21, 2026): the request only shows
+      // up in the Crews tab otherwise, so nobody sees it. Notify the
+      // addressee on a genuinely new pending request — never on a
+      // duplicate re-send (idempotent) or a mutual send that lands as
+      // an accept. Best effort: a missed row never fails the request.
+      if (isFreshPendingCrewRequest(result)) {
+        const actorSnap = await dbAdmin!.collection('users').doc(req.user.uid).get().catch(() => null);
+        const actorName = displayNameFromProfile(actorSnap?.data() || {}, req.user.uid);
+        await writeCrewPlayerNotification(player.id, {
+          type: 'crew_request', actorId: req.user.uid, actorName,
+        }).catch((err) => console.error('[CREW_SOCIAL] request notify failed:', err));
+      }
       res.json({ ...result, player: toSafePublicPlayer(player, player.id) });
     } catch (error: any) {
       console.error("[SOCIAL_CREW_REQUEST] Failed:", error);
@@ -6635,6 +6648,21 @@ async function startServer() {
     } catch (error: any) {
       console.error("[SOCIAL_CREW_DECLINE] Failed:", error);
       res.status(error.status || 500).json({ error: error.message || "CREW_DECLINE_FAILED" });
+    }
+  });
+
+  // Unsending a people request (Nov 21, 2026): only the requester can
+  // void their own pending request. No notification on cancel — the
+  // addressee simply stops seeing the pending request.
+  app.post("/api/social/crew/cancel", authRateLimiter, authenticate, async (req: any, res) => {
+    try {
+      const player = await resolvePlayerByUsernameOrId({ userId: req.body?.userId, username: req.body?.username });
+      if (!player) return res.status(404).json({ error: "PLAYER_NOT_FOUND" });
+      const result = await writeCrewConnection(req.user.uid, player.id, 'cancel_request');
+      res.json(result);
+    } catch (error: any) {
+      console.error("[SOCIAL_CREW_CANCEL] Failed:", error);
+      res.status(error.status || 500).json({ error: error.message || "CREW_CANCEL_FAILED" });
     }
   });
 
@@ -7249,6 +7277,18 @@ async function startServer() {
         return { id: inviteId, ...inviteDoc, token: undefined };
       });
       await dbAdmin.collection('crewAuditLogs').add({ actorId: uid, crewId, action: 'create_direct_invite', inviteId, inviteeUserId, createdAt: FieldValue.serverTimestamp() });
+      // Crew-invite notification (Nov 21, 2026): same reason as the
+      // people request — an invite that only lives in the Crews tab is
+      // never seen. A duplicate pending invite throws above, so this
+      // only fires for a genuinely new invite. Best effort.
+      const [crewSnapForInvite, inviterSnap] = await Promise.all([
+        dbAdmin.collection('crews').doc(crewId).get().catch(() => null),
+        dbAdmin.collection('users').doc(uid).get().catch(() => null),
+      ]);
+      await writeCrewPlayerNotification(inviteeUserId, {
+        type: 'crew_invite', crewId, crewName: String(crewSnapForInvite?.data()?.name || 'a crew'),
+        actorId: uid, actorName: displayNameFromProfile(inviterSnap?.data() || {}, uid),
+      }).catch((err) => console.error('[CREW_SOCIAL] invite notify failed:', err));
       res.json({ invite: result });
     } catch (error: any) {
       const message = error.message || String(error);
@@ -7556,8 +7596,20 @@ async function startServer() {
           resolvedAt: null,
           resolvedBy: null,
         }, { merge: true });
-        return { requestId };
+        return { requestId, applicantName: displayNameFromProfile(eligible.profile, uid) };
       });
+      // Crew join-request notification (Nov 21, 2026): join approval is
+      // captain-only (canApproveJoinRequest), so the captain is the one
+      // who needs to see the request. A duplicate pending request
+      // throws above, so this only fires for a genuinely new request.
+      // Best effort: a missed row never fails the request.
+      const captainId = getCanonicalCrewCaptainId(crew);
+      if (captainId && captainId !== uid) {
+        await writeCrewPlayerNotification(captainId, {
+          type: 'crew_join_request', crewId, crewName: String(crew.name || 'your crew'),
+          actorId: uid, actorName: result.applicantName,
+        }).catch((err) => console.error('[CREW_SOCIAL] join-request notify failed:', err));
+      }
       res.json({ success: true, requestId: result.requestId });
     } catch (error: any) {
       const message = error.message || String(error);
