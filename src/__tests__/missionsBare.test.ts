@@ -66,14 +66,15 @@ test('missions bare: Basecamp carries the active deck row', () => {
   const basecamp = read('src/pages/Basecamp.tsx');
 
   // The deck info moved here from Missions: one slim row with the deck
-  // name, its progress, and the season countdown, tapping through to the
-  // shelf in DEX.
+  // name and its progress, tapping through to the shelf in DEX. The season
+  // countdown lives in the header above it (calendar-backed since Nov 21,
+  // 2026 — the Firestore activeSeason doc no longer decides it).
   assert.match(basecamp, /Active deck/);
   assert.match(basecamp, /viewModel\.progress\.activeDeckName/);
   assert.match(basecamp, /viewModel\.progress\.activeDeckApprovedCount/);
   assert.match(basecamp, /viewModel\.progress\.activeDeckTotalCount/);
-  assert.match(basecamp, /getSeasonCountdown\(activeSeason, currentDate\)/);
-  assert.match(basecamp, /seasonCountdown\.label/);
+  assert.match(basecamp, /getCalendarSeasonHeader\(currentDate\)/);
+  assert.match(basecamp, /seasonHeader\.label/);
   assert.match(basecamp, /Deck shelf/);
   assert.match(basecamp, /navigate\('\/dex'\)/);
 });
