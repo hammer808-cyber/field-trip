@@ -1,6 +1,32 @@
-# Urban Recon — location-adaptive deck (SPEC)
+# Urban Recon — location-adaptive deck (BUILT)
 
-Status: SPEC — draft for Zach's red pen, not approved for build. Date: Nov 21, 2026. Decisions Nov 21: provider Google Places (key done), radii 5/15/35, deck size 20, template Action + Place + Token.
+Status: BUILT + LIVE Nov 21, 2026 (commit `d39f9a2`, pushed; deploy verified by curl ~8:51 AM PST — live entry chunk byte-identical to the local build, POST /api/places/resolve returns 401 unauthenticated). Decisions Nov 21: provider Google Places (key done), radii 5/15/35, deck size 20, template Action + Place + Token. Zach approved the v1 skeleton list as-is Nov 21 ("build it for now, cards can be strengthened later").
+
+## Build notes (Nov 21, 2026)
+
+- **Draw resolution is background/async, not blocking.** The draw
+  saves first, then the resolver runs (one-shot GPS + one POST to
+  `/api/places/resolve`) and merges the resolved place onto the drawn
+  card doc. The briefing, deck poster, and capture read it from the
+  live subscription — the generic text shows until it lands, and a
+  resolution failure never fails or stalls a draw.
+- **Generic-tier location layer (deviation from §Verification):** the
+  spec said the layer pays anywhere in the same city/county as the
+  draw. As built it pays within 35 mi of the draw point — the same
+  outcome in practice, without a second reverse-geocode at submit.
+  A server-side city/county check at approve time could tighten it
+  later.
+- **Deck:** FT-09, evergreen, `starter-complete` unlock (same shape
+  as Texas), 20 missions, no card art yet (SVG illustration fallback,
+  like Gobble & Glow). Plain-language copy added for all 20 cards.
+- **No new triggers, no rules change.** The deck-completion sticker
+  (`deck-urban-recon`) already existed. Outside Person fires on a
+  resolved-place approval via the entry's `resolvedPlace` +
+  Capture's tag-aware `locationVerified`.
+- **Still open:** whether `GOOGLE_PLACES_API_KEY` is in Render's
+  Environment tab, or only created in Google Cloud. The endpoint
+  returns 503 (`PLACES_KEY_MISSING`) when the key is absent — the
+  first real draw from Zach's phone is the proof it is set.
 
 ## What it is
 
@@ -253,8 +279,9 @@ No track, no history, no home location saved.
 1. **Radii:** ~~3 / 10 / 25 miles~~ DECIDED Nov 21 — 5 / 15 / 35.
 2. **Provider:** ~~Google Places primary (recommended) or OSM-only?~~ DECIDED Nov 21 — Google Places API, key done.
 3. **Deck size:** ~~15 to start, or go straight to 20 like winter?~~ DECIDED Nov 21 — 20.
-4. **The skeleton list:** red pen on the 20 — which stay, which go,
-   what is missing? (His call on the mix of slotted vs unslotted, and on the Action + Place + Token template.)
+4. **The skeleton list:** ~~red pen on the 20 — which stay, which go,
+   what is missing?~~ APPROVED AS V1 Nov 21 — Zach: "build it for
+   now, cards can be strengthened later."
 5. **Marquee-city hand variants:** default is no — the resolver
    covers it. Say the word if a specific city deserves a hand-written
    card anyway (e.g., a Rockefeller tree card that only ever resolves
