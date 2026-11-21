@@ -133,6 +133,7 @@ import { awardTrustedXpInTransaction, buildLedgerBackedProgressionRepairPlan, ge
 import { createAdminStickerAwardStore, createStickerAwardHandler } from "./src/server/stickerAwards";
 import { awardWeeklyWinnerStickers, createAdminCanonicalStickerAwardStore, type WeeklyWinnerInput } from "./src/server/canonicalStickerAwards";
 import { createAdminStickerGrantStore, createStickerGrantHandler } from "./src/server/stickerGrants";
+import { countRepairDiagnostics } from "./src/server/repairDiagnostics";
 import {
   createAdminStickerBackfillStore,
   createAdminStickerEvalStore,
@@ -10917,38 +10918,26 @@ async function startServer() {
         storageTest = "failed";
       }
 
+      // Ghost/orphan counts (fixed Nov 20, 2026): read root + subcollections
+      // (collectionGroup, like the client repair) and match reviews to
+      // entries by the review's entryId FIELD, not by doc id — review docs
+      // are named `review_<entryId>`, so doc-id equality could never link
+      // them and every live review counted as a ghost. See
+      // src/server/repairDiagnostics.ts.
       const [entriesSnap, reviewsSnap, usersSnap] = await Promise.all([
-        dbAdmin.collection('entries').get(),
-        dbAdmin.collection('proofReviews').get(),
+        dbAdmin.collectionGroup('entries').get(),
+        dbAdmin.collectionGroup('proofReviews').get(),
         dbAdmin.collection('users').get()
       ]);
 
-      const entryIds = new Set(entriesSnap.docs.map(d => d.id));
-      const reviewIds = new Set(reviewsSnap.docs.map(d => d.id));
-
-      let pendingProofReviewsCount = 0;
-      reviewsSnap.docs.forEach(d => {
-        if (d.data().archived === true) return;
-        const s = (d.data().status || '').toLowerCase().trim();
-        if (['pending_review', 'pending', 'checking', 'awaiting_review', 'needs_review'].includes(s)) {
-          pendingProofReviewsCount++;
-        }
-      });
-
-      let entriesWithoutMatchingReviewsCount = 0;
-      entriesSnap.docs.forEach(d => {
-        if (!reviewIds.has(d.id)) {
-          entriesWithoutMatchingReviewsCount++;
-        }
-      });
-
-      let reviewsWithoutMatchingEntriesCount = 0;
-      reviewsSnap.docs.forEach(d => {
-        if (d.data().archived === true) return;
-        if (!entryIds.has(d.id)) {
-          reviewsWithoutMatchingEntriesCount++;
-        }
-      });
+      const {
+        pendingProofReviews: pendingProofReviewsCount,
+        entriesWithoutReviews: entriesWithoutMatchingReviewsCount,
+        reviewsWithoutEntries: reviewsWithoutMatchingEntriesCount
+      } = countRepairDiagnostics(
+        entriesSnap.docs.map((d) => ({ id: d.id, data: d.data() })),
+        reviewsSnap.docs.map((d) => ({ id: d.id, data: d.data() }))
+      );
 
       const STARTER_IDS = ["starter-1", "starter-2", "starter-3"];
       let starterProgressMismatchCount = 0;

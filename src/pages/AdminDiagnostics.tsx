@@ -181,7 +181,7 @@ export default function AdminDiagnostics() {
               </div>
               
               <div className="mt-12 pt-6 border-t border-on-surface/10">
-                 <p className="text-[10px] font-mono font-black uppercase opacity-40 mb-2">Last Scan Run</p>
+                 <p className="text-[10px] font-mono font-black uppercase opacity-40 mb-2">Last Repair Run</p>
                  <p className="text-sm font-mono font-black text-on-surface">
                    {diagnostics ? new Date(diagnostics.lastRepairRunTimestamp).toLocaleString() : '---'}
                  </p>
