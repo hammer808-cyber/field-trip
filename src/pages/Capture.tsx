@@ -49,6 +49,7 @@ import {
   saveCaptureDraft,
   type CaptureDraft,
 } from '../logic/captureDraft';
+import { mintSubmissionAttemptId, resolveSubmissionEntryId } from '../logic/submissionAttempt';
 import { bakeStickerIntoPhoto } from '../lib/photoUtils';
 import { DEFAULT_POLAROID_STICKER_PLACEMENT, resolvePolaroidSticker } from '../logic/polaroidSticker';
 
@@ -130,11 +131,12 @@ export default function CapturePage() {
   // list already shows one, turning the retry into an update-in-place
   // (setDoc merge) instead of a duplicate. The in-flight guard is the
   // submitLockRef/isUploading early return in handleSubmit plus the retry
-  // button being disabled while a retry runs. Residual gap, out of scope
-  // here (needs a pipeline change): if the listener has not synced the
-  // first attempt's entry yet when the user retries, Capture cannot know
-  // its id — addEntry only returns entryId on success — so a duplicate
-  // pending entry is still possible in that narrow window.
+  // button being disabled while a retry runs. Closed Nov 20, 2026
+  // (follow-up): the entry id is minted once per capture session
+  // (submissionAttemptIdRef, persisted in the draft) and passed as
+  // existingEntryId on every attempt, so a retry updates the same doc
+  // even before the listener syncs — addEntry no longer needs to return
+  // entryId on success for the retry to know it.
   const pendingEntryIdForTrip = React.useMemo(() => {
     if (!entries || entries.length === 0 || !tripIdParam) return null;
     const lowerId = tripIdParam.toLowerCase();
@@ -958,6 +960,11 @@ export default function CapturePage() {
     !!initialDraft && (!!initialDraft.photoDataUrl || initialDraft.note !== '')
   );
   const draftPhotoRef = useRef<string | null>(initialDraft?.photoDataUrl ?? null);
+  // P0-8 follow-up (Nov 20, 2026): the entry id for this capture session.
+  // Minted once on the first submit attempt (see handleSubmit) and
+  // restored from the draft on a refresh, so every retry of the same
+  // capture updates the same entry doc instead of minting a duplicate.
+  const submissionAttemptIdRef = useRef<string | null>(initialDraft?.submissionAttemptId ?? null);
   const draftValuesRef = useRef({
     note: '',
     stickerId: undefined as string | undefined,
@@ -1000,6 +1007,9 @@ export default function CapturePage() {
       trustLevel: draftMetaRef.current.trustLevel,
       stickerId: values.stickerId ?? null,
       stickerPlacement: values.stickerPlacement ?? null,
+      // P0-8 follow-up: keep the attempt id in the draft so a refresh
+      // mid-submit retries the same entry instead of minting a new one.
+      submissionAttemptId: submissionAttemptIdRef.current,
     });
   }, [user?.uid, tripIdParam, restoredState, isNeedsMore, isRepairMode]);
 
@@ -1206,6 +1216,15 @@ export default function CapturePage() {
 
     submitLockRef.current = true;
 
+    // P0-8 follow-up (Nov 20, 2026): mint the entry id once per capture
+    // session and reuse it on every attempt, so a retry after a post-write
+    // failure updates the same entry instead of minting a duplicate.
+    // Persisted into the draft at once, so a refresh mid-submit keeps it.
+    if (!submissionAttemptIdRef.current) {
+      submissionAttemptIdRef.current = mintSubmissionAttemptId(currentTrip.id, user.uid);
+    }
+    persistDraft();
+
     // A recorded voice note uploads first, so the layer it earns is only
     // claimed when the audio actually survived. A failed upload submits
     // without it — the note layer is simply not earned this time.
@@ -1394,10 +1413,17 @@ export default function CapturePage() {
           isRetry: isRetry,
           retryPointMultiplier: isRetry ? 0.5 : undefined,
           originalEntryId: originalEntryId || null,
-          // P0-8: reuse a pending entry for this trip when one already
-          // exists, so a retry after a post-write failure updates it
-          // instead of minting a duplicate pending entry.
-          existingEntryId: entryIdParam || pendingEntryIdForTrip || null,
+          // P0-8 follow-up (Nov 20, 2026): the entry id for this submit.
+          // Repair param first, then a pending entry the synced list
+          // already shows, then this session's attempt id — the fallback
+          // for the window after the first write, before the listener
+          // syncs. A retry setDocs the same doc (merge) instead of
+          // minting a duplicate pending entry.
+          existingEntryId: resolveSubmissionEntryId({
+            entryIdParam: entryIdParam || null,
+            pendingEntryId: pendingEntryIdForTrip,
+            attemptId: submissionAttemptIdRef.current,
+          }),
           fastFindAttempt: isFastFind ? {
             mode: "fastFind",
             selectedIntensity: lockedSignalIntensity || 'Standard',

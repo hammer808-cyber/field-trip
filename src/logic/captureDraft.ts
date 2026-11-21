@@ -39,6 +39,11 @@ export interface CaptureDraft {
   trustLevel: string | null;
   stickerId?: string | null;
   stickerPlacement?: PolaroidStickerPlacement | null;
+  // P0-8 follow-up (Nov 20, 2026): the entry id minted for this capture
+  // session. A retry reuses it as existingEntryId so a post-write failure
+  // updates the same entry instead of minting a duplicate; storing it in
+  // the draft keeps the same attempt id across a refresh mid-submit.
+  submissionAttemptId?: string | null;
 }
 
 export function captureDraftKey(userId: string, missionId: string): string {
@@ -66,6 +71,7 @@ export function loadCaptureDraft(userId: string, missionId: string): CaptureDraf
       trustLevel: typeof parsed.trustLevel === 'string' ? parsed.trustLevel : null,
       stickerId: typeof parsed.stickerId === 'string' ? parsed.stickerId : null,
       stickerPlacement: parsed.stickerPlacement ?? null,
+      submissionAttemptId: typeof parsed.submissionAttemptId === 'string' ? parsed.submissionAttemptId : null,
     };
   } catch {
     return null;

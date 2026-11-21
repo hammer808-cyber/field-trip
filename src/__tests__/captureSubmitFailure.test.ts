@@ -84,7 +84,13 @@ test('P0-8: a retry reuses an already-created pending entry instead of minting a
   // exists, turning the retry into an update-in-place.
   assert.match(capture, /pendingEntryIdForTrip/);
   assert.match(capture, /normalizeEntryStatus\(e\.status\) === 'pending_review'/);
-  assert.match(capture, /existingEntryId: entryIdParam \|\| pendingEntryIdForTrip \|\| null/);
+  // Nov 20, 2026 follow-up: the id is resolved through
+  // resolveSubmissionEntryId — repair param first, then the synced pending
+  // entry, then this session's attempt id (the fallback for the window
+  // after the first write, before the listener syncs).
+  assert.match(capture, /existingEntryId: resolveSubmissionEntryId\(\{/);
+  assert.match(capture, /pendingEntryId: pendingEntryIdForTrip/);
+  assert.match(capture, /attemptId: submissionAttemptIdRef\.current/);
   // The submit entry point still refuses a second in-flight attempt.
   assert.match(
     capture,
