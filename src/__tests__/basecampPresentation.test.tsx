@@ -285,9 +285,10 @@ test('Basecamp passes its countdown to the header and the deck row no longer car
   const basecamp = read('src/pages/Basecamp.tsx');
   assert.match(basecamp, /seasonLine=\{headerSeasonLine \?\? undefined\}/);
   // Calendar-backed (Nov 21, 2026): the header line comes from the
-  // meteorological calendar, not the Firestore season doc.
+  // meteorological calendar, not the Firestore season doc — and the week
+  // number is the calendar season's week number, not the voting cycle's.
   assert.match(basecamp, /getCalendarSeasonHeader\(currentDate\)/);
-  assert.match(basecamp, /headerSeasonLine = `\$\{seasonHeader\.label\} · Week \$\{currentWeekNumber\}`/);
+  assert.match(basecamp, /headerSeasonLine = `\$\{seasonHeader\.label\} · Week \$\{getSeasonWeekNumber\(currentDate\)\}`/);
   // The row keeps deck name + approved/pending counts only — the countdown
   // label and the Week suffix left with it.
   const rowAt = basecamp.indexOf('Active deck row');

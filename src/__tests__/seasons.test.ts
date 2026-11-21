@@ -3,10 +3,13 @@ import test from 'node:test';
 import {
   getCurrentSeason,
   getDaysRemainingInSeason,
+  getEventStatus,
+  getEventWindow,
   getNextSeason,
   getNextSeasonStart,
   getPtDateParts,
   getSeasonForDate,
+  getSeasonWeekNumber,
   isEventActive,
 } from '../data/seasons';
 
@@ -148,4 +151,41 @@ test('Gobble & Glow boundaries resolve in PT, not UTC', () => {
 
 test('unknown event ids are never active', () => {
   assert.equal(isEventActive('not-a-real-event', ptDate(2026, 12, 25)), false);
+});
+
+test('Gobble & Glow recurs every year on the same dates (Zach, Nov 21, 2026)', () => {
+  // Next year's window, same Nov 1–Jan 11.
+  assert.equal(isEventActive('gobble-and-glow', ptDate(2027, 10, 31)), false);
+  assert.equal(isEventActive('gobble-and-glow', ptDate(2027, 11, 1)), true);
+  assert.equal(isEventActive('gobble-and-glow', ptDate(2027, 12, 25)), true);
+  assert.equal(isEventActive('gobble-and-glow', ptDate(2028, 1, 11)), true);
+  assert.equal(isEventActive('gobble-and-glow', ptDate(2028, 1, 12)), false);
+  // Mid-year is outside every window.
+  assert.equal(isEventActive('gobble-and-glow', ptDate(2027, 6, 15)), false);
+});
+
+test('Gobble & Glow status in the gap is not-started with the next window', () => {
+  assert.equal(getEventStatus('gobble-and-glow', ptDate(2027, 2, 12)), 'not-started');
+  assert.equal(getEventStatus('gobble-and-glow', ptDate(2027, 11, 1)), 'active');
+  const next = getEventWindow('gobble-and-glow', ptDate(2027, 2, 12));
+  assert.deepEqual(
+    { startYear: next?.startYear, startMonth: next?.startMonth, startDay: next?.startDay, endYear: next?.endYear, endMonth: next?.endMonth, endDay: next?.endDay },
+    { startYear: 2027, startMonth: 11, startDay: 1, endYear: 2028, endMonth: 1, endDay: 11 },
+  );
+});
+
+test('season week number: Monday-anchored weeks from the season start', () => {
+  // Fall 2026 starts Tue Sep 1, so week 1 is the week of Mon Aug 31.
+  assert.equal(getSeasonWeekNumber(ptDate(2026, 9, 1)), 1);
+  assert.equal(getSeasonWeekNumber(ptDate(2026, 9, 6)), 1);
+  assert.equal(getSeasonWeekNumber(ptDate(2026, 9, 7)), 2);
+  // Today: Nov 21, 2026 is fall week 12.
+  assert.equal(getSeasonWeekNumber(ptDate(2026, 11, 21)), 12);
+  // Winter 2026 starts Tue Dec 1, so week 1 is the week of Mon Nov 30.
+  assert.equal(getSeasonWeekNumber(ptDate(2026, 12, 1)), 1);
+  assert.equal(getSeasonWeekNumber(ptDate(2027, 2, 28)), 13);
+  // Spring 2027 starts Mon Mar 1 — week 1 is Mar 1–7.
+  assert.equal(getSeasonWeekNumber(ptDate(2027, 3, 1)), 1);
+  assert.equal(getSeasonWeekNumber(ptDate(2027, 3, 7)), 1);
+  assert.equal(getSeasonWeekNumber(ptDate(2027, 3, 8)), 2);
 });

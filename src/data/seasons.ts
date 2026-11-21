@@ -5,8 +5,8 @@
  * - Seasons are METEOROLOGICAL, hard-coded, recurring every year:
  *   spring Mar 1–May 31, summer Jun 1–Aug 31, fall Sep 1–Nov 30,
  *   winter Dec 1–Feb 28/29 (leap-year aware).
- * - Gobble & Glow is an EVENT, not a season. Its dates (Nov 1–Jan 11)
- *   stay exactly as-is. Events are a separate list from seasons.
+ * - Gobble & Glow is an EVENT, not a season. It runs Nov 1–Jan 11 every
+ *   year (Zach, Nov 21, 2026). Events are a separate list from seasons.
  *
  * All date math is in America/Los_Angeles. A plain `new Date('2026-06-01')`
  * parses as UTC midnight, which is May 31 in PT, so season boundaries must
@@ -155,26 +155,29 @@ export function getNextSeasonStart(seasonId: SeasonId, now: Date = new Date()): 
 export interface CalendarEvent {
   id: string;
   name: string;
-  /** PT calendar date the event opens (inclusive). */
-  startYear: number;
+  /** PT calendar month/day the event opens (inclusive). */
   startMonth: number;
   startDay: number;
-  /** PT calendar date the event closes (inclusive). */
-  endYear: number;
+  /** PT calendar month/day the event closes (inclusive). */
   endMonth: number;
   endDay: number;
+  /**
+   * True when the event recurs every year on those month/day dates.
+   * A recurring event's window may span the year boundary (Nov 1–Jan 11
+   * starts in year Y and ends in year Y+1). All events in the list recur.
+   */
+  recursYearly: boolean;
 }
 
 export const EVENTS: readonly CalendarEvent[] = [
   {
     id: 'gobble-and-glow',
     name: 'Gobble & Glow',
-    startYear: 2026,
     startMonth: 11,
     startDay: 1,
-    endYear: 2027,
     endMonth: 1,
     endDay: 11,
+    recursYearly: true,
   },
 ] as const;
 
@@ -182,14 +185,63 @@ export function getEventById(eventId: string): CalendarEvent | undefined {
   return EVENTS.find((event) => event.id === eventId);
 }
 
+export interface EventWindow {
+  /** PT calendar year the window starts in. */
+  startYear: number;
+  startMonth: number;
+  startDay: number;
+  /** PT calendar year the window ends in (startYear + 1 for a window that
+   *  spans the year boundary, else startYear). */
+  endYear: number;
+  endMonth: number;
+  endDay: number;
+  startDayNumber: number;
+  endDayNumber: number;
+}
+
+function eventWindowForStartYear(event: CalendarEvent, startYear: number): EventWindow {
+  const endYear = startYear + (event.endMonth < event.startMonth ? 1 : 0);
+  return {
+    startYear,
+    startMonth: event.startMonth,
+    startDay: event.startDay,
+    endYear,
+    endMonth: event.endMonth,
+    endDay: event.endDay,
+    startDayNumber: ptDayNumber(startYear, event.startMonth, event.startDay),
+    endDayNumber: ptDayNumber(endYear, event.endMonth, event.endDay),
+  };
+}
+
+/**
+ * The event window that contains `now`, or — when `now` is outside every
+ * window — the next window starting after today. For a recurring event
+ * there is always a next window.
+ */
+export function getEventWindow(eventId: string, now: Date = new Date()): EventWindow | undefined {
+  const event = getEventById(eventId);
+  if (!event) return undefined;
+  const today = ptDayNumberForDate(now);
+  const { year } = getPtDateParts(now);
+  // A window starting this year or last year can contain today (a window
+  // spanning the year boundary starts in the previous calendar year).
+  for (const startYear of [year - 1, year]) {
+    const window = eventWindowForStartYear(event, startYear);
+    if (today >= window.startDayNumber && today <= window.endDayNumber) return window;
+  }
+  // Next window after today: the one starting this year if it has not
+  // started yet, else next year's. (All events in the list recur yearly;
+  // a future fixed-window event would need its own start/end years.)
+  const thisYear = eventWindowForStartYear(event, year);
+  return today < thisYear.startDayNumber ? thisYear : eventWindowForStartYear(event, year + 1);
+}
+
 /** True when `now`'s PT calendar date falls inside the event's window (inclusive both ends). */
 export function isEventActive(eventId: string, now: Date = new Date()): boolean {
-  const event = getEventById(eventId);
-  if (!event) return false;
+  const window = getEventWindow(eventId, now);
+  if (!window) return false;
   const today = ptDayNumberForDate(now);
-  const start = ptDayNumber(event.startYear, event.startMonth, event.startDay);
-  const end = ptDayNumber(event.endYear, event.endMonth, event.endDay);
-  return today >= start && today <= end;
+  return today >= window.startDayNumber && today <= window.endDayNumber;
 }
 
 export function getActiveEvents(now: Date = new Date()): CalendarEvent[] {
@@ -200,6 +252,8 @@ export function getActiveEvents(now: Date = new Date()): CalendarEvent[] {
  * Where `now` sits relative to an event's PT window (inclusive both ends).
  * 'unknown' when the event id is not in the calendar — callers treat that
  * as "no event gate applies" rather than locking the deck.
+ * A recurring event never reports 'ended': in the gap between windows it
+ * reports 'not-started', with the next window's start as the date to show.
  */
 export function getEventStatus(
   eventId: string,
@@ -207,10 +261,34 @@ export function getEventStatus(
 ): 'not-started' | 'active' | 'ended' | 'unknown' {
   const event = getEventById(eventId);
   if (!event) return 'unknown';
+  const window = getEventWindow(eventId, now);
+  if (!window) return 'unknown';
   const today = ptDayNumberForDate(now);
-  const start = ptDayNumber(event.startYear, event.startMonth, event.startDay);
-  const end = ptDayNumber(event.endYear, event.endMonth, event.endDay);
-  if (today < start) return 'not-started';
-  if (today > end) return 'ended';
-  return 'active';
+  if (today >= window.startDayNumber && today <= window.endDayNumber) return 'active';
+  // 'ended' is unreachable while every event recurs yearly (the gap
+  // reports 'not-started'); the value stays in the union for a future
+  // fixed-window event.
+  return 'not-started';
+}
+
+/**
+ * The week number of `now` inside its calendar season (Zach, Nov 21, 2026:
+ * the week number shown is the season's week number, not the ISO week and
+ * not the Firestore season doc's week). Weeks are Monday-anchored, like
+ * voting weeks: week 1 is the Monday–Sunday week containing the season's
+ * first day. So fall 2026 (Sep 1, a Tuesday) opens with the week of
+ * Monday Aug 31, and Nov 21, 2026 is fall week 12. A date in the first
+ * few days of a season is always week 1.
+ */
+export function getSeasonWeekNumber(now: Date = new Date()): number {
+  const season = getSeasonForDate(now);
+  const startYear = getSeasonStartYear(season, now);
+  const seasonStartDay = getSeasonStartDayNumber(season, startYear);
+  // UTC day number of the Monday of the week containing a day number
+  // (getUTCDay: 0 = Sunday, so Monday is (day + 6) % 7 days back).
+  const mondayOf = (dayNumber: number) =>
+    dayNumber - ((new Date(dayNumber * 86_400_000).getUTCDay() + 6) % 7);
+  const firstMonday = mondayOf(seasonStartDay);
+  const thisMonday = mondayOf(ptDayNumberForDate(now));
+  return 1 + Math.floor((thisMonday - firstMonday) / 7);
 }

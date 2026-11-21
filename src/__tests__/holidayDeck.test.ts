@@ -67,10 +67,21 @@ test('holiday deck is locked outside its window', () => {
   assert.equal(before.privateReason, 'access_window_not_started');
   // Jan 12 00:00 UTC is still Jan 11 16:00 PT (inside the event), so the
   // "after" instant has to be a true Jan 12 PT time.
+  // Recurring (Zach, Nov 21, 2026): the gap after a window reports
+  // 'not-started' with the next window's start, not 'ended'.
   const after = getDeckAccess(pack, { ...starterComplete, now: new Date('2027-01-12T12:00:00Z') });
   assert.equal(after.playable, false);
   assert.equal(after.locked, true);
-  assert.equal(after.privateReason, 'access_window_ended');
+  assert.equal(after.privateReason, 'access_window_not_started');
+  assert.match(after.reason, /Gobble & Glow opens Nov 1, 2027/);
+});
+
+test('holiday deck reopens the next year (Gobble & Glow recurs yearly)', () => {
+  const pack = getDeckPackById('gobble-and-glow');
+  const starterComplete = { profile: { completedDeckIds: ['starter-signals'] } as any };
+  const nextYear = getDeckAccess(pack, { ...starterComplete, now: new Date('2027-12-01T12:00:00Z') });
+  assert.equal(nextYear.playable, true, `expected playable in the 2027 window, got ${nextYear.reason}`);
+  assert.equal(nextYear.locked, false);
 });
 
 test('holiday deck still requires the starter deck, admins bypass', () => {

@@ -32,6 +32,7 @@ import { WeeklyCategoryBallotSection } from './WeeklyCategoryBallotSection';
 import { WeeklyAwardsResults } from './WeeklyAwardsResults';
 import { getProofImageReference } from '../logic/proofDistribution';
 import { getSeasonLabelForWeekStart } from '../logic/weeklySeasons';
+import { getSeasonWeekNumber } from '../data/seasons';
 
 const CATEGORIES: { id: VoteCategory; label: string; description: string; awardLabel: string; awardCopy: string }[] = [
   { id: 'best_field_note', label: 'Best Field Note', description: 'Profound or evocative field commentary.', awardLabel: 'Best Supporting Evidence', awardCopy: 'For a field note, photo, or tiny detail doing the most.' },
@@ -150,8 +151,12 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
 
   // Season label (Nov 21, 2026): the voting week belongs to the season
   // its Monday falls in (Monday rule, calendar-backed). The week number
-  // shown stays the existing season-week number — only the season is new.
-  const weekSeasonLabel = getSeasonLabelForWeekStart(getCurrentVotingCycle(getServerDate()).weekStart);
+  // shown is that season's week number (Zach, Nov 21, 2026), computed
+  // from the week's Monday — currentWeekNumber stays the voting-cycle
+  // week for ballots, locks, and summaries.
+  const votingWeekStart = getCurrentVotingCycle(getServerDate()).weekStart;
+  const weekSeasonLabel = getSeasonLabelForWeekStart(votingWeekStart);
+  const seasonWeekNumber = getSeasonWeekNumber(votingWeekStart);
 
   useEffect(() => {
     if (currentWeekNumber <= 0) return;
@@ -443,7 +448,7 @@ export const VotingHub = ({ noCard = false }: { noCard?: boolean }) => {
           <div className="space-y-3">
             <div className="inline-flex items-center gap-2 bg-on-surface text-brand-lime px-3 py-1 border-2 border-on-surface shadow-[3px_3px_0px_var(--color-brand-orange)]">
               <Ticket className="h-4 w-4" />
-              <span className="font-mono text-xs font-black uppercase tracking-[0.22em]">{weekSeasonLabel} · Week {currentWeekNumber} Dispatches</span>
+              <span className="font-mono text-xs font-black uppercase tracking-[0.22em]">{weekSeasonLabel} · Week {seasonWeekNumber} Dispatches</span>
             </div>
             <div>
               <h2 className="font-display text-5xl sm:text-8xl uppercase tracking-tighter leading-[0.8] font-black italic">Field Awards</h2>

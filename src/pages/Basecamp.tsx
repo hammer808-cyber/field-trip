@@ -23,6 +23,7 @@ import {
 import { acknowledgeDeckCompleteSeen } from '../services/deckCompleteAck';
 import { markNotificationRead } from '../services/playerNotificationService';
 import { getCalendarSeasonHeader } from '../utils/seasonCountdown';
+import { getSeasonWeekNumber } from '../data/seasons';
 import './Basecamp.css';
 
 export default function Basecamp() {
@@ -116,7 +117,10 @@ export default function Basecamp() {
   // authority for what the header says — the Firestore activeSeason doc
   // no longer decides it. Same shape as before, plus the next season.
   const seasonHeader = getCalendarSeasonHeader(currentDate);
-  const headerSeasonLine = `${seasonHeader.label} · Week ${currentWeekNumber}`;
+  // The week number is the calendar season's week number (Zach, Nov 21,
+  // 2026) — not the Firestore season doc's week. currentWeekNumber stays
+  // the voting-cycle week for the voting window and ballot mechanics.
+  const headerSeasonLine = `${seasonHeader.label} · Week ${getSeasonWeekNumber(currentDate)}`;
 
   React.useEffect(() => {
     if (!import.meta.env.DEV || !(profile?.id || user?.uid)) return;

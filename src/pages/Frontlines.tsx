@@ -18,6 +18,7 @@ import { FIELD_TYPES } from '../constants';
 import { AvatarPreview } from '../components/AvatarPreview';
 import { DEFAULT_AVATAR } from '../constants/avatarAssets';
 import { SabotageHub } from '../components/SabotageHub';
+import { getSeasonWeekNumber } from '../data/seasons';
 import { getServerDate } from '../services/timeService';
 import { StickerBackground } from '../components/StickerBackground';
 import { useNavigate } from 'react-router-dom';
@@ -198,7 +199,7 @@ export default function FrontlinesPage() {
         backgroundIcon={<Trophy className="h-64 w-64" />}
         infoCardLabel="Standing"
         infoCardValue={String(points)}
-        infoCardSubtext={`Week ${currentWeekNumber || '—'}`}
+        infoCardSubtext={`Week ${getSeasonWeekNumber(getServerDate())}`}
         infoCardAccent="lime"
       />
 

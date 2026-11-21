@@ -3,6 +3,7 @@ import {
   SEASON_TIME_ZONE,
   getEventById,
   getEventStatus,
+  getEventWindow,
   getNextSeasonStart,
   getPtDateParts,
   getSeasonById,
@@ -137,10 +138,15 @@ export function getDeckAccess(deck: DeckPack | null | undefined, context: DeckAc
     const status = getEventStatus(deck.eventId, now);
     if (status === 'not-started' || status === 'ended') {
       const event = getEventById(deck.eventId);
-      const reason = event
+      // The window containing today, or the next window after today (for a
+      // recurring event the gap reports 'not-started' with the next start).
+      const window = getEventWindow(deck.eventId, now);
+      const reason = event && window
         ? status === 'not-started'
-          ? `${event.name} opens ${formatPtDate(event.startYear, event.startMonth, event.startDay)}`
-          : `${event.name} ended ${formatPtDate(event.endYear, event.endMonth, event.endDay)}`
+          ? `${event.name} opens ${formatPtDate(window.startYear, window.startMonth, window.startDay)}`
+          // 'ended' is unreachable while every event recurs yearly; the
+          // previous window ended Jan 11 of the next window's start year.
+          : `${event.name} ended ${formatPtDate(window.startYear, event.endMonth, event.endDay)}`
         : 'Deck unavailable';
       return {
         deckId,
