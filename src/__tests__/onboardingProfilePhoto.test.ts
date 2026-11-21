@@ -17,28 +17,34 @@ const read = (relativePath: string) =>
 
 // --- Part 3: explorer character pictures -------------------------------
 
-test('explorer art: every character has all four files on disk as real PNGs', () => {
+test('explorer art: every character has all four files on disk as real image files', () => {
   // Nov 17, 2026: Elondra's four files were present and big enough but
   // corrupted (text-mode mojibake: first byte U+FFFD, not 0x89), so the
   // result page silently showed "Portrait incoming". Existence + size
   // is not enough — the PNG signature must be intact too.
+  // Nov 20, 2026: card/results/full are JPEG now (shrunk from 1.5-3.3 MB
+  // PNGs to ~100-270 KB); the avatar stays PNG. The signature check below
+  // still guards the Nov 17 corruption (mojibake files) — it just checks
+  // the right magic bytes per format.
   const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+  const jpegSignature = Buffer.from([0xff, 0xd8, 0xff]);
   for (const [typeId, type] of Object.entries(FIELD_TYPES)) {
     if (typeId === 'unclassified') continue;
     for (const key of ['image', 'avatarPath', 'resultImagePath', 'cardImagePath', 'fullImagePath'] as const) {
       const imagePath = (type as unknown as Record<string, string>)[key];
       assert.match(
         imagePath,
-        new RegExp(`^/assets/characters/${typeId}/(results|avatar|card|full)\\.png$`),
+        new RegExp(`^/assets/characters/${typeId}/(results|avatar|card|full)\\.(png|jpg)$`),
         `${typeId}.${key} is not a character asset: ${imagePath}`,
       );
       const onDisk = join(REPO_ROOT, 'public', imagePath.replace(/^\//, ''));
       assert.ok(existsSync(onDisk), `${typeId}.${key} missing on disk: ${onDisk}`);
       const bytes = readFileSync(onDisk);
       assert.ok(bytes.length > 20000, `${typeId}.${key} is suspiciously small`);
+      const expectedSignature = key === 'avatarPath' ? pngSignature : jpegSignature;
       assert.ok(
-        bytes.subarray(0, 4).equals(pngSignature),
-        `${typeId}.${key} is not a PNG (bad signature — likely corrupted): ${onDisk}`,
+        bytes.subarray(0, expectedSignature.length).equals(expectedSignature),
+        `${typeId}.${key} has a bad signature (likely corrupted): ${onDisk}`,
       );
     }
   }
