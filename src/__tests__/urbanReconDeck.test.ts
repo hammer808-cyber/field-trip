@@ -18,6 +18,7 @@ import test from 'node:test';
 import { URBAN_RECON_CHALLENGE_BANK } from '../data/urbanReconChallengeBank';
 import { ALL_CHALLENGE_CARDS } from '../data/allChallengeBanks';
 import { getDeckPackById } from '../data/deckPacks';
+import { renderCardText } from '../logic/placeResolution';
 
 const bank = URBAN_RECON_CHALLENGE_BANK;
 
@@ -132,4 +133,41 @@ test('deck: all 20 cards are in the canonical bank (draw pool, resolver, admin t
   for (const card of bank) {
     assert.ok(allIds.has(card.id as string), `${card.id} missing from ALL_CHALLENGE_CARDS`);
   }
+});
+
+test('bank: generic fallback text reads clean — no doubled nouns or token-as-place (Nov 21, 2026 live check)', () => {
+  // The first live check caught genericDefaults that were written as
+  // token phrases, not place nouns, so substitution doubled words
+  // ("Photograph the lights on lights on a building") or put the token
+  // where the place goes ("Buy a postcard at a souvenir"). Every slotted
+  // card's generic render must read as a plain sentence, with no raw slot.
+  const badPhrases = [
+    'lights on lights',
+    'at a souvenir',
+    'at a street performer',
+    'at sunrise at sunrise',
+    'in a park bench',
+    'after dark after dark',
+    'at street food',
+    'in a public staircase',
+    'at the oldest place',
+    'on a landmark after dark after dark',
+  ];
+  for (const card of bank) {
+    const rendered = renderCardText(card as never, null);
+    for (const field of [rendered.shortPrompt, rendered.mission, rendered.description]) {
+      assert.ok(!field.includes('{place}'), `${card.id} still shows a raw {place} slot: ${field}`);
+      for (const bad of badPhrases) {
+        assert.ok(!field.toLowerCase().includes(bad), `${card.id} reads awkward: ${field}`);
+      }
+    }
+  }
+  // Pin the corrected lines exactly.
+  const byId = new Map(bank.map((c) => [c.id, renderCardText(c as never, null)]));
+  assert.equal(byId.get('urban-02')?.shortPrompt, 'Photograph the lights on the brightest building nearby.');
+  assert.equal(byId.get('urban-09')?.shortPrompt, 'Walk to the nearest waterfront at golden hour.');
+  assert.equal(byId.get('urban-10')?.shortPrompt, 'Cross with the crowd at a busy downtown crossing.');
+  assert.equal(byId.get('urban-16')?.shortPrompt, 'Buy a postcard at a gift shop.');
+  assert.equal(byId.get('urban-17')?.shortPrompt, 'Tip a street performer at a transit station.');
+  assert.equal(byId.get('urban-20')?.shortPrompt, 'Be there at sunrise at a landmark.');
 });

@@ -27,6 +27,18 @@ Status: BUILT + LIVE Nov 21, 2026 (commit `d39f9a2`, pushed; deploy verified by 
   Environment tab, or only created in Google Cloud. The endpoint
   returns 503 (`PLACES_KEY_MISSING`) when the key is absent — the
   first real draw from Zach's phone is the proof it is set.
+- **Generic copy fix (Nov 21, 2026, after the first live check):**
+  several genericDefaults were written as token phrases, not place
+  nouns, so substitution doubled words ("Photograph the lights on
+  lights on a building") or put the token where the place goes
+  ("Buy a postcard at a souvenir"). Fixed in the bank: all 13
+  affected defaults rewritten as place nouns that fit the sentence
+  templates, two templates reworded (urban-09 "Walk to {place} at
+  golden hour", urban-10 "Cross with the crowd at {place}"), and a
+  regression test pins the clean generic render of every card.
+  FT-09 itself was never missing: the code is in the deck data and
+  shows on Basecamp / the active-deck panel — it just has no ribbon
+  on the catalog tile because the deck has no cover art yet.
 
 ## What it is
 

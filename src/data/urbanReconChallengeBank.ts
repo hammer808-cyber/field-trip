@@ -72,7 +72,7 @@ export const URBAN_RECON_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     locationAdaptive: {
       action: "Photograph the lights",
       token: "the brightest single display",
-      genericDefault: "lights on a building",
+      genericDefault: "the brightest building nearby",
       placeQuery: { googleType: "tourist_attraction" },
     },
     proofRequirements: {
@@ -215,7 +215,7 @@ export const URBAN_RECON_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     locationAdaptive: {
       action: "Sit and look",
       token: "the view from the bench",
-      genericDefault: "a park bench",
+      genericDefault: "a park",
       placeQuery: { googleType: "park" },
     },
     proofRequirements: {
@@ -262,9 +262,9 @@ export const URBAN_RECON_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     id: "urban-09",
     deckId: "urban-recon",
     title: "Waterfront Walk",
-    shortPrompt: "Walk to the water at golden hour in {place}.",
+    shortPrompt: "Walk to {place} at golden hour.",
     description: "Ocean, river, lake, pier — or a fountain, if that is the water your city has. Get there at golden hour and photograph the light on it.",
-    mission: "“Walk to the water at golden hour in {place}.”",
+    mission: "“Walk to {place} at golden hour.”",
     proofType: ["photo"],
     lane: "seasonal",
     difficulty: "easy",
@@ -273,7 +273,7 @@ export const URBAN_RECON_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     locationAdaptive: {
       action: "Walk to the water at golden hour",
       token: "the light on the water",
-      genericDefault: "any water you can find, even a fountain",
+      genericDefault: "the nearest waterfront",
       placeQuery: { keyword: "waterfront" },
     },
     proofRequirements: {
@@ -291,9 +291,9 @@ export const URBAN_RECON_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     id: "urban-10",
     deckId: "urban-recon",
     title: "Crosswalk Rush",
-    shortPrompt: "Cross with the crowd in {place}.",
+    shortPrompt: "Cross with the crowd at {place}.",
     description: "Find the busiest crossing downtown and cross with the crowd — not alone at a quiet light, in the middle of the rush, when the whole street is moving at once.",
-    mission: "“Cross with the crowd in {place}.”",
+    mission: "“Cross with the crowd at {place}.”",
     proofType: ["photo"],
     lane: "seasonal",
     difficulty: "easy",
@@ -302,7 +302,7 @@ export const URBAN_RECON_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     locationAdaptive: {
       action: "Cross with the crowd",
       token: "the busiest crossing",
-      genericDefault: "a busy crosswalk",
+      genericDefault: "a busy downtown crossing",
       placeQuery: { keyword: "downtown" },
     },
     proofRequirements: {
@@ -331,7 +331,7 @@ export const URBAN_RECON_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     locationAdaptive: {
       action: "Get to the top",
       token: "the highest view you can get",
-      genericDefault: "the highest view you can get",
+      genericDefault: "the tallest building nearby",
       placeQuery: { googleType: "tourist_attraction", preferTopRated: true },
     },
     proofRequirements: {
@@ -360,7 +360,7 @@ export const URBAN_RECON_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     locationAdaptive: {
       action: "Eat one thing after dark",
       token: "the dish",
-      genericDefault: "street food at night",
+      genericDefault: "a night market",
       placeQuery: { googleType: "market", keyword: "night market" },
     },
     proofRequirements: {
@@ -389,7 +389,7 @@ export const URBAN_RECON_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     locationAdaptive: {
       action: "Climb it",
       token: "the staircase most people walk past",
-      genericDefault: "a public staircase",
+      genericDefault: "a park",
       placeQuery: { googleType: "park" },
     },
     proofRequirements: {
@@ -447,7 +447,7 @@ export const URBAN_RECON_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     locationAdaptive: {
       action: "Order the oldest dish",
       token: "the dish",
-      genericDefault: "the oldest place you can find",
+      genericDefault: "a diner",
       placeQuery: { googleType: "restaurant", keyword: "diner" },
     },
     proofRequirements: {
@@ -476,7 +476,7 @@ export const URBAN_RECON_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     locationAdaptive: {
       action: "Buy a postcard",
       token: "the postcard",
-      genericDefault: "a souvenir",
+      genericDefault: "a gift shop",
       placeQuery: { googleType: "store", keyword: "gift shop" },
     },
     proofRequirements: {
@@ -505,7 +505,7 @@ export const URBAN_RECON_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     locationAdaptive: {
       action: "Tip a street performer",
       token: "the song they played",
-      genericDefault: "a street performer",
+      genericDefault: "a transit station",
       placeQuery: { googleType: "transit_station" },
     },
     proofRequirements: {
@@ -534,7 +534,7 @@ export const URBAN_RECON_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     locationAdaptive: {
       action: "Photograph after dark",
       token: "the lights",
-      genericDefault: "lights on a building after dark",
+      genericDefault: "a landmark",
       placeQuery: { googleType: "tourist_attraction" },
     },
     proofRequirements: {
@@ -564,7 +564,7 @@ export const URBAN_RECON_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     locationAdaptive: {
       action: "Frame the shot",
       token: "the view the city is known for",
-      genericDefault: "the place your city is most known for",
+      genericDefault: "the city's best-known spot",
       placeQuery: { googleType: "tourist_attraction", preferTopRated: true },
     },
     proofRequirements: {
@@ -593,7 +593,7 @@ export const URBAN_RECON_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     locationAdaptive: {
       action: "Be there at sunrise",
       token: "first light hitting it",
-      genericDefault: "sunrise on a landmark",
+      genericDefault: "a landmark",
       placeQuery: { googleType: "tourist_attraction" },
     },
     proofRequirements: {
