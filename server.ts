@@ -9275,6 +9275,12 @@ async function startServer() {
         // location verdict and the voice-note flag since the Q3 submit fix;
         // entries submitted before it still resolve the location layer
         // false — the layer is not invented here.)
+        // Crew layer: crewContext is stamped on the entry by
+        // AppContext.addEntry, and the card is resolved from the registry
+        // by the entry's trip/mission/challenge id — the same lookup as
+        // the admin preview in AdminProofReview.tsx. Both were missing
+        // here, so the server award dropped the +25% crew layer the
+        // preview showed on group-confirmation cards.
         const participation = resolveParticipationSignals({
           photoSubjectVerified: entry.participation?.photoSubjectVerified,
           aiAnalysisResult: entry.aiAnalysisResult,
@@ -9286,6 +9292,10 @@ async function startServer() {
           locationVerified: entry.locationVerified ?? entry.participation?.locationVerified,
           latitude: entry.latitude,
           longitude: entry.longitude,
+          submittedAsCrewMember: entry.crewContext?.submittedAsCrewMember === true,
+          groupConfirmationCard: (
+            resolveMissionById(getBackendString(entry.tripId ?? entry.missionId ?? entry.challengeId))?.proofType || []
+          ).includes('group-confirmation'),
         });
         const calculatedMissionScore = calculateMissionScore({
           baseMaxScore: rubricScoring.maxAdminAwardableXp,

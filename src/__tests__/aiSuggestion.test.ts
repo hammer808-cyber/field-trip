@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { resolveMissionById } from '../logic/missionResolver';
 import {
   aiConfidencePercent,
   extractAiAnalysis,
@@ -292,8 +293,37 @@ test('server: the points ceiling resolves from the card bank when the entry lack
   assert.match(proofRubricSource, /\? Math\.round\(parsed\) : 100;/);
 });
 
-test('server: the AI suggestion is stored next to the award in adminLogs', () => {
+test('server: approval passes the crew layer through to the award', () => {
   const routeStart = serverSource.indexOf('app.post("/api/admin/proof-review/action"');
+  assert.notEqual(routeStart, -1);
+  const route = serverSource.slice(routeStart, serverSource.indexOf('app.post("/api/admin/grant-starter-bypass"', routeStart));
+  // Crew context stamped on the entry by AppContext.addEntry — without
+  // this the server award dropped the +25% crew layer the admin preview
+  // showed on group-confirmation cards.
+  assert.match(route, /submittedAsCrewMember: entry\.crewContext\?\.submittedAsCrewMember === true/);
+  // Card resolved from the registry by the entry's trip/mission/challenge
+  // id, mirroring the preview in AdminProofReview.tsx.
+  assert.match(route, /groupConfirmationCard: \(/);
+  assert.match(route, /resolveMissionById\(getBackendString\(entry\.tripId \?\? entry\.missionId \?\? entry\.challengeId\)\)\?\.proofType/);
+  assert.match(route, /\.includes\('group-confirmation'\)/);
+});
+
+test('server: the crew card lookup resolves group-confirmation cards from the bank', () => {
+  // winter-12 Carolers is a group-confirmation card (medium, 125 XP);
+  // winter-01 Paper Snowflakes is photo-only. The server's
+  // resolveMissionById lookup must tell them apart or the crew layer
+  // pays on the wrong cards.
+  const carolers = resolveMissionById('winter-12');
+  assert.ok(carolers, 'winter-12 resolves from the bank');
+  assert.equal((carolers.proofType || []).includes('group-confirmation'), true);
+  const snowflakes = resolveMissionById('winter-01');
+  assert.ok(snowflakes, 'winter-01 resolves from the bank');
+  assert.equal((snowflakes.proofType || []).includes('group-confirmation'), false);
+  // Unknown ids resolve to no card, never a group card.
+  assert.equal(resolveMissionById('not-a-card'), null);
+});
+
+test('server: the AI suggestion is stored next to the award in adminLogs', () => {  const routeStart = serverSource.indexOf('app.post("/api/admin/proof-review/action"');
   const route = serverSource.slice(routeStart, serverSource.indexOf('app.post("/api/admin/grant-starter-bypass"', routeStart));
   assert.match(route, /suggestedRubric,/);
   assert.match(route, /suggestedRubricApplied,/);
