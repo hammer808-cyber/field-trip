@@ -98,14 +98,16 @@ test('sticker awards: the client read maps the sticker shape, not a decision', (
 
 test('Q11: the server writes the notification in the decision transaction', () => {
   const server = read('server.ts');
-  // Exactly two notification writes in the whole server: the decision
-  // write inside the proof-review action handler, and the shared
+  // Exactly four notification writes in the whole server: the decision
+  // write inside the proof-review action handler, the shared
   // writeCrewPlayerNotification helper the crew clubhouse (Nov 20, 2026)
-  // uses for comments, @-mentions, and member joins. No second surface
-  // for decisions, and no write on dry-run/repair paths (those never
+  // uses for comments, @-mentions, and member joins, the weekly-winner
+  // write in runCanonicalWeeklyFinalize (Slice 3), and the voting-open
+  // fan-out in notify-open-if-due (Slice 3). No second surface for
+  // decisions, and no write on dry-run/repair paths (those never
   // reach this handler).
   const writes = server.match(/\.collection\('notifications'\)/g) || [];
-  assert.equal(writes.length, 2, 'exactly two notifications writes in server.ts: the decision write and the crew helper');
+  assert.equal(writes.length, 4, 'exactly four notifications writes in server.ts: decision, crew helper, weekly winner, voting-open fan-out');
   assert.ok(
     server.includes(".collection('users').doc(ownerId).collection('notifications').doc()"),
     'notification is written under the deciding player',

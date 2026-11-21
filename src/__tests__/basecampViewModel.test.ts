@@ -399,6 +399,70 @@ test('Q11: a decision shows once in Notifications', () => {
   assert.equal(rows[0].detail, 'Find the Coolest Shadow · +75 XP');
 });
 
+test('Slice 3: a voting-open announcement renders as a voting row to the ballot', () => {
+  const model = buildBasecampViewModel(input({
+    notifications: [{
+      id: 'voting_open_2026-W47',
+      type: 'voting_open',
+      cycleId: '2026-W47',
+      seasonId: 'heatwave-receipts',
+      read: false,
+      createdAt: new Date('2026-11-21T12:00:00.000Z').getTime(),
+    }],
+  }));
+  assert.equal(model.notifications.length, 1);
+  assert.equal(model.notifications[0].kind, 'voting');
+  assert.equal(model.notifications[0].title, 'Weekly voting is open');
+  assert.equal(model.notifications[0].detail, 'Ballots are open — cast your votes before the ballot closes Saturday night.');
+  assert.equal(model.notifications[0].href, '/voting');
+  assert.equal(model.notifications[0].unread, true);
+});
+
+test('Slice 3: a weekly win renders as a voting row to the Awards page', () => {
+  const model = buildBasecampViewModel(input({
+    notifications: [{
+      id: 'weekly_winner_2026-W47_2026-W47_community_weekly_best_photo_proof',
+      type: 'weekly_winner',
+      cycleId: '2026-W47',
+      ballotId: '2026-W47_community_weekly_best_photo_proof',
+      category: 'best_photo_proof',
+      awardLabel: 'Best Photo Proof',
+      entryId: 'entry-1',
+      missionTitle: 'Find the Coolest Shadow',
+      xpAwarded: 100,
+      read: false,
+      createdAt: new Date('2026-11-22T10:00:00.000Z').getTime(),
+    }],
+  }));
+  assert.equal(model.notifications.length, 1);
+  assert.equal(model.notifications[0].kind, 'voting');
+  assert.equal(model.notifications[0].title, 'You won Best Photo Proof');
+  assert.equal(model.notifications[0].detail, 'Find the Coolest Shadow · +100 XP');
+  assert.equal(model.notifications[0].href, '/voting/awards');
+});
+
+test('Slice 3: two award wins render as two voting rows (one per award)', () => {
+  const win = (category: string, awardLabel: string) => ({
+    id: `weekly_winner_2026-W47_2026-W47_community_weekly_${category}`,
+    type: 'weekly_winner' as const,
+    cycleId: '2026-W47',
+    ballotId: `2026-W47_community_weekly_${category}`,
+    category,
+    awardLabel,
+    entryId: 'entry-1',
+    missionTitle: 'Find the Coolest Shadow',
+    xpAwarded: 100,
+    read: false,
+    createdAt: new Date('2026-11-22T10:00:00.000Z').getTime(),
+  });
+  const model = buildBasecampViewModel(input({
+    notifications: [win('best_photo_proof', 'Best Photo Proof'), win('best_field_note', 'Best Field Note')],
+  }));
+  const rows = model.notifications.filter(item => item.kind === 'voting');
+  assert.equal(rows.length, 2);
+  assert.deepEqual(rows.map(row => row.title).sort(), ['You won Best Field Note', 'You won Best Photo Proof']);
+});
+
 test('Q11: an entry without a notification has no decision row in Notifications', () => {
   const model = buildBasecampViewModel(input({
     entries: [entry({ status: 'approved' })],

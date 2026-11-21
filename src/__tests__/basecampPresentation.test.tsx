@@ -192,6 +192,43 @@ test('the bulletin board no longer renders Updates — Notifications is the feed
   assert.ok(mainIdx < notifIdx && notifIdx < sidebarIdx);
 });
 
+test('Slice 3: voting notifications render as their own kind with a magenta tile', () => {
+  const html = renderToStaticMarkup(
+    <BasecampNotifications
+      items={[
+        {
+          id: 'notification-voting_open_2026-W47',
+          notificationId: 'voting_open_2026-W47',
+          kind: 'voting',
+          title: 'Weekly voting is open',
+          detail: 'Ballots are open — cast your votes before the ballot closes Saturday night.',
+          timestamp: new Date('2026-11-21T12:00:00.000Z').getTime(),
+          timeLabel: 'Sat',
+          unread: true,
+          href: '/voting',
+        },
+        {
+          id: 'notification-weekly_winner_2026-W47',
+          notificationId: 'weekly_winner_2026-W47',
+          kind: 'voting',
+          title: 'You won Best Photo Proof',
+          detail: 'Find the Coolest Shadow · +100 XP',
+          timestamp: new Date('2026-11-22T10:00:00.000Z').getTime(),
+          timeLabel: 'Sun',
+          unread: false,
+          href: '/voting/awards',
+        },
+      ]}
+      onOpen={noop}
+    />,
+  );
+  assert.match(html, /Weekly voting is open/);
+  assert.match(html, /You won Best Photo Proof/);
+  assert.match(html, /Find the Coolest Shadow · \+100 XP/);
+  // The voting kind gets its own tile color (magenta), not a reused one.
+  assert.match(html, /bg-brand-magenta/);
+});
+
 test('progress and crew panels share the board paper treatment, not the dark gloss', () => {
   const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
   const read = (rel: string) => readFileSync(join(repoRoot, rel), 'utf8');

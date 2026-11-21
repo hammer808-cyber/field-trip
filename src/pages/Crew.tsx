@@ -538,7 +538,7 @@ export default function CrewPage() {
     // (Slice 3, Nov 21, 2026) — crew members see the tab then; while
     // parked nobody does, not even admins (admins preview the ballot
     // from /voting via StarterGate). The old tab linked to a dead crew
-    // scope (/voting?scope=crew_weekly) the ballot page never read.
+    // scope the ballot page never read.
     ...(VOTING_ENABLED ? [
       { id: 'voting', label: 'Weekly Voting', icon: Vote },
     ] : []),
