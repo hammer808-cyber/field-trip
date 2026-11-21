@@ -1,8 +1,33 @@
-export function getMissionImage(id: string, category?: string, suppliedImage?: string): string {
-  // A real example photo always wins over the generated badge art. Cards
-  // with an `image` (Texas deck) show the photo; everything else falls
-  // through to the stylized SVG illustration below.
+import { ALL_CHALLENGE_CARDS } from '../data/allChallengeBanks';
+
+/**
+ * The example photo for a card, resolved from the card itself first and
+ * then from the local card banks.
+ *
+ * Why the bank lookup exists (Nov 20, 2026): the browse grid reads the
+ * local banks, which carry the `image` fields, but a drawn mission comes
+ * from the Firestore `challenges` docs, which were initialized before the
+ * example photos were wired in and carry no `image`. Without this lookup
+ * the drawn briefing fell back to a generic mountain photo while the same
+ * card showed its real photo in the deck view. Cards with no photo
+ * anywhere (Gobble & Glow, badges by design) resolve to undefined and
+ * keep their existing fallback.
+ */
+export function getMissionPhoto(id: string, suppliedImage?: string | null): string | undefined {
   if (suppliedImage) return suppliedImage;
+  const wanted = (id || '').toLowerCase();
+  if (!wanted) return undefined;
+  const card = ALL_CHALLENGE_CARDS.find((candidate: any) => String(candidate?.id || '').toLowerCase() === wanted) as any;
+  return card?.image ? String(card.image) : undefined;
+}
+
+export function getMissionImage(id: string, category?: string, suppliedImage?: string): string {
+  // A real example photo always wins over the generated badge art — from
+  // the card itself, or from the local banks when the mission object
+  // (Firestore copy) doesn't carry one. Everything else falls through to
+  // the stylized SVG illustration below.
+  const photo = getMissionPhoto(id, suppliedImage);
+  if (photo) return photo;
 
   // Determine attributes based on category/type to construct an awesome stylized illustration
   const cat = (category || id || '').toLowerCase();

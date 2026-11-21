@@ -29,6 +29,7 @@ import {
 import { cn } from '../lib/utils';
 import { LAUNCH_MISSION_ID } from '../data/specialMissions';
 import { getDisplayLabel } from '../utils/labelUtils';
+import { getMissionPhoto } from '../utils/missionImages';
 import { hasRealMissionProgress } from '../logic/playerGuidance';
 
 interface MissionDecodedCardProps {
@@ -165,7 +166,7 @@ export function MissionDecodedCard({
           {/* Background Image - Subtleized */}
           <div className="absolute inset-0 z-0">
             <img 
-              src={mission.image || 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&q=80&w=800'} 
+              src={getMissionPhoto(mission.id, mission.image) || 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&q=80&w=800'} 
               alt="" 
               className="w-full h-full object-cover opacity-40 grayscale contrast-125 transition-all duration-700 group-hover:scale-110 group-hover:opacity-50" 
               referrerPolicy="no-referrer"

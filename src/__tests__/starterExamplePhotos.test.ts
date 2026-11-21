@@ -44,7 +44,9 @@ test('getMissionImage returns a supplied example photo unchanged', () => {
 });
 
 test('getMissionImage still generates badge art when no photo is supplied', () => {
-  const art = getMissionImage('socal-01', 'Field Challenge');
+  // holiday-01 (Gobble & Glow) carries no example photo by design, so the
+  // generated badge is still the fallback — socal-01 has a real photo now.
+  const art = getMissionImage('holiday-01', 'Field Challenge');
   assert.ok(art.startsWith('data:image/svg+xml;base64,'), `expected generated SVG art, got ${art.slice(0, 40)}`);
-  assert.equal(getMissionImage('socal-01', 'Field Challenge', undefined), art);
+  assert.equal(getMissionImage('holiday-01', 'Field Challenge', undefined), art);
 });
