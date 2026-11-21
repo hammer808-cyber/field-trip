@@ -98,6 +98,10 @@
 .skin-basecamp .basecamp-progress, .skin-basecamp .basecamp-crew { border:var(--skin-border-width) solid var(--skin-border); border-radius:var(--skin-card-radius); background-color:var(--skin-surface); background-image:linear-gradient(rgba(32,104,111,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(32,104,111,.07) 1px, transparent 1px); background-size:22px 22px; box-shadow:var(--skin-card-shadow); color:var(--skin-text); }
 .skin-basecamp .basecamp-chrome-badge { position:relative; display:flex; width:46px; height:46px; flex:none; align-items:center; justify-content:center; border:2px solid var(--skin-border); border-radius:50%; color:var(--skin-text); background:var(--skin-surface-muted); box-shadow:3px 3px 0 var(--skin-border); }
 .skin-basecamp .basecamp-progress-stat { padding:14px; border:2px solid var(--skin-border); border-radius:var(--skin-card-radius); background:var(--skin-surface-muted); box-shadow:3px 3px 0 var(--skin-border); }
+/* Paper sheet (Nov 21, 2026): a plain-paper piece pinned onto the card's
+   grid paper, so each progress component reads as its own sheet instead
+   of blending into the card. Tape reuses .basecamp-tape. */
+.skin-basecamp .basecamp-sheet { position:relative; padding:16px; border:2px solid var(--skin-border); border-radius:var(--skin-card-radius); background:var(--skin-surface); box-shadow:3px 3px 0 var(--skin-border); }
 .skin-basecamp .basecamp-commercial-cta { border-top:3px solid var(--skin-border); color:var(--skin-on-secondary); background:var(--skin-secondary); }
 .skin-basecamp .basecamp-crew-campaign { position:relative; min-height:116px; display:flex; align-items:flex-end; justify-content:space-between; gap:12px; padding:12px 14px; overflow:hidden; border-radius:var(--skin-card-radius); border:2px solid var(--skin-border); background:var(--skin-surface-muted); box-shadow:3px 3px 0 var(--skin-border); }
 .skin-basecamp .basecamp-crew-portraits { display:flex; align-items:flex-end; }

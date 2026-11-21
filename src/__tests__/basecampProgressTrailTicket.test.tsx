@@ -108,6 +108,56 @@ test('progress panel renders the trail and the ticket, not the dial and track', 
   assert.match(html, /Open Profile Progress/);
 });
 
+test('progress components sit on their own taped paper sheets', () => {
+  const html = renderToStaticMarkup(
+    <BasecampProgressPanel
+      model={{
+        xp: 700,
+        level: 3,
+        levelTitle: 'Junior Field Nuisance',
+        nextLevel: 4,
+        xpToNextLevel: 400,
+        levelProgressPercent: 20,
+        starterApprovedCount: 3,
+        starterRequiredCount: 3,
+        starterPercent: 100,
+        activeDeckId: 'heatwave-receipts',
+        activeDeckName: 'Heatwave Receipts',
+        activeDeckApprovedCount: 1,
+        activeDeckPendingCount: 1,
+        activeDeckTotalCount: 25,
+        activeDeckPercent: 4,
+      }}
+      onOpenProfile={noop}
+    />,
+  );
+  // Exactly two sheets: trail sheet, ticket sheet. The stat tiles keep
+  // their own boxes and are not sheets.
+  assert.equal((html.match(/basecamp-sheet/g) || []).length, 2);
+  // Three tape strips: the card's own plus one per sheet. (Count the
+  // position modifiers: "basecamp-tape" is a substring of
+  // "basecamp-tape--left", so counting the bare class double-counts.)
+  assert.equal((html.match(/basecamp-tape--left/g) || []).length, 2);
+  assert.equal((html.match(/basecamp-tape--right/g) || []).length, 1);
+  // The trail lives on the first sheet, the ticket on the second.
+  const firstSheet = html.indexOf('basecamp-sheet');
+  const secondSheet = html.indexOf('basecamp-sheet', firstSheet + 1);
+  assert.ok(html.indexOf('Stage 3 of 15', firstSheet) !== -1);
+  assert.ok(html.indexOf('Stage 3 of 15', firstSheet) < secondSheet);
+  assert.ok(html.indexOf('20% completed', secondSheet) !== -1);
+
+  // The sheet rule is plain paper on the grid card: surface, ink
+  // border, hard shadow — vars only, no hard-coded hex in the rule.
+  const css = read('src/pages/Basecamp.css');
+  const ruleAt = css.indexOf('.skin-basecamp .basecamp-sheet');
+  assert.ok(ruleAt !== -1, 'sheet rule must exist');
+  const rule = css.slice(ruleAt, css.indexOf('}', ruleAt));
+  assert.match(rule, /var\(--skin-surface\)/);
+  assert.match(rule, /var\(--skin-border\)/);
+  assert.match(rule, /box-shadow/);
+  assert.doesNotMatch(rule, /#[0-9a-fA-F]{3,8}\b/);
+});
+
 test('the new progress files carry no hard-coded hex', () => {
   for (const rel of [
     'src/components/basecamp/BasecampTrailMap.tsx',

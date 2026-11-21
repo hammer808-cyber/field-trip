@@ -84,3 +84,15 @@ ticket caption.
 - tsc clean, full suite back to the 3 known failures, production
   build, curl deploy check, read-only browser live check as ELONDRA
   (Basecamp card: trail with the marker on level 2, ticket at 18%).
+
+## Fix (Nov 21, 2026, commit fc57ff9)
+
+The first live check caught a real layout defect: the Next stop footer
+was overlapped by the trail-node row. Cause: the trail container held
+only absolutely positioned nodes, so it collapsed to its 28px top
+padding and the nodes (top 28px, 32px tall) ran through the footer
+underneath. Fix: the container now has an explicit 60px height (28px
+tag zone + 32px node row), so the footer starts below the nodes. A
+regression test pins the fixed height. The fix was verified live the
+same way (curl chunk size, then a browser re-check of the trail and
+footer only).

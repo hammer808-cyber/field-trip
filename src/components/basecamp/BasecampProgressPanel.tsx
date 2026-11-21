@@ -34,12 +34,16 @@ export function BasecampProgressPanel({ model, onOpenProfile, markerStickerId }:
       </div>
 
       <div className="relative space-y-6 px-5 pb-6 sm:px-6">
-        {/* Trail map (Nov 21, 2026, mock Option 4) replaces the circle
-            dial; the stapled ticket meter (Option 5) replaces the plain
-            progress track. Same percent, same XP counts, no info lost. */}
-        <BasecampTrailMap xp={model.xp} markerStickerId={markerStickerId} />
+        {/* Paper sheets (Nov 21, 2026): each component sits on its own
+            taped sheet so the trail and the ticket stop blending into
+            the card's grid paper. Same trail, same ticket, same numbers. */}
+        <div className="basecamp-sheet">
+          <span className="basecamp-tape basecamp-tape--left" aria-hidden="true" />
+          <BasecampTrailMap xp={model.xp} markerStickerId={markerStickerId} />
+        </div>
 
-        <div>
+        <div className="basecamp-sheet">
+          <span className="basecamp-tape basecamp-tape--right" aria-hidden="true" />
           <div className="flex flex-wrap items-end justify-between gap-2">
             <div>
               <p className="font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-secondary)]">Level {model.level}</p>
