@@ -3,7 +3,7 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { LevelTrailMap } from '../components/LevelTrailMap';
-import { buildLevelTrail } from '../logic/levelTrail';
+import { TRAIL_VIEWBOX, buildLevelTrail } from '../logic/levelTrail';
 import { PLAYER_LEVELS } from '../logic/playerLevel';
 
 test('zero XP puts the player on level 1 with level 2 next', () => {
@@ -82,11 +82,45 @@ test('every node maps to a distinct authored level inside the map bounds', () =>
   assert.ok(trail.nodes[5].yPercent > trail.nodes[10].yPercent);
 });
 
+test('at a 390px phone the node circles never overlap', () => {
+  // Map width on a 390px phone inside the Profile folder body:
+  // 390 - 32 (body gutters) - 32 (folder body padding) - 64 (card
+  // padding) = 262px. Node circles are 36px (40px for the current
+  // node on mobile). Positions come from the same buildLevelTrail the
+  // component renders, so this pins the geometry, not a copy of it.
+  const MAP_WIDTH_PX = 262;
+  const [, , viewBoxW, viewBoxH] = TRAIL_VIEWBOX.split(' ').map(Number);
+  const mapHeightPx = MAP_WIDTH_PX * (viewBoxH / viewBoxW);
+  const trail = buildLevelTrail(530);
+  const placed = trail.nodes.map((node) => ({
+    level: node.level,
+    x: (node.xPercent / 100) * MAP_WIDTH_PX,
+    y: (node.yPercent / 100) * mapHeightPx,
+    r: (node.state === 'current' ? 40 : 36) / 2,
+  }));
+  for (let i = 0; i < placed.length; i++) {
+    for (let j = i + 1; j < placed.length; j++) {
+      const gap =
+        Math.hypot(placed[i].x - placed[j].x, placed[i].y - placed[j].y) -
+        placed[i].r -
+        placed[j].r;
+      assert.ok(
+        gap > 0,
+        `nodes ${placed[i].level} and ${placed[j].level} overlap by ${(-gap).toFixed(1)}px at 390px`,
+      );
+    }
+  }
+});
+
 test('render pins the current node, the next stop copy, and the XP chip', () => {
   const html = renderToStaticMarkup(<LevelTrailMap xp={1587} />);
   assert.match(html, /role="progressbar"/);
   assert.match(html, /aria-valuenow="70"/);
-  assert.match(html, /You are here/i);
+  // Nov 21, 2026: the in-graphic tags are gone — at 390px the "You are
+  // here" pill and the next-title tag landed on the middle row and
+  // overlapped the node circles. The current node still wears the
+  // marker sticker, and the next stop lives in the footer below the map.
+  assert.doesNotMatch(html, /You are here/i);
   assert.match(html, /Next stop: Licensed Side-Quester/i);
   assert.match(html, /213 XP to go/i);
   assert.match(html, /1,587 \/ 1,800 XP/);

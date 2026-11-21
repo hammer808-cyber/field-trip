@@ -42,6 +42,7 @@ import { updateFeedPrivacy } from '../services/userService';
 import { uploadBase64Image } from '../services/storageService';
 import { FieldPageHero } from '../components/FieldPageHero';
 import { FieldDoodles } from '../components/FieldDoodles';
+import { FieldStamp } from '../components/FieldStamp';
 import { StreakChip } from '../components/StreakChip';
 import { LevelTrailMap } from '../components/LevelTrailMap';
 import { EmptyStatePanel } from '../components/FieldtripLoader';
@@ -257,6 +258,7 @@ export default function ProfilePage() {
       />
       <FieldPageHero
         variant="editorial"
+        flushTabs
         department={activeTab === 'history' ? 'logbook' : activeTab === 'settings' ? 'settings' : 'profile'}
         eyebrow={activeTab === 'history' ? 'Mission history' : activeTab === 'settings' ? 'Backstage' : 'Field record'}
         title={activeTab === 'history' ? 'LOGBOOK' : activeTab === 'settings' ? 'SETTINGS' : 'PROFILE'}
@@ -282,7 +284,12 @@ export default function ProfilePage() {
         onTabChange={(id) => selectProfileTab(id as ProfileTab)}
       />
 
-      <PlayerPageBody>
+      <PlayerPageBody className="ft-dept-body--folder-tabs">
+        {/* Folder body (Nov 21, 2026): the hero's tab strip attaches
+            straight to this bordered panel's top edge — same pattern
+            as the Dex — so OVERVIEW / LOGBOOK / VAULT / SETTINGS read
+            as file-folder tabs instead of floating buttons. */}
+        <main data-testid="profile-folder-body" className="relative min-h-[45vh] border-4 border-[var(--skin-border)] bg-[var(--skin-surface)] p-4 shadow-[8px_8px_0_var(--skin-border)] sm:p-8">
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -307,7 +314,12 @@ export default function ProfilePage() {
                 ))}
               </div>
 
-              <FieldSection eyebrow="Identity" title="Explorer Type">
+              <FieldSection
+                eyebrow="Identity"
+                title="Explorer Type"
+                penUnderline
+                action={<FieldStamp label="FILED" tone="primary" />}
+              >
                 <FieldCard variant="paper" className="p-8 bg-gradient-to-br from-white to-[#F9F7F2] border-[4px] border-on-surface shadow-[10px_10px_0px_black] rounded-[2.5rem] relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-brand-magenta/5 border-l-2 border-b-2 border-brand-magenta/10 -rotate-12 pointer-events-none" />
                   
@@ -389,17 +401,29 @@ export default function ProfilePage() {
                 onManage={() => navigate('/dex/stickers')}
               />
 
-              <FieldSection eyebrow="Progress" title="How I'm doing">
-                <FieldCard variant="paper" className="p-8 bg-white border-[4px] border-on-surface shadow-[10px_10px_0px_black] rounded-[2.5rem]">
+              <FieldSection
+                eyebrow="Progress"
+                title="How I'm doing"
+                penUnderline
+                action={<FieldStamp label={`LEVEL ${level}`} tone="text" />}
+              >
+                <FieldCard variant="paper" className="relative -rotate-1 p-8 bg-[var(--color-heat-yellow)] border-[4px] border-on-surface shadow-[10px_10px_0px_black] rounded-[2.5rem]">
+                  {/* Taped sticky note (Nov 21, 2026): the same amber as
+                      the Basecamp sticky sheets, tape strips at the top.
+                      No curled corner here — the streak chip runs full
+                      width to the bottom edge, so a fold would sit on it. */}
+                  <span aria-hidden="true" className="pointer-events-none absolute -top-3 left-4 z-20">
+                    <span className="field-tape block" />
+                  </span>
+                  <span aria-hidden="true" className="pointer-events-none absolute -top-3 right-4 z-20" style={{ transform: 'rotate(5deg)' }}>
+                    <span className="field-tape block" />
+                  </span>
                   <div className="space-y-6">
                     <div className="flex justify-between items-end">
                       <div className="space-y-1">
                          <p className="text-4xl font-display font-black italic uppercase tracking-tighter text-on-surface leading-none">Level {level}</p>
                          <p className="text-xs font-mono font-black uppercase tracking-widest text-on-surface/60 px-1">{displayedLevelTitle}</p>
                       </div>
-                      <p className="text-xs font-mono font-black text-on-surface bg-brand-cyan/20 px-2 py-1 rounded border border-on-surface/10">
-                        {levelProgress.xp.toLocaleString()} / {levelProgress.nextLevel.minXp.toLocaleString()} XP
-                      </p>
                     </div>
 
                     {/* Trail Map levels (Nov 21, 2026): the straight bar is
@@ -708,6 +732,12 @@ export default function ProfilePage() {
           )}
         </motion.div>
       </AnimatePresence>
+        {/* Bottom clearance (Nov 21, 2026): the floating mission pill
+            sits ~150px above the viewport bottom while the shell only
+            pads 110px — this spacer keeps the Quick Links and the
+            Field Identity link reachable on every tab. */}
+        <div aria-hidden="true" className="h-16" />
+        </main>
       </PlayerPageBody>
 
       {/* Edit Profile Modal */}

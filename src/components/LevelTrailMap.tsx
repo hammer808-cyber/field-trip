@@ -111,8 +111,6 @@ function TrailNodeMarker({
   const isCurrent = node.state === 'current';
   const isPassed = node.state === 'passed';
   const isNext = node.state === 'next';
-  // Top-row nodes wear their tag underneath so it stays on the map.
-  const tagBelow = node.yPercent < 30;
 
   return (
     <div
@@ -127,7 +125,7 @@ function TrailNodeMarker({
         className={cn(
           'flex items-center justify-center rounded-full border-[3px] border-[var(--skin-border)] font-mono font-black',
           isCurrent
-            ? 'h-12 w-12 bg-[var(--skin-surface)] text-xl shadow-[3px_3px_0_var(--skin-border)]'
+            ? 'h-10 w-10 bg-[var(--skin-surface)] text-lg shadow-[3px_3px_0_var(--skin-border)] sm:h-12 sm:w-12 sm:text-xl'
             : 'h-9 w-9 text-xs shadow-[2px_2px_0_var(--skin-border)]',
           isPassed && 'bg-[var(--skin-secondary)] text-[var(--skin-on-secondary)]',
           isNext && 'border-dashed bg-[var(--skin-surface)] text-[var(--skin-text)]',
@@ -143,27 +141,6 @@ function TrailNodeMarker({
           node.level
         )}
       </div>
-
-      {isCurrent && (
-        <span
-          className={cn(
-            'absolute left-1/2 -translate-x-1/2 whitespace-nowrap border-2 border-[var(--skin-border)] bg-[var(--skin-secondary)] px-1.5 py-0.5 font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-on-secondary)] shadow-[2px_2px_0_var(--skin-border)]',
-            tagBelow ? 'top-full mt-1.5' : 'bottom-full mb-1.5',
-          )}
-        >
-          You are here
-        </span>
-      )}
-      {isNext && (
-        <span
-          className={cn(
-            'absolute left-1/2 max-w-[110px] -translate-x-1/2 whitespace-nowrap border-2 border-[var(--skin-border)] bg-[var(--skin-surface)] px-1.5 py-0.5 font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-text)] shadow-[2px_2px_0_var(--skin-border)]',
-            tagBelow ? 'top-full mt-1.5' : 'bottom-full mb-1.5',
-          )}
-        >
-          {node.title}
-        </span>
-      )}
     </div>
   );
 }

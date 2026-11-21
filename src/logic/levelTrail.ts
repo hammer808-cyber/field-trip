@@ -29,32 +29,39 @@ export interface LevelTrail {
  * The trail snakes up the map like a board-game path: levels 1-5 along
  * the bottom left to right, 6-10 across the middle right to left, 11-15
  * along the top left to right. Positions are percentages of the
- * 600x220 viewBox the SVG path is drawn in, so the map scales.
+ * 600x280 viewBox the SVG path is drawn in, so the map scales.
+ *
+ * Nov 21, 2026: the viewBox grew from 220 to 280 tall. At a 390px
+ * phone the map is ~262px wide, so the old 70-unit rows sat only
+ * ~31px apart while the nodes are 36px (48px current) — the circles
+ * intersected. The 90-unit rows sit ~39px apart, so no two circles
+ * touch at 390px. Basecamp's compact map is unaffected: it lays its
+ * own single row and only reads states/titles from here.
  */
 const TRAIL_VIEWBOX_WIDTH = 600;
-const TRAIL_VIEWBOX_HEIGHT = 220;
+const TRAIL_VIEWBOX_HEIGHT = 280;
 
 const TRAIL_NODE_COORDS: ReadonlyArray<{ x: number; y: number }> = [
-  { x: 60, y: 180 },
-  { x: 165, y: 180 },
-  { x: 270, y: 180 },
-  { x: 375, y: 180 },
-  { x: 480, y: 180 },
-  { x: 480, y: 110 },
-  { x: 375, y: 110 },
-  { x: 270, y: 110 },
-  { x: 165, y: 110 },
-  { x: 60, y: 110 },
-  { x: 60, y: 40 },
-  { x: 165, y: 40 },
-  { x: 270, y: 40 },
-  { x: 375, y: 40 },
-  { x: 480, y: 40 },
+  { x: 60, y: 230 },
+  { x: 165, y: 230 },
+  { x: 270, y: 230 },
+  { x: 375, y: 230 },
+  { x: 480, y: 230 },
+  { x: 480, y: 140 },
+  { x: 375, y: 140 },
+  { x: 270, y: 140 },
+  { x: 165, y: 140 },
+  { x: 60, y: 140 },
+  { x: 60, y: 50 },
+  { x: 165, y: 50 },
+  { x: 270, y: 50 },
+  { x: 375, y: 50 },
+  { x: 480, y: 50 },
 ];
 
 /** Dashed SVG path threading the 15 nodes in level order. */
 export const TRAIL_PATH_D =
-  'M 60 180 H 480 C 540 180 540 110 480 110 H 60 C 0 110 0 40 60 40 H 480';
+  'M 60 230 H 480 C 540 230 540 140 480 140 H 60 C 0 140 0 50 60 50 H 480';
 
 export const TRAIL_VIEWBOX = `0 0 ${TRAIL_VIEWBOX_WIDTH} ${TRAIL_VIEWBOX_HEIGHT}`;
 
