@@ -242,6 +242,10 @@ export async function submitTripEntry(
         locationVerified: (entryData as any).locationVerified ?? (entryData as any).participation?.locationVerified,
         latitude: (entryData as any).latitude,
         longitude: (entryData as any).longitude,
+        // Crew layer: AppContext stamps crewContext on the entry before
+        // it reaches here; the card decides whether the layer can pay.
+        submittedAsCrewMember: entryData.crewContext?.submittedAsCrewMember === true,
+        groupConfirmationCard: (trip.proofType || []).includes('group-confirmation'),
       }),
       eligibleBonuses: [],
     });

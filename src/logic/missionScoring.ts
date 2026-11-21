@@ -192,12 +192,26 @@ export interface ParticipationSignals {
   /** True when the note layer was earned by a voice note, not writing. */
   fieldNoteViaVoice?: boolean | null;
   locationVerified?: boolean | null;
+  /** True when the submission was made as a member of an active crew. */
+  submittedAsCrewMember?: boolean | null;
+  /**
+   * True when the card asks for group confirmation (its proofType
+   * includes 'group-confirmation'). The crew layer only pays on such
+   * cards — never on a solo card, however the player submitted.
+   */
+  groupConfirmationCard?: boolean | null;
 }
 
 export interface ParticipationLayers {
   photoSubject: number;
   fieldNote: number;
   location: number;
+  /**
+   * Crew layer: +25% of base, paid only on group-confirmation cards
+   * when the submission carries crew context. Solo submissions on
+   * those cards, and crew submissions on any other card, earn 0.
+   */
+  crew: number;
   total: number;
   /** True when the note layer came from a voice note. */
   fieldNoteViaVoice: boolean;
@@ -211,17 +225,21 @@ export function calculateParticipationLayers(
   const photoSubject = signals?.photoSubjectVerified === true ? layerValue : 0;
   const fieldNote = signals?.fieldNotePresent === true ? layerValue : 0;
   const location = signals?.locationVerified === true ? layerValue : 0;
+  const crew = signals?.submittedAsCrewMember === true && signals?.groupConfirmationCard === true
+    ? layerValue
+    : 0;
   return {
     photoSubject,
     fieldNote,
     location,
-    total: photoSubject + fieldNote + location,
+    crew,
+    total: photoSubject + fieldNote + location + crew,
     fieldNoteViaVoice: fieldNote > 0 && signals?.fieldNoteViaVoice === true,
   };
 }
 
 /**
- * One place that turns raw submission evidence into the three layer
+ * One place that turns raw submission evidence into the four layer
  * signals. Call sites pass whatever they have; missing evidence reads
  * as "not earned". The default text the client stamps on empty field
  * notes never counts as a note.
@@ -242,6 +260,14 @@ export function resolveParticipationSignals(input: {
   locationVerified?: boolean | null;
   latitude?: number | null;
   longitude?: number | null;
+  /**
+   * Crew context, stamped on the entry by AppContext.addEntry (see
+   * crewContext.submittedAsCrewMember). Passed through untouched: the
+   * layer only pays when the card also asks for group confirmation.
+   */
+  submittedAsCrewMember?: boolean | null;
+  /** True when the card's proofType includes 'group-confirmation'. */
+  groupConfirmationCard?: boolean | null;
 } | null | undefined): ParticipationSignals {
   const rawNote = input?.fieldNoteRaw ?? input?.fieldNote ?? input?.note ?? '';
   const noteText = rawNote.trim();
@@ -258,6 +284,8 @@ export function resolveParticipationSignals(input: {
     locationVerified:
       input?.locationVerified ??
       (input?.latitude != null && input?.longitude != null),
+    submittedAsCrewMember: input?.submittedAsCrewMember === true,
+    groupConfirmationCard: input?.groupConfirmationCard === true,
   };
 }
 
@@ -297,6 +325,12 @@ export function buildScoreBreakdownEvents(
   }
   if (layers.location > 0) {
     events.push({ type: 'quality_bonus', points: layers.location, tripId, description: 'Location Captured (+25%)' });
+  }
+  if (layers.crew > 0) {
+    // Same ScoreEventType the legacy crew bucket reads in
+    // summaryService ('crew_bonus' -> crewChallengePoints), so the crew
+    // layer lands in the crew accounting it already belongs to.
+    events.push({ type: 'crew_bonus', points: layers.crew, tripId, description: 'Crew Check-In (+25%)' });
   }
   if (result.bonusPoints > 0) {
     events.push({ type: 'weekly_bonus_booster', points: result.bonusPoints, tripId, description: `[${result.appliedBonusLabel} ${result.appliedMultiplier}x] Multiplier` });
@@ -360,9 +394,11 @@ export function chooseHighestEligibleBonus(bonuses: readonly BonusEligibility[])
  *   retry ........... x0.5 on the reviewer score for a retry
  *   participation ... +25% of base per earned layer: the right thing in
  *                     the photo (AI subject match), a real field note
- *                     (10+ chars), a captured location. Layers are not
- *                     hint-penalized or retry-halved: you keep what you
- *                     earned by participating in this submission.
+ *                     (10+ chars), a captured location, and — on
+ *                     group-confirmation cards only — a submission made
+ *                     as a crew member. Layers are not hint-penalized or
+ *                     retry-halved: you keep what you earned by
+ *                     participating in this submission.
  *   multipliers ..... afternoon 1.5x / Lucky Receipt 1.25x / catalyst,
  *                     highest eligible only, applied to base + layers.
  */

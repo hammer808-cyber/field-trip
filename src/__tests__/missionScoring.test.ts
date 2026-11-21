@@ -164,6 +164,7 @@ test('each participation layer pays 25 percent of the card base', () => {
     photoSubject: 25,
     fieldNote: 25,
     location: 25,
+    crew: 0,
     total: 75,
     fieldNoteViaVoice: false,
   });
@@ -171,6 +172,7 @@ test('each participation layer pays 25 percent of the card base', () => {
     photoSubject: 50,
     fieldNote: 0,
     location: 0,
+    crew: 0,
     total: 50,
     fieldNoteViaVoice: false,
   });
@@ -178,6 +180,7 @@ test('each participation layer pays 25 percent of the card base', () => {
     photoSubject: 0,
     fieldNote: 0,
     location: 0,
+    crew: 0,
     total: 0,
     fieldNoteViaVoice: false,
   });
@@ -237,7 +240,7 @@ test('missing signals earn nothing', () => {
 test('participation signals resolve from raw submission evidence', () => {
   assert.deepEqual(
     resolveParticipationSignals({ aiAnalysisResult: { detectedSubject: true }, fieldNoteRaw: 'This is a real field note.', latitude: 33.7, longitude: -118.2 }),
-    { photoSubjectVerified: true, fieldNotePresent: true, fieldNoteViaVoice: false, locationVerified: true },
+    { photoSubjectVerified: true, fieldNotePresent: true, fieldNoteViaVoice: false, locationVerified: true, submittedAsCrewMember: false, groupConfirmationCard: false },
   );
   // A short note earns nothing.
   assert.equal(resolveParticipationSignals({ fieldNoteRaw: 'short' }).fieldNotePresent, false);
@@ -246,7 +249,7 @@ test('participation signals resolve from raw submission evidence', () => {
   // No AI result and no coordinates: nothing earned.
   assert.deepEqual(
     resolveParticipationSignals({}),
-    { photoSubjectVerified: false, fieldNotePresent: false, fieldNoteViaVoice: false, locationVerified: false },
+    { photoSubjectVerified: false, fieldNotePresent: false, fieldNoteViaVoice: false, locationVerified: false, submittedAsCrewMember: false, groupConfirmationCard: false },
   );
 });
 
@@ -293,4 +296,118 @@ test('the receipt lines sum exactly to the final score', () => {
     events.find((event) => event.type === 'field_note_bonus')?.description,
     'Voice Note (+25%)',
   );
+});
+
+test('crew layer pays on a group-confirmation card submitted as crew', () => {
+  const layers = calculateParticipationLayers(100, {
+    photoSubjectVerified: true,
+    submittedAsCrewMember: true,
+    groupConfirmationCard: true,
+  });
+  assert.equal(layers.crew, 25);
+  assert.equal(layers.total, 50);
+  const score = calculateMissionScore({
+    baseMaxScore: 100,
+    reviewerBaseScore: 100,
+    participation: {
+      photoSubjectVerified: true,
+      submittedAsCrewMember: true,
+      groupConfirmationCard: true,
+    },
+  });
+  assert.equal(score.participationLayers.crew, 25);
+  assert.equal(score.finalScore, 150);
+});
+
+test('crew layer does not pay on a group-confirmation card submitted solo', () => {
+  const layers = calculateParticipationLayers(100, {
+    photoSubjectVerified: true,
+    submittedAsCrewMember: false,
+    groupConfirmationCard: true,
+  });
+  assert.equal(layers.crew, 0);
+  assert.equal(layers.total, 25);
+});
+
+test('crew layer does not pay on a non-group-confirmation card even as crew', () => {
+  const layers = calculateParticipationLayers(100, {
+    photoSubjectVerified: true,
+    submittedAsCrewMember: true,
+    groupConfirmationCard: false,
+  });
+  assert.equal(layers.crew, 0);
+  assert.equal(layers.total, 25);
+  // No card context at all reads as a non-group card: safe default.
+  assert.equal(
+    calculateParticipationLayers(100, { submittedAsCrewMember: true }).crew,
+    0,
+  );
+});
+
+test('crew layer is 25 percent of base at every tier', () => {
+  assert.equal(
+    calculateParticipationLayers(125, { submittedAsCrewMember: true, groupConfirmationCard: true }).crew,
+    31,
+  );
+  assert.equal(
+    calculateParticipationLayers(175, { submittedAsCrewMember: true, groupConfirmationCard: true }).crew,
+    44,
+  );
+});
+
+test('crew signals resolve from raw submission evidence', () => {
+  assert.deepEqual(
+    resolveParticipationSignals({ submittedAsCrewMember: true, groupConfirmationCard: true }),
+    {
+      photoSubjectVerified: false,
+      fieldNotePresent: false,
+      fieldNoteViaVoice: false,
+      locationVerified: false,
+      submittedAsCrewMember: true,
+      groupConfirmationCard: true,
+    },
+  );
+  // Crew context without a group-confirmation card resolves the flags
+  // faithfully; the layer itself still refuses to pay (see above).
+  assert.equal(
+    resolveParticipationSignals({ submittedAsCrewMember: true, groupConfirmationCard: false }).submittedAsCrewMember,
+    true,
+  );
+});
+
+test('receipt includes the crew event when earned and omits it when not', () => {
+  const withCrew = calculateMissionScore({
+    baseMaxScore: 125,
+    reviewerBaseScore: 125,
+    participation: {
+      photoSubjectVerified: true,
+      fieldNotePresent: true,
+      locationVerified: true,
+      submittedAsCrewMember: true,
+      groupConfirmationCard: true,
+    },
+  });
+  assert.equal(withCrew.participationLayers.total, 124);
+  assert.equal(withCrew.finalScore, 249);
+  const events = buildScoreBreakdownEvents(withCrew, 'winter-18');
+  const crewEvent = events.find(event => event.type === 'crew_bonus');
+  assert.ok(crewEvent, 'expected a crew_bonus receipt event');
+  assert.equal(crewEvent!.points, 31);
+  assert.equal(crewEvent!.description, 'Crew Check-In (+25%)');
+  assert.equal(events.reduce((total, event) => total + event.points, 0), withCrew.finalScore);
+
+  const solo = calculateMissionScore({
+    baseMaxScore: 125,
+    reviewerBaseScore: 125,
+    participation: {
+      photoSubjectVerified: true,
+      fieldNotePresent: true,
+      locationVerified: true,
+      submittedAsCrewMember: false,
+      groupConfirmationCard: true,
+    },
+  });
+  const soloEvents = buildScoreBreakdownEvents(solo, 'winter-18');
+  assert.equal(soloEvents.find(event => event.type === 'crew_bonus'), undefined);
+  assert.equal(soloEvents.reduce((total, event) => total + event.points, 0), solo.finalScore);
 });

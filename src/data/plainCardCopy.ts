@@ -13,7 +13,7 @@
  * - plainFieldNotePrompt: one short, simple prompt.
  *
  * Coverage is enforced by src/__tests__/frankieMode.test.ts — every card in
- * the seven banks must have an entry here, and there must be no orphans.
+ * the eight banks must have an entry here, and there must be no orphans.
  */
 export interface PlainCardCopy {
   plainTitle: string;
@@ -703,5 +703,127 @@ export const PLAIN_CARD_COPY: Record<string, PlainCardCopy> = {
     plainDescription: 'Take a photo of three generations of one family together.',
     plainDirections: 'Gather three generations of one family.\nTake one clear photo of them.\nTap Send.',
     plainFieldNotePrompt: 'In a few words: who is in the photo?',
+  },
+  'winter-01': {
+    plainTitle: 'Paper Snowflakes',
+    plainDescription: 'Cut snowflakes from paper and tape them to a window.',
+    plainDirections: 'Cut paper snowflakes.\nTape them to a window.\nTake one clear photo of them.',
+    plainFieldNotePrompt: 'In a few words: how many did you cut?',
+  },
+  'winter-02': {
+    plainTitle: 'An Ugly Ornament',
+    plainDescription: 'Take a photo of the ugliest ornament you can find.',
+    plainDirections: 'Find the ugliest ornament.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: what makes it ugly?',
+  },
+  'winter-03': {
+    plainTitle: 'A Bowl of Soup',
+    plainDescription: 'Take a photo of a steaming bowl of soup.',
+    plainDirections: 'Find a bowl of soup with steam.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: what kind of soup is it?',
+  },
+  'winter-04': {
+    plainTitle: 'A Bare Tree',
+    plainDescription: 'Take a photo of a bare tree against the winter sky.',
+    plainDirections: 'Find a tree with no leaves.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: where is the tree?',
+  },
+  'winter-05': {
+    plainTitle: 'A Scarf, Hat, and Gloves',
+    plainDescription: 'Take a photo of someone wearing a scarf, a beanie, and gloves.',
+    plainDirections: 'Put on a scarf, a beanie, and gloves.\nTake one clear photo.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: are you warm enough?',
+  },
+  'winter-06': {
+    plainTitle: 'A Foggy Morning',
+    plainDescription: 'Take a photo of a foggy winter morning.',
+    plainDirections: 'Go out on a foggy morning.\nTake one clear photo of the fog.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: how far can you see?',
+  },
+  'winter-07': {
+    plainTitle: 'Oranges on a Tree',
+    plainDescription: 'Take a photo of oranges or lemons still on the tree.',
+    plainDirections: 'Find citrus fruit on a tree.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: oranges or lemons?',
+  },
+  'winter-08': {
+    plainTitle: 'A Palm Tree in Lights',
+    plainDescription: 'Take a photo of a palm tree wrapped in holiday lights.',
+    plainDirections: 'Find a palm tree wrapped in lights.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: where is the palm tree?',
+  },
+  'winter-09': {
+    plainTitle: 'The Beach in Winter',
+    plainDescription: 'Take a photo of the beach on a winter day.',
+    plainDirections: 'Go to the beach on a winter day.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: was anyone else there?',
+  },
+  'winter-10': {
+    plainTitle: 'A Puddle Reflection',
+    plainDescription: 'Take a photo of a reflection in a rain puddle.',
+    plainDirections: 'Find a puddle with a reflection after rain.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: what do you see in the puddle?',
+  },
+  'winter-11': {
+    plainTitle: 'A Gingerbread House',
+    plainDescription: 'Build a gingerbread house and take a photo of it.',
+    plainDirections: 'Build a gingerbread house.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: kit or from scratch?',
+  },
+  'winter-12': {
+    plainTitle: 'Carolers Singing',
+    plainDescription: 'Take a photo of carolers and record their song.',
+    plainDirections: 'Find people singing carols.\nTake one clear photo of them.\nRecord a short voice note of the song.',
+    plainFieldNotePrompt: 'In a few words: what song were they singing?',
+    plainVoiceNotePrompt: 'Say it instead: what song is playing?',
+  },
+  'winter-13': {
+    plainTitle: 'A Story by the Fire',
+    plainDescription: 'Take a photo of a fire and record a winter story told beside it.',
+    plainDirections: 'Sit by a fire.\nTake one clear photo of the fire.\nRecord a short voice note of a winter story.',
+    plainFieldNotePrompt: 'In a few words: who told the story?',
+    plainVoiceNotePrompt: 'Say it instead: tell a short winter story.',
+  },
+  'winter-14': {
+    plainTitle: 'A Snowball Fight',
+    plainDescription: 'Take a photo of a snowball fight with your crew.',
+    plainDirections: 'Start a snowball fight with your crew.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: who won?',
+  },
+  'winter-15': {
+    plainTitle: 'A Gift Swap',
+    plainDescription: 'Take a photo of a white elephant gift at the swap.',
+    plainDirections: 'Find the gift swap with your crew.\nTake one clear photo of the gift.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: what was the gift?',
+  },
+  'winter-16': {
+    plainTitle: 'Skis on a Slope',
+    plainDescription: 'Take a photo of skis or a snowboard at Mountain High.',
+    plainDirections: 'Go to Mountain High.\nTake one clear photo of skis or a snowboard.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: skis or snowboard?',
+  },
+  'winter-17': {
+    plainTitle: 'A Lodge Fireplace',
+    plainDescription: 'Take a photo of a fireplace burning in a Lake Arrowhead lodge.',
+    plainDirections: 'Find a lodge fireplace at Lake Arrowhead.\nTake one clear photo of the fire.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: what lodge were you in?',
+  },
+  'winter-18': {
+    plainTitle: 'A Snowman at Big Bear',
+    plainDescription: 'Build a snowman with your crew at Snow Summit and take a photo of it.',
+    plainDirections: 'Go to Snow Summit with your crew.\nBuild a snowman together.\nTake one clear photo of it.',
+    plainFieldNotePrompt: 'In a few words: what is your snowman called?',
+  },
+  'winter-19': {
+    plainTitle: 'Lights at Night',
+    plainDescription: 'Take a photo of the Mission Inn Festival of Lights at night.',
+    plainDirections: 'Go to the Mission Inn after dark.\nTake one clear photo of the lights.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: what time did you go?',
+  },
+  'winter-20': {
+    plainTitle: 'Skating With Your Crew',
+    plainDescription: 'Take a photo of your crew skating at the Pershing Square rink.',
+    plainDirections: 'Go to the Pershing Square rink with your crew.\nTake one clear photo of everyone on the ice.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: did anyone fall?',
   },
 };

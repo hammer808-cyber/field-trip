@@ -49,6 +49,7 @@ import {
   type ScoringSnapshot,
 } from '../logic/missionScoring';
 import { requestVoiceNoteTranscript } from '../services/voiceNoteTranscriptService';
+import { ALL_CHALLENGE_CARDS } from '../data/allChallengeBanks';
 import {
   aiConfidencePercent,
   extractAiAnalysis,
@@ -899,6 +900,15 @@ function computePreviewMissionScoring(entry: any, scoring: ProofRubricScoring): 
       locationVerified: (entry as any).locationVerified ?? (entry as any).participation?.locationVerified,
       latitude: (entry as any).latitude,
       longitude: (entry as any).longitude,
+      // Crew layer: the entry doc carries crewContext (stamped by
+      // AppContext.addEntry); the card is resolved from the registry by
+      // the entry's trip/mission/challenge id.
+      submittedAsCrewMember: (entry as any).crewContext?.submittedAsCrewMember === true,
+      groupConfirmationCard: (
+        ALL_CHALLENGE_CARDS.find(
+          card => String(card.id) === String((entry as any).tripId ?? (entry as any).missionId ?? (entry as any).challengeId),
+        )?.proofType || []
+      ).includes('group-confirmation'),
     }),
     eligibleBonuses: Array.isArray(attempt.eligibleBonuses) ? attempt.eligibleBonuses : [],
   });

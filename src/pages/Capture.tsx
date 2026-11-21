@@ -1284,6 +1284,11 @@ export default function CapturePage() {
         fieldNoteRaw: fcData.note,
         voiceNotePresent,
         locationVerified: isLocationLayerEarned,
+        // Crew layer: Capture runs before AppContext stamps crewContext
+        // on the entry, so read the same source it reads (the profile's
+        // active crew) directly.
+        submittedAsCrewMember: !!(profile.activeCrewId || profile.crewId),
+        groupConfirmationCard: (currentTrip.proofType || []).includes('group-confirmation'),
       }),
       eligibleBonuses: [],
     });
