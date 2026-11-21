@@ -23,7 +23,7 @@ import { WeeklyAwardsResults } from '../components/WeeklyAwardsResults';
 import {
   WeeklyCandidateMovePanel,
   buildWeeklyCandidateMoveRows,
-} from '../components/WeeklyCandidateMovePanel';
+} from '../components/admin/WeeklyCandidateMovePanel';
 import type { WeeklyCategoryBallotReadModel } from '../services/weeklyVotingService';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');

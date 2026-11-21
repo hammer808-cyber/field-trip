@@ -81,7 +81,7 @@ export function WeeklyCategoryBallotSection({
                 key={entryId}
                 data-entry-id={entryId}
                 className={cn(
-                  'relative border-4 border-on-surface bg-[#fffdf7] shadow-[8px_8px_0px_black] overflow-hidden',
+                  'relative border-4 border-on-surface bg-white shadow-[8px_8px_0px_black] overflow-hidden',
                   selected ? 'ring-4 ring-brand-lime' : '',
                 )}
               >

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { WEEKLY_VOTE_CATEGORIES, type WeeklyVoteCategory } from '../logic/weeklyVoting';
-import { getWeeklyCategoryDisplay } from '../logic/weeklyCategories';
-import type { WeeklyCategoryBallotReadModel } from '../services/weeklyVotingService';
-import { cn } from '../lib/utils';
+import { WEEKLY_VOTE_CATEGORIES, type WeeklyVoteCategory } from '../../logic/weeklyVoting';
+import { getWeeklyCategoryDisplay } from '../../logic/weeklyCategories';
+import type { WeeklyCategoryBallotReadModel } from '../../services/weeklyVotingService';
+import { cn } from '../../lib/utils';
 
 export interface WeeklyCandidateMoveRow {
   entryId: string;

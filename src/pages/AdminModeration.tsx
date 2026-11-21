@@ -21,7 +21,7 @@ import {
 } from '../services/weeklyVotingService';
 import { getWeeklyCategoryBallotId } from '../logic/weeklyCategories';
 import type { WeeklyVoteCategory } from '../logic/weeklyVoting';
-import { WeeklyCandidateMovePanel } from '../components/WeeklyCandidateMovePanel';
+import { WeeklyCandidateMovePanel } from '../components/admin/WeeklyCandidateMovePanel';
 
 type AdminModerationView = 'reports' | 'sus' | 'fieldChecks' | 'communityFeedDiagnostics' | 'weeklyVotingDiagnostics' | 'tribunalDiagnostics' | 'audit';
 
