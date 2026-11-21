@@ -7,12 +7,13 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (rel: string) => readFileSync(join(repoRoot, rel), 'utf8');
 
-test('zines parked behind its kill switch; voting shipped (flag true), players pass the gate', () => {
+test('zines shipped (flag true); the per-season lock lives in the workspace', () => {
   const progress = read('src/services/canonicalProgress.ts');
-  // Nov 17, 2026: both sections were parked until figured out. Voting
-  // SHIPPED Nov 21, 2026 (global weekly voting) — flip the flag back to
-  // false to re-park it; the gate below is what shows the panel.
-  assert.match(progress, /export const ZINES_ENABLED = false;/);
+  // Nov 17, 2026: zines was parked until figured out. SHIPPED Nov 21,
+  // 2026 (scenes inside the zine book, one zine per season) — flip
+  // the flag back to false to re-park it; the gate below is what
+  // shows the panel when a feature is locked.
+  assert.match(progress, /export const ZINES_ENABLED = true;/);
   assert.match(progress, /export const VOTING_ENABLED = true;/);
   assert.match(progress, /if \(featureKey === 'zines'\) return ZINES_ENABLED;/);
   assert.match(progress, /if \(featureKey === 'voting'\) return VOTING_ENABLED;/);
@@ -31,12 +32,20 @@ test('zines parked behind its kill switch; voting shipped (flag true), players p
   assert.match(panel, /'Voting' \| 'Dex' \| 'Big Board' \| 'Loteria' \| 'Crew' \| 'Zines'/);
   assert.match(panel, /\{reason === 'coming_soon' \? 'Coming soon' : 'Locked for now'\}/);
   assert.match(panel, /\{featureName\} is coming soon/);
+
+  // The season-end lock lives in the workspace, not the kill switch:
+  // the active season's zine opens the morning after the season ends.
+  const workspace = read('src/components/ZineWorkspace.tsx');
+  assert.match(workspace, /seasonLocked/);
+  assert.match(workspace, /zine opens \{formatOpenDate/);
 });
 
 test('zines: the workspace itself is gated, so both surfaces lock', () => {
   const workspace = read('src/components/ZineWorkspace.tsx');
   // One gate inside the workspace covers the DEX Zines tab and the
-  // Crew zine tab — no render site can show zines while parked.
+  // Crew zine tab. The gate now passes (ZINES_ENABLED = true); the
+  // per-season lock inside the workspace is what holds a running
+  // season's zine.
   assert.match(workspace, /export function ZineWorkspace\(props: ZineWorkspaceProps\) \{/);
   assert.match(workspace, /<StarterGate requiredFeature="zines">/);
   assert.match(workspace, /<ZineWorkspaceInner \{\.\.\.props\} \/>/);

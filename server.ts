@@ -154,6 +154,13 @@ import {
   MAX_ZINE_PAGE_STICKERS,
   normalizeZineStickerPlacements,
 } from "./src/logic/zineStickerPlacements";
+import {
+  createScenePage,
+  getZineSeasonState,
+  MAX_SCENES_PER_ZINE,
+  normalizeSceneItems,
+  validateSceneItems,
+} from "./src/logic/zineScenes";
 import type { ZineEdition, ZineLayoutId, ZinePage, ZineStatus } from "./src/types/zine";
 import { awardTrustedXpInTransaction, buildLedgerBackedProgressionRepairPlan, getLevelUpAcknowledgementError, isTrustedProofXpEligible } from "./src/server/playerProgression";
 import { createAdminStickerAwardStore, createStickerAwardHandler } from "./src/server/stickerAwards";
@@ -5878,6 +5885,12 @@ async function startServer() {
     if (!canEditZine({ zine, userId: uid, activeCrewId: access.activeCrewId, isCrewCaptain: access.isCrewCaptain, isAdmin })) {
       throw new Error('ZINE_EDIT_FORBIDDEN');
     }
+    // Scenes (Nov 21, 2026): a season's zine stays locked until the
+    // season ends. Admins pass through (preview); everyone else waits
+    // for the opening. Every mutating endpoint funnels through here.
+    if (!isAdmin && !getZineSeasonState(String(zine.seasonId || '')).ended) {
+      throw new Error('ZINE_SEASON_LOCKED');
+    }
     return { zine, access };
   };
 
@@ -5899,6 +5912,42 @@ async function startServer() {
       res.status(message.endsWith('_FORBIDDEN') ? 403 : 409).json({ error: message, message });
     }
   });
+
+  const loadPastZines = async (uid: string, crewId: string | null, activeSeasonId: string) => {
+    if (!dbAdmin) return [];
+    const out: any[] = [];
+    const toMillis = (value: any): number => {
+      if (!value) return 0;
+      if (typeof value.toMillis === 'function') return value.toMillis();
+      if (typeof value === 'number') return value;
+      const parsed = new Date(value).getTime();
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+    const collect = (snap: FirebaseFirestore.QuerySnapshot, kind: string) => {
+      for (const docSnap of snap.docs) {
+        const data = docSnap.data() || {};
+        const seasonId = String(data.seasonId || '');
+        if (!seasonId || seasonId === activeSeasonId) continue;
+        if (!getZineSeasonState(seasonId).ended) continue;
+        out.push({
+          zineId: docSnap.id,
+          kind,
+          seasonId,
+          status: normalizeZineStatus(data.status),
+          updatedAt: data.updatedAt || null,
+          _millis: toMillis(data.updatedAt),
+        });
+      }
+    };
+    const personalSnap = await dbAdmin.collection('personalZines').where('ownerId', '==', uid).limit(10).get();
+    collect(personalSnap, 'personal');
+    if (crewId) {
+      const crewSnap = await dbAdmin.collection('crewSeasonZines').where('crewId', '==', crewId).limit(10).get();
+      collect(crewSnap, 'crew');
+    }
+    out.sort((a, b) => b._millis - a._millis);
+    return out.slice(0, 4).map(({ _millis, ...rest }) => rest);
+  };
 
   app.get('/api/zines/current', authRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: 'DB_ADMIN_NOT_READY' });
@@ -5927,8 +5976,13 @@ async function startServer() {
         }
       }
       const admin = await checkIsAdmin(req.user);
+      const seasonState = getZineSeasonState(seasonId);
+      const pastZines = await loadPastZines(uid, crewId || null, seasonId);
       res.json({
         seasonId,
+        season: seasonState,
+        isAdmin: admin,
+        pastZines,
         personal,
         crew: crewZine,
         crewRole,
@@ -6042,7 +6096,7 @@ async function startServer() {
       }
       console.error('[ZINE_GENERATE] Failed:', error);
       const message = error.message || String(error);
-      const status = message.endsWith('_FORBIDDEN') ? 403 : message === 'ZINE_NOT_FOUND' ? 404 : message === 'ZINE_GENERATION_STATE_CHANGED' ? 409 : 500;
+      const status = message.endsWith('_FORBIDDEN') ? 403 : message === 'ZINE_SEASON_LOCKED' ? 403 : message === 'ZINE_NOT_FOUND' ? 404 : message === 'ZINE_GENERATION_STATE_CHANGED' ? 409 : 500;
       res.status(status).json({ error: status === 500 ? 'ZINE_GENERATION_FAILED' : message, message });
     }
   });
@@ -6051,7 +6105,7 @@ async function startServer() {
     if (!dbAdmin) return res.status(500).json({ error: 'DB_ADMIN_NOT_READY' });
     const zineId = String(req.params.zineId || '');
     const pageId = String(req.params.pageId || '');
-    const allowedLayouts = new Set<ZineLayoutId>(['cover_full_bleed', 'single_receipt', 'split_receipts', 'timeline_strip', 'sticker_sheet', 'quote_page', 'closing_card']);
+    const allowedLayouts = new Set<ZineLayoutId>(['cover_full_bleed', 'single_receipt', 'split_receipts', 'timeline_strip', 'sticker_sheet', 'quote_page', 'closing_card', 'scene']);
     try {
       const zineRef = getZineReference(zineId);
       const zineSnap = await zineRef.get();
@@ -6094,6 +6148,29 @@ async function startServer() {
           const invalidStickerIds = getInvalidZineStickerIds(stickers, unlockedStickerIds);
           if (invalidStickerIds.length > 0) throw new Error('ZINE_STICKER_NOT_UNLOCKED');
         }
+        // Scenes (Nov 21, 2026): a scene page keeps layout 'scene' and
+        // nothing else may become one; scene items are validated against
+        // the style's slots plus season-candidate eligibility.
+        const pageBefore = pages[pageIndex] as ZinePage;
+        const isScenePage = pageBefore.role === 'scene' && Boolean((pageBefore as any).sceneStyleId);
+        if (layoutId === 'scene' && !isScenePage) throw new Error('INVALID_ZINE_LAYOUT');
+        if (isScenePage && layoutId !== 'scene') throw new Error('INVALID_ZINE_LAYOUT');
+        let sceneItems = Array.isArray((pageBefore as any).sceneItems) ? (pageBefore as any).sceneItems as any[] : [];
+        if (req.body.sceneItems !== undefined) {
+          if (!isScenePage) throw new Error('INVALID_SCENE_PAGE');
+          const shapeErrors = validateSceneItems(String((pageBefore as any).sceneStyleId), req.body.sceneItems);
+          if (shapeErrors.length > 0) throw new Error('INVALID_SCENE_ITEMS');
+          const normalized = normalizeSceneItems(String((pageBefore as any).sceneStyleId), req.body.sceneItems);
+          const candidateMissions = new Set(candidates.map((candidate: any) => `${String(candidate.deckId || '')}::${String(candidate.missionId || candidate.challengeId || '')}`));
+          for (const item of normalized) {
+            if (item.kind === 'proof' && !candidatesById.has(String(item.proofEntryId || ''))) throw new Error('ZINE_PROOF_NOT_ELIGIBLE');
+            if (item.kind === 'mission') {
+              if (!candidateMissions.has(`${String(item.deckId || '')}::${String(item.missionId || '')}`)) throw new Error('ZINE_MISSION_NOT_ELIGIBLE');
+              if (!resolveMissionById(String(item.missionId))) throw new Error('ZINE_MISSION_NOT_FOUND');
+            }
+          }
+          sceneItems = normalized;
+        }
         const { stickerIds: _legacyStickerIds, ...currentPage } = pages[pageIndex];
         const page: ZinePage = {
           ...currentPage,
@@ -6104,6 +6181,7 @@ async function startServer() {
           proofSnapshots: requestedProofIds.map((id: string) => toZineProofSnapshot(candidatesById.get(id)!)),
           stickers,
         };
+        if (isScenePage) page.sceneItems = sceneItems;
         const nextPages = [...pages];
         nextPages[pageIndex] = page;
         transaction.set(zineRef, { status: 'curating', pages: nextPages, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
@@ -6116,12 +6194,49 @@ async function startServer() {
       const message = error.message || String(error);
       const status = message.endsWith('_FORBIDDEN')
         ? 403
+        : message === 'ZINE_SEASON_LOCKED'
+          ? 403
         : message.includes('NOT_FOUND')
           ? 404
-          : ['ZINE_PROOF_NOT_ELIGIBLE', 'INVALID_ZINE_LAYOUT', 'INVALID_ZINE_STICKERS', 'ZINE_STICKER_NOT_UNLOCKED'].includes(message)
+          : ['ZINE_PROOF_NOT_ELIGIBLE', 'INVALID_ZINE_LAYOUT', 'INVALID_ZINE_STICKERS', 'ZINE_STICKER_NOT_UNLOCKED', 'INVALID_SCENE_ITEMS', 'INVALID_SCENE_PAGE', 'ZINE_MISSION_NOT_ELIGIBLE', 'ZINE_MISSION_NOT_FOUND'].includes(message)
             ? 400
             : 500;
       res.status(status).json({ error: message === 'ZINE_PAGE_UPDATE_FAILED' ? message : message, message });
+    }
+  });
+
+  app.post('/api/zines/:zineId/pages/scene', authRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: 'DB_ADMIN_NOT_READY' });
+    try {
+      const zineRef = getZineReference(String(req.params.zineId || ''));
+      const admin = await checkIsAdmin(req.user);
+      const styleId = String(req.body.styleId || '');
+      const page = await dbAdmin.runTransaction(async transaction => {
+        const current = await getEditableZineInTransaction(transaction, zineRef, req.user.uid, admin);
+        const pages = Array.isArray(current.zine.pages) ? [...current.zine.pages] as ZinePage[] : [];
+        if (pages.filter(item => item.role === 'scene').length >= MAX_SCENES_PER_ZINE) throw new Error('SCENE_LIMIT');
+        const pageId = `page_scene_${styleId}`;
+        if (pages.some(item => item.id === pageId)) throw new Error('SCENE_STYLE_TAKEN');
+        const closingIndex = pages.findIndex(item => item.role === 'closing');
+        const scenePage = createScenePage(styleId as any, pageId, Math.max(0, closingIndex));
+        pages.splice(closingIndex >= 0 ? closingIndex : pages.length, 0, scenePage);
+        const nextPages = pages.map((item, order) => ({ ...item, order }));
+        transaction.set(zineRef, { status: 'curating', pages: nextPages, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+        return scenePage;
+      });
+      await dbAdmin.collection('zineAuditLogs').add({
+        actorId: req.user.uid,
+        zineId: String(req.params.zineId || ''),
+        action: 'add_scene_page',
+        pageId: page.id,
+        styleId,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      res.json({ success: true, page });
+    } catch (error: any) {
+      const message = error.message || String(error);
+      const status = message.endsWith('_FORBIDDEN') ? 403 : message === 'ZINE_SEASON_LOCKED' ? 403 : message === 'ZINE_NOT_FOUND' ? 404 : ['INVALID_SCENE_STYLE', 'SCENE_STYLE_TAKEN'].includes(message) ? 400 : message === 'SCENE_LIMIT' ? 409 : 500;
+      res.status(status).json({ error: message, message });
     }
   });
 
@@ -6140,7 +6255,7 @@ async function startServer() {
       res.json({ success: true, pages });
     } catch (error: any) {
       const message = error.message || String(error);
-      res.status(message.endsWith('_FORBIDDEN') ? 403 : message === 'ZINE_NOT_FOUND' ? 404 : 500).json({ error: message, message });
+      res.status(message.endsWith('_FORBIDDEN') ? 403 : message === 'ZINE_SEASON_LOCKED' ? 403 : message === 'ZINE_NOT_FOUND' ? 404 : 500).json({ error: message, message });
     }
   });
 
@@ -6176,7 +6291,7 @@ async function startServer() {
       res.json({ success: true, pages: ordered });
     } catch (error: any) {
       const message = error.message || String(error);
-      const status = message.endsWith('_FORBIDDEN') ? 403 : message === 'ZINE_NOT_FOUND' ? 404 : message === 'OPTIONAL_PAGE_LIMIT_REACHED' ? 409 : 500;
+      const status = message.endsWith('_FORBIDDEN') ? 403 : message === 'ZINE_SEASON_LOCKED' ? 403 : message === 'ZINE_NOT_FOUND' ? 404 : message === 'OPTIONAL_PAGE_LIMIT_REACHED' ? 409 : 500;
       res.status(status).json({ error: message, message });
     }
   });
@@ -6195,7 +6310,7 @@ async function startServer() {
       res.json({ success: true, selectedCoverId: coverId });
     } catch (error: any) {
       const message = error.message || String(error);
-      const status = message.endsWith('_FORBIDDEN') ? 403 : message === 'ZINE_NOT_FOUND' ? 404 : message === 'INVALID_COVER_CHOICE' ? 400 : 500;
+      const status = message.endsWith('_FORBIDDEN') ? 403 : message === 'ZINE_SEASON_LOCKED' ? 403 : message === 'ZINE_NOT_FOUND' ? 404 : message === 'INVALID_COVER_CHOICE' ? 400 : 500;
       res.status(status).json({ error: message, message });
     }
   });
@@ -6210,6 +6325,8 @@ async function startServer() {
       const access = await getZineActorAccess(zine, req.user.uid);
       if (zine.kind !== 'crew' || !access.isActiveCrewMember) return res.status(403).json({ error: 'ZINE_NOMINATION_FORBIDDEN' });
       if (zine.status === 'finalized' || zine.status === 'archived') return res.status(409).json({ error: 'ZINE_IMMUTABLE' });
+      const admin = await checkIsAdmin(req.user);
+      if (!admin && !getZineSeasonState(String(zine.seasonId || '')).ended) return res.status(403).json({ error: 'ZINE_SEASON_LOCKED' });
       const proofId = String(req.body.proofId || '');
       const candidates = await loadZineCandidates(zine);
       if (!candidates.some(candidate => getZineCandidateId(candidate) === proofId)) return res.status(400).json({ error: 'ZINE_PROOF_NOT_ELIGIBLE' });
@@ -6232,7 +6349,7 @@ async function startServer() {
       res.json({ success: true, ...result });
     } catch (error: any) {
       const message = error.message || String(error);
-      const status = message.endsWith('_FORBIDDEN') ? 403 : message === 'ZINE_NOT_FOUND' ? 404 : message === 'ZINE_IMMUTABLE' ? 409 : 500;
+      const status = message.endsWith('_FORBIDDEN') ? 403 : message === 'ZINE_SEASON_LOCKED' ? 403 : message === 'ZINE_NOT_FOUND' ? 404 : message === 'ZINE_IMMUTABLE' ? 409 : 500;
       res.status(status).json({ error: message, message });
     }
   });
@@ -6250,7 +6367,7 @@ async function startServer() {
       res.json({ success: true, status: 'ready_for_review' });
     } catch (error: any) {
       const message = error.message || String(error);
-      const status = message.endsWith('_FORBIDDEN') ? 403 : message === 'ZINE_NOT_FOUND' ? 404 : message === 'ZINE_DRAFT_REQUIRED' ? 409 : 500;
+      const status = message.endsWith('_FORBIDDEN') ? 403 : message === 'ZINE_SEASON_LOCKED' ? 403 : message === 'ZINE_NOT_FOUND' ? 404 : message === 'ZINE_DRAFT_REQUIRED' ? 409 : 500;
       res.status(status).json({ error: message, message });
     }
   });
@@ -6268,6 +6385,7 @@ async function startServer() {
         if (zine.status === 'finalized' || zine.status === 'archived') return { alreadyFinalized: true, zine };
         const access = await getZineActorAccessInTransaction(transaction, zine, req.user.uid);
         if (!canFinalizeZine({ zine, userId: req.user.uid, activeCrewId: access.activeCrewId, isCrewCaptain: access.isCrewCaptain, isAdmin: admin })) throw new Error('ZINE_FINALIZE_FORBIDDEN');
+        if (!admin && !getZineSeasonState(String(zine.seasonId || '')).ended) throw new Error('ZINE_SEASON_LOCKED');
         const pages = Array.isArray(zine.pages)
           ? (zine.pages as ZinePage[]).map(page => {
               const { stickerIds: _legacyStickerIds, ...canonicalPage } = page;
@@ -6319,7 +6437,7 @@ async function startServer() {
       res.json({ success: true, alreadyFinalized: result.alreadyFinalized, status: 'finalized' });
     } catch (error: any) {
       const message = error.message || String(error);
-      const status = message.endsWith('_FORBIDDEN') ? 403 : message === 'ZINE_NOT_FOUND' ? 404 : 500;
+      const status = message.endsWith('_FORBIDDEN') ? 403 : message === 'ZINE_SEASON_LOCKED' ? 403 : message === 'ZINE_NOT_FOUND' ? 404 : 500;
       res.status(status).json({ error: message, message });
     }
   });

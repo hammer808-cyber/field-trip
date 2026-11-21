@@ -17,12 +17,12 @@ export type FeatureKey = 'starter' | 'crew' | 'memories' | 'voting' | 'tribunal'
 export const LOTERIA_ENABLED = false;
 
 /**
- * Zines kill switch (Nov 17, 2026). The zine section is still being
- * figured out, so it stays barred for players behind a "coming soon"
- * panel. Admins bypass the gate (StarterGate) so it can still be
- * worked on and previewed. Flip to true when Zines ships.
+ * Zines kill switch (Nov 17, 2026). SHIPPED Nov 21, 2026 — scenes
+ * inside the zine book, one zine per season, opening the morning
+ * after the season ends. The per-season lock now lives in the
+ * workspace itself; this flag is just the feature gate.
  */
-export const ZINES_ENABLED = false;
+export const ZINES_ENABLED = true;
 
 /**
  * Voting kill switch (Nov 17, 2026). The voting section stayed barred for

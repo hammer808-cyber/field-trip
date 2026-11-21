@@ -1,17 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { BookOpen, Check, ChevronDown, ChevronUp, FilePlus2, Loader2, Lock, Printer, RefreshCw, Sparkles, Star } from 'lucide-react';
+import { BookOpen, Check, ChevronDown, ChevronUp, FilePlus2, Loader2, Lock, Plus, Printer, RefreshCw, Sparkles, Star } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { StarterGate } from './StarterGate';
 import { cn } from '../lib/utils';
 import { ProofImage } from './ProofImage';
 import { ZineStickerLayer } from './zine/ZineStickerLayer';
 import { ZineStickerPicker } from './zine/ZineStickerPicker';
+import { ZineScenePage } from './zine/ZineScenePage';
+import { ZineSceneEditor } from './zine/ZineSceneEditor';
+import { ZINE_SCENE_STYLES } from '../logic/zineScenes';
+import { getEventById, getSeasonById, type SeasonId } from '../data/seasons';
 import { getStickerById, type StickerDefinition } from '../data/stickers';
 import { getZinePageStickerPlacements } from '../logic/zineStickerPlacements';
 import type { ZineEdition, ZineKind, ZinePage, ZineProofSnapshot } from '../types/zine';
 import { getUserUnlockedStickers } from '../services/stickerService';
 import {
   addOptionalZinePage,
+  addScenePage,
   finalizeZine,
   generateZineDraft,
   getCurrentZines,
@@ -39,6 +44,18 @@ function proofImageEntry(snapshot?: ZineProofSnapshot | null) {
     : { id: snapshot.entryId, storagePath: snapshot.mediaRef };
 }
 
+function seasonDisplayName(seasonId: string): string {
+  const event = getEventById(seasonId);
+  if (event) return event.name;
+  if (['spring', 'summer', 'fall', 'winter'].includes(seasonId)) return getSeasonById(seasonId as SeasonId).name;
+  return seasonId.replace(/-/g, ' ');
+}
+
+function formatOpenDate(iso: string | null): string {
+  if (!iso) return 'soon';
+  return new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Los_Angeles' });
+}
+
 interface ZineWorkspaceProps {
   initialKind?: ZineKind;
   showScopeSwitch?: boolean;
@@ -56,6 +73,8 @@ function ZineWorkspaceInner({ initialKind = 'personal', showScopeSwitch = true }
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
   const [unlockedStickers, setUnlockedStickers] = useState<StickerDefinition[]>([]);
+  const [viewingPastId, setViewingPastId] = useState<string | null>(null);
+  const [sceneStyleChoice, setSceneStyleChoice] = useState('vintage_nostalgia');
 
   useEffect(() => {
     let isCurrent = true;
@@ -76,20 +95,20 @@ function ZineWorkspaceInner({ initialKind = 'personal', showScopeSwitch = true }
     };
   }, [user?.uid]);
 
-  const load = async (preferredKind = kind) => {
+  const load = async (preferredKind = kind, pastId: string | null = viewingPastId) => {
     setLoading(true);
     setError(null);
     try {
       const nextWorkspace = await getCurrentZines();
       setWorkspace(nextWorkspace);
-      const shell = preferredKind === 'personal' ? nextWorkspace.personal : nextWorkspace.crew;
-      if (!shell) {
+      const shell = pastId ? null : (preferredKind === 'personal' ? nextWorkspace.personal : nextWorkspace.crew);
+      if (!shell && !pastId) {
         setZine(null);
         setCandidates([]);
         setPermissions({ canEdit: false, canFinalize: false, canNominate: false });
         return;
       }
-      const detail = await getZine(shell.id);
+      const detail = await getZine(pastId || shell!.id);
       setZine(detail.zine);
       setCandidates(detail.candidates);
       setPermissions(detail.permissions);
@@ -123,21 +142,35 @@ function ZineWorkspaceInner({ initialKind = 'personal', showScopeSwitch = true }
 
   const shellStatus = zine?.status || 'unavailable';
   const displayedPages = zine?.status === 'finalized' && zine.finalizedPages?.length ? zine.finalizedPages : zine?.pages || [];
+  // Season-end gate (Nov 21, 2026): the active season's zine stays
+  // locked until the season ends; admins preview early. Past seasons
+  // are already ended, so a past zine is always editable.
+  const seasonLocked = !!workspace?.season && !workspace.season.ended && !workspace.isAdmin && !viewingPastId;
+  const canMutate = permissions.canEdit && !seasonLocked;
+  const availableSceneStyles = ZINE_SCENE_STYLES.filter(style =>
+    !displayedPages.some(page => page.role === 'scene' && page.sceneStyleId === style.id)
+  );
+  const effectiveSceneChoice = availableSceneStyles.some(style => style.id === sceneStyleChoice)
+    ? sceneStyleChoice
+    : availableSceneStyles[0]?.id || '';
 
   return (
     <section className="skin-zine space-y-8" aria-label="Fieldtrip zine workspace">
       <header className="border-b-4 border-on-surface pb-6 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
         <div className="space-y-2">
-          <p className="font-mono text-xs font-black uppercase tracking-[0.2em] text-brand-orange">Season edition / {workspace?.seasonId || 'active season'}</p>
+          <p className="font-mono text-xs font-black uppercase tracking-[0.2em] text-brand-orange">Season edition / {viewingPastId ? seasonDisplayName(zine?.seasonId || workspace?.seasonId || 'active season') : seasonDisplayName(workspace?.seasonId || 'active season')}</p>
           <h2 className="font-display text-4xl sm:text-5xl font-black uppercase italic tracking-tight leading-none">
-            {kind === 'personal' ? 'My Zine' : 'Crew Zine'}
+            {viewingPastId ? (zine?.kind === 'crew' ? 'Crew Zine' : 'My Zine') : (kind === 'personal' ? 'My Zine' : 'Crew Zine')}
           </h2>
           <p className="font-serif italic text-sm text-on-surface/65 max-w-2xl">
-            Approved receipts become a structured draft. Choose moments, tighten captions, add earned stickers, then lock the edition.
+            Approved receipts become a structured draft. Build scenes, choose moments, tighten captions, add earned stickers, then lock the edition.
           </p>
+          {viewingPastId && (
+            <button type="button" onClick={() => { setViewingPastId(null); load(kind, null); }} className="font-mono text-xs font-black uppercase underline">← Back to current season</button>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {showScopeSwitch && (
+          {showScopeSwitch && !viewingPastId && (
             <div className="inline-flex border-2 border-on-surface bg-white p-1" role="tablist" aria-label="Zine type">
               {(['personal', 'crew'] as ZineKind[]).map(item => (
                 <button key={item} role="tab" aria-selected={kind === item} onClick={() => setKind(item)} className={cn('px-4 py-2 font-mono text-xs font-black uppercase', kind === item ? 'bg-brand-lime' : 'text-on-surface/60')}>
@@ -153,6 +186,42 @@ function ZineWorkspaceInner({ initialKind = 'personal', showScopeSwitch = true }
 
       {error && <div className="border-2 border-red-500 bg-red-50 p-4 font-mono text-xs font-black text-red-700 uppercase">{error}</div>}
 
+      {workspace?.season && !workspace.season.ended && workspace.isAdmin && !viewingPastId && (
+        <div className="border-2 border-on-surface bg-brand-yellow p-4 font-mono text-xs font-black uppercase">
+          Admin preview — the {seasonDisplayName(workspace.seasonId)} zine opens {formatOpenDate(workspace.season.opensAt)}. You're editing early.
+        </div>
+      )}
+
+      {zine && seasonLocked && (
+        <div className="border-4 border-on-surface bg-[#FFFCEB] p-7 sm:p-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 shadow-[8px_8px_0px_black]">
+          <div className="space-y-2">
+            <p className="font-mono text-xs uppercase tracking-widest opacity-55">Season edition locked</p>
+            <h3 className="font-display text-3xl font-black uppercase italic">The {seasonDisplayName(workspace?.seasonId || '')} zine opens {formatOpenDate(workspace?.season?.opensAt || null)}</h3>
+            <p className="font-serif italic text-sm opacity-65">Keep playing the season — every deck you finish and every receipt you earn will be waiting in the book when it opens.</p>
+          </div>
+          <Lock className="w-10 h-10 text-on-surface/60 shrink-0" />
+        </div>
+      )}
+
+      {workspace?.pastZines?.length > 0 && (
+        <section className="space-y-3">
+          <h3 className="font-display text-2xl font-black uppercase italic">Past seasons</h3>
+          <div className="flex gap-3 overflow-x-auto pb-3">
+            {workspace.pastZines.map((past: any) => (
+              <button
+                key={past.zineId}
+                type="button"
+                onClick={() => { setViewingPastId(past.zineId); load(kind, past.zineId); }}
+                className={cn('shrink-0 border-2 border-on-surface bg-white p-3 text-left', viewingPastId === past.zineId && 'bg-brand-lime')}
+              >
+                <p className="font-display font-black uppercase italic">{seasonDisplayName(past.seasonId)}</p>
+                <p className="font-mono text-xs uppercase opacity-50">{past.kind} / {String(past.status).replace(/_/g, ' ')}</p>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       {!zine && (
         <div className="border-4 border-dashed border-on-surface/25 bg-white min-h-[260px] flex flex-col items-center justify-center text-center p-8 gap-4">
           <Lock className="w-10 h-10 text-on-surface/60" />
@@ -167,7 +236,7 @@ function ZineWorkspaceInner({ initialKind = 'personal', showScopeSwitch = true }
         </div>
       )}
 
-      {zine && ['shell', 'generation_failed'].includes(zine.status) && (
+      {zine && !seasonLocked && ['shell', 'generation_failed'].includes(zine.status) && (
         <div className="border-4 border-on-surface bg-[#FFFCEB] p-7 sm:p-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 shadow-[8px_8px_0px_black]">
           <div className="space-y-2">
             <p className="font-mono text-xs uppercase tracking-widest opacity-55">Automatic archive ready</p>
@@ -180,20 +249,33 @@ function ZineWorkspaceInner({ initialKind = 'personal', showScopeSwitch = true }
         </div>
       )}
 
-      {zine && displayedPages.length > 0 && (
+      {zine && !seasonLocked && displayedPages.length > 0 && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-3 border-y-2 border-on-surface/15 py-4">
             <div className="font-mono text-xs font-black uppercase">{displayedPages.length} pages / {candidates.length} eligible receipts</div>
             <div className="flex flex-wrap gap-2">
-              {permissions.canEdit && zine.optionalPageCount < 2 && zine.status !== 'ready_for_review' && (
+              {canMutate && zine.optionalPageCount < 2 && zine.status !== 'ready_for_review' && (
                 <button disabled={busy} onClick={() => run(() => addOptionalZinePage(zine.id))} className="bureau-btn bg-white text-on-surface text-xs"><FilePlus2 className="w-4 h-4" /> Add Page</button>
+              )}
+              {canMutate && availableSceneStyles.length > 0 && zine.status !== 'ready_for_review' && (
+                <span className="inline-flex gap-2">
+                  <select
+                    value={effectiveSceneChoice}
+                    onChange={event => setSceneStyleChoice(event.target.value)}
+                    className="border-2 border-on-surface bg-white p-2 font-mono text-xs"
+                    aria-label="Scene style"
+                  >
+                    {availableSceneStyles.map(style => <option key={style.id} value={style.id}>{style.name}</option>)}
+                  </select>
+                  <button disabled={busy || !effectiveSceneChoice} onClick={() => run(() => addScenePage(zine.id, effectiveSceneChoice as any))} className="bureau-btn bg-white text-on-surface text-xs"><Plus className="w-4 h-4" /> Add Scene</button>
+                </span>
               )}
               <button onClick={() => setPreview(value => !value)} className="bureau-btn bg-white text-on-surface text-xs"><BookOpen className="w-4 h-4" /> {preview ? 'Edit View' : 'Full Preview'}</button>
               <button onClick={() => window.print()} className="bureau-btn bg-white text-on-surface text-xs"><Printer className="w-4 h-4" /> Print / Save PDF</button>
             </div>
           </div>
 
-          {zine.coverChoices?.length > 0 && permissions.canEdit && !preview && zine.status !== 'ready_for_review' && (
+          {zine.coverChoices?.length > 0 && canMutate && !preview && zine.status !== 'ready_for_review' && (
             <section className="space-y-3">
               <h3 className="font-display text-2xl font-black uppercase italic">Cover</h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -242,7 +324,7 @@ function ZineWorkspaceInner({ initialKind = 'personal', showScopeSwitch = true }
           <footer className="border-4 border-on-surface bg-black text-white p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 print:hidden">
             <div>
               <p className="font-mono text-xs uppercase tracking-widest text-brand-lime">Edition control</p>
-              <p className="font-serif italic text-sm text-white/65">Finalization freezes proof snapshots, captions, stickers, order, and cover.</p>
+              <p className="font-serif italic text-sm text-white/65">Finalization freezes proof snapshots, captions, stickers, scenes, order, and cover.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {permissions.canEdit && ['draft', 'curating'].includes(zine.status) && <button disabled={busy} onClick={() => run(() => markZineReady(zine.id))} className="bureau-btn bg-brand-cyan text-on-surface">Ready for Review</button>}
@@ -270,6 +352,42 @@ function ZinePagePanel({ zine, page, candidates, unlockedStickers, canEdit, comp
   const selected = page.proofSnapshots?.[0] || null;
   const imageEntry = proofImageEntry(selected);
   const stickerPlacements = useMemo(() => getZinePageStickerPlacements(page), [page]);
+  if (page.role === 'scene') {
+    return (
+      <article className="skin-card skin-zine-page relative border-4 border-on-surface bg-[#FFFDF6] overflow-hidden">
+        <div className="p-5 sm:p-6 space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <span className="bg-brand-lime border-2 border-on-surface px-2 py-1 font-mono text-xs font-black uppercase">{page.order + 1} / Scene</span>
+              <h3 className="font-display text-2xl sm:text-3xl font-black uppercase italic leading-none mt-2">{page.title}</h3>
+              <p className="font-serif italic text-sm text-on-surface/70 mt-1">{page.caption || 'A scene you built.'}</p>
+            </div>
+            {canEdit && page.isFlexible && (
+              <div className="flex gap-2 shrink-0">
+                <button disabled={busy} title="Move page earlier" onClick={() => onRun(() => reorderZinePage(zine.id, page.id, -1))} className="w-10 h-10 border-2 border-on-surface bg-white grid place-items-center"><ChevronUp className="w-4 h-4" /></button>
+                <button disabled={busy} title="Move page later" onClick={() => onRun(() => reorderZinePage(zine.id, page.id, 1))} className="w-10 h-10 border-2 border-on-surface bg-white grid place-items-center"><ChevronDown className="w-4 h-4" /></button>
+              </div>
+            )}
+          </div>
+          {canEdit ? (
+            <ZineSceneEditor page={page} candidates={candidates} busy={busy} onSave={items => onRun(() => updateZinePage(zine.id, page.id, { sceneItems: items }))} />
+          ) : (
+            <ZineScenePage page={page} candidates={candidates} />
+          )}
+          {canEdit && (
+            <div className="border-t-2 border-on-surface/15 pt-4">
+              <ZineStickerPicker
+                unlockedStickers={unlockedStickers}
+                placements={stickerPlacements}
+                disabled={busy}
+                onChange={stickers => onRun(() => updateZinePage(zine.id, page.id, { stickers }))}
+              />
+            </div>
+          )}
+        </div>
+      </article>
+    );
+  }
   return (
     <article className={cn('skin-card skin-zine-page relative border-4 border-on-surface bg-[#FFFDF6] overflow-hidden', compact ? 'min-h-[480px] shadow-[8px_8px_0px_black]' : 'grid md:grid-cols-[240px_1fr]')}>
       <div className={cn('relative bg-neutral-900', compact ? 'h-72' : 'min-h-64 md:min-h-full')}>
@@ -321,9 +439,10 @@ function ZinePagePanel({ zine, page, candidates, unlockedStickers, canEdit, comp
   );
 }
 
-// Nov 17, 2026: Zines is parked behind the kill switch until the section
-// is figured out. Players see the "coming soon" panel wherever the
-// workspace renders (DEX Zines tab, Crew zine tab); admins pass through.
+// Nov 21, 2026: Zines is live (ZINES_ENABLED = true). The kill switch
+// is gone — the lock now lives per season inside the workspace: a
+// season's zine opens the morning after the season ends. Admins pass
+// through the gate and preview early, same as before.
 export function ZineWorkspace(props: ZineWorkspaceProps) {
   return (
     <StarterGate requiredFeature="zines">

@@ -86,6 +86,10 @@ export interface ZineCandidateLike {
   moderation?: { isHidden?: boolean } | null;
   weeklyAwardIds?: string[];
   tags?: string[];
+  /** The deck + mission the entry is for (scene mission picker). */
+  deckId?: string;
+  challengeId?: string;
+  missionId?: string;
 }
 
 export function getPersonalZineId(userId: string, seasonId: string): string {
@@ -183,6 +187,8 @@ export function toZineProofSnapshot(candidate: ZineCandidateLike): ZineProofSnap
     ownerId: getZineCandidateOwnerId(candidate),
     ownerDisplayName: String(candidate.ownerDisplayName || candidate.displayName || 'Field Agent'),
     missionTitle: String(candidate.missionTitle || candidate.challengeTitle || candidate.tripTitle || 'Field Mission'),
+    deckId: String(candidate.deckId || ''),
+    missionId: String(candidate.missionId || candidate.challengeId || ''),
     fieldNote: String(candidate.fieldNote || candidate.caption || ''),
     mediaRef: getZineCandidateMediaRef(candidate),
     score: Number(candidate.score ?? candidate.awardedXP ?? candidate.pointsAwarded ?? 0) || 0,

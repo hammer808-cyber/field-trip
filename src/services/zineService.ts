@@ -1,5 +1,5 @@
 import { authenticatedFetch } from '../lib/api';
-import type { ZineEdition, ZineLayoutId, ZineProofSnapshot, ZineStickerPlacement, ZineWorkspaceState } from '../types/zine';
+import type { ZineEdition, ZineLayoutId, ZineProofSnapshot, ZineSceneItem, ZineSceneStyleId, ZineStickerPlacement, ZineWorkspaceState } from '../types/zine';
 import { getZinePageStickerPlacements } from '../logic/zineStickerPlacements';
 import {
   requestStickerEvaluation,
@@ -67,6 +67,7 @@ export async function updateZinePage(zineId: string, pageId: string, update: {
   title?: string;
   caption?: string;
   stickers?: ZineStickerPlacement[];
+  sceneItems?: ZineSceneItem[];
 }): Promise<void> {
   const response = await authenticatedFetch(`/api/zines/${encodeURIComponent(zineId)}/pages/${encodeURIComponent(pageId)}`, {
     method: 'PATCH',
@@ -76,6 +77,7 @@ export async function updateZinePage(zineId: string, pageId: string, update: {
   const contributedContent = Boolean(
     update.proofIds?.length ||
     update.stickers?.length ||
+    update.sceneItems?.length ||
     update.title?.trim() ||
     update.caption?.trim()
   );
@@ -98,6 +100,16 @@ export async function addOptionalZinePage(zineId: string): Promise<void> {
   await readZineResponse(response, `Optional page failed with HTTP ${response.status}`);
   // Page creation is committed before the non-blocking sticker attempt begins.
   awardCurrentUserZineSticker(`zine_page:${zineId}:optional`);
+}
+
+export async function addScenePage(zineId: string, styleId: ZineSceneStyleId): Promise<void> {
+  const response = await authenticatedFetch(`/api/zines/${encodeURIComponent(zineId)}/pages/scene`, {
+    method: 'POST',
+    body: JSON.stringify({ styleId }),
+  });
+  await readZineResponse(response, `Scene page failed with HTTP ${response.status}`);
+  // Page creation is committed before the non-blocking sticker attempt begins.
+  awardCurrentUserZineSticker(`zine_page:${zineId}:scene:${styleId}`);
 }
 
 export async function selectZineCover(zineId: string, coverId: string): Promise<void> {

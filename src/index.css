@@ -54,6 +54,30 @@
   --color-heat-yellow: #FFB300;
   --color-heat-mango: #FF7D00;
   --color-heat-pink: #FF4D94;
+
+  /* Zine scene styles (Nov 21, 2026 — the four looks). Palettes live
+     here so components reference vars only; the token-hex snapshot
+     was regenerated deliberately for these (see tokenHexSnapshot). */
+  --scene-vintage-bg: #E9DCC0;
+  --scene-vintage-paper: #F7EFDD;
+  --scene-vintage-ink: #3B2F23;
+  --scene-vintage-accent: #A65E2E;
+  --scene-vintage-accent2: #7A8B5C;
+  --scene-punk-bg: #141414;
+  --scene-punk-paper: #F5F2EA;
+  --scene-punk-ink: #111111;
+  --scene-punk-accent: #FF003D;
+  --scene-punk-accent2: #FFFFFF;
+  --scene-playful-bg: #FFE45C;
+  --scene-playful-paper: #FFFFFF;
+  --scene-playful-ink: #111111;
+  --scene-playful-accent: #FF4D94;
+  --scene-playful-accent2: #7B61FF;
+  --scene-mixed-bg: #BFD9D0;
+  --scene-mixed-paper: #FDF9F0;
+  --scene-mixed-ink: #2E3A3A;
+  --scene-mixed-accent: #D98E1A;
+  --scene-mixed-accent2: #7A9BA8;
 }
 
 :root {
