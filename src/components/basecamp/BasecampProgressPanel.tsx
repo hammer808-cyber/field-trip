@@ -1,13 +1,17 @@
 import { ArrowRight, BarChart3, Sparkles, Zap } from 'lucide-react';
-import type { CSSProperties } from 'react';
 import type { BasecampProgressModel } from '../../logic/basecampViewModel';
+import { BasecampTicketMeter } from './BasecampTicketMeter';
+import { BasecampTrailMap } from './BasecampTrailMap';
 
 interface BasecampProgressPanelProps {
   model: BasecampProgressModel;
   onOpenProfile: () => void;
+  /** Player's chosen marker sticker id (same value Profile passes to
+      the trail map); absent means the default scout footprint. */
+  markerStickerId?: string | null;
 }
 
-export function BasecampProgressPanel({ model, onOpenProfile }: BasecampProgressPanelProps) {
+export function BasecampProgressPanel({ model, onOpenProfile, markerStickerId }: BasecampProgressPanelProps) {
   return (
     <section
       aria-labelledby="basecamp-progress-heading"
@@ -30,11 +34,12 @@ export function BasecampProgressPanel({ model, onOpenProfile }: BasecampProgress
       </div>
 
       <div className="relative space-y-6 px-5 pb-6 sm:px-6">
-        <div className="grid items-center gap-5 sm:grid-cols-[150px_1fr]">
-          <div className="basecamp-progress-dial" style={{ '--progress': `${model.levelProgressPercent * 3.6}deg` } as CSSProperties}>
-            <div><strong>{Math.round(model.levelProgressPercent)}%</strong><span>to level {model.nextLevel}</span></div>
-          </div>
-          <div>
+        {/* Trail map (Nov 21, 2026, mock Option 4) replaces the circle
+            dial; the stapled ticket meter (Option 5) replaces the plain
+            progress track. Same percent, same XP counts, no info lost. */}
+        <BasecampTrailMap xp={model.xp} markerStickerId={markerStickerId} />
+
+        <div>
           <div className="flex flex-wrap items-end justify-between gap-2">
             <div>
               <p className="font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-secondary)]">Level {model.level}</p>
@@ -42,19 +47,12 @@ export function BasecampProgressPanel({ model, onOpenProfile }: BasecampProgress
             </div>
             <p className="font-mono text-xs font-black uppercase tracking-wider">{model.xp.toLocaleString()} XP</p>
           </div>
-          <div
-            className="basecamp-progress-track mt-4 h-3 overflow-hidden"
-            role="progressbar"
-            aria-label={`Progress to level ${model.nextLevel}`}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(model.levelProgressPercent)}
-          >
-            <div className="h-full motion-reduce:transition-none" style={{ width: `${model.levelProgressPercent}%` }} />
-          </div>
-          <p className="mt-2 font-mono text-xs font-bold uppercase tracking-wider text-[var(--skin-text-muted)]">
-            {model.xpToNextLevel.toLocaleString()} XP to level {model.nextLevel}
-          </p>
+          <div className="mt-4">
+            <BasecampTicketMeter
+              percent={model.levelProgressPercent}
+              xpToNextLevel={model.xpToNextLevel}
+              nextLevel={model.nextLevel}
+            />
           </div>
         </div>
 

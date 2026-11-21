@@ -313,7 +313,7 @@ export default function Basecamp() {
         )}
         sidebar={(
           <div className="space-y-5">
-            <BasecampProgressPanel model={viewModel.progress} onOpenProfile={() => navigate('/profile')} />
+            <BasecampProgressPanel model={viewModel.progress} onOpenProfile={() => navigate('/profile')} markerStickerId={profile?.preferences?.selectedMarkerStickerId} />
             <BasecampCrewSummary
               model={viewModel.crew}
               onOpenCrew={() => navigate(viewModel.crew.acceptedCount === 0 && !viewModel.crew.crewId ? '/crew#find-players' : '/crew')}
