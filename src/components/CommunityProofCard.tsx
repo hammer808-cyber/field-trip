@@ -360,6 +360,16 @@ function ReceiptDetailModal({
           </div>
           <CommunityReceiptComments entryId={proof.id} />
         </div>
+        {/*
+          Bottom clearance (Nov 22, 2026): the fixed bottom nav (84px) and
+          the floating mission pill (100px offset) paint above this modal
+          (same z-index as the nav, higher for the pill), so without this
+          spacer the comment composer scrolls underneath them and the Post
+          comment button cannot be reached or tapped on a phone. 192px
+          clears the pill band plus margin; hidden at lg+ where the nav
+          is a centered floating pill and the modal is two columns.
+        */}
+        <div aria-hidden="true" className="h-48 lg:hidden" />
       </motion.div>
     </motion.div>
   );
