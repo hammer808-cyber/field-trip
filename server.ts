@@ -180,6 +180,7 @@ import {
   type TranscribeAudioFn
 } from "./src/server/voiceNoteTranscription";
 import { createResolvePlaceHandler } from "./src/server/placeResolver";
+import { createAdminClientErrorStore, createClientErrorHandler } from "./src/server/clientErrors";
 import {
   createMarkNotificationReadHandler,
   createNotifySubmittedHandler,
@@ -7018,6 +7019,18 @@ async function startServer() {
       res.status(500).json({ error: "COMMUNITY_COMMENT_DELETE_FAILED", message: error.message || String(error) });
     }
   });
+
+  // --- CLIENT-ERROR CAPTURE (Nov 21, 2026 — Option A, stale-chunk recovery) ---
+  // POST /api/client-errors — one doc per error caught by the client
+  // ErrorBoundary, in the `clientErrors` collection (read in the Firebase
+  // console, newest first). Before this the boundary only logged to
+  // console.error, invisible on a phone. See src/server/clientErrors.ts.
+  app.post(
+    "/api/client-errors",
+    authRateLimiter,
+    authenticate,
+    createClientErrorHandler(() => (dbAdmin ? createAdminClientErrorStore(dbAdmin) : null)),
+  );
 
   app.post("/api/crew/chat/messages", authRateLimiter, authenticate, async (req: any, res) => {
     if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });

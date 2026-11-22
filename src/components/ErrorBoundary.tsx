@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { handleCaughtError } from '../services/clientErrorService';
 
 interface Props {
   children: ReactNode;
@@ -22,7 +23,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error bound by ErrorBoundary:', error, errorInfo);
-    // Optionally log to an external service here
+    // Stale-chunk recovery (Nov 21, 2026 — Option A): report the error
+    // to the server (readable in the Firebase console) and, when it is
+    // a stale chunk from a deploy, reload once automatically instead of
+    // leaving the player on the error screen. Never throws.
+    void handleCaughtError(error);
   }
 
   public render() {

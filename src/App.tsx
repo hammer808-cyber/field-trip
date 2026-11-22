@@ -480,16 +480,18 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="skin-app-shell min-h-screen text-on-surface relative overflow-x-hidden">
-      <ErrorBoundary fallback={
+      <ErrorBoundary fallback={(error: Error | null) => (
         <div className="skin-page skin-error-state min-h-screen bg-paper flex items-center justify-center p-8">
           <ErrorStatePanel
             title="This page didn't load"
             body="A part of Fieldtrip failed to render. The rest of the app is still here. Try again."
+            details={error ? `${error.name}: ${error.message}` : undefined}
+            detailsId="error-details"
             onRetry={() => window.location.reload()}
             retryLabel="Try again"
           />
         </div>
-      }>
+      )}>
         {!hideHelpers && (
           <>
             <SignalLossBanner />
