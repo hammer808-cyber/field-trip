@@ -253,8 +253,11 @@ export const DECK_PACKS: DeckPack[] = [
     isSeasonal: true,
     // Meteorological winter (Dec 1–Feb 28/29 PT) per the seasonal calendar —
     // gating reads seasonId, not a startsAt/endsAt window (see
-    // src/logic/deckAccess.ts). Cover art reuses the winter-19 exemplar
-    // photo (Mission Inn lights at night) until dedicated art lands.
+    // src/logic/deckAccess.ts). Cover art is dedicated (Nov 21, 2026):
+    // WINTER LIGHTS in the Texas/SoCal house style — teal ribbon badge
+    // with snowflake + FT-08, icy-blue / warm-gold bubble title, sticker
+    // strip (lights, disco ornament, snowman, pine) — over the Mission
+    // Inn lights photo, which is also the winter-19 exemplar.
     seasonId: 'winter',
     packName: 'Winter',
     shortName: 'Winter',
