@@ -55,7 +55,10 @@ function FilterTabButton({
         'skin-button min-h-11 border-2 px-4 py-2 font-mono text-xs font-black uppercase tracking-wider transition-transform motion-reduce:transition-none',
         isActive
           ? 'translate-y-0 text-[var(--skin-button-primary-text,var(--skin-text))]'
-          : 'bg-[var(--skin-surface)] text-[var(--skin-text-muted,var(--skin-text))] opacity-70 hover:opacity-100'
+          // Filed chip (Nov 21, 2026): inactive pills sit on the muted
+          // sheet tone with a small hard shadow, so they read as paper
+          // chips on the folder ground instead of white pills on white.
+          : 'bg-[var(--skin-surface-muted)] text-[var(--skin-text-muted,var(--skin-text))] shadow-[2px_2px_0_var(--skin-border)]'
       )}
       style={isActive ? {
         background: 'var(--skin-primary)',

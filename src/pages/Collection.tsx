@@ -288,8 +288,13 @@ export default function CollectionPage() {
             straight to its top edge (flushTabs on the hero + zero top
             padding on the body) — the active tab reads as part of the
             folder instead of a floating strip. */}
-        <main data-testid="dex-folder-body" className="relative min-h-[45vh] border-4 border-[var(--skin-border)] bg-[var(--skin-surface)] p-4 shadow-[8px_8px_0_var(--skin-border)] sm:p-8">
-         <div className="absolute inset-0 bg-[radial-gradient(rgba(0,0,0,0.015)_1.5px,transparent_0)] bg-[size:16px_16px] pointer-events-none" />
+        <main data-testid="dex-folder-body" className="relative min-h-[45vh] border-4 border-[var(--skin-border)] bg-[var(--skin-background)] p-4 shadow-[8px_8px_0_var(--skin-border)] sm:p-8">
+         {/* Paper ground (Nov 21, 2026): the folder is the cream paper
+             token, not white surface, with a page-wide dot grid at the
+             same 0.035 strength as the skin's own surface texture — the
+             white sticker tiles and cards now sit ON paper instead of
+             floating on more white. */}
+         <div className="absolute inset-0 bg-[radial-gradient(rgba(0,0,0,0.035)_1.5px,transparent_0)] bg-[size:16px_16px] pointer-events-none" />
          <div className="relative z-10">
         <AnimatePresence mode="wait">
           {activeTab === 'stickers' && (

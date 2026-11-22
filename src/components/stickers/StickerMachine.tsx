@@ -25,7 +25,8 @@ import {
   type StickerCollectionProgress,
   type StickerFilter
 } from './StickerFilterTabs';
-import { filterStickersByArchetype, StickerCollectionSection } from './StickerGrid';
+import { filterStickersByArchetype, StickerCollectionSection, type StickerShelfTone } from './StickerGrid';
+import { FieldStamp } from '../FieldStamp';
 
 const ALL_STICKERS = getAllStickers();
 
@@ -161,7 +162,7 @@ export function StickerMachine() {
     setIsUpdatingFeatured(false);
   }, [selectedSticker, selectedUnlock, user?.uid]);
 
-  const renderShelf = (shelf: (typeof visibleShelves)[number]) => (
+  const renderShelf = (shelf: (typeof visibleShelves)[number], index: number) => (
     <StickerCollectionSection
       key={shelf.collection}
       collection={shelf.collection}
@@ -170,6 +171,9 @@ export function StickerMachine() {
       totalCount={shelf.totalCount}
       unlocksById={unlocksById}
       onOpenSticker={openSticker}
+      // Filed sheets alternate grounds down the stack (white, muted,
+      // white…) so the cabinet reads as layered paper, not one color.
+      tone={(index % 2 === 1 ? 'muted' : 'plain') satisfies StickerShelfTone}
       emptyMessage={shelf.totalCount === 0
         ? undefined
         : activeFilter === 'all'
@@ -194,21 +198,30 @@ export function StickerMachine() {
   return (
     <section className="space-y-6" aria-labelledby="sticker-machine-title">
       <header
-        className="skin-card relative overflow-hidden border-2 p-5 sm:p-6"
+        className="skin-card relative border-[3px] p-5 sm:p-6"
         style={{
           borderColor: 'var(--skin-border)',
           borderRadius: 'var(--skin-card-radius, 8px)',
-          background: 'var(--skin-surface)',
+          // Prize-counter ticket (Nov 21, 2026): the card sits on the
+          // muted beige sheet, not white, so it reads as a different
+          // layer from the paper folder ground and the white tiles.
+          background: 'var(--skin-surface-muted)',
           color: 'var(--skin-text)',
           boxShadow: 'var(--skin-card-shadow, 5px 5px 0 var(--skin-border))'
         }}
       >
+        <span aria-hidden="true" className="pointer-events-none absolute -top-3 left-4 z-20" style={{ transform: 'rotate(-5deg)' }}>
+          <span className="field-tape block" />
+        </span>
+        <span aria-hidden="true" className="pointer-events-none absolute -top-3 right-4 z-20" style={{ transform: 'rotate(5deg)' }}>
+          <span className="field-tape block" />
+        </span>
         <div className="absolute right-3 top-3 opacity-10" aria-hidden="true">
           <Gift className="h-24 w-24" />
         </div>
         <div className="relative flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="font-mono text-xs font-black uppercase tracking-[0.2em] opacity-50">Prize counter // Collection 01</p>
+            <p className="font-mono text-xs font-black uppercase tracking-[0.2em] opacity-70">Prize counter // Collection 01</p>
             <h2 id="sticker-machine-title" className="mt-2 font-display text-2xl font-black uppercase leading-none sm:text-3xl">
               Sticker Machine
             </h2>
@@ -228,7 +241,11 @@ export function StickerMachine() {
           </button>
         </div>
 
-        <div className="relative mt-5 grid grid-cols-3 gap-2 sm:max-w-sm">
+        {/* Perforation line: the tear between the counter copy and the
+            featured stubs below, like a prize ticket. */}
+        <div aria-hidden="true" className="relative mt-5 border-t-2 border-dashed border-[var(--skin-border-muted)]" />
+
+        <div className="relative mt-4 grid grid-cols-3 gap-2 sm:max-w-sm">
           {Array.from({ length: MAX_FEATURED_STICKERS }).map((_, index) => {
             const featured = featuredUnlocks[index];
             const definition = featured ? ALL_STICKERS.find(sticker => sticker.id === featured.stickerId) : undefined;
@@ -251,6 +268,10 @@ export function StickerMachine() {
         <div className="relative mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 font-mono text-xs font-black uppercase">
           <span>{unlocks.length} / {ALL_STICKERS.length} unlocked</span>
           <span>{featuredUnlocks.length} / {MAX_FEATURED_STICKERS} featured</span>
+          {/* Mobile-visible stamp: duplicates the "PRIZE COUNTER"
+              eyebrow above, per the kit rule — the desktop-only doodle
+              stamps never reach a phone. */}
+          <FieldStamp label="Prize Counter" tone="primary" />
           {unseenCount > 0 && (
             <span className="inline-flex items-center gap-1 bg-[var(--skin-primary)] px-2 py-1">
               <Sparkles className="h-3 w-3" aria-hidden="true" /> {unseenCount} new
@@ -268,10 +289,10 @@ export function StickerMachine() {
       <StickerFilterTabs activeFilter={activeFilter} onChange={setActiveFilter} />
 
       <div className="flex items-center justify-between gap-3">
-        <p className="font-mono text-xs font-black uppercase opacity-55">
+        <p className="font-mono text-xs font-black uppercase opacity-70">
           Showing {visibleStickerCount} stickers
         </p>
-        <p className="font-mono text-xs font-black uppercase opacity-55">
+        <p className="font-mono text-xs font-black uppercase opacity-70">
           Tap one for details
         </p>
       </div>

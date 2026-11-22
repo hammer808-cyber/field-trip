@@ -2,6 +2,8 @@ import { LockKeyhole, Star } from 'lucide-react';
 import { DECALS, hasEarnedDecal } from '../../data/decals';
 import type { DecalDefinition, DecalProfile } from '../../data/decals';
 import { cn } from '../../lib/utils';
+import { StickerShelfSheet } from './StickerGrid';
+import { FieldStamp } from '../FieldStamp';
 
 /**
  * Dex Decals shelf (Nov 20, 2026). Lives at the bottom of the Dex
@@ -73,21 +75,32 @@ function DecalCard({ decal, isUnlocked }: { decal: DecalDefinition; isUnlocked: 
 export function DecalShelf({ profile }: { profile: DecalProfile | null | undefined }) {
   const earnedCount = DECALS.filter((decal) => hasEarnedDecal(profile, decal.id)).length;
   return (
-    <section aria-label="Decals" className="space-y-4">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h2 className="font-display text-2xl font-black uppercase italic tracking-tight">Decals</h2>
-          <p className="mt-1 font-serif text-sm font-semibold opacity-65">Earned by deeds, not draws. One of a kind, each.</p>
+    <section aria-label="Decals">
+      {/* Filed as the last sheet in the cabinet (Nov 21, 2026): same
+          sheet + tape as the sticker shelves, muted ground, with a
+          mobile-visible stamp duplicating the "One of a kind, each."
+          line below. */}
+      <StickerShelfSheet tone="muted">
+        <div className="space-y-4">
+          <div className="flex items-end justify-between gap-3 border-b-2 border-dashed border-[var(--skin-border-muted)] pb-3">
+            <div>
+              <h2 className="font-display text-2xl font-black uppercase italic tracking-tight">Decals</h2>
+              <p className="mt-1 font-serif text-sm font-semibold opacity-65">Earned by deeds, not draws. One of a kind, each.</p>
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              <FieldStamp label="One of a kind" tone="text" />
+              <p className="font-mono text-xs font-black uppercase opacity-70">
+                {earnedCount} of {DECALS.length} earned
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+            {DECALS.map((decal) => (
+              <DecalCard key={decal.id} decal={decal} isUnlocked={hasEarnedDecal(profile, decal.id)} />
+            ))}
+          </div>
         </div>
-        <p className="shrink-0 font-mono text-xs font-black uppercase opacity-55">
-          {earnedCount} of {DECALS.length} earned
-        </p>
-      </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
-        {DECALS.map((decal) => (
-          <DecalCard key={decal.id} decal={decal} isUnlocked={hasEarnedDecal(profile, decal.id)} />
-        ))}
-      </div>
+      </StickerShelfSheet>
     </section>
   );
 }
