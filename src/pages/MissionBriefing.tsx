@@ -1,6 +1,8 @@
 import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/ThemeContext';
+import { FrankieQuiet } from '../components/FrankieQuiet';
 import { MissionCard } from '../components/ChallengeCard';
 import { ChevronLeft, Camera, Bookmark, Clock, Compass, CheckCircle2 } from 'lucide-react';
 import { getDisplayLabel } from '../utils/labelUtils';
@@ -15,6 +17,7 @@ export default function MissionBriefingPage() {
   const [savedConfirmation, setSavedConfirmation] = React.useState(false);
 
   const mission = trips.find(t => t.id === missionId);
+  const { frankieMode } = useTheme();
 
   if (!mission) {
     return (
@@ -64,7 +67,9 @@ export default function MissionBriefingPage() {
           </div>
           <div className="space-y-2">
             <h1 className="font-display text-3xl font-black uppercase italic">Saved for later ✓</h1>
-            <p className="text-sm font-sans font-bold text-on-surface/70">{SAVE_FOR_LATER_RECOVERY_HINT}</p>
+            <FrankieQuiet frankieMode={frankieMode}>
+              <p className="text-sm font-sans font-bold text-on-surface/70">{SAVE_FOR_LATER_RECOVERY_HINT}</p>
+            </FrankieQuiet>
           </div>
           <button
             type="button"
@@ -88,18 +93,22 @@ export default function MissionBriefingPage() {
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <div className="font-mono text-xs font-black uppercase tracking-widest opacity-40">
-          Mission briefing
-        </div>
+        <FrankieQuiet frankieMode={frankieMode}>
+          <div className="font-mono text-xs font-black uppercase tracking-widest opacity-40">
+            Mission briefing
+          </div>
+        </FrankieQuiet>
         <div className="w-10" />
       </header>
 
       <main className="px-6 pt-8 space-y-12 max-w-xl mx-auto">
         <div className="space-y-4 text-center">
-          <div className="inline-flex gap-2 items-center px-3 py-1 bg-brand-orange/10 border-2 border-brand-orange rounded-full text-xs font-black uppercase tracking-widest text-brand-orange">
-            <Clock className="w-3 h-3" />
-            Field Ready
-          </div>
+          <FrankieQuiet frankieMode={frankieMode}>
+            <div className="inline-flex gap-2 items-center px-3 py-1 bg-brand-orange/10 border-2 border-brand-orange rounded-full text-xs font-black uppercase tracking-widest text-brand-orange">
+              <Clock className="w-3 h-3" />
+              Field Ready
+            </div>
+          </FrankieQuiet>
           <h1 className="font-display text-4xl sm:text-5xl font-black uppercase italic tracking-tighter leading-none text-on-surface">
             Your mission
           </h1>
@@ -123,25 +132,31 @@ export default function MissionBriefingPage() {
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white border-3 border-on-surface p-6 rounded-[2rem] shadow-[8px_8px_0px_black] space-y-4">
-            <h3 className="font-display text-xl font-black uppercase italic">The Objective</h3>
-            <p className="font-serif italic text-on-surface/70 leading-relaxed">
-              {displayMission.description || "Follow field instructions to capture the required evidence. Ensure lighting is optimal and the subject is clearly visible in frame."}
-            </p>
-          </div>
+          {/* Frankie quiet (Nov 21, 2026): the Objective box repeats the
+              flavor description the card already shows in plain words,
+              and the Lane/Reward tiles are meta the card covers. Both
+              hide in Frankie mode; the card + buttons stay. */}
+          <FrankieQuiet frankieMode={frankieMode}>
+            <div className="bg-white border-3 border-on-surface p-6 rounded-[2rem] shadow-[8px_8px_0px_black] space-y-4">
+              <h3 className="font-display text-xl font-black uppercase italic">The Objective</h3>
+              <p className="font-serif italic text-on-surface/70 leading-relaxed">
+                {displayMission.description || "Follow field instructions to capture the required evidence. Ensure lighting is optimal and the subject is clearly visible in frame."}
+              </p>
+            </div>
 
-          <div className="grid grid-cols-2 gap-4">
-             <div className="bg-white border-2 border-on-surface/10 p-4 rounded-2xl flex flex-col items-center gap-2 text-center">
-                <Compass className="w-5 h-5 text-brand-cyan" />
-                <span className="text-xs font-mono font-black uppercase opacity-40">Lane</span>
-                <span className="text-xs font-bold uppercase">{mission.lane || 'Standard'}</span>
-             </div>
-             <div className="bg-white border-2 border-on-surface/10 p-4 rounded-2xl flex flex-col items-center gap-2 text-center">
-                <Bookmark className="w-5 h-5 text-brand-orange" />
-                <span className="text-xs font-mono font-black uppercase opacity-40">Reward</span>
-                <span className="text-xs font-bold uppercase">{mission.baseXP || mission.basePoints || 100} XP</span>
-             </div>
-          </div>
+            <div className="grid grid-cols-2 gap-4">
+               <div className="bg-white border-2 border-on-surface/10 p-4 rounded-2xl flex flex-col items-center gap-2 text-center">
+                  <Compass className="w-5 h-5 text-brand-cyan" />
+                  <span className="text-xs font-mono font-black uppercase opacity-40">Lane</span>
+                  <span className="text-xs font-bold uppercase">{mission.lane || 'Standard'}</span>
+               </div>
+               <div className="bg-white border-2 border-on-surface/10 p-4 rounded-2xl flex flex-col items-center gap-2 text-center">
+                  <Bookmark className="w-5 h-5 text-brand-orange" />
+                  <span className="text-xs font-mono font-black uppercase opacity-40">Reward</span>
+                  <span className="text-xs font-bold uppercase">{mission.baseXP || mission.basePoints || 100} XP</span>
+               </div>
+            </div>
+          </FrankieQuiet>
         </div>
 
         <div className="pt-6 space-y-3">

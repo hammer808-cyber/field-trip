@@ -5,6 +5,7 @@ import { cn } from '../lib/utils';
 import { CheckCircle2, AlertCircle, Clock, ShieldAlert, Flag, Book, Sparkles } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
+import { FrankieQuiet } from './FrankieQuiet';
 import { FieldBadge } from './UI';
 import { AvatarPreview } from './AvatarPreview';
 import { DEFAULT_AVATAR } from '../constants/avatarAssets';
@@ -192,14 +193,18 @@ export function EntryCard({ entry, className }: EntryCardProps) {
                <Sparkles className="w-4 h-4 text-brand-orange animate-pulse" />
             </div>
           </div>
-          {hasClassifiedReserve && (
-            <p
-              className="mt-2 max-w-44 text-xs font-mono font-black uppercase tracking-widest text-on-surface/60"
-              title="Not every signal is visible yet. Some Fieldtrip points remain reserved for future discoveries, special conditions, and seasonal surprises."
-            >
-              {reservedPotentialXp} XP remains classified
-            </p>
-          )}
+          {/* Frankie quiet (Nov 21, 2026): the classified-XP teaser is
+              meta; the note, the photo, and the status stay. */}
+          <FrankieQuiet frankieMode={frankieMode}>
+            {hasClassifiedReserve && (
+              <p
+                className="mt-2 max-w-44 text-xs font-mono font-black uppercase tracking-widest text-on-surface/60"
+                title="Not every signal is visible yet. Some Fieldtrip points remain reserved for future discoveries, special conditions, and seasonal surprises."
+              >
+                {reservedPotentialXp} XP remains classified
+              </p>
+            )}
+          </FrankieQuiet>
         </div>
       </div>
 

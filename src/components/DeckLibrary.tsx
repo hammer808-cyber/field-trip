@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { TripCard } from '../types/challenges';
 import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
+import { FrankieQuiet } from './FrankieQuiet';
 import { useNavigate } from 'react-router-dom';
 import { 
   Lock, CheckCircle2, Play, Info, Timer, Zap, 
@@ -155,7 +156,12 @@ export function DeckLibrary({ allChallenges }: DeckLibraryProps) {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-4">
         <div className="space-y-2">
           <h3 className="font-display text-3xl sm:text-4xl uppercase tracking-tighter italic font-black">{frankieMode ? 'See All Cards' : 'Mission Archive_'}</h3>
-          <p className="micro-label opacity-40 font-bold tracking-widest uppercase italic text-brand-orange">{frankieMode ? 'Tap a card to see it. Tap Do This One to start.' : 'Beta: Submissions may require admin review before XP updates'}</p>
+          {/* Frankie quiet (Nov 21, 2026): the helper line under the
+              heading — beta notice or tap instruction — hides in
+              Frankie mode; the heading and the filters stay. */}
+          <FrankieQuiet frankieMode={frankieMode}>
+            <p className="micro-label opacity-40 font-bold tracking-widest uppercase italic text-brand-orange">{frankieMode ? 'Tap a card to see it. Tap Do This One to start.' : 'Beta: Submissions may require admin review before XP updates'}</p>
+          </FrankieQuiet>
         </div>
         
         {/* Nov 21, 2026 (Zach's screenshot): this row used to be a

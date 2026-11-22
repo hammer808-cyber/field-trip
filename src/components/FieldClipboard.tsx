@@ -29,6 +29,7 @@ import type { MissionAttemptRecord } from '../services/missionAttemptService';
 import { transitionMissionHintFlow } from '../logic/missionHintFlow';
 import { getMissionBaseMaxScore } from '../logic/missionScoring';
 import { useTheme } from '../context/ThemeContext';
+import { FrankieQuiet } from './FrankieQuiet';
 import { getFrankieFieldNotePrompt } from '../logic/frankieModeLogic';
 import { VoiceNoteRecorder } from './VoiceNoteRecorder';
 import { MIN_VOICE_NOTE_SECONDS } from '../logic/missionScoring';
@@ -304,7 +305,9 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                  </div>
                  <div className="min-w-0">
                    <span className="block font-display font-black uppercase italic text-xl tracking-tighter text-on-surface leading-none">Receipt Checklist</span>
-                   <span className="block font-mono text-xs font-black uppercase tracking-widest text-on-surface/60 mt-1">Three things to finish this mission.</span>
+                   <FrankieQuiet frankieMode={frankieMode}>
+                     <span className="block font-mono text-xs font-black uppercase tracking-widest text-on-surface/60 mt-1">Three things to finish this mission.</span>
+                   </FrankieQuiet>
                  </div>
                </div>
 
@@ -313,21 +316,27 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                    <div className="w-7 h-7 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-xs font-black shadow-[2px_2px_0px_black]">1</div>
                    <div className="min-w-0">
                      <p className="font-display uppercase italic text-base font-black leading-none text-on-surface">Find it</p>
-                     <p className="text-xs text-on-surface/55 font-sans mt-1">Spot something that fits the mission.</p>
+                     <FrankieQuiet frankieMode={frankieMode}>
+                       <p className="text-xs text-on-surface/55 font-sans mt-1">Spot something that fits the mission.</p>
+                     </FrankieQuiet>
                    </div>
                  </div>
                  <div className="flex gap-3 items-center group rounded-xl bg-on-surface/[0.025] border border-on-surface/5 px-3 py-3">
                    <div className="w-7 h-7 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-xs font-black shadow-[2px_2px_0px_black]">2</div>
                    <div className="min-w-0">
                      <p className="font-display uppercase italic text-base font-black leading-none text-on-surface">Snap it</p>
-                     <p className="text-xs text-on-surface/55 font-sans mt-1">Take one clear proof photo.</p>
+                     <FrankieQuiet frankieMode={frankieMode}>
+                       <p className="text-xs text-on-surface/55 font-sans mt-1">Take one clear proof photo.</p>
+                     </FrankieQuiet>
                    </div>
                  </div>
                  <div className="flex gap-3 items-center group rounded-xl bg-on-surface/[0.025] border border-on-surface/5 px-3 py-3">
                    <div className="w-7 h-7 rounded-full bg-brand-cyan border-2 border-on-surface flex-shrink-0 flex items-center justify-center text-xs font-black shadow-[2px_2px_0px_black]">3</div>
                    <div className="min-w-0">
                      <p className="font-display uppercase italic text-base font-black leading-none text-on-surface">Say why</p>
-                     <p className="text-xs text-on-surface/55 font-sans mt-1">Add a short field note explaining the moment.</p>
+                     <FrankieQuiet frankieMode={frankieMode}>
+                       <p className="text-xs text-on-surface/55 font-sans mt-1">Add a short field note explaining the moment.</p>
+                     </FrankieQuiet>
                    </div>
                  </div>
                </div>
@@ -374,13 +383,17 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                  )}
                </div>
 
-               {trevorLine && (
-                 <div className="rounded-2xl border border-on-surface/10 bg-on-surface/[0.025] p-4">
-                   <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">Trevor's Take</p>
-                   <p className="mt-1 text-label font-semibold leading-relaxed text-on-surface/75">{trevorLine}</p>
-                   <p className="mt-2 font-mono text-xs font-black uppercase text-on-surface/60">Optional advice. No extra points.</p>
-                 </div>
-               )}
+               {/* Frankie quiet (Nov 21, 2026): Trevor's Take is optional
+                   advice — it hides in Frankie mode, the checklist stays. */}
+               <FrankieQuiet frankieMode={frankieMode}>
+                 {trevorLine && (
+                   <div className="rounded-2xl border border-on-surface/10 bg-on-surface/[0.025] p-4">
+                     <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">Trevor's Take</p>
+                     <p className="mt-1 text-label font-semibold leading-relaxed text-on-surface/75">{trevorLine}</p>
+                     <p className="mt-2 font-mono text-xs font-black uppercase text-on-surface/60">Optional advice. No extra points.</p>
+                   </div>
+                 )}
+               </FrankieQuiet>
 
                {appliedBonus && (
                  <div className="relative overflow-hidden rounded-2xl border-2 border-dashed border-brand-lime bg-brand-lime/10 p-4">
@@ -389,7 +402,9 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                      {appliedBonus.type === 'time_window' ? 'Time Bonus' : 'Random Bonus'} · {appliedBonus.multiplier}× XP
                    </p>
                    <p className="mt-1 font-display text-lg font-black uppercase italic">{appliedBonus.label}</p>
-                   <p className="mt-2 pr-8 text-label font-semibold leading-relaxed text-on-surface/70">{appliedBonus.description}</p>
+                   <FrankieQuiet frankieMode={frankieMode}>
+                     <p className="mt-2 pr-8 text-label font-semibold leading-relaxed text-on-surface/70">{appliedBonus.description}</p>
+                   </FrankieQuiet>
                  </div>
                )}
             </div>
@@ -406,9 +421,11 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               <span>{!missionAttempt || isAttemptLoading ? 'Getting ready…' : 'Open Camera'}</span>
             </button>
             {(!missionAttempt || isAttemptLoading) && (
-              <p className="text-center text-xs font-sans font-bold text-on-surface/55">
-                Setting up this mission before the camera opens.
-              </p>
+              <FrankieQuiet frankieMode={frankieMode}>
+                <p className="text-center text-xs font-sans font-bold text-on-surface/55">
+                  Setting up this mission before the camera opens.
+                </p>
+              </FrankieQuiet>
             )}
           </motion.div>
         )}
@@ -534,7 +551,9 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               </p>
               {isFrankie && (
                 <div className="space-y-2">
-                  <p className="text-sm font-sans font-bold text-on-surface/70">Tap one, or write your own. You can also skip.</p>
+                  <FrankieQuiet frankieMode={frankieMode}>
+                    <p className="text-sm font-sans font-bold text-on-surface/70">Tap one, or write your own. You can also skip.</p>
+                  </FrankieQuiet>
                   <div className="flex flex-wrap gap-2">
                     {FRANKIE_NOTE_CHIPS.map(chip => (
                       <button
@@ -610,9 +629,11 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                   <p className="font-mono text-xs font-black uppercase tracking-widest">
                     Share with the community <span className="text-on-surface/60">· {(data.shareWithCommunity ?? true) ? 'On' : 'Off'}</span>
                   </p>
-                  <p className="font-sans text-xs font-bold text-on-surface/60">
-                    Your photo can appear in the weekly vote.
-                  </p>
+                  <FrankieQuiet frankieMode={frankieMode}>
+                    <p className="font-sans text-xs font-bold text-on-surface/60">
+                      Your photo can appear in the weekly vote.
+                    </p>
+                  </FrankieQuiet>
                 </div>
                 <button
                   type="button"

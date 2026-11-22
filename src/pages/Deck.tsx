@@ -171,6 +171,7 @@ function DiamondDecor() {
 }
 
 import { FieldPageHero } from '../components/FieldPageHero';
+import { FrankieQuiet } from '../components/FrankieQuiet';
 import { DeckProgressMeter } from '../components/missions/DeckProgressMeter';
 import { MissionActionPanel } from '../components/missions/MissionActionPanel';
 import { MissionsGuidanceStrip, getMissionsStripRole } from '../components/missions/MissionsGuidanceStrip';
@@ -998,7 +999,7 @@ export default function DeckPage() {
       <FieldPageHero
         eyebrow={getDisplayLabel('MISSION_DRAW_SYSTEM')}
         title="MISSIONS"
-        subtitle="Draw a card. Take a photo. Bring back a receipt."
+        subtitle={frankieMode ? undefined : 'Draw a card. Take a photo. Bring back a receipt.'}
         backgroundIcon={<Layers className="w-64 h-64" />}
         variant="editorial"
       />
@@ -1126,7 +1127,9 @@ export default function DeckPage() {
                   </div>
                   <div className="space-y-2">
                     <h2 className="font-display text-4xl font-black uppercase italic tracking-tight text-on-surface">Mission Rejected</h2>
-                    <p className="text-xs font-sans font-bold text-on-surface/60 max-w-xs mx-auto">This one didn’t pass review. Ready for a second take? Retries help verify your field standing.</p>
+                    <FrankieQuiet frankieMode={frankieMode}>
+                      <p className="text-xs font-sans font-bold text-on-surface/60 max-w-xs mx-auto">This one didn’t pass review. Ready for a second take? Retries help verify your field standing.</p>
+                    </FrankieQuiet>
                   </div>
                   <button
                     onClick={() => {
@@ -1150,7 +1153,9 @@ export default function DeckPage() {
                   </div>
                   <div className="space-y-2">
                     <h2 className="font-display text-4xl font-black uppercase italic tracking-tight text-on-surface">More proof needed</h2>
-                    <p className="text-xs font-sans font-bold text-on-surface/60 max-w-xs mx-auto">The Bureau requires additional documentation for your starter signals to verify.</p>
+                    <FrankieQuiet frankieMode={frankieMode}>
+                      <p className="text-xs font-sans font-bold text-on-surface/60 max-w-xs mx-auto">The Bureau requires additional documentation for your starter signals to verify.</p>
+                    </FrankieQuiet>
                   </div>
                   <button
                     onClick={() => {
@@ -1173,9 +1178,11 @@ export default function DeckPage() {
                   </div>
                   <div className="space-y-2">
                     <h2 className="font-display text-4xl font-black uppercase italic tracking-tight text-on-surface">Pending Review</h2>
-                    <p className="text-xs font-sans font-bold text-on-surface/60 max-w-xs mx-auto">
-                      All three Starter Signals are in review. Your next route unlocks once they are approved.
-                    </p>
+                    <FrankieQuiet frankieMode={frankieMode}>
+                      <p className="text-xs font-sans font-bold text-on-surface/60 max-w-xs mx-auto">
+                        All three Starter Signals are in review. Your next route unlocks once they are approved.
+                      </p>
+                    </FrankieQuiet>
                   </div>
                   <button
                     onClick={() => navigate('/profile?tab=history')}

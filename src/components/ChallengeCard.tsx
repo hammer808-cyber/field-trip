@@ -30,6 +30,7 @@ import {
   getFrankieEvidenceLabel
 } from '../logic/frankieModeLogic';
 import { useTheme } from '../context/ThemeContext';
+import { FrankieQuiet } from './FrankieQuiet';
 import { getDisplayLabel } from '../utils/labelUtils';
 
 export interface EvidenceProgress {
@@ -297,27 +298,35 @@ export function MissionCard({
           </p>
         </div>
 
-        {/* 2. MEMORY ANGLE (Why is it fun? / Suggestion) */}
-        <div className="bg-brand-yellow/5 border-[2px] border-dashed border-on-surface/15 p-4 space-y-1 rounded-xl relative">
-          <span className="text-xs font-mono font-black uppercase tracking-[0.25em] text-[#C2410C] flex items-center gap-1">
-            ✨ WHY IT'S FUN
-          </span>
-          <p className="text-xs font-serif italic font-bold text-on-surface/70 leading-relaxed">
-            "{challenge.shortPrompt || challenge.fieldNotePrompt || "Spot it, snap it, and record a small part of your summer vacation lore."}"
-          </p>
-        </div>
-
-        {/* 3. GAME DETAILS BOX (Points, Who will see it) */}
-        <div className="bg-on-surface/[0.02] border-[2px] border-on-surface/5 p-4 rounded-xl flex items-center justify-between gap-4">
-          <div className="space-y-0.5">
-            <span className="text-xs font-mono font-black uppercase tracking-widest text-on-surface/60 block">WHERE IT GOES</span>
-            <div className="flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5 text-brand-cyan" />
-              <p className="text-xs font-sans font-bold text-on-surface/60">
-                Added to your <span className="text-brand-orange-dark font-black">Crew Feed</span>
-              </p>
-            </div>
+        {/* 2. MEMORY ANGLE (Why is it fun? / Suggestion) — Frankie quiet
+            (Nov 21, 2026): pure flavor; the hunt line above already says
+            what to do. */}
+        <FrankieQuiet frankieMode={frankieMode}>
+          <div className="bg-brand-yellow/5 border-[2px] border-dashed border-on-surface/15 p-4 space-y-1 rounded-xl relative">
+            <span className="text-xs font-mono font-black uppercase tracking-[0.25em] text-[#C2410C] flex items-center gap-1">
+              ✨ WHY IT'S FUN
+            </span>
+            <p className="text-xs font-serif italic font-bold text-on-surface/70 leading-relaxed">
+              "{challenge.shortPrompt || challenge.fieldNotePrompt || "Spot it, snap it, and record a small part of your summer vacation lore."}"
+            </p>
           </div>
+        </FrankieQuiet>
+
+        {/* 3. GAME DETAILS BOX (Points, Who will see it) — Frankie quiet
+            (Nov 21, 2026): the WHERE IT GOES half is meta; the +PTS chip
+            stays, it is the reward. */}
+        <div className="bg-on-surface/[0.02] border-[2px] border-on-surface/5 p-4 rounded-xl flex items-center justify-between gap-4">
+          <FrankieQuiet frankieMode={frankieMode}>
+            <div className="space-y-0.5">
+              <span className="text-xs font-mono font-black uppercase tracking-widest text-on-surface/60 block">WHERE IT GOES</span>
+              <div className="flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-brand-cyan" />
+                <p className="text-xs font-sans font-bold text-on-surface/60">
+                  Added to your <span className="text-brand-orange-dark font-black">Crew Feed</span>
+                </p>
+              </div>
+            </div>
+          </FrankieQuiet>
           
           <div className="bg-brand-lime text-on-surface px-4 py-2 text-base sm:text-lg font-black italic border-2 border-on-surface shadow-[4px_4px_0px_black] shrink-0 rotate-[-2deg] group-hover:rotate-[1deg] transition-all">
             +{baseXP} PTS

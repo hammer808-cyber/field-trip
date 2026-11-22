@@ -18,6 +18,7 @@ import { FieldDoodles } from '../components/FieldDoodles';
 import { FieldPageHero } from '../components/FieldPageHero';
 import { IOSHomeScreenPrompt } from '../components/profile/IOSHomeScreenPrompt';
 import { useApp } from '../context/AppContext';
+import { useTheme } from '../context/ThemeContext';
 import { FIELD_TYPES } from '../constants';
 import { getDeckPackById } from '../data/deckPacks';
 import {
@@ -216,6 +217,24 @@ export default function Basecamp() {
     setSelectedNotification(item);
   }, []);
 
+  // Frankie quiet (Nov 21, 2026): in Frankie mode Basecamp collapses to
+  // the next action + a More button; everything else sits behind it.
+  // The next-action panel is shared between the collapsed view and the
+  // full board below, so it lives in one variable.
+  const { frankieMode } = useTheme();
+  const [frankieShowMore, setFrankieShowMore] = React.useState(false);
+  const frankieCollapsed = frankieMode && !frankieShowMore;
+  const nextActionPanel = (
+    <BasecampNextActionPanel
+      model={viewModel.nextAction}
+      pack={activePack}
+      onAction={() => void runAction(viewModel.nextAction.action)}
+      onSecondaryAction={viewModel.nextAction.secondaryAction
+        ? () => void runAction(viewModel.nextAction.secondaryAction!)
+        : undefined}
+    />
+  );
+
   return (
     <div className="skin-page skin-basecamp relative page-scroll min-h-screen bg-[var(--skin-background)] pb-32 text-[var(--skin-text)] [background-image:var(--skin-background-texture)]">
       <FieldDoodles
@@ -232,8 +251,9 @@ export default function Basecamp() {
         compact
         eyebrow="FIELD_START"
         title="BASECAMP"
-        subtitle="What matters today."
+        subtitle={frankieMode ? undefined : 'What matters today.'}
         seasonLine={headerSeasonLine ?? undefined}
+        hideSeasonLine={frankieMode}
         backgroundIcon={<Compass className="h-64 w-64" />}
         infoCardLabel="TOTAL_XP"
         infoCardValue={viewModel.progress.xp.toLocaleString()}
@@ -263,6 +283,38 @@ export default function Basecamp() {
         </div>
       )}
 
+      {/* Frankie quiet (Nov 21, 2026): collapsed Basecamp shows only the
+          next action and a More button; the full board — companion,
+          Trevor's Log, deck row, attention, notices, progress,
+          crew, quick links — sits behind More. Less collapses again. */}
+      {frankieCollapsed ? (
+        <div className="mx-auto w-full max-w-7xl px-4 pt-5 sm:px-6 lg:px-8">
+          <div className="space-y-5">
+            {nextActionPanel}
+            <button
+              type="button"
+              aria-expanded={frankieShowMore}
+              onClick={() => setFrankieShowMore(true)}
+              className="w-full border-2 border-[var(--skin-border)] bg-[var(--skin-surface)] px-4 py-3 font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-text)] shadow-[4px_4px_0_var(--skin-border)] transition-all hover:shadow-[6px_6px_0_var(--skin-border)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+            >
+              More
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          {frankieMode && (
+            <div className="mx-auto w-full max-w-7xl px-4 pt-3 sm:px-6 lg:px-8">
+              <button
+                type="button"
+                aria-expanded={frankieShowMore}
+                onClick={() => setFrankieShowMore(false)}
+                className="border-2 border-[var(--skin-border)] bg-[var(--skin-surface)] px-4 py-2 font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-text)] shadow-[4px_4px_0_var(--skin-border)] transition-all hover:shadow-[6px_6px_0_var(--skin-border)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+              >
+                Less
+              </button>
+            </div>
+          )}
       <BasecampBoard
         main={(
           <>
@@ -270,14 +322,7 @@ export default function Basecamp() {
                 a companion block beside the next action — the home-screen
                 presence; the Trevor panel/launcher cover the other pages. */}
             <BasecampCompanionBlock fieldType={fieldType} onOpen={() => navigate('/profile?tab=overview')} />
-            <BasecampNextActionPanel
-              model={viewModel.nextAction}
-              pack={activePack}
-              onAction={() => void runAction(viewModel.nextAction.action)}
-              onSecondaryAction={viewModel.nextAction.secondaryAction
-                ? () => void runAction(viewModel.nextAction.secondaryAction!)
-                : undefined}
-            />
+            {nextActionPanel}
             {/* Trevor's Log (Nov 21, 2026): the latest approved proof as a
                 journal entry — taped polaroid + field note — under the next
                 action, not stacked with the guidance message above it. */}
@@ -342,6 +387,8 @@ export default function Basecamp() {
           </div>
         )}
       />
+        </>
+      )}
 
       <IOSHomeScreenPrompt />
     </div>

@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { TripCard } from '../types/challenges';
 import { FileText, Zap, Download, Sparkles, ShieldCheck, Trophy } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { FrankieQuiet } from './FrankieQuiet';
 import { getRewardMetadata } from '../data/rewardRegistry';
 import { getFrankieTitle } from '../logic/frankieModeLogic';
 import { Link } from 'react-router-dom';
@@ -187,30 +188,33 @@ export function MissionResultCard({
              <div className="field-stamp absolute bottom-2 right-2 opacity-5 scale-75" />
           </div>
 
-          {/* Verification Chips */}
-          <div className="p-5 bg-on-surface text-white border-4 border-on-surface shadow-[6px_6px_0px_black] rotate-[-0.5deg] relative overflow-hidden">
-             <div className="flex items-center gap-2 mb-4 text-brand-lime">
-               <Zap className="w-4 h-4 fill-brand-lime" />
-               <span className="font-display text-xs font-black uppercase tracking-wider italic">{fc(getDisplayLabel('UPLINK_DETAILS'), 'EVIDENCE')}</span>
-             </div>
-             <div className="space-y-2">
-               {trip.proofType.map((type) => (
-                 <div key={type} className="flex items-center gap-2 text-xs font-mono font-black uppercase tracking-widest text-white/50">
-                   <div className="w-1.5 h-1.5 bg-brand-lime rounded-full shadow-[0_0_8px_var(--color-brand-lime)]" />
-                   {type === 'note' ? 'Text Synthesis' : type === 'photo' ? 'Visual Signal' : type}
-                 </div>
-               ))}
-               {ftBonus > 0 && (
-                  <div className="flex items-center gap-2 text-xs font-mono font-black uppercase tracking-widest text-brand-orange animate-pulse">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    {ftText.toUpperCase()}
-                  </div>
-               )}
-             </div>
-             
-             {/* Background Scanline */}
-             <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[linear-gradient(transparent_0%,rgba(255,255,255,1)_50%,transparent_100%)] h-1 w-full animate-[shimmer_2s_infinite]" />
-          </div>
+          {/* Verification Chips — Frankie quiet (Nov 21, 2026): meta
+              labels ("Text Synthesis" etc.). The field-note scrap stays. */}
+          <FrankieQuiet frankieMode={frankieMode}>
+            <div className="p-5 bg-on-surface text-white border-4 border-on-surface shadow-[6px_6px_0px_black] rotate-[-0.5deg] relative overflow-hidden">
+               <div className="flex items-center gap-2 mb-4 text-brand-lime">
+                 <Zap className="w-4 h-4 fill-brand-lime" />
+                 <span className="font-display text-xs font-black uppercase tracking-wider italic">{fc(getDisplayLabel('UPLINK_DETAILS'), 'EVIDENCE')}</span>
+               </div>
+               <div className="space-y-2">
+                 {trip.proofType.map((type) => (
+                   <div key={type} className="flex items-center gap-2 text-xs font-mono font-black uppercase tracking-widest text-white/50">
+                     <div className="w-1.5 h-1.5 bg-brand-lime rounded-full shadow-[0_0_8px_var(--color-brand-lime)]" />
+                     {type === 'note' ? 'Text Synthesis' : type === 'photo' ? 'Visual Signal' : type}
+                   </div>
+                 ))}
+                 {ftBonus > 0 && (
+                    <div className="flex items-center gap-2 text-xs font-mono font-black uppercase tracking-widest text-brand-orange animate-pulse">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      {ftText.toUpperCase()}
+                    </div>
+                 )}
+               </div>
+               
+               {/* Background Scanline */}
+               <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[linear-gradient(transparent_0%,rgba(255,255,255,1)_50%,transparent_100%)] h-1 w-full animate-[shimmer_2s_infinite]" />
+            </div>
+          </FrankieQuiet>
         </motion.div>
 
         {/* 4. Reward Unlocked Sticker */}
@@ -268,52 +272,61 @@ export function MissionResultCard({
           </motion.div>
         )}
 
-        {/* 5. Math Wizard Breakdown — the receipt, estimate while pending */}
-        {showReceipt && showMathWizard && scoring && (
-          <motion.div 
-            variants={itemVariants}
-            className="bg-on-surface text-white p-6 rounded-[1.5rem] border-b-8 border-brand-orange relative font-mono overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 p-4 opacity-5">
-              <Zap className="w-16 h-16" />
-            </div>
-            
-            <p className="text-xs font-black text-brand-orange uppercase tracking-[0.3em] mb-5">{fc(getDisplayLabel('SIGNAL_ANALYSIS'), getDisplayLabel('MATH_WIZARD_BREAKDOWN'))}</p>
-            <div className="space-y-2.5 text-xs uppercase font-bold">
-              {scoring.scoreEvents?.map((ev: any, idx: number) => (
-                <div key={idx} className="flex justify-between items-center gap-4">
-                  <span className="opacity-40 truncate">{ev.description.toUpperCase()}</span>
-                  <span className="text-brand-lime shrink-0">+{ev.points}</span>
-                </div>
-              ))}
-              {ftBonus > 0 && (
-                <div className="flex justify-between items-center pt-2 border-t border-white/10 mt-2">
-                  <span className="opacity-40">{ftText.toUpperCase()}</span>
-                  <span className="text-brand-orange">+{ftBonus}</span>
-                </div>
-              )}
-              <div className="flex justify-between items-center pt-4 border-t-2 border-brand-orange/40 text-xs font-black text-brand-orange mt-2">
-                <span>{isApproved ? 'FINAL_YIELD' : 'ESTIMATED_YIELD'}</span>
-                <span className="text-2xl italic tracking-tighter">{totalXP} XP</span>
+        {/* 5. Math Wizard Breakdown — the receipt, estimate while pending.
+            Frankie quiet (Nov 21, 2026): the header already shows the big
+            +XP total; the line-by-line breakdown hides in Frankie mode. */}
+        <FrankieQuiet frankieMode={frankieMode}>
+          {showReceipt && showMathWizard && scoring && (
+            <motion.div 
+              variants={itemVariants}
+              className="bg-on-surface text-white p-6 rounded-[1.5rem] border-b-8 border-brand-orange relative font-mono overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 p-4 opacity-5">
+                <Zap className="w-16 h-16" />
               </div>
-              {!isApproved && (
-                <p className="mt-3 text-xs font-bold normal-case tracking-normal text-white/50">
-                  Estimate — the final total is confirmed when a human reviews your proof.
-                </p>
-              )}
-            </div>
-          </motion.div>
-        )}
+              
+              <p className="text-xs font-black text-brand-orange uppercase tracking-[0.3em] mb-5">{fc(getDisplayLabel('SIGNAL_ANALYSIS'), getDisplayLabel('MATH_WIZARD_BREAKDOWN'))}</p>
+              <div className="space-y-2.5 text-xs uppercase font-bold">
+                {scoring.scoreEvents?.map((ev: any, idx: number) => (
+                  <div key={idx} className="flex justify-between items-center gap-4">
+                    <span className="opacity-40 truncate">{ev.description.toUpperCase()}</span>
+                    <span className="text-brand-lime shrink-0">+{ev.points}</span>
+                  </div>
+                ))}
+                {ftBonus > 0 && (
+                  <div className="flex justify-between items-center pt-2 border-t border-white/10 mt-2">
+                    <span className="opacity-40">{ftText.toUpperCase()}</span>
+                    <span className="text-brand-orange">+{ftBonus}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-4 border-t-2 border-brand-orange/40 text-xs font-black text-brand-orange mt-2">
+                  <span>{isApproved ? 'FINAL_YIELD' : 'ESTIMATED_YIELD'}</span>
+                  <span className="text-2xl italic tracking-tighter">{totalXP} XP</span>
+                </div>
+                {!isApproved && (
+                  <p className="mt-3 text-xs font-bold normal-case tracking-normal text-white/50">
+                    Estimate — the final total is confirmed when a human reviews your proof.
+                  </p>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </FrankieQuiet>
 
         {/* 6. Footer Actions */}
         <motion.div variants={itemVariants} className="pt-4 flex flex-col gap-4">
            <div className="rounded-2xl border-4 border-on-surface bg-[#FFFDF8] p-5 text-center space-y-2 shadow-[6px_6px_0px_black]">
-             <p className="font-display text-3xl font-black uppercase italic tracking-tight">
-               {getDisplayLabel('PROOF_SENT')}
-             </p>
-             <p className="font-mono text-xs font-black uppercase tracking-[0.25em] text-on-surface/60">
-               Waiting for approval
-             </p>
+             {/* Frankie quiet (Nov 21, 2026): the header already says the
+                 proof was sent / approved; this box keeps only the status
+                 line and the starter progress line. */}
+             <FrankieQuiet frankieMode={frankieMode}>
+               <p className="font-display text-3xl font-black uppercase italic tracking-tight">
+                 {getDisplayLabel('PROOF_SENT')}
+               </p>
+               <p className="font-mono text-xs font-black uppercase tracking-[0.25em] text-on-surface/60">
+                 Waiting for approval
+               </p>
+             </FrankieQuiet>
              {showStarterGuidance && starterGuidance.progressLine && (
                <p className="text-sm font-sans font-bold text-on-surface">
                  {starterGuidance.progressLine}
@@ -350,20 +363,26 @@ export function MissionResultCard({
                <Download className="w-4 h-4" />
                Print card
              </button>
-             <p className="text-center text-xs font-sans font-bold text-on-surface/60">
-               Prints just this card.
-             </p>
+             <FrankieQuiet frankieMode={frankieMode}>
+               <p className="text-center text-xs font-sans font-bold text-on-surface/60">
+                 Prints just this card.
+               </p>
+             </FrankieQuiet>
            </div>
            
-           <div className="flex flex-col items-center gap-2 pt-4">
-              <p className="text-xs text-center opacity-20 font-mono tracking-widest uppercase italic">{fc(`BUREAU_TX_REF: ${Math.random().toString(36).substring(7).toUpperCase()}`, `TX REF: ${Math.random().toString(36).substring(7).toUpperCase()}`)}</p>
-              {totalTokens !== undefined && (
-                <div className="flex items-center gap-4 px-6 opacity-30 h-px w-full max-w-[200px] bg-on-surface/20 self-center mt-2" />
-              )}
-              {totalTokens !== undefined && (
-                <span className="text-xs font-display font-black uppercase tracking-widest italic text-on-surface/60 mt-1">Total Field Tokens: {totalTokens}</span>
-              )}
-           </div>
+           {/* Frankie quiet (Nov 21, 2026): receipt reference + token
+               total are meta; the +XP in the header is the number. */}
+           <FrankieQuiet frankieMode={frankieMode}>
+             <div className="flex flex-col items-center gap-2 pt-4">
+                <p className="text-xs text-center opacity-20 font-mono tracking-widest uppercase italic">{fc(`BUREAU_TX_REF: ${Math.random().toString(36).substring(7).toUpperCase()}`, `TX REF: ${Math.random().toString(36).substring(7).toUpperCase()}`)}</p>
+                {totalTokens !== undefined && (
+                  <div className="flex items-center gap-4 px-6 opacity-30 h-px w-full max-w-[200px] bg-on-surface/20 self-center mt-2" />
+                )}
+                {totalTokens !== undefined && (
+                  <span className="text-xs font-display font-black uppercase tracking-widest italic text-on-surface/60 mt-1">Total Field Tokens: {totalTokens}</span>
+                )}
+             </div>
+           </FrankieQuiet>
         </motion.div>
       </div>
 

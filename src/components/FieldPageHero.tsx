@@ -19,6 +19,10 @@ export type FieldPageHeroProps = {
    * 2026: Basecamp shows the active season's countdown here, and nowhere
    * else — the same fact once, not stacked). */
   seasonLine?: string;
+  /** Frankie quiet (Nov 21, 2026): suppress the season line. Basecamp
+   * passes frankieMode here; the hero takes a prop instead of reading
+   * useTheme because it renders bare in tests without a provider. */
+  hideSeasonLine?: boolean;
   backLabel?: string;
   backTo?: string;
   onBack?: () => void;
@@ -51,6 +55,7 @@ export function FieldPageHero({
   title,
   subtitle,
   seasonLine,
+  hideSeasonLine = false,
   backLabel,
   backTo,
   onBack,
@@ -71,6 +76,11 @@ export function FieldPageHero({
   className
 }: FieldPageHeroProps) {
   const navigate = useNavigate();
+  // Frankie quiet (Nov 21, 2026): the season countdown line is secondary
+  // text, so the hero can suppress it via hideSeasonLine. A prop, not a
+  // useTheme read — this hero renders bare in tests without a provider.
+  // Callers keep passing seasonLine (Basecamp's one-fact-once pin
+  // requires the literal prop); only Basecamp passes one today.
 
   const handleBack = () => {
     if (onBack) {
@@ -155,7 +165,7 @@ export function FieldPageHero({
                   {subtitle}
                 </p>
               )}
-              {seasonLine && (
+              {seasonLine && !hideSeasonLine && (
                 <p className={cn(
                   'mt-2 font-mono text-xs font-black uppercase tracking-[0.22em]',
                   chrome ? 'text-brand-lime' : 'text-[var(--skin-text)]',
@@ -250,7 +260,7 @@ export function FieldPageHero({
                   <div className="absolute -bottom-1 left-0 w-full h-2 bg-brand-cyan/20 -rotate-1 z-0" />
                 </div>
               )}
-              {seasonLine && (
+              {seasonLine && !hideSeasonLine && (
                 <p className="font-mono text-xs font-black uppercase tracking-[0.22em] text-brand-orange">
                   {seasonLine}
                 </p>

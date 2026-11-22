@@ -16,6 +16,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import { FrankieQuiet } from './FrankieQuiet';
 import { 
   getFrankieTitle,
   getFrankieDescription,
@@ -192,11 +193,15 @@ export function MissionDecodedCard({
              <h3 id="tour-card-title" className="text-white font-display text-3xl sm:text-4xl font-black uppercase tracking-tighter italic leading-[0.8] drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
                {getFrankieTitle(mission, fPref)}
              </h3>
-             {mission.deckSubtitle && (
-               <p className="mt-2 max-w-[90%] font-mono text-[8px] font-bold text-white/65 leading-tight">
-                 {mission.deckSubtitle}
-               </p>
-             )}
+             {/* Frankie quiet (Nov 21, 2026): the deck subtitle is meta
+                 under the title; the directions below carry the mission. */}
+             <FrankieQuiet frankieMode={frankieMode}>
+               {mission.deckSubtitle && (
+                 <p className="mt-2 max-w-[90%] font-mono text-[8px] font-bold text-white/65 leading-tight">
+                   {mission.deckSubtitle}
+                 </p>
+               )}
+             </FrankieQuiet>
           </div>
         </div>
 
