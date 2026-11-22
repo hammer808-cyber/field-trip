@@ -20,6 +20,7 @@ import {
   backfillMissingStickerNotifications,
   createEvaluateStickersHandler,
   createStickerBackfillHandler,
+  evaluateStickerEventsServer,
   evaluateStickersServer,
   type StickerBackfillStore,
   type StickerEvalStore
@@ -476,6 +477,98 @@ test('evaluate: a repair approval awards Plot Twist', async () => {
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.ok(awardedIds(result).includes('side_quests_plot_twist'), 'Plot Twist fires on a repair approval');
+});
+
+// ---------------------------------------------------------------------------
+// Batch evaluate (Nov 21, 2026 — first-time-user blocker fix)
+// ---------------------------------------------------------------------------
+
+/** The five events AppContext used to post as five separate calls per submit. */
+const SUBMIT_BUNDLE = [
+  { eventType: 'first_submission', entryId: 'entry-1', source: 'proof_submission:entry-1' },
+  { eventType: 'field_note_added', entryId: 'entry-1', source: 'proof_submission:entry-1' },
+  { eventType: 'photo_proof_added', entryId: 'entry-1', source: 'proof_submission:entry-1' },
+  { eventType: 'late_night_submission', entryId: 'entry-1', localHour: 22, source: 'proof_submission:entry-1' },
+  { eventType: 'first_approval', entryId: 'entry-1', source: 'proof_approval:entry-1' },
+];
+
+test('batch: one submit bundle awards exactly what five separate calls award', async () => {
+  const separate = seedStore();
+  const separateAwarded: string[] = [];
+  for (const event of SUBMIT_BUNDLE) {
+    const result = await evaluateStickersServer(separate, { callerUid: USER_ID, ...event }, { requireAdmin: allowAdmin });
+    assert.equal(result.ok, true, `${event.eventType} succeeds on its own`);
+    if (result.ok) separateAwarded.push(...awardedIds(result));
+  }
+  const batched = seedStore();
+  const batch = await evaluateStickerEventsServer(batched, { callerUid: USER_ID, events: SUBMIT_BUNDLE }, { requireAdmin: allowAdmin });
+  assert.equal(batch.ok, true);
+  if (!batch.ok) return;
+  assert.equal(batch.results.length, SUBMIT_BUNDLE.length);
+  assert.ok(batch.results.every(item => item.ok), 'every bundle event succeeds');
+  assert.deepEqual([...awardedIds(batch)].sort(), [...separateAwarded].sort(), 'same stickers, one request instead of five');
+  assert.deepEqual(
+    batched.notifications.map(note => note.doc.stickerId).sort(),
+    separate.notifications.map(note => note.doc.stickerId).sort(),
+    'same sticker_awarded notifications'
+  );
+});
+
+test('batch: a failing event never fails the batch', async () => {
+  const store = seedStore();
+  store.entries.set('entry-1', makeEntry({ status: 'pending_review' }));
+  const batch = await evaluateStickerEventsServer(store, {
+    callerUid: USER_ID,
+    events: [
+      { eventType: 'first_approval', entryId: 'entry-1', source: 'proof_approval:entry-1' },
+      { eventType: 'first_submission', entryId: 'entry-1', source: 'proof_submission:entry-1' },
+    ]
+  }, { requireAdmin: allowAdmin });
+  assert.equal(batch.ok, true);
+  if (!batch.ok) return;
+  assert.deepEqual(batch.results[0], { eventType: 'first_approval', ok: false, code: 'ENTRY_NOT_APPROVED' });
+  assert.equal(batch.results[1].ok, true);
+  assert.ok(awardedIds(batch).includes(STICKER_EVENT_AWARD_IDS.firstSubmission), 'the good event still awards');
+});
+
+test('batch: empty and oversized event lists are 400', async () => {
+  const store = seedStore();
+  const empty = await evaluateStickerEventsServer(store, { callerUid: USER_ID, events: [] }, { requireAdmin: allowAdmin });
+  assert.deepEqual(empty, { ok: false, status: 400, code: 'INVALID_EVENTS' });
+  const tooMany = await evaluateStickerEventsServer(store, {
+    callerUid: USER_ID,
+    events: Array.from({ length: 9 }, () => ({ eventType: 'first_submission', entryId: 'entry-1', source: SOURCE }))
+  }, { requireAdmin: allowAdmin });
+  assert.deepEqual(tooMany, { ok: false, status: 400, code: 'INVALID_EVENTS' });
+});
+
+test('handler: batch body returns combined awards plus per-event results', async () => {
+  const store = seedStore();
+  const handler = createEvaluateStickersHandler(() => store, { requireAdminUser: allowAdmin });
+  const res = makeRes();
+  await handler({ user: { uid: USER_ID }, body: { events: SUBMIT_BUNDLE } }, res);
+  assert.equal(res.statusCode, 200);
+  assert.ok(Array.isArray(res.body.awarded));
+  assert.ok(res.body.awarded.length > 0, 'the bundle awards stickers');
+  assert.equal(res.body.results.length, SUBMIT_BUNDLE.length);
+  assert.ok(res.body.results.every((item: { ok: boolean }) => item.ok));
+});
+
+test('handler: batch body with no events is 400', async () => {
+  const store = seedStore();
+  const handler = createEvaluateStickersHandler(() => store, { requireAdminUser: allowAdmin });
+  const res = makeRes();
+  await handler({ user: { uid: USER_ID }, body: { events: [] } }, res);
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.body.error, 'INVALID_EVENTS');
+});
+
+test('guard: the submit bundle posts one batched evaluate call, not five separate ones', () => {
+  const appContext = fs.readFileSync('src/context/AppContext.tsx', 'utf8');
+  assert.ok(appContext.includes("runStickerAwardNonBlocking('proof_submit_bundle'"), 'submit bundle is one batched call');
+  assert.ok(!appContext.includes("runStickerAwardNonBlocking('proof_first_submission'"), 'no separate first_submission call');
+  assert.ok(!appContext.includes("runStickerAwardNonBlocking('proof_first_approval'"), 'no separate first_approval call');
+  assert.ok(appContext.includes('requestStickerEvaluations('), 'the batch helper is used');
 });
 
 // ---------------------------------------------------------------------------

@@ -79,6 +79,7 @@ import { DISCOVERY_STICKERS, DiscoverySticker } from '../constants/discoveryStic
 import {
   hasEarnedSticker,
   requestStickerEvaluation,
+  requestStickerEvaluations,
   runStickerAwardNonBlocking,
 } from '../services/stickerService';
 import { getStickerById, COLLECTION_META } from '../data/stickers';
@@ -2594,21 +2595,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Sticker unlocks run after canonical submission succeeds and never block proof handling.
     // The evaluator archetype-matches the award (Stage 3): the player's own
     // variant when one exists, else the trigger's default.
-    runStickerAwardNonBlocking('proof_first_submission', () =>
-      requestStickerEvaluation({
+    // Batch (Nov 21, 2026 — first-time-user blocker fix): the submit
+    // bundle used to fire up to five separate `POST /api/stickers/evaluate`
+    // calls (first_submission, field_note_added, photo_proof_added,
+    // late_night_submission, first_approval). Three missions back-to-back
+    // was ~15 evaluate calls alone against the shared rate-limit bucket.
+    // The whole bundle now posts once; the server evaluates each event
+    // in order with the same verification, so the awards are identical.
+    const evaluationEvents: Parameters<typeof requestStickerEvaluations>[0] = [
+      {
         eventType: 'first_submission',
         entryId,
         source: `proof_submission:${entryId}`
-      })
-    );
+      }
+    ];
     if (entryData.fieldNote?.trim()) {
-      runStickerAwardNonBlocking('proof_field_note', () =>
-        requestStickerEvaluation({
-          eventType: 'field_note_added',
-          entryId,
-          source: `proof_submission:${entryId}`
-        })
-      );
+      evaluationEvents.push({
+        eventType: 'field_note_added',
+        entryId,
+        source: `proof_submission:${entryId}`
+      });
     }
     const hasPhotoProof = Boolean(
       entryData.proofImage ||
@@ -2617,37 +2623,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       (entryData as any).storagePath
     );
     if (hasPhotoProof) {
-      runStickerAwardNonBlocking('proof_photo_added', () =>
-        requestStickerEvaluation({
-          eventType: 'photo_proof_added',
-          entryId,
-          source: `proof_submission:${entryId}`
-        })
-      );
+      evaluationEvents.push({
+        eventType: 'photo_proof_added',
+        entryId,
+        source: `proof_submission:${entryId}`
+      });
     }
     // Earn-audit fix #3 (Nov 20, 2026 — Zach's call, Q6): Night Owl /
     // After Hours. The submitting device's local hour decides the window
     // (9 PM–midnight, midnight–5 AM); the evaluator filters by the
     // stickers' `hourWindow`. Runs on every submit — the hour decides.
-    runStickerAwardNonBlocking('proof_late_night', () =>
-      requestStickerEvaluation({
-        eventType: 'late_night_submission',
-        entryId,
-        localHour: new Date().getHours(),
-        source: `proof_submission:${entryId}`
-      })
-    );
+    evaluationEvents.push({
+      eventType: 'late_night_submission',
+      entryId,
+      localHour: new Date().getHours(),
+      source: `proof_submission:${entryId}`
+    });
     if (status === 'approved') {
       // Immediate approval runs the full approval bundle: first_approval +
       // challenge_approved + count/milestone re-check, from the snapshot.
-      runStickerAwardNonBlocking('proof_first_approval', () =>
-        requestStickerEvaluation({
-          eventType: 'first_approval',
-          entryId,
-          source: `proof_approval:${entryId}`
-        })
-      );
+      evaluationEvents.push({
+        eventType: 'first_approval',
+        entryId,
+        source: `proof_approval:${entryId}`
+      });
     }
+    runStickerAwardNonBlocking('proof_submit_bundle', () =>
+      requestStickerEvaluations(evaluationEvents)
+    );
 
     if (activeCrewId && status === 'approved') {
       try {

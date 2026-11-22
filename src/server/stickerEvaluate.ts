@@ -9,6 +9,15 @@
  * gap the diagnosis found: the client evaluator wrote only the sticker
  * doc, so no evaluator award ever reached Basecamp Notifications.
  *
+ * Batch (Nov 21, 2026): the endpoint also accepts `{ events: [...] }`
+ * — several events in one request, evaluated in order, combined awards
+ * back. One submit used to fire up to five separate evaluate calls
+ * (first_submission, field_note_added, photo_proof_added,
+ * late_night_submission, first_approval); the submit bundle now posts
+ * once. A failing event never fails the batch — its outcome is reported
+ * per event in `results`. Single-event bodies keep working for the
+ * one-event call sites (level_up, starter_pack, first_draw).
+ *
  * Same rule as `stickerAwards.ts` / `stickerGrants.ts`: no award logic
  * inline in `server.ts`. This module is dependency-injected — the logic
  * runs against a narrow `StickerEvalStore` interface, so unit tests can
@@ -367,9 +376,42 @@ export interface EvaluateStickersInput {
   weekNumber?: number;
 }
 
+/** One event inside a batch evaluate request. Same shape as a single call. */
+export type EvaluateStickerEventInput = Omit<EvaluateStickersInput, "callerUid">;
+
+/** A batch evaluate request: several events, one HTTP call. */
+export interface EvaluateStickerEventsInput {
+  callerUid: string;
+  events: EvaluateStickerEventInput[];
+}
+
 export type EvaluateStickersResult =
   | { ok: true; awarded: StickerUnlockResult[] }
   | { ok: false; status: number; code: string };
+
+/** One event's outcome inside a batch result. */
+export interface EvaluateStickerEventResult {
+  eventType: string;
+  ok: boolean;
+  /** Present when this event awarded nothing because it failed validation. */
+  code?: string;
+}
+
+export type EvaluateStickerEventsResult =
+  | {
+      ok: true;
+      awarded: StickerUnlockResult[];
+      results: EvaluateStickerEventResult[];
+    }
+  | { ok: false; status: number; code: string };
+
+/**
+ * Batch cap (Nov 21, 2026): the submit bundle posts at most five events
+ * (first_submission, field_note_added, photo_proof_added,
+ * late_night_submission, first_approval). Eight leaves headroom for a
+ * future event without letting one request fan out without bound.
+ */
+export const MAX_BATCH_EVENTS = 8;
 
 const KNOWN_ARCHETYPES: ReadonlySet<string> = new Set([
   'captainClipboard',
@@ -566,6 +608,51 @@ export async function evaluateStickersServer(
   return { ok: true, awarded };
 }
 
+/**
+ * Batch evaluate (Nov 21, 2026 — first-time-user blocker fix).
+ *
+ * One submit used to fire up to five separate `POST /api/stickers/evaluate`
+ * calls (first_submission, field_note_added, photo_proof_added,
+ * late_night_submission, first_approval), each a separate authenticated
+ * request against the shared rate-limit bucket. Three missions
+ * back-to-back was ~15 evaluate calls alone. The client now posts the
+ * whole submit bundle as one request; the server evaluates each event
+ * in order, in that one request, and returns the combined awards.
+ *
+ * Semantics are identical to the separate calls: each event runs the
+ * same `evaluateStickersServer` path with the same verification, and
+ * the unlock transaction dedupes by sticker doc / ledger row, so an
+ * event that fails validation (a 409 such as ENTRY_NOT_APPROVED, or a
+ * 400) simply awards nothing for that event and never fails the batch
+ * — the per-event outcome is reported in `results`.
+ */
+export async function evaluateStickerEventsServer(
+  store: StickerEvalStore,
+  input: EvaluateStickerEventsInput,
+  opts: { requireAdmin: () => Promise<void> }
+): Promise<EvaluateStickerEventsResult> {
+  const events = input.events;
+  if (!Array.isArray(events) || events.length === 0 || events.length > MAX_BATCH_EVENTS) {
+    return { ok: false, status: 400, code: "INVALID_EVENTS" };
+  }
+  const awarded: StickerUnlockResult[] = [];
+  const results: EvaluateStickerEventResult[] = [];
+  for (const event of events) {
+    const result = await evaluateStickersServer(
+      store,
+      { callerUid: input.callerUid, ...event },
+      opts
+    );
+    if (result.ok) {
+      awarded.push(...result.awarded);
+      results.push({ eventType: String(event.eventType ?? ""), ok: true });
+    } else {
+      results.push({ eventType: String(event.eventType ?? ""), ok: false, code: result.code });
+    }
+  }
+  return { ok: true, awarded, results };
+}
+
 // ---------------------------------------------------------------------------
 // Express handler (thin: auth + rate limiting live in server.ts)
 // ---------------------------------------------------------------------------
@@ -586,6 +673,19 @@ export function createEvaluateStickersHandler(
     if (!callerUid) return res.status(401).json({ error: 'UNAUTHORIZED' });
 
     try {
+      // Batch path: `{ events: [...] }` evaluates several events in one
+      // request and returns the combined awards plus a per-event outcome.
+      // The single-event body below stays supported for the one-event
+      // call sites (level_up, starter_pack, first_draw).
+      if (Array.isArray(req.body?.events)) {
+        const batch = await evaluateStickerEventsServer(
+          store,
+          { callerUid, events: req.body.events },
+          { requireAdmin: () => deps.requireAdminUser(req) }
+        );
+        if (!batch.ok) return res.status(batch.status).json({ error: batch.code });
+        return res.json({ awarded: batch.awarded, results: batch.results });
+      }
       const result = await evaluateStickersServer(
         store,
         {

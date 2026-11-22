@@ -173,6 +173,7 @@ import {
   createEvaluateStickersHandler,
   createStickerBackfillHandler
 } from "./src/server/stickerEvaluate";
+import { createAuthRateLimiter } from "./src/server/rateLimit";
 import {
   createAdminVoiceNoteTranscriptStore,
   createTranscribeVoiceNoteHandler,
@@ -560,18 +561,16 @@ async function startServer() {
     message: { error: "TOO_MANY_ADMIN_REQUESTS" },
   });
 
-  const authRateLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 120,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: "TOO_MANY_AUTH_REQUESTS" },
-  });
-  // NOTE (Nov 16, 2026): do NOT stack authRateLimiter on admin-only routes.
-  // Its 120-request bucket is shared with every user-facing call from the
-  // same IP, so ordinary app traffic could block admin actions — a
-  // proof-review approval hit the ceiling once and the tap just failed.
-  // Admin routes use adminRateLimiter (300/15min) alone.
+  const authRateLimiter = createAuthRateLimiter();
+  // NOTE (Nov 16, 2026, re-scoped Nov 21, 2026): do NOT stack
+  // authRateLimiter on admin-only routes. The old limiter was IP-keyed
+  // at 120/15min across every user-facing call, so ordinary app traffic
+  // — and strangers behind the same carrier IP — could block admin
+  // actions; a proof-review approval hit the ceiling once and the tap
+  // just failed. The limiter now keys by authenticated user (300/15min
+  // per user; token-less requests keep 120/15min per IP — see
+  // src/server/rateLimit.ts). Admin routes use adminRateLimiter
+  // (300/15min) alone.
 
   const authenticate = async (req: any, res: any, next: any) => {
     const authHeader = req.headers.authorization;

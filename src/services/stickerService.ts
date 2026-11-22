@@ -336,3 +336,42 @@ export async function requestStickerEvaluation(
     return [];
   }
 }
+
+/**
+ * Batch evaluate (Nov 21, 2026 — first-time-user blocker fix): post
+ * several events in ONE `POST /api/stickers/evaluate` call and get the
+ * combined awards back. One submit used to fire up to five separate
+ * evaluate calls (first_submission, field_note_added, photo_proof_added,
+ * late_night_submission, first_approval); three missions back-to-back
+ * was ~15 evaluate calls alone against the shared rate-limit bucket.
+ * The server evaluates each event in order with the same verification
+ * as a single call, so the awards are identical — only the request
+ * count changes. Same failure contract as the single call: any failure
+ * returns [] and the caller stays fire-and-forget.
+ */
+export async function requestStickerEvaluations(
+  events: StickerEvaluationRequest[]
+): Promise<StickerUnlockResult[]> {
+  if (events.length === 0) return [];
+  try {
+    const response = await authenticatedFetch('/api/stickers/evaluate', {
+      method: 'POST',
+      body: JSON.stringify({ events })
+    });
+    if (!response.ok) {
+      console.error('[StickerService] Sticker batch evaluation request failed', {
+        status: response.status,
+        eventCount: events.length
+      });
+      return [];
+    }
+    const data = await response.json();
+    return Array.isArray(data?.awarded) ? (data.awarded as StickerUnlockResult[]) : [];
+  } catch (error) {
+    console.error('[StickerService] Sticker batch evaluation request failed', {
+      eventCount: events.length,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return [];
+  }
+}
