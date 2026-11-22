@@ -68,6 +68,32 @@ test('capture flow audit: one note editor, on the review screen', () => {
   assert.equal((clipboard.match(/Tell Trevor/g) || []).length, 1);
 });
 
+test('capture flow audit: note-starter chips show in regular mode too, not just Frankie', () => {
+  const clipboard = read('src/components/FieldClipboard.tsx');
+  // Nov 22, 2026 (Zach): the six one-tap note starters were Frankie-only;
+  // the regular submit on every deck gets the same chips. FieldClipboard
+  // is the shared submit component, so one row covers all decks.
+  const arraySrc = clipboard.match(/FRANKIE_NOTE_CHIPS = \[([\s\S]*?)\];/);
+  assert.ok(arraySrc, 'FRANKIE_NOTE_CHIPS array not found');
+  const chips = [...arraySrc[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  assert.deepEqual(chips, [
+    'I found it outside.',
+    'It made me laugh.',
+    'It was hard to find.',
+    'The light looked good.',
+    'I was with my group.',
+    'I want to remember this.',
+  ]);
+  // Every chip clears the 10-character note gate on its own.
+  for (const chip of chips) assert.ok(chip.length >= 10, `chip too short to clear the gate: ${chip}`);
+  // The chip row is no longer gated on Frankie mode.
+  assert.doesNotMatch(clipboard, /\{isFrankie && \(/);
+  // Regular mode gets its own helper line — and it never promises skipping,
+  // because the note is required outside Frankie.
+  assert.match(clipboard, /Tap one, or write your own\.<\/p>/);
+  assert.equal((clipboard.match(/You can also skip/g) || []).length, 1);
+});
+
 test('capture flow audit: no black slab under the camera feed', () => {
   const camera = read('src/components/ViewfinderCamera.tsx');
   assert.doesNotMatch(camera, /bg-gradient-to-t from-black via-black\/85/);

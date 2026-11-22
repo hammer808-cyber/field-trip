@@ -36,7 +36,9 @@ import { MIN_VOICE_NOTE_SECONDS } from '../logic/missionScoring';
 import { PLAIN_CARD_COPY } from '../data/plainCardCopy';
 import { DEFAULT_POLAROID_STICKER_PLACEMENT, resolvePolaroidSticker } from '../logic/polaroidSticker';
 
-/** One-tap note starters for Frankie Mode: tap one instead of typing. */
+/** One-tap note starters: tap one instead of typing. Shared by Frankie
+    Mode and the regular submit flow (Nov 22, 2026 — Zach: the same six
+    chips on every deck, not just Frankie). */
 const FRANKIE_NOTE_CHIPS = [
   'I found it outside.',
   'It made me laugh.',
@@ -549,28 +551,35 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               <p className="font-serif text-sm italic leading-snug text-on-surface/60">
                 {displayNotePrompt}
               </p>
-              {isFrankie && (
-                <div className="space-y-2">
+              {/* NOTE STARTERS — Nov 22, 2026: the same six chips in
+                  Frankie AND regular mode, on every deck. Frankie keeps
+                  its helper line (hidden by FrankieQuiet, as before);
+                  regular mode gets "Tap one, or write your own." — no
+                  "you can also skip", the note is required there. */}
+              <div className="space-y-2">
+                {isFrankie ? (
                   <FrankieQuiet frankieMode={frankieMode}>
                     <p className="text-sm font-sans font-bold text-on-surface/70">Tap one, or write your own. You can also skip.</p>
                   </FrankieQuiet>
-                  <div className="flex flex-wrap gap-2">
-                    {FRANKIE_NOTE_CHIPS.map(chip => (
-                      <button
-                        key={chip}
-                        type="button"
-                        onClick={() => setData(prev => ({ ...prev, note: chip }))}
-                        className={cn(
-                          "min-h-11 px-4 py-2 border-2 border-on-surface rounded-full font-sans text-sm font-bold transition-all",
-                          data.note === chip ? "bg-brand-lime text-on-surface" : "bg-white text-on-surface hover:bg-brand-lime/30"
-                        )}
-                      >
-                        {chip}
-                      </button>
-                    ))}
-                  </div>
+                ) : (
+                  <p className="text-sm font-sans font-bold text-on-surface/70">Tap one, or write your own.</p>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {FRANKIE_NOTE_CHIPS.map(chip => (
+                    <button
+                      key={chip}
+                      type="button"
+                      onClick={() => setData(prev => ({ ...prev, note: chip }))}
+                      className={cn(
+                        "min-h-11 px-4 py-2 border-2 border-on-surface rounded-full font-sans text-sm font-bold transition-all",
+                        data.note === chip ? "bg-brand-lime text-on-surface" : "bg-white text-on-surface hover:bg-brand-lime/30"
+                      )}
+                    >
+                      {chip}
+                    </button>
+                  ))}
                 </div>
-              )}
+              </div>
 
               <label htmlFor="field-note" className="block text-sm font-sans font-bold text-on-surface/70">
                 Field note
