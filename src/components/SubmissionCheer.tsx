@@ -45,7 +45,7 @@ export function SubmissionCheer({ personaId, points, approved, hasEstimate }: Su
   return (
     <div
       data-testid="submission-cheer"
-      className="relative bg-[#FFFDF8] border-4 border-on-surface shadow-[6px_6px_0px_black] rotate-[-0.5deg] p-4 sm:p-5"
+      className="relative bg-[var(--skin-background)] border-4 border-on-surface shadow-[6px_6px_0px_black] rotate-[-0.5deg] p-4 sm:p-5"
     >
       <div className="field-tape w-16 h-5 absolute -top-2 left-8 rotate-[-4deg]" aria-hidden="true" />
       <button
@@ -53,7 +53,7 @@ export function SubmissionCheer({ personaId, points, approved, hasEstimate }: Su
         onClick={() => setDismissed(true)}
         aria-label="Dismiss"
         data-testid="submission-cheer-dismiss"
-        className="absolute top-2 right-2 p-1 text-on-surface/40 hover:text-on-surface"
+        className="absolute top-2 right-2 p-1 text-on-surface/60 hover:text-on-surface"
       >
         <X size={16} />
       </button>
@@ -66,7 +66,7 @@ export function SubmissionCheer({ personaId, points, approved, hasEstimate }: Su
           className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 object-cover border-4 border-on-surface shadow-[3px_3px_0px_black] rotate-[-2deg]"
         />
         <div className="min-w-0">
-          <p className="font-mono text-[10px] font-black uppercase tracking-[0.25em] text-brand-cyan">
+          <p className="font-mono text-xs font-black uppercase tracking-[0.25em] text-brand-cyan">
             {persona.name} says
           </p>
           <p
@@ -87,7 +87,7 @@ export function SubmissionCheer({ personaId, points, approved, hasEstimate }: Su
             >
               +{points} XP
             </p>
-            <p className="font-mono text-[10px] font-black uppercase tracking-widest text-on-surface/60 text-right">
+            <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface/60 text-right">
               {approved ? 'Points banked' : 'Once approved'}
             </p>
           </>
