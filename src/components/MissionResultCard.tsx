@@ -12,6 +12,7 @@ import { useApp } from '../context/AppContext';
 import { canAccessFeature, canonicalizeId, getStarterProgress } from '../services/canonicalProgress';
 import { STARTER_SIGNAL_IDS } from '../logic/starterDeckState';
 import { buildPostSubmitStarterGuidance } from '../logic/postSubmitStarterGuidance';
+import { SubmissionCheer } from './SubmissionCheer';
 
 interface MissionResultCardProps {
   trip: TripCard;
@@ -150,6 +151,20 @@ export function MissionResultCard({
       </div>
 
       <div className="p-5 sm:p-8 space-y-6 sm:space-y-10 relative">
+        {/* 1b. Persona cheer (Nov 23, 2026, Zach's call): the player's own
+            character says good job and shows the points from this
+            submission, right under the header — the first thing on the
+            success screen. Pending points are an estimate, so the card
+            says "once approved" instead of presenting them as banked. */}
+        <motion.div variants={itemVariants}>
+          <SubmissionCheer
+            personaId={profile?.fieldType ?? null}
+            points={totalXP}
+            approved={isApproved}
+            hasEstimate={hasEstimate}
+          />
+        </motion.div>
+
         {/* 2. Visual Proof with Sticker Feel */}
         <motion.div variants={itemVariants} className="relative">
           <div className="aspect-[4/3] bg-[#EAE5D8] border-4 border-on-surface shadow-[10px_10px_0px_black] overflow-hidden rotate-[-1.5deg] transition-transform hover:rotate-0 duration-500 relative group">

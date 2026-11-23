@@ -105,6 +105,7 @@ import { subscribeToPlayerNotifications } from '../services/playerNotificationSe
 import type { PlayerNotification } from '../logic/playerNotifications';
 import { getLocalTimeSnapshot, isWithinAfternoonPowerHour } from '../logic/missionBonuses';
 import { getTimeWindowStatus } from '../logic/timeWindow';
+import { buildSubmitConfirmation } from '../logic/submitConfirmation';
 import { subscribeToObservations, generateObservation, dismissObservation } from '../services/observationService';
 import { Observation } from '../types/observations';
 import { getProofRequirement } from '../services/proofService';
@@ -1799,7 +1800,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const registerPulseAction = async (
     actionType: 'submit_proof' | 'complete_mission' | 'vote' | 'add_field_note' | 'unlock_sticker',
-    uniqueId?: string
+    uniqueId?: string,
+    options?: { announce?: boolean },
   ) => {
     if (!user || !profile) return;
     
@@ -1860,13 +1862,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Increment actions
     pulse.completedActions = (pulse.completedActions || 0) + 1;
     
-    // Trigger Micro Reward for UI Stamp/Wiggle
-    queueReward({
-      type: 'action',
-      intensity: RewardIntensity.MICRO_FEEDBACK,
-      title: `${actionType.replace('_', ' ').toUpperCase()} SUCCESS`,
-      iconName: actionType === 'vote' ? 'Vote' : actionType === 'unlock_sticker' ? 'Sparkles' : 'Camera'
-    });
+    // Trigger Micro Reward for UI Stamp/Wiggle — unless the caller asked
+    // for silence (Nov 23, 2026, combined submit confirmation): the
+    // submit path registers submit_proof + add_field_note here, and those
+    // two toasts used to stack on top of the "Proof In" card for the same
+    // submission. The pulse bookkeeping below still runs, and the 5-action
+    // milestone still fires; only this per-action toast is skipped.
+    if (options?.announce !== false) {
+      queueReward({
+        type: 'action',
+        intensity: RewardIntensity.MICRO_FEEDBACK,
+        title: `${actionType.replace('_', ' ').toUpperCase()} SUCCESS`,
+        iconName: actionType === 'vote' ? 'Vote' : actionType === 'unlock_sticker' ? 'Sparkles' : 'Camera'
+      });
+    }
     
     // Check if pulse completes hits 5
     if (pulse.completedActions === 5) {
@@ -2036,7 +2045,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
     }
 
-    showHelpToast(`"${entryData?.title || 'Your receipt'}" is in. Trevor is reviewing the tiny evidence.`);
+    // No toast here (Nov 23, 2026, combined submit confirmation): this
+    // runs from Capture before the upload, and its "Field Intelligence"
+    // line used to stack with the other submit toasts. The combined
+    // "Proof In" toast queued in addEntry carries the same line.
   };
 
   const addToMaybeList = async (tripId: string) => {
@@ -2668,15 +2680,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         category: (currentTrip as any).type
       };
 
-      queueReward({
-        type: 'action',
-        intensity: RewardIntensity.MEDIUM_REWARD,
-        title: "Evidence Logged",
-        description: "Field data successfully captured and verified.",
-        rewardText: "XP_GRANTED",
-        iconName: 'ClipboardCheck'
-      });
-
       if (isFeatureEnabled('badgeFragmentsEnabled')) {
         evaluateEntryForBadges(user.uid, entryObj as any).catch(e => console.warn("[AppContext] Badge evaluation failed:", e));
       }
@@ -2693,14 +2696,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (entryData.proofImage && entryData.fieldNote) {
         unlockDiscoverySticker('proof_pirate', 'capture').catch(e => console.warn("Discovery unlock failed (proof_pirate):", e));
       }
-    } else {
-      queueReward({
-        type: 'action',
-        intensity: RewardIntensity.MICRO_FEEDBACK,
-        title: "Protocol Logged",
-        iconName: 'Server'
-      });
     }
+
+    // One combined submit confirmation (Nov 23, 2026, Zach's call): a
+    // single submission used to queue four micro toasts — "Field
+    // Intelligence", "Protocol Logged" / "Evidence Logged", and the two
+    // Field Pulse "X SUCCESS" toasts. Now it queues exactly one card that
+    // names the mission, says the proof + note landed, and says whether it
+    // is pending review or approved. Sticker awards still celebrate on
+    // their own (separate watcher, untouched).
+    queueReward(buildSubmitConfirmation({
+      missionTitle: currentTrip.title,
+      hasFieldNote: Boolean(entryData.fieldNote?.trim()),
+      hasVoiceNote: entryData.voiceNotePresent === true,
+      status,
+      totalPoints: (scoring?.totalPoints || 0) + (ftBonus || 0),
+    }));
 
     // Optimistic clearance of activeTrip and tracking submittal to prevent lag/duplicates
     setProfile(prev => {
@@ -2729,10 +2740,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       status === 'approved' ? 'approved' : 'pending_review',
     ).catch(err => console.warn('[AppContext] Failed to mark mission card submitted:', err));
 
-    // Register Field Pulse actions
-    registerPulseAction('submit_proof', entryId).catch(err => console.warn("Pulse register failed (submit):", err));
+    // Register Field Pulse actions — silenced (Nov 23, 2026, combined
+    // submit confirmation): the bookkeeping still runs, but the per-action
+    // "SUBMIT PROOF SUCCESS" / "ADD FIELD_NOTE SUCCESS" toasts are folded
+    // into the single "Proof In" card queued above.
+    registerPulseAction('submit_proof', entryId, { announce: false }).catch(err => console.warn("Pulse register failed (submit):", err));
     if (entryData.fieldNote) {
-      registerPulseAction('add_field_note', entryId).catch(err => console.warn("Pulse register failed (note):", err));
+      registerPulseAction('add_field_note', entryId, { announce: false }).catch(err => console.warn("Pulse register failed (note):", err));
     }
     
     return { entryId, status, review, scoring, ftBonus, ftText, newRewards };
