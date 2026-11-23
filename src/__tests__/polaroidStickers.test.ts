@@ -1,10 +1,15 @@
 // Polaroid stickers, baked (Zach's call, Nov 18, 2026): the developing
 // Polaroid's tray shows the stickers the player actually won (canonical
-// 52-registry art, not the legacy star), the sticker drags into place, it
-// stays visible on the reviewing Polaroid, and at submit it is baked into
-// the uploaded photo. The repo has no DOM test harness, so the wiring is
-// pinned with source assertions in the same style as
-// guidedTourOverlay.test.ts; the placement math is pure and tested directly.
+// 118-registry art), the sticker drags into place, it stays visible on the
+// reviewing Polaroid, and at submit it is baked into the uploaded photo.
+// The repo has no DOM test harness, so the wiring is pinned with source
+// assertions in the same style as guidedTourOverlay.test.ts; the placement
+// math is pure and tested directly.
+//
+// Art-only (Nov 23, 2026, Zach's call): discovery/legacy ids have no art
+// files anywhere, so they resolve to nothing and the tray skips them —
+// no emoji tiles. Level milestone rewards with shipped art (Junior Field
+// Nuisance, L3) resolve through their LEVEL_MILESTONE_REWARDS definition.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -22,7 +27,7 @@ import {
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (rel: string) => readFileSync(join(repoRoot, rel), 'utf8');
 
-test('the tray resolves earned stickers to real 52-registry art, not a star', () => {
+test('the tray resolves earned stickers to real 118-registry art, not a star', () => {
   const freshMeat = resolvePolaroidSticker('first_offenses_fresh_meat');
   assert.deepEqual(freshMeat, {
     kind: 'image',
@@ -33,29 +38,36 @@ test('the tray resolves earned stickers to real 52-registry art, not a star', ()
   // A starter-pack Explorer sticker resolves the same way.
   const captain = resolvePolaroidSticker('captain_clipboard_clipboard_character');
   assert.equal(captain?.kind, 'image');
-  // A legacy emoji sticker still resolves, through the legacy registry.
-  const legacy = resolvePolaroidSticker('sticker_photo_proof');
-  assert.deepEqual(legacy, {
-    kind: 'emoji',
-    id: 'sticker_photo_proof',
-    name: 'PHOTO CERTIFIED',
-    emoji: '📸',
+  // A legacy id with no art file resolves to nothing now (art-only,
+  // Nov 23, 2026): the tray skips it instead of showing an emoji tile.
+  assert.equal(resolvePolaroidSticker('sticker_photo_proof'), undefined);
+});
+
+test('the Junior Field Nuisance level sticker resolves to the opossum art', () => {
+  const opossum = resolvePolaroidSticker('level-3-field-sticker');
+  assert.deepEqual(opossum, {
+    kind: 'image',
+    id: 'level-3-field-sticker',
+    name: 'Junior Field Nuisance Sticker',
+    imageUrl: '/assets/rewards/stickers/junior-field-nuisance.png',
   });
+  // The art file ships in the repo (resized 768px from the supplied
+  // 1312px original; the no-text spare stays in ~/workspace/fieldtrip-opossum/).
+  const filePath = join(repoRoot, 'public', 'assets', 'rewards', 'stickers', 'junior-field-nuisance.png');
+  assert.ok(readFileSync(filePath).length > 0, `Junior Field Nuisance art missing: ${filePath}`);
+  assert.equal(readFileSync(filePath).subarray(0, 8).toString('hex'), '89504e470d0a1a0a', 'art is a PNG');
 });
 
 test('ids with no entry anywhere resolve to nothing, so the tray skips them instead of showing a star', () => {
   assert.equal(resolvePolaroidSticker('no_such_sticker'), undefined);
 });
 
-test('a discovery id with a legacy emoji entry still resolves, through the legacy fallback', () => {
-  // 'camera_ready' has no art file (src is ''), but it does have a legacy
-  // emoji entry, so it renders as the emoji chip rather than being skipped.
-  assert.deepEqual(resolvePolaroidSticker('camera_ready'), {
-    kind: 'emoji',
-    id: 'camera_ready',
-    name: 'CAMERA READY',
-    emoji: '📸',
-  });
+test('a discovery id with no art file resolves to nothing, so the tray skips it instead of showing an emoji tile', () => {
+  // 'camera_ready' has no art file (legacy src is ''), and the legacy
+  // emoji fallback is gone (art-only, Nov 23, 2026) — the tray skips it.
+  assert.equal(resolvePolaroidSticker('camera_ready'), undefined);
+  assert.equal(resolvePolaroidSticker('signal-fragment-missing'), undefined);
+  assert.equal(resolvePolaroidSticker('receipt_approved'), undefined);
 });
 
 test('placement clamps to the photo, and a bad value becomes the top-left corner', () => {
@@ -130,6 +142,16 @@ test('the tray resolves through the 52-registry first and has no 8-sticker cap',
   assert.match(polaroid, /max-h-40 overflow-y-auto/);
   // Real art in the tray, not an emoji.
   assert.match(polaroid, /<img src=\{resolved\.imageUrl\}/);
+  assert.doesNotMatch(polaroid, /resolved\.emoji/);
+  assert.doesNotMatch(polaroid, /selectedSticker\.emoji/);
+});
+
+test('the tray offers level milestone stickers with shipped art', () => {
+  const capture = read('src/pages/Capture.tsx');
+  // Level reward ids ride with the earned ids, so the Junior Field
+  // Nuisance sticker reaches the tray once the player earns level 3.
+  // The resolver skips the ones without art.
+  assert.match(capture, /progressionRewardIds/);
 });
 
 test('the placed sticker drags, taps to move, and can be removed', () => {
@@ -151,7 +173,8 @@ test('the placed sticker drags, taps to move, and can be removed', () => {
 test('the reviewing Polaroid shows the placed sticker, so what-you-see is what-you-submit', () => {
   const clipboard = read('src/components/FieldClipboard.tsx');
   assert.match(clipboard, /const reviewingSticker = data\.stickerId \? resolvePolaroidSticker\(data\.stickerId\) : undefined;/);
-  assert.match(clipboard, /reviewingSticker\.kind === 'image'/);
+  assert.match(clipboard, /reviewingSticker\.imageUrl/);
+  assert.doesNotMatch(clipboard, /reviewingSticker\.emoji/);
   assert.match(clipboard, /left: `\$\{reviewingPlacement\.x\}%`/);
 });
 

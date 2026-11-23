@@ -104,6 +104,20 @@ test('multi-level jumps and unlocked level lists are complete', () => {
   );
 });
 
+test('level 3 Junior Field Nuisance sticker ships real opossum art', () => {
+  // Zach's call, Nov 23, 2026: the opossum badge is the level-3 reward
+  // art, so the reward is available (not coming soon) and the Polaroid
+  // tray can resolve it. The other level rewards stay coming_soon until
+  // their art ships.
+  const rewards = getProgressionRewardsForLevels([3]);
+  assert.equal(rewards.length, 1);
+  assert.equal(rewards[0].id, 'level-3-field-sticker');
+  assert.equal(rewards[0].label, 'Junior Field Nuisance Sticker');
+  assert.equal(rewards[0].assetStatus, 'available');
+  assert.equal(rewards[0].imageUrl, '/assets/rewards/stickers/junior-field-nuisance.png');
+  assert.equal(getProgressionRewardsForLevels([2])[0].assetStatus, 'coming_soon');
+});
+
 test('Explorer Type title variants use existing IDs and safely fall back', () => {
   assert.equal(getExplorerTypeLevelTitle(5, 'mallRat'), 'Licensed Loitering Specialist');
   assert.equal(getExplorerTypeLevelTitle(5, 'captainClipboard'), 'Deputy Form Inspector');

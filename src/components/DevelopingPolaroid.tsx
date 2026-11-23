@@ -90,10 +90,11 @@ export function DevelopingPolaroid({
     onStageChange?.(stage);
   }, [onStageChange, stage]);
 
-  // The tray shows every awarded sticker, resolved through the canonical
-  // 52-registry first so real art renders (the old legacy-only lookup showed
-  // a generic star for every earned sticker). Ids with no art anywhere are
-  // skipped. No cap: the tray scrolls.
+  // The tray shows every awarded sticker with real art (canonical
+  // 118-registry + level milestone art). Ids with no art anywhere
+  // (discovery/legacy ids — emoji only, empty src) resolve to undefined
+  // and are skipped, so the tray never shows an emoji placeholder. No cap:
+  // the tray scrolls.
   const stickerOptions = useMemo(() => {
     const seen = new Set<string>();
     return availableStickerIds.flatMap(id => {
@@ -227,19 +228,12 @@ export function DevelopingPolaroid({
               onPointerUp={handleStickerPointerUp}
               onPointerCancel={handleStickerPointerUp}
             >
-              {selectedSticker.kind === 'image' ? (
-                <img
-                  src={selectedSticker.imageUrl}
-                  alt={selectedSticker.name}
-                  className="w-20 h-20 object-contain drop-shadow-[2px_2px_0px_rgba(0,0,0,0.55)]"
-                  draggable={false}
-                />
-              ) : (
-                <div className="bg-white border-2 border-on-surface shadow-[3px_3px_0px_black] p-2 max-w-24 text-center">
-                  <span className="block text-2xl" aria-hidden="true">{selectedSticker.emoji}</span>
-                  <span className="block font-mono text-label font-black uppercase leading-none mt-1">{selectedSticker.name}</span>
-                </div>
-              )}
+              <img
+                src={selectedSticker.imageUrl}
+                alt={selectedSticker.name}
+                className="w-20 h-20 object-contain drop-shadow-[2px_2px_0px_rgba(0,0,0,0.55)]"
+                draggable={false}
+              />
               <button
                 type="button"
                 aria-label={`Remove ${selectedSticker.name} sticker`}
@@ -277,11 +271,7 @@ export function DevelopingPolaroid({
                     selectedStickerId === id ? 'bg-brand-lime border-white' : 'bg-white border-on-surface',
                   )}
                 >
-                  {resolved.kind === 'image' ? (
-                    <img src={resolved.imageUrl} alt={resolved.name} className="w-9 h-9 object-contain" draggable={false} />
-                  ) : (
-                    <span aria-hidden="true" className="text-xl">{resolved.emoji}</span>
-                  )}
+                  <img src={resolved.imageUrl} alt={resolved.name} className="w-9 h-9 object-contain" draggable={false} />
                   <span className="sr-only">{resolved.name}</span>
                 </button>
               ))}

@@ -1759,6 +1759,9 @@ export default function CapturePage() {
               availableStickerIds={Array.from(new Set([
                 ...(profile?.unlockedRewards?.stickers || []),
                 ...((profile?.earnedStickers || []).map(sticker => sticker.id)),
+                // Level milestone stickers with shipped art (Junior Field
+                // Nuisance, L3) — the resolver skips the ones without art.
+                ...(profile?.progressionRewardIds || []),
               ]))}
             >
               {fcState === 'capture' && (

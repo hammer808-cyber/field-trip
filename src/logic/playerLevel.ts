@@ -37,6 +37,12 @@ export interface ProgressionRewardDefinition {
   kind: ProgressionRewardKind;
   label: string;
   description: string;
+  /**
+   * Art for the reward, when it shipped. The Polaroid tray resolves
+   * level-reward ids through this (see resolvePolaroidSticker), so a
+   * sticker reward with art here appears in the tray once earned.
+   */
+  imageUrl?: string;
   assetStatus: 'available' | 'coming_soon';
 }
 
@@ -167,7 +173,12 @@ export function getExplorerTypeLevelTitle(level: number, explorerTypeId?: string
 
 export const LEVEL_MILESTONE_REWARDS: Readonly<Record<number, readonly ProgressionRewardDefinition[]>> = {
   2: [{ id: 'level-2-profile-stamp', level: 2, kind: 'profile_stamp', label: 'Level 2 Profile Stamp', description: 'A new stamp for your field dossier.', assetStatus: 'coming_soon' }],
-  3: [{ id: 'level-3-field-sticker', level: 3, kind: 'sticker', label: 'Junior Field Nuisance Sticker', description: 'A sticker marking your growing public record.', assetStatus: 'coming_soon' }],
+  // Junior Field Nuisance art (Nov 23, 2026, Zach's call): the opossum
+  // badge, public/assets/rewards/stickers/junior-field-nuisance.png
+  // (resized 768px from the supplied 1312px original, kept in
+  // ~/workspace/fieldtrip-opossum/ with the no-text spare). The no-text
+  // version is the spare, not a second sticker.
+  3: [{ id: 'level-3-field-sticker', level: 3, kind: 'sticker', label: 'Junior Field Nuisance Sticker', description: 'A sticker marking your growing public record.', imageUrl: '/assets/rewards/stickers/junior-field-nuisance.png', assetStatus: 'available' }],
   4: [{ id: 'level-4-big-board-border', level: 4, kind: 'big_board_border', label: 'Scene Investigator Border', description: 'A restrained border for Big Board appearances.', assetStatus: 'coming_soon' }],
   5: [{ id: 'level-5-explorer-pose', level: 5, kind: 'explorer_pose', label: 'Alternate Explorer Pose', description: 'An alternate pose for your Explorer Type.', assetStatus: 'coming_soon' }],
   6: [{ id: 'level-6-zine-texture', level: 6, kind: 'zine_texture', label: 'Neighborhood Cryptid Zine Texture', description: 'A tape or paper treatment for zine layouts.', assetStatus: 'coming_soon' }],

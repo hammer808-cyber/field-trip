@@ -2,8 +2,15 @@
 // "Add a sticker" tray shows the stickers the player actually won, the
 // sticker can be dragged into place on the photo, and at submit it is baked
 // into the uploaded photo (the clean original is kept).
+//
+// Art-only (Nov 23, 2026, Zach's call): the tray shows real sticker art
+// and nothing else. Discovery/legacy ids have no art files anywhere — the
+// legacy registry carries only an emoji and an empty src — so they resolve
+// to undefined and the tray skips them instead of showing an emoji tile.
+// Level milestone rewards with shipped art resolve the same way, through
+// their LEVEL_MILESTONE_REWARDS definition (single source of truth).
 import { getStickerById as getCanonicalStickerById } from '../data/stickers';
-import { getStickerById as getLegacyStickerById } from '../data/stickerRegistry';
+import { LEVEL_MILESTONE_REWARDS } from './playerLevel';
 
 /** Position of a sticker on the Polaroid, as percentages of the displayed square. */
 export interface PolaroidStickerPlacement {
@@ -20,23 +27,39 @@ export const POLAROID_STICKER_WIDTH_FRACTION = 0.3;
 /** Fixed tilt, matching the old rotate-6 chip. */
 export const POLAROID_STICKER_ROTATION_DEGREES = 6;
 
-export type ResolvedPolaroidSticker =
-  | { kind: 'image'; id: string; name: string; imageUrl: string }
-  | { kind: 'emoji'; id: string; name: string; emoji: string };
+export type ResolvedPolaroidSticker = {
+  kind: 'image';
+  id: string;
+  name: string;
+  imageUrl: string;
+};
 
 /**
- * Resolve a sticker id to something renderable. The canonical 52-registry
- * wins; legacy emoji stickers fall back; ids with no entry anywhere resolve
- * to undefined, so the tray skips them instead of showing a generic star.
+ * Level milestone rewards that shipped art, keyed by reward id. Only the
+ * Junior Field Nuisance sticker (level 3) has art today; other level
+ * rewards resolve to nothing until their art ships.
+ */
+const LEVEL_REWARD_ART = new Map(
+  Object.values(LEVEL_MILESTONE_REWARDS)
+    .flat()
+    .filter((reward): reward is typeof reward & { imageUrl: string } => Boolean(reward.imageUrl))
+    .map((reward) => [reward.id, { name: reward.label, imageUrl: reward.imageUrl }]),
+);
+
+/**
+ * Resolve a sticker id to its real art. The canonical 118-registry wins,
+ * then level milestone rewards with shipped art. Ids with no art anywhere
+ * (discovery/legacy ids — emoji only, empty src) resolve to undefined, so
+ * the tray skips them instead of showing an emoji placeholder.
  */
 export function resolvePolaroidSticker(id: string): ResolvedPolaroidSticker | undefined {
   const canonical = getCanonicalStickerById(id);
   if (canonical) {
     return { kind: 'image', id, name: canonical.name, imageUrl: canonical.imageUrl };
   }
-  const legacy = getLegacyStickerById(id);
-  if (legacy) {
-    return { kind: 'emoji', id, name: legacy.label, emoji: legacy.emoji };
+  const levelArt = LEVEL_REWARD_ART.get(id);
+  if (levelArt) {
+    return { kind: 'image', id, name: levelArt.name, imageUrl: levelArt.imageUrl };
   }
   return undefined;
 }

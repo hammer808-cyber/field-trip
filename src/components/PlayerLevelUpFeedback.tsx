@@ -131,6 +131,9 @@ export function PlayerLevelUpFeedback() {
                     return (
                       <li key={rewardId} className="flex items-start gap-2">
                         <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-orange" aria-hidden="true" />
+                        {reward?.imageUrl ? (
+                          <img src={reward.imageUrl} alt="" aria-hidden="true" className="h-10 w-10 shrink-0 object-contain" />
+                        ) : null}
                         <span>{reward?.label || rewardId}{reward?.assetStatus === 'coming_soon' ? ' (coming soon)' : ''}</span>
                       </li>
                     );

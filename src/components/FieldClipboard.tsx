@@ -499,14 +499,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
                        }}
                        aria-hidden="true"
                      >
-                       {reviewingSticker.kind === 'image' ? (
-                         <img src={reviewingSticker.imageUrl} alt="" className="w-20 h-20 object-contain drop-shadow-[2px_2px_0px_rgba(0,0,0,0.55)]" draggable={false} />
-                       ) : (
-                         <div className="bg-white border-2 border-on-surface shadow-[3px_3px_0px_black] p-2 max-w-24 text-center">
-                           <span className="block text-2xl">{reviewingSticker.emoji}</span>
-                           <span className="block font-mono text-label font-black uppercase leading-none mt-1">{reviewingSticker.name}</span>
-                         </div>
-                       )}
+                       <img src={reviewingSticker.imageUrl} alt="" className="w-20 h-20 object-contain drop-shadow-[2px_2px_0px_rgba(0,0,0,0.55)]" draggable={false} />
                      </div>
                    )}
                  </div>
