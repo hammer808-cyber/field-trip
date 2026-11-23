@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Crosshair } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { DEFAULT_APP_SKIN } from '../../skins/registry';
+import { getDisplayLabel } from '../../utils/labelUtils';
 import { pickTextOnBackground, skinVarHex } from './MissionLogbookPanel';
 
 interface MissionActionPanelProps {
@@ -11,11 +12,12 @@ interface MissionActionPanelProps {
   children: ReactNode;
   className?: string;
   /**
-   * When provided, the lime status badge in the header is a real draw
-   * button (Nov 18, 2026, Zach's call: the big black draw button below
-   * the deck is gone, so the badge — which already reads "Draw a
-   * Mission" — does the drawing). Omit it and the badge stays a plain
-   * status display, e.g. while a mission is drawn.
+   * When provided, the tape strip is the single draw button (Nov 22,
+   * 2026, Zach's call: the "Mission draw" eyebrow, the tape title and
+   * the lime "Draw a Mission" badge all said the same thing, so they
+   * collapse into one element — one line, "Draw your next mission").
+   * Omit it and the panel stays a status display, e.g. while a mission
+   * is drawn.
    */
   onDraw?: () => void;
   drawDisabled?: boolean;
@@ -51,32 +53,48 @@ export function MissionActionPanel({
           surface texture, like the Sticker Machine ticket. */}
       <header className="relative flex flex-wrap items-start justify-between gap-3 border-b-[3px] border-[var(--skin-border)] bg-[var(--skin-surface-muted)] px-4 py-3 sm:px-5">
         <div className="absolute inset-0 pointer-events-none opacity-[var(--skin-texture-opacity)] [background-image:var(--skin-surface-texture)]" aria-hidden="true" />
-        <div className="relative flex min-w-0 items-start gap-3">
+        <div className="relative flex min-w-0 flex-1 items-start gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center border-2 border-[var(--skin-border)] bg-[var(--skin-primary)] text-[var(--skin-on-primary)] shadow-[3px_3px_0_var(--skin-border)]">
             <Crosshair size={18} aria-hidden="true" />
           </span>
-          {/* Tape label (Nov 22, 2026, lift #7 revision, Zach's word):
-              the draw-card title sits on a wide piece of tape with
-              the words written on it in Kalam, instead of plain
-              text on the paper ground. */}
-          <div className="field-tape--label min-w-0 flex-1" style={{ transform: 'rotate(-1.5deg)' }}>
-            <p className="text-[13px] font-bold leading-tight">{eyebrow}</p>
-            <h2 id="mission-dispatch-heading" className="mt-0.5 break-words text-xl font-bold leading-[1.1] sm:text-2xl">
+          {onDraw ? (
+            // The tape IS the draw button (Nov 22, 2026, lift #7
+            // collapse): one line, one control. The eyebrow and the
+            // lime badge are gone — they repeated the same label.
+            <button
+              type="button"
+              onClick={onDraw}
+              disabled={drawDisabled}
+              id="mission-dispatch-heading"
+              className="field-tape--button min-w-0 flex-1 break-words text-left text-xl font-bold leading-[1.1] shadow-[4px_4px_0_var(--skin-border)] transition-all focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan active:translate-y-0.5 active:shadow-none disabled:cursor-not-allowed disabled:opacity-60 sm:text-2xl"
+              style={{ transform: 'rotate(-1.5deg)' }}
+            >
               {title}
-            </h2>
-          </div>
+            </button>
+          ) : (
+            // Tape label (Nov 22, 2026, lift #7 revision, Zach's word):
+            // the draw-card title sits on a wide piece of tape with
+            // the words written on it in Kalam, instead of plain
+            // text on the paper ground.
+            <div className="field-tape--label min-w-0 flex-1" style={{ transform: 'rotate(-1.5deg)' }}>
+              <p className="text-[13px] font-bold leading-tight">{eyebrow}</p>
+              <h2 id="mission-dispatch-heading" className="mt-0.5 break-words text-xl font-bold leading-[1.1] sm:text-2xl">
+                {title}
+              </h2>
+            </div>
+          )}
         </div>
         {onDraw ? (
-          <button
-            type="button"
-            onClick={onDraw}
-            disabled={drawDisabled}
-            className="relative border-2 border-[var(--skin-border)] bg-[var(--skin-secondary)] px-2.5 py-1 font-mono text-[8px] font-black uppercase tracking-widest shadow-[2px_2px_0_var(--skin-border)] transition-all active:translate-y-0.5 active:shadow-none disabled:cursor-not-allowed disabled:opacity-60"
-            style={{ color: badgeText }}
-            aria-live="polite"
-          >
-            {status}
-          </button>
+          // The block status still shows, small, under the tape — but
+          // only when it says something the button doesn't already
+          // say. In the ready state the status IS the draw label
+          // ("Draw a Mission"), which would be the repetition this
+          // collapse removes.
+          status !== getDisplayLabel('DRAW_A_MISSION') ? (
+            <p className="relative w-full font-mono text-[9px] font-black uppercase tracking-widest text-[var(--skin-text)]" aria-live="polite">
+              {status}
+            </p>
+          ) : null
         ) : (
           <span className="relative border-2 border-[var(--skin-border)] bg-[var(--skin-secondary)] px-2.5 py-1 font-mono text-[8px] font-black uppercase tracking-widest shadow-[2px_2px_0_var(--skin-border)]" style={{ color: badgeText }} aria-live="polite">
             {status}

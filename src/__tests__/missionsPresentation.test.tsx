@@ -159,4 +159,46 @@ test('mission action panel exposes the controller-supplied title and state', () 
   assert.match(html, /Find the strange sign/i);
   assert.match(html, /Pending review/i);
   assert.match(html, /Mission content/i);
+  // Drawn state is a status display, not a draw control.
+  assert.doesNotMatch(html, /<button/);
+});
+
+test('mission action panel draw state: one tape button, one line, no repeated labels', () => {
+  // Nov 22, 2026 (Zach's red pen): the "Mission draw" eyebrow, the
+  // tape title "Draw your next mission" and the lime "Draw a Mission"
+  // badge all said the same thing. They collapse into one element —
+  // the tape strip itself is the single draw button.
+  const html = renderToStaticMarkup(
+    <MissionActionPanel eyebrow="Mission draw" title="Draw your next mission" status="Draw a Mission" onDraw={noop}>
+      <p>Mission content</p>
+    </MissionActionPanel>,
+  );
+
+  // Exactly one draw control on the card, and it reads the title.
+  assert.strictEqual(html.match(/<button/g)?.length, 1);
+  assert.match(html, /Draw your next mission/);
+  // The eyebrow and the lime badge are gone — no repeated draw labels.
+  assert.doesNotMatch(html, /Mission draw/);
+  assert.doesNotMatch(html, /Draw a Mission/);
+  // The button is the draw action: enabled when ready, tape-styled.
+  assert.match(html, /<button[^>]*type="button"/);
+  assert.match(html, /field-tape--button/);
+  assert.doesNotMatch(html, /disabled=""/);
+  assert.match(html, /Mission content/);
+});
+
+test('mission action panel draw state: a blocked status still shows as a small line', () => {
+  // The block status is dynamic state info, not a repeated label — it
+  // survives the collapse as a small line under the tape button, and
+  // the button is disabled while blocked.
+  const html = renderToStaticMarkup(
+    <MissionActionPanel eyebrow="Mission draw" title="Draw your next mission" status="Deck Exhausted" onDraw={noop} drawDisabled>
+      <p>Mission content</p>
+    </MissionActionPanel>,
+  );
+
+  assert.strictEqual(html.match(/<button/g)?.length, 1);
+  assert.match(html, /Draw your next mission/);
+  assert.match(html, /Deck Exhausted/);
+  assert.match(html, /<button[^>]*disabled=""/);
 });

@@ -24,8 +24,12 @@
 // yellow/amber paper (heat-yellow sticky-note token) with corner tape
 // strips holding it up and a plain text header (this file); the draw
 // card title sits on a wide tape strip with the words written on it
-// in Kalam (MissionActionPanel.tsx). The draw card paper ground and
-// the deck cover display below are untouched.
+// in Kalam (MissionActionPanel.tsx). Collapsed the same day per his
+// red pen: the tape strip IS the single draw button ("Draw your next
+// mission", one line) — the "Mission draw" eyebrow and the lime "Draw
+// a Mission" badge are gone; a block status shows as a small line
+// under the tape only when it isn't the ready label. The draw card
+// paper ground and the deck cover display below are untouched.
 // The freeze stands for everything else.
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';

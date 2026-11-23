@@ -1193,6 +1193,18 @@ img, video, canvas, svg {
   color: var(--skin-text, #111111);
 }
 
+/* Tape draw button: the same tape stock as .field-tape--label, but a
+   real button (Nov 22, 2026, lift #7 collapse — the tape IS the
+   single draw control, one line). Solid ink border instead of the
+   dashed tape edge. The shadow, cursor, and pressed/disabled/focus
+   states ride on the element's own utilities, not here, so the
+   layered variants are never fighting this unlayered class. */
+.field-tape--button {
+  @apply block bg-[#FEFC9C] border-[3px] border-solid border-[var(--skin-border)] px-3 py-1.5;
+  font-family: var(--font-kalam);
+  color: var(--skin-text, #111111);
+}
+
 /* 12. Splattered / Grunge Stamp accents */
 .field-stamp {
   @apply border-2 border-dashed px-3 py-1 text-center font-display uppercase italic text-xs font-black select-none pointer-events-none tracking-widest;
