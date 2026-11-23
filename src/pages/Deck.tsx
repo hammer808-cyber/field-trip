@@ -19,10 +19,13 @@
 // ONE-OFF LIFT (Nov 21, 2026, Zach's word): deck meter restyle — the
 // ticket-stub meter lives in DeckProgressMeter; this comment is the only
 // change to this file.
-// ONE-OFF LIFT (Nov 22, 2026, Zach's word — Missions style pass): the
-// deck progress section sits on a taped paper sheet (this file) and the
-// draw card header has a paper ground instead of plain white
-// (MissionActionPanel.tsx). The deck cover display below is untouched.
+// ONE-OFF LIFT (Nov 22, 2026, Zach's word — Missions style pass,
+// revised the same day per his correction): the deck progress box is
+// yellow/amber paper (heat-yellow sticky-note token) with corner tape
+// strips holding it up and a plain text header (this file); the draw
+// card title sits on a wide tape strip with the words written on it
+// in Kalam (MissionActionPanel.tsx). The draw card paper ground and
+// the deck cover display below are untouched.
 // The freeze stands for everything else.
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
@@ -1016,7 +1019,7 @@ export default function DeckPage() {
             approved/pending counts and the shaded bar sit here under the
             hero instead. It shows always — drawn or not. */}
         <div
-          className="relative mb-6 border-[3px] border-[var(--skin-border)] bg-[var(--skin-surface-muted)] px-4 pb-4 pt-5 shadow-[5px_5px_0_var(--skin-border)]"
+          className="relative mb-6 border-[3px] border-[var(--skin-border)] bg-[var(--color-heat-yellow)] px-4 pb-4 pt-5 shadow-[5px_5px_0_var(--skin-border)]"
           style={{ borderRadius: 'var(--skin-card-radius, 8px)' }}
         >
           {/* Tape strips holding the sheet up (Nov 22, 2026, lift #7). */}
@@ -1026,7 +1029,9 @@ export default function DeckPage() {
           <span aria-hidden="true" className="pointer-events-none absolute -top-3 right-4 z-20" style={{ transform: 'rotate(5deg)' }}>
             <span className="field-tape block" />
           </span>
-          <p className="mb-2 font-mono text-[9px] font-black uppercase tracking-widest text-[var(--skin-text-muted)]">
+          {/* Full ink, not muted: on the amber paper the muted tone
+              drops to ~3.7:1; full ink is ~10.5:1. */}
+          <p className="mb-2 font-mono text-[9px] font-black uppercase tracking-widest text-[var(--skin-text)]">
             {activeDeckDisplayName}
           </p>
           <DeckProgressMeter

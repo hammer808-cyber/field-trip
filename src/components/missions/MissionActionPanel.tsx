@@ -55,9 +55,13 @@ export function MissionActionPanel({
           <span className="flex h-9 w-9 shrink-0 items-center justify-center border-2 border-[var(--skin-border)] bg-[var(--skin-primary)] text-[var(--skin-on-primary)] shadow-[3px_3px_0_var(--skin-border)]">
             <Crosshair size={18} aria-hidden="true" />
           </span>
-          <div className="min-w-0">
-            <p className="font-mono text-[8px] font-black uppercase tracking-[0.22em] text-[var(--skin-text-muted)]">{eyebrow}</p>
-            <h2 id="mission-dispatch-heading" className="mt-1 break-words font-display text-2xl font-black uppercase italic leading-none tracking-normal text-[var(--skin-text)] sm:text-3xl">
+          {/* Tape label (Nov 22, 2026, lift #7 revision, Zach's word):
+              the draw-card title sits on a wide piece of tape with
+              the words written on it in Kalam, instead of plain
+              text on the paper ground. */}
+          <div className="field-tape--label min-w-0 flex-1" style={{ transform: 'rotate(-1.5deg)' }}>
+            <p className="text-[13px] font-bold leading-tight">{eyebrow}</p>
+            <h2 id="mission-dispatch-heading" className="mt-0.5 break-words text-xl font-bold leading-[1.1] sm:text-2xl">
               {title}
             </h2>
           </div>

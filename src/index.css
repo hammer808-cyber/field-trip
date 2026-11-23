@@ -1183,6 +1183,16 @@ img, video, canvas, svg {
   width: 70px;
 }
 
+/* Wide tape label: the same tape stock as .field-tape, sized to hold
+   words (Nov 22, 2026, lift #7 revision — the draw-card title sits on
+   it). No mix-blend-multiply and no fixed width, so the Kalam ink
+   text stays crisp and legible on every skin. */
+.field-tape--label {
+  @apply block bg-[#FEFC9C] border-y border-dashed border-on-surface/20 shadow-sm px-3 py-1.5;
+  font-family: var(--font-kalam);
+  color: var(--skin-text, #111111);
+}
+
 /* 12. Splattered / Grunge Stamp accents */
 .field-stamp {
   @apply border-2 border-dashed px-3 py-1 text-center font-display uppercase italic text-xs font-black select-none pointer-events-none tracking-widest;
