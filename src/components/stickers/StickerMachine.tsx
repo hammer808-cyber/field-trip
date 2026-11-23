@@ -25,7 +25,7 @@ import {
   type StickerCollectionProgress,
   type StickerFilter
 } from './StickerFilterTabs';
-import { filterStickersByArchetype, StickerCollectionSection, type StickerShelfTone } from './StickerGrid';
+import { filterStickersByArchetype, StickerCollectionSection, StickerFolderTab, type StickerShelfTone } from './StickerGrid';
 import { FieldStamp } from '../FieldStamp';
 
 const ALL_STICKERS = getAllStickers();
@@ -197,6 +197,21 @@ export function StickerMachine() {
 
   return (
     <section className="space-y-6" aria-labelledby="sticker-machine-title">
+      {/* Folder tab (Nov 23, 2026): the machine card is the top folder
+          in the cabinet, so its title sits in a tab on the card's top
+          edge — same tone as the card, same language as the shelves.
+          The left tape strip is gone (the tab occupies that corner);
+          the right tape strip stays. */}
+      <div>
+      <StickerFolderTab
+        label="Sticker Machine"
+        accent="var(--skin-primary)"
+        tone="muted"
+        headingLevel="h2"
+        headingId="sticker-machine-title"
+        large
+        overlapPx={3}
+      />
       <header
         className="skin-card relative border-[3px] p-5 sm:p-6"
         style={{
@@ -210,9 +225,6 @@ export function StickerMachine() {
           boxShadow: 'var(--skin-card-shadow, 5px 5px 0 var(--skin-border))'
         }}
       >
-        <span aria-hidden="true" className="pointer-events-none absolute -top-3 left-4 z-20" style={{ transform: 'rotate(-5deg)' }}>
-          <span className="field-tape block" />
-        </span>
         <span aria-hidden="true" className="pointer-events-none absolute -top-3 right-4 z-20" style={{ transform: 'rotate(5deg)' }}>
           <span className="field-tape block" />
         </span>
@@ -222,9 +234,6 @@ export function StickerMachine() {
         <div className="relative flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="font-mono text-xs font-black uppercase tracking-[0.2em] opacity-70">Prize counter // Collection 01</p>
-            <h2 id="sticker-machine-title" className="mt-2 font-display text-2xl font-black uppercase leading-none sm:text-3xl">
-              Sticker Machine
-            </h2>
             <p className="mt-2 max-w-md font-serif text-sm font-semibold opacity-65">
               Earn them in the field. Pick up to three for your profile.
             </p>
@@ -279,6 +288,7 @@ export function StickerMachine() {
           )}
         </div>
       </header>
+      </div>
 
       <StickerCollectionTabs
         activeFilter={activeCollection}

@@ -36,6 +36,19 @@ interface StickerFilterTabsProps {
   onChange: (filter: StickerFilter) => void;
 }
 
+/**
+ * Folder index tab (Nov 23, 2026): the filter pills read as the folder
+ * tabs of a filing cabinet — rounded top corners, open bottom, sitting
+ * on the ruled divider under the row (the inner flex row carries the
+ * 2px rule, so it spans the full scrollable width). The active tab is
+ * the open folder: orange, with a 2px shadow in its own color that
+ * covers the rule segment beneath it. Inactive tabs sit on the deeper
+ * beige paper token (--skin-background-alt), not white, so they read
+ * as paper chips on the cream folder ground. No hard shadow on the
+ * tabs — the rule carries the strip. The shared .skin-button class is
+ * deliberately absent: it forces a 14px all-corner radius, which
+ * would undo the folder-tab shape.
+ */
 function FilterTabButton({
   label,
   isActive,
@@ -52,18 +65,14 @@ function FilterTabButton({
       aria-selected={isActive}
       onClick={onClick}
       className={cn(
-        'skin-button min-h-11 border-2 px-4 py-2 font-mono text-xs font-black uppercase tracking-wider transition-transform motion-reduce:transition-none',
+        'relative inline-flex min-h-11 shrink-0 items-center rounded-t-[10px] border-2 border-b-0 px-4 py-2 font-mono text-xs font-black uppercase tracking-wider transition-colors motion-reduce:transition-none',
         isActive
-          ? 'translate-y-0 text-[var(--skin-button-primary-text,var(--skin-text))]'
-          // Filed chip (Nov 21, 2026): inactive pills sit on the muted
-          // sheet tone with a small hard shadow, so they read as paper
-          // chips on the folder ground instead of white pills on white.
-          : 'bg-[var(--skin-surface-muted)] text-[var(--skin-text-muted,var(--skin-text))] shadow-[2px_2px_0_var(--skin-border)]'
+          ? 'z-10 text-[var(--skin-button-primary-text,var(--skin-text))] shadow-[0_2px_0_var(--skin-primary)]'
+          : 'bg-[var(--skin-background-alt)] text-[var(--skin-text-muted,var(--skin-text))] hover:bg-[var(--skin-surface)] hover:text-[var(--skin-text)]'
       )}
       style={isActive ? {
         background: 'var(--skin-primary)',
         borderColor: 'var(--skin-border)',
-        boxShadow: '3px 3px 0 var(--skin-border)'
       } : {
         borderColor: 'var(--skin-border)'
       }}
@@ -75,9 +84,9 @@ function FilterTabButton({
 
 export function StickerFilterTabs({ activeFilter, onChange }: StickerFilterTabsProps) {
   return (
-    <div className="-mx-1 overflow-x-auto px-1 pb-2 no-scrollbar">
+    <div className="-mx-1 overflow-x-auto px-1 no-scrollbar">
       <div
-        className="flex min-w-max gap-2"
+        className="flex min-w-max gap-2 border-b-2 border-[var(--skin-border)]"
         role="tablist"
         aria-label="Filter stickers by Field Type"
       >
@@ -114,9 +123,9 @@ interface StickerCollectionTabsProps {
 
 export function StickerCollectionTabs({ activeFilter, counts, onChange }: StickerCollectionTabsProps) {
   return (
-    <div className="-mx-1 overflow-x-auto px-1 pb-2 no-scrollbar">
+    <div className="-mx-1 overflow-x-auto px-1 no-scrollbar">
       <div
-        className="flex min-w-max gap-2"
+        className="flex min-w-max gap-2 border-b-2 border-[var(--skin-border)]"
         role="tablist"
         aria-label="Filter stickers by Collection"
       >

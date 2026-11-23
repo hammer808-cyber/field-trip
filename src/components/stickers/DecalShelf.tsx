@@ -2,7 +2,7 @@ import { LockKeyhole, Star } from 'lucide-react';
 import { DECALS, hasEarnedDecal } from '../../data/decals';
 import type { DecalDefinition, DecalProfile } from '../../data/decals';
 import { cn } from '../../lib/utils';
-import { StickerShelfSheet } from './StickerGrid';
+import { StickerFolderTab, StickerShelfSheet } from './StickerGrid';
 import { FieldStamp } from '../FieldStamp';
 
 /**
@@ -77,21 +77,28 @@ export function DecalShelf({ profile }: { profile: DecalProfile | null | undefin
   return (
     <section aria-label="Decals">
       {/* Filed as the last sheet in the cabinet (Nov 21, 2026): same
-          sheet + tape as the sticker shelves, muted ground, with a
+          sheet as the sticker shelves, muted ground, with a
           mobile-visible stamp duplicating the "One of a kind, each."
-          line below. */}
-      <StickerShelfSheet tone="muted">
+          line below. Nov 23, 2026: the Decals title and count move
+          into a folder tab on the sheet's top edge, like every other
+          shelf — the tab replaces the centered tape strip. */}
+      <StickerShelfSheet
+        tone="muted"
+        tab={(
+          <StickerFolderTab
+            label="Decals"
+            count={`${earnedCount} of ${DECALS.length} earned`}
+            accent="var(--color-brand-cyan)"
+            tone="muted"
+            headingLevel="h2"
+          />
+        )}
+      >
         <div className="space-y-4">
-          <div className="flex items-end justify-between gap-3 border-b-2 border-dashed border-[var(--skin-border-muted)] pb-3">
-            <div>
-              <h2 className="font-display text-2xl font-black uppercase italic tracking-tight">Decals</h2>
-              <p className="mt-1 font-serif text-sm font-semibold opacity-65">Earned by deeds, not draws. One of a kind, each.</p>
-            </div>
+          <div className="flex items-end justify-between gap-3">
+            <p className="font-serif text-sm font-semibold opacity-65">Earned by deeds, not draws. One of a kind, each.</p>
             <div className="flex shrink-0 flex-col items-end gap-2">
               <FieldStamp label="One of a kind" tone="text" />
-              <p className="font-mono text-xs font-black uppercase opacity-70">
-                {earnedCount} of {DECALS.length} earned
-              </p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
