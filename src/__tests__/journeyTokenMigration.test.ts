@@ -107,9 +107,15 @@ test('journey migration: the near-identical papers are unified on bg-paper', () 
 
 test('journey migration: display text uses the type-scale tokens', () => {
   const hero = read('src/components/FieldPageHero.tsx');
-  // Editorial h1: the base clamp IS the hero token value; the sm:
-  // clamp (3.5rem/11vw/6rem) has no token and stays literal.
-  assert.match(hero, /text-display-hero font-black uppercase italic leading-\[0\.82\]/);
+  // Editorial h1 (Nov 22, 2026): the title no longer uses the hero
+  // token — a pixel measurement of Zach's phone screenshots showed the
+  // token class rendering at ~browser-default size (~15px) against the
+  // 12px eyebrow, so the title uses literal clamps instead (~66px at
+  // 390px, up to 120px on desktop). The token stays defined in
+  // index.css; the old token-sized clamp must not come back.
+  assert.match(hero, /text-\[clamp\(3\.75rem,17vw,5\.5rem\)\] font-black uppercase italic leading-\[0\.82\]/);
+  assert.match(hero, /sm:text-\[clamp\(4\.5rem,12vw,7\.5rem\)\]/);
+  assert.doesNotMatch(hero, /text-display-hero font-black/);
   assert.doesNotMatch(hero, /text-\[clamp\(2\.75rem,12vw,5\.5rem\)\]/);
 
   const clipboard = read('src/components/FieldClipboard.tsx');

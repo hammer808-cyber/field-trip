@@ -151,8 +151,16 @@ export function FieldPageHero({
                   chrome ? 'text-white/70' : 'text-[var(--skin-text-muted)]',
                 )}>{eyebrow}</p>
               </div>
+              {/* Nov 22, 2026 (Zach's word: hero titles must dominate):
+                  the title was sized by the text-display-hero token
+                  (clamp(2.75rem,12vw,5.5rem)), but a pixel measurement
+                  of Zach's phone screenshots showed it rendering at
+                  ~browser-default size (~15px) against the 12px
+                  eyebrow, so the token class is replaced here by
+                  literal clamps — ~66px at 390px, up to 120px on
+                  desktop. The token stays defined in index.css. */}
               <h1 className={cn(
-                'mt-2 break-words font-display text-display-hero font-black uppercase italic leading-[0.82] tracking-normal sm:text-[clamp(3.5rem,11vw,6rem)]',
+                'mt-3 break-words font-display text-[clamp(3.75rem,17vw,5.5rem)] font-black uppercase italic leading-[0.82] tracking-normal sm:text-[clamp(4.5rem,12vw,7.5rem)]',
                 chrome ? 'text-white' : 'text-[var(--skin-text)]',
               )}>
                 {title}

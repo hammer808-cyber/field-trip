@@ -279,6 +279,22 @@ test('the season countdown lives in the Basecamp header, once', () => {
   assert.doesNotMatch(withoutSeason, /ends in \d+d \d+h/);
 });
 
+test('hero title dominates the eyebrow: title way bigger than the subtitle line', () => {
+  // Nov 22, 2026 (Zach's red pen): the hero title read barely bigger
+  // than the mono eyebrow on his phone, so the title is ~66px at 390px
+  // against the 12px eyebrow, up to 120px on desktop.
+  const markup = renderToStaticMarkup(
+    <MemoryRouter>
+      <FieldPageHero variant="editorial" eyebrow="FIELD_START" title="BASECAMP" subtitle="What matters today." />
+    </MemoryRouter>,
+  );
+  assert.match(markup, /<h1[^>]*text-\[clamp\(3\.75rem,17vw,5\.5rem\)\][^>]*>/);
+  assert.match(markup, /<h1[^>]*sm:text-\[clamp\(4\.5rem,12vw,7\.5rem\)\][^>]*>/);
+  assert.match(markup, />BASECAMP<\/h1>/);
+  // Eyebrow stays small mono (12px) and subordinate to the title.
+  assert.match(markup, /text-xs font-black uppercase tracking-\[0\.24em\][^>]*>FIELD_START</);
+});
+
 test('Basecamp passes its countdown to the header and the deck row no longer carries it', () => {
   const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
   const read = (rel: string) => readFileSync(join(repoRoot, rel), 'utf8');

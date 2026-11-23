@@ -30,6 +30,11 @@
 // a Mission" badge are gone; a block status shows as a small line
 // under the tape only when it isn't the ready label. The draw card
 // paper ground and the deck cover display below are untouched.
+// ONE-OFF LIFT (Nov 22, 2026, Zach's word — hero title hierarchy):
+// the shared FieldPageHero editorial title is now way bigger
+// (literal clamps, ~66px at 390px, up to 120px on desktop) so the
+// title dominates the 12px mono eyebrow; this comment is the only
+// change to this file. The freeze stands for everything else.
 // The freeze stands for everything else.
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
