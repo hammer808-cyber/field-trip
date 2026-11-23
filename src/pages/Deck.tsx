@@ -19,6 +19,11 @@
 // ONE-OFF LIFT (Nov 21, 2026, Zach's word): deck meter restyle — the
 // ticket-stub meter lives in DeckProgressMeter; this comment is the only
 // change to this file.
+// ONE-OFF LIFT (Nov 22, 2026, Zach's word — Missions style pass): the
+// deck progress section sits on a taped paper sheet (this file) and the
+// draw card header has a paper ground instead of plain white
+// (MissionActionPanel.tsx). The deck cover display below is untouched.
+// The freeze stands for everything else.
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import { useApp } from '../context/AppContext';
@@ -1010,7 +1015,17 @@ export default function DeckPage() {
             call): the big deck card is gone for every deck, so the
             approved/pending counts and the shaded bar sit here under the
             hero instead. It shows always — drawn or not. */}
-        <div className="mb-6">
+        <div
+          className="relative mb-6 border-[3px] border-[var(--skin-border)] bg-[var(--skin-surface-muted)] px-4 pb-4 pt-5 shadow-[5px_5px_0_var(--skin-border)]"
+          style={{ borderRadius: 'var(--skin-card-radius, 8px)' }}
+        >
+          {/* Tape strips holding the sheet up (Nov 22, 2026, lift #7). */}
+          <span aria-hidden="true" className="pointer-events-none absolute -top-3 left-4 z-20" style={{ transform: 'rotate(-5deg)' }}>
+            <span className="field-tape block" />
+          </span>
+          <span aria-hidden="true" className="pointer-events-none absolute -top-3 right-4 z-20" style={{ transform: 'rotate(5deg)' }}>
+            <span className="field-tape block" />
+          </span>
           <p className="mb-2 font-mono text-[9px] font-black uppercase tracking-widest text-[var(--skin-text-muted)]">
             {activeDeckDisplayName}
           </p>

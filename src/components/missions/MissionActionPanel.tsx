@@ -45,8 +45,13 @@ export function MissionActionPanel({
         className,
       )}
     >
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b-[3px] border-[var(--skin-border)] bg-[var(--skin-surface)] px-4 py-3 sm:px-5">
-        <div className="flex min-w-0 items-start gap-3">
+      {/* Paper ground (Nov 22, 2026, lift #7): the header used to be
+          plain white, which read as half-finished against the rest of
+          the app. It now sits on the muted paper sheet with the skin's
+          surface texture, like the Sticker Machine ticket. */}
+      <header className="relative flex flex-wrap items-start justify-between gap-3 border-b-[3px] border-[var(--skin-border)] bg-[var(--skin-surface-muted)] px-4 py-3 sm:px-5">
+        <div className="absolute inset-0 pointer-events-none opacity-[var(--skin-texture-opacity)] [background-image:var(--skin-surface-texture)]" aria-hidden="true" />
+        <div className="relative flex min-w-0 items-start gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center border-2 border-[var(--skin-border)] bg-[var(--skin-primary)] text-[var(--skin-on-primary)] shadow-[3px_3px_0_var(--skin-border)]">
             <Crosshair size={18} aria-hidden="true" />
           </span>
@@ -62,14 +67,14 @@ export function MissionActionPanel({
             type="button"
             onClick={onDraw}
             disabled={drawDisabled}
-            className="border-2 border-[var(--skin-border)] bg-[var(--skin-secondary)] px-2.5 py-1 font-mono text-[8px] font-black uppercase tracking-widest shadow-[2px_2px_0_var(--skin-border)] transition-all active:translate-y-0.5 active:shadow-none disabled:cursor-not-allowed disabled:opacity-60"
+            className="relative border-2 border-[var(--skin-border)] bg-[var(--skin-secondary)] px-2.5 py-1 font-mono text-[8px] font-black uppercase tracking-widest shadow-[2px_2px_0_var(--skin-border)] transition-all active:translate-y-0.5 active:shadow-none disabled:cursor-not-allowed disabled:opacity-60"
             style={{ color: badgeText }}
             aria-live="polite"
           >
             {status}
           </button>
         ) : (
-          <span className="border-2 border-[var(--skin-border)] bg-[var(--skin-secondary)] px-2.5 py-1 font-mono text-[8px] font-black uppercase tracking-widest shadow-[2px_2px_0_var(--skin-border)]" style={{ color: badgeText }} aria-live="polite">
+          <span className="relative border-2 border-[var(--skin-border)] bg-[var(--skin-secondary)] px-2.5 py-1 font-mono text-[8px] font-black uppercase tracking-widest shadow-[2px_2px_0_var(--skin-border)]" style={{ color: badgeText }} aria-live="polite">
             {status}
           </span>
         )}
