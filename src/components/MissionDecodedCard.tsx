@@ -33,6 +33,8 @@ import { getDisplayLabel } from '../utils/labelUtils';
 import { getMissionPhoto } from '../utils/missionImages';
 import { hasRealMissionProgress } from '../logic/playerGuidance';
 import { hasHonestLocationCheck } from '../logic/checkIn';
+import { isLocationAdaptiveCard, type ResolvedPlace } from '../logic/placeResolution';
+import { ResolvedPlaceBanner } from './ResolvedPlaceBanner';
 
 interface MissionDecodedCardProps {
   mission: TripType;
@@ -46,6 +48,9 @@ interface MissionDecodedCardProps {
   statusLabel?: string;
   className?: string;
   showActions?: boolean;
+  /** Urban Recon resolved place: renders the big on-card banner when the
+      mission is location-adaptive. Absent everywhere else. */
+  resolvedPlace?: ResolvedPlace | null;
 }
 
 export function MissionDecodedCard({ 
@@ -59,7 +64,8 @@ export function MissionDecodedCard({
   isHintUsed = false,
   statusLabel,
   className,
-  showActions = true
+  showActions = true,
+  resolvedPlace
 }: MissionDecodedCardProps) {
   const { frankieMode, fc } = useTheme();
   const fPref = { frankieMode };
@@ -206,6 +212,12 @@ export function MissionDecodedCard({
         </div>
 
         {/* BOTTOM ACTION / STATUS STRIP - Compact & High-Impact */}
+        {/* Urban Recon (Nov 23, 2026): the resolved place is a banner ON
+            the card now, right under the title — it used to be a small
+            mono footnote below the card and long names clipped. */}
+        {resolvedPlace && isLocationAdaptiveCard(mission) && (
+          <ResolvedPlaceBanner resolvedPlace={resolvedPlace} />
+        )}
         <div className="px-4 py-3 bg-[#FCFAF5] border-b-4 border-on-surface flex items-center justify-between gap-3 relative z-20">
            <div className="flex-1 min-w-0">
              <div className="flex items-center gap-1 text-[9px] font-mono font-black uppercase tracking-wider text-brand-orange animate-pulse">

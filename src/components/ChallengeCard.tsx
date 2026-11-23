@@ -32,6 +32,8 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { FrankieQuiet } from './FrankieQuiet';
 import { getDisplayLabel } from '../utils/labelUtils';
+import { isLocationAdaptiveCard, type ResolvedPlace } from '../logic/placeResolution';
+import { ResolvedPlaceBanner } from './ResolvedPlaceBanner';
 
 export interface EvidenceProgress {
   photo?: boolean;
@@ -54,6 +56,9 @@ interface Props {
   onHint?: () => void;
   hintUsed?: boolean;
   className?: string;
+  /** Urban Recon resolved place: renders the big on-card banner when the
+      mission is location-adaptive. Absent everywhere else. */
+  resolvedPlace?: ResolvedPlace | null;
 }
 
 export function MissionCard({ 
@@ -63,7 +68,8 @@ export function MissionCard({
   onSubmit, 
   onHint,
   hintUsed = false,
-  className 
+  className,
+  resolvedPlace
 }: Props) {
   const { skin, frankieMode, fc } = useTheme();
   const fPref = { frankieMode };
@@ -283,6 +289,14 @@ export function MissionCard({
              </p>
           </div>
         </div>
+
+        {/* Urban Recon (Nov 23, 2026): the resolved place is a banner ON
+            the card now, right under the title — it used to be a small
+            mono footnote below the card and long names clipped. The
+            -mx-6 bleed makes the band full-width inside this padded body. */}
+        {resolvedPlace && isLocationAdaptiveCard(challenge) && (
+          <ResolvedPlaceBanner resolvedPlace={resolvedPlace} className="-mx-6 border-y-4 px-6" />
+        )}
 
         {/* 1. PHOTO PROMPT Area (Dotted & Styled) */}
         <div className="bg-white border-2 border-on-surface/10 p-4 space-y-1.5 rounded-xl relative overflow-hidden shadow-[inset_1px_1px_4px_rgba(0,0,0,0.05)]">

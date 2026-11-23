@@ -35,7 +35,13 @@
 // (literal clamps, ~66px at 390px, up to 120px on desktop) so the
 // title dominates the 12px mono eyebrow; this comment is the only
 // change to this file. The freeze stands for everything else.
-// The freeze stands for everything else.
+// ONE-OFF LIFT (Nov 23, 2026, Zach's word — Urban Recon location line):
+// the resolved-place line used to render as a small mono footnote BELOW
+// the drawn card and long names clipped at the sheet edge. It is now a
+// big bold lime banner ON the card itself (ResolvedPlaceBanner, rendered
+// by MissionDecodedCard / MissionCard from a resolvedPlace prop); the
+// footnote is gone from this file and from MissionBriefing.tsx. No
+// scoring, draw, or resolver change. The freeze stands for everything else.
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import { useApp } from '../context/AppContext';
@@ -65,7 +71,7 @@ import { getWeeklyBonusForWeek } from '../data/weeklyBonuses';
 import { StickerBackground } from '../components/StickerBackground';
 import { StickerDecal, StickerCorner, StickerScatter } from '../components/StickerDecals';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
-import { getTierLabel, isLocationAdaptiveCard, renderCardText } from '../logic/placeResolution';
+import { renderCardText } from '../logic/placeResolution';
 import { pickTextOnBackground, skinVarHex } from '../logic/contrast';
 import { DEFAULT_APP_SKIN } from '../skins/registry';
 import { FEATURE_FLAGS } from '../config/featureFlags';
@@ -1330,18 +1336,10 @@ export default function DeckPage() {
                       onStart={() => navigate(`/capture?id=${(drawnTrip || activeTrip)?.id}`)}
                       isRedrawable={false}
                       showActions={false}
+                      resolvedPlace={displayedResolvedPlace}
                       className="skin-mission-card shadow-[var(--skin-card-shadow)]"
                     />
                   </motion.div>
-
-                  {/* Urban Recon (Nov 21, 2026): which place the card
-                      resolved to, and how far the net went. Shows once
-                      the background resolver lands. */}
-                  {displayedResolvedPlace && isLocationAdaptiveCard(displayedMission) && (
-                    <p className="mt-4 text-center font-mono text-xs font-black uppercase tracking-[0.2em] text-on-surface/60">
-                      {displayedResolvedPlace.name} — {getTierLabel(displayedResolvedPlace)}
-                    </p>
-                  )}
 
                   {/* Decorative Labels */}
                   <div className="absolute -top-3 -right-2 z-20 flex flex-col items-end gap-1 pointer-events-none">

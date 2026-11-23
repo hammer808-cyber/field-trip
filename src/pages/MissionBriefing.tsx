@@ -7,7 +7,7 @@ import { MissionCard } from '../components/ChallengeCard';
 import { ChevronLeft, Camera, Bookmark, Clock, Compass, CheckCircle2 } from 'lucide-react';
 import { getDisplayLabel } from '../utils/labelUtils';
 import { SAVE_FOR_LATER_RECOVERY_HINT } from '../components/bottomNavPresentation';
-import { getTierLabel, isLocationAdaptiveCard, renderCardText } from '../logic/placeResolution';
+import { renderCardText } from '../logic/placeResolution';
 
 export default function MissionBriefingPage() {
   const navigate = useNavigate();
@@ -119,16 +119,9 @@ export default function MissionBriefingPage() {
           <MissionCard 
             challenge={displayMission} 
             onStart={handleStartMission}
+            resolvedPlace={resolvedPlace}
             className="shadow-[16px_16px_0px_black] rounded-[2.5rem] border-4 border-on-surface"
           />
-          {/* Urban Recon (Nov 21, 2026): which place the card resolved
-              to, and how far the net went. Shows once the background
-              resolver lands. */}
-          {resolvedPlace && mission && isLocationAdaptiveCard(mission) && (
-            <p className="text-center font-mono text-xs font-black uppercase tracking-[0.2em] text-on-surface/60">
-              {resolvedPlace.name} — {getTierLabel(resolvedPlace)}
-            </p>
-          )}
         </div>
 
         <div className="space-y-6">
