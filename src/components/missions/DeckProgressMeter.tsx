@@ -85,7 +85,7 @@ export function DeckProgressMeter({
 
   return (
     <div className={cn('space-y-2', className)}>
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 font-mono text-[9px] font-black uppercase tracking-wider text-[var(--skin-text-muted)]">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 font-mono text-[9px] font-black uppercase tracking-wider text-[var(--skin-text)]">
         <span>Deck progress</span>
         <span className="text-[var(--skin-text)]">
           {safeApproved}/{safeTotal} approved
@@ -126,7 +126,7 @@ export function DeckProgressMeter({
       </div>
 
       {safePending > 0 && !compact && (
-        <div className="flex items-center gap-4 font-mono text-[8px] font-bold uppercase tracking-widest text-[var(--skin-text-muted)]">
+        <div className="flex items-center gap-4 font-mono text-[8px] font-bold uppercase tracking-widest text-[var(--skin-text)]">
           <span className="flex items-center gap-1.5">
             <span className="h-2 w-2 border border-[var(--skin-border)] bg-[var(--skin-secondary)]" />
             Approved
