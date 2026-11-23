@@ -54,6 +54,7 @@ import { Crew, CrewChatMessage, CrewLore, CrewInvite, CrewJoinRequest, CrewMembe
 import { CrewArtifactsGallery } from '../components/CrewArtifactsGallery';
 import { CrewMemoriesFeed } from '../components/CrewMemoriesFeed';
 import { CrewChat } from '../components/crew/CrewChat';
+import { CrewChallengesPanel } from '../components/crew/CrewChallenges';
 import { CrewClipboard } from '../components/crew/CrewClipboard';
 import { FieldTicket } from '../components/FieldTicket';
 import { ZineWorkspace } from '../components/ZineWorkspace';
@@ -71,12 +72,17 @@ export default function CrewPage() {
   // 'lore' used to mean the Memories tab — that tab is gone (its content
   // lives on home now), so it lands on home too. 'proofs' is the old Feed
   // id and still works.
-  const CREW_TAB_IDS = ['home', 'feed', 'chat', 'voting', 'zine', 'members', 'stats', 'settings'] as const;
+  const CREW_TAB_IDS = ['home', 'feed', 'chat', 'voting', 'zine', 'members', 'challenges', 'stats', 'settings'] as const;
   const rawInitialTab = requestedTab === 'lore' ? 'home' : requestedTab === 'proofs' ? 'feed' : ['dispatch'].includes(requestedTab || '') ? 'home' : requestedTab || 'home';
   const initialTab = (CREW_TAB_IDS as readonly string[]).includes(rawInitialTab)
-    ? rawInitialTab as 'home' | 'feed' | 'chat' | 'voting' | 'zine' | 'members' | 'stats' | 'settings'
+    ? rawInitialTab as 'home' | 'feed' | 'chat' | 'voting' | 'zine' | 'members' | 'challenges' | 'stats' | 'settings'
     : 'home';
-  const [activeTab, setActiveTab ] = useState<'home' | 'feed' | 'chat' | 'voting' | 'zine' | 'members' | 'stats' | 'settings'>(initialTab);
+  const [activeTab, setActiveTab ] = useState<'home' | 'feed' | 'chat' | 'voting' | 'zine' | 'members' | 'challenges' | 'stats' | 'settings'>(initialTab);
+  // No-crew branch tabs: 'company' is the people graph plus the create /
+  // find form, 'challenges' is the crew-card picker. A ?tab=challenges
+  // deep link lands on the picker in both branches, so the dead-end
+  // button in the memories feed now has somewhere to go.
+  const [noCrewTab, setNoCrewTab] = useState<'company' | 'challenges'>(requestedTab === 'challenges' ? 'challenges' : 'company');
   // Chat messages live here, not in CrewChat: this page subscribes so the
   // unread badge stays live on every tab, and the chat panel only renders
   // them (opening it marks them seen — see handleChatSeen).
@@ -393,8 +399,13 @@ export default function CrewPage() {
           infoCardValue="None"
           infoCardSubtext="Optional for zines"
           infoCardAccent="orange"
+          tabs={[{ id: 'company', label: 'Crew Company' }, { id: 'challenges', label: 'Challenges' }]}
+          activeTab={noCrewTab}
+          onTabChange={(id) => setNoCrewTab(id as 'company' | 'challenges')}
         />
         <PlayerPageBody>
+        {noCrewTab === 'company' ? (
+        <>
         <CrewPeopleHome />
         <form onSubmit={handleCreateCrew} className="mx-auto w-full max-w-xl border-4 border-[var(--skin-border)] bg-[var(--skin-surface)] p-6 shadow-[8px_8px_0_var(--skin-border)] sm:p-8 space-y-6">
           <div className="space-y-2 text-center">
@@ -524,6 +535,10 @@ export default function CrewPage() {
             </div>
           )}
         </form>
+        </>
+        ) : (
+          <CrewChallengesPanel />
+        )}
         {/* Bottom clearance: same Trevor-pill clearance as the crew branch. */}
         <div aria-hidden="true" className="h-16" />
         </PlayerPageBody>
@@ -539,6 +554,7 @@ export default function CrewPage() {
     { id: 'feed', label: 'Feed', icon: FileText },
     { id: 'chat', label: (<>Chat {chatUnread > 0 && (<span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-orange px-1.5 font-mono text-xs font-black not-italic text-white">{chatUnread}</span>)}</>), icon: MessageSquare },
     { id: 'members', label: 'Members', icon: ShieldCheck },
+    { id: 'challenges', label: 'Challenges', icon: Trophy },
     // Weekly voting is a live GLOBAL ballot once VOTING_ENABLED flips
     // (Slice 3, Nov 21, 2026) — crew members see the tab then; while
     // parked nobody does, not even admins (admins preview the ballot
@@ -789,6 +805,12 @@ export default function CrewPage() {
                 </div>
               </div>
             </section>
+          </div>
+        )}
+
+        {activeTab === 'challenges' && (
+          <div className="animate-in fade-in slide-in-from-bottom-6 duration-500">
+            <CrewChallengesPanel />
           </div>
         )}
 

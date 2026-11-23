@@ -349,7 +349,7 @@ export function CrewMemoriesFeed({ crewCaptainId = null }: { crewCaptainId?: str
             <ArrowRight className="w-4 h-4" />
           </button>
           <button
-            onClick={() => navigate('/crew')}
+            onClick={() => navigate('/crew?tab=challenges')}
             className="px-5 py-3 bg-white text-on-surface font-display font-black uppercase text-sm border-3 border-on-surface shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2"
           >
             <span>View Crew Challenges</span>
