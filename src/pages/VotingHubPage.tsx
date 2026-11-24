@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   Trophy, 
@@ -17,12 +17,9 @@ import {
   Sparkles,
   ArrowRight,
   Gavel,
-  ThumbsUp,
-  ThumbsDown,
   History
 } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { Card } from '../components/UI';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { VotingHub as VotingModule } from '../components/VotingHub';
@@ -44,6 +41,10 @@ import {
 } from '../services/votingCycleService';
 import { getStarterProgress, VOTING_ENABLED } from '../services/canonicalProgress';
 import { FieldtripLoader } from '../components/FieldtripLoader';
+import { TribunalClockCard } from '../components/tribunal/TribunalClockCard';
+import { TribunalCouncilHeader } from '../components/tribunal/TribunalCouncilHeader';
+import { TribunalEvidenceCard } from '../components/tribunal/TribunalEvidenceCard';
+import { TribunalCaseDetailsDialog } from '../components/tribunal/TribunalCaseDetailsDialog';
 import { authenticatedFetch } from '../lib/api';
 
 type VotingTab = 'vote' | 'tribunal' | 'results';
@@ -64,6 +65,14 @@ export default function VotingHubPage() {
   const [resolvedCases, setResolvedCases] = useState<TribunalCase[]>([]);
   const [userTribunalVotes, setUserTribunalVotes] = useState<Record<string, TribunalVerdict>>({});
   const [isLoading, setIsLoading] = useState(true);
+  // Tribunal live clocks (Nov 24, 2026): `tribunalNow` ticks every
+  // second while the tribunal tab is open, so the countdown card and
+  // the council popover count down from the real weekly-cycle
+  // deadlines. `votingCaseId` disables the verdict buttons on the one
+  // case being voted on; `detailsCase` opens the gavel details dialog.
+  const [tribunalNow, setTribunalNow] = useState(() => getServerDate());
+  const [votingCaseId, setVotingCaseId] = useState<string | null>(null);
+  const [detailsCase, setDetailsCase] = useState<TribunalCase | null>(null);
 
   const [clockInfo, setClockInfo] = useState(() => {
     const now = getServerDate();
@@ -87,6 +96,23 @@ export default function VotingHubPage() {
     }, 10000);
     return () => clearInterval(interval);
   }, [activeSeason?.id]);
+
+  // Tribunal live clocks (Nov 24, 2026): the countdown card and the
+  // council popover tick every second from the real weekly-cycle
+  // deadlines, only while the tribunal tab is open.
+  useEffect(() => {
+    if (activeTab !== 'tribunal') return;
+    const interval = setInterval(() => setTribunalNow(getServerDate()), 1000);
+    return () => clearInterval(interval);
+  }, [activeTab]);
+  const tribunalCycle = useMemo(
+    () => getCurrentVotingCycle(tribunalNow, undefined, activeSeason?.id),
+    [tribunalNow, activeSeason?.id],
+  );
+  const totalTribunalVotes = useMemo(
+    () => tribunalCases.reduce((sum, c) => sum + Number(c.totalVotes ?? 0), 0),
+    [tribunalCases],
+  );
 
   useEffect(() => {
     const loadTribunalData = async () => {
@@ -138,7 +164,12 @@ export default function VotingHubPage() {
   }, [user, activeSeason, clockInfo.phase]);
 
   const handleTribunalVote = async (caseId: string, vote: TribunalVerdict) => {
-    if (!user || !activeSeason) return;
+    if (!user || !activeSeason || votingCaseId) return;
+    // One vote per player, immutable on the server: the buttons disable
+    // once a verdict is recorded, so a second tap never reaches the
+    // endpoint (which answers TRIBUNAL_VOTE_ALREADY_CAST for a change).
+    if (userTribunalVotes[caseId]) return;
+    setVotingCaseId(caseId);
     try {
       await castTribunalVote(user.uid, caseId, vote);
       setUserTribunalVotes(prev => ({ ...prev, [caseId]: vote }));
@@ -146,6 +177,8 @@ export default function VotingHubPage() {
       setTribunalCases(updatedCases);
     } catch (err) {
       console.error("Vote failed", err);
+    } finally {
+      setVotingCaseId(null);
     }
   };
 
@@ -259,16 +292,23 @@ export default function VotingHubPage() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="space-y-12"
+                className="space-y-6"
               >
-                 <div className="text-left space-y-2">
-                    <h2 className="text-3xl font-display font-black uppercase italic text-on-surface leading-none">Tribunal</h2>
-                    <p className="text-sm font-sans font-bold text-on-surface/65">
-                       Community review for flagged receipts. Admins make the final call.
-                    </p>
-                 </div>
+                 {/* Tribunal countdown card (Nov 24, 2026): live-ticking
+                     submission-window clock from the real weekly cycle. */}
+                 <TribunalClockCard now={tribunalNow} cycle={tribunalCycle} />
 
-	                 {isLoading && isTribunalUnlocked ? (
+                 {/* Tribunal header + campfire council badge and rules popover. */}
+                 <TribunalCouncilHeader
+                   now={tribunalNow}
+                   cycle={tribunalCycle}
+                   weekNumber={currentWeekNumber || 1}
+                   isUnlocked={isTribunalUnlocked}
+                   openCaseCount={tribunalCases.length}
+                   totalVotesCast={totalTribunalVotes}
+                 />
+
+                 {isLoading && isTribunalUnlocked ? (
                       <FieldtripLoader variant="voting" label="Tribunal Docket" estimatedStep="LOADING CASE FILES" showProgress />
                    ) : !isTribunalUnlocked ? (
                     <div className="py-32 border-4 border-on-surface rounded-[3rem] bg-white text-center space-y-6 shadow-[10px_10px_0px_black]">
@@ -289,64 +329,26 @@ export default function VotingHubPage() {
                       icon={<Gavel className="h-8 w-8" />}
                     />
                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                        {tribunalCases.map(c => (
-                         <Card key={c.id} className="bg-white border-4 border-on-surface p-8 rounded-[2.5rem] shadow-[12px_12px_0px_black] flex flex-col space-y-6 text-left relative overflow-hidden group">
-                             <div className="flex items-start justify-between">
-                                <div className="space-y-1">
-                                   <div className="bg-brand-magenta text-white px-2 py-0.5 text-xs font-mono font-black uppercase tracking-widest border border-on-surface shadow-[2px_2px_0px_black] mb-2 inline-block">
-                                      OPEN_CASE_{c.id.slice(-4).toUpperCase()}
-                                   </div>
-                                   <h3 className="text-2xl font-display font-black uppercase italic text-on-surface leading-none truncate">{c.title}</h3>
-                                   <p className="text-xs font-mono font-black text-on-surface/60 uppercase">Operative: {c.playerName}</p>
-                                </div>
-                                <div className="w-12 h-12 bg-paper-dark border-2 border-on-surface rounded-xl flex items-center justify-center shrink-0">
-                                   <Gavel className="w-6 h-6 text-on-surface opacity-30" />
-                                </div>
-                             </div>
-
-                             <div className="aspect-video bg-on-surface/5 border-2 border-on-surface overflow-hidden rounded-2xl relative">
-                                <img src={c.proofImage} alt={c.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-4">
-                                   <p className="text-xs text-white font-serif italic line-clamp-2">"{c.fieldNote}"</p>
-                                </div>
-                             </div>
-
-                             <div className="space-y-4">
-                                <p className="text-xs font-mono font-bold uppercase text-on-surface/60 tracking-widest">CAST YOUR VERDICT</p>
-                                <div className="grid grid-cols-2 gap-4">
-                                   <button 
-                                     onClick={() => handleTribunalVote(c.id, 'valid')}
-                                     className={cn(
-                                       "flex items-center justify-center gap-3 py-4 border-4 border-on-surface font-display text-lg font-black uppercase italic shadow-[4px_4px_0px_black] active:shadow-none active:translate-y-1 transition-all",
-                                       userTribunalVotes[c.id] === 'valid' 
-                                         ? "bg-brand-lime text-on-surface" 
-                                         : "bg-white text-on-surface hover:bg-brand-lime/10"
-                                     )}
-                                   >
-                                      <ThumbsUp className="w-5 h-5" />
-                                      Valid
-                                      <span className="ml-1 opacity-40">({c.validVotes ?? 0})</span>
-                                   </button>
-                                   <button 
-                                     onClick={() => handleTribunalVote(c.id, 'sus')}
-                                     className={cn(
-                                       "flex items-center justify-center gap-3 py-4 border-4 border-on-surface font-display text-lg font-black uppercase italic shadow-[4px_4px_0px_black] active:shadow-none active:translate-y-1 transition-all",
-                                       userTribunalVotes[c.id] === 'sus' 
-                                         ? "bg-brand-magenta text-white" 
-                                         : "bg-white text-brand-magenta hover:bg-brand-magenta/10"
-                                     )}
-                                   >
-                                      <ThumbsDown className="w-5 h-5" />
-                                      Signal
-                                      <span className="ml-1 opacity-40">({c.susVotes ?? 0})</span>
-                                   </button>
-                                </div>
-                             </div>
-                         </Card>
+                         <TribunalEvidenceCard
+                           key={c.id}
+                           caseData={c}
+                           myVote={userTribunalVotes[c.id] ?? null}
+                           isVoting={votingCaseId === c.id}
+                           isOwnCase={c.targetUserId === user?.uid || c.targetId === user?.uid}
+                           onVote={(vote) => handleTribunalVote(c.id, vote)}
+                           onViewDetails={setDetailsCase}
+                         />
                        ))}
                     </div>
                  )}
+
+                 {/* Pill clearance: the floating DO THIS MISSION pill sits
+                     above the bottom nav; same h-16 spacer as Crew/Profile. */}
+                 <div aria-hidden="true" className="h-16" />
+
+                 <TribunalCaseDetailsDialog caseData={detailsCase} onClose={() => setDetailsCase(null)} />
               </motion.div>
             )}
 
