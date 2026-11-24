@@ -207,6 +207,14 @@ interface AppContextType {
   }>;
   activeTrip: TripType | null;
   drawTrip: (tripId?: string, packId?: string) => Promise<TripType | null>;
+  /**
+   * Urban Recon retry (Nov 23, 2026, Zach's report — a card stuck on
+   * the generic fallback had no way back to a real place): re-runs the
+   * background place resolution for one drawn card and writes the
+   * result onto the drawn card doc. One tap = one attempt; the banner
+   * disables while resolving. Never throws.
+   */
+  retryPlaceResolution: (card: TripType) => Promise<void>;
   trips: TripType[];
   drawnMissionCards: DrawnMissionCard[];
   saveMissionCard: (card: Partial<DrawnMissionCard>) => Promise<string>;
@@ -2236,6 +2244,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return result;
   }, [trips, completedChallengeIds, submittedPendingChallengeIds, needsMoreProofChallengeIds, rejectedChallengeIds, profile?.activeTrip?.id, profile?.activeMissionId, isOnboardingComplete, isHeatwaveDeckUnlocked, isSocalSummerUnlocked, isAdmin, canonicalStarterDeckState, resolveDeckPack, getDeckAccessForPack, overrides.forceUnlocked]);
 
+  // Urban Recon place resolution, shared by the draw and the retry
+  // (Nov 23, 2026): resolve one card's place and write the place PLUS
+  // the diagnosis (reason + whether GPS was available) onto the drawn
+  // card doc, so the next generic can be diagnosed instead of guessed.
+  // Never throws — a failure at any step just leaves the stored place
+  // as it was. Unslotted and non-adaptive cards resolve to null and
+  // write nothing.
+  const resolveAndStorePlace = async (card: TripType): Promise<void> => {
+    try {
+      const outcome = await resolvePlaceForDraw(card as never);
+      if (!outcome || !user) return;
+      await updateDrawnMissionCard(user.uid, card.id, {
+        resolvedPlace: outcome.resolvedPlace,
+        placeResolutionReason: outcome.reason,
+        placeResolutionGpsAvailable: outcome.gpsAvailable,
+      });
+    } catch {
+      // Resolution must never break the draw or the retry tap.
+    }
+  };
+
+  // Urban Recon retry (Nov 23, 2026, Zach's report — a card stuck on
+  // the generic fallback had no way back to a real place): one tap
+  // re-runs the same background resolution for one drawn card. The
+  // banner disables while resolving, so one tap is one attempt; the
+  // live subscription re-renders the banner when the write lands.
+  const retryPlaceResolution = async (card: TripType): Promise<void> => {
+    await resolveAndStorePlace(card);
+  };
+
   const drawTrip = async (tripId?: string, packId?: string): Promise<TripType | null> => {
     if (!user || trips.length === 0) return null;
 
@@ -2247,10 +2285,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // throws; unslotted and non-adaptive cards resolve to null and
     // write nothing.
     const resolveDrawnCardPlace = (card: TripType) => {
-      void resolvePlaceForDraw(card as never).then((resolvedPlace) => {
-        if (!resolvedPlace || !user) return;
-        void updateDrawnMissionCard(user.uid, card.id, { resolvedPlace }).catch(() => {});
-      }).catch(() => {});
+      void resolveAndStorePlace(card);
     };
 
     // Earn-audit fix #3 (Nov 20, 2026 — Zach's call, Q2): Scene Starter
@@ -2959,6 +2994,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       addEntry,
       activeTrip,
       drawTrip,
+      retryPlaceResolution,
       trips,
       xp,
       points,

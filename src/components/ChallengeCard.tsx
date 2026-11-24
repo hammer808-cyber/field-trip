@@ -59,6 +59,12 @@ interface Props {
   /** Urban Recon resolved place: renders the big on-card banner when the
       mission is location-adaptive. Absent everywhere else. */
   resolvedPlace?: ResolvedPlace | null;
+  /**
+   * Urban Recon retry (Nov 23, 2026): re-runs place resolution for a
+   * generic banner. Passed through to ResolvedPlaceBanner; absent
+   * means no retry action.
+   */
+  onRetryPlace?: () => void | Promise<void>;
 }
 
 export function MissionCard({ 
@@ -69,7 +75,8 @@ export function MissionCard({
   onHint,
   hintUsed = false,
   className,
-  resolvedPlace
+  resolvedPlace,
+  onRetryPlace
 }: Props) {
   const { skin, frankieMode, fc } = useTheme();
   const fPref = { frankieMode };
@@ -295,7 +302,7 @@ export function MissionCard({
             mono footnote below the card and long names clipped. The
             -mx-6 bleed makes the band full-width inside this padded body. */}
         {resolvedPlace && isLocationAdaptiveCard(challenge) && (
-          <ResolvedPlaceBanner resolvedPlace={resolvedPlace} className="-mx-6 border-y-4 px-6" />
+          <ResolvedPlaceBanner resolvedPlace={resolvedPlace} onRetryPlace={onRetryPlace} className="-mx-6 border-y-4 px-6" />
         )}
 
         {/* 1. PHOTO PROMPT Area (Dotted & Styled) */}

@@ -308,6 +308,19 @@ export interface DrawnMissionCard {
    * capture, and admin review read it from here.
    */
   resolvedPlace?: import('../logic/placeResolution').ResolvedPlace | null;
+  /**
+   * Urban Recon (Nov 23, 2026): why the stored resolvedPlace is what it
+   * is — written next to it by the same background resolver (and by the
+   * retry), so the next generic can be diagnosed instead of guessed.
+   * 'match' = a real place; 'no_match' = the server searched all three
+   * tiers and found nothing; 'api_error' = Google Places failed
+   * server-side; 'gps_unavailable' = the phone gave no position;
+   * 'request_failed' = the resolve request never came back.
+   * placeResolutionGpsAvailable is false only when the phone gave no
+   * position at all. Dev-facing only; the banner never shows either.
+   */
+  placeResolutionReason?: import('../logic/placeResolution').PlaceResolutionReason | null;
+  placeResolutionGpsAvailable?: boolean | null;
 }
 
 export interface Entry {

@@ -13,7 +13,7 @@ export default function MissionBriefingPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const missionId = searchParams.get('id');
-  const { trips, setActiveMissionCard, updateMissionCardStatus, drawnMissionCards } = useApp();
+  const { trips, setActiveMissionCard, updateMissionCardStatus, drawnMissionCards, retryPlaceResolution } = useApp();
   const [savedConfirmation, setSavedConfirmation] = React.useState(false);
 
   const mission = trips.find(t => t.id === missionId);
@@ -120,6 +120,7 @@ export default function MissionBriefingPage() {
             challenge={displayMission} 
             onStart={handleStartMission}
             resolvedPlace={resolvedPlace}
+            onRetryPlace={() => retryPlaceResolution(mission)}
             className="shadow-[16px_16px_0px_black] rounded-[2.5rem] border-4 border-on-surface"
           />
         </div>

@@ -32,6 +32,18 @@ export interface PlaceQuery {
 export type PlaceTier = 1 | 2 | 3 | 'generic';
 
 /**
+ * Why the stored resolvedPlace is what it is (Urban Recon, Nov 23,
+ * 2026 — a card stuck on the generic fallback used to be undiagnosable
+ * because the reason was dropped). 'match' = a real place came back.
+ * 'no_match' = the server searched all three tiers and found nothing.
+ * 'api_error' = Google Places failed server-side. 'gps_unavailable' =
+ * the phone gave no position (denied, unavailable, or timed out).
+ * 'request_failed' = the resolve request never came back (network,
+ * non-OK, or malformed). Dev-facing only; the banner never shows it.
+ */
+export type PlaceResolutionReason = 'match' | 'no_match' | 'api_error' | 'gps_unavailable' | 'request_failed';
+
+/**
  * The resolution stored on the drawn card (and copied onto the entry at
  * submit). `name` is the display name for the {place} slot — for the
  * generic tier it is the skeleton's generic default. lat/lng are null

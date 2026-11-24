@@ -111,12 +111,85 @@ test('MissionDecodedCard renders the banner only for location-adaptive cards', (
   const card = read('src/components/MissionDecodedCard.tsx');
   assert.match(card, /resolvedPlace\?: ResolvedPlace \| null/);
   assert.match(card, /resolvedPlace && isLocationAdaptiveCard\(mission\) && \(/);
-  assert.match(card, /<ResolvedPlaceBanner resolvedPlace=\{resolvedPlace\} \/>/);
+  assert.match(card, /<ResolvedPlaceBanner resolvedPlace=\{resolvedPlace\} onRetryPlace=\{onRetryPlace\} \/>/);
 });
 
 test('MissionCard renders the banner only for location-adaptive cards', () => {
   const card = read('src/components/ChallengeCard.tsx');
   assert.match(card, /resolvedPlace\?: ResolvedPlace \| null/);
   assert.match(card, /resolvedPlace && isLocationAdaptiveCard\(challenge\) && \(/);
-  assert.match(card, /<ResolvedPlaceBanner resolvedPlace=\{resolvedPlace\} className="-mx-6 border-y-4 px-6" \/>/);
+  assert.match(card, /<ResolvedPlaceBanner resolvedPlace=\{resolvedPlace\} onRetryPlace=\{onRetryPlace\} className="-mx-6 border-y-4 px-6" \/>/);
+});
+
+test('retry button appears only on a generic banner that has a retry callback', () => {
+  const retry = () => {};
+  const generic = renderToStaticMarkup(
+    <ResolvedPlaceBanner resolvedPlace={genericPlace()} onRetryPlace={retry} />,
+  );
+  assert.match(generic, /data-testid="retry-place-button"/);
+  assert.match(generic, /Find a place/);
+  // A resolved place never offers the retry, even with a callback.
+  const specific = renderToStaticMarkup(
+    <ResolvedPlaceBanner resolvedPlace={specificPlace()} onRetryPlace={retry} />,
+  );
+  assert.doesNotMatch(specific, /retry-place-button/);
+  assert.doesNotMatch(specific, /Find a place/);
+  // A generic banner with no callback has nothing to tap.
+  const noCallback = renderToStaticMarkup(<ResolvedPlaceBanner resolvedPlace={genericPlace()} />);
+  assert.doesNotMatch(noCallback, /retry-place-button/);
+});
+
+test('retry that finds a place swaps the banner: generic shows the button, resolved shows the place', () => {
+  const retry = () => {};
+  const before = renderToStaticMarkup(
+    <ResolvedPlaceBanner resolvedPlace={genericPlace()} onRetryPlace={retry} />,
+  );
+  assert.match(before, /a transit station/i);
+  assert.match(before, /Find a place/);
+  // The live subscription re-renders the banner with the new place.
+  const after = renderToStaticMarkup(
+    <ResolvedPlaceBanner resolvedPlace={specificPlace()} onRetryPlace={retry} />,
+  );
+  assert.match(after, /Starling Diner/);
+  assert.doesNotMatch(after, /Find a place/);
+  assert.doesNotMatch(after, /retry-place-button/);
+});
+
+test('retry that stays generic keeps the honest wording', () => {
+  const retry = () => {};
+  const html = renderToStaticMarkup(
+    <ResolvedPlaceBanner resolvedPlace={genericPlace()} onRetryPlace={retry} />,
+  );
+  assert.match(html, /a transit station/i);
+  assert.match(html, /anywhere you are/i);
+  assert.doesNotMatch(html, /near you in/i);
+});
+
+test('resolving state reads "Looking nearby" and disables the button', () => {
+  const source = read('src/components/ResolvedPlaceBanner.tsx');
+  assert.match(source, /Looking nearby/);
+  assert.match(source, /disabled=\{resolving\}/);
+  // The resolving label is set from state, not a second button.
+  assert.doesNotMatch(source, /data-testid="retry-place-resolving"/);
+});
+
+test('retry copy has no em dash', () => {
+  const retry = () => {};
+  const html = renderToStaticMarkup(
+    <ResolvedPlaceBanner resolvedPlace={genericPlace()} onRetryPlace={retry} />,
+  );
+  assert.doesNotMatch(html, /—/);
+});
+
+test('Deck.tsx wires the retry into the revealed card and records the lift', () => {
+  const deck = read('src/pages/Deck.tsx');
+  assert.match(deck, /retryPlaceResolution/);
+  assert.match(deck, /onRetryPlace=\{displayedMission \? \(\) => retryPlaceResolution\(displayedMission\) : undefined\}/);
+  assert.match(deck, /ONE-OFF LIFT \(Nov 23, 2026, Zach's word — Urban Recon place retry\)/);
+});
+
+test('MissionBriefing.tsx wires the retry into the briefing card', () => {
+  const briefing = read('src/pages/MissionBriefing.tsx');
+  assert.match(briefing, /retryPlaceResolution/);
+  assert.match(briefing, /onRetryPlace=\{\(\) => retryPlaceResolution\(mission\)\}/);
 });

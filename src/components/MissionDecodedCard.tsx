@@ -51,6 +51,12 @@ interface MissionDecodedCardProps {
   /** Urban Recon resolved place: renders the big on-card banner when the
       mission is location-adaptive. Absent everywhere else. */
   resolvedPlace?: ResolvedPlace | null;
+  /**
+   * Urban Recon retry (Nov 23, 2026): re-runs place resolution for a
+   * generic banner. Passed through to ResolvedPlaceBanner; absent
+   * means no retry action.
+   */
+  onRetryPlace?: () => void | Promise<void>;
 }
 
 export function MissionDecodedCard({ 
@@ -65,7 +71,8 @@ export function MissionDecodedCard({
   statusLabel,
   className,
   showActions = true,
-  resolvedPlace
+  resolvedPlace,
+  onRetryPlace
 }: MissionDecodedCardProps) {
   const { frankieMode, fc } = useTheme();
   const fPref = { frankieMode };
@@ -216,7 +223,7 @@ export function MissionDecodedCard({
             the card now, right under the title — it used to be a small
             mono footnote below the card and long names clipped. */}
         {resolvedPlace && isLocationAdaptiveCard(mission) && (
-          <ResolvedPlaceBanner resolvedPlace={resolvedPlace} />
+          <ResolvedPlaceBanner resolvedPlace={resolvedPlace} onRetryPlace={onRetryPlace} />
         )}
         <div className="px-4 py-3 bg-[#FCFAF5] border-b-4 border-on-surface flex items-center justify-between gap-3 relative z-20">
            <div className="flex-1 min-w-0">

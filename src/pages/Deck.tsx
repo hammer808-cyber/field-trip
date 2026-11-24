@@ -42,6 +42,15 @@
 // by MissionDecodedCard / MissionCard from a resolvedPlace prop); the
 // footnote is gone from this file and from MissionBriefing.tsx. No
 // scoring, draw, or resolver change. The freeze stands for everything else.
+// ONE-OFF LIFT (Nov 23, 2026, Zach's word — Urban Recon place retry):
+// a card stuck on the generic fallback ("anywhere you are") had no way
+// back to a real place, because resolution ran once per draw and the
+// reason was dropped. The banner now carries a "Find a place" retry on
+// generic cards only (AppContext retryPlaceResolution, wired through
+// MissionDecodedCard here and MissionCard on the briefing route), and
+// the resolution reason is stored on the drawn card doc. No query,
+// tier, radius, scoring, or draw change. The freeze stands for
+// everything else.
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import { useApp } from '../context/AppContext';
@@ -226,7 +235,7 @@ export default function DeckPage() {
     isAdmin, isHeatwaveDeckUnlocked, isSocalSummerUnlocked, mustCompleteStarterMission, authLoading,
     needsMoreProofChallengeIds, rejectedChallengeIds,
     drawnMissionCards, updateMissionCardStatus, setActiveMissionCard, canonicalProgress, progressMismatches,
-    deckPacks, visibleDeckPacks, getDeckAccessForPack
+    deckPacks, visibleDeckPacks, getDeckAccessForPack, retryPlaceResolution
   } = useApp();
   const guidance = usePlayerGuidance();
   const stripRole = getMissionsStripRole(guidance.state);
@@ -1337,6 +1346,7 @@ export default function DeckPage() {
                       isRedrawable={false}
                       showActions={false}
                       resolvedPlace={displayedResolvedPlace}
+                      onRetryPlace={displayedMission ? () => retryPlaceResolution(displayedMission) : undefined}
                       className="skin-mission-card shadow-[var(--skin-card-shadow)]"
                     />
                   </motion.div>

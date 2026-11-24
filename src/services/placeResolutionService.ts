@@ -13,6 +13,7 @@ import {
   getGenericResolvedPlace,
   getPlaceQuery,
   isSlottedCard,
+  type PlaceResolutionReason,
   type ResolvedPlace,
 } from '../logic/placeResolution';
 import type { ChallengeCard } from '../types/challenges';
@@ -77,24 +78,42 @@ export function getOneShotPosition(timeoutMs = 8000): Promise<{ lat: number; lng
 
 /**
  * Resolve the place for one drawn card. Unslotted cards return null
- * (nothing to resolve). Slotted cards ALWAYS return a ResolvedPlace:
- * the server's match, or the generic fallback when GPS, the network,
- * or Google fails. The caller stores it on the drawn card doc.
+ * (nothing to resolve). Slotted cards ALWAYS return an outcome: the
+ * server's match, or the generic fallback when GPS, the network, or
+ * Google fails — plus the reason, so a generic card can be diagnosed
+ * instead of guessed at (Nov 23, 2026: the reason used to be dropped
+ * here, which is why a stuck-generic card had no story). The caller
+ * stores the place and the reason on the drawn card doc.
  */
+export interface PlaceResolutionOutcome {
+  resolvedPlace: ResolvedPlace;
+  reason: PlaceResolutionReason;
+  /** False only when the phone gave no position at all. */
+  gpsAvailable: boolean;
+}
+
 export async function resolvePlaceForDraw(
   card: Partial<ChallengeCard> | null | undefined,
-): Promise<ResolvedPlace | null> {
+): Promise<PlaceResolutionOutcome | null> {
   if (!isSlottedCard(card)) return null;
   const placeQuery = getPlaceQuery(card);
   if (!placeQuery) return null;
   const genericDefault = (card as { locationAdaptive?: { genericDefault?: string } }).locationAdaptive?.genericDefault;
   const pos = await getOneShotPosition();
   if (!pos) {
-    return getGenericResolvedPlace(card, null, {});
+    return {
+      resolvedPlace: getGenericResolvedPlace(card, null, {}),
+      reason: 'gps_unavailable',
+      gpsAvailable: false,
+    };
   }
   const result = await requestPlaceResolution(pos.lat, pos.lng, placeQuery, genericDefault);
   if (!result) {
-    return getGenericResolvedPlace(card, pos, {});
+    return {
+      resolvedPlace: getGenericResolvedPlace(card, pos, {}),
+      reason: 'request_failed',
+      gpsAvailable: true,
+    };
   }
-  return result.resolvedPlace;
+  return { resolvedPlace: result.resolvedPlace, reason: result.reason, gpsAvailable: true };
 }
