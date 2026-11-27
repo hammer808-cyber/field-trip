@@ -4118,7 +4118,9 @@ async function startServer() {
     createdAt: data.createdAt || null,
     lastLoginAt: data.lastLoginAt || data.lastSeenAt || null,
     starterApprovedCount: Number(data.starterApprovedCount || data.starterState?.starterApprovedCount || 0),
-    totalXP: Number(data.totalXP || data.xp || 0)
+    totalXP: Number(data.totalXP || data.xp || 0),
+    fieldType: data.fieldType || null,
+    fieldTypeName: data.fieldTypeName || data.fieldType || null
   });
 
   app.get("/api/admin/user-lookup", adminRateLimiter, authenticate, async (req: any, res) => {
@@ -4197,6 +4199,30 @@ async function startServer() {
     } catch (error: any) {
       console.error("[USER_LOOKUP] Error:", error);
       res.status(500).json({ error: "USER_LOOKUP_FAILED", message: error.message });
+    }
+  });
+
+  // GET /api/admin/players — the full player list for admin pickers (Nov 27,
+  // 2026: the Grant Starter Bypass on the proof-review queue needed a
+  // dropdown of all players instead of a memorized UID). Same admin-only
+  // gate as user-lookup; same serialized shape, sorted by display name
+  // client-side. No orderBy here: it would silently drop profiles missing
+  // the ordered field. Capped at 500 — the player base is small, and a
+  // dropdown must never render an unbounded list.
+  app.get("/api/admin/players", adminRateLimiter, authenticate, async (req: any, res) => {
+    if (!dbAdmin) return res.status(500).json({ error: "DB_ADMIN_NOT_READY" });
+    const isAdminUser = await checkIsAdmin(req.user);
+    if (!isAdminUser) return res.status(403).json({ error: "ADMIN_ONLY" });
+
+    try {
+      const snap = await dbAdmin.collection('users').limit(500).get();
+      const users = snap.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot) =>
+        serializeAdminUserLookup(doc.id, doc.data() || {}),
+      );
+      res.json({ users });
+    } catch (error: any) {
+      console.error("[ADMIN_PLAYERS] Error:", error);
+      res.status(500).json({ error: "ADMIN_PLAYERS_FAILED", message: error.message });
     }
   });
 

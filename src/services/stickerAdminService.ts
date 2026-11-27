@@ -46,6 +46,10 @@ export interface AdminLookupPlayer {
   lastLoginAt: unknown;
   starterApprovedCount: number;
   totalXP: number;
+  /** Player persona id (e.g. 'elondra'), when the profile has one. */
+  fieldType?: string | null;
+  /** Player persona display name, when known. */
+  fieldTypeName?: string | null;
 }
 
 export interface StickerGrantSummary {
@@ -123,6 +127,37 @@ export async function lookupPlayers(searchQuery: string): Promise<AdminLookupPla
   }
   const body = await res.json();
   return Array.isArray(body?.users) ? (body.users as AdminLookupPlayer[]) : [];
+}
+
+/**
+ * Full player list for admin pickers (Nov 27, 2026: the Grant Starter
+ * Bypass on the proof-review queue). Same admin-only endpoint family as
+ * the lookup above, no query needed. Sorted by display name so the
+ * dropdown reads alphabetically.
+ */
+export async function listAdminPlayers(): Promise<AdminLookupPlayer[]> {
+  const res = await authenticatedFetch('/api/admin/players');
+  if (!res.ok) {
+    const code = await readErrorCode(res);
+    throw new Error(code ? `Player list failed: ${code}` : `Player list failed (HTTP ${res.status}).`);
+  }
+  const body = await res.json();
+  const users = Array.isArray(body?.users) ? (body.users as AdminLookupPlayer[]) : [];
+  return [...users].sort((a, b) =>
+    (a.displayName || a.username || a.uid).localeCompare(b.displayName || b.username || b.uid),
+  );
+}
+
+/**
+ * Dropdown option label for one player (pure, unit-tested): display name
+ * first, then username, persona when known, and always the UID — so the
+ * admin picks by name and still verifies the exact player. No em dashes.
+ */
+export function formatBypassPlayerOption(player: AdminLookupPlayer): string {
+  const name = player.displayName || player.username || 'Unknown player';
+  const handle = player.username && player.username !== name ? ` (@${player.username})` : '';
+  const persona = player.fieldTypeName ? ` - ${player.fieldTypeName}` : '';
+  return `${name}${handle}${persona} - ${player.uid}`;
 }
 
 export interface BackfillStickerNotificationsResponse {

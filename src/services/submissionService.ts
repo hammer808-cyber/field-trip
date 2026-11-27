@@ -208,7 +208,7 @@ function collectReviewEntryAliases(docId: string, data: any, source: 'entry' | '
   return uniqueIds(explicitAliases);
 }
 
-function buildRootEntryIndex(records: any[]): Map<string, any> {
+export function buildRootEntryIndex(records: any[]): Map<string, any> {
   const index = new Map<string, any>();
   records.forEach(record => {
     const sourcePath = cleanId(record.__path) || `entries/${record.id}`;
@@ -267,7 +267,7 @@ function resolveQueueEntryLink(
   };
 }
 
-function normalizeReviewQueueRecord(
+export function normalizeReviewQueueRecord(
   docId: string,
   data: any,
   source: 'entry' | 'proofReview',
@@ -309,10 +309,34 @@ function normalizeReviewQueueRecord(
   } as Entry;
 }
 
-function mergeReviewQueueRecords(entries: Entry[], reviews: Entry[], direction: QueueSortDirection = 'oldest'): Entry[] {
+/**
+ * True when a normalized queue record is the canonical root `entries/{id}`
+ * document. Subcollection copies (e.g. users/{uid}/entries/{id}) are never
+ * the canonical source: the server's approve/reject path only ever acts on
+ * the root doc, so a subcollection mirror must never stand in for it.
+ */
+export function isRootQueueEntryRecord(record: any): boolean {
+  const docId = cleanId((record as any)?.sourceDocumentId);
+  const sourcePath = cleanId((record as any)?.sourcePath);
+  return !!docId && sourcePath === `entries/${docId}`;
+}
+
+export function mergeReviewQueueRecords(entries: Entry[], reviews: Entry[], direction: QueueSortDirection = 'oldest'): Entry[] {
   const byEntryId = new Map<string, Entry>();
 
+  // Only the canonical root `entries/{id}` doc is a queue row. A
+  // subcollection mirror (users/{uid}/entries/...) carries the same
+  // submission under a stale copy, and the old last-write-wins merge let
+  // it shadow the root entry: approving the root never moved the row (the
+  // row kept showing the mirror's pending status), and a legacy
+  // subcollection entry with its own id became a second, unapprovable row
+  // that inflated the count. Both the tab list and the diagnostics count
+  // come from this merge, so one fix keeps them in agreement. Unresolved
+  // subcollection records stay visible in diagnostics
+  // (unresolvedCanonicalEntries) for the repair tools; they are not
+  // reviewable rows.
   entries.forEach(entry => {
+    if (!isRootQueueEntryRecord(entry)) return;
     byEntryId.set(((entry as any).entryId || entry.id) as string, entry);
   });
 
@@ -352,6 +376,12 @@ export function computeReviewableButNotRendered(
   const seen = new Set<string>();
   const ids: string[] = [];
   for (const record of [...normalizedEntries, ...normalizedReviews]) {
+    // Subcollection entry docs are not queue rows (the merge drops them):
+    // a stale mirror of an approved root entry must not be flagged as
+    // "reviewable but not rendered", and a legacy subcollection entry is
+    // already surfaced as an unresolved canonical entry for the repair
+    // tools. Orphan reviews stay flagged — the repair reports them.
+    if ((record as any).queueSource === 'entry' && !isRootQueueEntryRecord(record)) continue;
     const status = (record as any).status;
     const entryId = String((record as any).entryId || (record as any).id || '');
     if (status === statusFilter && entryId && !renderedIds.has(entryId) && !seen.has(entryId)) {
@@ -854,7 +884,13 @@ export function subscribeToAdminPendingReviews(
   let monitorEntriesCount = 0;
   let rawReviewsCount = 0;
   const errors: AdminReviewQueueDiagnostics['errors'] = [];
-  const excluded = new Map<string, AdminReviewQueueDiagnostics['excluded'][number]>();
+  // Excluded records, rebuilt fresh on every snapshot per source. The old
+  // accumulating Map never removed a key, so a doc whose status changed to
+  // match the tab kept its stale exclusion row in the diagnostics panel
+  // forever. Each handler re-scans its full snapshot, so assigning a fresh
+  // array here keeps the panel exactly current.
+  let excludedEntries: AdminReviewQueueDiagnostics['excluded'] = [];
+  let excludedReviews: AdminReviewQueueDiagnostics['excluded'] = [];
 
   const emit = () => {
     if (!entriesReady || !reviewsReady || !monitorReady) return;
@@ -867,7 +903,7 @@ export function subscribeToAdminPendingReviews(
     diagnostics.proofReviewsTotalBeforeFiltering = rawReviewsCount;
     diagnostics.mergedTotalAfterFiltering = merged.length;
     diagnostics.errors = [...errors];
-    diagnostics.excluded = Array.from(excluded.values()).slice(0, 80);
+    diagnostics.excluded = [...excludedEntries, ...excludedReviews].slice(0, 80);
     // Unified queue numbers: merge the UNFILTERED sets once and count
     // reviewable pending items from that merge. This is the "Current
     // Queue" number the console and the board both show, on every tab.
@@ -991,11 +1027,12 @@ export function subscribeToAdminPendingReviews(
     rawEntriesCount = rawEntries.length;
     console.log("[AdminQueue] canonical entry-group docs returned", rawEntries.length);
 
+    const nextExcludedEntries: AdminReviewQueueDiagnostics['excluded'] = [];
     rawEntriesForQueue = rawEntries.filter(e => {
       const normalizedStatus = normalizeProofStatus((e as any).status || (e as any).reviewStatus);
       const isArchived = e.archived === true;
       if (isArchived) {
-        excluded.set(`entry:${e.id}:archived`, {
+        nextExcludedEntries.push({
           id: e.id,
           source: 'entry',
           status: String((e as any).status || 'missing'),
@@ -1005,7 +1042,7 @@ export function subscribeToAdminPendingReviews(
         return false;
       }
       if (normalizedStatus !== statusFilter) {
-        excluded.set(`entry:${e.id}:status`, {
+        nextExcludedEntries.push({
           id: e.id,
           source: 'entry',
           status: String((e as any).status || 'missing'),
@@ -1016,6 +1053,7 @@ export function subscribeToAdminPendingReviews(
       }
       return true;
     });
+    excludedEntries = nextExcludedEntries;
 
     entriesReady = true;
     emit();
@@ -1043,11 +1081,12 @@ export function subscribeToAdminPendingReviews(
     const rawReviews = snap.docs.map(doc => ({ ...doc.data(), id: doc.id, __path: doc.ref.path }));
     rawReviewsForDiagnostics = rawReviews;
     rawReviewsCount = rawReviews.length;
+    const nextExcludedReviews: AdminReviewQueueDiagnostics['excluded'] = [];
     rawReviewsForQueue = rawReviews
       .filter(review => {
         const normalizedStatus = normalizeProofStatus((review as any).status || (review as any).reviewStatus);
         if ((review as any).archived === true) {
-          excluded.set(`proofReview:${review.id}:archived`, {
+          nextExcludedReviews.push({
             id: review.id,
             source: 'proofReview',
             status: String((review as any).status || (review as any).reviewStatus || 'missing'),
@@ -1057,7 +1096,7 @@ export function subscribeToAdminPendingReviews(
           return false;
         }
         if (normalizedStatus !== statusFilter) {
-          excluded.set(`proofReview:${review.id}:status`, {
+          nextExcludedReviews.push({
             id: review.id,
             source: 'proofReview',
             status: String((review as any).status || (review as any).reviewStatus || 'missing'),
@@ -1068,6 +1107,7 @@ export function subscribeToAdminPendingReviews(
         }
         return true;
       });
+    excludedReviews = nextExcludedReviews;
     console.log("[AdminQueue] proofReviews returned", rawReviewsForQueue.length);
     reviewsReady = true;
     emit();

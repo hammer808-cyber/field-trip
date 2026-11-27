@@ -73,6 +73,11 @@ import {
 } from '../services/submissionService';
 import { subscribeToAdminLogs } from '../services/moderationService';
 import {
+  formatBypassPlayerOption,
+  listAdminPlayers,
+  type AdminLookupPlayer,
+} from '../services/stickerAdminService';
+import {
   computeReviewVelocity,
   entryTimestampMillis,
   filterQueueRecordsBySearch,
@@ -109,6 +114,13 @@ export default function AdminProofReview() {
   const [repairReport, setRepairReport] = useState<QueueRepairReport | null>(null);
   const [grantingBypass, setGrantingBypass] = useState(false);
   const [starterBypassReport, setStarterBypassReport] = useState<StarterBypassReport | null>(null);
+  // Grant Starter Bypass player picker (Nov 27, 2026): a dropdown of all
+  // players, so the admin picks by name instead of memorizing a UID. The
+  // list loads once the admin is authorized; the grant itself is unchanged.
+  const [bypassPlayers, setBypassPlayers] = useState<AdminLookupPlayer[]>([]);
+  const [bypassPlayersLoading, setBypassPlayersLoading] = useState(false);
+  const [bypassPlayersError, setBypassPlayersError] = useState<string | null>(null);
+  const [selectedBypassUid, setSelectedBypassUid] = useState('');
   const [slottingOrphans, setSlottingOrphans] = useState(false);
   const [orphanSlotReport, setOrphanSlotReport] = useState<OrphanSlotReport | null>(null);
 
@@ -245,12 +257,15 @@ export default function AdminProofReview() {
   };
 
   const handleGrantStarterBypass = async () => {
-    const targetUid = window.prompt('User UID to unlock past Starter Signals');
-    if (!targetUid) return;
+    const targetUid = selectedBypassUid.trim();
+    if (!targetUid) {
+      alert('Pick a player from the dropdown first.');
+      return;
+    }
     const reason = window.prompt('Reason for bypass', 'Admin bypass: stale pending/review records are blocking Starter Signals.') || 'Admin Starter Signals bypass.';
     setGrantingBypass(true);
     try {
-      setStarterBypassReport(await grantStarterSignalsBypass(targetUid.trim(), reason));
+      setStarterBypassReport(await grantStarterSignalsBypass(targetUid, reason));
     } catch (err: any) {
       console.error('[AdminProofReview] Starter bypass failed:', err);
       alert(`Starter bypass failed: ${err?.message || err}`);
@@ -258,6 +273,30 @@ export default function AdminProofReview() {
       setGrantingBypass(false);
     }
   };
+
+  // Player list for the bypass picker: one load per admin session, with a
+  // retry when the fetch fails. The selected UID is the only thing the
+  // grant sends — the dropdown is a picker change, not a grant change.
+  const loadBypassPlayers = async () => {
+    setBypassPlayersLoading(true);
+    setBypassPlayersError(null);
+    try {
+      setBypassPlayers(await listAdminPlayers());
+    } catch (err: any) {
+      console.error('[AdminProofReview] Player list failed:', err);
+      setBypassPlayersError(err?.message || String(err));
+      setBypassPlayers([]);
+    } finally {
+      setBypassPlayersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAdminAuthorized) return;
+    loadBypassPlayers();
+    // One load per admin session; the panel offers a retry on failure.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdminAuthorized]);
 
   const handleSlotOrphans = async (dryRun: boolean) => {
     setSlottingOrphans(true);
@@ -334,6 +373,12 @@ export default function AdminProofReview() {
           starterBypassReport={starterBypassReport}
           slottingOrphans={slottingOrphans}
           orphanSlotReport={orphanSlotReport}
+          bypassPlayers={bypassPlayers}
+          bypassPlayersLoading={bypassPlayersLoading}
+          bypassPlayersError={bypassPlayersError}
+          selectedBypassUid={selectedBypassUid}
+          onSelectBypassUid={setSelectedBypassUid}
+          onReloadBypassPlayers={loadBypassPlayers}
           onRepair={handleRepairQueue}
           onGrantStarterBypass={handleGrantStarterBypass}
           onSlotOrphans={handleSlotOrphans}
@@ -485,6 +530,12 @@ function QueueDiagnosticsPanel({
   starterBypassReport,
   slottingOrphans,
   orphanSlotReport,
+  bypassPlayers,
+  bypassPlayersLoading,
+  bypassPlayersError,
+  selectedBypassUid,
+  onSelectBypassUid,
+  onReloadBypassPlayers,
   onRepair,
   onGrantStarterBypass,
   onSlotOrphans
@@ -497,10 +548,17 @@ function QueueDiagnosticsPanel({
   starterBypassReport: StarterBypassReport | null;
   slottingOrphans: boolean;
   orphanSlotReport: OrphanSlotReport | null;
+  bypassPlayers: AdminLookupPlayer[];
+  bypassPlayersLoading: boolean;
+  bypassPlayersError: string | null;
+  selectedBypassUid: string;
+  onSelectBypassUid: (uid: string) => void;
+  onReloadBypassPlayers: () => void;
   onRepair: (dryRun: boolean) => void;
   onGrantStarterBypass: () => void;
   onSlotOrphans: (dryRun: boolean) => void;
 }) {
+  const selectedBypassPlayer = bypassPlayers.find(player => player.uid === selectedBypassUid) || null;
   const statusRows = diagnostics
     ? Object.entries(diagnostics.statusCounts).map(([status, count]) => `${status}: ${count}`).join(' / ')
     : 'waiting for query...';
@@ -587,14 +645,6 @@ function QueueDiagnosticsPanel({
             </button>
             <button
               type="button"
-              disabled={grantingBypass}
-              onClick={onGrantStarterBypass}
-              className="px-3 py-2 rounded-lg border-2 border-on-surface bg-brand-lime text-on-surface font-black uppercase disabled:opacity-50"
-            >
-              {grantingBypass ? 'Granting...' : 'Grant Starter Bypass'}
-            </button>
-            <button
-              type="button"
               disabled={slottingOrphans}
               onClick={() => onSlotOrphans(true)}
               className="px-3 py-2 rounded-lg border-2 border-on-surface bg-white font-black uppercase disabled:opacity-50"
@@ -609,6 +659,60 @@ function QueueDiagnosticsPanel({
             >
               {slottingOrphans ? 'Slotting...' : 'Slot Orphans Into Entries'}
             </button>
+          </div>
+          <div className="mt-3 rounded-xl border-2 border-on-surface/15 bg-[#FAF8F5] p-3">
+            <label htmlFor="starter-bypass-player" className="font-black text-on-surface/60">
+              Grant Starter Bypass — pick a player
+            </label>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <select
+                id="starter-bypass-player"
+                value={selectedBypassUid}
+                disabled={bypassPlayersLoading || grantingBypass}
+                onChange={(event) => onSelectBypassUid(event.target.value)}
+                className="min-w-0 flex-1 rounded-lg border-2 border-on-surface bg-white px-3 py-2 font-mono text-[11px] font-bold normal-case disabled:opacity-50"
+              >
+                <option value="">
+                  {bypassPlayersLoading
+                    ? 'Loading players…'
+                    : bypassPlayersError
+                      ? 'Player list failed to load'
+                      : bypassPlayers.length === 0
+                        ? 'No players found'
+                        : 'Choose a player…'}
+                </option>
+                {bypassPlayers.map((player) => (
+                  <option key={player.uid} value={player.uid}>
+                    {formatBypassPlayerOption(player)}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                disabled={grantingBypass || !selectedBypassUid}
+                onClick={onGrantStarterBypass}
+                className="px-3 py-2 rounded-lg border-2 border-on-surface bg-brand-lime text-on-surface font-black uppercase disabled:opacity-50"
+              >
+                {grantingBypass ? 'Granting...' : 'Grant Starter Bypass'}
+              </button>
+            </div>
+            {bypassPlayersError && (
+              <p className="mt-2 text-red-700">
+                Player list failed: {bypassPlayersError}{' '}
+                <button type="button" onClick={onReloadBypassPlayers} className="underline font-black">
+                  Retry
+                </button>
+              </p>
+            )}
+            {selectedBypassPlayer && (
+              <p className="mt-2 break-all">
+                Selected: {selectedBypassPlayer.displayName || selectedBypassPlayer.username}
+                {selectedBypassPlayer.fieldTypeName ? ` (${selectedBypassPlayer.fieldTypeName})` : ''} · UID {selectedBypassPlayer.uid} · Starter approved {selectedBypassPlayer.starterApprovedCount}/3
+              </p>
+            )}
+            {!selectedBypassPlayer && !bypassPlayersLoading && !bypassPlayersError && bypassPlayers.length > 0 && (
+              <p className="mt-2 opacity-50">Pick a player above — no UID to memorize. The grant itself is unchanged.</p>
+            )}
           </div>
           {starterBypassReport && (
             <div className="mt-3 rounded-xl bg-brand-lime/20 p-3 space-y-1">
