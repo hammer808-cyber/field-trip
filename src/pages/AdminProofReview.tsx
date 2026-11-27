@@ -88,6 +88,7 @@ import {
   REVIEW_VELOCITY_LOG_LIMIT,
   type QueueSortDirection,
 } from '../logic/adminQueueStats';
+import { isTimeWindowClosedMessage } from '../logic/timeWindow';
 import type { QueueRepairReport } from '../services/proofLifecycleService';
 
 type AdminReviewScoring = ProofRubricScoring & { missionScoring: ScoringSnapshot };
@@ -110,6 +111,14 @@ export default function AdminProofReview() {
   // the last 24h), never hardcoded. '—' until the first snapshot lands.
   const [velocity, setVelocity] = useState('—');
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
+  // Time-window override offer (Nov 27, 2026): set ONLY when an Approve
+  // attempt fails with TIME_WINDOW_CLOSED. The banner below offers the
+  // retry with the override flag; it never appears as a general bypass.
+  const [timeWindowOverrideOffer, setTimeWindowOverrideOffer] = useState<{
+    id: string;
+    review: { notes: string; rubric: ProofRubricScore; scoring: AdminReviewScoring; suggestedRubric?: AiSuggestedRubric | null; suggestedRubricApplied?: boolean; adminOverrideUsed: boolean; adminOverrideReason: string | null };
+    message: string;
+  } | null>(null);
   const [repairingQueue, setRepairingQueue] = useState(false);
   const [repairReport, setRepairReport] = useState<QueueRepairReport | null>(null);
   const [grantingBypass, setGrantingBypass] = useState(false);
@@ -177,10 +186,17 @@ export default function AdminProofReview() {
     }
   }, [reviews, selectedQueueEntryId]);
 
+  // A time-window override offer belongs to one entry. Switching entries
+  // clears it so it can never be retried against the wrong record.
+  useEffect(() => {
+    setTimeWindowOverrideOffer(null);
+  }, [selectedQueueEntryId]);
+
   const handleAction = async (
     id: string,
     action: 'approve' | 'reject' | 'request_info',
-    review?: { notes: string; rubric: ProofRubricScore; scoring: AdminReviewScoring; suggestedRubric?: AiSuggestedRubric | null; suggestedRubricApplied?: boolean; adminOverrideUsed: boolean; adminOverrideReason: string | null }
+    review?: { notes: string; rubric: ProofRubricScore; scoring: AdminReviewScoring; suggestedRubric?: AiSuggestedRubric | null; suggestedRubricApplied?: boolean; adminOverrideUsed: boolean; adminOverrideReason: string | null },
+    options?: { allowTimeWindowOverride?: boolean }
   ) => {
     if (!id) {
       alert('Missing source entry. This review record must be repaired or archived before it can be actioned.');
@@ -200,7 +216,8 @@ export default function AdminProofReview() {
       },
       scoring: review.scoring,
       suggestedRubric: review.suggestedRubric ?? null,
-      suggestedRubricApplied: review.suggestedRubricApplied === true
+      suggestedRubricApplied: review.suggestedRubricApplied === true,
+      allowTimeWindowOverride: options?.allowTimeWindowOverride === true
     };
     try {
       const record = reviews.find(item => String(item.entryId || '') === id || String(item.id || '') === id);
@@ -231,14 +248,23 @@ export default function AdminProofReview() {
       } else {
         await rejectSubmission(id, notes, metadata, reviewContext);
       }
+      setTimeWindowOverrideOffer(null);
     } catch (err: any) {
+      const failureMessage = err?.message || String(err);
       console.error('[AdminProofReview] Review action failed:', {
         actionType: action,
         canonicalEntryId: id,
-        failureReason: err?.message || String(err),
+        failureReason: failureMessage,
         details: err?.details || null
       });
-      alert(`Review action failed: ${err?.message || err}`);
+      // Time-lock refusal: surface it plainly with the Approve-anyway
+      // retry (same entry, same rubric) instead of an alert. The offer
+      // appears only after this exact failure, never as a general bypass.
+      if (action === 'approve' && review && isTimeWindowClosedMessage(failureMessage)) {
+        setTimeWindowOverrideOffer({ id, review, message: failureMessage });
+        return;
+      }
+      alert(`Review action failed: ${failureMessage}`);
     } finally {
       setActionBusyId(null);
     }
@@ -444,6 +470,40 @@ export default function AdminProofReview() {
               </div>
            </div>
         </Card>
+
+        {/* Time-window override offer: only after an Approve was refused
+            by the card's time lock. Retries the same approval, same
+            rubric, with the admin-only override flag. */}
+        {timeWindowOverrideOffer && (
+          <div className="rounded-2xl border-2 border-brand-orange bg-brand-orange/5 p-4 space-y-3" role="alert">
+            <p className="font-mono text-[10px] font-black uppercase tracking-widest text-on-surface">
+              Approve was refused by the time lock
+            </p>
+            <p className="font-mono text-xs text-on-surface/80">
+              {timeWindowOverrideOffer.message.replace(/^TIME_WINDOW_CLOSED:\s*/, '')}
+            </p>
+            <p className="font-mono text-xs uppercase text-on-surface/60">
+              This entry was submitted outside the card&apos;s current hours. Approve anyway to let it count. The override is recorded in the admin log.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                disabled={actionBusyId === timeWindowOverrideOffer.id}
+                onClick={() => handleAction(timeWindowOverrideOffer.id, 'approve', timeWindowOverrideOffer.review, { allowTimeWindowOverride: true })}
+                className="px-4 py-3 bg-brand-lime text-on-surface border-2 border-on-surface shadow-[4px_4px_0px_black] font-display font-black uppercase italic text-sm hover:shadow-[2px_2px_0px_black] active:translate-y-0.5 transition-all disabled:opacity-40 disabled:shadow-none"
+              >
+                {actionBusyId === timeWindowOverrideOffer.id ? 'Working...' : 'Approve anyway: submitted before this card’s time lock'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setTimeWindowOverrideOffer(null)}
+                className="px-4 py-3 bg-white text-on-surface border-2 border-on-surface font-mono text-[10px] font-black uppercase"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Main View Area */}
         <div className="min-h-[400px]">

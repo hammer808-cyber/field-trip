@@ -41,6 +41,16 @@ export function formatTimeWindow(window: TimeWindow): string {
 }
 
 /**
+ * True when an approve failure message is the server's time-window
+ * refusal ("TIME_WINDOW_CLOSED: this card only counts …"). The Admin Q
+ * uses it to offer the admin-only "Approve anyway" retry only after
+ * that exact failure — never as a general bypass.
+ */
+export function isTimeWindowClosedMessage(message: string | null | undefined): boolean {
+  return typeof message === 'string' && message.startsWith('TIME_WINDOW_CLOSED');
+}
+
+/**
  * Player-facing window label for the card itself, e.g. "Sunset only ·
  * 4–8 PM". The kind word is keyed on the exact windows the decks use
  * (Nov 27, 2026 audit); anything else falls back to "Only open …" so a

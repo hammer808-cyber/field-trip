@@ -9493,6 +9493,14 @@ async function startServer() {
 
     try {
       await requireAdminUser(req);
+      // Time-window override (Nov 27, 2026): Zach's call — an entry
+      // submitted before a card's time lock existed can still count when
+      // the admin approves anyway. The flag is admin-only by
+      // construction: requireAdminUser already ran above, so a non-admin
+      // never reaches the transaction. It skips ONLY the window check
+      // on approve; the rubric gate, scoring, and everything else are
+      // unchanged. The override is recorded in the admin log below.
+      const allowTimeWindowOverride = metadata?.allowTimeWindowOverride === true;
       if (!["approve", "request_info", "reject"].includes(action)) {
         return res.status(400).json({ error: "INVALID_REVIEW_ACTION" });
       }
@@ -9545,6 +9553,10 @@ async function startServer() {
         // submission made outside the window is refused outright. The hour
         // is the player's stamped local hour when present, else the
         // submittedAt hour in America/Los_Angeles.
+        // Time-window override use is tracked for the admin log below.
+        let timeWindowOverrideUsed = false;
+        let timeWindowOverrideWindow: string | null = null;
+        let timeWindowOverrideHour: number | null = null;
         if (action === "approve") {
           const approvalMission = resolveMissionById(getBackendString(entry.tripId ?? entry.missionId ?? entry.challengeId));
           const approvalWindow = (approvalMission as any)?.proofRequirements?.timeWindow;
@@ -9556,7 +9568,12 @@ async function startServer() {
               ? Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Los_Angeles", hour: "numeric", hourCycle: "h23" }).format(submittedDate))
               : null;
             const approvalHour = stampedHour ?? ptHour;
-            if (approvalHour === null || !isWithinTimeWindow(approvalHour, approvalWindow)) {
+            const outsideWindow = approvalHour === null || !isWithinTimeWindow(approvalHour, approvalWindow);
+            if (outsideWindow && allowTimeWindowOverride) {
+              timeWindowOverrideUsed = true;
+              timeWindowOverrideWindow = formatTimeWindow(approvalWindow);
+              timeWindowOverrideHour = approvalHour;
+            } else if (outsideWindow) {
               const error: any = new Error(`TIME_WINDOW_CLOSED: this card only counts ${formatTimeWindow(approvalWindow)}`);
               error.status = 400;
               throw error;
@@ -9817,6 +9834,9 @@ async function startServer() {
           scoringSnapshot,
           suggestedRubric,
           suggestedRubricApplied,
+          timeWindowOverride: timeWindowOverrideUsed,
+          timeWindowOverrideWindow,
+          timeWindowOverrideHour,
           missionAttemptId: attemptId || null,
           missionAttemptValidated: !!validAttempt,
           aliases: resolution.aliases,

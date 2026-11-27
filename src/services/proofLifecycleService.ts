@@ -57,6 +57,10 @@ export interface ProofTransitionReviewMetadata {
   suggestedRubric?: AiSuggestedRubric | null;
   /** True when the admin applied the suggestion before acting. */
   suggestedRubricApplied?: boolean;
+  /** Admin-only: skip the time-window check on approve (entries submitted
+   * before the card's time lock existed). The server only honors it on
+   * approve, after the admin check. */
+  allowTimeWindowOverride?: boolean;
 }
 
 export interface QueueRepairEntryChange {
