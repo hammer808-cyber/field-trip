@@ -196,7 +196,11 @@ export const WINTER_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
       requiredSubjects: ["fog", "morning", "mist", "street", "trees"],
       minConfidence: 0.4,
       requireLocation: true,
-      requireTimestamp: true
+      requireTimestamp: true,
+      // Morning-only (Zach, Nov 27, 2026): "a foggy winter morning" /
+      // "before the sun takes it" — the fog is a morning thing. 5 AM–12
+      // PM local. One-line flippable.
+      timeWindow: { startHour: 5, endHour: 12 }
     },
     proofNeeded: "Photo evidence or field note.",
     levels: {
@@ -258,7 +262,11 @@ export const WINTER_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
       requiredSubjects: ["palm tree", "lights", "christmas lights", "palm", "night"],
       minConfidence: 0.4,
       requireLocation: true,
-      requireTimestamp: true
+      requireTimestamp: true,
+      // Night-only (Zach, Nov 27, 2026): the token is the palm lit up
+      // ("Lit up after dark") — daylight does not count. 6 PM–6 AM
+      // local. One-line flippable.
+      timeWindow: { startHour: 18, endHour: 6 }
     },
     proofNeeded: "Photo evidence or field note.",
     levels: {

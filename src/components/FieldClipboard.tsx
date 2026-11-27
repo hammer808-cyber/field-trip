@@ -23,6 +23,7 @@ import { EvidenceMeter } from './EvidenceMeter';
 import { EvidenceDetector, DetectorStatus } from './EvidenceDetector';
 import { getMissionImage } from '../utils/missionImages';
 import { getTimeWindowStatus, formatHour } from '../logic/timeWindow';
+import { TimeWindowLine } from './TimeWindowLine';
 import { ActionButton } from './UIUtilities';
 import { inferMissionCardType } from '../logic/missionSubmission';
 import type { MissionAttemptRecord } from '../services/missionAttemptService';
@@ -246,6 +247,10 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
           <div className="border-b-2 border-on-surface bg-white px-4 py-3 text-left relative z-30">
             <p className="font-mono text-xs font-black uppercase tracking-[0.2em] text-brand-orange">What to do</p>
             <p className="mt-1 font-sans text-sm font-bold leading-snug text-on-surface">{missionPrompt}</p>
+            {/* Time lock (Nov 27, 2026): the hours show here, in the
+                brief, so the player sees the lock before starting — the
+                submit button alone was not enough. */}
+            <TimeWindowLine mission={mission} variant="inline" className="mt-2" />
           </div>
         )}
 

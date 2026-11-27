@@ -40,6 +40,25 @@ export function formatTimeWindow(window: TimeWindow): string {
   return `${formatHour(window.startHour)}–${formatHour(window.endHour)}`;
 }
 
+/**
+ * Player-facing window label for the card itself, e.g. "Sunset only ·
+ * 4–8 PM". The kind word is keyed on the exact windows the decks use
+ * (Nov 27, 2026 audit); anything else falls back to "Only open …" so a
+ * future window never gets a wrong kind word. The card's own copy already
+ * says sunset / morning / night — this line is the clock, not the reason.
+ */
+export function describeTimeWindow(window: TimeWindow): string {
+  const { startHour, endHour } = window;
+  const hours = formatTimeWindow(window);
+  if (startHour === 18 && endHour === 6) return `Night only · ${hours}`;
+  if (startHour === 5 && endHour === 8) return `Sunrise only · ${hours}`;
+  if (startHour === 5 && endHour === 12) return `Morning only · ${hours}`;
+  if (startHour === 15 && endHour === 18) return `Sunset only · ${hours}`;
+  if (startHour === 15 && endHour === 19) return `Late afternoon only · ${hours}`;
+  if (startHour === 16 && endHour === 20) return `Sunset only · ${hours}`;
+  return `Only open ${hours}`;
+}
+
 export interface TimeWindowStatus {
   /** True when the card has no window or `now` is inside it. */
   open: boolean;

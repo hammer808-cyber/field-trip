@@ -79,7 +79,11 @@ export const URBAN_RECON_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
       requiredSubjects: ["holiday lights", "building", "lights", "decorations"],
       minConfidence: 0.4,
       requireLocation: true,
-      requireTimestamp: true
+      requireTimestamp: true,
+      // Night-only (Zach, Nov 27, 2026): the token is the holiday lights
+      // lit up — daylight does not count. 6 PM–6 AM local. One-line
+      // flippable.
+      timeWindow: { startHour: 18, endHour: 6 }
     },
     active: true,
     status: "approved",
@@ -108,7 +112,11 @@ export const URBAN_RECON_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
       requiredSubjects: ["market", "stall", "produce", "farmers market"],
       minConfidence: 0.4,
       requireLocation: true,
-      requireTimestamp: true
+      requireTimestamp: true,
+      // Morning-only (Zach, Nov 27, 2026): the title is Market Morning
+      // and the place is a farmers market — a morning thing. 5 AM–12 PM
+      // local. One-line flippable.
+      timeWindow: { startHour: 5, endHour: 12 }
     },
     active: true,
     status: "approved",
@@ -367,7 +375,10 @@ export const URBAN_RECON_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
       requiredSubjects: ["night market", "food", "stall", "street food"],
       minConfidence: 0.4,
       requireLocation: true,
-      requireTimestamp: true
+      requireTimestamp: true,
+      // Night-only (Zach, Nov 27, 2026): "after dark" is the whole card.
+      // 6 PM–6 AM local. One-line flippable.
+      timeWindow: { startHour: 18, endHour: 6 }
     },
     active: true,
     status: "approved",

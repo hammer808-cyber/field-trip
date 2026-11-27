@@ -34,6 +34,7 @@ import { FrankieQuiet } from './FrankieQuiet';
 import { getDisplayLabel } from '../utils/labelUtils';
 import { isLocationAdaptiveCard, type ResolvedPlace } from '../logic/placeResolution';
 import { ResolvedPlaceBanner } from './ResolvedPlaceBanner';
+import { TimeWindowLine } from './TimeWindowLine';
 
 export interface EvidenceProgress {
   photo?: boolean;
@@ -296,6 +297,11 @@ export function MissionCard({
              </p>
           </div>
         </div>
+
+        {/* Time lock (Nov 27, 2026): a card with a certain time of day
+            lists its time ON the card, next to the place banner. Full
+            bleed like the banner (-mx-6). */}
+        <TimeWindowLine mission={challenge} className="-mx-6 border-y-2 px-6" />
 
         {/* Urban Recon (Nov 23, 2026): the resolved place is a banner ON
             the card now, right under the title — it used to be a small

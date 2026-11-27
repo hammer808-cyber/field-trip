@@ -77,9 +77,9 @@ test('bank: {place} appears in the mission text exactly on slotted cards', () =>
   }
 });
 
-test('bank: time windows only on Lights After Dark (6 PM–6 AM) and Sunrise First Light (5–8 AM)', () => {
+test('bank: time windows on the night/morning cards (Nov 27, 2026 audit)', () => {
   const windowed = bank.filter((c) => c.proofRequirements?.timeWindow);
-  assert.deepEqual(windowed.map((c) => c.id), ['urban-18', 'urban-20']);
+  assert.deepEqual(windowed.map((c) => c.id), ['urban-02', 'urban-03', 'urban-12', 'urban-18', 'urban-20']);
   assert.deepEqual(
     bank.find((c) => c.id === 'urban-18')?.proofRequirements?.timeWindow,
     { startHour: 18, endHour: 6 },

@@ -242,7 +242,11 @@ export const HOLIDAY_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
       requiredSubjects: ["lights", "house", "christmas", "decorations", "night"],
       minConfidence: 0.4,
       requireLocation: true,
-      requireTimestamp: true
+      requireTimestamp: true,
+      // Night-only (Zach, Nov 27, 2026): the token is the house lit up —
+      // a daytime photo of unlit decorations is not the card. 6 PM–6 AM
+      // local. One-line flippable.
+      timeWindow: { startHour: 18, endHour: 6 }
     },
     proofNeeded: "Photo evidence or field note.",
     levels: {
@@ -272,7 +276,10 @@ export const HOLIDAY_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
       requiredSubjects: ["frost", "window", "cold", "morning", "winter"],
       minConfidence: 0.4,
       requireLocation: true,
-      requireTimestamp: true
+      requireTimestamp: true,
+      // Morning-only (Zach, Nov 27, 2026): frost is a morning thing —
+      // "before the sun takes it". 5 AM–12 PM local. One-line flippable.
+      timeWindow: { startHour: 5, endHour: 12 }
     },
     proofNeeded: "Photo evidence or field note.",
     levels: {
@@ -302,7 +309,12 @@ export const HOLIDAY_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
       requiredSubjects: ["sunset", "sky", "evening", "dark", "horizon"],
       minConfidence: 0.4,
       requireLocation: true,
-      requireTimestamp: true
+      requireTimestamp: true,
+      // Sunset-only (Zach, Nov 27, 2026): "4 in the afternoon and the sun
+      // is already setting" / "sun down before five" — the early winter
+      // sunset. 3–6 PM local, a fixed-hour approximation. One-line
+      // flippable.
+      timeWindow: { startHour: 15, endHour: 18 }
     },
     proofNeeded: "Photo evidence or field note.",
     levels: {

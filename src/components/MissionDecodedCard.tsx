@@ -35,6 +35,7 @@ import { hasRealMissionProgress } from '../logic/playerGuidance';
 import { hasHonestLocationCheck } from '../logic/checkIn';
 import { isLocationAdaptiveCard, type ResolvedPlace } from '../logic/placeResolution';
 import { ResolvedPlaceBanner } from './ResolvedPlaceBanner';
+import { TimeWindowLine } from './TimeWindowLine';
 
 interface MissionDecodedCardProps {
   mission: TripType;
@@ -218,6 +219,11 @@ export function MissionDecodedCard({
           </div>
         </div>
 
+        {/* Time lock (Nov 27, 2026): a card with a certain time of day
+            lists its time ON the card — the hours were invisible here
+            until the submit moment, which is how a 6 AM sunrise submit
+            of a sunset card went through unnoticed. */}
+        <TimeWindowLine mission={mission} />
         {/* BOTTOM ACTION / STATUS STRIP - Compact & High-Impact */}
         {/* Urban Recon (Nov 23, 2026): the resolved place is a banner ON
             the card now, right under the title — it used to be a small

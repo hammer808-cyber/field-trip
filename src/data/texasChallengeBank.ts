@@ -307,7 +307,11 @@ export const TEXAS_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
       requiredSubjects: ["stadium", "lights", "football field", "night", "bleachers"],
       minConfidence: 0.4,
       requireLocation: true,
-      requireTimestamp: true
+      requireTimestamp: true,
+      // Night-only (Zach, Nov 27, 2026): "lights on, after dark" — a
+      // daytime stadium is not the card. 6 PM–6 AM local, same as the
+      // other night cards. One-line flippable.
+      timeWindow: { startHour: 18, endHour: 6 }
     },
     active: true,
     status: "approved",

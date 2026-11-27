@@ -105,8 +105,8 @@ export const SOCAL_SUMMER_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
     title: "Golden Hour Glow",
     image: "/assets/challenges/socal-05.jpg",
     shortPrompt: "Find the pink sky.",
-    description: "Wait for that specific SoCal moment when the sky turns orange, pink, or purple.",
-    mission: "“Capture the golden hour sky.”",
+    description: "Wait for that specific SoCal sunset moment when the sky turns orange, pink, or purple.",
+    mission: "“Capture the sunset golden hour sky.”",
     proofType: ["photo"],
     lane: "seasonal",
     difficulty: "medium",
@@ -116,7 +116,12 @@ export const SOCAL_SUMMER_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
       requiredSubjects: ["sunset", "sky", "clouds", "sun", "color", "golden hour"],
       minConfidence: 0.5,
       requireLocation: false,
-      requireTimestamp: true
+      requireTimestamp: true,
+      // Sunset-only (Zach, Nov 27, 2026): he submitted this card at
+      // sunrise and it went through. Golden hour here means the sunset
+      // one — 4–8 PM local, a fixed-hour approximation of sunset, not
+      // solar time. One-line flippable (see src/logic/timeWindow.ts).
+      timeWindow: { startHour: 16, endHour: 20 }
     },
     active: true,
     status: "approved",
@@ -188,7 +193,10 @@ export const SOCAL_SUMMER_CHALLENGE_BANK: Partial<ChallengeCard>[] = [
       requiredSubjects: ["shadow", "ground", "pavement", "contrast", "shape"],
       minConfidence: 0.4,
       requireLocation: false,
-      requireTimestamp: true
+      requireTimestamp: true,
+      // Late-afternoon-only (Zach, Nov 27, 2026): the copy pins late
+      // afternoon — 3–7 PM local. One-line flippable.
+      timeWindow: { startHour: 15, endHour: 19 }
     },
     active: true,
     status: "approved",
