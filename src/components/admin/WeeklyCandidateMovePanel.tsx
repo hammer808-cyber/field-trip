@@ -140,7 +140,7 @@ export function WeeklyCandidateMovePanel({
                       onClick={() => onMove(row.entryId, row.fromCategory, target)}
                       disabled={isMoving || moveReason.trim().length < 5}
                       className={cn(
-                        'bureau-btn-sm min-h-11 bg-brand-lime text-on-surface disabled:opacity-40',
+ 'bureau-btn-sm min-h-11 text-on-surface disabled:opacity-40',
                       )}
                     >
                       {isMoving ? 'MOVING...' : 'MOVE'}

@@ -179,11 +179,13 @@ html[data-skin="journal"] body::after {
   box-shadow: var(--skin-elevated-shadow) !important;
 }
 
+/* Paper/tape pass (Nov 27, 2026): journal-skin buttons sit on the skin's
+   paper, not its primary colour. Typography, borders and shadows untouched. */
 [data-skin="journal"] :is(.skin-button, .field-cta, .bureau-btn, .bureau-btn-outline) {
   border: var(--skin-border-width) solid var(--skin-border) !important;
   border-radius: var(--skin-control-radius) !important;
-  color: var(--skin-on-primary) !important;
-  background: var(--skin-primary) !important;
+  color: var(--skin-text) !important;
+  background: var(--skin-surface) !important;
   box-shadow: var(--skin-button-shadow) !important;
   font-family: var(--skin-font-mono) !important;
   font-size: 0.82rem !important;

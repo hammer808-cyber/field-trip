@@ -218,7 +218,7 @@ export function StickerBook() {
           <button type="button" onClick={() => commit(resetStickerSheet(placements, activeSheet))} className="min-h-11 px-3 border-2 border-on-surface bg-white inline-flex items-center gap-2 font-mono text-xs font-black uppercase shadow-[2px_2px_0px_black]">
             <RefreshCw className="w-3.5 h-3.5" /> Reset Sheet
           </button>
-          <button type="button" onClick={() => commit(autoArrangeStickerSheet(placements, activeSheet))} className="min-h-11 px-3 border-2 border-on-surface bg-on-surface text-white inline-flex items-center gap-2 font-mono text-xs font-black uppercase shadow-[2px_2px_0px_var(--color-brand-orange)]">
+ <button type="button" onClick={() => commit(autoArrangeStickerSheet(placements, activeSheet))} className="min-h-11 px-3 border-2 border-on-surface bg-white text-on-surface inline-flex items-center gap-2 font-mono text-xs font-black uppercase shadow-[2px_2px_0px_var(--color-brand-orange)]">
             <Sparkles className="w-3.5 h-3.5" /> Auto Arrange
           </button>
         </div>
@@ -340,7 +340,7 @@ function StickerDetail({ placement, entries, onClose, onUpdate, onMoveFront, onA
 
         <div className="grid grid-cols-3 gap-2">
           <button type="button" onClick={() => onUpdate({ rotation: placement.rotation - 5 })} className="min-h-11 border-2 border-on-surface bg-white font-mono text-xs font-black uppercase inline-flex items-center justify-center gap-1"><RotateCcw className="w-3.5 h-3.5" /> Left</button>
-          <button type="button" onClick={onMoveFront} className="min-h-11 border-2 border-on-surface bg-brand-lime font-mono text-xs font-black uppercase inline-flex items-center justify-center gap-1"><BringToFront className="w-3.5 h-3.5" /> Front</button>
+ <button type="button" onClick={onMoveFront} className="min-h-11 border-2 border-on-surface bg-white font-mono text-xs font-black uppercase inline-flex items-center justify-center gap-1"><BringToFront className="w-3.5 h-3.5" /> Front</button>
           <button type="button" onClick={() => onUpdate({ rotation: placement.rotation + 5 })} className="min-h-11 border-2 border-on-surface bg-white font-mono text-xs font-black uppercase inline-flex items-center justify-center gap-1"><RotateCcw className="w-3.5 h-3.5 scale-x-[-1]" /> Right</button>
         </div>
 

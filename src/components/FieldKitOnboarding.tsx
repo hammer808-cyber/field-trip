@@ -152,7 +152,7 @@ export default function FieldKitOnboarding() {
             <div className="space-y-3 pt-2">
               <button
                 onClick={handleTryAgain}
-                className="w-full py-4 bg-on-surface text-white font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 shadow-[6px_6px_0px_#bef264] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all"
+ className="w-full py-4 bg-white text-on-surface font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 shadow-[6px_6px_0px_#bef264] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all"
               >
                 Try again
                 <ChevronRight className="w-4 h-4" />
@@ -231,7 +231,7 @@ export default function FieldKitOnboarding() {
             onClick={handleAllowPermissions}
             disabled={isRequesting}
             className={cn(
-              "w-full py-4 bg-on-surface text-white font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 shadow-[6px_6px_0px_#bef264] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all",
+ "w-full py-4 bg-white text-on-surface font-black uppercase tracking-widest text-sm flex items-center justify-center gap-2 shadow-[6px_6px_0px_#bef264] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all",
               isRequesting && "opacity-50 cursor-wait"
             )}
           >

@@ -178,7 +178,7 @@ export function SkinSelector() {
                 type="button"
                 onClick={handleApply}
                 disabled={!previewCanApply || selectionDisabled}
-                className="skin-button inline-flex min-h-11 items-center justify-center gap-2 border-2 border-on-surface bg-brand-orange px-4 font-mono text-xs font-black uppercase text-white shadow-[3px_3px_0px_black] disabled:cursor-not-allowed disabled:opacity-45"
+ className="skin-button inline-flex min-h-11 items-center justify-center gap-2 border-2 border-on-surface bg-white px-4 font-mono text-xs font-black uppercase text-on-surface shadow-[3px_3px_0px_black] disabled:cursor-not-allowed disabled:opacity-45"
                 title={!previewCanApply ? 'Unlock this skin before applying it.' : undefined}
               >
                 {previewCanApply ? <Check className="h-4 w-4" /> : <Lock className="h-4 w-4" />}

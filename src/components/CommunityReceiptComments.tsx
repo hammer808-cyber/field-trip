@@ -142,7 +142,7 @@ export function CommunityReceiptComments({ entryId }: { entryId: string }) {
             type="button"
             onClick={handlePost}
             disabled={busy || !draft.trim()}
-            className="w-full rounded-lg border-2 border-on-surface bg-brand-lime px-3 py-2 font-mono text-xs font-black uppercase tracking-widest text-on-surface shadow-[2px_2px_0px_black] transition-transform active:translate-y-0.5 active:shadow-none disabled:opacity-50"
+ className="w-full rounded-lg border-2 border-on-surface bg-white px-3 py-2 font-mono text-xs font-black uppercase tracking-widest text-on-surface shadow-[2px_2px_0px_black] transition-transform active:translate-y-0.5 active:shadow-none disabled:opacity-50"
           >
             {busy ? 'Posting…' : 'Post comment'}
           </button>

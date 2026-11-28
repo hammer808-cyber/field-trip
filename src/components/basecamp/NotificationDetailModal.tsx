@@ -131,7 +131,7 @@ export function NotificationDetailModal({ item, onClose, onTakeMeThere }: Notifi
         <button
           type="button"
           onClick={() => onTakeMeThere(item)}
-          className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-full border-[3px] border-on-surface bg-brand-lime font-display text-sm font-black uppercase italic tracking-normal text-on-surface shadow-[4px_4px_0px_black] transition-all hover:shadow-[6px_6px_0px_black] active:translate-x-0.5 active:translate-y-0.5 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand-cyan"
+ className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-full border-[3px] border-on-surface bg-white font-display text-sm font-black uppercase italic tracking-normal text-on-surface shadow-[4px_4px_0px_black] transition-all hover:shadow-[6px_6px_0px_black] active:translate-x-0.5 active:translate-y-0.5 focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-brand-cyan"
         >
           Take me there
         </button>

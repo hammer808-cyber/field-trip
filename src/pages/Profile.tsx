@@ -245,7 +245,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <PlayerPageShell department={activeTab === 'history' ? 'logbook' : activeTab === 'settings' ? 'settings' : 'profile'} className="skin-profile skin-logbook relative">
+    <PlayerPageShell department={activeTab === 'history' ? 'logbook' : activeTab === 'settings' ? 'settings' : 'profile'} className="skin-profile skin-logbook profile-playful relative">
       <FieldDoodles
         pageKey="profile"
         stamps={[
@@ -289,7 +289,7 @@ export default function ProfilePage() {
             straight to this bordered panel's top edge — same pattern
             as the Dex — so OVERVIEW / LOGBOOK / VAULT / SETTINGS read
             as file-folder tabs instead of floating buttons. */}
-        <main data-testid="profile-folder-body" className="relative min-h-[45vh] border-4 border-[var(--skin-border)] bg-[var(--skin-surface)] p-4 shadow-[8px_8px_0_var(--skin-border)] sm:p-8">
+        <main data-testid="profile-folder-body" className="bb-glass relative min-h-[45vh] border-4 border-[var(--skin-border)] bg-[var(--skin-surface)] p-4 shadow-[8px_8px_0_var(--skin-border)] sm:p-8">
 
       <AnimatePresence mode="wait">
         <motion.div
@@ -334,6 +334,7 @@ export default function ProfilePage() {
                        ) : (
                          <AvatarPreview
                           avatar={profile?.avatar || DEFAULT_AVATAR}
+                          fieldType={profile?.fieldType}
                           size="md"
                           className="w-24 h-24 rounded-[1.5rem] rotate-[-3.5deg] group-hover:rotate-0 transition-transform border-[3.5px] border-on-surface bg-white shadow-[6px_6px_0px_black]"
                         />
@@ -531,6 +532,7 @@ export default function ProfilePage() {
                       ) : (
                         <AvatarPreview
                           avatar={profile?.avatar || DEFAULT_AVATAR}
+                          fieldType={profile?.fieldType}
                           size="md"
                           className="w-20 h-20 border-[3px] border-on-surface bg-white shadow-[4px_4px_0px_black] rounded-full shrink-0"
                         />

@@ -126,7 +126,9 @@ export default function FrontlinesPage() {
     id,
     name: stats.userName,
     points: stats.points,
-    fieldTypeName: stats.fieldTypeName 
+    fieldTypeName: stats.fieldTypeName,
+    fieldType: (stats as any).fieldType || null,
+    photoURL: (stats as any).photoURL || null,
   })).sort((a, b) => b.points - a.points) : (fullBoard as any[]);
 
   return (
@@ -253,7 +255,7 @@ export default function FrontlinesPage() {
                   )}>{(idx + 1).toString().padStart(2, '0')}</span>
                   
                   <div className="shrink-0">
-                    <AvatarPreview avatar={user.avatar || DEFAULT_AVATAR} size="sm" className="rounded-none border-2 border-on-surface shadow-[4px_4px_0px_var(--color-brand-lime)]" />
+                    <AvatarPreview avatar={user.avatar || DEFAULT_AVATAR} photoURL={user.photoURL} fieldType={user.fieldType || user.fieldTypeName} size="sm" className="rounded-none border-2 border-on-surface shadow-[4px_4px_0px_var(--color-brand-lime)]" />
                   </div>
 
                   <div className={cn(
@@ -294,7 +296,7 @@ export default function FrontlinesPage() {
                 <button 
                   onClick={loadMore}
                   disabled={loadingBatch}
-                  className="w-full py-4 border-2 border-dashed border-on-surface/10 flex items-center justify-center gap-2 font-display text-xs tracking-widest uppercase opacity-40 hover:opacity-100 hover:border-brand-orange/40 hover:bg-brand-orange/5 transition-all text-on-surface"
+                  className="w-full py-4 border-2 border-dashed border-on-surface/10 bg-[var(--skin-surface)] flex items-center justify-center gap-2 font-display text-xs tracking-widest uppercase opacity-40 hover:opacity-100 hover:border-brand-orange/40 hover:bg-brand-orange/5 transition-all text-on-surface"
                 >
                   <MoreHorizontal className={cn("w-4 h-4", loadingBatch && "animate-pulse")} />
                   {loadingBatch ? 'Calibrating Batch...' : 'Load More Entries'}
@@ -309,7 +311,7 @@ export default function FrontlinesPage() {
                   "text-brand-orange"
                 )}>--</span>
                 <div className="shrink-0">
-                  <AvatarPreview avatar={profile?.avatar || DEFAULT_AVATAR} size="sm" className="rounded-full border border-brand-orange/40 shadow-[0_0_10px_rgba(226,149,120,0.2)]" />
+                  <AvatarPreview avatar={profile?.avatar || DEFAULT_AVATAR} photoURL={profile?.photoURL} fieldType={profile?.fieldType} size="sm" className="rounded-full border border-brand-orange/40 shadow-[0_0_10px_rgba(226,149,120,0.2)]" />
                 </div>
                 <div className={cn(
                   "flex-grow border-b-2 pb-2 flex justify-between items-end",
@@ -505,7 +507,7 @@ export default function FrontlinesPage() {
             <div className="divide-y-4 divide-on-surface/5 relative z-10">
               {visibleActivity.map((event) => (
                 <div key={event.id} className="flex gap-6 items-center py-6 group hover:bg-brand-lime/5 transition-all -mx-8 px-8">
-                  <AvatarPreview avatar={(event as any).userAvatar || DEFAULT_AVATAR} size="xs" className="rounded-none border-2 border-on-surface shrink-0 shadow-[3px_3px_0px_var(--color-brand-lime)]" />
+                  <AvatarPreview avatar={(event as any).userAvatar || DEFAULT_AVATAR} fieldType={(event as any).fieldType || (event as any).fieldTypeName || null} size="xs" className="rounded-none border-2 border-on-surface shrink-0 shadow-[3px_3px_0px_var(--color-brand-lime)]" />
                   <div className="flex-grow space-y-1">
                     <div className="flex justify-between items-start">
                       <div className="flex flex-col">

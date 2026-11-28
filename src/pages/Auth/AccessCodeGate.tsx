@@ -114,7 +114,7 @@ export default function AccessCodeGate({ onSuccess, onBack }: AccessCodeGateProp
           <button 
             type="submit"
             disabled={loading}
-            className="w-full bureau-btn-huge group disabled:opacity-60"
+            className="w-full bureau-btn group disabled:opacity-60"
           >
             <div className="flex items-center justify-center gap-4">
               {loading ? <Loader2 className="w-8 h-8 animate-spin" /> : <>Continue <ArrowRight className="w-8 h-8 group-hover:translate-x-2 transition-transform" /></>}

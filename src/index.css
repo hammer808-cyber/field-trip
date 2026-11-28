@@ -38,6 +38,7 @@
   --color-brand-yellow: #F0FF00;
   --color-brand-purple: #9D00FF;
   --color-brand-teal: #00A3A3;
+  --color-brand-tape: #FEFC9C;
   
   --color-paper-dark: #F5F1E8;
   --color-error: #FF003D;
@@ -470,7 +471,10 @@ body::after {
 }
 
 .bureau-btn {
-  @apply bg-on-surface text-white px-10 py-5 font-display uppercase tracking-wider text-2xl hover:bg-brand-orange transition-all active:translate-y-1 active:translate-x-1 active:shadow-none inline-flex items-center justify-center relative overflow-hidden leading-tight;
+  /* Paper/tape pass (Nov 27, 2026, design elevation batch): buttons sit on
+     a paper surface — the black base is gone; the lime hard shadow stays as
+     the accent, and hover is the tape stock, not orange. */
+  @apply bg-white text-on-surface px-10 py-5 font-display uppercase tracking-wider text-2xl hover:bg-brand-tape transition-all active:translate-y-1 active:translate-x-1 active:shadow-none inline-flex items-center justify-center relative overflow-hidden leading-tight border-2 border-on-surface;
   box-shadow: 6px 6px 0px 0px var(--color-brand-lime);
 }
 
@@ -486,13 +490,13 @@ body::after {
 
 .bureau-btn-sm {
   /* P2-3: 12px floor (was text-[10px]). */
-  @apply bg-on-surface text-white px-4 py-2 font-display uppercase tracking-widest text-xs border-2 border-on-surface transition-all active:scale-95 flex items-center justify-center;
+  @apply bg-white text-on-surface px-4 py-2 font-display uppercase tracking-widest text-xs border-2 border-on-surface transition-all active:scale-95 flex items-center justify-center;
   box-shadow: 3px 3px 0px 0px var(--color-brand-magenta);
 }
 
 .bureau-tag {
   /* P2-3: 12px floor (was text-[11px]). */
-  @apply px-4 py-2 bg-brand-lime text-black border-2 border-on-surface font-mono text-xs font-bold uppercase tracking-wider inline-block leading-none;
+  @apply px-4 py-2 bg-brand-tape text-black border-2 border-on-surface font-mono text-xs font-bold uppercase tracking-wider inline-block leading-none;
   box-shadow: 4px 4px 0px 0px var(--color-on-surface);
 }
 
@@ -1183,8 +1187,11 @@ img, video, canvas, svg {
 
 /* 10b. Field CTA Button - Premium Gradient & Depth */
 .field-cta {
-  background: linear-gradient(135deg, #ff5c00, #ff2fa8); /* P2-1: orange end unified to the primary token; #ff2fa8 pink end is deferred (Missions freeze, no token equivalent) */
-  color: white;
+  /* Paper/tape pass (Nov 27, 2026): the orange-to-pink gradient is gone —
+     CTAs sit on paper with ink text, like every other button. The hard
+     shadow and sheen stay. */
+  background: #ffffff;
+  color: var(--skin-text, #111111);
   border: 3px solid var(--skin-border, #111111);
   box-shadow: 6px 8px 0 var(--skin-border, #111111);
   font-weight: 900;
@@ -1217,7 +1224,7 @@ img, video, canvas, svg {
 }
 
 .field-cta:hover {
-  filter: brightness(1.05);
+  background: var(--color-brand-tape);
   box-shadow: 8px 10px 0 var(--skin-border, #111111);
   transform: translate(-1px, -1px);
 }
@@ -1228,7 +1235,7 @@ img, video, canvas, svg {
 
 /* 11. Jagged Translucent Tape Stripes */
 .field-tape {
-  @apply h-6 bg-[#FEFC9C]/80 border-y border-dashed border-on-surface/20 relative rotate-[-6deg] shadow-sm pointer-events-none mix-blend-multiply;
+  @apply h-6 bg-brand-tape/80 border-y border-dashed border-on-surface/20 relative rotate-[-6deg] shadow-sm pointer-events-none mix-blend-multiply;
   width: 70px;
 }
 
@@ -1237,7 +1244,7 @@ img, video, canvas, svg {
    it). No mix-blend-multiply and no fixed width, so the Kalam ink
    text stays crisp and legible on every skin. */
 .field-tape--label {
-  @apply block bg-[#FEFC9C] border-y border-dashed border-on-surface/20 shadow-sm px-3 py-1.5;
+  @apply block bg-brand-tape border-y border-dashed border-on-surface/20 shadow-sm px-3 py-1.5;
   font-family: var(--font-kalam);
   color: var(--skin-text, #111111);
 }
@@ -1249,7 +1256,7 @@ img, video, canvas, svg {
    states ride on the element's own utilities, not here, so the
    layered variants are never fighting this unlayered class. */
 .field-tape--button {
-  @apply block bg-[#FEFC9C] border-[3px] border-solid border-[var(--skin-border)] px-3 py-1.5;
+  @apply block bg-brand-tape border-[3px] border-solid border-[var(--skin-border)] px-3 py-1.5;
   font-family: var(--font-kalam);
   color: var(--skin-text, #111111);
 }
@@ -1382,12 +1389,15 @@ img, video, canvas, svg {
    (72% white over the light wash) so ink text keeps AA contrast;
    the dot-grid texture on a panel is a separate background-image
    layer and is untouched because this sets background-color only.
-   Blur lives on the four large section panels only, never on the
+   Blur lives on the large section panels only, never on the
    small sticker cards: their layered paper construction (black
    silhouette + rotated sheet behind an opaque face) would turn a
    translucent face muddy grey, and dozens of small blurs would cost
-   phones frames. */
-.big-board-playful .bb-glass {
+   phones frames. The same frost serves the Basecamp and Profile
+   playful scopes (Nov 27, 2026), see the block below. */
+.big-board-playful .bb-glass,
+.basecamp-playful .bb-glass,
+.profile-playful .bb-glass {
   background-color: rgb(255 255 255 / 0.72);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
@@ -1398,8 +1408,100 @@ img, video, canvas, svg {
 
 @media (max-width: 640px) {
   /* Cheaper blur on phones: same frost, less GPU work. */
-  .big-board-playful .bb-glass {
+  .big-board-playful .bb-glass,
+  .basecamp-playful .bb-glass,
+  .profile-playful .bb-glass {
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
   }
+}
+
+/* Basecamp + Profile playful scopes (Nov 27, 2026, Zach's word,
+   design elevation batch): the Big Board treatment spreads to the
+   other two home pages. Same rules as the Big Board block above -
+   Bebas titles, Poppins for every other word, frosted-glass section
+   panels over a soft brand-colour wash, scoped so nothing else in
+   the app changes. Every rule starts with .basecamp-playful or
+   .profile-playful, which only Basecamp.tsx / Profile.tsx put on
+   their roots. */
+
+/* Playful wash: the same soft pools as the Big Board, over the paper
+   base. The 0,2,0 selectors beat the pages' own background utilities
+   (0,1,0) regardless of import order. Colour stops use color-mix off
+   the skin tokens, so no new colour values are invented here. */
+.skin-basecamp.basecamp-playful,
+.ft-dept-profile.profile-playful,
+.ft-dept-logbook.profile-playful,
+.ft-dept-settings.profile-playful {
+  background-color: var(--color-paper);
+  background-image:
+    radial-gradient(640px 420px at 88% 6%, color-mix(in srgb, var(--color-brand-cyan) 24%, transparent), transparent 70%),
+    radial-gradient(520px 480px at 6% 28%, color-mix(in srgb, var(--color-brand-orange) 20%, transparent), transparent 70%),
+    radial-gradient(720px 520px at 92% 62%, color-mix(in srgb, var(--color-brand-magenta) 14%, transparent), transparent 70%),
+    radial-gradient(560px 420px at 8% 88%, color-mix(in srgb, var(--color-brand-lime) 22%, transparent), transparent 70%);
+  font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Every other word on these pages is Poppins: remap the non-title
+   font utilities the pages (and the shared components they render)
+   use. font-display stays Bebas Neue for titles. The Kalam /
+   Permanent Marker doodle stamps are decorative handwriting and are
+   left alone. */
+.basecamp-playful .font-sans,
+.basecamp-playful .font-mono,
+.basecamp-playful .font-serif,
+.basecamp-playful .font-outfit,
+.profile-playful .font-sans,
+.profile-playful .font-mono,
+.profile-playful .font-serif,
+.profile-playful .font-outfit {
+  font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Hero tab labels are navigation, not titles. */
+.basecamp-playful [role="tab"],
+.profile-playful [role="tab"] {
+  font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Inside the hero, every Bebas element that is not the h1 title is a
+   display value, so it reads in Poppins too. */
+.basecamp-playful header :not(h1).font-display,
+.profile-playful header :not(h1).font-display {
+  font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Basecamp panel frost for the panels whose surface comes from
+   Basecamp.css, not Tailwind: progress, crew, and the attention
+   notice. Three-class selectors (0,3,0) beat Basecamp.css's
+   two-class panel rules (0,2,0) regardless of bundle order. Only
+   the fill and the blur change, the panels keep their own
+   background-image textures (grid paper, ruled lines), borders,
+   shadows, rotations, and tape, so the board keeps its character. */
+.skin-basecamp.basecamp-playful .basecamp-progress,
+.skin-basecamp.basecamp-playful .basecamp-crew,
+.skin-basecamp.basecamp-playful .basecamp-notice {
+  background-color: rgb(255 255 255 / 0.72);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+@media (max-width: 640px) {
+  .skin-basecamp.basecamp-playful .basecamp-progress,
+  .skin-basecamp.basecamp-playful .basecamp-crew,
+  .skin-basecamp.basecamp-playful .basecamp-notice {
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+}
+
+/* Profile folder body: the frosted folder. The folder body keeps its
+   filed-folder chrome, square corners, 4px ink border, hard offset
+   shadow, so the hero's folder tabs still attach to its top edge;
+   only the solid surface becomes frost. This rule sits after the
+   shared .bb-glass rule and wins the tie. */
+.profile-playful .bb-glass {
+  border-radius: 0;
+  border: 4px solid var(--skin-border);
+  box-shadow: 8px 8px 0 var(--skin-border);
 }

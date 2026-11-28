@@ -125,7 +125,7 @@ export default function SignIn({ onSuccess, onBack, onCreateAccount }: SignInPro
           <button 
             type="submit"
             disabled={loading}
-            className="w-full bureau-btn bg-on-surface text-white flex items-center justify-center gap-3 disabled:opacity-20 py-6 border-4 border-white/20 shadow-[10px_10px_0px_var(--color-brand-cyan)] active:shadow-none active:translate-x-1 active:translate-y-1 transition-all"
+ className="w-full bureau-btn flex items-center justify-center gap-3 disabled:opacity-20 py-6 border-4 border-white/20 shadow-[10px_10px_0px_var(--color-brand-cyan)] active:shadow-none active:translate-x-1 active:translate-y-1 transition-all"
           >
             {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : fc('LOG IN', 'SIGN IN')}
           </button>

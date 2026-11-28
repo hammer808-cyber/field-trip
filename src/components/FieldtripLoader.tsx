@@ -295,7 +295,7 @@ export function ErrorStatePanel({
           <button
             type="button"
             onClick={onRetry}
-            className="skin-button min-h-12 border-4 border-on-surface bg-brand-lime px-4 py-3 font-display text-lg font-black uppercase italic shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none"
+ className="skin-button min-h-12 border-4 border-on-surface bg-white px-4 py-3 font-display text-lg font-black uppercase italic shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none"
           >
             {retryLabel}
           </button>

@@ -67,7 +67,7 @@ export function EntryCard({ entry, className }: EntryCardProps) {
       className
     )}>
       {/* Tape on top anchoring this Polaroid entry */}
-      <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-28 h-8 bg-[#FEFC9C]/90 border-[1.5px] border-dashed border-on-surface/30 rotate-[-1.5deg] z-40 shadow-[2px_2px_0px_rgba(0,0,0,0.05)] pointer-events-none mix-blend-multiply" />
+      <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-28 h-8 bg-brand-tape/90 border-[1.5px] border-dashed border-on-surface/30 rotate-[-1.5deg] z-40 shadow-[2px_2px_0px_rgba(0,0,0,0.05)] pointer-events-none mix-blend-multiply" />
       <div className="absolute top-2 right-2 w-7 h-7 border-[2.5px] border-on-surface/30 rounded-full flex items-center justify-center opacity-40 z-40 bg-white shadow-sm select-none pointer-events-none text-xs">📌</div>
       
       {/* Main Image Viewport */}
@@ -86,13 +86,13 @@ export function EntryCard({ entry, className }: EntryCardProps) {
             <div className="flex gap-4">
               <button 
                 onClick={() => handleAdminAction('approved')}
-                className="bg-brand-lime text-on-surface px-6 py-3 text-xs font-display uppercase font-black border-[3px] border-on-surface hover:bg-white transition-all shadow-[6px_6px_0px_black] active:shadow-none active:translate-y-1 italic"
+ className="bg-white text-on-surface px-6 py-3 text-xs font-display uppercase font-black border-[3px] border-on-surface hover:bg-brand-tape transition-all shadow-[6px_6px_0px_black] active:shadow-none active:translate-y-1 italic"
               >
                 VERIFY_DATA
               </button>
               <button 
                 onClick={() => handleAdminAction('rejected')}
-                className="bg-brand-orange text-white px-6 py-3 text-xs font-display uppercase font-black border-[3px] border-on-surface hover:bg-on-surface transition-all shadow-[6px_6px_0px_black] active:shadow-none active:translate-y-1 italic"
+ className="bg-white text-on-surface px-6 py-3 text-xs font-display uppercase font-black border-[3px] border-on-surface hover:bg-brand-tape transition-all shadow-[6px_6px_0px_black] active:shadow-none active:translate-y-1 italic"
               >
                 REJECT_VIBE
               </button>

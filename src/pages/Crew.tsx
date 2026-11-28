@@ -417,10 +417,10 @@ export default function CrewPage() {
           </div>
 
           <div className="grid grid-cols-2 border-4 border-on-surface bg-white p-1" role="tablist" aria-label="Crew start options">
-            <button type="button" role="tab" aria-selected={noCrewView === 'create'} onClick={() => setNoCrewView('create')} className={cn('p-3 font-mono text-xs font-black uppercase', noCrewView === 'create' ? 'bg-brand-lime' : 'text-on-surface/60')}>
+ <button type="button" role="tab" aria-selected={noCrewView === 'create'} onClick={() => setNoCrewView('create')} className={cn('p-3 font-mono text-xs font-black uppercase', noCrewView === 'create' ? 'bg-brand-tape' : 'text-on-surface/60')}>
               Create Crew
             </button>
-            <button type="button" role="tab" aria-selected={noCrewView === 'join'} onClick={() => setNoCrewView('join')} className={cn('p-3 font-mono text-xs font-black uppercase', noCrewView === 'join' ? 'bg-brand-cyan' : 'text-on-surface/60')}>
+ <button type="button" role="tab" aria-selected={noCrewView === 'join'} onClick={() => setNoCrewView('join')} className={cn('p-3 font-mono text-xs font-black uppercase', noCrewView === 'join' ? 'bg-brand-tape' : 'text-on-surface/60')}>
               Find Crew
             </button>
           </div>
@@ -435,7 +435,7 @@ export default function CrewPage() {
                     {invite.crew?.mode || 'friendly'} / {invite.crew?.memberCount || 0} members / expires {formatSafeDateOnly(invite.expiresAt)}
                   </p>
                   <div className="flex gap-2">
-                    <button type="button" className="bureau-btn bg-brand-lime text-on-surface text-xs" onClick={() => runCrewAction('accept invite', () => acceptCrewInvite(invite.id))}>Accept</button>
+ <button type="button" className="bureau-btn text-on-surface text-xs" onClick={() => runCrewAction('accept invite', () => acceptCrewInvite(invite.id))}>Accept</button>
                     <button type="button" className="bureau-btn bg-white text-on-surface text-xs" onClick={() => runCrewAction('decline invite', () => declineCrewInvite(invite.id))}>Decline</button>
                   </div>
                 </div>
@@ -526,7 +526,7 @@ export default function CrewPage() {
                       <p className="font-serif italic text-sm opacity-60">{discovered.motto || 'A Crew looking for another field agent.'}</p>
                       <p className="font-mono text-xs uppercase opacity-45 mt-2">{discovered.mode || 'friendly'} / {discovered.memberCount || 0} of {discovered.memberLimit || 8}</p>
                     </div>
-                    <button type="button" disabled={pending || crewActionBusy || !!cooldownText} onClick={() => runCrewAction('request to join', () => requestToJoinCrew(discovered.id))} className="bureau-btn bg-brand-cyan text-on-surface text-xs disabled:opacity-40">
+ <button type="button" disabled={pending || crewActionBusy || !!cooldownText} onClick={() => runCrewAction('request to join', () => requestToJoinCrew(discovered.id))} className="bureau-btn text-on-surface text-xs disabled:opacity-40">
                       <UserPlus className="w-4 h-4" /> {pending ? 'Request Pending' : 'Request to Join'}
                     </button>
                   </div>
@@ -630,7 +630,7 @@ export default function CrewPage() {
                         </p>
                       </div>
                       <div className="flex gap-2">
-                        <button className="bureau-btn bg-brand-lime text-on-surface text-xs" onClick={() => runCrewAction('accept invite', () => acceptCrewInvite(invite.id))}>Accept</button>
+ <button className="bureau-btn text-on-surface text-xs" onClick={() => runCrewAction('accept invite', () => acceptCrewInvite(invite.id))}>Accept</button>
                         <button className="bureau-btn bg-white text-on-surface text-xs" onClick={() => runCrewAction('decline invite', () => declineCrewInvite(invite.id))}>Decline</button>
                       </div>
                     </div>
@@ -658,7 +658,7 @@ export default function CrewPage() {
                             <p className="font-mono text-xs opacity-50">@{result.username || result.userId.slice(0, 8)}</p>
                           </div>
                           <button
-                            className="bureau-btn bg-brand-lime text-on-surface text-xs"
+ className="bureau-btn text-on-surface text-xs"
                             onClick={() => runCrewAction('send invite', () => createDirectCrewInvite(crew.id, result.userId))}
                           >
                             Send Invite
@@ -680,13 +680,13 @@ export default function CrewPage() {
                           ))}
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          <button className="bureau-btn bg-brand-cyan text-on-surface text-xs" onClick={() => navigator.clipboard?.writeText(inviteLink.url)}>Copy Link</button>
+ <button className="bureau-btn text-on-surface text-xs" onClick={() => navigator.clipboard?.writeText(inviteLink.url)}>Copy Link</button>
                           <button className="bureau-btn bg-white text-on-surface text-xs" onClick={() => runCrewAction('revoke invite link', async () => { await revokeCrewInviteLink(inviteLink.inviteId); setInviteLink(null); }, 'Revoke this Crew invite link?')}>Revoke Link</button>
                         </div>
                       </div>
                     ) : (
                       <button
-                        className="bureau-btn bg-brand-orange text-white text-xs"
+ className="bureau-btn text-xs"
                         onClick={() => runCrewAction('generate invite link', async () => {
                           const generated = await generateCrewInviteLink(crew.id);
                           const absoluteUrl = new URL(generated.inviteUrl, window.location.origin).toString();
@@ -715,7 +715,7 @@ export default function CrewPage() {
                         <p className="font-mono text-xs opacity-50">@{request.applicantSnapshot?.usernameSnapshot || request.userId.slice(0, 8)} / {formatSafeDateOnly(request.createdAt)}</p>
                       </div>
                       <div className="flex gap-2">
-                        <button className="bureau-btn bg-brand-lime text-on-surface text-xs" onClick={() => runCrewAction('approve request', () => approveCrewJoinRequest(request.id))}>Approve</button>
+ <button className="bureau-btn text-on-surface text-xs" onClick={() => runCrewAction('approve request', () => approveCrewJoinRequest(request.id))}>Approve</button>
                         <button className="bureau-btn bg-white text-on-surface text-xs" onClick={() => runCrewAction('decline request', () => declineCrewJoinRequest(request.id))}>Decline</button>
                       </div>
                     </div>
@@ -796,7 +796,7 @@ export default function CrewPage() {
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {canTransfer && <button className="bureau-btn bg-brand-cyan text-on-surface text-xs" onClick={() => runCrewAction('transfer captain', () => transferCrewCaptain(crew.id, member.userId), `Transfer captain authority to ${member.displayNameSnapshot || member.displayName || 'this member'}? You will become a member.`)}>Transfer Captain</button>}
+ {canTransfer && <button className="bureau-btn text-on-surface text-xs" onClick={() => runCrewAction('transfer captain', () => transferCrewCaptain(crew.id, member.userId), `Transfer captain authority to ${member.displayNameSnapshot || member.displayName || 'this member'}? You will become a member.`)}>Transfer Captain</button>}
                           {canRemove && <button className="bureau-btn bg-red-500 text-white text-xs" onClick={() => runCrewAction('remove member', () => removeCrewMember(crew.id, member.userId), 'Remove this user from the Crew? Their personal archive and prior Crew archive snapshots remain unchanged.')}>Remove from Crew</button>}
                         </div>
                       </div>
@@ -843,7 +843,7 @@ export default function CrewPage() {
               <h2 className="font-display text-4xl font-black uppercase italic leading-none">Vote for the week</h2>
               <p className="font-serif italic text-sm opacity-65 max-w-xl">Voting is global — one community ballot for the whole week. Cast your votes for the photos that defined it.</p>
             </div>
-            <button type="button" onClick={() => navigate('/voting')} className="bureau-btn bg-brand-lime text-on-surface shrink-0"><Vote className="w-4 h-4" /> Open Weekly Voting</button>
+ <button type="button" onClick={() => navigate('/voting')} className="bureau-btn text-on-surface shrink-0"><Vote className="w-4 h-4" /> Open Weekly Voting</button>
           </div>
         )}
 
@@ -912,7 +912,7 @@ export default function CrewPage() {
                   <p className="font-serif italic text-sm opacity-60 max-w-md mx-auto">No approved crew photos yet — the feed fills up as missions come back.</p>
                 )}
                 <div className="flex flex-col items-center gap-3 pt-2">
-                  <button type="button" onClick={() => navigate('/missions')} className="bureau-btn bg-brand-lime text-on-surface w-full max-w-sm">Draw a Mission</button>
+ <button type="button" onClick={() => navigate('/missions')} className="bureau-btn text-on-surface w-full max-w-sm">Draw a Mission</button>
                   <button type="button" onClick={() => setActiveTab('feed')} className="bureau-btn bg-white text-on-surface w-full max-w-sm">Open the Feed</button>
                   <button type="button" onClick={() => setActiveTab('chat')} className="bureau-btn bg-white text-on-surface w-full max-w-sm">Open the Chat</button>
                 </div>
@@ -988,7 +988,7 @@ export default function CrewPage() {
                     }}
                   />
                 </div>
-                <button type="button" disabled={crewActionBusy || loreDraft.trim().length < 2} onClick={handleAddLore} className="bureau-btn bg-on-surface text-white hover:bg-brand-orange transition-colors px-8 shadow-[8px_8px_0px_var(--color-brand-lime)] disabled:opacity-40">ADD_LORE</button>
+ <button type="button" disabled={crewActionBusy || loreDraft.trim().length < 2} onClick={handleAddLore} className="bureau-btn transition-colors px-8 shadow-[8px_8px_0px_var(--color-brand-lime)] disabled:opacity-40">ADD_LORE</button>
               </div>
             </section>
 
@@ -1099,7 +1099,7 @@ export default function CrewPage() {
                     <input type="checkbox" checked={settingsDraft.autoApproveShareLinks} onChange={event => setSettingsDraft(current => ({ ...current, autoApproveShareLinks: event.target.checked }))} className="mt-1" />
                     <span><strong className="block font-mono text-xs uppercase">Auto-join valid share links</strong><span className="font-serif italic text-xs opacity-60">Only applies to discoverable Crews. Capacity, expiry, cooldown, and single-Crew checks still run.</span></span>
                   </label>
-                  <button type="button" disabled={crewActionBusy || settingsDraft.name.trim().length < 2} onClick={handleSaveSettings} className="bureau-btn bg-brand-lime text-on-surface disabled:opacity-40">Save Crew Settings</button>
+ <button type="button" disabled={crewActionBusy || settingsDraft.name.trim().length < 2} onClick={handleSaveSettings} className="bureau-btn text-on-surface disabled:opacity-40">Save Crew Settings</button>
                 </div>
               ) : (
                 <div className="border-4 border-dashed border-on-surface/20 p-5 font-serif italic text-sm opacity-65">Only the active captain can change Crew settings. Your role and current settings remain visible above.</div>

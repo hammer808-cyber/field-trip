@@ -13,7 +13,10 @@
   box-shadow: 10px 10px 0 var(--skin-border, #111);
 }
 .skin-basecamp .basecamp-today--urgent .basecamp-next-cta {
-  background: linear-gradient(100deg, var(--skin-secondary, #ccff00) 0%, #fff 42%, var(--skin-primary, #ff5c00) 130%);
+  /* Paper/tape pass (Nov 27, 2026): the urgency gradient is gone — the
+     urgent CTA is paper like every other button; the "TODAY" flag still
+     carries the urgency. */
+  background: var(--skin-surface);
   color: #111;
   border-width: 4px;
   font-size: 1.65rem;
@@ -108,13 +111,13 @@
    token, so the note stays amber on every skin. */
 .skin-basecamp .basecamp-sheet--sticky { background:var(--color-heat-yellow); border:none; box-shadow:0 1px 2px color-mix(in srgb, var(--skin-text) 18%, transparent), 3px 6px 12px color-mix(in srgb, var(--skin-text) 22%, transparent); }
 .skin-basecamp .basecamp-sheet--sticky::after { content:""; position:absolute; right:0; bottom:0; width:26px; height:26px; background:linear-gradient(to bottom right, transparent 50%, color-mix(in srgb, var(--skin-text) 16%, var(--color-heat-yellow)) 50%); border-bottom-right-radius:var(--skin-card-radius); pointer-events:none; }
-.skin-basecamp .basecamp-commercial-cta { border-top:3px solid var(--skin-border); color:var(--skin-on-secondary); background:var(--skin-secondary); }
+.skin-basecamp .basecamp-commercial-cta { border-top:3px solid var(--skin-border); color:var(--skin-text); background:var(--skin-surface); }
 .skin-basecamp .basecamp-crew-campaign { position:relative; min-height:116px; display:flex; align-items:flex-end; justify-content:space-between; gap:12px; padding:12px 14px; overflow:hidden; border-radius:var(--skin-card-radius); border:2px solid var(--skin-border); background:var(--skin-surface-muted); box-shadow:3px 3px 0 var(--skin-border); }
 .skin-basecamp .basecamp-crew-portraits { display:flex; align-items:flex-end; }
 .skin-basecamp .basecamp-crew-portraits span { display:flex; align-items:center; justify-content:center; width:65px; height:82px; margin-right:-18px; border:2px solid var(--skin-border); border-radius:50% 50% 12px 12px; color:var(--skin-text); background:var(--skin-surface); box-shadow:3px 4px 0 var(--skin-border); transform:rotate(-5deg); }
 .skin-basecamp .basecamp-crew-portraits span:nth-child(2) { height:92px; transform:translateY(-5px) rotate(3deg); background:color-mix(in srgb, var(--skin-secondary) 30%, var(--skin-surface)); }
 .skin-basecamp .basecamp-crew-portraits span:nth-child(3) { transform:rotate(7deg); background:color-mix(in srgb, var(--skin-accent) 30%, var(--skin-surface)); }
 .skin-basecamp .basecamp-crew-kicker { position:relative; max-width:130px; font-family:var(--font-display,inherit); font-size:1.25rem; font-weight:900; font-style:italic; line-height:.9; text-align:right; color:var(--skin-text); }
-.skin-basecamp .basecamp-crew-cta { border:3px solid var(--skin-border); border-radius:var(--skin-control-radius); color:var(--skin-on-secondary); background:var(--skin-secondary); box-shadow:var(--skin-button-shadow); }
+.skin-basecamp .basecamp-crew-cta { border:3px solid var(--skin-border); border-radius:var(--skin-control-radius); color:var(--skin-text); background:var(--skin-surface); box-shadow:var(--skin-button-shadow); }
 @media (max-width: 639px) { .skin-basecamp .basecamp-bulletin { padding:10px; border-width:7px; } .skin-basecamp .basecamp-tape--right { display:none; } }
 @media (prefers-reduced-motion:no-preference) { .skin-basecamp .basecamp-crew-portraits span { transition:transform .25s ease; } .skin-basecamp .basecamp-crew:hover .basecamp-crew-portraits span:nth-child(2) { transform:translateY(-10px) rotate(1deg); } }

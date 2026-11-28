@@ -79,13 +79,20 @@ export function StickerCard({ sticker, unlock, onOpen }: StickerCardProps) {
           <p className="line-clamp-2 font-display text-sm font-black uppercase leading-tight">
             {sticker.name}
           </p>
-          <p className="mt-1 truncate font-mono text-xs font-bold uppercase opacity-55">
+          {/* Archetype label (Nov 27, 2026, design elevation batch):
+              was opacity-55 (~4.17:1, below AA). 80% ink clears 4.5:1
+              on every light skin surface, and on dark skins too. */}
+          <p className="mt-1 truncate font-mono text-xs font-bold uppercase opacity-80">
             {sticker.archetype ? STICKER_ARCHETYPE_LABELS[sticker.archetype] : 'Cross-pack'}
           </p>
         </div>
         <div className="flex items-center justify-between gap-2 font-mono text-xs font-black uppercase">
           <span>{sticker.rarity}</span>
-          <span className={isUnlocked ? 'opacity-65' : 'opacity-45'}>
+          {/* Locked state (Nov 27, 2026, design elevation batch): was
+              opacity-45 (~3.4:1). 80% ink clears AA while the greyed
+              art + dashed border still read as locked. Unlocked stays
+              at 65% (~5.9:1, already AA). */}
+          <span className={isUnlocked ? 'opacity-65' : 'opacity-80'}>
             {isUnlocked ? 'Unlocked' : 'Locked'}
           </span>
         </div>

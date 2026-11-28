@@ -356,17 +356,24 @@ export default function FieldTypeResult() {
                    used to hide all three and show only the how-to. */}
                <div className="relative z-10">
                  <p className="font-mono text-xs font-black uppercase tracking-[0.3em] text-brand-orange not-italic">Trevor says</p>
-                 <p className={cn("mt-2 text-display-card leading-tight font-medium", isDiamond ? "font-mono text-white/80" : "font-serif text-on-surface")}>
+                 {/* Trevor's line + description quote (Nov 27, 2026,
+                     design elevation batch): the same literal-clamp fix
+                     as the hero and the capture title — the
+                     old card-title token rendered at ~browser-default
+                     size (~15px) on Zach's phone, so these lines use
+                     literal clamps instead (~18px at 390px, up to 24px
+                     on desktop). The token stays defined in index.css. */}
+                 <p className={cn("mt-2 text-[clamp(1.125rem,4.5vw,1.5rem)] leading-tight font-medium", isDiamond ? "font-mono text-white/80" : "font-serif text-on-surface")}>
                    {`“${trevorLine}”`}
                  </p>
                </div>
                {data.plainSummary && (
-                 <p className={cn("text-xl sm:text-display-card leading-snug font-black relative z-10", isDiamond ? "font-sans text-white" : "font-sans text-on-surface")}>
+                 <p className={cn("text-[clamp(1.5rem,6vw,2.25rem)] leading-snug font-black relative z-10", isDiamond ? "font-sans text-white" : "font-sans text-on-surface")}>
                    {data.plainSummary}
                  </p>
                )}
                {!frankieMode && (
-                 <p className={cn("text-display-card leading-tight font-medium relative z-10", isDiamond ? "font-mono text-white/80" : "font-serif text-on-surface")}>
+                 <p className={cn("text-[clamp(1.125rem,4.5vw,1.5rem)] leading-tight font-medium relative z-10", isDiamond ? "font-mono text-white/80" : "font-serif text-on-surface")}>
                    {`"${data.description}"`}
                  </p>
                )}
@@ -483,7 +490,7 @@ export default function FieldTypeResult() {
                     type="button"
                     onClick={handleSavePhoto}
                     disabled={!photoPreview || isSavingPhoto || isNavigating}
-                    className="w-full py-4 bg-brand-orange text-white font-display font-black text-xl uppercase italic tracking-tight border-2 border-on-surface shadow-[6px_6px_0px_black] active:translate-y-0.5 active:shadow-none disabled:opacity-50"
+ className="w-full py-4 bg-white text-on-surface font-display font-black text-xl uppercase italic tracking-tight border-2 border-on-surface shadow-[6px_6px_0px_black] active:translate-y-0.5 active:shadow-none disabled:opacity-50"
                   >
                     {isSavingPhoto ? 'Saving photo...' : 'Save photo & continue'}
                   </button>

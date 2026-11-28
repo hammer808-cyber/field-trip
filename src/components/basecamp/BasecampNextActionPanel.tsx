@@ -25,7 +25,7 @@ export function BasecampNextActionPanel({ model, pack, onAction, onSecondaryActi
       aria-labelledby="basecamp-next-action-heading"
       data-guidance-state={model.guidanceState}
       data-guidance-urgency={model.urgency}
-      className={`basecamp-today skin-card relative overflow-visible border-[var(--skin-border-width)] border-[var(--skin-border)] bg-[var(--skin-surface)] shadow-[var(--skin-card-shadow)] ${isUrgent ? 'basecamp-today--urgent' : ''}`}
+      className={`basecamp-today skin-card bb-glass relative overflow-visible border-[var(--skin-border-width)] border-[var(--skin-border)] bg-[var(--skin-surface)] shadow-[var(--skin-card-shadow)] ${isUrgent ? 'basecamp-today--urgent' : ''}`}
     >
       <span className="basecamp-tape basecamp-tape--left" aria-hidden="true" />
       <span className="basecamp-tape basecamp-tape--right" aria-hidden="true" />
@@ -73,7 +73,7 @@ export function BasecampNextActionPanel({ model, pack, onAction, onSecondaryActi
             type="button"
             onClick={onAction}
             data-basecamp-primary="true"
-            className="basecamp-next-cta skin-button flex min-h-14 w-full items-center justify-center gap-3 border-[3px] border-[var(--skin-border)] bg-[var(--skin-primary)] px-4 py-4 font-display text-xl font-black uppercase italic tracking-normal text-[var(--skin-on-primary)] shadow-[var(--skin-button-shadow)] transition-transform focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)] active:translate-y-1 active:shadow-none disabled:opacity-60 sm:text-2xl"
+            className="basecamp-next-cta skin-button flex min-h-14 w-full items-center justify-center gap-3 border-[3px] border-[var(--skin-border)] bg-[var(--skin-surface)] px-4 py-4 font-display text-xl font-black uppercase italic tracking-normal text-[var(--skin-text)] shadow-[var(--skin-button-shadow)] transition-transform focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)] active:translate-y-1 active:shadow-none disabled:opacity-60 sm:text-2xl"
           >
             {model.action.label}
             <ArrowRight size={24} strokeWidth={3} aria-hidden="true" />
@@ -116,7 +116,7 @@ export function BasecampNextActionPanel({ model, pack, onAction, onSecondaryActi
               type="button"
               onClick={onAction}
               data-basecamp-primary="true"
-              className="basecamp-next-cta skin-button flex min-h-14 w-full items-center justify-center gap-3 border-[3px] border-[var(--skin-border)] bg-[var(--skin-primary)] px-4 py-4 font-display text-xl font-black uppercase italic tracking-normal text-[var(--skin-on-primary)] shadow-[var(--skin-button-shadow)] transition-transform focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)] active:translate-y-1 active:shadow-none disabled:opacity-60 sm:w-fit sm:min-w-[280px] sm:text-2xl"
+              className="basecamp-next-cta skin-button flex min-h-14 w-full items-center justify-center gap-3 border-[3px] border-[var(--skin-border)] bg-[var(--skin-surface)] px-4 py-4 font-display text-xl font-black uppercase italic tracking-normal text-[var(--skin-text)] shadow-[var(--skin-button-shadow)] transition-transform focus-visible:outline-4 focus-visible:outline-offset-4 focus-visible:outline-[var(--skin-focus)] active:translate-y-1 active:shadow-none disabled:opacity-60 sm:w-fit sm:min-w-[280px] sm:text-2xl"
             >
               {model.action.label}
               <ArrowRight size={24} strokeWidth={3} aria-hidden="true" />

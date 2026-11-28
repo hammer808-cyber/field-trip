@@ -75,10 +75,12 @@ test('draw-another with a pending proof renders one compact panel, not the tall 
   assert.ok(pendingIdx < buttonIdx, 'pending copy sits above the button');
   assert.ok(buttonIdx < proofIdx, 'View Proof Status sits under the button');
 
-  // The button is the same CTA (orange, primary marker), full-width.
+  // The button is the same CTA (paper, primary marker), full-width.
+  // Nov 27, 2026 design elevation batch: the CTA moved from the skin
+  // primary to the skin paper — same marker, same placement.
   assert.match(html, /data-basecamp-primary="true"/);
   assert.match(html, /basecamp-next-cta/);
-  assert.match(html, /bg-\[var\(--skin-primary\)\]/);
+  assert.match(html, /bg-\[var\(--skin-surface\)\]/);
 
   // No old two-column grid, no mission-summary side column.
   assert.doesNotMatch(html, /lg:grid-cols-\[minmax\(0,1\.45fr\)/);

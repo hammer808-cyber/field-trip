@@ -231,7 +231,7 @@ export function FlipbookShell({
               type="button"
               onClick={next}
               disabled={!canGoForward || loadingMore}
-              className="min-w-11 min-h-11 px-4 inline-flex items-center justify-center gap-2 bg-on-surface text-white border-2 border-on-surface shadow-[3px_3px_0px_var(--color-brand-orange)] disabled:opacity-30 disabled:shadow-none focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan"
+ className="min-w-11 min-h-11 px-4 inline-flex items-center justify-center gap-2 bg-white text-on-surface border-2 border-on-surface shadow-[3px_3px_0px_var(--color-brand-orange)] disabled:opacity-30 disabled:shadow-none focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan"
             >
               <span className="sr-only sm:not-sr-only font-mono text-xs font-black uppercase">{loadingMore ? 'Loading' : 'Next'}</span>
               <ChevronRight className="w-4 h-4" aria-hidden="true" />

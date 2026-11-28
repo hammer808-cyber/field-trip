@@ -140,7 +140,7 @@ function CrewChallengeRowView({
               data-testid="crew-challenge-start"
               data-card-id={row.id}
               onClick={() => onStart(row.id)}
-              className="bureau-btn bg-brand-lime text-on-surface text-xs"
+ className="bureau-btn text-on-surface text-xs"
             >
               Do this <ArrowRight className="w-4 h-4" />
             </button>

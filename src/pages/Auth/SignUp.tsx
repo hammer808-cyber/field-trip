@@ -319,7 +319,7 @@ export default function SignUp({ accessCode, onSuccess, onBack }: SignUpProps) {
           <button 
             type="submit"
             disabled={loading}
-            className="w-full bureau-btn bg-brand-orange text-white flex items-center justify-center gap-3 disabled:opacity-20 py-6 border-4 border-on-surface shadow-[10px_10px_0px_var(--color-brand-lime)] active:shadow-none active:translate-x-1 active:translate-y-1 transition-all"
+ className="w-full bureau-btn flex items-center justify-center gap-3 disabled:opacity-20 py-6 border-4 border-on-surface shadow-[10px_10px_0px_var(--color-brand-lime)] active:shadow-none active:translate-x-1 active:translate-y-1 transition-all"
           >
             {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : fc('Create account', 'CREATE PROFILE')}
           </button>

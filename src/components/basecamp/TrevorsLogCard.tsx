@@ -30,7 +30,7 @@ export function TrevorsLogCard({ latestApproved, className }: TrevorsLogCardProp
     <section
       aria-label="Trevor's log"
       className={cn(
-        'skin-card relative overflow-visible border-[var(--skin-border-width)] border-[var(--skin-border)] bg-[var(--skin-surface)] shadow-[var(--skin-card-shadow)]',
+        'skin-card bb-glass relative overflow-visible border-[var(--skin-border-width)] border-[var(--skin-border)] bg-[var(--skin-surface)] shadow-[var(--skin-card-shadow)]',
         className,
       )}
     >

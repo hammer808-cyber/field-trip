@@ -248,7 +248,7 @@ export function MissionDecodedCard({
                data-tour="deploy-mission"
                data-onboarding="deploy-mission"
                onClick={() => onStart?.()}
-               className="bg-brand-orange text-white px-6 py-2.5 border-2 border-on-surface shadow-[4px_4px_0px_black] font-display text-base font-black uppercase italic tracking-wider active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all flex items-center gap-2 shrink-0 hover:bg-on-surface hover:text-brand-lime"
+ className="bg-white text-on-surface px-6 py-2.5 border-2 border-on-surface shadow-[4px_4px_0px_black] font-display text-base font-black uppercase italic tracking-wider active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all flex items-center gap-2 shrink-0 hover:bg-brand-tape hover:text-on-surface"
              >
                <span>{hasRealMissionProgress(progress) ? 'RESUME' : 'START'}</span>
                <ArrowRight className="w-5 h-5 stroke-[2.5]" />

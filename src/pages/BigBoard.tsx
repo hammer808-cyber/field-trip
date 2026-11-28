@@ -830,6 +830,7 @@ export default function BigBoardPage() {
               fieldClassificationComplete: userProfile?.fieldClassificationComplete === true,
               onboardingCompleted: userProfile?.onboardingCompleted === true,
               avatar: stats.userAvatar || userProfile?.avatar,
+              photoURL: (userProfile as any)?.photoURL || null,
               progressionRewardIds: userProfile?.progressionRewardIds || [],
               // Scoreboard table (Nov 21, 2026): the STREAKS column reads
               // the server-maintained approval streak off the profile
@@ -859,6 +860,7 @@ export default function BigBoardPage() {
           progressionRewardIds: profile.progressionRewardIds || [],
           approvalStreakDays: Number((profile as any)?.approvalStreakDays || 0),
           avatar: profile.avatar || u.avatar,
+          photoURL: (profile as any)?.photoURL || (u as any)?.photoURL || null,
         };
       }
       return u;
@@ -1087,7 +1089,7 @@ export default function BigBoardPage() {
 
                 <button
                   onClick={() => navigate('/voting/awards')}
-                  className="bureau-btn bg-brand-lime text-on-surface text-xs"
+ className="bureau-btn text-on-surface text-xs"
                 >
                   Open Weekly Awards
                 </button>

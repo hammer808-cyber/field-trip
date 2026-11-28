@@ -160,7 +160,7 @@ export const PersonaQuiz: React.FC<PersonaQuizProps> = ({ onComplete }) => {
       <div className="bg-white border-4 border-on-surface p-8 shadow-[8px_8px_0px_black] text-center space-y-4">
         <AlertCircle className="w-10 h-10 text-error mx-auto" />
         <p className="font-bold">Quiz data could not be loaded.</p>
-        <button type="button" onClick={() => window.location.reload()} className="px-5 py-3 bg-on-surface text-white font-bold uppercase">
+ <button type="button" onClick={() => window.location.reload()} className="px-5 py-3 bg-white text-on-surface font-bold uppercase">
           Reload
         </button>
       </div>

@@ -236,7 +236,7 @@ export default function Basecamp() {
   );
 
   return (
-    <div className="skin-page skin-basecamp relative page-scroll min-h-screen bg-[var(--skin-background)] pb-32 text-[var(--skin-text)] [background-image:var(--skin-background-texture)]">
+    <div className="skin-page skin-basecamp relative basecamp-playful page-scroll min-h-screen bg-[var(--skin-background)] pb-32 text-[var(--skin-text)] [background-image:var(--skin-background-texture)]">
       <FieldDoodles
         pageKey="basecamp"
         stamps={[

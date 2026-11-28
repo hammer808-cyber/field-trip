@@ -74,7 +74,7 @@ export default function MissionBriefingPage() {
           <button
             type="button"
             onClick={() => navigate('/missions')}
-            className="w-full py-4 bg-brand-orange text-white border-[4px] border-on-surface shadow-[0_6px_0px_black] active:shadow-none active:translate-y-1 transition-all font-display text-xl font-black uppercase italic"
+ className="w-full py-4 bg-white text-on-surface border-[4px] border-on-surface shadow-[0_6px_0px_black] active:shadow-none active:translate-y-1 transition-all font-display text-xl font-black uppercase italic"
           >
             Go to Missions
           </button>
@@ -156,7 +156,7 @@ export default function MissionBriefingPage() {
         <div className="pt-6 space-y-3">
           <button
             onClick={handleStartMission}
-            className="w-full py-5 bg-brand-orange text-white border-[4px] border-on-surface shadow-[0_8px_0px_black] active:shadow-none active:translate-y-2 transition-all font-display text-2xl font-black uppercase italic tracking-wide flex items-center justify-center gap-3"
+ className="w-full py-5 bg-white text-on-surface border-[4px] border-on-surface shadow-[0_8px_0px_black] active:shadow-none active:translate-y-2 transition-all font-display text-2xl font-black uppercase italic tracking-wide flex items-center justify-center gap-3"
           >
             <Camera className="w-6 h-6" />
             <span>{getDisplayLabel('DO_THIS_MISSION')}</span>

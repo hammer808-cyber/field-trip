@@ -68,7 +68,7 @@ export function GatedFeaturePanel({
         <button
           type="button"
           onClick={() => navigate(primaryHref)}
-          className="mt-6 inline-flex min-h-12 w-full items-center justify-center gap-2 border-4 border-on-surface bg-brand-lime px-4 py-3 font-display text-lg font-black uppercase italic shadow-[5px_5px_0px_black] active:translate-y-1 active:shadow-none"
+ className="mt-6 inline-flex min-h-12 w-full items-center justify-center gap-2 border-4 border-on-surface bg-white px-4 py-3 font-display text-lg font-black uppercase italic shadow-[5px_5px_0px_black] active:translate-y-1 active:shadow-none"
         >
           <ArrowLeft className="h-5 w-5" aria-hidden="true" />
           {primaryLabel}

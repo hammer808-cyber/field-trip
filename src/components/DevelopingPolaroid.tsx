@@ -288,7 +288,7 @@ export function DevelopingPolaroid({
             <button
               type="button"
               onClick={onAccept}
-              className="min-h-12 bg-brand-lime text-on-surface border-2 border-on-surface shadow-[3px_3px_0px_var(--color-brand-orange)] inline-flex items-center justify-center gap-2 font-mono text-xs font-black uppercase focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan"
+ className="min-h-12 bg-white text-on-surface border-2 border-on-surface shadow-[3px_3px_0px_var(--color-brand-orange)] inline-flex items-center justify-center gap-2 font-mono text-xs font-black uppercase focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan"
             >
               <Check className="w-4 h-4" /> Use This Receipt
             </button>

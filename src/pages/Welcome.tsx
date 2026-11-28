@@ -219,7 +219,7 @@ export default function WelcomePage() {
                 <div className="flex w-full flex-col gap-3 sm:flex-row">
                   <button 
                     onClick={handleStart}
-                    className="skin-button flex-1 border-[3.5px] border-on-surface bg-on-surface px-5 py-4 font-display text-xl font-black italic uppercase leading-tight tracking-normal text-white shadow-[8px_8px_0px_var(--color-brand-lime)] transition-all hover:bg-brand-orange active:translate-x-1 active:translate-y-1 active:shadow-none sm:text-2xl"
+ className="skin-button flex-1 border-[3.5px] border-on-surface bg-white px-5 py-4 font-display text-xl font-black italic uppercase leading-tight tracking-normal text-on-surface shadow-[8px_8px_0px_var(--color-brand-lime)] transition-all hover:bg-brand-tape active:translate-x-1 active:translate-y-1 active:shadow-none sm:text-2xl"
                   >
                     <span className="flex items-center justify-center gap-3">
                       Get Started
@@ -303,7 +303,7 @@ export default function WelcomePage() {
                     <div className="mt-6 pt-4 border-t-2 border-on-surface/10 flex justify-end">
                       <button 
                         onClick={() => setShowHowItWorks(false)}
-                        className="skin-button px-6 py-2.5 bg-on-surface text-brand-lime border-2 border-on-surface shadow-[4px_4px_0px_black] active:translate-y-0.5 active:shadow-none font-display text-xs font-black uppercase italic tracking-wider"
+ className="skin-button px-6 py-2.5 bg-white text-on-surface border-2 border-on-surface shadow-[4px_4px_0px_black] active:translate-y-0.5 active:shadow-none font-display text-xs font-black uppercase italic tracking-wider"
                       >
                         Let's Play!
                       </button>

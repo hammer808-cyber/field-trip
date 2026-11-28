@@ -294,7 +294,7 @@ export function CrewMemoriesFeed({ crewCaptainId = null }: { crewCaptainId?: str
         action={
         <button 
           onClick={() => navigate('/basecamp')}
-          className="px-6 py-3 bg-brand-orange text-white font-display font-black uppercase text-sm border-3 border-on-surface shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none transition-all hover:bg-brand-orange-dark inline-flex items-center gap-2"
+ className="px-6 py-3 bg-white text-on-surface font-display font-black uppercase text-sm border-3 border-on-surface shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none transition-all hover:bg-brand-tape inline-flex items-center gap-2"
         >
           <span>Go to Basecamp</span>
           <ArrowRight className="w-4 h-4" />
@@ -343,7 +343,7 @@ export function CrewMemoriesFeed({ crewCaptainId = null }: { crewCaptainId?: str
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <button 
             onClick={() => navigate('/missions')}
-            className="px-5 py-3 bg-brand-lime text-black font-display font-black uppercase text-sm border-3 border-on-surface shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none transition-all hover:bg-opacity-90 flex items-center justify-center gap-2"
+ className="px-5 py-3 bg-white text-black font-display font-black uppercase text-sm border-3 border-on-surface shadow-[4px_4px_0px_black] active:translate-y-1 active:shadow-none transition-all hover:bg-brand-tape flex items-center justify-center gap-2"
           >
             <span>Submit a Crew Receipt</span>
             <ArrowRight className="w-4 h-4" />
@@ -603,7 +603,7 @@ export function CrewMemoriesFeed({ crewCaptainId = null }: { crewCaptainId?: str
                           type="button"
                           disabled={commentBusy[entry.id] || !(commentDrafts[entry.id] || '').trim()}
                           onClick={() => handlePostComment(entry.id)}
-                          className="px-4 py-2 bg-brand-lime border-2 border-on-surface font-mono text-xs font-black uppercase shadow-[2px_2px_0px_black] active:translate-y-0.5 active:shadow-none disabled:opacity-40"
+ className="px-4 py-2 bg-white border-2 border-on-surface font-mono text-xs font-black uppercase shadow-[2px_2px_0px_black] active:translate-y-0.5 active:shadow-none disabled:opacity-40"
                         >
                           {commentBusy[entry.id] ? 'Posting…' : 'Post'}
                         </button>

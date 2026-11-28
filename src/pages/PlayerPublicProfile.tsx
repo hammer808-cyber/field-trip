@@ -46,7 +46,7 @@ export default function PlayerPublicProfile() {
       </button>
       <div className="border-4 border-on-surface bg-white p-8 shadow-[8px_8px_0px_black] space-y-4 text-center">
         <div className="w-28 h-28 mx-auto border-4 border-on-surface overflow-hidden">
-          <AvatarPreview avatar={player.avatar || DEFAULT_AVATAR} />
+          <AvatarPreview avatar={player.avatar || DEFAULT_AVATAR} photoURL={player.photoURL} fieldType={player.fieldType} />
         </div>
         <h1 className="font-display text-4xl font-black uppercase italic">{player.displayName}</h1>
         <p className="font-mono text-xs uppercase tracking-widest opacity-55">
@@ -72,7 +72,7 @@ export default function PlayerPublicProfile() {
                 setBusy(false);
               }
             }}
-            className="bureau-btn bg-brand-lime text-on-surface"
+ className="bureau-btn text-on-surface"
           >
             <UserPlus className="w-4 h-4" /> Add to Crew
           </button>

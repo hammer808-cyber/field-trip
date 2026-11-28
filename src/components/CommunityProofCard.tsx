@@ -175,7 +175,7 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
           <div className="space-y-3 text-left">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0">
-                <AvatarPreview avatar={proof.userAvatar || DEFAULT_AVATAR} size="xs" className="w-5 h-5 rounded-full border-2 border-on-surface shadow-[1px_1px_0px_black]" />
+                <AvatarPreview avatar={proof.userAvatar || DEFAULT_AVATAR} photoURL={null} fieldType={proof.fieldTypeName || proof.explorerTypeName || proof.personaName || null} size="xs" className="w-5 h-5 rounded-full border-2 border-on-surface shadow-[1px_1px_0px_black]" />
                 <span className="text-xs font-mono font-black uppercase tracking-widest text-on-surface truncate">{displayName}</span>
               </div>
               {hasXpDisplay && (
@@ -272,7 +272,7 @@ export function CommunityProofCard({ proof, normalizeEntryStatus }: CommunityPro
               event.stopPropagation();
               setDetailOpen(true);
             }}
-            className="min-h-11 w-full flex items-center justify-center gap-2 border-2 border-on-surface bg-on-surface text-white font-mono text-xs font-black uppercase tracking-widest shadow-[2px_2px_0px_var(--color-brand-orange)] focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan"
+ className="min-h-11 w-full flex items-center justify-center gap-2 border-2 border-on-surface bg-white text-on-surface font-mono text-xs font-black uppercase tracking-widest shadow-[2px_2px_0px_var(--color-brand-orange)] focus-visible:outline focus-visible:outline-4 focus-visible:outline-brand-cyan"
           >
             <ExternalLink className="w-3.5 h-3.5" /> Open receipt
           </button>
@@ -378,7 +378,7 @@ function ReceiptDetailModal({
 function SignalCheckModal({ reason, details, busy, onReason, onDetails, onSubmit, onClose }: any) {
   return (
     <motion.div className="skin-modal-backdrop fixed inset-0 z-[110] bg-black/70 p-4 flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
-      <motion.div className="skin-modal bg-paper w-full max-w-lg border-4 border-on-surface shadow-[10px_10px_0px_var(--color-brand-magenta)] p-5 space-y-5" initial={{ y: 24 }} animate={{ y: 0 }} exit={{ y: 24, opacity: 0 }} onClick={(event) => event.stopPropagation()}>
+      <motion.div className="skin-modal bg-paper w-full max-w-lg border-4 border-on-surface shadow-[10px_10px_0px_var(--color-brand-magenta)] p-5 space-y-5 max-h-[calc(100dvh-2rem)] overflow-y-auto" initial={{ y: 24 }} animate={{ y: 0 }} exit={{ y: 24, opacity: 0 }} onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="font-mono text-xs font-black uppercase tracking-widest text-on-surface">Private Signal Check</p>
@@ -414,10 +414,22 @@ function SignalCheckModal({ reason, details, busy, onReason, onDetails, onSubmit
           <button type="button" onClick={onClose} className="px-4 py-3 bg-white border-2 border-on-surface font-mono text-xs font-black uppercase">
             Cancel
           </button>
-          <button type="button" disabled={busy} onClick={onSubmit} className="px-4 py-3 bg-on-surface text-white border-2 border-on-surface font-mono text-xs font-black uppercase disabled:opacity-50">
+ <button type="button" disabled={busy} onClick={onSubmit} className="px-4 py-3 bg-white text-on-surface border-2 border-on-surface font-mono text-xs font-black uppercase disabled:opacity-50">
             {busy ? 'Sending' : 'Send Signal'}
           </button>
         </div>
+        {/*
+          Bottom clearance (Nov 27, 2026, design elevation batch): the
+          same bug class as the receipt modal (fixed Nov 22) — the fixed
+          bottom nav (84px) and the floating mission pill (100px offset)
+          paint above this modal, so without this spacer the Send button
+          scrolls underneath them and cannot be reached or tapped on a
+          phone. 192px clears the pill band plus margin; hidden at lg+
+          where the nav is a centered floating pill. The panel above is
+          now max-height scrollable, so the spacer is reachable by
+          scrolling on short phones.
+        */}
+        <div aria-hidden="true" className="h-48 lg:hidden" />
       </motion.div>
     </motion.div>
   );

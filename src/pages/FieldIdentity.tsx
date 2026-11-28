@@ -116,7 +116,7 @@ export default function FieldIdentity() {
         >
           <div className="absolute -inset-12 border-4 border-on-surface/5 pointer-events-none -rotate-3" />
           <div className="absolute -inset-6 border-4 border-on-surface/10 pointer-events-none rotate-6" />
-          <AvatarPreview avatar={currentAvatar} size="xl" className="border-4 border-on-surface bg-white shadow-[8px_8px_0px_black]" />
+          <AvatarPreview avatar={currentAvatar} fieldType={profile?.fieldType} size="xl" className="border-4 border-on-surface bg-white shadow-[8px_8px_0px_black]" />
           
           <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-full text-center">
              <div className="inline-block bg-on-surface px-4 py-1 text-brand-lime">

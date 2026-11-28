@@ -146,7 +146,7 @@ export function MissionLogbookPanel({
                           <button
                             type="button"
                             onClick={item.onRetry}
-                            className="skin-button flex min-h-11 items-center gap-2 border-2 border-[var(--skin-border)] bg-[var(--skin-primary)] px-3 py-2 font-display text-[10px] font-black uppercase italic tracking-normal shadow-[3px_3px_0_var(--skin-border)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+                            className="skin-button flex min-h-11 items-center gap-2 border-2 border-[var(--skin-border)] bg-[var(--skin-surface)] px-3 py-2 font-display text-[10px] font-black uppercase italic tracking-normal text-[var(--skin-text)] shadow-[3px_3px_0_var(--skin-border)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
                             style={{ color: primaryText }}
                           >
                             <RotateCcw size={14} aria-hidden="true" />

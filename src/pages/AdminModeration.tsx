@@ -748,7 +748,7 @@ function WeeklyVotingDiagnosticsPanel({
           type="button"
           onClick={onPreview}
           disabled={isScanning}
-          className="bureau-btn-sm min-h-11 bg-on-surface text-paper hover:bg-brand-orange"
+ className="bureau-btn-sm min-h-11 "
         >
           {isScanning ? 'SCANNING...' : 'PREVIEW_SCAN'}
         </button>
@@ -841,7 +841,7 @@ function WeeklyVotingDiagnosticsPanel({
                 type="button"
                 onClick={onBuild}
                 disabled={!canBuild}
-                className="bureau-btn-sm min-h-11 bg-brand-lime text-on-surface disabled:opacity-40"
+ className="bureau-btn-sm min-h-11 text-on-surface disabled:opacity-40"
               >
                 {isBuilding ? 'BUILDING...' : diagnostics.ballot.canonicalBallotCount > 0 ? 'REFRESH_BALLOT' : 'GENERATE_BALLOT'}
               </button>
@@ -929,7 +929,7 @@ function CommunityFeedDiagnosticsPanel({ diagnostics, repairResult, targetUserId
             <button
               onClick={onPreview}
               disabled={isScanning}
-              className="bureau-btn-sm bg-on-surface text-paper hover:bg-brand-orange"
+ className="bureau-btn-sm "
             >
               {isScanning ? 'SCANNING...' : 'PREVIEW_SCAN'}
             </button>
@@ -945,7 +945,7 @@ function CommunityFeedDiagnosticsPanel({ diagnostics, repairResult, targetUserId
                 if (window.confirm('Apply safe Community Feed repairs? This will not overwrite explicit private or hidden entries.')) onRepair(false);
               }}
               disabled={isRepairing || !repairResult?.dryRun}
-              className="bureau-btn-sm bg-brand-lime text-on-surface"
+ className="bureau-btn-sm text-on-surface"
             >
               {isRepairing ? 'REPAIRING...' : 'APPLY_REPAIR'}
             </button>
@@ -1060,7 +1060,7 @@ function TribunalDiagnosticsPanel({
           <button
             onClick={onPreview}
             disabled={isScanning || isRepairing}
-            className="bureau-btn-sm bg-on-surface text-paper hover:bg-brand-orange"
+ className="bureau-btn-sm "
           >
             {isScanning ? 'SCANNING...' : 'PREVIEW_SCAN'}
           </button>

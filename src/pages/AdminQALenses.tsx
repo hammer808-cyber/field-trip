@@ -246,7 +246,7 @@ export default function AdminQALensesPage() {
                This system is for internal QA and design integrity only. External sharing or disclosure of product persona framework is strictly prohibited. Use these lenses to protect the core tension of the Field Trip experience.
              </p>
            </div>
-           <button className="bureau-btn bg-brand-orange text-white px-8 py-4">EXPORT_AUDIT_LOG</button>
+ <button className="bureau-btn px-8 py-4">EXPORT_AUDIT_LOG</button>
         </div>
       </div>
     </div>

@@ -119,11 +119,22 @@ test('journey migration: display text uses the type-scale tokens', () => {
   assert.doesNotMatch(hero, /text-\[clamp\(2\.75rem,12vw,5\.5rem\)\]/);
 
   const clipboard = read('src/components/FieldClipboard.tsx');
-  assert.match(clipboard, /font-display text-display-card sm:text-3xl/);
+  // Capture title (Nov 27, 2026): the same literal-clamp fix as the
+  // hero — the text-display-card token rendered at ~browser-default
+  // size (~15px) on Zach's phone, so the title uses a literal clamp
+  // instead (~35px at 390px, up to 52px on desktop). The token stays
+  // defined in index.css; the old token class must not come back.
+  assert.match(clipboard, /font-display text-\[clamp\(2rem,9vw,3\.25rem\)\]/);
+  assert.doesNotMatch(clipboard, /text-display-card/);
 
   const result = read('src/pages/FieldTypeResult.tsx');
-  assert.match(result, /text-display-card leading-tight font-medium/);
-  assert.match(result, /text-xl sm:text-display-card leading-snug font-black/);
+  // Result lines (Nov 27, 2026): same fix — Trevor's line and the
+  // description quote use a literal clamp (~18px at 390px, up to
+  // 24px), the plain summary a larger one (~24px at 390px, up to
+  // 36px). No text-display-card may remain in this file.
+  assert.match(result, /text-\[clamp\(1\.125rem,4\.5vw,1\.5rem\)\] leading-tight font-medium/);
+  assert.match(result, /text-\[clamp\(1\.5rem,6vw,2\.25rem\)\] leading-snug font-black/);
+  assert.doesNotMatch(result, /text-display-card/);
   // Sizes with no token (text-3xl/4xl/5xl/6xl/7xl/8xl) stay literal —
   // the section clamp spans that band but is not identical at a given
   // viewport, so swapping would change the render.

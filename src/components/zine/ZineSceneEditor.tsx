@@ -188,7 +188,7 @@ export function ZineSceneEditor({ page, candidates, busy, onSave }: ZineSceneEdi
                 type="button"
                 disabled={busy || !noteDraft.trim()}
                 onClick={() => assign({ slotId: activeSlot.id, kind: 'note', noteText: noteDraft.trim().slice(0, MAX_SCENE_NOTE_CHARS), noteSourceEntryId })}
-                className="border-2 border-on-surface bg-brand-lime px-3 py-2 font-mono text-xs font-black uppercase disabled:opacity-40"
+ className="border-2 border-on-surface bg-white px-3 py-2 font-mono text-xs font-black uppercase disabled:opacity-40"
               >
                 Place note
               </button>
@@ -202,7 +202,7 @@ export function ZineSceneEditor({ page, candidates, busy, onSave }: ZineSceneEdi
           type="button"
           disabled={busy || !changed}
           onClick={() => onSave(items)}
-          className="border-2 border-on-surface bg-brand-lime px-4 py-2 font-mono text-xs font-black uppercase disabled:opacity-40"
+ className="border-2 border-on-surface bg-white px-4 py-2 font-mono text-xs font-black uppercase disabled:opacity-40"
         >
           Save scene
         </button>

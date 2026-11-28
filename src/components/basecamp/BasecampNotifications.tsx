@@ -59,7 +59,7 @@ export function BasecampNotifications({ items, onOpen }: BasecampNotificationsPr
   return (
     <section
       aria-labelledby="basecamp-notifications-heading"
-      className="skin-card border-[var(--skin-border-width)] border-[var(--skin-border)] bg-[var(--skin-surface)] p-5 shadow-[var(--skin-card-shadow)] sm:p-6"
+      className="skin-card bb-glass border-[var(--skin-border-width)] border-[var(--skin-border)] bg-[var(--skin-surface)] p-5 shadow-[var(--skin-card-shadow)] sm:p-6"
     >
       <p className="font-mono text-xs font-black uppercase tracking-[0.22em] text-[var(--skin-text-muted)]">Field notices</p>
       <h2 id="basecamp-notifications-heading" className="mt-1 font-display text-2xl font-black uppercase italic tracking-normal text-[var(--skin-text)]">

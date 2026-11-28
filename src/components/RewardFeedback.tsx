@@ -262,7 +262,7 @@ const MajorReveal: React.FC<MajorRevealProps> = ({ reward, onDismiss, skinConfig
                   isReduced ? "" : "active:scale-95",
                   isBaja ? "bg-baja-pink text-white rounded-full shadow-[8px_8px_0px_#40e0d0]" :
                   isDiamond ? "bg-white text-black rounded-none" :
-                  "bg-on-surface text-white shadow-[10px_10px_0px_var(--color-brand-magenta)] hover:bg-brand-magenta active:shadow-none translate-y-0 active:translate-y-2"
+ "bg-white text-on-surface shadow-[10px_10px_0px_var(--color-brand-magenta)] hover:bg-brand-tape active:shadow-none translate-y-0 active:translate-y-2"
                 )}
               >
                 {reward.type === 'milestone' && reward.rewardText ? reward.rewardText : "Got it"}

@@ -193,7 +193,7 @@ export function FieldCheckModal({
                   </div>
                   <button
                     onClick={onClose}
-                    className="px-10 py-3 bg-on-surface text-white font-display text-lg uppercase italic font-black border-2 border-on-surface hover:bg-on-surface/90 transition-all shadow-[6px_6px_0px_var(--color-brand-orange)] active:shadow-none active:translate-x-1 active:translate-y-1"
+ className="px-10 py-3 bg-white text-on-surface font-display text-lg uppercase italic font-black border-2 border-on-surface hover:bg-brand-tape transition-all shadow-[6px_6px_0px_var(--color-brand-orange)] active:shadow-none active:translate-x-1 active:translate-y-1"
                   >
                     {fc('RETURN_TO_ARCHIVE', 'Close')}
                   </button>

@@ -130,7 +130,7 @@ export const EvidenceDetector: React.FC<EvidenceDetectorProps> = ({
         {(status === 'error' || status === 'not_detected') && onRetry && (
            <button 
              onClick={onRetry}
-             className="ml-auto bg-brand-orange text-white px-2 py-1 text-xs font-mono font-black uppercase border border-white/20 rounded hover:bg-white hover:text-on-surface transition-colors relative z-10"
+ className="ml-auto bg-white text-on-surface px-2 py-1 text-xs font-mono font-black uppercase border border-on-surface rounded hover:bg-white hover:text-on-surface transition-colors relative z-10"
            >
              RETRY
            </button>
@@ -139,7 +139,7 @@ export const EvidenceDetector: React.FC<EvidenceDetectorProps> = ({
         {(status === 'skipped' || status === 'manual_review_required') && onManualReview && (
            <button 
              onClick={onManualReview}
-             className="ml-auto bg-brand-cyan text-on-surface px-2 py-1 text-xs font-mono font-black uppercase border border-white/40 rounded hover:bg-white transition-colors relative z-10"
+ className="ml-auto bg-white text-on-surface px-2 py-1 text-xs font-mono font-black uppercase border border-on-surface rounded hover:bg-white transition-colors relative z-10"
            >
              SUBMIT_ANYWAY
            </button>

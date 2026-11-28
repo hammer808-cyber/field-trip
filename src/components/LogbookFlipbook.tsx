@@ -230,7 +230,7 @@ function LogbookProofPage({ entry, proofStickerAssignments, onRepair }: { entry:
           <div className="border-2 border-brand-orange bg-brand-orange/5 p-3 space-y-3">
             <p className="font-mono text-xs font-black uppercase text-brand-orange">Reviewer request</p>
             <p className="text-sm font-serif italic">{getNeedsMoreProofInstructions(entry)}</p>
-            <button type="button" onClick={onRepair} className="min-h-11 w-full bg-brand-orange text-white border-2 border-on-surface shadow-[3px_3px_0px_black] font-mono text-xs font-black uppercase">
+ <button type="button" onClick={onRepair} className="min-h-11 w-full bg-white text-on-surface border-2 border-on-surface shadow-[3px_3px_0px_black] font-mono text-xs font-black uppercase">
               Add requested proof
             </button>
           </div>
@@ -259,7 +259,7 @@ function LogbookFallbackCard({ entry, onRepair }: { entry: any; onRepair: () => 
         <span className={cn('inline-block px-2 py-1 border font-mono text-xs font-black uppercase', STATUS_STYLES[presentation.tone])}>{presentation.label}</span>
         <h3 className="font-display text-xl font-black uppercase italic leading-none">{title}</h3>
         <p className="font-serif italic text-xs line-clamp-2">{fallbackText}</p>
-        {presentation.status === 'needs_more_proof' && <button type="button" onClick={onRepair} className="min-h-11 px-3 border-2 border-on-surface bg-brand-orange text-white font-mono text-xs font-black uppercase">Add proof</button>}
+ {presentation.status === 'needs_more_proof' && <button type="button" onClick={onRepair} className="min-h-11 px-3 border-2 border-on-surface bg-white text-on-surface font-mono text-xs font-black uppercase">Add proof</button>}
       </div>
     </article>
   );

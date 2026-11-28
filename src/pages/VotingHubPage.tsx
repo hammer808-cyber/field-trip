@@ -274,7 +274,7 @@ export default function VotingHubPage() {
                           type="button"
                           onClick={() => navigate(clockInfo.phase === 'awards' ? '/big-board/results' : '/voting/ballot')}
                           disabled={!isVotingUnlocked && clockInfo.phase !== 'awards'}
-                          className="bureau-btn justify-center bg-brand-lime text-xs text-on-surface"
+ className="bureau-btn justify-center text-xs text-on-surface"
                         >
                           {clockInfo.phase === 'awards' ? 'View Results' : clockInfo.phase === 'voting' ? 'Vote Now' : 'Preview Ballot'}
                         </button>
@@ -319,7 +319,7 @@ export default function VotingHubPage() {
                           <h3 className="font-display text-4xl uppercase italic font-black">Docket Locked</h3>
                           <p className="font-serif italic text-xl text-on-surface/60 font-bold">Complete all 3 Starter Missions to access the Tribunal.</p>
                        </div>
-                       <button onClick={() => navigate('/missions')} className="px-8 py-3 bg-on-surface text-white rounded-xl font-display text-xl font-black uppercase italic shadow-[6px_6px_0px_var(--color-brand-orange)] active:shadow-none hover:bg-brand-magenta transition-all">Go to Missions</button>
+ <button onClick={() => navigate('/missions')} className="px-8 py-3 bg-white text-on-surface rounded-xl font-display text-xl font-black uppercase italic shadow-[6px_6px_0px_var(--color-brand-orange)] active:shadow-none hover:bg-brand-tape transition-all">Go to Missions</button>
                     </div>
                  ) : tribunalCases.length === 0 ? (
                     <EmptyStatePanel

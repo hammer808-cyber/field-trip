@@ -13,6 +13,11 @@ export interface StandingsPlayer {
   weeklyXp: number;
   lifetimeXp: number;
   avatar?: AvatarData | null;
+  /** Real photo and persona, for the AvatarPreview fallback (the
+      layered-avatar assets were never shipped, so the preview shows
+      the photo, else the persona character art). */
+  photoURL?: string | null;
+  fieldType?: string | null;
   /** Server-maintained consecutive approval days (the value behind the
    *  streak chip). The ranking payload may also carry it as
    *  `streakDays`; both are read. */
@@ -85,6 +90,8 @@ export function BigBoardStandingsTable({ players, currentUserId }: BigBoardStand
                   <span className="flex min-w-0 items-center gap-2">
                     <AvatarPreview
                       avatar={player.avatar || DEFAULT_AVATAR}
+                      photoURL={player.photoURL}
+                      fieldType={player.fieldType}
                       size="sm"
                       className={cn(
                         'h-8 w-8 shrink-0 rounded-lg border-2 border-[var(--skin-border)]',

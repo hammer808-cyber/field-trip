@@ -593,9 +593,9 @@ function ChallengePreviewModal({ challenge, uiStatus, lockReason, onClose, onSta
           {canStart ? (
             <button 
               onClick={onStart}
-              className="flex-grow bg-brand-orange text-white border-2 border-on-surface py-3 sm:py-4 font-display text-lg uppercase italic font-black tracking-widest shadow-[4px_4px_0px_black] hover:shadow-[6px_6px_0px_black] transition-all flex items-center justify-center gap-3"
+ className="flex-grow bg-white text-on-surface border-2 border-on-surface py-3 sm:py-4 font-display text-lg uppercase italic font-black tracking-widest shadow-[4px_4px_0px_black] hover:shadow-[6px_6px_0px_black] transition-all flex items-center justify-center gap-3"
             >
-              <Play className="w-5 h-5 fill-white" />
+              <Play className="w-5 h-5 fill-current" />
               {frankieMode ? (uiStatus === 'in-progress' ? 'KEEP GOING' : 'DO THIS ONE') : (uiStatus === 'in-progress' ? 'RESUME' : 'START')}
             </button>
           ) : (

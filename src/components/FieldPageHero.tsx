@@ -137,7 +137,7 @@ export function FieldPageHero({
                     'skin-button mb-4 flex min-h-11 items-center gap-2 border-2 px-4 py-2 font-mono text-xs font-black uppercase tracking-widest shadow-[3px_3px_0_var(--skin-primary)] focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[var(--skin-focus)]',
                     chrome
                       ? 'border-white bg-white text-[#141414]'
-                      : 'border-[var(--skin-border)] bg-[var(--skin-text)] text-[var(--skin-surface)]',
+                      : 'border-[var(--skin-border)] bg-[var(--skin-surface)] text-[var(--skin-text)]',
                   )}
                 >
                   <ChevronLeft size={17} aria-hidden="true" />
@@ -242,7 +242,7 @@ export function FieldPageHero({
             <div className="absolute top-0 left-0">
                <button 
                 onClick={handleBack}
-                className="group flex items-center gap-2 bg-on-surface text-brand-lime px-5 py-2 rounded-none transition-all border-[3px] border-on-surface hover:bg-brand-orange hover:text-white active:scale-95 shadow-[6px_6px_0px_black]"
+ className="group flex items-center gap-2 bg-white text-on-surface px-5 py-2 rounded-none transition-all border-[3px] border-on-surface hover:bg-brand-tape hover:text-on-surface active:scale-95 shadow-[6px_6px_0px_black]"
               >
                 <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform stroke-[3]" />
                 <span className="text-xs font-black uppercase tracking-[0.2em] font-mono">{backLabel}</span>

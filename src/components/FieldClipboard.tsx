@@ -230,7 +230,13 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
 
           {/* MISSION TITLE AREA - No truncation, clear hierarchy */}
           <div className="relative z-20 mt-auto">
-            <h1 className="font-display text-display-card sm:text-3xl font-black uppercase italic text-white tracking-tighter leading-[0.85] drop-shadow-2xl">
+            {/* Mission title (Nov 27, 2026, design elevation batch): the
+                same literal-clamp fix as the hero — the old card-title
+                token rendered at ~browser-default size (~15px) on Zach's
+                phone, so the title uses a literal clamp instead (~35px at
+                390px, up to 52px on desktop). The token stays defined in
+                index.css. */}
+            <h1 className="font-display text-[clamp(2rem,9vw,3.25rem)] font-black uppercase italic text-white tracking-tighter leading-[0.85] drop-shadow-2xl">
               {mission.title}
             </h1>
             {mission.deckSubtitle && (
@@ -260,10 +266,10 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
             onClick={() => setShowBrief(!showBrief)} 
             className={cn(
               "flex-1 px-4 py-2 flex items-center justify-center gap-2 font-mono text-xs font-black uppercase tracking-wider transition-all",
-              showBrief ? "bg-on-surface text-white" : "hover:bg-on-surface/5"
+              showBrief ? "bg-brand-tape text-on-surface" : "hover:bg-on-surface/5"
             )}
           >
-            <Info className={cn("w-3 h-3", showBrief ? "text-brand-cyan" : "text-on-surface/60")} />
+            <Info className={cn("w-3 h-3", showBrief ? "text-on-surface" : "text-on-surface/60")} />
             <span>{showBrief ? 'HIDE BRIEF' : 'SEE FULL BRIEF'}</span>
           </button>
           {state === 'brief' && (
@@ -422,7 +428,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               data-tour="open-camera"
               onClick={onStartCapture}
               disabled={!missionAttempt || isAttemptLoading}
-              className="w-full py-4 bg-brand-orange text-white border-4 border-on-surface rounded-2xl font-display text-3xl font-black uppercase italic tracking-widest shadow-[8px_8px_0px_black] active:translate-y-2 active:shadow-none transition-all hover:bg-on-surface hover:text-brand-lime flex items-center justify-center gap-3 group disabled:opacity-50 disabled:cursor-wait"
+ className="w-full py-4 bg-white text-on-surface border-4 border-on-surface rounded-2xl font-display text-3xl font-black uppercase italic tracking-widest shadow-[8px_8px_0px_black] active:translate-y-2 active:shadow-none transition-all hover:bg-brand-tape hover:text-on-surface flex items-center justify-center gap-3 group disabled:opacity-50 disabled:cursor-wait"
             >
               <Zap className="w-8 h-8 fill-current group-hover:scale-125 transition-transform" />
               <span>{!missionAttempt || isAttemptLoading ? 'Getting ready…' : 'Open Camera'}</span>
@@ -671,7 +677,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               className={cn(
                 "w-full py-6 border-4 border-on-surface rounded-2xl font-display text-2xl sm:text-3xl font-black uppercase italic tracking-widest shadow-[10px_10px_0px_black] active:translate-y-2 active:shadow-none transition-all",
                 canSubmit 
-                  ? "bg-brand-orange text-white hover:bg-on-surface hover:text-brand-lime" 
+                  ? "bg-white text-on-surface hover:bg-brand-tape hover:text-on-surface" 
                   : "bg-on-surface/5 text-on-surface/60 border-on-surface/15 cursor-not-allowed shadow-none"
               )}
             >
@@ -810,7 +816,7 @@ export const FieldClipboard: React.FC<FieldClipboardProps> = ({
               </dl>
               {hintError && <p className="mt-3 text-xs font-semibold text-rose-600">{hintError}</p>}
               <div className="mt-5 grid gap-3">
-                <button type="button" onClick={() => void confirmHint()} className="min-h-12 rounded-xl border-2 border-on-surface bg-brand-orange px-4 font-display font-black uppercase italic text-white shadow-[4px_4px_0px_black]">
+ <button type="button" onClick={() => void confirmHint()} className="min-h-12 rounded-xl border-2 border-on-surface bg-white px-4 font-display font-black uppercase italic text-on-surface shadow-[4px_4px_0px_black]">
                   Show Me the Hint
                 </button>
                 <button type="button" onClick={() => dispatchHintFlow('cancel')} className="min-h-12 rounded-xl border-2 border-on-surface bg-white px-4 font-display font-black uppercase italic">

@@ -157,7 +157,7 @@ export default function AdminChallengesPage() {
           <button 
             onClick={handleDeployManifest}
             disabled={isDeploying}
-            className="bureau-btn text-xl flex items-center gap-2 group bg-mustard border-on-surface text-on-surface"
+ className="bureau-btn text-xl flex items-center gap-2 group border-on-surface text-on-surface"
           >
             <CloudUpload className={cn("w-6 h-6 transition-transform", isDeploying && "animate-bounce")} />
             {isDeploying ? 'Deploying...' : getDisplayLabel('DEPLOY_HEATWAVE_RECEIPTS')}

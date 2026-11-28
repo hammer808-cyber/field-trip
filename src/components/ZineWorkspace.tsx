@@ -173,7 +173,7 @@ function ZineWorkspaceInner({ initialKind = 'personal', showScopeSwitch = true }
           {showScopeSwitch && !viewingPastId && (
             <div className="inline-flex border-2 border-on-surface bg-white p-1" role="tablist" aria-label="Zine type">
               {(['personal', 'crew'] as ZineKind[]).map(item => (
-                <button key={item} role="tab" aria-selected={kind === item} onClick={() => setKind(item)} className={cn('px-4 py-2 font-mono text-xs font-black uppercase', kind === item ? 'bg-brand-lime' : 'text-on-surface/60')}>
+ <button key={item} role="tab" aria-selected={kind === item} onClick={() => setKind(item)} className={cn('px-4 py-2 font-mono text-xs font-black uppercase', kind === item ? 'bg-brand-tape' : 'text-on-surface/60')}>
                   {item}
                 </button>
               ))}
@@ -243,7 +243,7 @@ function ZineWorkspaceInner({ initialKind = 'personal', showScopeSwitch = true }
             <h3 className="font-display text-3xl font-black uppercase italic">Generate the first draft</h3>
             <p className="font-serif italic text-sm opacity-65">{candidates.length} approved receipt{candidates.length === 1 ? '' : 's'} currently qualify. Sparse seasons still produce a usable draft.</p>
           </div>
-          <button disabled={busy || !permissions.canEdit} onClick={() => run(() => generateZineDraft(zine.id))} className="bureau-btn bg-brand-lime text-on-surface disabled:opacity-40">
+ <button disabled={busy || !permissions.canEdit} onClick={() => run(() => generateZineDraft(zine.id))} className="bureau-btn text-on-surface disabled:opacity-40">
             <Sparkles className="w-4 h-4" /> Generate Draft
           </button>
         </div>
@@ -327,8 +327,8 @@ function ZineWorkspaceInner({ initialKind = 'personal', showScopeSwitch = true }
               <p className="font-serif italic text-sm text-white/65">Finalization freezes proof snapshots, captions, stickers, scenes, order, and cover.</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              {permissions.canEdit && ['draft', 'curating'].includes(zine.status) && <button disabled={busy} onClick={() => run(() => markZineReady(zine.id))} className="bureau-btn bg-brand-cyan text-on-surface">Ready for Review</button>}
-              {permissions.canFinalize && <button disabled={busy} onClick={() => run(() => finalizeZine(zine.id))} className="bureau-btn bg-brand-lime text-on-surface">Finalize Edition</button>}
+ {permissions.canEdit && ['draft', 'curating'].includes(zine.status) && <button disabled={busy} onClick={() => run(() => markZineReady(zine.id))} className="bureau-btn text-on-surface">Ready for Review</button>}
+ {permissions.canFinalize && <button disabled={busy} onClick={() => run(() => finalizeZine(zine.id))} className="bureau-btn text-on-surface">Finalize Edition</button>}
               {zine.status === 'ready_for_review' && !permissions.canFinalize && <span className="font-mono text-xs uppercase text-white/60">Waiting for authorized curator</span>}
               {zine.status === 'finalized' && <span className="inline-flex items-center gap-2 font-mono text-xs uppercase text-brand-lime"><Check className="w-4 h-4" /> Edition finalized</span>}
             </div>

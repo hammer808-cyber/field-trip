@@ -91,11 +91,16 @@ test('P0-2: the fixed pairs are the ones the components actually render', () => 
   assert.doesNotMatch(css, /\.status-chip\.locked \{[^}]*color: white/);
 });
 
-test('P0-2: the large-text submit CTA is untouched (out of scope)', () => {
-  // FieldClipboard.tsx:596 is text-2xl white on brand-orange: 3.10:1
-  // passes the 3:1 large-text bar, so P0-2 deliberately leaves it alone.
+test('P0-2: the large-text submit CTA is paper now (design elevation batch)', () => {
+  // SUPERSEDED Nov 27, 2026 (design elevation batch, Zach's word): the
+  // Capture submit CTA was text-2xl white on brand-orange at 3.10:1,
+  // which passed the 3:1 large-text bar, so P0-2 deliberately left it
+  // alone. The paper/tape pass moved it to ink on paper with a tape
+  // hover, which clears every bar by a wide margin. This test is the
+  // record of the change, not a silent deletion of the old pin.
   const clipboard = read('src/components/FieldClipboard.tsx');
-  assert.match(clipboard, /bg-brand-orange text-white hover:bg-on-surface/);
+  assert.match(clipboard, /bg-white text-on-surface hover:bg-brand-tape hover:text-on-surface/);
+  assert.doesNotMatch(clipboard, /bg-brand-orange text-white hover:bg-on-surface/);
 });
 
 test('P0-2: per-skin warning/success/error/primary/secondary pairs clear 4.5:1', () => {

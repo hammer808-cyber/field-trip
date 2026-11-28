@@ -672,7 +672,7 @@ const ViewfinderCamera = forwardRef<ViewfinderCameraHandle, ViewfinderCameraProp
           
           <button 
             onClick={openFileUpload}
-            className="w-full py-3 bg-brand-lime text-on-surface font-mono text-xs uppercase font-black tracking-widest hover:bg-brand-lime/90 transition-colors shadow-[4px_4px_0px_black] border border-on-surface"
+ className="w-full py-3 bg-white text-on-surface font-mono text-xs uppercase font-black tracking-widest hover:bg-brand-tape transition-colors shadow-[4px_4px_0px_black] border border-on-surface"
           >
             Upload Photo Evidence
           </button>

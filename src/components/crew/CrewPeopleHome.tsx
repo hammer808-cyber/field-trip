@@ -99,7 +99,7 @@ function PlayerCard({
       </button>
       <span className="flex flex-wrap items-center justify-end gap-2 shrink-0">
         {relationship === 'none' && onAdd && (
-          <button type="button" disabled={busy} onClick={onAdd} className="bureau-btn-sm bg-brand-lime text-on-surface">
+ <button type="button" disabled={busy} onClick={onAdd} className="bureau-btn-sm text-on-surface">
             <UserPlus className="w-4 h-4" /> Add to Crew
           </button>
         )}
@@ -115,7 +115,7 @@ function PlayerCard({
         )}
         {relationship === 'incoming_request' && (
           <>
-            <button type="button" disabled={busy} onClick={onAccept} className="bureau-btn-sm bg-brand-lime text-on-surface">
+ <button type="button" disabled={busy} onClick={onAccept} className="bureau-btn-sm text-on-surface">
               <Check className="w-4 h-4" /> Accept
             </button>
             <button type="button" disabled={busy} onClick={onDecline} className="bureau-btn-sm bg-white text-on-surface">
@@ -281,7 +281,7 @@ export function CrewPeopleHome() {
             className="flex-1 border-4 border-on-surface p-4 font-mono uppercase"
             minLength={2}
           />
-          <button type="submit" disabled={searching} className="bureau-btn bg-brand-cyan text-on-surface">
+ <button type="submit" disabled={searching} className="bureau-btn text-on-surface">
             {searching ? 'Searching...' : 'Search'}
           </button>
         </div>

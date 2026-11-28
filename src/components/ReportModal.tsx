@@ -104,7 +104,7 @@ export function ReportModal({ isOpen, onClose, targetId, targetType, targetName 
                 <button
                   onClick={handleSubmit}
                   disabled={isSubmitting}
-                  className="w-full bureau-btn bg-on-surface text-white py-6 text-sm font-black border-4 border-on-surface shadow-[8px_8px_0px_var(--color-brand-orange)] active:shadow-none active:translate-x-1 active:translate-y-1 transition-all"
+ className="w-full bureau-btn py-6 text-sm font-black border-4 border-on-surface shadow-[8px_8px_0px_var(--color-brand-orange)] active:shadow-none active:translate-x-1 active:translate-y-1 transition-all"
                 >
                   {isSubmitting ? 'UPLOADING_REPORT...' : 'DISPATCH_ANALYSTS'}
                 </button>
@@ -122,7 +122,7 @@ export function ReportModal({ isOpen, onClose, targetId, targetType, targetName 
                     Transmission secured.<br/>Analysts will evaluate within 24h.
                   </p>
                 </div>
-                <button onClick={onClose} className="w-full bureau-btn bg-on-surface text-white py-5 text-sm font-black shadow-[6px_6px_0px_var(--color-brand-cyan)]">
+ <button onClick={onClose} className="w-full bureau-btn py-5 text-sm font-black shadow-[6px_6px_0px_var(--color-brand-cyan)]">
                   DISMISS
                 </button>
               </div>

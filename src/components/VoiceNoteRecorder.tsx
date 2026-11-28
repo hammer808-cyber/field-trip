@@ -149,7 +149,7 @@ export function VoiceNoteRecorder({ value, onChange, prompt, frankieMode }: Voic
           <button
             type="button"
             onClick={stopRecording}
-            className="flex items-center gap-1.5 rounded-full border-2 border-on-surface bg-brand-orange px-4 py-2 font-sans text-sm font-bold text-white transition-all hover:scale-[1.02]"
+ className="flex items-center gap-1.5 rounded-full border-2 border-on-surface bg-white px-4 py-2 font-sans text-sm font-bold text-on-surface transition-all hover:scale-[1.02]"
           >
             <Square size={14} /> Stop
           </button>

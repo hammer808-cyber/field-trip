@@ -75,10 +75,12 @@ html[data-skin="clubhouse-wall"] body::after {
   box-shadow: var(--skin-elevated-shadow) !important;
 }
 
+/* Paper/tape pass (Nov 27, 2026): marker-label buttons sit on the skin's
+   paper, not its primary colour. Typography, borders and shadows untouched. */
 [data-skin-button="marker-label"] :is(.skin-button, .field-cta, .bureau-btn, .bureau-btn-outline) {
   min-height: var(--skin-control-height);
-  color: var(--skin-on-primary) !important;
-  background: var(--skin-primary) !important;
+  color: var(--skin-text) !important;
+  background: var(--skin-surface) !important;
   border: var(--skin-border-width) solid var(--skin-border) !important;
   border-radius: var(--skin-control-radius) !important;
   box-shadow: var(--skin-button-shadow) !important;
