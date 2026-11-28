@@ -109,16 +109,18 @@ test('P2-15: the Google Fonts import carries only the families skins and compone
   const families = [...importLine.matchAll(/family=([^&:]+)/g)].map((m) => decodeURIComponent(m[1].replace(/\+/g, ' ')));
   assert.deepEqual(
     families.sort(),
-    ['Bebas Neue', 'Courier Prime', 'Inter', 'JetBrains Mono', 'Kalam', 'Newsreader', 'Outfit', 'Permanent Marker', 'Space Grotesk'].sort(),
-    `expected 9 loaded families, got: ${families.join(', ')}`,
+    ['Bebas Neue', 'Courier Prime', 'Inter', 'JetBrains Mono', 'Kalam', 'Newsreader', 'Outfit', 'Permanent Marker', 'Poppins', 'Space Grotesk'].sort(),
+    `expected 10 loaded families, got: ${families.join(', ')}`,
   );
   // Dropped: Geist and Anton had zero component uses (import only).
   assert.doesNotMatch(importLine, /family=Geist/);
   assert.doesNotMatch(importLine, /family=Anton/);
   // Kept deliberately: Kalam (Field Notebook / Clubhouse / Baja skins),
   // Permanent Marker (Clubhouse + .ft-sticker), Outfit (BigBoard and
-  // friends), Space Grotesk + JetBrains Mono (Arcade / Baja skins).
-  for (const kept of ['Kalam', 'Permanent+Marker', 'Outfit', 'Space+Grotesk', 'JetBrains+Mono']) {
+  // friends), Space Grotesk + JetBrains Mono (Arcade / Baja skins),
+  // Poppins (Big Board playful experiment, Nov 27, 2026 — body font,
+  // page-scoped to BigBoard).
+  for (const kept of ['Kalam', 'Permanent+Marker', 'Outfit', 'Space+Grotesk', 'JetBrains+Mono', 'Poppins']) {
     const pattern = new RegExp(`family=${kept.replace(/\+/g, '\\+')}`);
     assert.match(importLine, pattern, `${kept} must stay imported`);
   }

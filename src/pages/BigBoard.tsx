@@ -329,7 +329,7 @@ function StickerStatCard({
         <div className="relative z-10 text-left mt-2 flex items-end justify-between">
           <div className="flex flex-col">
             <div className="inline-block bg-white border-[3px] border-on-surface px-4 py-2 rounded-xl shadow-[4px_4px_0px_#000000] rotate-[-1.5deg] group-hover:rotate-[0.5deg] transition-transform">
-              <span className={cn("font-display font-black text-2xl sm:text-3.5xl tracking-tight leading-none uppercase", theme.darkText)}>
+              <span className={cn("font-poppins font-black text-2xl sm:text-3.5xl tracking-tight leading-none uppercase", theme.darkText)}>
                 {value}
               </span>
             </div>
@@ -414,7 +414,7 @@ function ProgressStickerCard({
           {/* Value Sticker Display */}
           <div className="mb-2.5 flex items-baseline justify-between">
             <div className="bg-white border-[3px] border-on-surface px-3 py-1 rounded-xl shadow-[3.5px_3.5px_0px_#000000] transform rotate-[-0.5deg]">
-              <span className="font-display font-black text-base sm:text-lg tracking-tight leading-none text-[#558B2F]">
+              <span className="font-poppins font-black text-base sm:text-lg tracking-tight leading-none text-[#558B2F]">
                 {value}
               </span>
             </div>
@@ -958,7 +958,7 @@ export default function BigBoardPage() {
   }, [communityFeedProofs.length, canonicalProgress, user?.uid]);
 
   return (
-    <PlayerPageShell department="board" className="skin-board relative">
+    <PlayerPageShell department="board" className="skin-board relative big-board-playful">
       <FieldDoodles pageKey="board" variant="chrome" stamps={boardDoodleStamps} />
       <FieldPageHero
         variant="editorial"
@@ -998,7 +998,7 @@ export default function BigBoardPage() {
               className="max-w-6xl mx-auto space-y-12 p-4 sm:p-8"
             >
               <div className="relative w-full overflow-hidden">
-                <div className="bg-white border-[3px] border-on-surface p-4 sm:p-12 rounded-[2rem] sm:rounded-[2.5rem] shadow-[12px_12px_0px_black] relative overflow-hidden ft-gloss-highlight">
+                <div className="bb-glass p-4 sm:p-12 sm:rounded-[2.5rem] relative overflow-hidden">
                   <div className="absolute inset-0 bg-brand-yellow/[0.03] pointer-events-none" />
                   <div className="absolute inset-0 bg-[radial-gradient(rgba(0,0,0,0.012)_1.5px,transparent_0)] bg-[size:12px_12px] opacity-40 pointer-events-none" />
                   
@@ -1050,7 +1050,7 @@ export default function BigBoardPage() {
               exit={{ opacity: 0, y: -20 }}
               className="max-w-5xl mx-auto space-y-8 p-4 sm:p-8"
             >
-              <div className="bg-white border-[4px] border-on-surface rounded-[2rem] p-6 sm:p-10 shadow-[10px_10px_0px_black] space-y-6">
+              <div className="bb-glass p-6 sm:p-10 space-y-6">
                 <div className="space-y-2">
                   <p className="font-mono text-xs font-black uppercase tracking-[0.25em] text-brand-orange">Weekly Outcomes</p>
                   <h2 className="text-4xl sm:text-6xl font-display font-black uppercase italic tracking-tighter text-on-surface leading-none">
@@ -1130,7 +1130,7 @@ export default function BigBoardPage() {
               </div>
 
               {communityFeedProofs.length === 0 ? (
-                <div className="max-w-xl mx-auto py-16 text-center space-y-4 bg-white border-4 border-on-surface p-8 rounded-[1.5rem] shadow-[8px_8px_0px_black] relative">
+                <div className="bb-glass max-w-xl mx-auto py-16 text-center space-y-4 p-8 relative">
                   <div className="absolute top-2 right-2 text-on-surface/5 font-mono text-xs font-black uppercase tracking-widest">
                     COMMUNITY_EMPTY
                   </div>
@@ -1138,7 +1138,7 @@ export default function BigBoardPage() {
                     <LucideIcons.CameraOff className="w-6 h-6 text-brand-orange animate-pulse" />
                   </div>
                   <div className="space-y-2">
-                    <p className="font-outfit text-base font-black uppercase tracking-widest text-on-surface italic">
+                    <p className="font-display text-base font-black uppercase tracking-widest text-on-surface italic">
                       Silent Spectrum
                     </p>
                     <p className="text-xs font-sans text-on-surface/70 leading-relaxed">
@@ -1165,7 +1165,7 @@ export default function BigBoardPage() {
               className="max-w-5xl mx-auto space-y-12 p-4 sm:p-8 text-on-surface"
             >
               {/* Paper Grid Visual Backwash */}
-              <div className="bg-white/40 backdrop-blur-md border-[3px] border-on-surface rounded-[2rem] p-6 sm:p-10 shadow-[10px_10px_0px_black] bg-[radial-gradient(#e5e7eb_1.5px,transparent_1.5px)] [background-size:16px_16px] space-y-10">
+              <div className="bb-glass p-6 sm:p-10 bg-[radial-gradient(#e5e7eb_1.5px,transparent_1.5px)] [background-size:16px_16px] space-y-10">
                 
                 {/* Stats Card Row */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

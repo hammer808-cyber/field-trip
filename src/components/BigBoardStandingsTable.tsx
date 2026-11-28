@@ -75,7 +75,7 @@ export function BigBoardStandingsTable({ players, currentUserId }: BigBoardStand
                       : 'bg-[var(--skin-surface)]',
                 )}
               >
-                <td className="px-3 py-3 font-display text-xl font-black italic leading-none text-[var(--skin-text)]">
+                <td className="px-3 py-3 font-poppins text-xl font-black italic leading-none text-[var(--skin-text)]">
                   <span className="inline-flex items-center gap-2">
                     #{rank}
                     {rank === 1 && <FieldStamp label="1ST" />}
@@ -91,7 +91,7 @@ export function BigBoardStandingsTable({ players, currentUserId }: BigBoardStand
                         hasMilestoneBorder && 'ring-2 ring-brand-orange/30 ring-offset-2',
                       )}
                     />
-                    <span className="truncate font-display text-base font-black uppercase italic leading-none text-[var(--skin-text)]">
+                    <span className="truncate font-poppins text-base font-black uppercase italic leading-none text-[var(--skin-text)]">
                       {player.name}
                       {isMe && (
                         <span className="ml-1 font-mono text-xs font-black uppercase text-[var(--skin-primary)]">
@@ -116,7 +116,7 @@ export function BigBoardStandingsTable({ players, currentUserId }: BigBoardStand
                     '—'
                   )}
                 </td>
-                <td className="px-3 py-3 text-right font-display text-xl font-black italic leading-none text-[var(--skin-text)]">
+                <td className="px-3 py-3 text-right font-poppins text-xl font-black italic leading-none text-[var(--skin-text)]">
                   {player.weeklyXp} XP
                 </td>
               </tr>

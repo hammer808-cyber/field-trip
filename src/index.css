@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Kalam:wght@300;400;700&family=Newsreader:opsz,wght@6..72,200..800&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Outfit:wght@100..900&family=Permanent+Marker&family=Bebas+Neue&family=JetBrains+Mono:wght@100..800&family=Space+Grotesk:wght@300..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Kalam:wght@300;400;700&family=Newsreader:opsz,wght@6..72,200..800&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Outfit:wght@100..900&family=Permanent+Marker&family=Bebas+Neue&family=JetBrains+Mono:wght@100..800&family=Space+Grotesk:wght@300..700&family=Poppins:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -6,6 +6,7 @@
   --font-accent: "Newsreader", serif;
   --font-mono: "Courier Prime", "Courier New", monospace;
   --font-outfit: "Outfit", sans-serif;
+  --font-poppins: "Poppins", ui-sans-serif, system-ui, sans-serif;
   --font-kalam: "Kalam", cursive;
   --font-marker: "Permanent Marker", cursive;
 
@@ -1328,5 +1329,77 @@ img, video, canvas, svg {
     top: 0;
     left: 0;
     width: 100%;
+  }
+}
+
+/* Big Board playful experiment (Nov 27, 2026 — Zach's word): Bebas
+   Neue titles + Poppins body + glassmorphism, scoped to the Big Board
+   page only. Nothing in this block touches any other page: every rule
+   starts with .big-board-playful, which only BigBoard.tsx puts on its
+   root. Principle: Bebas is for headings/titles only; every other
+   word — labels, body, buttons, tabs, scores, values — is Poppins. */
+
+/* Playful wash: soft pools of the brand colours over the paper base.
+   The 0,2,0 selector beats .ft-dept (0,1,0) regardless of import
+   order, so the wash always wins on this page. Colour stops use
+   color-mix off the skin tokens, so no new colour values are invented
+   here; if a browser cannot parse a layer it falls back to the paper
+   base underneath. */
+.ft-dept-board.big-board-playful {
+  background-color: var(--color-paper);
+  background-image:
+    radial-gradient(640px 420px at 88% 6%, color-mix(in srgb, var(--color-brand-cyan) 24%, transparent), transparent 70%),
+    radial-gradient(520px 480px at 6% 28%, color-mix(in srgb, var(--color-brand-orange) 20%, transparent), transparent 70%),
+    radial-gradient(720px 520px at 92% 62%, color-mix(in srgb, var(--color-brand-magenta) 14%, transparent), transparent 70%),
+    radial-gradient(560px 420px at 8% 88%, color-mix(in srgb, var(--color-brand-lime) 22%, transparent), transparent 70%);
+  font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Every other word on the page is Poppins: remap the non-title font
+   utilities this page (and the shared components it renders, like the
+   standings table, the hero, and the community cards) uses.
+   font-display stays Bebas Neue for titles. The Kalam / Permanent
+   Marker doodle stamps are decorative handwriting and are left alone. */
+.big-board-playful .font-sans,
+.big-board-playful .font-mono,
+.big-board-playful .font-serif,
+.big-board-playful .font-outfit {
+  font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Hero tab labels are navigation, not titles. */
+.big-board-playful [role="tab"] {
+  font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Inside the hero, every Bebas element that is not the h1 title is a
+   display value (the Live-status badge), so it reads in Poppins too. */
+.big-board-playful header :not(h1).font-display {
+  font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Frosted glass for the big section panels. The fill stays bright
+   (72% white over the light wash) so ink text keeps AA contrast;
+   the dot-grid texture on a panel is a separate background-image
+   layer and is untouched because this sets background-color only.
+   Blur lives on the four large section panels only, never on the
+   small sticker cards: their layered paper construction (black
+   silhouette + rotated sheet behind an opaque face) would turn a
+   translucent face muddy grey, and dozens of small blurs would cost
+   phones frames. */
+.big-board-playful .bb-glass {
+  background-color: rgb(255 255 255 / 0.72);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgb(255 255 255 / 0.65);
+  box-shadow: 0 8px 32px rgb(31 38 135 / 0.14), inset 0 1px 0 rgb(255 255 255 / 0.8);
+  border-radius: 2rem;
+}
+
+@media (max-width: 640px) {
+  /* Cheaper blur on phones: same frost, less GPU work. */
+  .big-board-playful .bb-glass {
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
   }
 }
