@@ -9965,7 +9965,7 @@ async function startServer() {
       }
 
       const reason = getBackendString(req.body?.reason) || "Admin Starter Signals bypass.";
-      const starterIds = ["starter-1", "starter-2", "starter-3"];
+      const starterIds = ["starter-1", "starter-2", "starter-3", "starter-4", "starter-5"];
       const userRef = dbAdmin.collection("users").doc(targetUid);
       const userSnap = await userRef.get();
       if (!userSnap.exists) {
@@ -9980,9 +9980,9 @@ async function startServer() {
         submittedPendingChallengeIds: [],
         starterDeckComplete: true,
         starterCompleted: true,
-        starterApprovedCount: 3,
-        starterProgress: 3,
-        starterProgressCount: 3,
+        starterApprovedCount: 5,
+        starterProgress: 5,
+        starterProgressCount: 5,
         onboardingCompleted: true,
         onboardingComplete: true,
         hasCompletedOnboarding: true,
@@ -9993,7 +9993,7 @@ async function startServer() {
         starterBypassReason: reason,
         starterBypassGrantedBy: req.user.uid,
         starterBypassGrantedAt: FieldValue.serverTimestamp(),
-        "starterState.starterApprovedCount": 3,
+        "starterState.starterApprovedCount": 5,
         "starterState.starterComplete": true,
         "starterState.starterSignalsCompleted": starterIds,
         "starterState.pendingStarterCount": 0,
@@ -10014,7 +10014,7 @@ async function startServer() {
       res.json({
         success: true,
         targetUid,
-        starterApprovedCount: 3,
+        starterApprovedCount: 5,
         unlocked: ["memories", "crew", "voting", "tribunal", "heatwave-receipts"],
         message: "Starter Signals bypass granted."
       });

@@ -11,7 +11,7 @@ import { Entry } from '../types/game';
 const starterPack = getDeckPackById('starter-signals');
 const heatwavePack = getDeckPackById('heatwave-receipts');
 const starterMissions = STARTER_MISSION_BANK as TripCard[];
-const starterIds = ['starter-1', 'starter-2', 'starter-3'];
+const starterIds = ['starter-1', 'starter-2', 'starter-3', 'starter-4', 'starter-5'];
 
 function pool(params: {
   approved?: string[];
@@ -65,12 +65,12 @@ test('after starter-1 is pending, user can draw starter-2', () => {
   assert.ok(!result.eligibleMissions.some(card => card.id === 'starter-1'));
 });
 
-test('after starter-1 and starter-2 are pending, user can draw starter-3', () => {
+test('after starter-1 and starter-2 are pending, user can draw starter-3, starter-4, starter-5', () => {
   const result = pool({ pending: ['starter-1', 'starter-2'] });
-  assert.deepEqual(result.eligibleMissions.map(card => card.id), ['starter-3']);
+  assert.deepEqual(result.eligibleMissions.map(card => card.id), ['starter-3', 'starter-4', 'starter-5']);
 });
 
-test('after all 3 starters are pending, no further starter cards draw and gated decks remain locked', () => {
+test('after all 5 starters are pending, no further starter cards draw and gated decks remain locked', () => {
   const result = pool({ pending: starterIds });
   assert.equal(result.eligibleMissions.length, 0);
   assert.equal(result.reason, 'all_starter_signals_pending_review');
@@ -90,24 +90,24 @@ test('after all 3 starters are pending, no further starter cards draw and gated 
   assert.equal(heatwave.reason, 'season_locked');
 });
 
-test('after admin approves only 1 or 2 starter cards, gated decks remain locked', () => {
-  for (const approved of [['starter-1'], ['starter-1', 'starter-2']]) {
-    const starterState = calculateStarterState('user-1', approved.map(approvedEntry));
-    assert.equal(starterState.starterComplete, false);
-    assert.equal(starterState.status, 'IN_PROGRESS');
-  }
+test('after admin approves 1 starter card, the gate is complete (1 of 5 finishes the flow)', () => {
+  const starterState = calculateStarterState('user-1', ['starter-1'].map(approvedEntry));
+  assert.equal(starterState.starterApprovedCount, 1);
+  assert.equal(starterState.starterRequiredCount, 5);
+  assert.equal(starterState.starterComplete, true);
+  assert.equal(starterState.status, 'COMPLETE');
 });
 
-test('after admin approves all 3 unique starter cards, starter state completes and gates can unlock', () => {
+test('after admin approves all 5 unique starter cards, starter state stays complete', () => {
   const starterState = calculateStarterState('user-1', starterIds.map(approvedEntry));
-  assert.equal(starterState.starterApprovedCount, 3);
+  assert.equal(starterState.starterApprovedCount, 5);
   assert.equal(starterState.starterComplete, true);
   assert.equal(starterState.status, 'COMPLETE');
 });
 
 test('draft starter cards are diagnosed without false pack exhaustion', () => {
   const draftMissions = starterMissions.map(card => (
-    card.id === 'starter-2' || card.id === 'starter-3'
+    card.id === 'starter-2' || card.id === 'starter-3' || card.id === 'starter-4' || card.id === 'starter-5'
       ? { ...card, status: 'draft' as any }
       : card
   ));
@@ -139,7 +139,7 @@ test('legacy submitted profile arrays do not burn starter cards without active e
   const starterProgress = getDeckProgress(snapshot, 'starter-signals');
   assert.equal(starterProgress.approvedCount, 0);
   assert.equal(starterProgress.pendingCount, 0);
-  assert.equal(starterProgress.remainingCount, 3);
+  assert.equal(starterProgress.remainingCount, 5);
 });
 
 test('legacy approved starter profile arrays complete canonical progress when canonical entry links are missing', () => {
@@ -147,35 +147,35 @@ test('legacy approved starter profile arrays complete canonical progress when ca
     userId: 'user-1',
     profile: {
       id: 'user-1',
-      approvedCompletedChallengeIds: ['starter-1', 'starter-2', 'starter-3'],
-      completedChallengeIds: ['starter-1', 'starter-2', 'starter-3'],
+      approvedCompletedChallengeIds: ['starter-1', 'starter-2', 'starter-3', 'starter-4', 'starter-5'],
+      completedChallengeIds: ['starter-1', 'starter-2', 'starter-3', 'starter-4', 'starter-5'],
       onboardingCompleted: true
     } as any,
     entries: [],
     pendingEntries: []
   });
 
-  assert.equal(snapshot.starter.starterApprovedCount, 3);
+  assert.equal(snapshot.starter.starterApprovedCount, 5);
   assert.equal(snapshot.starter.starterComplete, true);
   assert.deepEqual(starterIds.filter(id => snapshot.approvedCompletedChallengeIds.has(id)), starterIds);
-  assert.equal(getDeckProgress(snapshot, 'starter-signals').approvedCount, 3);
+  assert.equal(getDeckProgress(snapshot, 'starter-signals').approvedCount, 5);
 });
 
-test('one missing legacy starter approval does not complete canonical progress', () => {
+test('one legacy starter approval completes canonical progress (1 of 5 is the gate)', () => {
   const snapshot = buildCanonicalProgress({
     userId: 'user-1',
     profile: {
       id: 'user-1',
-      approvedCompletedChallengeIds: ['starter-1', 'starter-2'],
-      completedChallengeIds: ['starter-1', 'starter-2'],
+      approvedCompletedChallengeIds: ['starter-1'],
+      completedChallengeIds: ['starter-1'],
       onboardingCompleted: true
     } as any,
     entries: [],
     pendingEntries: []
   });
 
-  assert.equal(snapshot.starter.starterApprovedCount, 2);
-  assert.equal(snapshot.starter.starterComplete, false);
+  assert.equal(snapshot.starter.starterApprovedCount, 1);
+  assert.equal(snapshot.starter.starterComplete, true);
 });
 
 test('pending and rejected starter entries do not unlock canonical progress', () => {
@@ -191,7 +191,7 @@ test('pending and rejected starter entries do not unlock canonical progress', ()
   });
 
   assert.equal(pendingSnapshot.starter.starterApprovedCount, 1);
-  assert.equal(pendingSnapshot.starter.starterComplete, false);
+  assert.equal(pendingSnapshot.starter.starterComplete, true);
   assert.equal(getChallengeStatus(pendingSnapshot, 'starter-1'), 'pending_review');
   assert.equal(getChallengeStatus(pendingSnapshot, 'starter-2'), 'rejected');
 });
@@ -220,5 +220,5 @@ test('pending starter state comes from a real pending entry, not stale profile a
 
   const starterProgress = getDeckProgress(snapshot, 'starter-signals');
   assert.equal(starterProgress.pendingCount, 1);
-  assert.equal(starterProgress.remainingCount, 2);
+  assert.equal(starterProgress.remainingCount, 4);
 });

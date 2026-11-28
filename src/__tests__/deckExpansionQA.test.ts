@@ -16,7 +16,7 @@ import { getProofLogbookCounts } from '../logic/proofDistribution';
 import { buildCanonicalProgress, getDeckProgress } from '../services/canonicalProgress';
 import type { TripCard } from '../types/challenges';
 
-const starterIds = ['starter-1', 'starter-2', 'starter-3'];
+const starterIds = ['starter-1', 'starter-2', 'starter-3', 'starter-4', 'starter-5'];
 const errandPack = getDeckPackById('errand-deck')!;
 const jetSetterPack = getDeckPackById('jet-setter')!;
 
@@ -70,7 +70,7 @@ test('deck catalog uses the requested sections and placements', () => {
   assert.equal(getActiveDeckPacks()[0].packId, 'starter-signals');
 });
 
-test('Errand and Jet Setter remain locked until all three Starter Signals are approved', () => {
+test('Errand and Jet Setter remain locked until one Starter Signal is approved', () => {
   for (const pack of [errandPack, jetSetterPack]) {
     assert.equal(getDeckAccess(pack, { userId: 'user-1', completedDeckIds: [] }).playable, false);
     assert.equal(getDeckAccess(pack, { userId: 'user-1', completedDeckIds: ['starter-signals'] }).playable, true);

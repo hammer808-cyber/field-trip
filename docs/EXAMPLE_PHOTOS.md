@@ -392,8 +392,11 @@ example photo in `public/assets/challenges/starter-N.jpg`, wired in via the
 card's `image` field in `src/data/starterMissionBank.ts`, the same way the
 Texas, Heatwave, and Jet Setter decks got theirs. Cards with a photo show an
 "Example photo" chip in the deck library and the card detail modal, so players
-know it's a sample, not the target itself. These are the first three missions
-every new player sees, so the photos matter most here.
+know it's a sample, not the target itself. These are the first five missions
+every new player sees, so the photos matter most here. Starter-1 is always
+the first card drawn; starter-4 and starter-5 joined the deck Nov 27, 2026,
+when the Starter flow went from 3 cards (3 to finish) to 5 cards (1 to
+finish).
 
 ### Sources and licenses
 
@@ -402,7 +405,9 @@ CC0, or public domain). Attribution:
 
 | Card | File | Source link | License |
 | --- | --- | --- | --- |
-| starter-1 — The Initial Signal | `starter-1.jpg` | [File:Sunflower with blue sky background.jpg](https://commons.wikimedia.org/wiki/File%3ASunflower_with_blue_sky_background.jpg) | Public domain |
+| starter-1 — What's Around You | `starter-1.jpg` | [File:Sunflower with blue sky background.jpg](https://commons.wikimedia.org/wiki/File%3ASunflower_with_blue_sky_background.jpg) | Public domain |
+| starter-4 — Shadow Check | `starter-4.jpg` | [File:Schattenriss 002 2017 11 09.jpg](https://commons.wikimedia.org/wiki/File:Schattenriss_002_2017_11_09.jpg) | CC BY-SA 4.0 |
+| starter-5 — Color Pop | `starter-5.jpg` | [File:Red-painted front door and mailbox, Burano.jpg](https://commons.wikimedia.org/wiki/File:Red-painted_front_door_and_mailbox%2C_Burano.jpg) | CC BY-SA 4.0 |
 | starter-2 — Snack Evidence | `starter-2.jpg` | [File:Slices of watermelon placed on a red tray at a summer gathering.jpg](https://commons.wikimedia.org/wiki/File%3ASlices_of_watermelon_placed_on_a_red_tray_at_a_summer_gathering.jpg) | CC BY 2.0 |
 | starter-3 — Personal Oasis | `starter-3.jpg` | [File:Park Bench Ooty Botanical Garden (125298855).jpeg](https://commons.wikimedia.org/wiki/File%3APark_Bench_Ooty_Botanical_Garden_%28125298855%29.jpeg) | CC BY-SA 3.0 |
 
@@ -423,15 +428,26 @@ Two first picks failed that check and were replaced:
   young girl holding it rather than the snack itself. Replaced with watermelon
   slices on a red tray: snack-only, unmistakably summer.
 
+- Shadow Check (starter-4): first pick was "2023, photo Amsterdam city" —
+  a busy street scene where the shadows on the pavement are background, not
+  the subject. Replaced with "Schattenriss 002": one person's long shadow on
+  beach sand, camera in hand — the shadow IS the photo.
+- Color Pop (starter-5): first pick was "Bright days in sunny lands" — a
+  green vintage book cover. It is a bold color, but it reads as an old book,
+  not something bright out in the world. Replaced with the Burano red door
+  and red mailbox against a vivid blue wall.
+
 Judgment-call cards, noted here so the next pass can revisit them:
 
 - Personal Oasis (starter-3) is a wide botanical-garden shot: a huge shady
   tree dominates the frame, with green benches visible underneath it. The
   oasis is the shade under the tree, and the benches are small in frame —
   it reads as "shady park" rather than a close-up of one bench.
-- The Initial Signal (starter-1) is a sunflower against a striking blue sky —
-  two of the card's three allowed subjects (vibrant flower, blue sky) in one
-  frame.
+- What's Around You (starter-1) is a sunflower against a striking blue sky.
+  The card no longer names flower/sky/tree as required subjects (Nov 27,
+  2026: any photo around you counts), so the sunflower now reads as one
+  example of "what's around you", not the target. If the photo ever feels
+  too specific for the card, swap it for a plain street-or-room shot.
 
 Files were recompressed into the ~87–200 KB class of the earlier decks
 (PIL, max width 1024, JPEG quality 78) — the deck adds ~420 KB total.

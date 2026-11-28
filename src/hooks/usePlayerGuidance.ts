@@ -68,7 +68,6 @@ export function usePlayerGuidance(): PlayerGuidanceSnapshot {
       hasUnseenStarterUnlock: isUnseenStarterUnlock({
         starterComplete: starter.starterComplete,
         starterApprovedCount: starter.starterApprovedCount,
-        starterRequiredCount: starter.starterRequiredCount,
         lastSeenApprovedCount: profile?.trevorSettings?.lastSeenApprovedCount,
       }),
     });

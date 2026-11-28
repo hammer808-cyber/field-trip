@@ -42,6 +42,7 @@ import {
   getStarterProgress,
   type CanonicalProgressSnapshot,
 } from '../services/canonicalProgress';
+import { STARTER_REQUIRED_APPROVALS } from './starterDeckState';
 import type { TripCard } from '../types/challenges';
 import type { DrawnMissionCard, Entry } from '../types/game';
 import { isArchivedEntry, normalizeEntryStatus } from './entryLogic';
@@ -511,15 +512,22 @@ function findJustFinishedDeck(input: ResolvePlayerGuidanceInput): { deckId: stri
   return null;
 }
 
-/** Starter unlock celebration is one-shot via profile.trevorSettings.lastSeenApprovedCount. */
+/**
+ * Starter unlock celebration is one-shot via profile.trevorSettings.lastSeenApprovedCount.
+ * The comparison is against the approvals that complete the Starter
+ * (STARTER_REQUIRED_APPROVALS, 1), NOT the deck size: the ack writes the
+ * approved count (1 after the first approval), so comparing against the
+ * 5-card deck size would keep the celebration firing until all 5 were
+ * approved. starterApprovedCount is kept in the input for callers that
+ * already carry it; the threshold is the constant.
+ */
 export function isUnseenStarterUnlock(input: {
   starterComplete: boolean;
   starterApprovedCount: number;
-  starterRequiredCount: number;
   lastSeenApprovedCount?: number | null;
 }): boolean {
   if (!input.starterComplete) return false;
-  return (input.lastSeenApprovedCount ?? 0) < input.starterRequiredCount;
+  return (input.lastSeenApprovedCount ?? 0) < STARTER_REQUIRED_APPROVALS;
 }
 
 export type MissionsGuidancePrimaryAction =

@@ -5,7 +5,7 @@
  */
 
 /**
- * Basecamp opens only once the three Starter missions are approved.
+ * Basecamp opens once one Starter mission is approved.
  * Before then the deck (Missions) is home, so the Basecamp tab shows
  * LOCKED the same way Dex, Voting and Big Board do. Admins bypass it.
  */

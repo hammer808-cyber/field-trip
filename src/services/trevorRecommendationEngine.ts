@@ -5,6 +5,7 @@ import {
 } from '../config/trevorActions';
 import type { TrevorContext, TrevorProofRepairTarget } from './trevorContextService';
 import { pickNearbyDeckId } from './trevorContextService';
+import { STARTER_REQUIRED_APPROVALS } from '../logic/starterDeckState';
 import {
   isRecommendationCoolingDown,
   type TrevorHistoryEntry,
@@ -154,7 +155,9 @@ export const TREVOR_RULES: readonly TrevorRule[] = [
           secondaryAction: { id: 'open_logbook' },
         };
       }
-      if (context.starterSubmittedCount >= context.starterRequiredCount && context.pendingProofCount > 0) {
+      // Waiting on the approval that opens the game: one submitted Starter
+      // proof in review is enough (the gate is 1 approval, not all 5 cards).
+      if (context.starterSubmittedCount >= STARTER_REQUIRED_APPROVALS && context.pendingProofCount > 0) {
         return {
           id: 'starter_pending',
           priority: 920,

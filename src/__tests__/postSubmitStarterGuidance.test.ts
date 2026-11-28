@@ -8,7 +8,7 @@ function starterFixture(
 ): StarterCompletionState {
   return {
     starterApprovedCount: 0,
-    starterRequiredCount: 3,
+    starterRequiredCount: 5,
     starterComplete: false,
     pendingStarterCount: 0,
     retryStarterCount: 0,
@@ -25,7 +25,7 @@ function starterFixture(
   };
 }
 
-test('1/3 pending shows in-progress sent wording and back-to-Missions CTA', () => {
+test('1/5 pending shows in-progress sent wording and back-to-Missions CTA', () => {
   const guidance = buildPostSubmitStarterGuidance({
     starter: starterFixture({
       status: 'IN_PROGRESS',
@@ -38,14 +38,14 @@ test('1/3 pending shows in-progress sent wording and back-to-Missions CTA', () =
   });
 
   assert.equal(guidance.status, 'IN_PROGRESS');
-  assert.equal(guidance.progressLine, 'Starter proof 1 of 3 sent');
+  assert.equal(guidance.progressLine, 'Starter proof 1 of 5 sent');
   assert.equal(guidance.statusLine, 'Your proof is waiting for review.');
   assert.equal(guidance.primaryHref, '/missions');
   assert.equal(guidance.primaryLabel, 'Back to Missions');
   assert.doesNotMatch(guidance.progressLine || '', /complete/i);
 });
 
-test('3/3 pending shows waiting-for-review and proof-status destination', () => {
+test('3/5 pending shows waiting-for-review and proof-status destination', () => {
   const guidance = buildPostSubmitStarterGuidance({
     starter: starterFixture({
       status: 'PENDING_REVIEW',
@@ -59,22 +59,22 @@ test('3/3 pending shows waiting-for-review and proof-status destination', () => 
   });
 
   assert.equal(guidance.status, 'PENDING_REVIEW');
-  assert.equal(guidance.progressLine, 'Starter proof 3 of 3 sent');
+  assert.equal(guidance.progressLine, 'Starter proof 3 of 5 sent');
   assert.equal(guidance.statusLine, 'Your proof is waiting for review.');
   assert.equal(guidance.primaryHref, '/profile?tab=logbook');
   assert.equal(guidance.primaryLabel, 'View proof status');
   assert.doesNotMatch(guidance.progressLine || '', /complete/i);
 });
 
-test('2 approved + 1 needs more proof prioritizes repair over waiting for review', () => {
+test('needs more proof with nothing approved yet prioritizes repair over waiting for review', () => {
   const guidance = buildPostSubmitStarterGuidance({
     starter: starterFixture({
       status: 'NEEDS_MORE_PROOF',
-      starterApprovedCount: 2,
+      starterApprovedCount: 0,
       pendingStarterCount: 0,
       needsMoreProofStarterCount: 1,
-      submittedUniqueCount: 3,
-      submittedMissionIds: ['starter-1', 'starter-2', 'starter-3'],
+      submittedUniqueCount: 1,
+      submittedMissionIds: ['starter-3'],
       needsMoreProofMissionId: 'starter-3',
     }),
     currentMissionId: 'starter-1',
@@ -82,7 +82,7 @@ test('2 approved + 1 needs more proof prioritizes repair over waiting for review
   });
 
   assert.equal(guidance.status, 'NEEDS_MORE_PROOF');
-  assert.match(guidance.progressLine || '', /Starter proof 3 of 3 sent/);
+  assert.match(guidance.progressLine || '', /Starter proof 1 of 5 sent/);
   assert.match(guidance.statusLine, /needs a clearer photo/i);
   assert.equal(guidance.primaryHref, '/capture?id=starter-3');
   assert.equal(guidance.primaryLabel, 'Add More Proof →');
@@ -91,14 +91,14 @@ test('2 approved + 1 needs more proof prioritizes repair over waiting for review
   assert.doesNotMatch(guidance.progressLine || '', /complete/i);
 });
 
-test('2 approved + 1 rejected prioritizes retry over waiting for review', () => {
+test('rejected with nothing approved yet prioritizes retry over waiting for review', () => {
   const guidance = buildPostSubmitStarterGuidance({
     starter: starterFixture({
       status: 'REJECTED_RETRY_AVAILABLE',
-      starterApprovedCount: 2,
+      starterApprovedCount: 0,
       retryStarterCount: 1,
-      submittedUniqueCount: 3,
-      submittedMissionIds: ['starter-1', 'starter-2', 'starter-3'],
+      submittedUniqueCount: 1,
+      submittedMissionIds: ['starter-2'],
       rejectedMissionId: 'starter-2',
     }),
     currentMissionId: 'starter-1',
@@ -106,7 +106,7 @@ test('2 approved + 1 rejected prioritizes retry over waiting for review', () => 
   });
 
   assert.equal(guidance.status, 'REJECTED_RETRY_AVAILABLE');
-  assert.match(guidance.progressLine || '', /Starter proof 3 of 3 sent/);
+  assert.match(guidance.progressLine || '', /Starter proof 1 of 5 sent/);
   assert.match(guidance.statusLine, /rejected/i);
   assert.equal(guidance.primaryHref, '/capture?id=starter-2');
   assert.equal(guidance.primaryLabel, 'Retry Mission →');
@@ -114,23 +114,23 @@ test('2 approved + 1 rejected prioritizes retry over waiting for review', () => 
   assert.doesNotMatch(guidance.statusLine, /waiting for review/i);
 });
 
-test('3 approved / Starter complete reserves complete wording and draw-next CTA', () => {
+test('1 approved / Starter complete sends the player to pick a deck', () => {
   const guidance = buildPostSubmitStarterGuidance({
     starter: starterFixture({
       status: 'COMPLETE',
       starterComplete: true,
-      starterApprovedCount: 3,
-      submittedUniqueCount: 3,
-      submittedMissionIds: ['starter-1', 'starter-2', 'starter-3'],
+      starterApprovedCount: 1,
+      submittedUniqueCount: 1,
+      submittedMissionIds: ['starter-1'],
     }),
-    currentMissionId: 'starter-3',
+    currentMissionId: 'starter-1',
     reviewStatus: 'approved',
   });
 
   assert.equal(guidance.status, 'COMPLETE');
   assert.equal(guidance.progressLine, 'Starter complete');
-  assert.equal(guidance.primaryHref, '/missions');
-  assert.equal(guidance.primaryLabel, 'Draw Next Mission →');
+  assert.equal(guidance.primaryHref, '/dex/decks');
+  assert.equal(guidance.primaryLabel, 'Pick a deck →');
 });
 
 test('optimistic pending count fills lagging submitted count for in-progress only', () => {
@@ -146,11 +146,11 @@ test('optimistic pending count fills lagging submitted count for in-progress onl
   });
 
   assert.equal(guidance.status, 'IN_PROGRESS');
-  assert.equal(guidance.progressLine, 'Starter proof 2 of 3 sent');
+  assert.equal(guidance.progressLine, 'Starter proof 2 of 5 sent');
   assert.equal(guidance.primaryLabel, 'Back to Missions');
 });
 
-test('optimistic third pending becomes waiting-for-review without inventing complete', () => {
+test('three pending of five is still in progress, not waiting-for-review', () => {
   const guidance = buildPostSubmitStarterGuidance({
     starter: starterFixture({
       status: 'IN_PROGRESS',
@@ -162,9 +162,10 @@ test('optimistic third pending becomes waiting-for-review without inventing comp
     reviewStatus: 'pending_review',
   });
 
-  assert.equal(guidance.status, 'PENDING_REVIEW');
-  assert.equal(guidance.progressLine, 'Starter proof 3 of 3 sent');
-  assert.equal(guidance.primaryHref, '/profile?tab=logbook');
+  assert.equal(guidance.status, 'IN_PROGRESS');
+  assert.equal(guidance.progressLine, 'Starter proof 3 of 5 sent');
+  assert.equal(guidance.primaryHref, '/missions');
+  assert.equal(guidance.primaryLabel, 'Back to Missions');
   assert.doesNotMatch(guidance.progressLine || '', /complete/i);
 });
 
@@ -172,10 +173,10 @@ test('optimistic submitted count does not override an existing needs-more-proof 
   const guidance = buildPostSubmitStarterGuidance({
     starter: starterFixture({
       status: 'NEEDS_MORE_PROOF',
-      starterApprovedCount: 2,
+      starterApprovedCount: 0,
       needsMoreProofStarterCount: 1,
-      submittedUniqueCount: 3,
-      submittedMissionIds: ['starter-1', 'starter-2', 'starter-3'],
+      submittedUniqueCount: 1,
+      submittedMissionIds: ['starter-3'],
       needsMoreProofMissionId: 'starter-3',
     }),
     currentMissionId: 'starter-1',
@@ -191,10 +192,10 @@ test('re-submitting the needs-more-proof mission itself can optimistically leave
   const guidance = buildPostSubmitStarterGuidance({
     starter: starterFixture({
       status: 'NEEDS_MORE_PROOF',
-      starterApprovedCount: 2,
+      starterApprovedCount: 0,
       needsMoreProofStarterCount: 1,
-      submittedUniqueCount: 3,
-      submittedMissionIds: ['starter-1', 'starter-2', 'starter-3'],
+      submittedUniqueCount: 1,
+      submittedMissionIds: ['starter-3'],
       needsMoreProofMissionId: 'starter-3',
     }),
     currentMissionId: 'starter-3',
@@ -202,6 +203,7 @@ test('re-submitting the needs-more-proof mission itself can optimistically leave
   });
 
   assert.equal(guidance.status, 'PENDING_REVIEW');
+  assert.equal(guidance.progressLine, 'Starter proof 1 of 5 sent');
   assert.equal(guidance.primaryHref, '/profile?tab=logbook');
   assert.equal(guidance.primaryLabel, 'View proof status');
 });

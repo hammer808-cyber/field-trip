@@ -131,6 +131,7 @@ test('sidebar panels render honest progress, crew, and empty states', () => {
         levelProgressPercent: 20,
         starterApprovedCount: 3,
         starterRequiredCount: 3,
+        starterComplete: true,
         starterPercent: 100,
         activeDeckId: 'heatwave-receipts',
         activeDeckName: 'Heatwave Receipts',

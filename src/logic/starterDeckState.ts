@@ -1,6 +1,15 @@
 import { normalizeEntryStatus, isArchivedEntry } from './entryLogic';
 
-export const STARTER_SIGNAL_IDS = ['starter-1', 'starter-2', 'starter-3'] as const;
+export const STARTER_SIGNAL_IDS = ['starter-1', 'starter-2', 'starter-3', 'starter-4', 'starter-5'] as const;
+
+/**
+ * Starter gate (Nov 27, 2026, Zach's call — the 3-card gate was too much,
+ * "people aren't doing it"): the Starter set is FIVE cards, and ONE
+ * approved Starter submission finishes the flow and opens the game.
+ * STARTER_SIGNAL_IDS.length is the deck size (5, for display: "1/5");
+ * STARTER_REQUIRED_APPROVALS is the gate (1).
+ */
+export const STARTER_REQUIRED_APPROVALS = 1;
 
 export type CanonicalStarterStatus = 'approved' | 'pending_review' | 'needs_more_proof' | 'rejected';
 
@@ -195,8 +204,33 @@ export function buildCanonicalStarterDeckState({
     starterSubmittedCount: submittedIds.length,
     starterRejectedCount: rejectedIds.length,
     starterNeedsMoreProofCount: needsMoreProofIds.length,
-    starterComplete: approvedIds.length >= STARTER_SIGNAL_IDS.length,
+    starterComplete: approvedIds.length >= STARTER_REQUIRED_APPROVALS,
   };
+}
+
+export const FIRST_STARTER_CARD_ID = 'starter-1' as const;
+
+/**
+ * Deterministic first draw (Nov 27, 2026, Zach's call): the first card a
+ * player draws from the Starter deck is ALWAYS starter-1 ("take a picture
+ * of what's around you"), never random. A player counts as fresh for the
+ * Starter deck when they have no Starter submissions, no active drawn
+ * Starter card, and no Starter card drawn before — per-deck freshness,
+ * so a draw from another deck first does not burn it. Once any Starter
+ * card is drawn or submitted, later draws are normal.
+ */
+export function shouldForceFirstStarterDraw(input: {
+  isStarterPackDraw: boolean;
+  submittedStarterIds: string[];
+  activeDrawnStarterIds: string[];
+  drawnStarterIds: string[];
+}): boolean {
+  return (
+    input.isStarterPackDraw
+    && input.submittedStarterIds.length === 0
+    && input.activeDrawnStarterIds.length === 0
+    && input.drawnStarterIds.length === 0
+  );
 }
 
 export function toStarterProfileMirrors(state: CanonicalStarterDeckState) {

@@ -21,7 +21,7 @@ export function StarterGate({ requiredFeature, children }: StarterGateProps) {
   const { isAdmin, canonicalProgress } = useApp();
   // The leaderboard has its own key (Nov 17, 2026): it used to borrow
   // Voting's key, so parking Voting locked the Big Board for every
-  // non-admin even at 3/3 starters. canAccessFeature returns true for
+  // non-admin even with the Starter done. canAccessFeature returns true for
   // 'leaderboard' once the starter check passes — no kill switch.
   const featureKey: FeatureKey = requiredFeature;
   const isFeatureUnlocked = canAccessFeature(canonicalProgress, featureKey, { isAdmin });

@@ -105,7 +105,7 @@ function profile(overrides: Partial<UserProfile> = {}): UserProfile {
 }
 
 function starterApprovals(): Entry[] {
-  return ['starter-1', 'starter-2', 'starter-3'].map((missionId, index) => entry({
+  return ['starter-1'].map((missionId, index) => entry({
     id: `starter-entry-${index + 1}`,
     entryId: `starter-entry-${index + 1}`,
     challengeId: missionId,
@@ -209,10 +209,10 @@ test('3. Starter 1/3 pending with next mission available stays on draw-next', ()
   assert.ok(snapshot.priority > GUIDANCE_PRIORITY.WAITING_FOR_STARTER_REVIEW);
 });
 
-test('4. Starter 3/3 pending makes proof review primary', () => {
+test('4. Starter 5/5 pending makes proof review primary', () => {
   const snapshot = resolvePlayerGuidance(input({
     profile: profile({ onboardingCompleted: false }),
-    entries: ['starter-1', 'starter-2', 'starter-3'].map((missionId, index) => entry({
+    entries: ['starter-1', 'starter-2', 'starter-3', 'starter-4', 'starter-5'].map((missionId, index) => entry({
       id: `pending-${index}`,
       entryId: `pending-${index}`,
       challengeId: missionId,
@@ -642,6 +642,22 @@ test('superseded rejected proof does not stay primary after retry pending', () =
         deckId: 'starter-signals',
         status: 'pending_review',
       }),
+      entry({
+        id: 'starter-4-entry',
+        entryId: 'starter-4-entry',
+        challengeId: 'starter-4',
+        missionId: 'starter-4',
+        deckId: 'starter-signals',
+        status: 'pending_review',
+      }),
+      entry({
+        id: 'starter-5-entry',
+        entryId: 'starter-5-entry',
+        challengeId: 'starter-5',
+        missionId: 'starter-5',
+        deckId: 'starter-signals',
+        status: 'pending_review',
+      }),
     ],
   }));
   assert.equal(snapshot.state, 'WAITING_FOR_STARTER_REVIEW');
@@ -831,15 +847,16 @@ test('fix1: older retried marker + newer rejected keeps Retry primary', () => {
 test('fix2: unseen starter unlock → DECK_COMPLETE; acknowledged → not DECK_COMPLETE', () => {
   assert.equal(isUnseenStarterUnlock({
     starterComplete: true,
-    starterApprovedCount: 3,
-    starterRequiredCount: 3,
+    starterApprovedCount: 1,
     lastSeenApprovedCount: 0,
   }), true);
+  // The ack writes the approved count (1), and the unlock fires at 1
+  // approval, so seeing it once clears it. Comparing against the
+  // 5-card deck size would keep it firing until all 5 were approved.
   assert.equal(isUnseenStarterUnlock({
     starterComplete: true,
-    starterApprovedCount: 3,
-    starterRequiredCount: 3,
-    lastSeenApprovedCount: 3,
+    starterApprovedCount: 1,
+    lastSeenApprovedCount: 1,
   }), false);
 
   const unseen = resolvePlayerGuidance(input({

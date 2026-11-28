@@ -1,4 +1,4 @@
-"""Fetch CC-licensed example photos for the 3 Starter Signals cards via Wikimedia Commons.
+"""Fetch CC-licensed example photos for the 5 Starter Signals cards via Wikimedia Commons.
 
 Writes: public/assets/challenges/starter-N.jpg + scripts/starter-example-photos-manifest.json
 Only accepts 2xx JPEG bytes (magic-checked). Only CC BY, CC BY-SA, CC0, or
@@ -19,6 +19,9 @@ QUERIES = {
     "starter-1": ("sunflower blue sky", "vibrant flowers garden"),
     "starter-2": ("watermelon slice summer", "ice cream cone summer"),
     "starter-3": ("park bench under tree shade", "shady park bench trees"),
+    # Added Nov 27, 2026 (Starter flow redesign: 5 cards, 1 to finish).
+    "starter-4": ("person shadow pavement sunlight", "long shadow sidewalk sun"),
+    "starter-5": ("red door bright color", "colorful painted wall bright"),
 }
 
 # Accept only CC BY / CC BY-SA (any version), CC0, or public domain.
@@ -120,4 +123,4 @@ for card, (q1, q2) in QUERIES.items():
     time.sleep(0.5)
 
 json.dump(manifest, open(MANIFEST, "w"), indent=2)
-print(f"manifest: {len(manifest)}/3 cards")
+print(f"manifest: {len(manifest)}/5 cards")

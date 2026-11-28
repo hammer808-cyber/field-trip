@@ -62,13 +62,13 @@ console.log('RUNNING_STARTER_DECK_STATE_TESTS...');
 
 sameIds(
   eligibleStarterIds(),
-  ['starter-1', 'starter-2', 'starter-3'],
+  ['starter-1', 'starter-2', 'starter-3', 'starter-4', 'starter-5'],
   'brand-new user should be able to draw starter missions, including starter-1'
 );
 
 sameIds(
   eligibleStarterIds([{ userId: 'user-1', missionId: 'starter-1', deckId: 'starter-signals', status: 'pending_review' }]),
-  ['starter-2', 'starter-3'],
+  ['starter-2', 'starter-3', 'starter-4', 'starter-5'],
   'one pending Starter mission should not block drawing other unsubmitted Starter missions'
 );
 
@@ -77,8 +77,8 @@ sameIds(
     { userId: 'user-1', missionId: 'starter-1', deckId: 'starter-signals', status: 'pending_review' },
     { userId: 'user-1', missionId: 'starter-2', deckId: 'starter-signals', status: 'pending_review' },
   ]),
-  ['starter-3'],
-  'two pending Starter missions should leave the third drawable'
+  ['starter-3', 'starter-4', 'starter-5'],
+  'two pending Starter missions should leave the rest drawable'
 );
 
 sameIds(
@@ -86,26 +86,37 @@ sameIds(
     { userId: 'user-1', missionId: 'starter-1', deckId: 'starter-signals', status: 'pending_review' },
     { userId: 'user-1', missionId: 'starter-2', deckId: 'starter-signals', status: 'pending_review' },
     { userId: 'user-1', missionId: 'starter-3', deckId: 'starter-signals', status: 'pending_review' },
+    { userId: 'user-1', missionId: 'starter-4', deckId: 'starter-signals', status: 'pending_review' },
+    { userId: 'user-1', missionId: 'starter-5', deckId: 'starter-signals', status: 'pending_review' },
   ]),
   [],
-  'three pending Starter missions should not be redrawable'
+  'five pending Starter missions should not be redrawable'
 );
 
 {
   const approvedState = canonical([
     { userId: 'user-1', missionId: 'starter-1', deckId: 'starter-signals', status: 'approved' },
-    { userId: 'user-1', missionId: 'starter-2', deckId: 'starter-signals', status: 'approved' },
-    { userId: 'user-1', missionId: 'starter-3', deckId: 'starter-signals', status: 'approved' },
   ]);
   const mirrors = toStarterProfileMirrors(approvedState);
 
-  assert(approvedState.starterComplete === true, 'three approved Starter missions should complete Starter Signals');
-  assert(mirrors.activePlayableDeckId === 'heatwave-receipts', 'three approved Starter missions should unlock next deck');
+  assert(approvedState.starterComplete === true, 'one approved Starter mission should complete Starter Signals');
+  assert(mirrors.activePlayableDeckId === 'heatwave-receipts', 'one approved Starter mission should unlock next deck');
+  assert(approvedState.starterApprovedCount === 1, 'one approval is the whole gate');
+}
+
+{
+  const threeApprovedState = canonical([
+    { userId: 'user-1', missionId: 'starter-1', deckId: 'starter-signals', status: 'approved' },
+    { userId: 'user-1', missionId: 'starter-2', deckId: 'starter-signals', status: 'approved' },
+    { userId: 'user-1', missionId: 'starter-3', deckId: 'starter-signals', status: 'approved' },
+  ]);
+
+  assert(threeApprovedState.starterComplete === true, 'legacy 3/3-approved players stay complete');
 }
 
 sameIds(
   eligibleStarterIds([{ userId: 'user-1', missionId: 'starter-1', deckId: 'starter-signals', status: 'rejected' }]),
-  ['starter-2', 'starter-3'],
+  ['starter-2', 'starter-3', 'starter-4', 'starter-5'],
   'rejected Starter mission should be excluded from normal draw and left to retry path'
 );
 
@@ -113,8 +124,8 @@ sameIds(
   const staleState = canonical(
     [{ userId: 'user-1', missionId: 'starter-1', deckId: 'starter-signals', status: 'rejected' }],
     {
-      submittedChallengeIds: ['starter-1', 'starter-2', 'starter-3'],
-      submittedPendingChallengeIds: ['starter-1', 'starter-2', 'starter-3'],
+      submittedChallengeIds: ['starter-1', 'starter-2', 'starter-3', 'starter-4', 'starter-5'],
+      submittedPendingChallengeIds: ['starter-1', 'starter-2', 'starter-3', 'starter-4', 'starter-5'],
       rejectedChallengeIds: [],
     }
   );

@@ -116,7 +116,7 @@ export const REWARD_REGISTRY: Record<string, RewardMetadata> = {
   camera_ready: { id: 'camera_ready', type: 'sticker', label: 'Camera Ready', description: 'Opened the viewfinder or submitted your first photo proof.', rarity: 'common' },
   first_field_note: { id: 'first_field_note', type: 'sticker', label: 'First Field Note', description: 'Submitted your first written field note.', rarity: 'common' },
   starter_signal_1: { id: 'starter_signal_1', type: 'sticker', label: 'Starter Signal 1', description: 'Your first Starter Signal was approved.', rarity: 'common' },
-  starter_signal_3_complete: { id: 'starter_signal_3_complete', type: 'sticker', label: 'Starter Signals Complete', description: 'All 3 Starter Signals are approved.', rarity: 'uncommon' },
+  starter_signal_3_complete: { id: 'starter_signal_3_complete', type: 'sticker', label: 'Starter Signals Complete', description: 'Your first Starter Signal is approved.', rarity: 'uncommon' },
   dex_discovered: { id: 'dex_discovered', type: 'sticker', label: 'Dex Discovered', description: 'Opened the Dex for the first time.', rarity: 'common' },
   first_vote: { id: 'first_vote', type: 'sticker', label: 'First Vote', description: 'Cast your first successful vote.', rarity: 'common' },
   proof_returned: { id: 'proof_returned', type: 'sticker', label: 'Proof Returned', description: 'A proof was returned for more evidence.', rarity: 'common' },

@@ -231,7 +231,7 @@ function ZineWorkspaceInner({ initialKind = 'personal', showScopeSwitch = true }
           <p className="font-serif italic text-sm text-on-surface/60 max-w-md">
             {kind === 'crew'
               ? 'Join an active Crew and complete Starter Signals. The first eligible member creates the seasonal shell automatically.'
-              : 'Complete all three Starter Signals. Your personal seasonal shell is created automatically.'}
+              : 'Complete one Starter Signal. Your personal seasonal shell is created automatically.'}
           </p>
         </div>
       )}

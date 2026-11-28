@@ -146,7 +146,7 @@ export default function ProfilePage() {
     let base = [...entries];
 
     if (filter === 'starter') {
-      const STARTER_MISSION_IDS = ["starter-1", "starter-2", "starter-3", "starter-signals"];
+      const STARTER_MISSION_IDS = ["starter-1", "starter-2", "starter-3", "starter-4", "starter-5", "starter-signals"];
       base = base.filter(e => {
         const mid = (e.missionId || e.challengeId || '').toLowerCase();
         return STARTER_MISSION_IDS.includes(mid) || mid.startsWith('starter-');

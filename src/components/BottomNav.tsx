@@ -57,7 +57,7 @@ export function BottomNav() {
   const votingUnlocked = canAccessFeature(canonicalProgress, 'voting', { isAdmin });
   // Nov 17, 2026: the Big Board has its own key — it used to ask about
   // 'voting' here while the route gate asked about 'leaderboard', so
-  // parking Voting locked the board in the nav even at 3/3 starters.
+  // parking Voting locked the board in the nav even with the Starter done.
   const leaderboardUnlocked = canAccessFeature(canonicalProgress, 'leaderboard', { isAdmin });
   const crewUnlocked = canAccessFeature(canonicalProgress, 'crew', { isAdmin });
   const basecampLocked = resolveBasecampNavLocked({
@@ -94,10 +94,10 @@ export function BottomNav() {
     /** Plain-language reason shown while the tab is locked. */
     lockedReason?: string;
   }> = [
-    { icon: Home, label: 'BASECAMP', path: '/basecamp', locked: basecampLocked, lockedReason: 'Finish the three starter missions to unlock Basecamp.' },
+    { icon: Home, label: 'BASECAMP', path: '/basecamp', locked: basecampLocked, lockedReason: 'Finish one starter mission to unlock Basecamp.' },
     { icon: Target, label: 'MISSIONS', path: '/missions' },
-    { icon: LayoutGrid, label: 'DEX', path: '/dex', locked: !dexUnlocked, lockedReason: 'Finish the three starter missions to unlock the Dex.' },
-    { icon: Users, label: 'CREWS', path: '/crew', locked: !crewUnlocked, lockedReason: 'Finish the three starter missions to unlock Crews.' },
+    { icon: LayoutGrid, label: 'DEX', path: '/dex', locked: !dexUnlocked, lockedReason: 'Finish one starter mission to unlock the Dex.' },
+    { icon: Users, label: 'CREWS', path: '/crew', locked: !crewUnlocked, lockedReason: 'Finish one starter mission to unlock Crews.' },
     { icon: Vote, label: 'VOTING', path: '/voting', locked: !votingUnlocked, lockedReason: 'Voting is coming soon. It is still in the works.' },
     { icon: Trophy, label: 'BIG BOARD', path: '/big-board' }
   ];
@@ -257,7 +257,7 @@ export function BottomNav() {
         // from `leaderboardUnlocked` (Nov 17 key split), so resolve it here.
         const lockedReason = item.lockedReason
           ?? (itemPathname === '/big-board'
-            ? 'Finish the three starter missions to unlock the Big Board.'
+            ? 'Finish one starter mission to unlock the Big Board.'
             : undefined);
 
         const tabClassName = cn(

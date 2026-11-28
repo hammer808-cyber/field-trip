@@ -26,9 +26,9 @@ export interface PlainCardCopy {
 
 export const PLAIN_CARD_COPY: Record<string, PlainCardCopy> = {
   'starter-1': {
-    plainTitle: 'A Flower or Tree',
-    plainDescription: 'Take a photo of a bright flower, a blue sky, or a shady tree near you.',
-    plainDirections: 'Find a flower, blue sky, or shady tree.\nTake one clear photo of it.\nTap Send.',
+    plainTitle: "What's Around You",
+    plainDescription: 'Take a photo of whatever is around you right now. No wrong answer.',
+    plainDirections: 'Look around you.\nTake one clear photo of what you see.\nTap Send.',
     plainFieldNotePrompt: 'In a few words: what did you take a photo of?',
   },
   'starter-2': {
@@ -42,6 +42,18 @@ export const PLAIN_CARD_COPY: Record<string, PlainCardCopy> = {
     plainDescription: 'Find a cool place to rest, like a room with air conditioning, a shady park bench, or cool water for your feet.',
     plainDirections: 'Find a cool place to rest.\nTake one clear photo of it.\nTap Send.',
     plainFieldNotePrompt: 'In a few words: where is this place, and why is it cool?',
+  },
+  'starter-4': {
+    plainTitle: 'A Shadow',
+    plainDescription: 'Take a photo of a shadow. Yours, a tree\u2019s, a building\u2019s, any shadow counts.',
+    plainDirections: 'Find a shadow.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: whose shadow is it?',
+  },
+  'starter-5': {
+    plainTitle: 'Something Bright',
+    plainDescription: 'Take a photo of something bright, like a red door, a yellow wall, or a blue sign.',
+    plainDirections: 'Find something bright.\nTake one clear photo of it.\nTap Send.',
+    plainFieldNotePrompt: 'In a few words: what color caught your eye?',
   },
   'socal-01': {
     plainTitle: 'Where Water Meets Land',

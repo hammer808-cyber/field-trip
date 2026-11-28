@@ -112,7 +112,7 @@ export function hasCompletedStarterForZine(profile: any): boolean {
     ...(Array.isArray(profile.completedChallengeIds) ? profile.completedChallengeIds : []),
     ...(Array.isArray(profile.completedMissionIds) ? profile.completedMissionIds : []),
   ].map((value) => String(value).toLowerCase().trim()));
-  return STARTER_SIGNAL_IDS.every((id) => approved.has(id));
+  return STARTER_SIGNAL_IDS.some((id) => approved.has(id));
 }
 
 export function normalizeZineStatus(value: unknown): ZineStatus {

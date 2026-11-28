@@ -1,3 +1,5 @@
+import { STARTER_REQUIRED_APPROVALS } from './starterDeckState';
+
 export interface OnboardingDestinationState {
   hasConfirmedLegal: boolean;
   fieldClassificationComplete: boolean;
@@ -16,15 +18,15 @@ export function resolveOnboardingDestination(state: OnboardingDestinationState):
   if (state.activeSubmissionStatus === 'needs_more_proof') {
     return '/missions';
   }
-  // Pre-Starter players land on the deck: flip the card, do the mission,
-  // repeat three times. Basecamp unlocks once the Starter set is approved.
-  if (!state.onboardingCompleted || state.starterApprovedCount < 3) return '/missions';
+  // Pre-Starter players land on the deck: flip the card, do the mission.
+  // Basecamp unlocks once ONE Starter signal is approved.
+  if (!state.onboardingCompleted || state.starterApprovedCount < STARTER_REQUIRED_APPROVALS) return '/missions';
   return '/basecamp';
 }
 
 /**
- * Pre-Starter players live on Missions: Basecamp stays locked until the
- * three Starter missions are approved. Admins bypass the lock. A redirect
+ * Pre-Starter players live on Missions: Basecamp stays locked until ONE
+ * Starter mission is approved. Admins bypass the lock. A redirect
  * here never strands a player — /missions is the deck, and the Starter
  * draw happens there.
  */

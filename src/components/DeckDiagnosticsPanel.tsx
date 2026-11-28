@@ -10,7 +10,7 @@ import { simulateDeckDraw, DeckDrawSimulation } from '../services/deckDiagnostic
 import { cn } from '../lib/utils';
 import { authenticatedFetch } from '../lib/api';
 import { CanonicalProgressSnapshot, ProgressMismatch, getDeckProgress } from '../services/canonicalProgress';
-import { STARTER_SIGNAL_IDS } from '../logic/starterDeckState';
+import { STARTER_SIGNAL_IDS, STARTER_REQUIRED_APPROVALS } from '../logic/starterDeckState';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 
 interface DeckDiagnosticsPanelProps {
@@ -168,17 +168,17 @@ function StarterConflictRows({
   onboardingCompletedCount: number;
   isOnboardingComplete: boolean;
 }) {
-  const starterIds = ['starter-1', 'starter-2', 'starter-3'];
+  const starterIds = [...STARTER_SIGNAL_IDS];
   const approvedStarterIds = starterIds.filter(id => approvedIds.includes(id));
   const submittedStarterIds = starterIds.filter(id => submittedIds.includes(id));
   const profileOnboardingCompleted = !!profile?.onboardingCompleted;
   const starterComplete = !!starterState?.starterComplete;
-  const canonicalStarterComplete = approvedStarterIds.length >= 3;
+  const canonicalStarterComplete = approvedStarterIds.length >= STARTER_REQUIRED_APPROVALS;
   const conflicts = [
     profileOnboardingCompleted !== canonicalStarterComplete && 'profile.onboardingCompleted conflicts with approved starter count',
     isOnboardingComplete !== canonicalStarterComplete && 'isOnboardingComplete conflicts with approved starter count',
     starterComplete !== canonicalStarterComplete && 'starterState.starterComplete conflicts with approved starter count',
-    submittedStarterIds.length >= 3 && approvedStarterIds.length < 3 && 'submittedChallengeIds indicates all starters submitted before approvals are complete'
+    submittedStarterIds.length >= STARTER_REQUIRED_APPROVALS && approvedStarterIds.length < STARTER_REQUIRED_APPROVALS && 'submittedChallengeIds indicates all starters submitted before approvals are complete'
   ].filter(Boolean) as string[];
 
   return (
@@ -189,11 +189,11 @@ function StarterConflictRows({
       </div>
       <Row label="starter approved IDs" value={<IdList values={approvedStarterIds} />} />
       <Row label="starter submitted IDs" value={<IdList values={submittedStarterIds} />} />
-      <Row label="approved >= 3" value={String(canonicalStarterComplete)} warn={!canonicalStarterComplete && (profileOnboardingCompleted || starterComplete)} />
+      <Row label="approved >= 1" value={String(canonicalStarterComplete)} warn={!canonicalStarterComplete && (profileOnboardingCompleted || starterComplete)} />
       <Row label="profile onboardingCompleted" value={String(profileOnboardingCompleted)} warn={profileOnboardingCompleted !== canonicalStarterComplete} />
       <Row label="context isOnboardingComplete" value={String(isOnboardingComplete)} warn={isOnboardingComplete !== canonicalStarterComplete} />
       <Row label="starterState.starterComplete" value={String(starterComplete)} warn={starterComplete !== canonicalStarterComplete} />
-      <Row label="onboarding count" value={`${onboardingCompletedCount} / 3`} />
+      <Row label="onboarding count" value={`${onboardingCompletedCount} / ${STARTER_SIGNAL_IDS.length}`} />
       <Row label="starterState.status" value={starterState?.status || 'unknown'} />
       {conflicts.length > 0 && (
         <div className="mt-3 space-y-1 text-red-200">
@@ -219,7 +219,7 @@ export function DeckDiagnosticsPanel(props: DeckDiagnosticsPanelProps) {
   const submittedPendingChallengeIds = Array.from(props.submittedPendingChallengeIds).map(normalizeId).sort();
   const packMissionIds = props.activePack?.missionIds?.map(normalizeId) || [];
   const canonicalDeckProgress = props.activePack ? getDeckProgress(props.canonicalProgress, props.activePack.packId) : null;
-  const starterCardIds = ['starter-1', 'starter-2', 'starter-3'];
+  const starterCardIds: string[] = [...STARTER_SIGNAL_IDS];
   const starterCards = starterCardIds.map(id => props.missions.find(mission => normalizeId(mission.id || mission.missionId || mission.challengeId) === id) || null);
   const activeStarterCards = starterCards.filter(card => card && normalizeId(card.status || 'available') === 'active');
   const draftStarterCards = starterCards.filter(card => !card || normalizeId(card.status || 'missing') === 'draft');
@@ -425,14 +425,14 @@ export function DeckDiagnosticsPanel(props: DeckDiagnosticsPanelProps) {
             <>
               <div className={cn(
                 "rounded border p-3",
-                activeStarterCards.length < 3 ? "border-red-300/50 bg-red-500/10" : "border-lime-300/30 bg-lime-300/5"
+                activeStarterCards.length < STARTER_SIGNAL_IDS.length ? "border-red-300/50 bg-red-500/10" : "border-lime-300/30 bg-lime-300/5"
               )}>
                 <div className="mb-2 flex items-center gap-2 font-black uppercase tracking-wider text-cyan-200">
                   Starter Inventory
-                  {activeStarterCards.length < 3 && <AlertTriangle className="h-4 w-4 text-red-300" />}
+                  {activeStarterCards.length < STARTER_SIGNAL_IDS.length && <AlertTriangle className="h-4 w-4 text-red-300" />}
                 </div>
                 <Row label="total starter cards" value={String(starterCardIds.length)} />
-                <Row label="active starter cards" value={String(activeStarterCards.length)} warn={activeStarterCards.length < 3} />
+                <Row label="active starter cards" value={String(activeStarterCards.length)} warn={activeStarterCards.length < STARTER_SIGNAL_IDS.length} />
                 <Row label="draft starter cards" value={<IdList values={draftStarterCards.map(card => normalizeId(card?.id || card?.missionId || card?.challengeId) || 'missing')} />} warn={draftStarterCards.length > 0} />
                 <Row label="submitted starter cards" value={<IdList values={submittedStarterCards} />} />
                 <Row label="pending starter cards" value={<IdList values={pendingStarterCards} />} />
@@ -447,8 +447,8 @@ export function DeckDiagnosticsPanel(props: DeckDiagnosticsPanelProps) {
                 <Row label="excluded starter records" value={excludedStarterEntries.length === 0 ? 'none' : <pre className="whitespace-pre-wrap text-[10px] text-white/80">{JSON.stringify(excludedStarterEntries, null, 2)}</pre>} warn={excludedStarterEntries.length > 0} />
                 <Row label="repair available" value={starterCompletionMismatch || excludedStarterEntries.length > 0 ? 'yes - preview first, then apply if needed' : 'not needed'} warn={starterCompletionMismatch} />
                 <Row label="activeTripId" value={props.activeTripId || 'none'} />
-                <Row label="unlock status" value={props.starterState.starterComplete ? 'unlocked' : 'locked until 3 approved Starter Signals'} />
-                {activeStarterCards.length < 3 && (
+                <Row label="unlock status" value={props.starterState.starterComplete ? 'unlocked' : 'locked until 1 approved Starter Signal'} />
+                {activeStarterCards.length < STARTER_SIGNAL_IDS.length && (
                   <div className="mt-3 rounded bg-red-500/15 p-2 text-red-100">
                     Starter deck configuration issue: unpublished cards detected.
                   </div>

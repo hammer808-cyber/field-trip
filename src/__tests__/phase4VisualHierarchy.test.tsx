@@ -272,7 +272,7 @@ test('onboarding defaults use human copy instead of bureau jargon', () => {
 test('submit control carries the field-note counter and lock screens stay one-CTA', () => {
   assert.match(clipboard, /Submit Proof \(\$\{data\.note\.length\}\/10\)/);
   assert.match(clipboard, /Sending\.\.\./);
-  assert.match(gated, /Finish 3 starter missions to open this/);
+  assert.match(gated, /Finish 1 starter mission to open this/);
   assert.match(gated, /Go do a mission/);
 });
 

@@ -1,7 +1,7 @@
 import { getDeckPackById, getActiveDeckPacks } from '../data/deckPacks';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 import type { StarterCompletionState } from '../utils/starterHelper';
-import { buildCanonicalStarterDeckState, STARTER_SIGNAL_IDS } from '../logic/starterDeckState';
+import { buildCanonicalStarterDeckState, STARTER_SIGNAL_IDS, STARTER_REQUIRED_APPROVALS } from '../logic/starterDeckState';
 import type { Entry } from '../constants';
 import type { TripCard } from '../types/challenges';
 import type { UserProfile } from './userService';
@@ -233,7 +233,7 @@ export function buildCanonicalProgress(input: BuildCanonicalProgressInput): Cano
       ? 'NEEDS_MORE_PROOF'
       : canonicalStarterState.rejectedIds.length > 0
         ? 'REJECTED_RETRY_AVAILABLE'
-        : canonicalStarterState.starterSubmittedCount >= STARTER_IDS.length
+        : canonicalStarterState.starterSubmittedCount >= STARTER_REQUIRED_APPROVALS
           ? 'PENDING_REVIEW'
           : canonicalStarterState.starterSubmittedCount > 0 || canonicalStarterState.activeDrawnIds.length > 0
             ? 'IN_PROGRESS'

@@ -345,6 +345,18 @@ export default function Basecamp() {
               </span>
               <span className="ml-auto font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-text)]">Deck shelf →</span>
             </button>
+            {/* Pick a deck (Nov 27, 2026): permanent affordance for every
+                player — the Dex decks shelf, where all the decks live. */}
+            <button
+              type="button"
+              onClick={() => navigate('/dex/decks')}
+              aria-label="Pick a deck. Open the Dex decks shelf."
+              className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 border-2 border-[var(--skin-border)] bg-[var(--skin-surface)] px-4 py-3 text-left shadow-[4px_4px_0_var(--skin-border)] transition-all hover:shadow-[6px_6px_0_var(--skin-border)] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+            >
+              <span className="font-mono text-xs font-black uppercase tracking-[0.22em] text-[var(--skin-text-muted)]">Decks</span>
+              <span className="font-display text-base font-black uppercase italic leading-none tracking-normal text-[var(--skin-text)]">Pick a deck</span>
+              <span className="ml-auto font-mono text-xs font-black uppercase tracking-widest text-[var(--skin-text)]">All decks →</span>
+            </button>
             <BasecampAttentionPanel
               model={viewModel.attention}
               onAction={() => {

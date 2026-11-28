@@ -89,8 +89,12 @@ export function buildPostSubmitStarterGuidance(input: GuidanceInput): PostSubmit
       statusLine: isApprovedStatus(reviewStatus)
         ? 'Your proof was approved.'
         : 'Your proof is waiting for review.',
-      primaryHref: '/missions',
-      primaryLabel: 'Draw Next Mission →',
+      // Post-unlock redirect (Nov 27, 2026, Zach's call): once the game
+      // unlocks after the one Starter card is done, the player goes
+      // straight to picking a deck — the Dex decks shelf — not back to
+      // drawing another Starter mission.
+      primaryHref: '/dex/decks',
+      primaryLabel: 'Pick a deck →',
       sentCount: requiredCount,
       requiredCount,
     };
@@ -124,16 +128,24 @@ export function buildPostSubmitStarterGuidance(input: GuidanceInput): PostSubmit
 
   const allRequiredSent =
     sentCount >= requiredCount
-    || starter.status === 'PENDING_REVIEW';
+    || starter.status === 'PENDING_REVIEW'
+    // A repair that was just re-submitted is waiting for review even
+    // though the deck is not fully sent: the player did the work, the
+    // review is pending, and the stale canonical status may still say
+    // NEEDS_MORE_PROOF until the subscription catches up.
+    || currentRepairResolvedOptimistically;
 
   if (allRequiredSent) {
     return {
       status: 'PENDING_REVIEW',
-      progressLine: `Starter proof ${requiredCount} of ${requiredCount} sent`,
+      // The gate is one approved Starter, not all five sent: sentCount is
+      // the real number of proofs sent (usually 1 while waiting), never
+      // the deck size.
+      progressLine: `Starter proof ${sentCount} of ${requiredCount} sent`,
       statusLine: 'Your proof is waiting for review.',
       primaryHref: '/profile?tab=logbook',
       primaryLabel: 'View proof status',
-      sentCount: requiredCount,
+      sentCount,
       requiredCount,
     };
   }

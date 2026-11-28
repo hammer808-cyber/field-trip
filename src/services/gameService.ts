@@ -14,6 +14,7 @@ import {
   deleteField,
   arrayRemove
 } from 'firebase/firestore';
+import { STARTER_SIGNAL_IDS } from '../logic/starterDeckState';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { logAdminAction } from './moderationService';
 import { ReviewStatus } from '../types/proof';
@@ -688,7 +689,7 @@ export async function checkOnboardingState(userId: string) {
   
   // 1. Fetch relevant entries to check for specific starter IDs
   // STRICTION: Only count APPROVED missions for onboarding completion!
-  const starterIds = ["starter-1", "starter-2", "starter-3"];
+  const starterIds = [...STARTER_SIGNAL_IDS];
   const q = query(
     collection(db, 'entries'),
     where('userId', '==', userId),
@@ -703,9 +704,9 @@ export async function checkOnboardingState(userId: string) {
       return tid ? tid.toLowerCase() : '';
     }));
     
-    const allStartersLogged = starterIds.every(id => loggedStarterIds.has(id.toLowerCase()));
+    const anyStarterLogged = starterIds.some(id => loggedStarterIds.has(id.toLowerCase()));
 
-    if (allStartersLogged) {
+    if (anyStarterLogged) {
       const userSnap = await getDoc(userRef);
       if (userSnap.exists()) {
         const data = userSnap.data();

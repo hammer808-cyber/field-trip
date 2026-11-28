@@ -107,6 +107,7 @@ export interface BasecampProgressModel {
   levelProgressPercent: number;
   starterApprovedCount: number;
   starterRequiredCount: number;
+  starterComplete: boolean;
   starterPercent: number;
   activeDeckId: string;
   activeDeckName: string;
@@ -353,6 +354,7 @@ function buildProgress(input: BuildBasecampViewModelInput, activeDeckId: string)
     levelProgressPercent: xpProgress.progressPercent,
     starterApprovedCount: starter.starterApprovedCount,
     starterRequiredCount: starter.starterRequiredCount,
+    starterComplete: starter.starterComplete,
     starterPercent: starter.percent,
     activeDeckId,
     activeDeckName: deck.deckName,
@@ -614,7 +616,6 @@ export function buildBasecampViewModel(input: BuildBasecampViewModelInput): Base
     hasUnseenStarterUnlock: isUnseenStarterUnlock({
       starterComplete: starter.starterComplete,
       starterApprovedCount: starter.starterApprovedCount,
-      starterRequiredCount: starter.starterRequiredCount,
       lastSeenApprovedCount: input.profile?.trevorSettings?.lastSeenApprovedCount,
     }),
     // Deck-complete one-shot + ranking inputs (Nov 20, 2026): Basecamp.tsx

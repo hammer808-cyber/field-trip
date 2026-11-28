@@ -93,7 +93,7 @@ export const DeckPackSelector: React.FC<DeckPackSelectorProps> = ({ selectedPack
       let reason = "";
       if (!isSummerDeckUnlocked && !isAdmin) {
         if (!isOnboardingComplete) {
-          reason = "Complete Starter Pack (3/3 missions) to unlock";
+          reason = "Complete 1 Starter mission to unlock";
         } else if (!activeByDate) {
           reason = `Season starts ${new Date(activePacks.find(p => p.packId ==='heatwave-receipts')?.startsAt || '').toLocaleDateString()}`;
         }

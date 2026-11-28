@@ -1,3 +1,4 @@
+import { STARTER_SIGNAL_IDS, STARTER_REQUIRED_APPROVALS } from '../logic/starterDeckState';
 import { 
   collection, 
   collectionGroup, 
@@ -1164,7 +1165,7 @@ export async function getStarterProgress(userId: string) {
   );
   const snap = await getDocs(q);
   
-  const STARTER_MISSION_IDS = ["starter-1", "starter-2", "starter-3"];
+  const STARTER_MISSION_IDS = [...STARTER_SIGNAL_IDS];
   
   const approvedIds = new Set(
     snap.docs
@@ -1183,7 +1184,7 @@ export async function getStarterProgress(userId: string) {
       })
   );
   
-  const isComplete = approvedIds.size >= 3;
+  const isComplete = approvedIds.size >= STARTER_REQUIRED_APPROVALS;
   logDev(`Starter signals calculated. Approved: ${approvedIds.size}. Completed: ${isComplete}`);
   return {
     approvedCount: approvedIds.size,

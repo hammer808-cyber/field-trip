@@ -25,7 +25,7 @@ export default function VotingBallotPage() {
         backgroundIcon={<Vote className="h-64 w-64" />}
         infoCardLabel="Status"
         infoCardValue={isVotingUnlocked ? 'Open' : 'Locked'}
-        infoCardSubtext={isVotingUnlocked ? 'Cast your votes' : `${starterProgress.starterApprovedCount}/3 starter missions`}
+        infoCardSubtext={isVotingUnlocked ? 'Cast your votes' : `${starterProgress.starterApprovedCount}/5 starter missions`}
         infoCardAccent={isVotingUnlocked ? 'orange' : 'pink'}
       />
       <PlayerPageBody>

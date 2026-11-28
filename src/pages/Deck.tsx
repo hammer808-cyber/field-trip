@@ -51,6 +51,16 @@
 // the resolution reason is stored on the drawn card doc. No query,
 // tier, radius, scoring, or draw change. The freeze stands for
 // everything else.
+// ONE-OFF LIFT (Nov 27, 2026, Zach's word — Starter flow redesign):
+// the 3-card gate was too much ("people aren't doing it"). The Starter
+// deck is now FIVE cards and ONE approved Starter signal finishes the
+// flow and opens the game. Starter-1 is rewritten as "What's Around
+// You" (take a picture of what's around you) and is always the first
+// draw (AppContext drawTrip forces it for a fresh Starter player).
+// Starter counts in this file (pending display, deck-complete check,
+// recommended-trip fallback, launch screen "1 of 5") now read the new
+// gate. Nothing else on this page changes; the freeze stands for
+// everything else.
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import { useApp } from '../context/AppContext';
@@ -75,6 +85,7 @@ import { DeckLibrary } from '../components/DeckLibrary';
 import { FrankieModeCard } from '../components/FrankieModeCard';
 import { DeckStack } from '../components/DeckStack';
 import { getDefaultDeckPack, getDeckPackById, normalizeDeckPackId } from '../data/deckPacks';
+import { STARTER_SIGNAL_IDS, STARTER_REQUIRED_APPROVALS } from '../logic/starterDeckState';
 import { getDeckCoverImage, BASE_DECK_PLACEHOLDER } from '../lib/deckUtils';
 import { getWeeklyBonusForWeek } from '../data/weeklyBonuses';
 import { StickerBackground } from '../components/StickerBackground';
@@ -466,9 +477,9 @@ export default function DeckPage() {
   const starterNeedsMoreProofId = starterProgress.needsMoreProofMissionId;
   const starterRejectedId = starterProgress.rejectedMissionId;
   
-  const isCurrentActiveStarter = activeTrip && ['starter-1', 'starter-2', 'starter-3', 'starter-signals', 'onboarding-mission'].includes(activeTrip.id.toLowerCase().trim());
+  const isCurrentActiveStarter = activeTrip && [...STARTER_SIGNAL_IDS, 'starter-signals', 'onboarding-mission'].includes(activeTrip.id.toLowerCase().trim());
   
-  const isHeatwaveUnlockedForUI = isHeatwaveDeckUnlocked && (isOnboardingComplete || starterApproved >= 3);
+  const isHeatwaveUnlockedForUI = isHeatwaveDeckUnlocked && (isOnboardingComplete || starterApproved >= STARTER_REQUIRED_APPROVALS);
 
   const activeDeckProgress = activePack
     ? getDeckProgress(canonicalProgress, activePack.packId)
@@ -479,8 +490,8 @@ export default function DeckPage() {
   
   const completedDeckChallengesCount = approvedDeckChallengesCount + pendingDeckChallengesCount;
   
-  const isDeckCompleted = isStarter && starterApproved < 3 
-    ? false 
+  const isDeckCompleted = isStarter && starterApproved < STARTER_REQUIRED_APPROVALS
+    ? false
     : (totalDeckChallenges > 0 && approvedDeckChallengesCount === totalDeckChallenges);
   const isDeckSubmitted = totalDeckChallenges > 0 && completedDeckChallengesCount === totalDeckChallenges;
 
@@ -498,9 +509,9 @@ export default function DeckPage() {
   const isStarterConfigurationBlocked = isStarter && poolResult.reason === 'unpublished_cards_blocked';
   
   // Rule 1 & Rule 2 for Starter Deck:
-  // - Pending review should only show if ALL starters are submitted but not yet 3 approved.
+  // - Pending review should only show if a starter is submitted but not yet 1 approved.
   // - allow sequential draws if available cards exist.
-  const isStarterPending = isStarter && starterApproved < 3 && starterSubmittedCount >= 3;
+  const isStarterPending = isStarter && starterApproved < STARTER_REQUIRED_APPROVALS && starterSubmittedCount >= STARTER_REQUIRED_APPROVALS;
 
   // Seasonal/Evergreen Rules:
   // Allow multiple pending missions unless a limit is hit or the deck is actually out of missions.
@@ -857,7 +868,7 @@ export default function DeckPage() {
     // to avoid "empty" state on first load before sync
     // PRIORITY: If onboarding is active, pick first incomplete starter
     if (!isOnboardingComplete) {
-      const starterIds = ["starter-1", "starter-2", "starter-3"];
+      const starterIds: string[] = [...STARTER_SIGNAL_IDS];
       recommendedTrip = trips.find(t => starterIds.includes(t.id.toLowerCase()) && !isUnavailable(t.id)) || null;
     }
     
@@ -943,7 +954,7 @@ export default function DeckPage() {
              {getDisplayLabel('TRANSMISSION_RECEIVED')}
            </div>
            <h1 className="font-display text-3xl sm:text-4xl font-black uppercase italic tracking-tighter leading-none">Your Mission</h1>
-           <p className="text-on-surface/50 font-mono text-[10px] uppercase tracking-[0.2em] font-black">Starter 1 of 3</p>
+           <p className="text-on-surface/50 font-mono text-[10px] uppercase tracking-[0.2em] font-black">Starter 1 of 5</p>
         </div>
 
         <div className="w-full max-w-[320px] sm:max-w-sm relative z-10">

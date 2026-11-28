@@ -1,3 +1,4 @@
+import { STARTER_SIGNAL_IDS, STARTER_REQUIRED_APPROVALS } from '../logic/starterDeckState';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { countsTowardStarterProgress, isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
@@ -35,7 +36,7 @@ export async function getStarterProgress(userId: string): Promise<StarterProgres
   const [snap1, snap2] = await Promise.all([getDocs(qUid), getDocs(qUserId)]);
   const allEntries = [...snap1.docs, ...snap2.docs].map(d => ({ id: d.id, ...d.data() }));
 
-  const STARTER_MISSION_IDS = ["starter-1", "starter-2", "starter-3"];
+  const STARTER_MISSION_IDS: string[] = [...STARTER_SIGNAL_IDS];
   
   const approved = new Set<string>();
   const pending = new Set<string>();
@@ -82,7 +83,7 @@ export async function getStarterProgress(userId: string): Promise<StarterProgres
   const finalRejected = Array.from(rejected).filter(id => STARTER_MISSION_IDS.includes(id));
 
   const starterApprovedCount = finalApproved.length;
-  const starterComplete = starterApprovedCount >= 3;
+  const starterComplete = starterApprovedCount >= STARTER_REQUIRED_APPROVALS;
 
   return {
     starterApprovedCount,

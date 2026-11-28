@@ -199,7 +199,7 @@ export function doesBonusApplyToSubmission(
       // Heatwave deck or tag summer or id matches
       const isSummerDeck = (challenge as any).packId === 'heatwave-receipts' || 
                            challenge.tags?.some((t: string) => t.toLowerCase().includes('summer')) ||
-                           (challenge.id && !['starter-1', 'starter-2', 'starter-3'].includes(challenge.id));
+                           (challenge.id && !['starter-1', 'starter-2', 'starter-3', 'starter-4', 'starter-5'].includes(challenge.id));
       return !!isSummerDeck;
 
     case 'bonus-noontime-sync':

@@ -32,15 +32,15 @@ const gate = () => read('src/components/StarterGate.tsx');
 
 test('P1-1: every locked nav tab carries a lockedReason (BASECAMP pattern extended)', () => {
   const n = nav();
-  assert.match(n, /label: 'BASECAMP', path: '\/basecamp', locked: basecampLocked, lockedReason: 'Finish the three starter missions to unlock Basecamp\.'/);
-  assert.match(n, /label: 'DEX', path: '\/dex', locked: !dexUnlocked, lockedReason: 'Finish the three starter missions to unlock the Dex\.'/);
-  assert.match(n, /label: 'CREWS', path: '\/crew', locked: !crewUnlocked, lockedReason: 'Finish the three starter missions to unlock Crews\.'/);
+  assert.match(n, /label: 'BASECAMP', path: '\/basecamp', locked: basecampLocked, lockedReason: 'Finish one starter mission to unlock Basecamp\.'/);
+  assert.match(n, /label: 'DEX', path: '\/dex', locked: !dexUnlocked, lockedReason: 'Finish one starter mission to unlock the Dex\.'/);
+  assert.match(n, /label: 'CREWS', path: '\/crew', locked: !crewUnlocked, lockedReason: 'Finish one starter mission to unlock Crews\.'/);
   assert.match(n, /label: 'VOTING', path: '\/voting', locked: !votingUnlocked, lockedReason: 'Voting is coming soon\. It is still in the works\.'/);
   // BIG BOARD has no `locked`/`lockedReason` on the item (its lock comes
   // from `leaderboardUnlocked`, the Nov 17 key split) — the reason is
   // resolved in the map body instead.
   assert.match(n, /const lockedReason = item\.lockedReason/);
-  assert.match(n, /itemPathname === '\/big-board'\s*\?\s*'Finish the three starter missions to unlock the Big Board\.'/);
+  assert.match(n, /itemPathname === '\/big-board'\s*\?\s*'Finish one starter mission to unlock the Big Board\.'/);
 });
 
 test('P1-1: a locked tab renders as a button, not a link, and never navigates', () => {

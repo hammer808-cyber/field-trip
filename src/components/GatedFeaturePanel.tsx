@@ -1,6 +1,7 @@
 import { ArrowLeft, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getStarterProgress } from '../services/canonicalProgress';
+import { STARTER_REQUIRED_APPROVALS } from '../logic/starterDeckState';
 import { useApp } from '../context/AppContext';
 
 export type GatedFeatureName = 'Voting' | 'Dex' | 'Big Board' | 'Loteria' | 'Crew' | 'Zines';
@@ -28,7 +29,9 @@ export function GatedFeaturePanel({
   const { canonicalProgress } = useApp();
   const starter = getStarterProgress(canonicalProgress);
   const approved = starter.starterApprovedCount;
-  const required = starter.starterRequiredCount;
+  // The gate is approvals (1), not the 5-card deck size. This panel only
+  // renders while locked, so approved is 0 here.
+  const required = STARTER_REQUIRED_APPROVALS;
 
   return (
     <div className="flex min-h-[70vh] items-center justify-center p-4" data-testid="gated-feature-panel">
@@ -49,7 +52,7 @@ export function GatedFeaturePanel({
         ) : (
           <>
             <p className="mx-auto mt-4 max-w-sm font-sans text-sm font-bold text-on-surface/80">
-              Finish 3 starter missions to open this.
+              Finish 1 starter mission to open this.
             </p>
             <p className="mx-auto mt-2 font-mono text-xs font-black uppercase tracking-widest text-on-surface/60">
               {approved} of {required} approved

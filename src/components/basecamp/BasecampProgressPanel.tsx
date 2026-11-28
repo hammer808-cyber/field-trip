@@ -69,7 +69,7 @@ export function BasecampProgressPanel({ model, onOpenProfile, markerStickerId }:
               {model.starterApprovedCount}/{model.starterRequiredCount}
             </p>
             <p className="text-xs text-[var(--skin-text-muted)]">
-              {model.starterApprovedCount >= model.starterRequiredCount ? 'unlocked' : 'working toward unlock'}
+              {model.starterComplete ? 'unlocked' : 'working toward unlock'}
             </p>
             <div className="mt-2 h-2 overflow-hidden border border-[var(--skin-border)] bg-[var(--skin-surface)]" role="progressbar" aria-label="Starter Signals progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(model.starterPercent)}>
               <div className="h-full bg-[var(--skin-secondary)]" style={{ width: `${model.starterPercent}%` }} />

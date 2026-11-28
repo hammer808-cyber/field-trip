@@ -1,5 +1,6 @@
 import type { FieldTypeId } from '../constants/fieldTypes';
 import { isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
+import { STARTER_REQUIRED_APPROVALS } from '../logic/starterDeckState';
 import { getLevelProgress } from '../logic/playerLevel';
 import { missionHasProgress } from '../logic/playerGuidance';
 import type { DeckPack } from '../types/deckPacks';
@@ -275,7 +276,11 @@ export function buildTrevorContext(input: TrevorContextInput): TrevorContext {
     starterSubmittedCount,
     starterComplete,
     hasUnseenStarterUnlock: starterComplete
-      && toNonNegativeInteger(profile?.trevorSettings?.lastSeenApprovedCount, 0) < starterRequiredCount,
+      // The unlock fires at 1 approval, so the ack (which writes the
+      // approved count) clears it at 1. Comparing against the 5-card
+      // deck size would keep the celebration firing until all 5 were
+      // approved.
+      && toNonNegativeInteger(profile?.trevorSettings?.lastSeenApprovedCount, 0) < STARTER_REQUIRED_APPROVALS,
     level: levelProgress.level,
     levelTitle: levelProgress.title,
     currentXp: levelProgress.xp,

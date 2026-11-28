@@ -410,8 +410,10 @@ export default function CapturePage() {
   // Retired guide flags
   
   const isStarterMission = !!(currentTrip?.id && [
-    'starter-2', 
-    'starter-3', 
+    'starter-2',
+    'starter-3',
+    'starter-4',
+    'starter-5',
     LAUNCH_MISSION_ID.toLowerCase()
   ].includes(currentTrip.id.toLowerCase()));
   const isStarterTrainingActive = !isOnboardingComplete && isStarterMission;

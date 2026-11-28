@@ -24,7 +24,7 @@ import { getMissionImage } from '../utils/missionImages';
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 test('every starter card has an example photo that exists on disk', () => {
-  assert.equal(STARTER_MISSION_BANK.length, 3, 'expected 3 starter cards');
+  assert.equal(STARTER_MISSION_BANK.length, 5, 'expected 5 starter cards');
   for (const card of STARTER_MISSION_BANK) {
     const image = (card as { image?: string }).image;
     assert.ok(image, `${card.id} has no image field`);

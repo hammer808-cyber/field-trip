@@ -63,8 +63,8 @@ export const SERVER_DISCOVERY_ALLOWLIST = [
 export type DiscoveryAwardKey = (typeof SERVER_DISCOVERY_ALLOWLIST)[number];
 
 /**
- * Keys whose awards are HELD until the starter is done (3/3 starter
- * missions approved). The four camera/note keys were already held
+ * Keys whose awards are HELD until the starter is done (1 starter
+ * mission approved). The four camera/note keys were already held
  * client-side; the five pre-starter-firing keys are held here too, so the
  * "View in Dex" modal can never point a fresh player at the locked Dex.
  */

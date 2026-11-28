@@ -1,4 +1,5 @@
 import type { TrevorContext } from '../services/trevorContextService';
+import { STARTER_REQUIRED_APPROVALS } from '../logic/starterDeckState';
 import type {
   ResolvedTrevorRecommendation,
   TrevorMessageKey,
@@ -27,7 +28,7 @@ const TREVOR_DIALOGUE: Readonly<Record<TrevorMessageKey, readonly string[]>> = {
   ],
   starter_incomplete: [
     'Draw your next Starter mission. {starterRemaining} left.',
-    'Starter progress is {starterApprovedCount}/{starterRequiredCount}. Draw the next one.',
+    'Starter progress is {starterApprovedCount}/{starterApprovalsToComplete}. Draw the next one.',
   ],
   starter_pending: [
     'Your Starter proofs are in review. Check the Logbook.',
@@ -98,7 +99,8 @@ export function renderTrevorDialogue(
 }
 
 function getDialogueReplacements(context: TrevorContext): Record<string, string> {
-  const starterRemaining = Math.max(0, context.starterRequiredCount - context.starterApprovedCount);
+  // Approvals left to finish the Starter (1), not cards left in the 5-card deck.
+  const starterRemaining = Math.max(0, STARTER_REQUIRED_APPROVALS - context.starterApprovedCount);
   return {
     xp: context.xpToNextLevel.toLocaleString(),
     rank: String(context.weeklyRank ?? ''),
@@ -113,6 +115,7 @@ function getDialogueReplacements(context: TrevorContext): Record<string, string>
     starterPlural: starterRemaining === 1 ? '' : 's',
     starterApprovedCount: String(context.starterApprovedCount),
     starterRequiredCount: String(context.starterRequiredCount),
+    starterApprovalsToComplete: String(STARTER_REQUIRED_APPROVALS),
     proofType: readableToken(context.repeatedProofType || 'photo'),
     profileField: readableToken(context.missingProfileFields[0] || 'profile details'),
     zineGap: readableToken(context.zineContentGaps[0] || 'field material'),

@@ -45,7 +45,7 @@ export const DISCOVERY_STICKERS: DiscoverySticker[] = [
   {
     id: 'starter_signal_3_complete',
     name: 'Starter Signals Complete',
-    description: 'All 3 Starter Signals are approved.',
+    description: 'Your first Starter Signal is approved.',
     iconName: 'ShieldCheck',
     rarity: 'uncommon',
     unlockType: 'achievement',

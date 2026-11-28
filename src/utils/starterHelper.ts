@@ -2,6 +2,7 @@ import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { Entry } from '../types/game';
 import { countsTowardStarterProgress, normalizeEntryStatus } from '../logic/entryLogic';
+import { STARTER_SIGNAL_IDS, STARTER_REQUIRED_APPROVALS } from '../logic/starterDeckState';
 
 export interface StarterCompletionState {
   starterApprovedCount: number;
@@ -39,7 +40,7 @@ export function calculateStarterState(
   if (!userId) {
     return {
       starterApprovedCount: 0,
-      starterRequiredCount: 3,
+      starterRequiredCount: STARTER_SIGNAL_IDS.length,
       starterComplete: false,
       pendingStarterCount: 0,
       retryStarterCount: 0,
@@ -57,7 +58,7 @@ export function calculateStarterState(
 
   // Clean IDs used for comparison
   const targetDeckId = (activeStarterDeckId || 'starter-signals').toLowerCase().trim();
-  const STARTER_MISSION_IDS = ["starter-1", "starter-2", "starter-3", "starter-signals", "onboarding-mission", "starter-mission"];
+  const STARTER_MISSION_IDS = [...STARTER_SIGNAL_IDS, "starter-signals", "onboarding-mission", "starter-mission"];
   const STARTER_MISSION_IDS_SET = new Set(STARTER_MISSION_IDS.map(id => id.toLowerCase()));
 
   // 1. Filter submissions belonging to the user
@@ -117,8 +118,8 @@ export function calculateStarterState(
 
   // Calculate unique approved:
   const starterApprovedCount = approvedStarterMissions.size;
-  const starterRequiredCount = 3;
-  const starterComplete = starterApprovedCount >= starterRequiredCount;
+  const starterRequiredCount = STARTER_SIGNAL_IDS.length;
+  const starterComplete = starterApprovedCount >= STARTER_REQUIRED_APPROVALS;
 
   // Subtract already approved from pending/rejected/needs_more_proof to avoid duplicates
   pendingStarterMissions.forEach(m => {
@@ -149,7 +150,7 @@ export function calculateStarterState(
     status = 'NEEDS_MORE_PROOF';
   } else if (retryStarterCount > 0) {
     status = 'REJECTED_RETRY_AVAILABLE';
-  } else if (submittedUniqueCount >= 3 && starterApprovedCount < 3) {
+  } else if (submittedUniqueCount >= STARTER_REQUIRED_APPROVALS && starterApprovedCount < STARTER_REQUIRED_APPROVALS) {
     status = 'PENDING_REVIEW';
   } else if (starterApprovedCount === 0 && pendingStarterCount === 0 && !activeMissionId) {
     status = 'NOT_STARTED';
@@ -183,7 +184,7 @@ export async function getStarterCompletionState(userId: string): Promise<Starter
   if (!userId) {
     return {
       starterApprovedCount: 0,
-      starterRequiredCount: 3,
+      starterRequiredCount: STARTER_SIGNAL_IDS.length,
       starterComplete: false,
       pendingStarterCount: 0,
       retryStarterCount: 0,
@@ -262,7 +263,7 @@ export async function getStarterCompletionState(userId: string): Promise<Starter
     console.error("Error in getStarterCompletionState:", error);
     return {
       starterApprovedCount: 0,
-      starterRequiredCount: 3,
+      starterRequiredCount: STARTER_SIGNAL_IDS.length,
       starterComplete: false,
       pendingStarterCount: 0,
       retryStarterCount: 0,

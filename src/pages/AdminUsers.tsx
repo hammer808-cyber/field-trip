@@ -325,7 +325,7 @@ export default function AdminUsers() {
                       >
                         <span className="block font-bold text-sm">{displayPlayerName(player)}</span>
                         <span className="block text-xs text-on-surface/60">
-                          {player.email || 'No email'} · {shortUid(player.uid)} · {player.starterApprovedCount}/3 starters · {player.totalXP} XP
+                          {player.email || 'No email'} · {shortUid(player.uid)} · {player.starterApprovedCount}/5 starters · {player.totalXP} XP
                         </span>
                       </button>
                     </li>
@@ -344,7 +344,7 @@ export default function AdminUsers() {
                     {selectedPlayer.email || 'No email'} · UID {selectedPlayer.uid}
                   </p>
                   <p className="text-xs text-on-surface/60 mt-1">
-                    {selectedPlayer.starterApprovedCount}/3 starters · {selectedPlayer.totalXP} XP ·{' '}
+                    {selectedPlayer.starterApprovedCount}/5 starters · {selectedPlayer.totalXP} XP ·{' '}
                     {ownedLoading ? 'Loading stickers…' : `Owns ${ownedIds.size} / ${totalStickers} stickers`}
                   </p>
                 </div>

@@ -103,8 +103,8 @@ export default function FieldTypeResult() {
   };
 
   // P1-2 (Nov 20, 2026): the destination copy must match handleStartApp.
-  // Pre-starter players land on /missions — Basecamp is locked until all
-  // three starters are approved — so only a starter-complete player ever
+  // Pre-starter players land on /missions — Basecamp is locked until one
+  // starter is approved — so only a starter-complete player ever
   // sees "Basecamp" as the destination.
   const startDestination = starterState?.starterComplete ? 'Basecamp' : 'Missions';
 
@@ -125,7 +125,7 @@ export default function FieldTypeResult() {
       }
       
       // Pre-starter players live on the deck now (Nov 17, 2026): Missions
-      // is home until the three starters are approved; Basecamp is locked.
+      // is home until one starter is approved; Basecamp is locked.
       const destination = starterState?.starterComplete ? '/basecamp' : '/missions';
       console.log(`[FieldTypeResult] Routing to ${destination}...`);
       navigate(destination);

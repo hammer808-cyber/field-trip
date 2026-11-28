@@ -1,3 +1,4 @@
+import { STARTER_REQUIRED_APPROVALS } from '../logic/starterDeckState';
 import { doc, updateDoc, deleteField, serverTimestamp, collection, query, where, getDocs, writeBatch } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
 import { logAdminAction } from "./moderationService";
@@ -84,7 +85,7 @@ export async function auditAndRepairUserCounts(userId: string, dryRun: boolean =
   
   const repairData = {
     "starterState.starterApprovedCount": starterEntries.length,
-    "starterState.starterComplete": starterEntries.length >= 3,
+    "starterState.starterComplete": starterEntries.length >= STARTER_REQUIRED_APPROVALS,
     "stats.totalApproved": approvedEntries.length,
     lastAuditAt: serverTimestamp()
   };

@@ -794,7 +794,7 @@ test('state matrix: exactly one button per destination on Basecamp', () => {
       status: 'pending_review',
     }),
   ];
-  const threeStarterSubmitted = ['starter-1', 'starter-2', 'starter-3'].map((missionId, index) => entry({
+  const fiveStarterSubmitted = ['starter-1', 'starter-2', 'starter-3', 'starter-4', 'starter-5'].map((missionId, index) => entry({
     id: `starter-entry-${index + 1}`,
     entryId: `starter-entry-${index + 1}`,
     challengeId: missionId,
@@ -831,7 +831,7 @@ test('state matrix: exactly one button per destination on Basecamp', () => {
     },
     {
       state: 'WAITING_FOR_STARTER_REVIEW',
-      model: buildBasecampViewModel(input({ entries: threeStarterSubmitted })),
+      model: buildBasecampViewModel(input({ entries: fiveStarterSubmitted })),
     },
     {
       state: 'DRAW_MISSION',

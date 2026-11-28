@@ -164,7 +164,7 @@ import {
 } from '../services/canonicalProgress';
 
 const STARTER_COMPLETION_REWARD_ACK_KEY = 'fieldtrip_starter_completion_reward_ack';
-import { buildCanonicalStarterDeckState, STARTER_SIGNAL_IDS } from '../logic/starterDeckState';
+import { buildCanonicalStarterDeckState, STARTER_SIGNAL_IDS, STARTER_REQUIRED_APPROVALS, FIRST_STARTER_CARD_ID, shouldForceFirstStarterDraw } from '../logic/starterDeckState';
 
 import { 
   DrawnMissionCard, 
@@ -530,7 +530,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const fieldTokens = completedChallengeIds.size;
 
   // 2. Onboarding Requirements (The Ignored Place, Starter-2, Starter-3 / Any Unique Completed Missions)
-  const ONBOARDING_IDS = React.useMemo(() => ["starter-1", "starter-2", "starter-3"], []);
+  const ONBOARDING_IDS = React.useMemo(() => [...STARTER_SIGNAL_IDS], []);
 
   const completedOnboardingMissionIds = React.useMemo(() => {
     // STRICTION: For Summer unlock, only use APPROVED completed challenges
@@ -553,7 +553,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ? 'NEEDS_MORE_PROOF'
         : canonicalStarterDeckState.rejectedIds.length > 0
           ? 'REJECTED_RETRY_AVAILABLE'
-          : canonicalStarterDeckState.starterSubmittedCount >= STARTER_SIGNAL_IDS.length
+          : canonicalStarterDeckState.starterSubmittedCount >= STARTER_REQUIRED_APPROVALS
             ? 'PENDING_REVIEW'
             : canonicalStarterDeckState.starterSubmittedCount > 0 || canonicalStarterDeckState.activeDrawnIds.length > 0
               ? 'IN_PROGRESS'
@@ -802,7 +802,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     currentDate: seasonClockNow,
   };
 
-  // Hard Gating: isHeatwaveDeckUnlocked requires ALL approved starter missions AND current date in summer.
+  // Hard Gating: isHeatwaveDeckUnlocked requires the Starter gate (1 approved mission) AND current date in summer.
   // Seasonal calendar (Nov 21, 2026): Heatwave is playable only in
   // meteorological summer (Jun 1–Aug 31 PT) — not from its Jun 6 launch
   // date onward with no end. There is deliberately no "has progress, stay
@@ -844,6 +844,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     Object.values(canonicalProgress.deckProgressById).forEach(deck => {
       if (deck.totalCards > 0 && deck.approvedCount >= deck.totalCards) completed.push(deck.deckId);
     });
+    // Starter gate (Nov 27, 2026): the Starter is complete at 1 approval,
+    // not at 5/5 cards, so 'starter-signals' counts as a completed
+    // prerequisite for the decks that require it as soon as the gate
+    // flips. Without this, 1 approval would unlock the features but
+    // leave every starter-gated deck locked until all 5 were approved.
+    if (canonicalProgress.starter.starterComplete && !completed.includes('starter-signals')) {
+      completed.push('starter-signals');
+    }
     return completed;
   }, [canonicalProgress]);
 
@@ -1992,7 +2000,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       unlockDiscoverySticker('starter_signal_1', 'starter').catch(err => console.warn('starter_signal_1 sticker failed:', err));
       unlockDiscoverySticker('receipt_approved', 'starter').catch(err => console.warn('receipt_approved sticker failed:', err));
     }
-    if (onboardingCompletedCount >= 3) {
+    if (onboardingCompletedCount >= STARTER_REQUIRED_APPROVALS) {
       unlockDiscoverySticker('starter_signal_3_complete', 'starter').catch(err => console.warn('starter_signal_3_complete sticker failed:', err));
       unlockDiscoverySticker('crew_unlocked', 'starter').catch(err => console.warn('crew_unlocked sticker failed:', err));
       unlockDiscoverySticker('memories_unlocked', 'starter').catch(err => console.warn('memories_unlocked sticker failed:', err));
@@ -2399,7 +2407,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       finalPool = eligiblePool;
     }
 
-    const selectedId = finalPool.length > 0 ? (drawTripLogic(finalPool as any) as any)?.id : null;
+    // Deterministic first draw (Nov 27, 2026, Zach's call): a player fresh
+    // to the Starter deck ALWAYS draws starter-1 ("take a picture of
+    // what's around you") first — never random. Fresh means no Starter
+    // submissions, no active drawn Starter card, and no Starter card drawn
+    // before. Once any Starter card is drawn or submitted, draws are
+    // normal. The Scene Starter first_draw hook below still fires on this
+    // draw (drawnMissionCards is empty, so isFirstDraw is true).
+    const drawnStarterIds = drawnMissionCards
+      .map(card => (card.missionId || card.challengeId || '').toLowerCase())
+      .filter(id => (STARTER_SIGNAL_IDS as readonly string[]).includes(id));
+    const forceFirstStarterDraw = shouldForceFirstStarterDraw({
+      isStarterPackDraw,
+      submittedStarterIds: canonicalStarterDeckState.submittedIds,
+      activeDrawnStarterIds: canonicalStarterDeckState.activeDrawnIds,
+      drawnStarterIds,
+    });
+    const selectedId = forceFirstStarterDraw && finalPool.some(t => t.id === FIRST_STARTER_CARD_ID)
+      ? FIRST_STARTER_CARD_ID
+      : finalPool.length > 0 ? (drawTripLogic(finalPool as any) as any)?.id : null;
 
     // 5. DEEP LOGGING as requested
     const nullReason = finalPool.length === 0

@@ -137,9 +137,9 @@ export default function CollectionPage() {
       const activeByDate = new Date(currentDate) >= new Date('2026-06-06T00:00:00Z');
       
       if (!isHeatwaveDeckUnlocked && !isAdmin) {
-        if (!isStarterComplete) return { locked: true, reason: "Complete Starter Pack (3/3 missions) to unlock" };
+        if (!isStarterComplete) return { locked: true, reason: "Complete 1 Starter mission to unlock" };
         if (!activeByDate) return { locked: true, reason: "Opens Saturday, June 6th" };
-        return { locked: true, reason: "Complete Starter Pack (3/3 missions) to unlock" };
+        return { locked: true, reason: "Complete 1 Starter mission to unlock" };
       }
       return { locked: false, reason: "" };
     }

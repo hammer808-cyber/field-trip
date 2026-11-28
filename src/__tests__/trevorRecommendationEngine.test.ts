@@ -66,6 +66,20 @@ test('incomplete Starter Signals recommends the next Starter action', () => {
   assert.equal(recommendation?.primaryAction.id, 'draw_starter');
 });
 
+test('one submitted Starter proof in review waits for review (starter_pending, not draw-next)', () => {
+  const recommendation = getTrevorRecommendation(context({
+    experienceStage: 'starter',
+    starterApprovedCount: 0,
+    starterSubmittedCount: 1,
+    starterComplete: false,
+    pendingProofCount: 1,
+    accessibleDeckIds: ['starter-signals'],
+    recommendedDeckId: 'starter-signals',
+  }));
+  assert.equal(recommendation?.id, 'starter_pending');
+  assert.equal(recommendation?.primaryAction.id, 'open_logbook');
+});
+
 test('an active Starter mission is resumed before another draw', () => {
   const recommendation = getTrevorRecommendation(context({
     experienceStage: 'starter',

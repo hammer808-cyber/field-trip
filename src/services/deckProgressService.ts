@@ -12,6 +12,7 @@ import {
 import { db } from '../lib/firebase';
 import { countsTowardStarterProgress, isArchivedEntry, normalizeEntryStatus } from '../logic/entryLogic';
 import { getDeckPackById } from '../data/deckPacks';
+import { STARTER_REQUIRED_APPROVALS } from '../logic/starterDeckState';
 
 export interface DeckProgress {
   deckId: string;
@@ -147,7 +148,11 @@ export async function getUserDeckProgress(userId: string, deckId: string): Promi
 
     const approvedCount = approvedIds.size;
     const pendingCount = pendingIds.size;
-    const isComplete = approvedCount >= 3; // Gated at 3 approved starter missions
+    // Starter gate (Nov 27, 2026): one approved Starter signal finishes the
+    // Starter deck. Any other deck completes when every card is approved.
+    const isComplete = deckId === 'starter-signals'
+      ? approvedCount >= STARTER_REQUIRED_APPROVALS
+      : approvedCount >= totalMissions;
 
     // Calculate available: other missions in this deck not approved, pending, nor currently active
     const availableMissions = missionIds.filter(id => 
@@ -220,9 +225,9 @@ export function getDeckDisplayState(progress: DeckProgress): DeckDisplayState {
   const pending = progress.pending || 0;
   const active = progress.active || 0;
   const available = progress.available || 0;
-  const isComplete = approved >= 3;
+  const isComplete = progress.isComplete === true || approved >= STARTER_REQUIRED_APPROVALS;
 
-  // Rule 6: COMPLETE (Only if approved >= 3)
+  // Rule 6: COMPLETE (Only if the Starter gate is met: 1 approved)
   if (isComplete) {
     return {
       state: 'COMPLETE',
@@ -267,12 +272,12 @@ export function getDeckDisplayState(progress: DeckProgress): DeckDisplayState {
   }
 
   // Rule 3: PENDING_REVIEW
-  // Condition: approved < 3 and pending > 0 and no drawable starter missions currently available
-  if (approved < 3 && pending > 0 && available === 0) {
+  // Condition: approved < 1 and pending > 0 and no drawable starter missions currently available
+  if (approved < STARTER_REQUIRED_APPROVALS && pending > 0 && available === 0) {
     return {
       state: 'PENDING_REVIEW',
       uiLabel: 'Starter proofs under review',
-      progressLabel: `${approved} / 3 approved`,
+      progressLabel: `${approved} / ${progress.totalMissions} approved`,
       subtext: `${pending} signal${pending !== 1 ? 's' : ''} currently under review.`,
       primaryAction: 'Awaiting Assessment',
       canUnlockSummer: false
@@ -280,11 +285,11 @@ export function getDeckDisplayState(progress: DeckProgress): DeckDisplayState {
   }
 
   // Rule 2: IN_PROGRESS
-  // Condition: approved < 3 and we still have available missions left to draw
+  // Condition: approved < 1 and we still have available missions left to draw
   return {
     state: 'IN_PROGRESS',
     uiLabel: 'Starter in progress',
-    progressLabel: `${approved} / 3 approved`,
+    progressLabel: `${approved} / ${progress.totalMissions} approved`,
     subtext: 'Go find the thing, snap a pic, and tell Trevor what happened.',
     primaryAction: 'Draw Starter Card',
     canUnlockSummer: false

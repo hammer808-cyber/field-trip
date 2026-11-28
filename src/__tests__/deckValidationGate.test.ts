@@ -16,8 +16,8 @@ import { isStarterScoringMission } from '../logic/proofRubric';
  */
 const CARDS = [...ALL_CHALLENGE_CARDS];
 
-test('registry holds 153 unique cards across the nine decks', () => {
-  assert.equal(CARDS.length, 153, `expected 153 cards, got ${CARDS.length}`);
+test('registry holds 155 unique cards across the nine decks', () => {
+  assert.equal(CARDS.length, 155, `expected 155 cards, got ${CARDS.length}`);
   const ids = CARDS.map(card => String(card.id));
   assert.equal(new Set(ids).size, ids.length, 'duplicate card ids in registry');
   const decks = new Set(CARDS.map(card => String(card.deckId)));
@@ -51,19 +51,28 @@ test('every card carries the full canonical shape', () => {
   }
 });
 
+// The one any-photo card: starter-1 ("What's Around You") takes a picture
+// of whatever is around the player, so there is no subject for the AI
+// check to verify. Its proofRequirements stay structurally present
+// (empty subjects, zero threshold) and the AI check falls back to the
+// card title. Every other card must carry a real subject.
+const ANY_PHOTO_CARD_IDS = new Set(['starter-1']);
+
 test('every card has proofRequirements the AI check can actually use', () => {
   for (const card of CARDS) {
     const id = String(card.id);
     const reqs = card.proofRequirements;
     assert.ok(reqs, `${id}: missing proofRequirements`);
-    assert.ok(
-      Array.isArray(reqs!.requiredSubjects) && reqs!.requiredSubjects.length > 0,
-      `${id}: proofRequirements.requiredSubjects is empty`,
-    );
-    assert.ok(
-      typeof reqs!.minConfidence === 'number' && reqs!.minConfidence > 0 && reqs!.minConfidence <= 1,
-      `${id}: bad minConfidence ${String(reqs!.minConfidence)}`,
-    );
+    if (!ANY_PHOTO_CARD_IDS.has(id)) {
+      assert.ok(
+        Array.isArray(reqs!.requiredSubjects) && reqs!.requiredSubjects.length > 0,
+        `${id}: proofRequirements.requiredSubjects is empty`,
+      );
+      assert.ok(
+        typeof reqs!.minConfidence === 'number' && reqs!.minConfidence > 0 && reqs!.minConfidence <= 1,
+        `${id}: bad minConfidence ${String(reqs!.minConfidence)}`,
+      );
+    }
     assert.equal(typeof reqs!.requireLocation, 'boolean', `${id}: requireLocation not a boolean`);
     assert.equal(typeof reqs!.requireTimestamp, 'boolean', `${id}: requireTimestamp not a boolean`);
     // Time-of-day window (Nov 21, 2026): when present, start/end are
@@ -109,7 +118,7 @@ test('live award rule: the max is the card\'s own point value', () => {
     );
   }
   const starters = CARDS.filter(card => isStarterScoringMission(card as any));
-  assert.equal(starters.length, 3, `expected 3 starter cards, got ${starters.length}`);
+  assert.equal(starters.length, 5, `expected 5 starter cards, got ${starters.length}`);
   assert.ok(
     starters.every(card => Number(card.baseXP) === 100),
     'starter cards should all carry baseXP 100',

@@ -180,16 +180,15 @@ test('pending Starter submissions do not unlock The Errand Deck', () => {
   assert.equal(pool.eligibleMissions.length, 0);
 });
 
-test('three approved Starter Signals unlock all 15 Errand cards', () => {
+test('one approved Starter Signal unlocks all 15 Errand cards', () => {
   assert.ok(errandDeck);
   const approvedProgress = buildCanonicalProgress({
     userId: 'user-1',
     profile: { id: 'user-1' } as any,
-    entries: ['starter-1', 'starter-2', 'starter-3'].map(id => starterEntry(id, 'approved')),
+    entries: ['starter-1'].map(id => starterEntry(id, 'approved')),
     pendingEntries: [],
   });
-  const starterProgress = getDeckProgress(approvedProgress, 'starter-signals');
-  const completedDeckIds = starterProgress.approvedCount === starterProgress.totalCards
+  const completedDeckIds = approvedProgress.starter.starterComplete
     ? ['starter-signals']
     : [];
 
